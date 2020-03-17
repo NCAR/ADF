@@ -1,0 +1,12 @@
+#example_namelist.yaml
+
+#This is an example CAM diagnostics namelist file,
+#which includes examples of each type of allowed input,
+#along with a short description of what the input does.
+
+#Currently this file can be used directly to test the
+#diagnostics on either the NCAR Cheyenne or Casper machines.
+#Other systems will require slight modifications, which are
+#labeled in the comments below.
+
+#Good luck!
