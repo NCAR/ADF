@@ -1,0 +1,8 @@
+# Ignore compiled python
+*.pyc
+
+# Ignore editor temporaries and backups
+*~
+.#*
+\#*#
+*.swp
