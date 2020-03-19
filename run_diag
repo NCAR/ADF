@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-'''
+"""
 script: run_diag
 
 goal:  To allow a user to easily run the CAM diagnostics package from
@@ -20,18 +20,58 @@ be posted.  However, feel free to search the forums for similar issues
 (and possible solutions) without needing to register or sign in.
 
 Good luck, and may all your plots be helpful!
-'''
+"""
 
-#+++++++++++++++++++++
-#Import python modules
-#+++++++++++++++++++++
+#++++++++++++++++++++++++++++++
+#Import standard python modules
+#++++++++++++++++++++++++++++++
 
+import os
 import sys
 import argparse
 
-###############################
+#+++++++++++++++++++++++++++++
+#Import CAM diagnostics module
+#+++++++++++++++++++++++++++++
+
+#Determine local directory path:
+_LOCAL_PATH = os.path.dirname(os.path.abspath(__file__))
+
+#Add lib directory to path:
+_DIAG_LIB_PATH = os.path.join(_LOCAL_PATH,"lib")
+
+#Check that path actually exists:
+if os.path.isdir(_DIAG_LIB_PATH):
+    #If true, then add to Python path:
+    sys.path.append(_DIAG_LIB_PATH)
+else:
+    #If not, then raise error:
+    raise FileNotFoundError("'./lib' directory not found. Has 'run_diag' been moved?")
+
+#Import CAM diagnostics object:
+from CamDiag import CamDiag
+
+#################
+#Helper functions
+#################
+
+#++++++++++++++++++++++++++++++++
+#Script message and exit function
+#++++++++++++++++++++++++++++++++
+
+def end_script(msg):
+
+    """
+    Prints message, and then exits script.
+    """
+
+    print("\n")
+    print(msg)
+    sys.exit(1)
+
+#++++++++++++++++++++++++++++++
 #Input argument parser function
-###############################
+#++++++++++++++++++++++++++++++
 
 def parse_arguments():
 
@@ -69,9 +109,7 @@ if __name__ == "__main__":
     #+++++++++++++++++++++++++++++++++++++++++
 
     if sys.version_info[0] < 3:
-        errmsg = "Script only works with Python 3. Please switch python versions."
-        print(errmsg, file=sys.stderr)
-        sys.quit(1)
+        end_script("Script only works with Python 3. Please switch python versions.")
 
     #++++++++++++++++++++++++++++
     #Parse command-line arguments
@@ -87,9 +125,13 @@ if __name__ == "__main__":
     #++++++++++++++++++++++++++++++++
 
     #CONTINUE HERE!!
+    diag = CamDiag(namelist_yaml)
+
+    #Create plots:
+    diag.create_plots()
 
     #+++++++++++++++
     #End diag script
     #+++++++++++++++
     print('CAM diagnostics has completed successfully.')
-
+    sys.exit(0)
