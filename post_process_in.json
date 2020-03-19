@@ -1,0 +1,6 @@
+{
+    "input_loc"  : "/glade/scratch/jcaron/archive/f2000.v211.fv1d.trop.L42.1/atm/hist",
+    "file_desc"  : "*.cam.h0.*",
+    "output_loc" : "/glade/scratch/brianpm/post_process/f2000.v211.fv1d.trop.L42.1",
+    "variables"  : ["SWCF", "LWCF"]
+}
