@@ -26,7 +26,7 @@ Good luck, and may all your plots be helpful!
 #Import standard python modules
 #++++++++++++++++++++++++++++++
 
-import os
+import os.path
 import sys
 import argparse
 
@@ -51,23 +51,12 @@ else:
 #Import CAM diagnostics object:
 from CamDiag import CamDiag
 
+#Import CAM diagnostics exiting script:
+from CamDiag import end_diag_script
+
 #################
 #Helper functions
 #################
-
-#++++++++++++++++++++++++++++++++
-#Script message and exit function
-#++++++++++++++++++++++++++++++++
-
-def end_script(msg):
-
-    """
-    Prints message, and then exits script.
-    """
-
-    print("\n")
-    print(msg)
-    sys.exit(1)
 
 #++++++++++++++++++++++++++++++
 #Input argument parser function
@@ -102,14 +91,14 @@ if __name__ == "__main__":
     #+++++++++++++++++++++
     #Begin CAM diag script
     #+++++++++++++++++++++
-    print('CAM diagnostics is starting.')
+    print('CAM diagnostics is starting...')
 
     #+++++++++++++++++++++++++++++++++++++++++
     #Check that python is version 3 or greater
     #+++++++++++++++++++++++++++++++++++++++++
 
     if sys.version_info[0] < 3:
-        end_script("Script only works with Python 3. Please switch python versions.")
+        end_diag_script("Script only works with Python 3. Please switch python versions.")
 
     #++++++++++++++++++++++++++++
     #Parse command-line arguments
@@ -124,7 +113,6 @@ if __name__ == "__main__":
     #Call main CAM diagnostics method
     #++++++++++++++++++++++++++++++++
 
-    #CONTINUE HERE!!
     diag = CamDiag(namelist_yaml)
 
     #Create plots:
