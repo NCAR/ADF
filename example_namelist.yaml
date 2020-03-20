@@ -1,3 +1,4 @@
+#-------------------------------
 #example_namelist.yaml
 
 #This is an example CAM diagnostics namelist file,
@@ -10,3 +11,77 @@
 #labeled in the comments below.
 
 #Good luck!
+#--------------------------------
+
+#This first set of variables specify basic info required by all diagnostic runs:
+diag_basic_info:
+  #Is this a model vs observations comparison?
+  #If "false", then a model-model comparison is assumed:
+  compare_obs: true
+  #Location of observational climatologies (only matters if "compare_obs" is true):
+  #NOTE: How the observational data sets will be managed long-term needs to be discussed at some point!
+  obs_climo_loc: "/glade/work/brianpm/observations/climo_files"
+  #Location of CAM climatologies:
+  cam_climo_loc: "/glade/scratch/nusbaume/cam_diag_climo_files"
+  #Location of baseline CAM cliimatologies (only matters if "compare_obs" is false):
+  cam_baseline_climo_loc: "/some/where/you/want/to/have/it"
+
+#This second set of variables specify whether CAM climatologies need to be calculated:
+diag_cam_climo:
+  #Calculate cam climatologies?
+  calc_cam_climo: true
+  #Location of CAM history (h0) files:
+  cam_hist_loc: "/glade/scratch/jcaron/archive/f2000.v211.fv1d.trop.L42.1/atm/hist"
+  #model year when climatology should start:
+  start_year: 2000
+  #model year when diagnostics should end:
+  end_year: 2010
+  #Save interim time series files?
+  #WARNING:  This can take up a significant amount of space:
+  cam_ts_save: true
+  #Location where time series files will be stored:
+  cam_ts_loc: "/glade/scratch/nusbaume/cam_diag_ts_files"
+
+
+#This third set of variables specify whether CAM baseline climatologies need to be calculated
+#This only matters if "compare_obs" is false:
+diag_cam_baseline_climo:
+  #Calculate cam climatologies?
+  calc_bl_cam_climo: false
+  #Location of CAM history (h0) files:
+  cam_bl_hist_loc: "/where/ever/you/want"
+  #model year when climatology should start:
+  bl_start_year: 1850
+  #model year when diagnostics should end:
+  bl_end_year: 2100
+  #Save interim time series files for baseline run?
+  #WARNING:  This can take up a significant amount of space:
+  cam_bl_ts_save: false
+  #Location where time series files will be stored:
+  cam_bl_ts_loc: "/another/location/on/computer"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
+#These variables below only matter if you are using
+#a non-standard method, or are adding your own
+#diagnostic scripts.
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#Name of time-averaging script being used.
+#This script must be located in "scripts/averaging"
+averaging_script: "averaging_example.py"
+
+#Name of regridding script being used.
+#This script must be located in "scripts/regridding"
+regridding_script: "regrid_example.py"
+
+#List of plotting scripts being used,
+#These scripts must be located in "scripts/plotting"
+plotting_scripts:
+ - plot_example.py
+
+#List of CAM variables that will be processesd:
+diag_var_list:
+ - SWCF
+ - LWCF
+
+#END OF FILE
