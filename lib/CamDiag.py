@@ -13,6 +13,9 @@ plotting methods themselves.
 
 import sys
 import os.path
+import glob
+from pathlib import Path
+import subprocess
 
 #Check if "PyYAML" is present in python path:
 try:
@@ -145,6 +148,83 @@ class CamDiag:
 
         #Add CAM variable list:
         self.__diag_var_list = read_namelist_obj(namelist, 'diag_var_list')
+
+    #########
+
+    def create_time_series(self, baseline=False):
+
+        """
+        Generate time series versions of the CAM history file data.
+        """
+
+        #Check if baseline time-series files are being created:
+        if baseline:
+            #Then use the CAM baseline climo dictionary:
+            cam_climo_dict = self.__cam_bl_climo_info
+        else:
+            #If not, then just extract the standard CAM climo dictionary:
+            cam_climo_dict = self.__cam_climo_info
+
+        #Check if climatologies are being calculated:
+        if cam_climo_dict['calc_cam_climo']:
+
+            #Extract case name:
+            case_name = cam_climo_dict['cam_case_name']
+
+            #Extract cam time series directory:
+            ts_dir = cam_climo_dict['cam_ts_loc']
+
+            #Extract cam variable list:
+            var_list = self.__diag_var_list
+
+            #Create path object for the CAM history file(s) location:
+            starting_location = Path(cam_climo_dict['cam_hist_loc'])
+
+            #Create ordered list of CAM history files:
+            hist_files = sorted(list(starting_location.glob('*.cam.h0.*')))
+
+            #Check that CAM history files exist.  If not then kill script:
+            if not hist_files:
+                msg = "No CAM history (h0) files found in {}.  Script is ending here."
+                end_diag_script(msg)
+
+            #Check if time series directory exists, and if not, then create it:
+            if not os.path.isdir(ts_dir):
+                print("{} not found, making new directory".format(ts_dir))
+                os.mkdir(ts_dir)
+
+            #Loop over CAM history variables:
+            for var in var_list:
+
+                #Create full path name:
+                ts_outfil_str = ts_dir + os.sep + case_name + \
+                              ".ncrcat."+var+".nc"
+
+                #Check if files already exist in time series directory:
+                ts_file_list = glob.glob(ts_outfil_str)
+
+                #If files exist, then check if over-writing is allowed:
+                if ts_file_list:
+                    if not cam_climo_dict['cam_overwrite_ts']:
+                        #If not, then simply skip this variable:
+                        continue
+
+                #Generate filename without suffix:
+                first_in  = Path(hist_files[0])
+                case_spec = first_in.stem
+
+                #Notify user of new time series file:
+                print("Creating new time series file for {}".format(var))
+
+                #Run "ncrcat" command to generate time series file:
+                cmd = ["ncrcat", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
+                subprocess.run(cmd)
+
+        else:
+            #If not, then notify user that time series generation is skipped.
+            print("Climatology files are not being generated, so neither will time series files.")
+
+    #########
 
     def create_plots(self):
 

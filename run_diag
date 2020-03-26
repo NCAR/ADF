@@ -93,12 +93,15 @@ if __name__ == "__main__":
     #+++++++++++++++++++++
     print('CAM diagnostics is starting...')
 
-    #+++++++++++++++++++++++++++++++++++++++++
-    #Check that python is version 3 or greater
-    #+++++++++++++++++++++++++++++++++++++++++
+    #+++++++++++++++++++++++++++++++++++++++++++
+    #Check that python is version 3.4 or greater
+    #+++++++++++++++++++++++++++++++++++++++++++
 
     if sys.version_info[0] < 3:
         end_diag_script("Script only works with Python 3. Please switch python versions.")
+
+    if sys.version_info[1] < 4:
+        end_diag_script("Script only works with Python version 3.4 or greater.  Please update python.")
 
     #++++++++++++++++++++++++++++
     #Parse command-line arguments
@@ -109,11 +112,20 @@ if __name__ == "__main__":
     #Extract YAML namelist file name/path:
     namelist_yaml = args.namelist
 
-    #++++++++++++++++++++++++++++++++
-    #Call main CAM diagnostics method
-    #++++++++++++++++++++++++++++++++
+    #+++++++++++++++++++++++++++++++++
+    #Call main CAM diagnostics methods
+    #+++++++++++++++++++++++++++++++++
 
+    #Initalize CAM diagnostics object:
     diag = CamDiag(namelist_yaml)
+
+    #Create CAM time series:
+    diag.create_time_series()
+
+    #Create CAM baseline time series (if needed):
+    #NOTE:  Need to create a 'compare_obs' "property" for this object before thi works properly -JN
+    #if not diag.__basic_info['compare_obs']:
+    #    diag.create_time_series(baseline=True)
 
     #Create plots:
     diag.create_plots()

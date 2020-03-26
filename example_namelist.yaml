@@ -29,7 +29,10 @@ diag_basic_info:
 #This second set of variables specify whether CAM climatologies need to be calculated:
 diag_cam_climo:
   #Calculate cam climatologies?
+  #If false, neither the climatology or time-series files will be created
   calc_cam_climo: true
+  #Name of CAM case (or CAM run name):
+  cam_case_name: f2000.v211.fv1d.trop.L42.1
   #Location of CAM history (h0) files:
   cam_hist_loc: /glade/scratch/jcaron/archive/f2000.v211.fv1d.trop.L42.1/atm/hist
   #model year when climatology should start:
@@ -39,26 +42,34 @@ diag_cam_climo:
   #Save interim time series files?
   #WARNING:  This can take up a significant amount of space:
   cam_ts_save: true
-  #Location where time series files will be stored:
-  cam_ts_loc: /glade/scratch/nusbaume/cam_diag_ts_files
-
+  #Overwrite time series files, if found?
+  #If set to false, then time series creation will be skipped if files are found:
+  cam_overwrite_ts: false
+  #Location where time series files are (or will be) stored:
+  cam_ts_loc: /glade/scratch/nusbaume/cam_diag_ts_files/f2000.v211.fv1d.trop.L42.1
 
 #This third set of variables specify whether CAM baseline climatologies need to be calculated
 #This only matters if "compare_obs" is false:
 diag_cam_baseline_climo:
-  #Calculate cam climatologies?
-  calc_bl_cam_climo: false
+  #Calculate cam baseline climatologies?
+  #If false, neither the climatology or time-series files will be created
+  calc_cam_climo: false
+  #Name of CAM baseline case (or CAM baseline run name):
+  cam_case_name: best.cam_run-ever
   #Location of CAM history (h0) files:
-  cam_bl_hist_loc: /where/ever/you/want
+  cam_hist_loc: /where/ever/you/want
   #model year when climatology should start:
-  bl_start_year: 1850
+  start_year: 1850
   #model year when diagnostics should end:
-  bl_end_year: 2100
+  end_year: 2100
   #Save interim time series files for baseline run?
   #WARNING:  This can take up a significant amount of space:
-  cam_bl_ts_save: false
-  #Location where time series files will be stored:
-  cam_bl_ts_loc: /another/location/on/computer
+  cam_ts_save: false
+  #Overwrite baseline time series files, if found?
+  #If set to false, then time series creation will be skipped if files are found:
+  cam_overwrite_ts: false
+  #Location where time series files are (or will be) stored:
+  cam_ts_loc: /another/location/on/computer
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 #These variables below only matter if you are using
@@ -74,7 +85,7 @@ averaging_script: averaging_example
 #This script must be located in "scripts/regridding"
 regridding_script: regrid_example
 
-#List of plotting scripts being used,
+#List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting"
 plotting_scripts:
  - plot_example
