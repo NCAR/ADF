@@ -123,9 +123,19 @@ if __name__ == "__main__":
     diag.create_time_series()
 
     #Create CAM baseline time series (if needed):
-    #NOTE:  Need to create a 'compare_obs' "property" for this object before thi works properly -JN
-    #if not diag.__basic_info['compare_obs']:
-    #    diag.create_time_series(baseline=True)
+    if not diag.compare_obs:
+        diag.create_time_series(baseline=True)
+
+    #Create CAM climatology (climo) files.
+    #This call uses the "time_averaging_script" specified
+    #in the namelist file:
+    diag.create_climo()
+
+    #Create CAM baseline climatology files (if needed).
+    #This call uses the "time_averaging_script" specified
+    #in the namelist file:
+    if not diag.compare_obs:
+        diag.create_climo(baseline=True)
 
     #Create plots:
     diag.create_plots()

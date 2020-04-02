@@ -16,6 +16,7 @@ import os.path
 import glob
 from pathlib import Path
 import subprocess
+import importlib
 
 #Check if "PyYAML" is present in python path:
 try:
@@ -72,10 +73,15 @@ def read_namelist_obj(namelist_obj, varname):
     namelist object,and if so returns it.
     """
 
+    #Attempt to read in YAML namelist variable:
     try:
         var = namelist_obj[varname]
     except:
        raise KeyError("'{}' not found in namelist file.  Please see 'example_namelist.yaml'.".format(varname))
+
+    #Check that namelist varaible is not empty (None):
+    if var is None:
+        raise NameError("'{}' has not been set to a value. Please see 'example_namelist.yaml'.".format(varname))
 
     #return variable/list/dictionary:
     return var
@@ -138,7 +144,7 @@ class CamDiag:
                 raise KeyError("'calc_bl_cam_climo' in 'diag_cam_baseline_climo' not found in namelist file.  Please see 'example_namelist.yaml'.")
 
         #Add averaging script name:
-        self.__averaging_script = read_namelist_obj(namelist, 'averaging_script')
+        self.__time_averaging_script = read_namelist_obj(namelist, 'time_averaging_script')
 
         #Add regridding script name:
         self.__regridding_script = read_namelist_obj(namelist, 'regridding_script')
@@ -148,6 +154,12 @@ class CamDiag:
 
         #Add CAM variable list:
         self.__diag_var_list = read_namelist_obj(namelist, 'diag_var_list')
+
+    # Create property needed to return "compare_obs" logical to user:
+    @property
+    def compare_obs(self):
+        """Return the "compare_obs" logical to user if requested"""
+        return self.__basic_info['compare_obs']
 
     #########
 
@@ -223,6 +235,48 @@ class CamDiag:
         else:
             #If not, then notify user that time series generation is skipped.
             print("Climatology files are not being generated, so neither will time series files.")
+
+    #########
+
+    def create_climo(self, baseline=False):
+
+        """
+        Temporally average CAM time series data
+        in order to generate CAM climatologies.
+
+        The actual averaging is done using the
+        "time_averaging_script" specified in the
+        namelist.  This is done so that the user
+        can specify the precise kind of averaging
+        that is done (e.g. weighted vs. non-weighted
+        averaging).
+        """
+
+        #Extract name of time-averaging script:
+        avg_func_name = self.__time_averaging_script
+
+        #Add file suffix to script name (to help with the file search):
+        avg_script = avg_func_name+'.py'
+
+        #Create full path to averaging script:
+        avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
+
+        #Check that file exists in "scripts/averaging" directory:
+        if not os.path.exists(avg_script_path):
+            msg = "time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
+            end_diag_script(msg)
+
+        #Create averaging script import statement:
+        avg_func_import_statement = "from {} import {}".format(avg_func_name, avg_func_name)
+
+        #Run averaging script import statement:
+        exec(avg_func_import_statement)
+
+        #Create actual function call:
+        avg_func = avg_func_name+'()'
+
+        #Evaluate (run) averaging script function:
+        eval(avg_func)
 
     #########
 
