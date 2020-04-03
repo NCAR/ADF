@@ -14,9 +14,10 @@ plotting methods themselves.
 import sys
 import os.path
 import glob
-from pathlib import Path
 import subprocess
 import importlib
+
+from pathlib import Path
 
 #Check if "PyYAML" is present in python path:
 try:
@@ -24,6 +25,14 @@ try:
 except ImportError:
     print("PyYAML module does not exist in python path.")
     print("Please install module, e.g. 'pip install pyyaml'.")
+    sys.exit(1)
+
+#Check if "xarray" is present in python path:
+try:
+    import xarray as xr
+except ImportError:
+    print("xarray module does not exist in python path.")
+    print("Please install module, e.g. 'pip install xarray'.")
     sys.exit(1)
 
 #+++++++++++++++++++++++++++++
@@ -180,6 +189,9 @@ class CamDiag:
         #Check if climatologies are being calculated:
         if cam_climo_dict['calc_cam_climo']:
 
+            #Notify user that script has started:
+            print("  Generating CAM time series files...")
+
             #Extract case name:
             case_name = cam_climo_dict['cam_case_name']
 
@@ -232,9 +244,12 @@ class CamDiag:
                 cmd = ["ncrcat", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
                 subprocess.run(cmd)
 
+            #Notify user that script has ended:
+            print("  ...CAM time series file generation has finished successfully.")
+
         else:
             #If not, then notify user that time series generation is skipped.
-            print("Climatology files are not being generated, so neither will time series files.")
+            print("  Climatology files are not being generated, so neither will time series files.")
 
     #########
 
@@ -252,31 +267,57 @@ class CamDiag:
         averaging).
         """
 
-        #Extract name of time-averaging script:
-        avg_func_name = self.__time_averaging_script
+        #Check if CAM Baselines are being calculated:
+        if baseline:
+            #If so, then use the CAM baseline climo dictionary:
+            cam_climo_dict = self.__cam_bl_climo_info
+        else:
+            #If not, then just extract the standard CAM climo dictionary:
+            cam_climo_dict = self.__cam_climo_info
 
-        #Add file suffix to script name (to help with the file search):
-        avg_script = avg_func_name+'.py'
+        #Check if users wants climatologies to be calculated:
+        if cam_climo_dict['calc_cam_climo']:
 
-        #Create full path to averaging script:
-        avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
+            #If so, then extract name of time-averaging script:
+            avg_func_name = self.__time_averaging_script
 
-        #Check that file exists in "scripts/averaging" directory:
-        if not os.path.exists(avg_script_path):
-            msg = "time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
-            end_diag_script(msg)
+            #Add file suffix to script name (to help with the file search):
+            avg_script = avg_func_name+'.py'
 
-        #Create averaging script import statement:
-        avg_func_import_statement = "from {} import {}".format(avg_func_name, avg_func_name)
+            #Create full path to averaging script:
+            avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
 
-        #Run averaging script import statement:
-        exec(avg_func_import_statement)
+            #Check that file exists in "scripts/averaging" directory:
+            if not os.path.exists(avg_script_path):
+                msg = "time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
+                end_diag_script(msg)
 
-        #Create actual function call:
-        avg_func = avg_func_name+'()'
+            #Create averaging script import statement:
+            avg_func_import_statement = "from {} import {}".format(avg_func_name, avg_func_name)
 
-        #Evaluate (run) averaging script function:
-        eval(avg_func)
+            #Run averaging script import statement:
+            exec(avg_func_import_statement)
+
+            #Extract necessary variables from CAM namelist dictionary:
+            case_name    = cam_climo_dict['cam_case_name']
+            input_ts_loc = cam_climo_dict['cam_ts_loc']
+            var_list     = self.__diag_var_list
+
+            if baseline:
+                output_loc = self.__basic_info['cam_baseline_climo_loc']
+            else:
+                output_loc = self.__basic_info['cam_climo_loc']
+
+            #Create actual function call:
+            avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list)'
+
+            #Evaluate (run) averaging script function:
+            eval(avg_func)
+
+        else:
+            #If not, then notify user that climo file generation is skipped.
+            print("  No climatology files were requested by user, so averaging will be skipped.")
+
 
     #########
 

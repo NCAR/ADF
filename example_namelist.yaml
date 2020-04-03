@@ -22,7 +22,7 @@ diag_basic_info:
   #NOTE: How the observational data sets will be managed long-term needs to be discussed at some point!
   obs_climo_loc: /glade/work/brianpm/observations/climo_files
   #Location of CAM climatologies:
-  cam_climo_loc: /glade/scratch/nusbaume/cam_diag_climo_files
+  cam_climo_loc: /glade/scratch/nusbaume/cam_diag_climo_files/f2000.v211.fv1d.trop.L42.1
   #Location of baseline CAM cliimatologies (only matters if "compare_obs" is false):
   cam_baseline_climo_loc: /some/where/you/want/to/have/it
 
