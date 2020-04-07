@@ -152,11 +152,11 @@ class CamDiag:
             except:
                 raise KeyError("'calc_bl_cam_climo' in 'diag_cam_baseline_climo' not found in namelist file.  Please see 'example_namelist.yaml'.")
 
-        #Add averaging script name:
-        self.__time_averaging_script = read_namelist_obj(namelist, 'time_averaging_script')
+        #Add averaging script names:
+        self.__time_averaging_scripts = read_namelist_obj(namelist, 'time_averaging_scripts')
 
-        #Add regridding script name:
-        self.__regridding_script = read_namelist_obj(namelist, 'regridding_script')
+        #Add regridding script names:
+        self.__regridding_scripts = read_namelist_obj(namelist, 'regridding_scripts')
 
         #Add plotting script names:
         self.__plot_scripts = read_namelist_obj(namelist, 'plotting_scripts')
@@ -214,7 +214,7 @@ class CamDiag:
 
             #Check if time series directory exists, and if not, then create it:
             if not os.path.isdir(ts_dir):
-                print("{} not found, making new directory".format(ts_dir))
+                print("    {} not found, making new directory".format(ts_dir))
                 os.mkdir(ts_dir)
 
             #Loop over CAM history variables:
@@ -238,7 +238,7 @@ class CamDiag:
                 case_spec = first_in.stem
 
                 #Notify user of new time series file:
-                print("Creating new time series file for {}".format(var))
+                print("    Creating new time series file for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
                 cmd = ["ncrcat", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
@@ -260,11 +260,11 @@ class CamDiag:
         in order to generate CAM climatologies.
 
         The actual averaging is done using the
-        "time_averaging_script" specified in the
-        namelist.  This is done so that the user
-        can specify the precise kind of averaging
-        that is done (e.g. weighted vs. non-weighted
-        averaging).
+        scripts listed under "time_averaging_scripts"
+        as specified in the namelist.  This is done
+        so that the user can specify the precise kinds
+        of averaging that are done (e.g. weighted vs.
+        non-weighted averaging).
         """
 
         #Check if CAM Baselines are being calculated:
@@ -278,46 +278,67 @@ class CamDiag:
         #Check if users wants climatologies to be calculated:
         if cam_climo_dict['calc_cam_climo']:
 
-            #If so, then extract name of time-averaging script:
-            avg_func_name = self.__time_averaging_script
+            #If so, then extract names of time-averaging scripts:
+            avg_func_names = self.__time_averaging_scripts
 
-            #Add file suffix to script name (to help with the file search):
-            avg_script = avg_func_name+'.py'
+            #Loop over all averaging script names:
+            for avg_func_name in avg_func_names:
 
-            #Create full path to averaging script:
-            avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
+                #Add file suffix to script name (to help with the file search):
+                avg_script = avg_func_name+'.py'
 
-            #Check that file exists in "scripts/averaging" directory:
-            if not os.path.exists(avg_script_path):
-                msg = "time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
-                end_diag_script(msg)
+                #Create full path to averaging script:
+                avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
 
-            #Create averaging script import statement:
-            avg_func_import_statement = "from {} import {}".format(avg_func_name, avg_func_name)
+                #Check that file exists in "scripts/averaging" directory:
+                if not os.path.exists(avg_script_path):
+                    msg = "time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
+                    end_diag_script(msg)
 
-            #Run averaging script import statement:
-            exec(avg_func_import_statement)
+                #Create averaging script import statement:
+                avg_func_import_statement = "from {} import {}".format(avg_func_name, avg_func_name)
 
-            #Extract necessary variables from CAM namelist dictionary:
-            case_name    = cam_climo_dict['cam_case_name']
-            input_ts_loc = cam_climo_dict['cam_ts_loc']
-            var_list     = self.__diag_var_list
+                #Run averaging script import statement:
+                exec(avg_func_import_statement)
 
-            if baseline:
-                output_loc = self.__basic_info['cam_baseline_climo_loc']
-            else:
-                output_loc = self.__basic_info['cam_climo_loc']
+                #Extract necessary variables from CAM namelist dictionary:
+                case_name    = cam_climo_dict['cam_case_name']
+                input_ts_loc = cam_climo_dict['cam_ts_loc']
+                var_list     = self.__diag_var_list
 
-            #Create actual function call:
-            avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list)'
+                if baseline:
+                    output_loc = self.__basic_info['cam_baseline_climo_loc']
+                else:
+                    output_loc = self.__basic_info['cam_climo_loc']
 
-            #Evaluate (run) averaging script function:
-            eval(avg_func)
+                #Create actual function call:
+                avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list)'
+
+                #Evaluate (run) averaging script function:
+                eval(avg_func)
 
         else:
             #If not, then notify user that climo file generation is skipped.
             print("  No climatology files were requested by user, so averaging will be skipped.")
 
+    #########
+
+    def regrid_climo(self):
+
+        """
+        Re-grid CAM climatology files to observations
+        or baseline climatologies, in order to allow
+        for direct comparisons.
+
+        The actual regridding is done using the
+        scripts listed under "regridding_scripts"
+        as specified in the namelist.  This is done
+        so that the user can specify the precise kinds
+        of re-gridding that are done (e.g. bilinear vs.
+        nearest-neighbor regridding).
+        """
+
+        print("  Re-gridding CAM climatology files...")
 
     #########
 

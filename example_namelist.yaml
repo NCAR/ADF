@@ -77,16 +77,18 @@ diag_cam_baseline_climo:
 #diagnostic scripts.
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 
-#Name of time-averaging script being used to generate climatologies.
-#This script must be located in "scripts/averaging"
-time_averaging_script: averaging_example
+#Name of time-averaging scripts being used to generate climatologies.
+#These scripts must be located in "scripts/averaging":
+time_averaging_scripts:
+ - averaging_example
 
-#Name of regridding script being used.
-#This script must be located in "scripts/regridding"
-regridding_script: regrid_example
+#Name of regridding scripts being used.
+#These scripts must be located in "scripts/regridding":
+regridding_scripts:
+ - regrid_example
 
 #List of plotting scripts being used.
-#These scripts must be located in "scripts/plotting"
+#These scripts must be located in "scripts/plotting":
 plotting_scripts:
  - plot_example
 

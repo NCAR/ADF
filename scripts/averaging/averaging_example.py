@@ -32,7 +32,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
 
     #Check if climo directory exists, and if not, then create it:
     if not output_location.is_dir():
-        print("{} not found, making new directory".format(output_loc))
+        print("    {} not found, making new directory".format(output_loc))
         output_location.mkdir()
 
     #Loop over CAM output variables:
