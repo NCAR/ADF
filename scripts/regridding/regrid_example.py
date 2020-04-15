@@ -48,7 +48,7 @@ def regrid_example(case_name, input_climo_loc, output_loc,
     #Check if re-gridded directory exists, and if not, then create it:
     if not rgclimo_loc.is_dir():
         print("    {} not found, making new directory".format(rgclimo_loc))
-        rgclimo_loc.mkdir()
+        rgclimo_loc.mkdir(parents=True)
 
     # probably want to do this one variable at a time:
     for var in var_list:
