@@ -137,7 +137,6 @@ if __name__ == "__main__":
     if not diag.compare_obs:
         diag.create_climo(baseline=True)
 
-
     #Regrid CAM climatology files to match either
     #observations or CAM baseline climatologies:
     diag.regrid_climo()

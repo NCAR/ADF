@@ -35,6 +35,14 @@ except ImportError:
     print("Please install module, e.g. 'pip install xarray'.")
     sys.exit(1)
 
+#Check if "numpy" is present in python path:
+try:
+    import numpy as np
+except ImportError:
+    print("numpy module does not exist in python path.")
+    print("Please install module, e.g. 'pip install numpy'.")
+    sys.exit(1)
+
 #+++++++++++++++++++++++++++++
 #Add Cam diagnostics 'scripts'
 #directories to Python path
@@ -137,17 +145,14 @@ class CamDiag:
         #Add basic diagnostic info to object:
         self.__basic_info = read_namelist_obj(namelist, 'diag_basic_info')
 
-        #Check if CAM climatology files will be calculated:
-        try:
-            if namelist['diag_cam_climo']['calc_cam_climo']:
-                self.__cam_climo_info = read_namelist_obj(namelist, 'diag_cam_climo')
-        except:
-            raise KeyError("'calc_cam_climo' in 'diag_cam_climo' not found in namelist file.  Please see 'example_namelist.yaml'.")
+        #Add CAM climatology info to object:
+        self.__cam_climo_info = read_namelist_obj(namelist, 'diag_cam_climo')
 
         #Check if CAM baseline climatology files will be calculated:
         if not self.__basic_info['compare_obs']:
             try:
                 if namelist['diag_cam_baseline_climo']['calc_bl_cam_climo']:
+                    #If so, then add CAM baseline climatology info to object:
                     self.__cam_bl_climo_info = read_namelist_obj(namelist, 'diag_cam_baseline_climo')
             except:
                 raise KeyError("'calc_bl_cam_climo' in 'diag_cam_baseline_climo' not found in namelist file.  Please see 'example_namelist.yaml'.")
@@ -163,6 +168,9 @@ class CamDiag:
 
         #Add CAM variable list:
         self.__diag_var_list = read_namelist_obj(namelist, 'diag_var_list')
+
+        #Add CAM observation type list (filename prefix for observation files):
+        self.__obs_type_list = read_namelist_obj(namelist, 'obs_type_list')
 
     # Create property needed to return "compare_obs" logical to user:
     @property
@@ -180,20 +188,21 @@ class CamDiag:
 
         #Check if baseline time-series files are being created:
         if baseline:
-            #Then use the CAM baseline climo dictionary:
+            #Then use the CAM baseline climo dictionary
+            #and case name:
             cam_climo_dict = self.__cam_bl_climo_info
+            case_name = self.__basic_info['cam_baseline_case_name']
         else:
-            #If not, then just extract the standard CAM climo dictionary:
+            #If not, then just extract the standard CAM climo dictionary
+            #and case name::
             cam_climo_dict = self.__cam_climo_info
+            case_name = self.__basic_info['cam_case_name']
 
         #Check if climatologies are being calculated:
         if cam_climo_dict['calc_cam_climo']:
 
             #Notify user that script has started:
             print("  Generating CAM time series files...")
-
-            #Extract case name:
-            case_name = cam_climo_dict['cam_case_name']
 
             #Extract cam time series directory:
             ts_dir = cam_climo_dict['cam_ts_loc']
@@ -269,11 +278,17 @@ class CamDiag:
 
         #Check if CAM Baselines are being calculated:
         if baseline:
-            #If so, then use the CAM baseline climo dictionary:
+            #If so, then use the CAM baseline climo dictionary
+            #case name, and output location:
             cam_climo_dict = self.__cam_bl_climo_info
+            case_name  = self.__basic_info['cam_baseline_case_name']
+            output_loc = self.__basic_info['cam_baseline_climo_loc']
         else:
-            #If not, then just extract the standard CAM climo dictionary:
+            #If not, then just extract the standard CAM climo dictionary
+            #case name, and output location:
             cam_climo_dict = self.__cam_climo_info
+            case_name = self.__basic_info['cam_case_name']
+            output_loc = self.__basic_info['cam_climo_loc']
 
         #Check if users wants climatologies to be calculated:
         if cam_climo_dict['calc_cam_climo']:
@@ -292,7 +307,7 @@ class CamDiag:
 
                 #Check that file exists in "scripts/averaging" directory:
                 if not os.path.exists(avg_script_path):
-                    msg = "time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
+                    msg = "Time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
                     end_diag_script(msg)
 
                 #Create averaging script import statement:
@@ -302,14 +317,8 @@ class CamDiag:
                 exec(avg_func_import_statement)
 
                 #Extract necessary variables from CAM namelist dictionary:
-                case_name    = cam_climo_dict['cam_case_name']
                 input_ts_loc = cam_climo_dict['cam_ts_loc']
                 var_list     = self.__diag_var_list
-
-                if baseline:
-                    output_loc = self.__basic_info['cam_baseline_climo_loc']
-                else:
-                    output_loc = self.__basic_info['cam_climo_loc']
 
                 #Create actual function call:
                 avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list)'
@@ -338,7 +347,54 @@ class CamDiag:
         nearest-neighbor regridding).
         """
 
-        print("  Re-gridding CAM climatology files...")
+        #Check if comparison is being made to observations:
+        if self.compare_obs:
+            #Set regridding target to observations:
+            target_list = self.__obs_type_list
+            target_loc  = self.__basic_info['obs_climo_loc']
+        else:
+            #Assume a CAM vs. CAM comparison is being run,
+            #so set target to baseline climatologies:
+            target_list = [self.__basic_info['cam_baseline_case_name']]
+            target_loc  = self.__basic_info['cam_baseline_climo_loc']
+
+        #Extract remaining required info from namelist dictionaries:
+        case_name        = self.__basic_info['cam_case_name']
+        input_climo_loc  = self.__basic_info['cam_climo_loc']
+        output_loc       = self.__basic_info['cam_regrid_loc']
+        overwrite_regrid = self.__basic_info['cam_overwrite_regrid']
+        var_list         = self.__diag_var_list
+
+        #Extract names of re-gridding scripts:
+        regrid_func_names = self.__regridding_scripts
+
+        #Loop over all re-gridding script names:
+        for regrid_func_name in regrid_func_names:
+
+            #Add file suffix to script name (to help with the file search):
+            regrid_script = regrid_func_name+'.py'
+
+            #Create full path to regridding script:
+            regrid_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"regridding"),
+                                              regrid_script)
+
+            #Check that file exists in "scripts/regridding" directory:
+            if not os.path.exists(regrid_script_path):
+                msg = "Regridding file '{}' is missing. Script is ending here.".format(regrid_script_path)
+                end_diag_script(msg)
+
+            #Create regridding script import statement:
+            regrid_func_import_statement = "from {} import {}".format(regrid_func_name, regrid_func_name)
+
+            #Run regridding script import statement:
+            exec(regrid_func_import_statement)
+
+            #Create actual function call:
+            regrid_func = regrid_func_name+\
+            '(case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid)'
+
+            #Evaluate (run) averaging script function:
+            eval(regrid_func)
 
     #########
 

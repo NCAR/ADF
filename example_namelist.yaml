@@ -21,18 +21,26 @@ diag_basic_info:
   #Location of observational climatologies (only matters if "compare_obs" is true):
   #NOTE: How the observational data sets will be managed long-term needs to be discussed at some point!
   obs_climo_loc: /glade/work/brianpm/observations/climo_files
+  #Name of CAM case (or CAM run name):
+  cam_case_name: f2000.v211.fv1d.trop.L42.1
   #Location of CAM climatologies:
   cam_climo_loc: /glade/scratch/nusbaume/cam_diag_climo_files/f2000.v211.fv1d.trop.L42.1
+  #Name of CAM baseline case (only matters if "compare_obs" is false):
+  cam_baseline_case_name: best.cam_run-ever
   #Location of baseline CAM cliimatologies (only matters if "compare_obs" is false):
   cam_baseline_climo_loc: /some/where/you/want/to/have/it
+  #Location where re-gridded CAM climatology files are stored:
+  cam_regrid_loc: /glade/scratch/nusbaume/cam_diag_regrid_files/f2000.v211.fv1d.trop.L42.1
+  #Overwrite CAM re-gridded files?
+  #If false, then regridding will be skipped for regridded variables
+  #that already exist in "cam_regrid_loc":
+  cam_overwrite_regrid: true
 
 #This second set of variables specify whether CAM climatologies need to be calculated:
 diag_cam_climo:
   #Calculate cam climatologies?
   #If false, neither the climatology or time-series files will be created
   calc_cam_climo: true
-  #Name of CAM case (or CAM run name):
-  cam_case_name: f2000.v211.fv1d.trop.L42.1
   #Location of CAM history (h0) files:
   cam_hist_loc: /glade/scratch/jcaron/archive/f2000.v211.fv1d.trop.L42.1/atm/hist
   #model year when climatology should start:
@@ -54,8 +62,6 @@ diag_cam_baseline_climo:
   #Calculate cam baseline climatologies?
   #If false, neither the climatology or time-series files will be created
   calc_cam_climo: false
-  #Name of CAM baseline case (or CAM baseline run name):
-  cam_case_name: best.cam_run-ever
   #Location of CAM history (h0) files:
   cam_hist_loc: /where/ever/you/want
   #model year when climatology should start:
@@ -96,5 +102,9 @@ plotting_scripts:
 diag_var_list:
  - SWCF
  - LWCF
+
+#List of observation types (filename prefixes) CAM can be compared against:
+obs_type_list:
+ - CERES_EBAF_Ed4.1
 
 #END OF FILE
