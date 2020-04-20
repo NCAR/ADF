@@ -31,7 +31,7 @@ except ImportError:
 try:
     import xarray as xr
 except ImportError:
-    print("xarray module does not exist in python path.")
+    print("Xarray module does not exist in python path.")
     print("Please install module, e.g. 'pip install xarray'.")
     sys.exit(1)
 
@@ -39,8 +39,24 @@ except ImportError:
 try:
     import numpy as np
 except ImportError:
-    print("numpy module does not exist in python path.")
+    print("Numpy module does not exist in python path.")
     print("Please install module, e.g. 'pip install numpy'.")
+    sys.exit(1)
+
+#Check if "matplolib" is present in python path:
+try:
+    import matplotlib as mpl
+except ImportError:
+    print("Matplotlib module does not exist in python path.")
+    print("Please install module, e.g. 'pip install matplotlib'.")
+    sys.exit(1)
+
+#Check if "cartopy" is present in python path:
+try:
+    import cartopy.crs as ccrs
+except ImportError:
+    print("Cartopy module does not exist in python path.")
+    print("Please install module, e.g. 'pip install Cartopy'.")
     sys.exit(1)
 
 #+++++++++++++++++++++++++++++
@@ -164,7 +180,7 @@ class CamDiag:
         self.__regridding_scripts = read_namelist_obj(namelist, 'regridding_scripts')
 
         #Add plotting script names:
-        self.__plot_scripts = read_namelist_obj(namelist, 'plotting_scripts')
+        self.__plotting_scripts = read_namelist_obj(namelist, 'plotting_scripts')
 
         #Add CAM variable list:
         self.__diag_var_list = read_namelist_obj(namelist, 'diag_var_list')
@@ -402,16 +418,60 @@ class CamDiag:
 
         """
         Generate CAM diagnositc plots.
+
+        The actual plotting is done using the
+        scripts listed under "plotting_scripts"
+        as specified in the namelist.  This is done
+        so that the user can add their own plotting
+        script(s) without having to modify the
+        main CAM diagnostics routines.
         """
 
-        #Notify user that plot creation is starting:
-        print("Creating CAM diagnostic plots.")
+        #Extract required input variables:
+        case_name       = self.__basic_info['cam_case_name']
+        model_rgrid_loc = self.__basic_info['cam_regrid_loc']
+        plot_location   = self.__basic_info['cam_diag_plot_loc']
+        var_list        = self.__diag_var_list
 
-        #How to actually run plotting scripts:
-        #for plot_script in self.__plot_scripts:
-           #Add '()' to script name:
-        #   plot_func = plot_script+'()'
-        #   eval(plot_func)
+        #Set "data" variables, which depend on "compare_obs":
+        if self.compare_obs:
+            data_name = "obs"
+            data_loc  = self.__basic_info['obs_climo_loc']
+            data_list = self.__obs_type_list
+        else:
+            data_name = self.__basic_info['cam_baseline_case_name']
+            data_loc  = self.__basic_info['cam_baseline_climo_loc']
+            data_list = [data_name]
 
+        #Extract names of plotting scripts:
+        plot_func_names = self.__plotting_scripts
+
+        #Loop over all re-gridding script names:
+        for plot_func_name in plot_func_names:
+
+            #Add file suffix to script name (to help with the file search):
+            plot_script = plot_func_name+'.py'
+
+            #Create full path to regridding script:
+            plot_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"plotting"),
+                                            plot_script)
+
+            #Check that file exists in "scripts/regridding" directory:
+            if not os.path.exists(plot_script_path):
+                msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
+                end_diag_script(msg)
+
+            #Create regridding script import statement:
+            plot_func_import_statement = "from {} import {}".format(plot_func_name, plot_func_name)
+
+            #Run regridding script import statement:
+            exec(plot_func_import_statement)
+
+            #Create actual function call:
+            plot_func = plot_func_name+\
+            '(case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location)'
+
+            #Evaluate (run) averaging script function:
+            eval(plot_func)
 
 ###############

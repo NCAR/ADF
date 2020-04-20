@@ -35,6 +35,8 @@ diag_basic_info:
   #If false, then regridding will be skipped for regridded variables
   #that already exist in "cam_regrid_loc":
   cam_overwrite_regrid: true
+  #Location where CAM diagnostic plots are stored:
+  cam_diag_plot_loc: /glade/scratch/nusbaume/cam_diag_plots
 
 #This second set of variables specify whether CAM climatologies need to be calculated:
 diag_cam_climo:
