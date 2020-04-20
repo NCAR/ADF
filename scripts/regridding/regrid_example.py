@@ -87,20 +87,18 @@ def regrid_example(case_name, input_climo_loc, output_loc,
                     #Open single file as new xsarray dataset:
                     mclim_ds = xr.open_dataset(mclim_fils[0])
 
-                #Extract variable info from data sets:
-                tdata = tclim_ds[var]
+                #Extract variable info from model data:
                 mdata = mclim_ds[var]
 
-                #Regrid model data to match observational data:
-                mdata_regrid = regrid_data(mdata, tdata)
+                #Extract grid info from target data:
+                if 'time' in tclim_ds.coords:
+                    tgrid = tclim_ds.isel(time=0).squeeze()
 
-                #Set netCDF encoding method (deal with getting non-nan fill values):
-                #enc_dv = {xname: {'_FillValue': None, 'zlib': True, 'complevel': 4} for xname in mdata_regrid.data_vars}
-                #enc_c  = {xname: {'_FillValue': None} for xname in mdata_regrid.coords}
-                #enc    = {**enc_c, **enc_dv}
+                #Regrid model data to match target grid:
+                rgdata = regrid_data(mdata, tgrid, method=1)
 
                 #Write re-gridded data to output file:
-                mdata_regrid.to_netcdf(regridded_file_loc, format='NETCDF4') #, encoding=enc)
+                save_to_nc(rgdata, regridded_file_loc)
 
     #Notify user that script has ended:
     print("  ...CAM climatologies have been regridded successfully.")
@@ -109,7 +107,58 @@ def regrid_example(case_name, input_climo_loc, output_loc,
 #Helper functions
 #################
 
-def regrid_data(fromthis, tothis):
-    """Wrapper function for 'interp_like' xarray method"""
-    return fromthis.interp_like(tothis)
+def save_to_nc(tosave, outname, attrs=None, proc=None):
+    """Saves xarray variable to new netCDF file"""
+
+    #Import necessary modules:
+    import xarray as xr
+
+    xo = tosave  # used to have more stuff here.
+    # deal with getting non-nan fill values.
+    if isinstance(xo, xr.Dataset):
+        enc_dv = {xname: {'_FillValue': None} for xname in xo.data_vars}
+    else:
+        enc_dv = dict()
+    enc_c = {xname: {'_FillValue': None} for xname in xo.coords}
+    enc = {**enc_c, **enc_dv}
+    if attrs is not None:
+        xo.attrs = attrs
+    if proc is not None:
+        xo.attrs['Processing_info'] = f"Start from file {origname}. " + proc
+    xo.to_netcdf(outname, format='NETCDF4', encoding=enc)
+
+def regrid_data(fromthis, tothis, method=1):
+    """Regrid data using various different methods"""
+
+    #Import necessary modules:
+    import xarray as xr
+
+    if method == 1:
+        # kludgy: spatial regridding only, seems like can't automatically deal with time
+        if 'time' in fromthis.coords:
+            result = [fromthis.isel(time=t).interp_like(tothis) for t,time in enumerate(fromthis['time'])]
+            result = xr.concat(result, 'time')
+            return result
+        else:
+            return fromthis.interp_like(tothis)
+    elif method == 2:
+        newlat = tothis['lat']
+        newlon = tothis['lon']
+        coords = dict(fromthis.coords)
+        coords['lat'] = newlat
+        coords['lon'] = newlon
+        return fromthis.interp(coords)
+    elif method == 3:
+        newlat = tothis['lat']
+        newlon = tothis['lon']
+        ds_out = xr.Dataset({'lat': newlat, 'lon': newlon})
+        regridder = xe.Regridder(fromthis, ds_out, 'bilinear')
+        return regridder(fromthis)
+    elif method==4:
+        # geocat
+        newlat = tothis['lat']
+        newlon = tothis['lon']
+        result = geocat.comp.linint2(fromthis, newlon, newlat, False)
+        result.name = fromthis.name
+        return result
 
