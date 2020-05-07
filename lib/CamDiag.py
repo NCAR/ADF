@@ -99,22 +99,22 @@ def end_diag_script(msg):
     print(msg)
     sys.exit(1)
 
-def read_namelist_obj(namelist_obj, varname):
+def read_config_obj(config_obj, varname):
 
     """
     Checks if variable/list/dictionary exists in
-    namelist object,and if so returns it.
+    configure object,and if so returns it.
     """
 
-    #Attempt to read in YAML namelist variable:
+    #Attempt to read in YAML config variable:
     try:
-        var = namelist_obj[varname]
+        var = config_obj[varname]
     except:
-       raise KeyError("'{}' not found in namelist file.  Please see 'example_namelist.yaml'.".format(varname))
+       raise KeyError("'{}' not found in config file.  Please see 'config_example.yaml'.".format(varname))
 
-    #Check that namelist varaible is not empty (None):
+    #Check that configure variable is not empty (None):
     if var is None:
-        raise NameError("'{}' has not been set to a value. Please see 'example_namelist.yaml'.".format(varname))
+        raise NameError("'{}' has not been set to a value. Please see 'config_example.yaml'.".format(varname))
 
     #return variable/list/dictionary:
     return var
@@ -129,7 +129,7 @@ class CamDiag:
     Main CAM diagnostics object.
 
     This object is initalized using
-    a CAM diagnostics namelist (YAML) file,
+    a CAM diagnostics configure (YAML) file,
     which specifies various user inputs,
     including CAM history file names and
     locations, years being analyzed,
@@ -143,50 +143,50 @@ class CamDiag:
     post-processed data.
     """
 
-    def __init__(self, namelist_file):
+    def __init__(self, config_file):
 
         """
         Initalize CAM diagnostics object.
         """
 
         #Check that YAML file actually exists:
-        if not os.path.exists(namelist_file):
-            raise FileNotFoundError("'{}' file not found.".format(namelist_file))
+        if not os.path.exists(config_file):
+            raise FileNotFoundError("'{}' file not found.".format(config_file))
 
         #Open YAML file:
-        with open(namelist_file) as nfil:
+        with open(config_file) as nfil:
             #Load YAML file:
-            namelist = yaml.load(nfil, Loader=yaml.SafeLoader)
+            config = yaml.load(nfil, Loader=yaml.SafeLoader)
 
         #Add basic diagnostic info to object:
-        self.__basic_info = read_namelist_obj(namelist, 'diag_basic_info')
+        self.__basic_info = read_config_obj(config, 'diag_basic_info')
 
         #Add CAM climatology info to object:
-        self.__cam_climo_info = read_namelist_obj(namelist, 'diag_cam_climo')
+        self.__cam_climo_info = read_config_obj(config, 'diag_cam_climo')
 
         #Check if CAM baseline climatology files will be calculated:
         if not self.__basic_info['compare_obs']:
             try:
-                if namelist['diag_cam_baseline_climo']['calc_bl_cam_climo']:
+                if config['diag_cam_baseline_climo']['calc_cam_climo']:
                     #If so, then add CAM baseline climatology info to object:
-                    self.__cam_bl_climo_info = read_namelist_obj(namelist, 'diag_cam_baseline_climo')
+                    self.__cam_bl_climo_info = read_config_obj(config, 'diag_cam_baseline_climo')
             except:
-                raise KeyError("'calc_bl_cam_climo' in 'diag_cam_baseline_climo' not found in namelist file.  Please see 'example_namelist.yaml'.")
+                raise KeyError("'calc_bl_cam_climo' in 'diag_cam_baseline_climo' not found in config file.  Please see 'config_example.yaml'.")
 
         #Add averaging script names:
-        self.__time_averaging_scripts = read_namelist_obj(namelist, 'time_averaging_scripts')
+        self.__time_averaging_scripts = read_config_obj(config, 'time_averaging_scripts')
 
         #Add regridding script names:
-        self.__regridding_scripts = read_namelist_obj(namelist, 'regridding_scripts')
+        self.__regridding_scripts = read_config_obj(config, 'regridding_scripts')
 
         #Add plotting script names:
-        self.__plotting_scripts = read_namelist_obj(namelist, 'plotting_scripts')
+        self.__plotting_scripts = read_config_obj(config, 'plotting_scripts')
 
         #Add CAM variable list:
-        self.__diag_var_list = read_namelist_obj(namelist, 'diag_var_list')
+        self.__diag_var_list = read_config_obj(config, 'diag_var_list')
 
         #Add CAM observation type list (filename prefix for observation files):
-        self.__obs_type_list = read_namelist_obj(namelist, 'obs_type_list')
+        self.__obs_type_list = read_config_obj(config, 'obs_type_list')
 
     # Create property needed to return "compare_obs" logical to user:
     @property
@@ -286,7 +286,7 @@ class CamDiag:
 
         The actual averaging is done using the
         scripts listed under "time_averaging_scripts"
-        as specified in the namelist.  This is done
+        as specified in the config file.  This is done
         so that the user can specify the precise kinds
         of averaging that are done (e.g. weighted vs.
         non-weighted averaging).
@@ -332,7 +332,7 @@ class CamDiag:
                 #Run averaging script import statement:
                 exec(avg_func_import_statement)
 
-                #Extract necessary variables from CAM namelist dictionary:
+                #Extract necessary variables from CAM configure dictionary:
                 input_ts_loc = cam_climo_dict['cam_ts_loc']
                 var_list     = self.__diag_var_list
 
@@ -357,7 +357,7 @@ class CamDiag:
 
         The actual regridding is done using the
         scripts listed under "regridding_scripts"
-        as specified in the namelist.  This is done
+        as specified in the config file.  This is done
         so that the user can specify the precise kinds
         of re-gridding that are done (e.g. bilinear vs.
         nearest-neighbor regridding).
@@ -374,7 +374,7 @@ class CamDiag:
             target_list = [self.__basic_info['cam_baseline_case_name']]
             target_loc  = self.__basic_info['cam_baseline_climo_loc']
 
-        #Extract remaining required info from namelist dictionaries:
+        #Extract remaining required info from configure dictionaries:
         case_name        = self.__basic_info['cam_case_name']
         input_climo_loc  = self.__basic_info['cam_climo_loc']
         output_loc       = self.__basic_info['cam_regrid_loc']
@@ -421,7 +421,7 @@ class CamDiag:
 
         The actual plotting is done using the
         scripts listed under "plotting_scripts"
-        as specified in the namelist.  This is done
+        as specified in the config file.  This is done
         so that the user can add their own plotting
         script(s) without having to modify the
         main CAM diagnostics routines.

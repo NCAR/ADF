@@ -27,9 +27,9 @@ Along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also
 
 ## Running CAM diagnostics
 
-To run an example of the CAM diagnostics, simply download this repo, setup your computing environment as described in the "Required software environment" section above, modify the `example_namelist.yaml` file (or create one of your own) to point to the relevant diretories and run:
+To run an example of the CAM diagnostics, simply download this repo, setup your computing environment as described in the "Required software environment" section above, modify the `config_example.yaml` file (or create one of your own) to point to the relevant diretories and run:
 
-`./run_diag --namelist example_namelist.yaml`
+`./run_diag --config_file config_example.yaml`
 
 This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example CAM diagnostic figures, all in their respective directories.
 
