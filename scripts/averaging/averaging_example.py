@@ -58,7 +58,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
             time = cam_ts_data['time']
             time = xr.DataArray(cam_ts_data['time_bnds'].mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
-            cam_ts_data.assign_coords({'time':time})
+            cam_ts_data.assign_coords(time=time)
             cam_ts_data = xr.decode_cf(cam_ts_data)
 
         #Group time series values by month, and average those months together:
