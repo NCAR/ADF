@@ -1,7 +1,7 @@
 #-------------------------------
-#example_namelist.yaml
+#config_example.yaml
 
-#This is an example CAM diagnostics namelist file,
+#This is an example CAM diagnostics configuration file,
 #which includes examples of each type of allowed input,
 #along with a short description of what the input does.
 

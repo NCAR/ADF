@@ -6,7 +6,7 @@ script: run_diag
 goal:  To allow a user to easily run the CAM diagnostics package from
        the command line.
 
-Inputs:  The CAM diagnostics namelist file (in YAML format).  If the file is
+Inputs:  The CAM diagnostics config file (in YAML format).  If the file is
          located in a different directory then the system path must also be
          included.
 
@@ -73,8 +73,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Command-line wrapper to run the CAM diagnostics package.')
 
     #Add input arguments to be parsed:
-    parser.add_argument('--namelist', metavar='<DIAG_YAML_FILE>', action='store', type=str,
-                        help="namelist YAML file used to configure CAM diagnostics (see example_namelist.yaml)")
+    parser.add_argument('--config_file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
+                        help="YAML file used to configure CAM diagnostics (see config_example.yaml)")
 
     #Parse Argument inputs
     args = parser.parse_args()
@@ -109,15 +109,15 @@ if __name__ == "__main__":
 
     args = parse_arguments()
 
-    #Extract YAML namelist file name/path:
-    namelist_yaml = args.namelist
+    #Extract YAML config file name/path:
+    config_yaml = args.config_file
 
     #+++++++++++++++++++++++++++++++++
     #Call main CAM diagnostics methods
     #+++++++++++++++++++++++++++++++++
 
     #Initalize CAM diagnostics object:
-    diag = CamDiag(namelist_yaml)
+    diag = CamDiag(config_yaml)
 
     #Create CAM time series:
     diag.create_time_series()
@@ -128,12 +128,12 @@ if __name__ == "__main__":
 
     #Create CAM climatology (climo) files.
     #This call uses the "time_averaging_script" specified
-    #in the namelist file:
+    #in the config file:
     diag.create_climo()
 
     #Create CAM baseline climatology files (if needed).
     #This call uses the "time_averaging_script" specified
-    #in the namelist file:
+    #in the config file:
     if not diag.compare_obs:
         diag.create_climo(baseline=True)
 
