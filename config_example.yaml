@@ -43,6 +43,9 @@ diag_cam_climo:
   #Calculate cam climatologies?
   #If false, neither the climatology or time-series files will be created
   calc_cam_climo: true
+  #Overwrite CAM climatology files?
+  #If false, then already existing climatology files will be skipped.
+  cam_overwrite_climo: true
   #Location of CAM history (h0) files:
   cam_hist_loc: /glade/scratch/jcaron/archive/f2000.v211.fv1d.trop.L42.1/atm/hist
   #model year when climatology should start:
@@ -64,6 +67,9 @@ diag_cam_baseline_climo:
   #Calculate cam baseline climatologies?
   #If false, neither the climatology or time-series files will be created
   calc_cam_climo: false
+  #Overwrite CAM climatology files?
+  #If false, then already existing climatology files will be skipped.
+  cam_overwrite_climo: false
   #Location of CAM history (h0) files:
   cam_hist_loc: /where/ever/you/want
   #model year when climatology should start:

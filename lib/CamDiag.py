@@ -99,6 +99,8 @@ def end_diag_script(msg):
     print(msg)
     sys.exit(1)
 
+#####
+
 def read_config_obj(config_obj, varname):
 
     """
@@ -148,6 +150,9 @@ class CamDiag:
         """
         Initalize CAM diagnostics object.
         """
+
+        #Expand any environmental user name variables in the path:
+        config_file = os.path.expanduser(config_file)
 
         #Check that YAML file actually exists:
         if not os.path.exists(config_file):
@@ -263,10 +268,10 @@ class CamDiag:
                 case_spec = first_in.stem
 
                 #Notify user of new time series file:
-                print("    Creating new time series file for {}".format(var))
+                print("\t \u231B time series for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
+                cmd = ["ncrcat", "-O", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
                 subprocess.run(cmd)
 
             #Notify user that script has ended:
@@ -312,6 +317,11 @@ class CamDiag:
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts
 
+            #Extract necessary variables from CAM configure dictionary:
+            input_ts_loc    = cam_climo_dict['cam_ts_loc']
+            overwrite_climo = cam_climo_dict['cam_overwrite_climo']
+            var_list        = self.__diag_var_list
+
             #Loop over all averaging script names:
             for avg_func_name in avg_func_names:
 
@@ -333,11 +343,12 @@ class CamDiag:
                 exec(avg_func_import_statement)
 
                 #Extract necessary variables from CAM configure dictionary:
-                input_ts_loc = cam_climo_dict['cam_ts_loc']
-                var_list     = self.__diag_var_list
+                input_ts_loc    = cam_climo_dict['cam_ts_loc']
+                overwrite_climo = cam_climo_dict['cam_overwrite_climo']
+                var_list        = self.__diag_var_list
 
                 #Create actual function call:
-                avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list)'
+                avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list, overwrite_climo)'
 
                 #Evaluate (run) averaging script function:
                 eval(avg_func)
