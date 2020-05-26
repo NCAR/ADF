@@ -73,7 +73,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Command-line wrapper to run the CAM diagnostics package.')
 
     #Add input arguments to be parsed:
-    parser.add_argument('--config_file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
+    parser.add_argument('--config-file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
                         help="YAML file used to configure CAM diagnostics (see config_example.yaml)")
 
     #Parse Argument inputs

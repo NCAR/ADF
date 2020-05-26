@@ -1,4 +1,4 @@
-def averaging_example(case_name, input_ts_loc, output_loc, var_list):
+def averaging_example(case_name, input_ts_loc, output_loc, var_list, overwrite_climo):
 
     """
     This is an example function showing
@@ -8,10 +8,12 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
 
     Description of function inputs:
 
-    case_name    -> Name of CAM case provided by "cam_case_name"
-    input_ts_loc -> Location of CAM time series files provided by "cam_ts_loc"
-    output_loc   -> Location to write CAM climo files to, provided by "cam_climo_loc"
-    var_list     -> List of CAM output variables provided by "diag_var_list"
+    case_name       -> Name of CAM case provided by "cam_case_name"
+    input_ts_loc    -> Location of CAM time series files provided by "cam_ts_loc"
+    output_loc      -> Location to write CAM climo files to, provided by "cam_climo_loc"
+    var_list        -> List of CAM output variables provided by "diag_var_list"
+    overwrite_climo -> Logical that determines whether or not the climo files should
+                       be overwritten, if they already exist.
     """
 
     #Import necessary modules:
@@ -38,6 +40,17 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
     #Loop over CAM output variables:
     for var in var_list:
 
+        #Notify users of variable be averaged:
+        print("\t \u25B6 climo calculation for {}".format(var))
+
+        #Create name of climatology output file (which includes the full path):
+        output_file = output_location / "{}_{}_climo.nc".format(case_name,var)
+
+        # don't make a climo file if it is there and over-writing is turned off:
+        if Path(output_file).is_file() and not overwrite_climo:
+            print("\t \u274C climo file exists for {}, skipping it.".format(var))
+            continue
+
         #Create list of time series files present for variable:
         ts_filenames = '{}.*{}*.nc'.format(case_name, var)
         ts_files = sorted(list(input_location.glob(ts_filenames)))
@@ -60,15 +73,27 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
             cam_ts_data['time'] = time
             cam_ts_data.assign_coords(time=time)
             cam_ts_data = xr.decode_cf(cam_ts_data)
+        else:
+            # rely on the time dimension being correct
+            cam_ts_data = xr.decode_cf(cam_ts_data)
 
         #Group time series values by month, and average those months together:
-        cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')
+        climo_data = cam_ts_data[var].groupby('time.month').mean(dim='time')
+
+        #Add surface pressure (PS) climatologies to each data set:
+        if "PS" in cam_ts_data:
+            ps_climo = cam_ts_data['PS'].groupby('time.month').mean(dim='time')
+            cam_climo_data = xr.merge([climo_data, ps_climo])
+        else:
+            cam_climo_data = climo_data.to_dataset()
+
+        #Also add some special variables that should be carried along:
+        for special in ['hyam', 'hybm', 'P0', 'hyai', 'hybi']:
+            if special in cam_ts_data:
+                cam_climo_data[special] = cam_ts_data[special]
 
         #Rename "months" to "time":
         cam_climo_data = cam_climo_data.rename({'month':'time'})
-
-        #Create name of climatology output file (which includes the full path):
-        output_file = output_location / "{}_{}_climo.nc".format(case_name,var)
 
         #Set netCDF encoding method (deal with getting non-nan fill values):
         enc_dv = {xname: {'_FillValue': None, 'zlib': True, 'complevel': 4} for xname in cam_climo_data.data_vars}
@@ -79,4 +104,4 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
         cam_climo_data.to_netcdf(output_file, format='NETCDF4', encoding=enc)
 
     #Notify user that script has ended:
-    print("  ...CAM climatologies have been calculated successfully.")
+    print("...CAM climatologies have been calculated successfully.")
