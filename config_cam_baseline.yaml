@@ -15,72 +15,99 @@
 
 #This first set of variables specify basic info required by all diagnostic runs:
 diag_basic_info:
+
   #Is this a model vs observations comparison?
   #If "false", then a model-model comparison is assumed:
   compare_obs: false
+
   #Location of observational climatologies (only matters if "compare_obs" is true):
   obs_climo_loc: /glade/work/brianpm/observations/climo_files
+
   #Name of CAM case (or CAM run name):
   cam_case_name: new_best.came-run
+
   #Location of CAM climatologies:
   cam_climo_loc: /some/where/you/want/to/have/it
+
   #Name of CAM baseline case (only matters if "compare_obs" is false):
   cam_baseline_case_name: best.cam_run-ever
+
   #Location of baseline CAM cliimatologies (only matters if "compare_obs" is false):
   cam_baseline_climo_loc: /some/where/else/you/want/to/have/it
+
   #Location where re-gridded CAM climatology files are stored:
   cam_regrid_loc: /any/directory/you/want
+
   #Overwrite CAM re-gridded files?
   #If false, then regridding will be skipped for regridded variables
   #that already exist in "cam_regrid_loc":
   cam_overwrite_regrid: false
+
   #Location where CAM diagnostic plots are stored:
   cam_diag_plot_loc: /any/other/directory/you/want
 
+
 #This second set of variables specify whether CAM climatologies need to be calculated:
 diag_cam_climo:
+
   #Calculate cam climatologies?
-  #If false, neither the climatology or time-series files will be created
+  #If false, neither the climatology or time-series files will be created:
   calc_cam_climo: true
+
   #Overwrite CAM climatology files?
-  #If false, then already existing climatology files will be skipped.
+  #If false, then already existing climatology files will be skipped:
   cam_overwrite_climo: false
+
   #Location of CAM history (h0) files:
-  cam_hist_loc: /location/where/you/stored/mode/outputs
+  cam_hist_loc: /location/where/you/stored/model/outputs
+
   #model year when climatology should start:
   start_year: 1850
+
   #model year when diagnostics should end:
   end_year: 2100
+
   #Save interim time series files?
   #WARNING:  This can take up a significant amount of space:
   cam_ts_save: true
+
   #Overwrite time series files, if found?
   #If set to false, then time series creation will be skipped if files are found:
   cam_overwrite_ts: false
+
   #Location where time series files are (or will be) stored:
   cam_ts_loc: /some/big/storage/location/to/save/time/series
+
 
 #This third set of variables specify whether CAM baseline climatologies need to be calculated
 #This only matters if "compare_obs" is false:
 diag_cam_baseline_climo:
+
   #Calculate cam baseline climatologies?
-  #If false, neither the climatology or time-series files will be created
+  #If false, neither the climatology or time-series files will be created:
   calc_cam_climo: true
+
   #Overwrite CAM climatology files?
-  #If false, then already existing climatology files will be skipped.
+  #If false, then already existing climatology files will be skipped:
   cam_overwrite_climo: false
+
   #Location of CAM history (h0) files:
   cam_hist_loc: /location/of/second/cam/run/output/or/baseline/data
+
   #model year when climatology should start:
   start_year: 1850
+
   #model year when diagnostics should end:
   end_year: 2100
+
   #Save interim time series files for baseline run?
   #WARNING:  This can take up a significant amount of space:
   cam_ts_save: true
+
   #Overwrite baseline time series files, if found?
   #If set to false, then time series creation will be skipped if files are found:
   cam_overwrite_ts: false
+
   #Location where time series files are (or will be) stored:
   cam_ts_loc: /another/big/storage/location/to/save/time/series
 
