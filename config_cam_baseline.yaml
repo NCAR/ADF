@@ -62,10 +62,10 @@ diag_cam_climo:
   cam_hist_loc: /location/where/you/stored/model/outputs
 
   #model year when climatology should start:
-  start_year: 1986
+  start_year: 1850
 
   #model year when diagnostics should end:
-  end_year: 2005
+  end_year: 2100
 
   #Save interim time series files?
   #WARNING:  This can take up a significant amount of space:
@@ -95,10 +95,10 @@ diag_cam_baseline_climo:
   cam_hist_loc: /location/of/second/cam/run/output/or/baseline/data
 
   #model year when climatology should start:
-  start_year: 1986
+  start_year: 1850
 
   #model year when diagnostics should end:
-  end_year: 2005
+  end_year: 2100
 
   #Save interim time series files for baseline run?
   #WARNING:  This can take up a significant amount of space:
