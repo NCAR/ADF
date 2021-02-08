@@ -20,6 +20,9 @@ diag_basic_info:
   #If "false", then a model-model comparison is assumed:
   compare_obs: true
 
+  #Generate HTML website (currently only matters for AMWG table):
+  create_html: true
+
   #Location of observational climatologies (only matters if "compare_obs" is true):
   #NOTE: How the observational data sets will be managed long-term needs to be discussed at some point!
   obs_climo_loc: /glade/work/brianpm/observations/climo_files
@@ -127,6 +130,11 @@ time_averaging_scripts:
 #These scripts must be located in "scripts/regridding":
 regridding_scripts:
  - regrid_example
+
+#Lis of analysis scripts being used.
+#These scripts musbe located in "scripts/analysis":
+analysis_scripts:
+ - amwg_table
 
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":

@@ -57,8 +57,8 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, overwrite_c
 
         #If no files exist, then kill diagnostics script (for now):
         if not ts_files:
-             errmsg = "Time series files for variable '{}' not found.  Script is exiting.".format(var)
-             end_diag_script(errmsg)
+            errmsg = "Time series files for variable '{}' not found.  Script is exiting.".format(var)
+            end_diag_script(errmsg)
 
         #Read in files via xarray (xr):
         if len(ts_files) == 1:
