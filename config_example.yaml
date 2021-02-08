@@ -131,7 +131,7 @@ time_averaging_scripts:
 regridding_scripts:
  - regrid_example
 
-#Lis of analysis scripts being used.
+#List of analysis scripts being used.
 #These scripts musbe located in "scripts/analysis":
 analysis_scripts:
  - amwg_table
