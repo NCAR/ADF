@@ -231,19 +231,33 @@ class CamDiag:
             #Extract cam time series directory:
             ts_dir = cam_climo_dict['cam_ts_loc']
 
+            #Extract start and end year values:
+            start_year = int(cam_climo_dict['start_year'])
+            end_year   = int(cam_climo_dict['end_year'])
+
             #Extract cam variable list:
             var_list = self.__diag_var_list
 
             #Create path object for the CAM history file(s) location:
             starting_location = Path(cam_climo_dict['cam_hist_loc'])
 
-            #Create ordered list of CAM history files:
-            hist_files = sorted(list(starting_location.glob('*.cam.h0.*')))
+            #Create empty list:
+            files_list = list()
 
-            #Check that CAM history files exist.  If not then kill script:
-            if not hist_files:
-                msg = "No CAM history (h0) files found in {}.  Script is ending here."
+            #Check if history files actually exist. If not then kill script:
+            if not starting_location.glob('*.cam.h0.*.nc'):
+                msg = "No CAM history (h0) files found in '{}'.  Script is ending here."
+                msg = msg.format(starting_location)
                 end_diag_script(msg)
+
+            #Loop over start and end years:
+            for year in range(start_year, end_year+1):
+                #Add files to main file list:
+                for fname in starting_location.glob('*.cam.h0.*{}-*.nc'.format(year)):
+                    files_list.append(fname)
+
+            #Create ordered list of CAM history files:
+            hist_files = sorted(files_list)
 
             #Check if time series directory exists, and if not, then create it:
             if not os.path.isdir(ts_dir):
@@ -265,10 +279,6 @@ class CamDiag:
                     if not cam_climo_dict['cam_overwrite_ts']:
                         #If not, then simply skip this variable:
                         continue
-
-                #Generate filename without suffix:
-                first_in  = Path(hist_files[0])
-                case_spec = first_in.stem
 
                 #Notify user of new time series file:
                 print("\t \u231B time series for {}".format(var))
