@@ -284,7 +284,7 @@ class CamDiag:
                 print("\t \u231B time series for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-O", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
+                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,P0,PS"] + hist_files + ["-o", ts_outfil_str]
                 subprocess.run(cmd)
 
             #Notify user that script has ended:

@@ -239,7 +239,7 @@ def _spatial_average(indata):
 def _write_html(f, out):
     import pandas as pd
     df = pd.read_csv(f)
-    html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3f}'.format)  # should return string
+    html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
     preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
