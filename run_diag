@@ -141,6 +141,13 @@ if __name__ == "__main__":
     #observations or CAM baseline climatologies:
     diag.regrid_climo()
 
+    #Perform analyses:
+    diag.perform_analyses()
+
+    #If baseline is present, then peform analyses on it as well:
+    if not diag.compare_obs:
+        diag.perform_analyses(baseline=True)
+
     #Create plots:
     diag.create_plots()
 

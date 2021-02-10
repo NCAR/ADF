@@ -21,9 +21,14 @@ These diagnostics currently require Python version 3.4 or highter.  They also re
 - Matplotlib
 - Cartopy
 
-On NCAR's CISL machines (cheyenne and casper), these can be loaded by running `ncar_pylib` on the command line.  
+If one wants to generate the "AMWG" model variable statistics table as well, then these additional python libraries are also needed:
 
-Along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines, this can be loaded by simply running `module load nco` on the command line.  
+- Scipy
+- Pandas
+
+On NCAR's CISL machines (cheyenne and casper), these can be loaded by running `ncar_pylib` on the command line.
+
+Along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines, this can be loaded by simply running `module load nco` on the command line.
 
 ## Running CAM diagnostics
 

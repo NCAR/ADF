@@ -184,6 +184,9 @@ class CamDiag:
         #Add regridding script names:
         self.__regridding_scripts = read_config_obj(config, 'regridding_scripts')
 
+        #Add analysis script names:
+        self.__analysis_scripts = read_config_obj(config, 'analysis_scripts')
+
         #Add plotting script names:
         self.__plotting_scripts = read_config_obj(config, 'plotting_scripts')
 
@@ -228,19 +231,33 @@ class CamDiag:
             #Extract cam time series directory:
             ts_dir = cam_climo_dict['cam_ts_loc']
 
+            #Extract start and end year values:
+            start_year = int(cam_climo_dict['start_year'])
+            end_year   = int(cam_climo_dict['end_year'])
+
             #Extract cam variable list:
             var_list = self.__diag_var_list
 
             #Create path object for the CAM history file(s) location:
             starting_location = Path(cam_climo_dict['cam_hist_loc'])
 
-            #Create ordered list of CAM history files:
-            hist_files = sorted(list(starting_location.glob('*.cam.h0.*')))
+            #Create empty list:
+            files_list = list()
 
-            #Check that CAM history files exist.  If not then kill script:
-            if not hist_files:
-                msg = "No CAM history (h0) files found in {}.  Script is ending here."
+            #Check if history files actually exist. If not then kill script:
+            if not starting_location.glob('*.cam.h0.*.nc'):
+                msg = "No CAM history (h0) files found in '{}'.  Script is ending here."
+                msg = msg.format(starting_location)
                 end_diag_script(msg)
+
+            #Loop over start and end years:
+            for year in range(start_year, end_year+1):
+                #Add files to main file list:
+                for fname in starting_location.glob('*.cam.h0.*{}-*.nc'.format(year)):
+                    files_list.append(fname)
+
+            #Create ordered list of CAM history files:
+            hist_files = sorted(files_list)
 
             #Check if time series directory exists, and if not, then create it:
             if not os.path.isdir(ts_dir):
@@ -263,15 +280,11 @@ class CamDiag:
                         #If not, then simply skip this variable:
                         continue
 
-                #Generate filename without suffix:
-                first_in  = Path(hist_files[0])
-                case_spec = first_in.stem
-
                 #Notify user of new time series file:
                 print("\t \u231B time series for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-O", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
+                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,P0,PS"] + hist_files + ["-o", ts_outfil_str]
                 subprocess.run(cmd)
 
             #Notify user that script has ended:
@@ -341,11 +354,6 @@ class CamDiag:
 
                 #Run averaging script import statement:
                 exec(avg_func_import_statement)
-
-                #Extract necessary variables from CAM configure dictionary:
-                input_ts_loc    = cam_climo_dict['cam_ts_loc']
-                overwrite_climo = cam_climo_dict['cam_overwrite_climo']
-                var_list        = self.__diag_var_list
 
                 #Create actual function call:
                 avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list, overwrite_climo)'
@@ -425,6 +433,71 @@ class CamDiag:
 
     #########
 
+    def perform_analyses(self, baseline=False):
+
+        """
+        Performs statistical and other analyses as specified by the
+        user.  This currently only includes the AMWG table generation.
+
+        This method also assumes that the analysis scripts require model
+        inputs in a time series format.
+        """
+
+        #Extract names of plotting scripts:
+        anly_func_names = self.__analysis_scripts
+
+        #If no scripts are listed, then exit routine:
+        if not anly_func_names:
+            print("Nothing listed under 'analysis_scripts', so no plots will be made.")
+            return
+
+        #Check if CAM Baselines are being calculated:
+        if baseline:
+            #If so, then use the CAM baseline climo dictionary
+            #case name, and output location:
+            cam_climo_dict = self.__cam_bl_climo_info
+            case_name  = self.__basic_info['cam_baseline_case_name']
+        else:
+            #If not, then just extract the standard CAM climo dictionary
+            #case name, and output location:
+            cam_climo_dict = self.__cam_climo_info
+            case_name = self.__basic_info['cam_case_name']
+
+
+        #Extract necessary variables from CAM configure dictionary:
+        input_ts_loc    = cam_climo_dict['cam_ts_loc']
+        output_loc      = self.__basic_info['cam_diag_plot_loc']
+        write_html      = self.__basic_info['create_html']
+        var_list        = self.__diag_var_list
+
+        #Loop over all averaging script names:
+        for anly_func_name in anly_func_names:
+
+            #Add file suffix to script name (to help with the file search):
+            anly_script = anly_func_name+'.py'
+
+            #Create full path to averaging script:
+            anly_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"analysis"), anly_script)
+
+            #Check that file exists in "scripts/analysis" directory:
+            if not os.path.exists(anly_script_path):
+                msg = "Analysis script file '{}' is missing. Script is ending here.".format(anly_script_path)
+                end_diag_script(msg)
+
+            #Create averaging script import statement:
+            anly_func_import_statement = "from {} import {}".format(anly_func_name, anly_func_name)
+
+            #Run averaging script import statement:
+            exec(anly_func_import_statement)
+
+            #Create actual function call:
+            anly_func = anly_func_name+'(case_name, input_ts_loc, output_loc, var_list, write_html)'
+
+            #Evaluate (run) averaging script function:
+            eval(anly_func)
+
+    #########
+
     def create_plots(self):
 
         """
@@ -437,6 +510,14 @@ class CamDiag:
         script(s) without having to modify the
         main CAM diagnostics routines.
         """
+
+        #Extract names of plotting scripts:
+        plot_func_names = self.__plotting_scripts
+
+        #If no scripts are listed, then exit routine:
+        if not plot_func_names:
+            print("Nothing listed under 'plotting_scripts', so no plots will be made.")
+            return
 
         #Extract required input variables:
         case_name       = self.__basic_info['cam_case_name']
@@ -454,20 +535,17 @@ class CamDiag:
             data_loc  = self.__basic_info['cam_baseline_climo_loc']
             data_list = [data_name]
 
-        #Extract names of plotting scripts:
-        plot_func_names = self.__plotting_scripts
-
         #Loop over all re-gridding script names:
         for plot_func_name in plot_func_names:
 
             #Add file suffix to script name (to help with the file search):
             plot_script = plot_func_name+'.py'
 
-            #Create full path to regridding script:
+            #Create full path to plotting scripts:
             plot_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"plotting"),
                                             plot_script)
 
-            #Check that file exists in "scripts/regridding" directory:
+            #Check that file exists in "scripts/plotting" directory:
             if not os.path.exists(plot_script_path):
                 msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
                 end_diag_script(msg)
@@ -482,7 +560,7 @@ class CamDiag:
             plot_func = plot_func_name+\
             '(case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location)'
 
-            #Evaluate (run) averaging script function:
+            #Evaluate (run) plotting script function:
             eval(plot_func)
 
 ###############
