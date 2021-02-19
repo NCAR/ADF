@@ -278,10 +278,27 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         azm = zonal_mean_xr(aplev)
         bzm = zonal_mean_xr(bplev)
         diff = azm - bzm
-        fig, ax = plt.subplots(nrows=3, constrained_layout=True)
-        zonal_plot(adata['lat'], azm, ax=ax[0])
-        zonal_plot(bdata['lat'], bzm, ax=ax[1])
-        zonal_plot(adata['lat'], diff, ax=ax[2])
+        # determine levels & color normalization:
+        minval = np.min([np.min(azm), np.min(bzm)])
+        maxval = np.max([np.max(azm), np.max(bzm)])
+        normfunc, mplv = use_this_norm()
+        if ((minval < 0) and (0 < maxval)):
+            norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
+            cmap1 = 'coolwarm'
+        else:
+            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+            cmap1 = None
+        diffnorm = normfunc(vmin=np.min(diff), vcenter=0.0, vmax=np.max(diff))
+        fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True)
+        img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1)
+        img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1)
+        img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=diffnorm)
+        # style the plot:
+        cb0 = fig.colorbar(img0, ax=ax[0], location='right')
+        cb1 = fig.colorbar(img1, ax=ax[1], location='right')
+        cb2 = fig.colorbar(img2, ax=ax[2], location='right')
+        ax[-1].set_xlabel("LATITUDE")
+        fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
         azm = zonal_mean_xr(adata)
         bzm = zonal_mean_xr(bdata)
@@ -290,6 +307,8 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         zonal_plot(adata['lat'], azm, ax=ax[0])
         zonal_plot(bdata['lat'], bzm, ax=ax[0])
         zonal_plot(adata['lat'], diff, ax=ax[1])
+
+    #Write the figure to provided workspace/file:
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
     #Close plots:

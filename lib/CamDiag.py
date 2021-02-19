@@ -12,6 +12,7 @@ plotting methods themselves.
 #++++++++++++++++++++++++++++++
 
 import sys
+import os
 import os.path
 import glob
 import subprocess
@@ -121,6 +122,37 @@ def read_config_obj(config_obj, varname):
     #return variable/list/dictionary:
     return var
 
+#####
+
+def construct_index_info(d, fnam, opf):
+
+    """
+    Helper function for generating web pages.
+    d : dictionary for the index page information
+    fnam : the image filename, img.stem  --> then decompose the img file's parts.
+    opf: outputfile for the image
+    """
+    vname, plot_desc = fnam[0:fnam.index("_")], fnam[fnam.index("_")+1:]
+    if 'ANN' in plot_desc:
+        temporal = 'ANN'
+    elif 'DJF' in plot_desc:
+        temporal = 'DJF'
+    elif 'JJA' in plot_desc:
+        temporal = 'JJA'
+    elif 'MAM' in plot_desc:
+        temporal = 'MAM'
+    elif 'SON' in plot_desc:
+        temporal = 'SON'
+    else:
+        temporal = 'NoInfo'
+    plot_type = plot_desc.replace(temporal+"_", "")
+    if vname not in d:
+        d[vname] = {}
+    if plot_type not in d[vname]:
+        d[vname][plot_type] = {}
+    d[vname][plot_type][temporal] = opf
+
+
 ######################################
 #Main CAM diagnostics class (cam_diag)
 ######################################
@@ -199,8 +231,14 @@ class CamDiag:
     # Create property needed to return "compare_obs" logical to user:
     @property
     def compare_obs(self):
-        """Return the "compare_obs" logical to user if requested"""
+        """Return the "compare_obs" logical to user if requested."""
         return self.__basic_info['compare_obs']
+
+    # Create property needed to return "create_html" logical to user:
+    @property
+    def create_html(self):
+        """Return the "create_html" logical to user if requested."""
+        return self.__basic_info['create_html']
 
     #########
 
@@ -562,5 +600,139 @@ class CamDiag:
 
             #Evaluate (run) plotting script function:
             eval(plot_func)
+
+    #########
+
+    def create_webpage(self):
+
+        """
+        Generate webpages to display diagnostic results.
+        """
+
+        #import needed standard modules:
+        from shutil import copyfile
+        from collections import OrderedDict
+
+        #Import "special" modules:
+        try:
+            import jinja2
+        except ImportError:
+            print("Jinja2 module does not exist in python path, but is needed for website.")
+            print("Please install module, e.g. 'pip install Jinja2'.")
+            sys.exit(1)
+
+        #Notify user that script has started:
+        print("  Generating Diagnostics webpages...")
+
+        #Extract needed variables from yaml file:
+        plot_location  = self.__basic_info['cam_diag_plot_loc']
+        case_name = self.__basic_info['cam_case_name']
+        var_list = self.__diag_var_list
+
+        #Set name of comparison data, which depends on "compare_obs":
+        if self.compare_obs:
+            data_name = "obs"
+        else:
+            data_name = self.__basic_info['cam_baseline_case_name']
+
+        #Set preferred order of seasons:
+        season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
+
+        #Set preferred order of plot types:
+        plot_type_order = ["LatLon", "Zonal"]
+
+        #Create new path object from user-specified plot directory path:
+        plot_path = Path(plot_location)
+
+        #Create the directory where the website will be built:
+        website_dir = plot_path / "website"
+        website_dir.mkdir(exist_ok=True)
+
+        #Create a directory that will hold just the html files for individual images:
+        img_pages_dir = website_dir / "html_img"
+        img_pages_dir.mkdir(exist_ok=True)
+
+        #Create a directory that will hold copies of the actual images:
+        assets_dir = website_dir / "assets"
+        assets_dir.mkdir(exist_ok=True)
+
+        #Specify where the images will be:
+        img_source_dir = plot_path / f"{case_name}_vs_{data_name}"
+
+        #Specify where CSS files will be stored:
+        css_files_dir = website_dir / "templates"
+        css_files_dir.mkdir(exist_ok=True)
+
+        #Set path to Jinja2 template files:
+        jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
+
+        #Copy CSS files over to output directory:
+        for css_file in jinja_template_dir.glob('*.css'):
+            copyfile(css_file, css_files_dir / css_file.name)
+
+        #Copy images into the website image dictionary:
+        for img in img_source_dir.glob("*.png"):
+            idest = assets_dir / img.name
+            copyfile(img, idest) # store image in assets
+
+
+        index_html_info = OrderedDict() # this is going to hold the data for building the index
+                                        # Provisional structure:
+                                        # key = variable_name
+                                        # values -> dict w/ keys being "TYPE" of plots
+                                        # w/ values being dict w/ keys being TEMPORAL sampling, values being the URL
+
+        #Create the jinja Environment object:
+        jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
+
+        #Create alphabetically-sorted variable list:
+        var_list_alpha = sorted(var_list)
+
+        #Loop over variables:
+        for var in var_list_alpha:
+            #Loop over plot type:
+            for ptype in plot_type_order:
+                #Loop over seasons:
+                for season in season_order:
+                    #Create the data that will be fed into the template:
+                    for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                        alt_text  = img.stem #Extract image file name text
+                        img_info  = alt_text.split("_") #Split file name into relevant sub-strings
+                        anyl_type = img_info[3] #Extract analysis type
+
+                        #Create output file (don't worry about analysis type for now):
+                        outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                        img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]  # Hacky - how to get the relative path in a better way?
+                        title = f"Variable: {var}"              #Create title
+                        tmpl = jinenv.get_template('template.html')  #Set template
+                        rndr = tmpl.render(title=title, value=img_data, case1=case_name, case2=data_name) #The template rendered
+
+                        #Open HTML file:
+                        with open(outputfile,'w') as f: f.write(rndr)
+
+                        #Add file info to HTML index page dicitonary:
+                        if var not in index_html_info:
+                            index_html_info[var] = OrderedDict()
+                        else:
+                            if ptype not in index_html_info[var]:
+                                index_html_info[var][ptype] = OrderedDict()
+                            else:
+                                index_html_info[var][ptype][season] = \
+                                outputfile.relative_to(website_dir)
+
+        #Construct index.html
+        ititle = "AMP Diagnostics Prototype"
+        itmpl = jinenv.get_template('template_index.html')
+        irndr = itmpl.render(title=ititle,
+                        case1=case_name,
+                        case2=data_name,
+                        mydata=index_html_info)
+
+        #Write Top-level HTML file:
+        outputfile = website_dir / "index.html"
+        with open(outputfile,'w') as f: f.write(irndr)
+
+        #Notify user that script has finishedd:
+        print("  ...Webpages have been generated successfully.")
 
 ###############

@@ -151,6 +151,10 @@ if __name__ == "__main__":
     #Create plots:
     diag.create_plots()
 
+    #Create website:
+    if diag.create_html:
+        diag.create_webpage()
+
     #+++++++++++++++
     #End diag script
     #+++++++++++++++

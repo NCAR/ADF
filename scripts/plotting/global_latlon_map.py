@@ -133,8 +133,8 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
                         dseasons[s] = mseasons[s] - oseasons[s]
 
                         # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                        # I'll just call this one "Mean_LatLon"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                        plot_name = plot_loc / "{}_{}_Mean_LatLon.{}".format(var, s, plot_type)
+                        # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
+                        plot_name = plot_loc / "{}_{}_LatLon_Mean.{}".format(var, s, plot_type)
 
                         #Remove old plot, if it already exists:
                         if plot_name.is_file():
