@@ -20,7 +20,9 @@ diag_basic_info:
   #If "false", then a model-model comparison is assumed:
   compare_obs: false
 
-  #Generate HTML website (currently only matters for AMWG table):
+  #Generate HTML website:
+  #Note:  The website files themselves will be located in the path
+  #specified by "cam_diag_plot_loc", under the "website" sub-directory
   create_html: true
 
   #Location of observational climatologies (only matters if "compare_obs" is true):
@@ -131,7 +133,7 @@ regridding_scripts:
  - regrid_example
 
 #List of analysis scripts being used.
-#These scripts musbe located in "scripts/analysis":
+#These scripts must be located in "scripts/analysis":
 analysis_scripts:
  - amwg_table
 

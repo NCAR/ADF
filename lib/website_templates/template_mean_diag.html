@@ -1,6 +1,6 @@
 <html>
   <head>
-    <link rel="stylesheet" href="./templates/cam_diag.css">
+    <link rel="stylesheet" href="../templates/cam_diag.css">
   </head>
   <body >
 
@@ -24,26 +24,23 @@
      <h2> Case 2: {{case2}}</h2>
 
      <table class="big-table">
+        {% for key, value in mydata.items() %}
         <tr>
-          <th><a href="html_img/mean_diag.html">Mean Diagnostic Plots</a></th>
+          <th colspan="100%"> {{key}} </th>
         </tr>
-        {% if amwg_tables %}
-          <tr>
-            <td> &nbsp; </td>
-          </tr>
-          <tr>
-            <th colspan="100%">Mean Diagnostic Tables: </th>
-          </tr>
-          <tr>
-            <td> &nbsp; </td>
-          </tr>
-          {% for case_name, html_file in amwg_tables.items() %}
-          <tr>
-            <td><a href="{{ html_file }}">{{ case_name }}</a></td>
-          </tr>
+        {% for pkey, pvalue in value.items() %}
+        <tr>
+          <td> &nbsp; </td>
+          <th>{{pkey}}</th>
+          {% for tkey, tvalue in pvalue.items() %}
+          <td>
+            <a href="{{ tvalue }}">{{ tkey }}</a>
+          </td>
           {% endfor %}
-        {% endif %}
-     </table>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+    </table>
 
 
   </body>

@@ -610,7 +610,7 @@ class CamDiag:
         """
 
         #import needed standard modules:
-        from shutil import copyfile
+        import shutil
         from collections import OrderedDict
 
         #Import "special" modules:
@@ -668,16 +668,16 @@ class CamDiag:
 
         #Copy CSS files over to output directory:
         for css_file in jinja_template_dir.glob('*.css'):
-            copyfile(css_file, css_files_dir / css_file.name)
+            shutil.copyfile(css_file, css_files_dir / css_file.name)
 
         #Copy images into the website image dictionary:
         for img in img_source_dir.glob("*.png"):
             idest = assets_dir / img.name
-            copyfile(img, idest) # store image in assets
+            shutil.copyfile(img, idest) # store image in assets
 
 
-        index_html_info = OrderedDict() # this is going to hold the data for building the index
-                                        # Provisional structure:
+        mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
+                                        # plots provisional structure:
                                         # key = variable_name
                                         # values -> dict w/ keys being "TYPE" of plots
                                         # w/ values being dict w/ keys being TEMPORAL sampling, values being the URL
@@ -710,27 +710,92 @@ class CamDiag:
                         #Open HTML file:
                         with open(outputfile,'w') as f: f.write(rndr)
 
-                        #Add file info to HTML index page dicitonary:
-                        if var not in index_html_info:
-                            index_html_info[var] = OrderedDict()
-                        else:
-                            if ptype not in index_html_info[var]:
-                                index_html_info[var][ptype] = OrderedDict()
-                            else:
-                                index_html_info[var][ptype][season] = \
-                                outputfile.relative_to(website_dir)
+                        #Initialize Ordered Dictionary for variable:
+                        if var not in mean_html_info:
+                            mean_html_info[var] = OrderedDict()
 
-        #Construct index.html
-        ititle = "AMP Diagnostics Prototype"
-        itmpl = jinenv.get_template('template_index.html')
-        irndr = itmpl.render(title=ititle,
+                        #Initialize Ordered Dictionary for plot type:
+                        if ptype not in mean_html_info[var]:
+                                mean_html_info[var][ptype] = OrderedDict()
+
+                        #Add file info to HTML mean page dicitonary:
+#                        mean_html_info[var][ptype][season] = \
+#                            outputfile.relative_to(website_dir)
+
+                        mean_html_info[var][ptype][season] = outputfile.name
+
+        #Construct mean_diag.html
+        mean_title = "AMP Diagnostic Plots"
+        mean_tmpl = jinenv.get_template('template_mean_diag.html')
+        mean_rndr = mean_tmpl.render(title=mean_title,
                         case1=case_name,
                         case2=data_name,
-                        mydata=index_html_info)
+                        mydata=mean_html_info)
 
-        #Write Top-level HTML file:
+        #Write Mean diagnostics HTML file:
+        outputfile = img_pages_dir / "mean_diag.html"
+        with open(outputfile,'w') as f: f.write(mean_rndr)
+
+        #Search for AMWG Table HTML files:
+        table_html_files = plot_path.glob("amwg_table_*.html")
+
+        #Determine if any AMWG tables were generated:
+        if table_html_files:
+
+            #Create a directory that will hold table html files:
+            table_pages_dir = website_dir / "html_table"
+            table_pages_dir.mkdir(exist_ok=True)
+
+            #Move all table html files to new directory:
+            for table_html in table_html_files:
+                shutil.move(table_html, table_pages_dir / table_html.name)
+
+            #Construct dictionary needed for HTML page:
+            amwg_tables = OrderedDict()
+
+            #Loop over cases:
+            for case in [case_name, data_name]:
+
+                #Search for case name in moved HTML files:
+                table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
+
+                #Check if file exists:
+                if table_htmls:
+
+                    #Initialize loop counter:
+                    count = 0
+
+                    #Loop over globbed files:
+                    for table_html in table_htmls:
+
+                        #Create relative path for HTML file:
+                        amwg_tables[case] = "html_table"+os.sep+table_html.name
+
+                        #Update counter:
+                        count += 1
+
+                        #If counter greater than one, then throw an error:
+                        if count > 1:
+                            msg = "More than one AMWG table is associated with case '{}'.".format(case)
+                            msg += "\nNot sure what is going on, so website generation will end here."
+                            end_diag_script(msg)
+
+
+        else:
+            #No Tables exist, so no link will be added to main page:
+            amwg_tables = None
+
+        #Construct index.html
+        index_title = "AMP Diagnostics Prototype"
+        index_tmpl = jinenv.get_template('template_index.html')
+        index_rndr = index_tmpl.render(title=index_title,
+                         case1=case_name,
+                         case2=data_name,
+                         amwg_tables=amwg_tables)
+
+        #Write Mean diagnostics HTML file:
         outputfile = website_dir / "index.html"
-        with open(outputfile,'w') as f: f.write(irndr)
+        with open(outputfile,'w') as f: f.write(index_rndr)
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
