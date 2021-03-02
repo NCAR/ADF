@@ -1,5 +1,7 @@
+<!DOCTYPE html>
 <html>
   <head>
+    <title>CAM Diagnostics</title>
     <link rel="stylesheet" href="./templates/cam_diag.css">
   </head>
   <body >
@@ -27,21 +29,10 @@
         <tr>
           <th><a href="html_img/mean_diag.html">Mean Diagnostic Plots</a></th>
         </tr>
-        {% if amwg_tables %}
+        {% if gen_table_html %}
           <tr>
-            <td> &nbsp; </td>
+            <th><a href="html_table/mean_table.html">Mean Diagnostics Tables</a></th>
           </tr>
-          <tr>
-            <th colspan="100%">Mean Diagnostic Tables: </th>
-          </tr>
-          <tr>
-            <td> &nbsp; </td>
-          </tr>
-          {% for case_name, html_file in amwg_tables.items() %}
-          <tr>
-            <td><a href="{{ html_file }}">{{ case_name }}</a></td>
-          </tr>
-          {% endfor %}
         {% endif %}
      </table>
 

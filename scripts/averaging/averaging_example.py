@@ -19,6 +19,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, overwrite_c
     #Import necessary modules:
     import xarray as xr
     from pathlib import Path
+    from CamDiag import end_diag_script #Diagnostics routine
 
     #Notify user that script has started:
     print("  Calculating CAM climatologies...")

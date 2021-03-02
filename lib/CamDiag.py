@@ -322,7 +322,7 @@ class CamDiag:
                 print("\t \u231B time series for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,P0,PS"] + hist_files + ["-o", ts_outfil_str]
+                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + hist_files + ["-o", ts_outfil_str]
                 subprocess.run(cmd)
 
             #Notify user that script has ended:
@@ -718,10 +718,6 @@ class CamDiag:
                         if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()
 
-                        #Add file info to HTML mean page dicitonary:
-#                        mean_html_info[var][ptype][season] = \
-#                            outputfile.relative_to(website_dir)
-
                         mean_html_info[var][ptype][season] = outputfile.name
 
         #Construct mean_diag.html
@@ -732,7 +728,7 @@ class CamDiag:
                         case2=data_name,
                         mydata=mean_html_info)
 
-        #Write Mean diagnostics HTML file:
+        #Write mean diagnostic plots HTML file:
         outputfile = img_pages_dir / "mean_diag.html"
         with open(outputfile,'w') as f: f.write(mean_rndr)
 
@@ -741,6 +737,9 @@ class CamDiag:
 
         #Determine if any AMWG tables were generated:
         if table_html_files:
+
+            #Set Table HTML generation logical to "TRUE":
+            gen_table_html = True
 
             #Create a directory that will hold table html files:
             table_pages_dir = website_dir / "html_table"
@@ -769,7 +768,7 @@ class CamDiag:
                     for table_html in table_htmls:
 
                         #Create relative path for HTML file:
-                        amwg_tables[case] = "html_table"+os.sep+table_html.name
+                        amwg_tables[case] = table_html.name
 
                         #Update counter:
                         count += 1
@@ -781,9 +780,19 @@ class CamDiag:
                             end_diag_script(msg)
 
 
+            #Construct mean_table.html
+            mean_title = "AMP Diagnostic Tables:"
+            mean_tmpl = jinenv.get_template('template_mean_table.html')
+            mean_rndr = mean_tmpl.render(title=mean_title,
+                            amwg_tables=amwg_tables)
+
+            #Write mean diagnostic tables HTML file:
+            outputfile = table_pages_dir / "mean_table.html"
+            with open(outputfile,'w') as f: f.write(mean_rndr)
+
         else:
             #No Tables exist, so no link will be added to main page:
-            amwg_tables = None
+            gen_table_html = False
 
         #Construct index.html
         index_title = "AMP Diagnostics Prototype"
@@ -791,7 +800,7 @@ class CamDiag:
         index_rndr = index_tmpl.render(title=index_title,
                          case1=case_name,
                          case2=data_name,
-                         amwg_tables=amwg_tables)
+                         gen_table_html=gen_table_html)
 
         #Write Mean diagnostics HTML file:
         outputfile = website_dir / "index.html"

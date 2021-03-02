@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>CAM {{title}}</title>
+    <title>CAM Mean Tables</title>
     <link rel="stylesheet" href="../templates/cam_diag.css">
   </head>
   <body >
 
     <nav role="navigation" class="primary-navigation">
       <ul>
-        <li><a href="../index.html">Back</a></li>
+        <li><a href=".">Home</a></li>
         <li><a href="#">Links &dtrif;</a>
           <ul class="dropdown">
             <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
@@ -21,10 +21,15 @@
       </ul>
     </nav>
 
+    <h1> {{title}} </h1>
 
-     <h1> {{title}} </h1>
-     <h2> Case 1: {{case1}}</h2>
-     <h2> Case 2: {{case2}}</h2>
-     <img src="{{value[0]}}" alt="{{value[1]}}"></img>
+    <table class="big-table">
+      {% for case_name, html_file in amwg_tables.items() %}
+        <tr>
+          <td><a href="{{ html_file }}">{{ case_name }}</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+
   </body>
 </html>

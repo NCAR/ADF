@@ -135,17 +135,17 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **kwargs))
         cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8))
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
-        # add contour lines
-        cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k'))
-        ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
-        ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
-        bbox=dict(facecolor='none', edgecolor='black'), fontsize=tiFontSize-2)
+        # add contour lines <- Unused for now -JN
+        #cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))
+        #ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
+        #ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
+        #bbox=dict(facecolor='none', edgecolor='black'), fontsize=tiFontSize-2)
 
     # set rmse title:
     ax[-1].set_title("RMSE: {0:.3f}".format(d_rmse), fontsize=tiFontSize)
 
     for a in ax:
-        a.outline_patch.set_linewidth(2)
+        a.outline_patch.set_linewidth(1)
         a.coastlines()
         a.set_xticks(np.linspace(-180, 180, 7), crs=ccrs.PlateCarree())
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())

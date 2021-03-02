@@ -63,19 +63,20 @@ a {
     text-decoration: none;
     color: navy;
 }
-a:hover {
-    color: #3ca0e7;
-}
 a:visited {
     color: pink;
 }
+a:hover {
+    color: #3ca0e7;
+}
+
 ul li ul li a {
     transition: all 0.5s ease;
 }
 h1 {
     color: rgb(67, 67, 67);
     font-family: Tahoma, Geneva, Verdana, sans-serif;
-}  
+}
 h2 {
     color: gray;
     font-family: Tahoma, Geneva, Verdana, sans-serif;

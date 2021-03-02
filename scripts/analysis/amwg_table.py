@@ -24,9 +24,10 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
     """
 
     #Import necessary modules:
-    from pathlib import Path
     import numpy as np
     import xarray as xr
+    from pathlib import Path
+    from CamDiag import end_diag_script #Diagnostics routine
 
     #Import "special" modules:
     try:
