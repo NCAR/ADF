@@ -135,17 +135,17 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **kwargs))
         cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8))
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
-        # add contour lines
-        cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k'))
-        ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
-        ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
-        bbox=dict(facecolor='none', edgecolor='black'), fontsize=tiFontSize-2)
+        # add contour lines <- Unused for now -JN
+        #cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))
+        #ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
+        #ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
+        #bbox=dict(facecolor='none', edgecolor='black'), fontsize=tiFontSize-2)
 
     # set rmse title:
     ax[-1].set_title("RMSE: {0:.3f}".format(d_rmse), fontsize=tiFontSize)
 
     for a in ax:
-        a.outline_patch.set_linewidth(2)
+        a.outline_patch.set_linewidth(1)
         a.coastlines()
         a.set_xticks(np.linspace(-180, 180, 7), crs=ccrs.PlateCarree())
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
@@ -278,10 +278,27 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         azm = zonal_mean_xr(aplev)
         bzm = zonal_mean_xr(bplev)
         diff = azm - bzm
-        fig, ax = plt.subplots(nrows=3, constrained_layout=True)
-        zonal_plot(adata['lat'], azm, ax=ax[0])
-        zonal_plot(bdata['lat'], bzm, ax=ax[1])
-        zonal_plot(adata['lat'], diff, ax=ax[2])
+        # determine levels & color normalization:
+        minval = np.min([np.min(azm), np.min(bzm)])
+        maxval = np.max([np.max(azm), np.max(bzm)])
+        normfunc, mplv = use_this_norm()
+        if ((minval < 0) and (0 < maxval)):
+            norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
+            cmap1 = 'coolwarm'
+        else:
+            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+            cmap1 = None
+        diffnorm = normfunc(vmin=np.min(diff), vcenter=0.0, vmax=np.max(diff))
+        fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True)
+        img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1)
+        img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1)
+        img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=diffnorm)
+        # style the plot:
+        cb0 = fig.colorbar(img0, ax=ax[0], location='right')
+        cb1 = fig.colorbar(img1, ax=ax[1], location='right')
+        cb2 = fig.colorbar(img2, ax=ax[2], location='right')
+        ax[-1].set_xlabel("LATITUDE")
+        fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
         azm = zonal_mean_xr(adata)
         bzm = zonal_mean_xr(bdata)
@@ -290,6 +307,8 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         zonal_plot(adata['lat'], azm, ax=ax[0])
         zonal_plot(bdata['lat'], bzm, ax=ax[0])
         zonal_plot(adata['lat'], diff, ax=ax[1])
+
+    #Write the figure to provided workspace/file:
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
     #Close plots:
