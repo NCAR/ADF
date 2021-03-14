@@ -702,7 +702,6 @@ class CamDiag:
 
                         #Create output file (don't worry about analysis type for now):
                         outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
-
                         img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]  # Hacky - how to get the relative path in a better way?
                         title = f"Variable: {var}"              #Create title
                         tmpl = jinenv.get_template('template.html')  #Set template
