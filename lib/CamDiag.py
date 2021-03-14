@@ -675,7 +675,6 @@ class CamDiag:
             idest = assets_dir / img.name
             shutil.copyfile(img, idest) # store image in assets
 
-
         mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
                                         # plots provisional structure:
                                         # key = variable_name
@@ -694,14 +693,17 @@ class CamDiag:
             for ptype in plot_type_order:
                 #Loop over seasons:
                 for season in season_order:
+
                     #Create the data that will be fed into the template:
-                    for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                    #SWCF_SON_Mean_LatLon.png
+                    for img in assets_dir.glob(f"{var}_{season}_Mean_{ptype}*.png"):
                         alt_text  = img.stem #Extract image file name text
                         img_info  = alt_text.split("_") #Split file name into relevant sub-strings
                         anyl_type = img_info[3] #Extract analysis type
 
                         #Create output file (don't worry about analysis type for now):
                         outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+
                         img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]  # Hacky - how to get the relative path in a better way?
                         title = f"Variable: {var}"              #Create title
                         tmpl = jinenv.get_template('template.html')  #Set template
