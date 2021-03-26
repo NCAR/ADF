@@ -73,11 +73,16 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Command-line wrapper to run the CAM diagnostics package.')
 
     #Add input arguments to be parsed:
-    parser.add_argument('--config_file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
-                        help="YAML file used to configure CAM diagnostics (see config_example.yaml)")
+    parser.add_argument('--config-file', '--config_file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
+                        help="YAML file used to configure CAM diagnostics.")
 
     #Parse Argument inputs
     args = parser.parse_args()
+
+    #If "config-file" isn't present, then throw an error:
+    if not args.config_file:
+        parser.error("Missing required '--config-file' argument") 
+
     return args
 
 ############################
@@ -141,8 +146,19 @@ if __name__ == "__main__":
     #observations or CAM baseline climatologies:
     diag.regrid_climo()
 
+    #Perform analyses:
+    diag.perform_analyses()
+
+    #If baseline is present, then peform analyses on it as well:
+    if not diag.compare_obs:
+        diag.perform_analyses(baseline=True)
+
     #Create plots:
     diag.create_plots()
+
+    #Create website:
+    if diag.create_html:
+        diag.create_webpage()
 
     #+++++++++++++++
     #End diag script

@@ -12,6 +12,7 @@ plotting methods themselves.
 #++++++++++++++++++++++++++++++
 
 import sys
+import os
 import os.path
 import glob
 import subprocess
@@ -99,6 +100,8 @@ def end_diag_script(msg):
     print(msg)
     sys.exit(1)
 
+#####
+
 def read_config_obj(config_obj, varname):
 
     """
@@ -118,6 +121,37 @@ def read_config_obj(config_obj, varname):
 
     #return variable/list/dictionary:
     return var
+
+#####
+
+def construct_index_info(d, fnam, opf):
+
+    """
+    Helper function for generating web pages.
+    d : dictionary for the index page information
+    fnam : the image filename, img.stem  --> then decompose the img file's parts.
+    opf: outputfile for the image
+    """
+    vname, plot_desc = fnam[0:fnam.index("_")], fnam[fnam.index("_")+1:]
+    if 'ANN' in plot_desc:
+        temporal = 'ANN'
+    elif 'DJF' in plot_desc:
+        temporal = 'DJF'
+    elif 'JJA' in plot_desc:
+        temporal = 'JJA'
+    elif 'MAM' in plot_desc:
+        temporal = 'MAM'
+    elif 'SON' in plot_desc:
+        temporal = 'SON'
+    else:
+        temporal = 'NoInfo'
+    plot_type = plot_desc.replace(temporal+"_", "")
+    if vname not in d:
+        d[vname] = {}
+    if plot_type not in d[vname]:
+        d[vname][plot_type] = {}
+    d[vname][plot_type][temporal] = opf
+
 
 ######################################
 #Main CAM diagnostics class (cam_diag)
@@ -149,6 +183,9 @@ class CamDiag:
         Initalize CAM diagnostics object.
         """
 
+        #Expand any environmental user name variables in the path:
+        config_file = os.path.expanduser(config_file)
+
         #Check that YAML file actually exists:
         if not os.path.exists(config_file):
             raise FileNotFoundError("'{}' file not found.".format(config_file))
@@ -179,6 +216,9 @@ class CamDiag:
         #Add regridding script names:
         self.__regridding_scripts = read_config_obj(config, 'regridding_scripts')
 
+        #Add analysis script names:
+        self.__analysis_scripts = read_config_obj(config, 'analysis_scripts')
+
         #Add plotting script names:
         self.__plotting_scripts = read_config_obj(config, 'plotting_scripts')
 
@@ -191,8 +231,14 @@ class CamDiag:
     # Create property needed to return "compare_obs" logical to user:
     @property
     def compare_obs(self):
-        """Return the "compare_obs" logical to user if requested"""
+        """Return the "compare_obs" logical to user if requested."""
         return self.__basic_info['compare_obs']
+
+    # Create property needed to return "create_html" logical to user:
+    @property
+    def create_html(self):
+        """Return the "create_html" logical to user if requested."""
+        return self.__basic_info['create_html']
 
     #########
 
@@ -223,19 +269,33 @@ class CamDiag:
             #Extract cam time series directory:
             ts_dir = cam_climo_dict['cam_ts_loc']
 
+            #Extract start and end year values:
+            start_year = int(cam_climo_dict['start_year'])
+            end_year   = int(cam_climo_dict['end_year'])
+
             #Extract cam variable list:
             var_list = self.__diag_var_list
 
             #Create path object for the CAM history file(s) location:
             starting_location = Path(cam_climo_dict['cam_hist_loc'])
 
-            #Create ordered list of CAM history files:
-            hist_files = sorted(list(starting_location.glob('*.cam.h0.*')))
+            #Create empty list:
+            files_list = list()
 
-            #Check that CAM history files exist.  If not then kill script:
-            if not hist_files:
-                msg = "No CAM history (h0) files found in {}.  Script is ending here."
+            #Check if history files actually exist. If not then kill script:
+            if not starting_location.glob('*.cam.h0.*.nc'):
+                msg = "No CAM history (h0) files found in '{}'.  Script is ending here."
+                msg = msg.format(starting_location)
                 end_diag_script(msg)
+
+            #Loop over start and end years:
+            for year in range(start_year, end_year+1):
+                #Add files to main file list:
+                for fname in starting_location.glob('*.cam.h0.*{}-*.nc'.format(year)):
+                    files_list.append(fname)
+
+            #Create ordered list of CAM history files:
+            hist_files = sorted(files_list)
 
             #Check if time series directory exists, and if not, then create it:
             if not os.path.isdir(ts_dir):
@@ -258,15 +318,11 @@ class CamDiag:
                         #If not, then simply skip this variable:
                         continue
 
-                #Generate filename without suffix:
-                first_in  = Path(hist_files[0])
-                case_spec = first_in.stem
-
                 #Notify user of new time series file:
-                print("    Creating new time series file for {}".format(var))
+                print("\t \u231B time series for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-4", "-h", "-v", var] + hist_files + ["-o", ts_outfil_str]
+                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + hist_files + ["-o", ts_outfil_str]
                 subprocess.run(cmd)
 
             #Notify user that script has ended:
@@ -312,6 +368,11 @@ class CamDiag:
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts
 
+            #Extract necessary variables from CAM configure dictionary:
+            input_ts_loc    = cam_climo_dict['cam_ts_loc']
+            overwrite_climo = cam_climo_dict['cam_overwrite_climo']
+            var_list        = self.__diag_var_list
+
             #Loop over all averaging script names:
             for avg_func_name in avg_func_names:
 
@@ -332,12 +393,8 @@ class CamDiag:
                 #Run averaging script import statement:
                 exec(avg_func_import_statement)
 
-                #Extract necessary variables from CAM configure dictionary:
-                input_ts_loc = cam_climo_dict['cam_ts_loc']
-                var_list     = self.__diag_var_list
-
                 #Create actual function call:
-                avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list)'
+                avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list, overwrite_climo)'
 
                 #Evaluate (run) averaging script function:
                 eval(avg_func)
@@ -414,6 +471,71 @@ class CamDiag:
 
     #########
 
+    def perform_analyses(self, baseline=False):
+
+        """
+        Performs statistical and other analyses as specified by the
+        user.  This currently only includes the AMWG table generation.
+
+        This method also assumes that the analysis scripts require model
+        inputs in a time series format.
+        """
+
+        #Extract names of plotting scripts:
+        anly_func_names = self.__analysis_scripts
+
+        #If no scripts are listed, then exit routine:
+        if not anly_func_names:
+            print("Nothing listed under 'analysis_scripts', so no plots will be made.")
+            return
+
+        #Check if CAM Baselines are being calculated:
+        if baseline:
+            #If so, then use the CAM baseline climo dictionary
+            #case name, and output location:
+            cam_climo_dict = self.__cam_bl_climo_info
+            case_name  = self.__basic_info['cam_baseline_case_name']
+        else:
+            #If not, then just extract the standard CAM climo dictionary
+            #case name, and output location:
+            cam_climo_dict = self.__cam_climo_info
+            case_name = self.__basic_info['cam_case_name']
+
+
+        #Extract necessary variables from CAM configure dictionary:
+        input_ts_loc    = cam_climo_dict['cam_ts_loc']
+        output_loc      = self.__basic_info['cam_diag_plot_loc']
+        write_html      = self.__basic_info['create_html']
+        var_list        = self.__diag_var_list
+
+        #Loop over all averaging script names:
+        for anly_func_name in anly_func_names:
+
+            #Add file suffix to script name (to help with the file search):
+            anly_script = anly_func_name+'.py'
+
+            #Create full path to averaging script:
+            anly_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"analysis"), anly_script)
+
+            #Check that file exists in "scripts/analysis" directory:
+            if not os.path.exists(anly_script_path):
+                msg = "Analysis script file '{}' is missing. Script is ending here.".format(anly_script_path)
+                end_diag_script(msg)
+
+            #Create averaging script import statement:
+            anly_func_import_statement = "from {} import {}".format(anly_func_name, anly_func_name)
+
+            #Run averaging script import statement:
+            exec(anly_func_import_statement)
+
+            #Create actual function call:
+            anly_func = anly_func_name+'(case_name, input_ts_loc, output_loc, var_list, write_html)'
+
+            #Evaluate (run) averaging script function:
+            eval(anly_func)
+
+    #########
+
     def create_plots(self):
 
         """
@@ -426,6 +548,14 @@ class CamDiag:
         script(s) without having to modify the
         main CAM diagnostics routines.
         """
+
+        #Extract names of plotting scripts:
+        plot_func_names = self.__plotting_scripts
+
+        #If no scripts are listed, then exit routine:
+        if not plot_func_names:
+            print("Nothing listed under 'plotting_scripts', so no plots will be made.")
+            return
 
         #Extract required input variables:
         case_name       = self.__basic_info['cam_case_name']
@@ -443,20 +573,17 @@ class CamDiag:
             data_loc  = self.__basic_info['cam_baseline_climo_loc']
             data_list = [data_name]
 
-        #Extract names of plotting scripts:
-        plot_func_names = self.__plotting_scripts
-
         #Loop over all re-gridding script names:
         for plot_func_name in plot_func_names:
 
             #Add file suffix to script name (to help with the file search):
             plot_script = plot_func_name+'.py'
 
-            #Create full path to regridding script:
+            #Create full path to plotting scripts:
             plot_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"plotting"),
                                             plot_script)
 
-            #Check that file exists in "scripts/regridding" directory:
+            #Check that file exists in "scripts/plotting" directory:
             if not os.path.exists(plot_script_path):
                 msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
                 end_diag_script(msg)
@@ -471,7 +598,215 @@ class CamDiag:
             plot_func = plot_func_name+\
             '(case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location)'
 
-            #Evaluate (run) averaging script function:
+            #Evaluate (run) plotting script function:
             eval(plot_func)
+
+    #########
+
+    def create_webpage(self):
+
+        """
+        Generate webpages to display diagnostic results.
+        """
+
+        #import needed standard modules:
+        import shutil
+        from collections import OrderedDict
+
+        #Import "special" modules:
+        try:
+            import jinja2
+        except ImportError:
+            print("Jinja2 module does not exist in python path, but is needed for website.")
+            print("Please install module, e.g. 'pip install Jinja2'.")
+            sys.exit(1)
+
+        #Notify user that script has started:
+        print("  Generating Diagnostics webpages...")
+
+        #Extract needed variables from yaml file:
+        plot_location  = self.__basic_info['cam_diag_plot_loc']
+        case_name = self.__basic_info['cam_case_name']
+        var_list = self.__diag_var_list
+
+        #Set name of comparison data, which depends on "compare_obs":
+        if self.compare_obs:
+            data_name = "obs"
+        else:
+            data_name = self.__basic_info['cam_baseline_case_name']
+
+        #Set preferred order of seasons:
+        season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
+
+        #Set preferred order of plot types:
+        plot_type_order = ["LatLon", "Zonal"]
+
+        #Create new path object from user-specified plot directory path:
+        plot_path = Path(plot_location)
+
+        #Create the directory where the website will be built:
+        website_dir = plot_path / "website"
+        website_dir.mkdir(exist_ok=True)
+
+        #Create a directory that will hold just the html files for individual images:
+        img_pages_dir = website_dir / "html_img"
+        img_pages_dir.mkdir(exist_ok=True)
+
+        #Create a directory that will hold copies of the actual images:
+        assets_dir = website_dir / "assets"
+        assets_dir.mkdir(exist_ok=True)
+
+        #Specify where the images will be:
+        img_source_dir = plot_path / f"{case_name}_vs_{data_name}"
+
+        #Specify where CSS files will be stored:
+        css_files_dir = website_dir / "templates"
+        css_files_dir.mkdir(exist_ok=True)
+
+        #Set path to Jinja2 template files:
+        jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
+
+        #Copy CSS files over to output directory:
+        for css_file in jinja_template_dir.glob('*.css'):
+            shutil.copyfile(css_file, css_files_dir / css_file.name)
+
+        #Copy images into the website image dictionary:
+        for img in img_source_dir.glob("*.png"):
+            idest = assets_dir / img.name
+            shutil.copyfile(img, idest) # store image in assets
+
+
+        mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
+                                        # plots provisional structure:
+                                        # key = variable_name
+                                        # values -> dict w/ keys being "TYPE" of plots
+                                        # w/ values being dict w/ keys being TEMPORAL sampling, values being the URL
+
+        #Create the jinja Environment object:
+        jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
+
+        #Create alphabetically-sorted variable list:
+        var_list_alpha = sorted(var_list)
+
+        #Loop over variables:
+        for var in var_list_alpha:
+            #Loop over plot type:
+            for ptype in plot_type_order:
+                #Loop over seasons:
+                for season in season_order:
+                    #Create the data that will be fed into the template:
+                    for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                        alt_text  = img.stem #Extract image file name text
+                        img_info  = alt_text.split("_") #Split file name into relevant sub-strings
+                        anyl_type = img_info[3] #Extract analysis type
+
+                        #Create output file (don't worry about analysis type for now):
+                        outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                        img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]  # Hacky - how to get the relative path in a better way?
+                        title = f"Variable: {var}"              #Create title
+                        tmpl = jinenv.get_template('template.html')  #Set template
+                        rndr = tmpl.render(title=title, value=img_data, case1=case_name, case2=data_name) #The template rendered
+
+                        #Open HTML file:
+                        with open(outputfile,'w') as f: f.write(rndr)
+
+                        #Initialize Ordered Dictionary for variable:
+                        if var not in mean_html_info:
+                            mean_html_info[var] = OrderedDict()
+
+                        #Initialize Ordered Dictionary for plot type:
+                        if ptype not in mean_html_info[var]:
+                                mean_html_info[var][ptype] = OrderedDict()
+
+                        mean_html_info[var][ptype][season] = outputfile.name
+
+        #Construct mean_diag.html
+        mean_title = "AMP Diagnostic Plots"
+        mean_tmpl = jinenv.get_template('template_mean_diag.html')
+        mean_rndr = mean_tmpl.render(title=mean_title,
+                        case1=case_name,
+                        case2=data_name,
+                        mydata=mean_html_info)
+
+        #Write mean diagnostic plots HTML file:
+        outputfile = img_pages_dir / "mean_diag.html"
+        with open(outputfile,'w') as f: f.write(mean_rndr)
+
+        #Search for AMWG Table HTML files:
+        table_html_files = plot_path.glob("amwg_table_*.html")
+
+        #Determine if any AMWG tables were generated:
+        if table_html_files:
+
+            #Set Table HTML generation logical to "TRUE":
+            gen_table_html = True
+
+            #Create a directory that will hold table html files:
+            table_pages_dir = website_dir / "html_table"
+            table_pages_dir.mkdir(exist_ok=True)
+
+            #Move all table html files to new directory:
+            for table_html in table_html_files:
+                shutil.move(table_html, table_pages_dir / table_html.name)
+
+            #Construct dictionary needed for HTML page:
+            amwg_tables = OrderedDict()
+
+            #Loop over cases:
+            for case in [case_name, data_name]:
+
+                #Search for case name in moved HTML files:
+                table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
+
+                #Check if file exists:
+                if table_htmls:
+
+                    #Initialize loop counter:
+                    count = 0
+
+                    #Loop over globbed files:
+                    for table_html in table_htmls:
+
+                        #Create relative path for HTML file:
+                        amwg_tables[case] = table_html.name
+
+                        #Update counter:
+                        count += 1
+
+                        #If counter greater than one, then throw an error:
+                        if count > 1:
+                            msg = "More than one AMWG table is associated with case '{}'.".format(case)
+                            msg += "\nNot sure what is going on, so website generation will end here."
+                            end_diag_script(msg)
+
+
+            #Construct mean_table.html
+            mean_title = "AMP Diagnostic Tables:"
+            mean_tmpl = jinenv.get_template('template_mean_table.html')
+            mean_rndr = mean_tmpl.render(title=mean_title,
+                            amwg_tables=amwg_tables)
+
+            #Write mean diagnostic tables HTML file:
+            outputfile = table_pages_dir / "mean_table.html"
+            with open(outputfile,'w') as f: f.write(mean_rndr)
+
+        else:
+            #No Tables exist, so no link will be added to main page:
+            gen_table_html = False
+
+        #Construct index.html
+        index_title = "AMP Diagnostics Prototype"
+        index_tmpl = jinenv.get_template('template_index.html')
+        index_rndr = index_tmpl.render(title=index_title,
+                         case1=case_name,
+                         case2=data_name,
+                         gen_table_html=gen_table_html)
+
+        #Write Mean diagnostics HTML file:
+        outputfile = website_dir / "index.html"
+        with open(outputfile,'w') as f: f.write(index_rndr)
+
+        #Notify user that script has finishedd:
+        print("  ...Webpages have been generated successfully.")
 
 ###############
