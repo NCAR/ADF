@@ -1,4 +1,4 @@
-def averaging_example(case_name, input_ts_loc, output_loc, var_list):
+def averaging_example(case_name, input_ts_loc, output_loc, var_list, search=None):
 
     """
     This is an example function showing
@@ -12,6 +12,13 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
     input_ts_loc -> Location of CAM time series files provided by "cam_ts_loc"
     output_loc   -> Location to write CAM climo files to, provided by "cam_climo_loc"
     var_list     -> List of CAM output variables provided by "diag_var_list"
+
+    search -> optional; if supplied requires a string used as a template to find the time series files
+              using {CASE} and {VARIABLE} and otherwise an arbitrary shell-like globbing pattern:
+              example 1: provide the string "{CASE}.*.{VARIABLE}.*.nc" this is the default
+              example 2: maybe CASE is not necessary because post-process destroyed the info "post_process_text-{VARIABLE}.nc"
+              example 3: order does not matter "{VARIABLE}.{CASE}.*.nc"
+              Only CASE and VARIABLE are allowed because they are arguments to the averaging function
     """
 
     #Import necessary modules:
@@ -35,11 +42,15 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list):
         print("    {} not found, making new directory".format(output_loc))
         output_location.mkdir(parents=True)
 
+    # Time series file search
+    if search is None:
+        search = "{CASE}*.{VARIABLE}.*.nc"
+
     #Loop over CAM output variables:
     for var in var_list:
 
         #Create list of time series files present for variable:
-        ts_filenames = '{}.*{}*.nc'.format(case_name, var)
+        ts_filenames = search.format(CASE=case_name, VARIABLE=var)
         ts_files = sorted(list(input_location.glob(ts_filenames)))
 
         #If no files exist, then kill diagnostics script (for now):
