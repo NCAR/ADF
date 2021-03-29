@@ -81,7 +81,9 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
     #Add all sub-directories to python path:
     for dirname in dirs:
         sys.path.append(os.path.join(root,dirname))
-
+print(100*"=")
+print(sys.path)
+print(100*"=")
 #################
 #Helper functions
 #################
@@ -151,6 +153,27 @@ def construct_index_info(d, fnam, opf):
     if plot_type not in d[vname]:
         d[vname][plot_type] = {}
     d[vname][plot_type][temporal] = opf
+
+#####
+
+def function_caller(func_name: str, func_args: list, func_kwargs: dict = {}, module_name=None):
+    """Call a function with given arguments.
+    
+    func_name : string, name of the function to call
+    func_args : list, the arguments to pass to the function
+    func_kwargs : [optional] dict, the keyword arguments to pass to the function
+    module_name : [optional] string, the name of the module where func_name is defined; if not provided, assume func_name.py
+    
+    return : the output of func_name(*func_args, **func_kwargs)
+    """
+    if module_name is None:
+        module_name = func_name #+'.py'
+    # note: when we use importlib, specify the module name without the ".py" extension.
+    module = importlib.import_module(func_name)
+    if hasattr(module, func_name) and callable(getattr(module, func_name)):
+        func = getattr(module, func_name)
+    return func(*func_args, **func_kwargs)
+
 
 
 ######################################
@@ -262,6 +285,11 @@ class CamDiag:
 
         #Check if climatologies are being calculated:
         if cam_climo_dict['calc_cam_climo']:
+            # Skip history file stuff if time series are pre-computed:
+            if ('cam_ts_done' in cam_climo_dict) and (cam_climo_dict['cam_ts_done'] == True):
+                # skip time series generation, and just make the climo
+                print("  Configuration file indicates time series files have been pre-computed, will rely on those files only.")
+                return None
 
             #Notify user that script has started:
             print("  Generating CAM time series files...")
@@ -366,8 +394,10 @@ class CamDiag:
         if cam_climo_dict['calc_cam_climo']:
 
             #If so, then extract names of time-averaging scripts:
-            avg_func_names = self.__time_averaging_scripts
-
+            avg_func_names = self.__time_averaging_scripts  # this is a list of script names 
+                                                            # _OR_ 
+                                                            # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
+            
             #Extract necessary variables from CAM configure dictionary:
             input_ts_loc    = cam_climo_dict['cam_ts_loc']
             overwrite_climo = cam_climo_dict['cam_overwrite_climo']
@@ -375,9 +405,19 @@ class CamDiag:
 
             #Loop over all averaging script names:
             for avg_func_name in avg_func_names:
+                # option to specify the module's name:
+                if isinstance(avg_func_name, dict):
+                    assert len(avg_func_name) == 1  # must just be {function_name : {args:[...], <kwargs:{...}>, <module:'xxxx'>}}
+                    has_opt = True
+                    opt = avg_func_name[list(avg_func_name.keys())[0]]  # un-nests the dictionary
+                    avg_func_name = list(avg_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
+                else:
+                    has_opt = False
 
-                #Add file suffix to script name (to help with the file search):
-                avg_script = avg_func_name+'.py'
+                avg_script =  avg_func_name + '.py'  # default behavior: Add file suffix to script name
+                if has_opt:
+                    if 'module' in opt:
+                        avg_script = opt['module']
 
                 #Create full path to averaging script:
                 avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
@@ -386,19 +426,31 @@ class CamDiag:
                 if not os.path.exists(avg_script_path):
                     msg = "Time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
                     end_diag_script(msg)
-
-                #Create averaging script import statement:
-                avg_func_import_statement = "from {} import {}".format(avg_func_name, avg_func_name)
-
-                #Run averaging script import statement:
-                exec(avg_func_import_statement)
-
-                #Create actual function call:
-                avg_func = avg_func_name+'(case_name, input_ts_loc, output_loc, var_list, overwrite_climo)'
-
-                #Evaluate (run) averaging script function:
-                eval(avg_func)
-
+                if avg_script_path not in sys.path:
+                    print(f"[INFO] Inserting to sys.path: {avg_script_path}")
+                    sys.path.insert(0, avg_script_path)
+                # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
+                    
+                # Arguments; check if user has specified custom arguments
+                avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
+                avg_func_kwargs = {"clobber":overwrite_climo}
+                for localthing in locals():
+                    print(localthing, "\n")
+                if has_opt:
+                    if ('args' in opt):
+                        # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
+                        assert isinstance(opt['args'], list)
+                        assert all(isinstance(item, str) for item in opt['args'])
+                        avg_func_args = list()  # start over
+                        for variableToCheck in opt['args']:
+                            if variableToCheck in locals():
+                                avg_func_args.append(locals()[variableToCheck])
+                            else:
+                                print("{} is not available".format(variableToCheck))
+                    if 'kwargs' in opt:
+                        avg_func_kwargs = opt['kwargs']
+                print(f"DEBUG: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args= {avg_func_args}\n \t avg_kwargs= {avg_func_kwargs}")
+                function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
         else:
             #If not, then notify user that climo file generation is skipped.
             print("  No climatology files were requested by user, so averaging will be skipped.")
@@ -456,18 +508,8 @@ class CamDiag:
                 msg = "Regridding file '{}' is missing. Script is ending here.".format(regrid_script_path)
                 end_diag_script(msg)
 
-            #Create regridding script import statement:
-            regrid_func_import_statement = "from {} import {}".format(regrid_func_name, regrid_func_name)
-
-            #Run regridding script import statement:
-            exec(regrid_func_import_statement)
-
-            #Create actual function call:
-            regrid_func = regrid_func_name+\
-            '(case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid)'
-
-            #Evaluate (run) averaging script function:
-            eval(regrid_func)
+            regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
+            function_caller(regrid_func_name, regrid_func_args, func_kwargs={}, module_name=regrid_func_name+'.py')
 
     #########
 
@@ -522,17 +564,8 @@ class CamDiag:
                 msg = "Analysis script file '{}' is missing. Script is ending here.".format(anly_script_path)
                 end_diag_script(msg)
 
-            #Create averaging script import statement:
-            anly_func_import_statement = "from {} import {}".format(anly_func_name, anly_func_name)
-
-            #Run averaging script import statement:
-            exec(anly_func_import_statement)
-
-            #Create actual function call:
-            anly_func = anly_func_name+'(case_name, input_ts_loc, output_loc, var_list, write_html)'
-
-            #Evaluate (run) averaging script function:
-            eval(anly_func)
+            anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
+            function_caller(anly_func_name, anly_func_args, func_kwargs={}, module_name=anly_func_name+'.py')
 
     #########
 
@@ -588,18 +621,8 @@ class CamDiag:
                 msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
                 end_diag_script(msg)
 
-            #Create regridding script import statement:
-            plot_func_import_statement = "from {} import {}".format(plot_func_name, plot_func_name)
-
-            #Run regridding script import statement:
-            exec(plot_func_import_statement)
-
-            #Create actual function call:
-            plot_func = plot_func_name+\
-            '(case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location)'
-
-            #Evaluate (run) plotting script function:
-            eval(plot_func)
+            plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
+            function_caller(plot_func_name, plot_func_args, func_kwargs={}, module_name=plot_func_name+'.py')
 
     #########
 
