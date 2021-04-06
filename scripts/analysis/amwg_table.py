@@ -28,6 +28,7 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
     import xarray as xr
     from pathlib import Path
     from CamDiag import end_diag_script #Diagnostics routine
+    import warnings  # use to warn user about missing files.
 
     #Import "special" modules:
     try:
@@ -97,7 +98,7 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
     if not input_location.is_dir():
         errmsg = "Time series directory '{}' not found.  Script is exiting.".format(input_ts_loc)
         end_diag_script(errmsg)
-
+    print(f"DEBUG: location of files is {str(input_location)}")
     #Check if analysis directory exists, and if not, then create it:
     if not output_location.is_dir():
         print("    {} not found, making new directory".format(output_loc))
@@ -125,13 +126,19 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
         print("\t \u25B6 Variable '{}' being added to table".format(var))
 
         #Create list of time series files present for variable:
-        ts_filenames = '{}.*.{}.nc'.format(case_name, var)
+        ts_filenames = '{}.*.{}.*nc'.format(case_name, var)  # BPM: change this glob so it can see both CASE.stuff.VAR.nc and CASE.stuff.VAR.stuff.nc
         ts_files = sorted(list(input_location.glob(ts_filenames)))
 
-        #If no file exists, then kill diagnostics script (for now):
+        # #If no file exists, then kill diagnostics script (for now):
+        # if not ts_files:
+        #     errmsg = "Time series files for variable '{}' not found.  Script is exiting.".format(var)
+        #     end_diag_script(errmsg)
+        # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
         if not ts_files:
-            errmsg = "Time series files for variable '{}' not found.  Script is exiting.".format(var)
-            end_diag_script(errmsg)
+            errmsg = "Time series files for variable '{}' not found.  Script will continue to next variable.".format(var)
+            #  end_diag_script(errmsg) # Previously we would kill the run here.
+            warnings.warn(errmsg)
+            continue
 
         #TEMPORARY:  For now, make sure only one file exists:
         if len(ts_files) != 1:
