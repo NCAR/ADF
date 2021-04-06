@@ -434,8 +434,6 @@ class CamDiag:
                 # Arguments; check if user has specified custom arguments
                 avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
                 avg_func_kwargs = {"clobber":overwrite_climo}
-                for localthing in locals():
-                    print(localthing, "\n")
                 if has_opt:
                     if ('args' in opt):
                         # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
