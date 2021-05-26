@@ -85,9 +85,14 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
 
             if len(oclim_fils) > 1:
                 oclim_ds = xr.open_mfdataset(oclim_fils, combine='by_coords')
-            else:
+            elif len(oclim_fils) == 1:
                 sfil = str(oclim_fils[0])
                 oclim_ds = xr.open_dataset(sfil)
+            else:
+                print("ERROR: Did not find any oclim_fils. Will try to skip.")
+                print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"INFO: The glob is: {data_src}_{var}_*.nc")
+                continue
 
             # load re-gridded model files:
             mclim_fils = sorted(list(mclimo_rg_loc.glob("{}_{}_{}_*.nc".format(data_src, case_name, var))))

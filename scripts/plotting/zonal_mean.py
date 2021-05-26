@@ -2,6 +2,13 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+import warnings  # use to warn user about missing files.
+    
+def my_formatwarning(msg, *args, **kwargs):
+    # ignore everything except the message
+    return str(msg) + '\n'
+    
+warnings.formatwarning = my_formatwarning
 
 def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
                  var_list, data_list, plot_location):
@@ -77,6 +84,11 @@ def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
             # load re-gridded model files:
             mclim_fils = sorted(list(mclimo_rg_loc.glob("{}_{}_{}_*.nc".format(data_src, case_name, var))))
             mclim_ds = _load_dataset(mclim_fils)
+
+            # stop if data is invalid:
+            if (oclim_ds is None) or (mclim_ds is None):
+                warnings.warn(f"invalid data, skipping zonal mean plot of {var}")
+                continue
 
             #Extract variable of interest
             odata = oclim_ds[var].squeeze()  # squeeze in case of degenerate dimensions
@@ -178,7 +190,10 @@ def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
 # Helpers
 #
 def _load_dataset(fils):
-    if len(fils) > 1:
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
     else:
         sfil = str(fils[0])
