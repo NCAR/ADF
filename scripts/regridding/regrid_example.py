@@ -58,7 +58,7 @@ def regrid_example(case_name, input_climo_loc, output_loc,
 
         #loop over regridding targets:
         for target in target_list:
-            print(f"DEBUG: target = {target}")
+            # print(f"DEBUG: target = {target}") #TODO: add to debug log.
             #Determine regridded variable file name:
             regridded_file_loc = rgclimo_loc / '{}_{}_{}_regridded.nc'.format(target, case_name, var)
 
@@ -73,7 +73,7 @@ def regrid_example(case_name, input_climo_loc, output_loc,
                 #Create list of regridding target files (we should explore intake as an alternative to having this kind of repeated code)
                 # NOTE: This breaks if you have files from different cases in same directory!
                 tclim_fils = sorted(list(tclimo_loc.glob("{}*_{}_*.nc".format(target, var))))
-                print(f"DEBUG: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
+                # print(f"DEBUG: tclim_fils (n={len(tclim_fils)}): {tclim_fils}") # TODO: add to debug log
             
                 if len(tclim_fils) > 1:
                     #Combine all target files together into a single data set:
