@@ -156,12 +156,12 @@ def construct_index_info(d, fnam, opf):
 
 def function_caller(func_name: str, func_args: list, func_kwargs: dict = {}, module_name=None):
     """Call a function with given arguments.
-    
+
     func_name : string, name of the function to call
     func_args : list, the arguments to pass to the function
     func_kwargs : [optional] dict, the keyword arguments to pass to the function
     module_name : [optional] string, the name of the module where func_name is defined; if not provided, assume func_name.py
-    
+
     return : the output of func_name(*func_args, **func_kwargs)
     """
     if module_name is None:
@@ -401,10 +401,10 @@ class CamDiag:
         if cam_climo_dict['calc_cam_climo']:
 
             #If so, then extract names of time-averaging scripts:
-            avg_func_names = self.__time_averaging_scripts  # this is a list of script names 
-                                                            # _OR_ 
+            avg_func_names = self.__time_averaging_scripts  # this is a list of script names
+                                                            # _OR_
                                                             # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
-            
+
             #Extract necessary variables from CAM configure dictionary:
             input_ts_loc    = cam_climo_dict['cam_ts_loc']
             overwrite_climo = cam_climo_dict['cam_overwrite_climo']
@@ -414,7 +414,7 @@ class CamDiag:
             for avg_func_name in avg_func_names:
                 # option to specify the module's name:
                 if isinstance(avg_func_name, dict):
-                    assert len(avg_func_name) == 1, "Function dictionary must be in form: {function_name : {args:[...], <kwargs:{...}>, <module:'xxxx'>}}"
+                    assert len(avg_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
                     has_opt = True
                     opt = avg_func_name[list(avg_func_name.keys())[0]]  # un-nests the dictionary
                     avg_func_name = list(avg_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
@@ -456,6 +456,7 @@ class CamDiag:
                         avg_func_kwargs = opt['kwargs']
                 # print(f"DEBUG: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args= {avg_func_args}\n \t avg_kwargs= {avg_func_kwargs}")
                 # This print statement should be added to a debug log. Provides information about the parsing of the function and arguments.
+                print(avg_func_kwargs.items())
                 function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
         else:
             #If not, then notify user that climo file generation is skipped.
@@ -506,7 +507,7 @@ class CamDiag:
         for regrid_func_name in regrid_func_names:
             # option to specify the module's name:
             if isinstance(regrid_func_name, dict):
-                assert len(avg_func_name) == 1, "Regrid function dictionary must be in form: {function_name : {args:[...], <kwargs:{...}>, <module:'xxxx'>}}"
+                assert len(avg_func_name) == 1, "Regrid function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
                 has_opt = True
                 opt = regrid_func_name[list(regrid_func_name.keys())[0]]  # un-nests the dictionary
                 regrid_func_name = list(regrid_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
@@ -591,7 +592,7 @@ class CamDiag:
         #Loop over all averaging script names:
         for anly_func_name in anly_func_names:
             if isinstance(anly_func_name, dict):
-                assert len(anly_func_name) == 1, "Function dictionary must be in form: {function_name : {args:[...], <kwargs:{...}>, <module:'xxxx'>}}"
+                assert len(anly_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
                 has_opt = True
                 opt = anly_func_name[list(anly_func_name.keys())[0]]  # un-nests the dictionary
                 anly_func_name = list(anly_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
@@ -676,7 +677,7 @@ class CamDiag:
         #Loop over all re-gridding script names:
         for plot_func_name in plot_func_names:
             if isinstance(plot_func_name, dict):
-                assert len(plot_func_name) == 1, "Function dictionary must be in form: {function_name : {args:[...], <kwargs:{...}>, <module:'xxxx'>}}"
+                assert len(plot_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
                 has_opt = True
                 opt = plot_func_name[list(plot_func_name.keys())[0]]  # un-nests the dictionary
                 plot_func_name = list(plot_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
