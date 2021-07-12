@@ -48,7 +48,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
 
     # Time series file search
     if search is None:
-        search = "{CASE}*.{VARIABLE}.*.nc"
+        search = "{CASE}*.{VARIABLE}.nc"
 
     #Loop over CAM output variables:
     for var in var_list:

@@ -305,18 +305,27 @@ class CamDiag:
             #Create path object for the CAM history file(s) location:
             starting_location = Path(cam_climo_dict['cam_hist_loc'])
 
-            #Create empty list:
-            files_list = list()
+            #Check that path actually exists:
+            if not starting_location.is_dir():
+                if baseline:
+                    msg = "Provided baseline 'cam_hist_loc' directory '{}' not found.  Script is ending here."
+                else:
+                    msg = "Provided 'cam_hist_loc' directory '{}' not found.  Script is ending here."
+                msg = msg.format(starting_location)
+                end_diag_script(msg)
 
             #Check if history files actually exist. If not then kill script:
-            if not starting_location.glob('*.cam.h0.*.nc'):
+            if not list(starting_location.glob('*.cam.h0.*.nc')):
                 msg = "No CAM history (h0) files found in '{}'.  Script is ending here."
                 msg = msg.format(starting_location)
                 end_diag_script(msg)
 
+            #Create empty list:
+            files_list = list()
+
             #Loop over start and end years:
             for year in range(start_year, end_year+1):
-                #Add files to main file list:
+                #Try adding files to main file list:
                 for fname in starting_location.glob('*.cam.h0.*{}-*.nc'.format(year)):
                     files_list.append(fname)
 
@@ -428,7 +437,7 @@ class CamDiag:
                     print(f"[INFO] Inserting to sys.path: {avg_script_path}")  # Should go into a log file
                     sys.path.insert(0, avg_script_path)
                 # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
-                    
+
                 # Arguments; check if user has specified custom arguments
                 avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
                 avg_func_kwargs = {"clobber":overwrite_climo}
@@ -436,7 +445,7 @@ class CamDiag:
                     if ('args' in opt):
                         # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
                         assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                        assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type list."
+                        assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
                         avg_func_args = list()  # start over
                         for variableToCheck in opt['args']:
                             if variableToCheck in locals():
@@ -488,10 +497,10 @@ class CamDiag:
         var_list         = self.__diag_var_list
 
         #Extract names of re-gridding scripts:
-        regrid_func_names = self.__regridding_scripts  # this is a list of script names 
-                                                       # _OR_ 
+        regrid_func_names = self.__regridding_scripts  # this is a list of script names
+                                                       # _OR_
                                                        # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
-            
+
 
         #Loop over all re-gridding script names:
         for regrid_func_name in regrid_func_names:
@@ -518,16 +527,16 @@ class CamDiag:
                 msg = "Regridding file '{}' is missing. Script is ending here.".format(regrid_script_path)
                 end_diag_script(msg)
             if regrid_script_path not in sys.path:
-                print(f"[INFO] Inserting to sys.path: {avg_script_path}") # Should go into a log file
+                print(f"[INFO] Inserting to sys.path: {regrid_script_path}") # Should go into a log file
                 sys.path.insert(0, regrid_script_path)
-                
+
             regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
             regrid_func_kwargs = {}
             if has_opt:
                 if ('args' in opt):
                     # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
                     assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type list."
+                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
                     regrid_func_args = list()  # start over
                     for variableToCheck in opt['args']:
                         if variableToCheck in locals():
@@ -551,10 +560,10 @@ class CamDiag:
         """
 
         #Extract names of plotting scripts:
-        anly_func_names = self.__analysis_scripts  # this is a list of script names 
-                                                   # _OR_ 
+        anly_func_names = self.__analysis_scripts  # this is a list of script names
+                                                   # _OR_
                                                    # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
-            
+
         #If no scripts are listed, then exit routine:
         if not anly_func_names:
             print("Nothing listed under 'analysis_scripts', so no plots will be made.")
@@ -611,7 +620,7 @@ class CamDiag:
                 if ('args' in opt):
                     # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
                     assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type list."
+                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
                     anly_func_args = list()  # start over
                     for variableToCheck in opt['args']:
                         if variableToCheck in locals():
@@ -638,8 +647,8 @@ class CamDiag:
         """
 
         #Extract names of plotting scripts:
-        plot_func_names = self.__plotting_scripts  # this is a list of script names 
-                                                   # _OR_ 
+        plot_func_names = self.__plotting_scripts  # this is a list of script names
+                                                   # _OR_
                                                    # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
 
 
@@ -673,7 +682,7 @@ class CamDiag:
                 plot_func_name = list(plot_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
             else:
                 has_opt = False
-            
+
             plot_script = plot_func_name+'.py'  # Add file suffix to script name (to help with the file search)
             if has_opt:
                 if 'module' in opt:
@@ -697,7 +706,7 @@ class CamDiag:
                 if ('args' in opt):
                     # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
                     assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type list."
+                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
                     plot_func_args = list()  # start over
                     for variableToCheck in opt['args']:
                         if variableToCheck in locals():
@@ -705,7 +714,7 @@ class CamDiag:
                         else:
                             print("{} is not available".format(variableToCheck))
                 if 'kwargs' in opt:
-                    avg_func_kwargs = opt['kwargs']            
+                    avg_func_kwargs = opt['kwargs']
             function_caller(plot_func_name, plot_func_args, func_kwargs=plot_func_kwargs, module_name=plot_func_name+'.py')
 
     #########
