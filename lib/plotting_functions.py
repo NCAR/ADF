@@ -229,6 +229,18 @@ def _zonal_plot_line(ax, lat, data, **kwargs):
     """Create line plot with latitude as the X-axis."""
     ax.plot(lat, data, **kwargs)
     ax.set_xlim([max([lat.min(), -90.]), min([lat.max(), 90.])])
+    #
+    # annotate
+    #
+    ax.set_xlabel("LATITUDE")
+    if hasattr(data, "units"):
+        ax.set_ylabel("[{units}]".format(units=getattr(data,"units")))
+    elif "units" in kwargs:
+        ax.set_ylabel("[{units}]".format(kwargs["units"]))
+    if hasattr(data, "long_name"):
+        ax.set_title(getattr(data,"long_name"), loc="left")
+    elif hasattr(data, "name"):
+        ax.set_title(getattr(data,"name"), loc="left")
     return ax
 
 def _zonal_plot_preslat(ax, lat, lev, data, **kwargs):
@@ -307,6 +319,11 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         zonal_plot(adata['lat'], azm, ax=ax[0])
         zonal_plot(bdata['lat'], bzm, ax=ax[0])
         zonal_plot(adata['lat'], diff, ax=ax[1])
+        for a in ax:
+            try:
+                a.label_outer()
+            except:
+                pass
 
     #Write the figure to provided workspace/file:
     fig.savefig(wks, bbox_inches='tight', dpi=300)
