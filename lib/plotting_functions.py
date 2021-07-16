@@ -336,50 +336,50 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
 #
 
 def square_contour_difference(fld1, fld2, **kwargs):
-    """Produce a figure with square axes that show fld1, fld2, 
+    """Produce a figure with square axes that show fld1, fld2,
        and their difference as filled contours.
-       
+
        Intended use is latitude-by-month to show the annual cycle.
        Example use case: use climo files to get data, take zonal averages,
        rename "time" to "month" if desired,
        and then provide resulting DataArrays to this function.
-       
+
        Input:
            fld1 and fld2 are 2-dimensional DataArrays with same shape
            kwargs are optional keyword arguments
                this function checks kwargs for `case1name`, `case2name`
-       
-       Returns: 
+
+       Returns:
            figure object
-       
+
        Assumptions:
            fld1.shape == fld2.shape
            len(fld1.shape) == 2
-       
+
        Annnotation:
            Will try to label the cases by looking for
-           case1name and case2name in kwargs, 
+           case1name and case2name in kwargs,
            and then fld1['case'] & fld2['case'] (i.e., attributes)
            If no case name, will proceed with empty strings.
            ** IF THERE IS A BETTER CONVENTION WE SHOULD USE IT.
-           
+
            Each panel also puts the Min/Max values into the title string.
-           
+
            Axis labels are upper-cased names of the coordinates of fld1.
            Ticks are automatic with the exception that if the
            first coordinate is "month" and is length 12, use np.arange(1,13).
-       
+
     """
     assert fld1.shape == fld2.shape  # Same shape => allows difference
     assert len(fld1.shape) == 2      # 2-Dimension => plot contourf
-    
+
     if "case1name" in kwargs:
         case1name = kwargs.pop("case1name")
     elif hasattr(fld1, "case"):
         case1name = getattr(fld1, "case")
     else:
         case1name = ""
-    
+
     if "case2name" in kwargs:
         case2name = kwargs.pop("case2name")
     elif hasattr(fld2, "case"):
@@ -402,7 +402,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
     # color bars / means share top bar.
     cbax_top = plt.subplot(grid[0:2, -1])
     cbax_bot = plt.subplot(grid[-1, 1:3])
-    
+
     # determine color normalization for means:
     mx = np.max([fld1.max(), fld2.max()])
     mn = np.min([fld1.min(), fld2.min()])
@@ -412,7 +412,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
     print(f"{coord1}, {coord2}")
     xx, yy = np.meshgrid(fld1[coord2], fld1[coord1])
     print(f"shape of meshgrid: {xx.shape}")
-    
+
     img1 = ax1.contourf(xx, yy, fld1.transpose())
     if (coord1 == 'month') and (fld1.shape[0] ==12):
         ax1.set_xticks(np.arange(1,13))
@@ -427,7 +427,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
     ax2.set_title(f"{case2name}\nMIN:{fld2.min().values:.2f}  MAX:{fld2.max().values:.2f}")
 
 
-    diff = fld1 - fld2 
+    diff = fld1 - fld2
     ## USE A DIVERGING COLORMAP CENTERED AT ZERO
     ## Special case is when min > 0 or max < 0
     dmin = diff.min()
@@ -440,7 +440,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
         cmap = mpl.cm.BuPu_r
     else:
         dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
-        cmap = mpl.cm.RdBu_r    
+        cmap = mpl.cm.RdBu_r
 
     img3 = ax3.contourf(xx, yy, diff.transpose(), cmap=cmap, norm=dnorm)
     if (coord1 == 'month') and (fld1.shape[0] ==12):
@@ -477,5 +477,6 @@ def square_contour_difference(fld1, fld2, **kwargs):
     cb1 = fig.colorbar(img1, cax=cbax_top)
     cb2 = fig.colorbar(img3, cax=cbax_bot, orientation='horizontal')
     return fig
+
 #####################
 #END HELPER FUNCTIONS
