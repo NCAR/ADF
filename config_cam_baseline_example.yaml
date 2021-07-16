@@ -67,9 +67,13 @@ diag_cam_climo:
   cam_hist_loc: /location/where/you/stored/model/outputs
 
   #model year when climatology should start:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       start at earliest available year.
   start_year: 1850
 
   #model year when diagnostics should end:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       end at latest available year.
   end_year: 2100
 
   #Save interim time series files?
@@ -100,9 +104,13 @@ diag_cam_baseline_climo:
   cam_hist_loc: /location/of/second/cam/run/output/or/baseline/data
 
   #model year when climatology should start:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       start at earliest available year.
   start_year: 1850
 
   #model year when diagnostics should end:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       end at latest available year.
   end_year: 2100
 
   #Save interim time series files for baseline run?
@@ -121,6 +129,10 @@ diag_cam_baseline_climo:
 #a non-standard method, or are adding your own
 #diagnostic scripts.
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#Note:  If you want to pass arguments to a particular script, you can
+#do it like so (using the "averaging_example" script in this case):
+# - {averaging_example: {kwargs: {clobber: true}}}
 
 #Name of time-averaging scripts being used to generate climatologies.
 #These scripts must be located in "scripts/averaging":
@@ -149,6 +161,7 @@ diag_var_list:
  - LWCF
  - PSL
  - Q
+#<Add more variables here.>
 
 #List of observation types (filename prefixes) CAM can be compared against:
 obs_type_list:

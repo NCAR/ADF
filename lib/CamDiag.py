@@ -17,6 +17,7 @@ import os.path
 import glob
 import subprocess
 import importlib
+import logging
 
 from pathlib import Path
 
@@ -113,11 +114,11 @@ def read_config_obj(config_obj, varname):
     try:
         var = config_obj[varname]
     except:
-       raise KeyError("'{}' not found in config file.  Please see 'config_example.yaml'.".format(varname))
+       raise KeyError("'{}' not found in config file.  Please see 'config_cam_baseline_example.yaml'.".format(varname))
 
     #Check that configure variable is not empty (None):
     if var is None:
-        raise NameError("'{}' has not been set to a value. Please see 'config_example.yaml'.".format(varname))
+        raise NameError("'{}' has not been set to a value. Please see 'config_cam_baseline_example.yaml'.".format(varname))
 
     #return variable/list/dictionary:
     return var
@@ -198,11 +199,16 @@ class CamDiag:
     post-processed data.
     """
 
-    def __init__(self, config_file):
+    def __init__(self, config_file, debug=False):
 
         """
         Initalize CAM diagnostics object.
         """
+
+        #Create debug log, if requested:
+        if debug:
+            logging.basicConfig(filename="cam_diag_debug.log", level=logging.DEBUG)
+            debug_log = logging.getLogger("CamDiag")
 
         #Expand any environmental user name variables in the path:
         config_file = os.path.expanduser(config_file)
@@ -215,6 +221,9 @@ class CamDiag:
         with open(config_file) as nfil:
             #Load YAML file:
             config = yaml.load(nfil, Loader=yaml.SafeLoader)
+
+        #Expand any self-references to their full strings:
+        self.expand_references(config)
 
         #Add basic diagnostic info to object:
         self.__basic_info = read_config_obj(config, 'diag_basic_info')
@@ -260,6 +269,63 @@ class CamDiag:
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
         return self.__basic_info['create_html']
+
+    #########
+
+    def expand_yaml_var_ref
+
+    def expand_references(self, config_dict):
+
+        """
+        Replace keyword (${var}) entries in the YAML (config)
+        dictionary that reference other YAML dictionary
+        variables/keys with the values of those variables.
+        """
+
+        #compile regular expression:
+        kword_regex = re.compile(r'\$\{[a-zA-Z_]+\}')
+
+        #copy YAML config dictionary:
+        config_dict_copy = config_dict
+
+        #Loop through dictionary:
+        for key, value in config_dict.items():
+
+            #Skip variable if not a string:
+            if not isinstance(value, str):
+                continue
+
+            #expand any keywords to their full values:
+            new_value = self.expand_yaml_var_ref(value, kword_regex,
+                                                 config_dict_copy)
+
+            #Add full string back into dictionary:
+            config_dict[key] = new_value
+
+    #########
+
+    def expand_yaml_var_ref(self, var_val, kword_regex, config_dict):
+
+        """
+        Recursive function to replace all keywords with their
+        associated value from the provided dictionary
+        """
+
+        #Look for keyword using provided regular expression:
+        CONTINUE HERE!!!!!!!!!!!!!!!!!!!!
+
+        #Extract value from keyword:
+
+        #Throw error if not a string:
+
+        #Look for keyword from new string:
+
+            #Expand keyword if found:
+
+        #If no keyword, then replace keyword with new string:
+
+        #Pass back final value:
+        return var_val
 
     #########
 
@@ -450,9 +516,11 @@ class CamDiag:
                     msg = "Time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
                     end_diag_script(msg)
                 if avg_script_path not in sys.path:
+                    #Add script path to debug log if requested:
+                    if debug:
+                        debug_log.debug(f"create_climo: Inserting to sys.path: {avg_script_path}")
 
-                    #This statement should be added to the debug log when possible:
-                    #print(f"[INFO] Inserting to sys.path: {avg_script_path}")
+                    #Add script to python path:
                     sys.path.insert(0, avg_script_path)
 
                 # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
@@ -474,9 +542,13 @@ class CamDiag:
                     if 'kwargs' in opt:
                         avg_func_kwargs = opt['kwargs']
 
-                # print(f"DEBUG: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args= {avg_func_args}\n \t avg_kwargs= {avg_func_kwargs}")
-                # This print statement should be added to a debug log. Provides information about the parsing of the function and arguments.
-                #print(avg_func_kwargs.items())
+                #Add function calls debug log if requested:
+                if debug:
+                    debug_log.debug(\
+                        f"create_climo: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args = {avg_func_args}\n \t avg_kwargs = {avg_func_kwargs}")
+                    debug_log.debug(f"create_climo: kwarg args = {avg_func_kwargs.items()}")
+
+                #Call averaging function
                 function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
         else:
             #If not, then notify user that climo file generation is skipped.
@@ -553,7 +625,11 @@ class CamDiag:
                 msg = "Regridding file '{}' is missing. Script is ending here.".format(regrid_script_path)
                 end_diag_script(msg)
             if regrid_script_path not in sys.path:
-                print(f"[INFO] Inserting to sys.path: {regrid_script_path}") # Should go into a log file
+                #Add script path to debug log if requested:
+                if debug:
+                    debug_log.debug(f"regrid_climo: Inserting to sys.path: {regrid_script_path}")
+
+                #Add script to python path:
                 sys.path.insert(0, regrid_script_path)
 
             regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
@@ -571,7 +647,14 @@ class CamDiag:
                             print("{} is not available".format(variableToCheck))
                 if 'kwargs' in opt:
                     regrid_func_kwargs = opt['kwargs']
-            # Note: provide the function name and arguments in a debug log.
+
+                #Add function calls debug log if requested:
+                if debug:
+                    debug_log.debug(\
+                        f"regrid_climo: \n \t regrid_func_name = {regrid_func_name}\n \t regrid_func_args = {regrid_func_args}\n \t regrid_kwargs = {avg_func_kwargs}")
+                    debug_log.debug(f"regrid_climo: kwarg args = {regrid_func_kwargs.items()}")
+
+            #Call regridding function:
             function_caller(regrid_func_name, regrid_func_args, func_kwargs=regrid_func_kwargs, module_name=regrid_func_name+'.py')
     #########
 
@@ -637,7 +720,11 @@ class CamDiag:
                 msg = "Analysis script file '{}' is missing. Script is ending here.".format(anly_script_path)
                 end_diag_script(msg)
             if anly_script_path not in sys.path:
-                print(f"[INFO] Inserting to sys.path: {anly_script_path}")  # Should go into a log file
+                #Add script path to debug log if requested:
+                if debug:
+                    debug_log.debug(f"perform_analyses: Inserting to sys.path: {anly_script_path}")
+
+                #Add script to python path:
                 sys.path.insert(0, anly_script_path)
 
             anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
@@ -655,6 +742,14 @@ class CamDiag:
                             print("{} is not available".format(variableToCheck))
                 if 'kwargs' in opt:
                     anly_func_kwargs = opt['kwargs']
+
+            #Add function calls to debug log if requested:
+            if debug:
+                debug_log.debug(\
+                    f"perform_analyses: \n \t anly_func_name = {anly_func_name}\n \t anly_func_args = {anly_func_args}\n \t anly_kwargs = {anly_func_kwargs}")
+                debug_log.debug(f"perform_analyses: kwarg args = {anly_func_kwargs.items()}")
+
+            #Call analysis function:
             function_caller(anly_func_name, anly_func_args, func_kwargs=anly_func_kwargs, module_name=anly_func_name+'.py')
 
     #########
@@ -723,7 +818,11 @@ class CamDiag:
                 msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
                 end_diag_script(msg)
             if plot_script_path not in sys.path:
-                print(f"[INFO] Inserting to sys.path: {plot_script_path}")  # Should go into a log file
+                #Add script path to debug log if requested:
+                if debug:
+                    debug_log.debug(f"create_climo: Inserting to sys.path: {plot_script_path}")
+
+                #Add script to python path:
                 sys.path.insert(0, plot_script_path)
 
             plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
@@ -743,9 +842,13 @@ class CamDiag:
                 if 'kwargs' in opt:
                     plot_func_kwargs = opt['kwargs']
 
-            # Need to add print statement to debug log when possible:
-            # print(f"[INFO ]PLOTTING ARGS: {plot_func_args}")
+            #Add function calls to debug log if requested:
+            if debug:
+                debug_log.debug(\
+                    f"create_plots: \n \t plot_func_name = {plot_func_name}\n \t plot_func_args = {avg_func_args}\n \t plot_kwargs = {plot_func_kwargs}")
+                debug_log.debug(f"create_plots: kwarg args = {plot_func_kwargs.items()}")
 
+            #Call plotting function:
             function_caller(plot_func_name, plot_func_args, func_kwargs=plot_func_kwargs, module_name=plot_func_name+'.py')
 
     #########
