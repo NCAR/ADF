@@ -74,7 +74,7 @@ def regrid_example(case_name, input_climo_loc, output_loc,
                 # NOTE: This breaks if you have files from different cases in same directory!
                 tclim_fils = sorted(list(tclimo_loc.glob("{}*_{}_*.nc".format(target, var))))
                 # print(f"DEBUG: tclim_fils (n={len(tclim_fils)}): {tclim_fils}") # TODO: add to debug log
-            
+
                 if len(tclim_fils) > 1:
                     #Combine all target files together into a single data set:
                     tclim_ds = xr.open_mfdataset(tclim_fils, combine='by_coords')

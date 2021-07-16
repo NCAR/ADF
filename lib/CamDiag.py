@@ -296,8 +296,21 @@ class CamDiag:
             ts_dir = cam_climo_dict['cam_ts_loc']
 
             #Extract start and end year values:
-            start_year = int(cam_climo_dict['start_year'])
-            end_year   = int(cam_climo_dict['end_year'])
+            try:
+                start_year = int(cam_climo_dict['start_year'])
+            except TypeError:
+                if cam_climo_dict['start_year'] is None:
+                    start_year = "*"
+                else:
+                    raise IOError("start_year needs to be a year-like value or None, got '{}'".format(cam_climo_dict['start_year']))
+
+            try:
+                end_year   = int(cam_climo_dict['end_year'])
+            except TypeError:
+                if cam_climo_dict['end_year'] is None:
+                    end_year = "*"
+                else:
+                    raise IOError("end_year needs to be a year-like value or None, got '{}'".format(cam_climo_dict['end_year']))
 
             #Extract cam variable list:
             var_list = self.__diag_var_list
@@ -320,22 +333,25 @@ class CamDiag:
                 msg = msg.format(starting_location)
                 end_diag_script(msg)
 
-            #Create empty list:
-            files_list = list()
+            # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
+            if start_year == end_year == "*":
+                files_list = sorted(list(starting_location.glob('*.cam.h0.*.nc')))
+            else:
+                #Create empty list:
+                files_list = list()
 
-            #Loop over start and end years:
-            for year in range(start_year, end_year+1):
-                #Try adding files to main file list:
-                for fname in starting_location.glob('*.cam.h0.*{}-*.nc'.format(year)):
-                    files_list.append(fname)
+                #Loop over start and end years:
+                for year in range(start_year, end_year+1):
+                    #Add files to main file list:
+                    for fname in starting_location.glob('*.cam.h0.*{}-*.nc'.format(year)):
+                        files_list.append(fname)
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
 
-            #Check if time series directory exists, and if not, then create it:
-            if not os.path.isdir(ts_dir):
-                print("    {} not found, making new directory".format(ts_dir))
-                os.mkdir(ts_dir)
+            # Check if time series directory exists, and if not, then create it:
+            # Use pathlib to create parent directories, if necessary.
+            Path(ts_dir).mkdir(parents=True, exist_ok=True)
 
             #Loop over CAM history variables:
             for var in var_list:
@@ -434,8 +450,11 @@ class CamDiag:
                     msg = "Time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
                     end_diag_script(msg)
                 if avg_script_path not in sys.path:
-                    print(f"[INFO] Inserting to sys.path: {avg_script_path}")  # Should go into a log file
+
+                    #This statement should be added to the debug log when possible:
+                    #print(f"[INFO] Inserting to sys.path: {avg_script_path}")
                     sys.path.insert(0, avg_script_path)
+
                 # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
 
                 # Arguments; check if user has specified custom arguments
@@ -454,9 +473,10 @@ class CamDiag:
                                 print("{} is not available".format(variableToCheck))
                     if 'kwargs' in opt:
                         avg_func_kwargs = opt['kwargs']
+
                 # print(f"DEBUG: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args= {avg_func_args}\n \t avg_kwargs= {avg_func_kwargs}")
                 # This print statement should be added to a debug log. Provides information about the parsing of the function and arguments.
-                print(avg_func_kwargs.items())
+                #print(avg_func_kwargs.items())
                 function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
         else:
             #If not, then notify user that climo file generation is skipped.
@@ -498,10 +518,15 @@ class CamDiag:
         var_list         = self.__diag_var_list
 
         #Extract names of re-gridding scripts:
-        regrid_func_names = self.__regridding_scripts  # this is a list of script names
-                                                       # _OR_
-                                                       # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
+        regrid_func_names = self.__regridding_scripts # this is a list of script names
+                                                      # _OR_
+                                                      # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
 
+        if all([func_names is None for func_names in regrid_func_names]):
+            print("No regridding options provided, continue.")
+            return
+            # NOTE: if no regridding options provided, we should skip it, but
+            #       do we need to still copy (symlink?) files into the regrid directory?
 
         #Loop over all re-gridding script names:
         for regrid_func_name in regrid_func_names:
@@ -567,7 +592,7 @@ class CamDiag:
 
         #If no scripts are listed, then exit routine:
         if not anly_func_names:
-            print("Nothing listed under 'analysis_scripts', so no plots will be made.")
+            print("Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
             return
 
         #Check if CAM Baselines are being calculated:
@@ -629,7 +654,7 @@ class CamDiag:
                         else:
                             print("{} is not available".format(variableToCheck))
                 if 'kwargs' in opt:
-                    avg_func_kwargs = opt['kwargs']
+                    anly_func_kwargs = opt['kwargs']
             function_caller(anly_func_name, anly_func_args, func_kwargs=anly_func_kwargs, module_name=anly_func_name+'.py')
 
     #########
@@ -702,6 +727,7 @@ class CamDiag:
                 sys.path.insert(0, plot_script_path)
 
             plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
+
             plot_func_kwargs = {}
             if has_opt:
                 if ('args' in opt):
@@ -715,7 +741,11 @@ class CamDiag:
                         else:
                             print("{} is not available".format(variableToCheck))
                 if 'kwargs' in opt:
-                    avg_func_kwargs = opt['kwargs']
+                    plot_func_kwargs = opt['kwargs']
+
+            # Need to add print statement to debug log when possible:
+            # print(f"[INFO ]PLOTTING ARGS: {plot_func_args}")
+
             function_caller(plot_func_name, plot_func_args, func_kwargs=plot_func_kwargs, module_name=plot_func_name+'.py')
 
     #########

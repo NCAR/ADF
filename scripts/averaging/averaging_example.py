@@ -1,3 +1,10 @@
+import warnings  # use to warn user about missing files.
+def my_formatwarning(msg, *args, **kwargs):
+    # ignore everything except the message
+    return str(msg) + '\n'
+warnings.formatwarning = my_formatwarning
+
+
 def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=False, search=None):
     """
     This is an example function showing
@@ -27,7 +34,6 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
     import xarray as xr
     from pathlib import Path
     from CamDiag import end_diag_script
-    import warnings  # use to warn user about missing files.
 
     #Notify user that script has started:
     print("  Calculating CAM climatologies...")
@@ -48,7 +54,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
 
     # Time series file search
     if search is None:
-        search = "{CASE}*.{VARIABLE}.nc"
+        search = "{CASE}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
 
     #Loop over CAM output variables:
     for var in var_list:
@@ -56,7 +62,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
         # and check whether it is there (don't do computation if we don't want to overwrite):
         output_file = output_location / "{}_{}_climo.nc".format(case_name,var)
         if (not clobber) and (output_file.is_file()):
-            print("INFO: Found climo file and clobber is False, so skipping to next variable.")
+            print("INFO: Found climo file and clobber is False, so skipping {} and moving to next variable.".format(var))
             continue
 
         #Create list of time series files present for variable:
@@ -66,6 +72,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
         # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
         if not ts_files:
             errmsg = "Time series files for variable '{}' not found.  Script will continue to next variable.".format(var)
+            print(f"The input location searched was: {input_location}. The glob pattern was {ts_filenames}.")
             #  end_diag_script(errmsg) # Previously we would kill the run here.
             warnings.warn(errmsg)
             continue

@@ -59,6 +59,33 @@ def global_average(fld, wgt, verbose=False):
 
     return np.ma.average(avg1)
 
+
+def wgt_rmse(fld1, fld2, wgt):
+    """Calculated the area-weighted RMSE.
+
+    Inputs are 2-d spatial fields, fld1 and fld2 with the same shape.
+    They can be xarray DataArray or numpy arrays.
+
+    Input wgt is the weight vector, expected to be 1-d, matching length of one dimension of the data.
+
+    Returns a single float value.
+    """
+    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
+    assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
+    if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
+        return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
+    else:
+        check = [len(wgt) == s for s in fld1.shape]
+        if ~np.any(check):
+            raise IOError(f"Sorry, weight array has shape {wgt.shape} which is not compatible with data of shape {fld1.shape}")
+        check = [len(wgt) != s for s in fld1.shape]
+        dimsize = fld1.shape[np.argwhere(check).item()]  # want to get the dimension length for the dim that does not match the size of wgt
+        warray = np.tile(wgt, (dimsize, 1)).transpose()   # May need more logic to ensure shape is correct.
+        warray = warray / np.sum(warray) # normalize
+        wmse = np.sum(warray * (fld1 - fld2)**2)
+        return np.sqrt( wmse ).item()
+
+
 #######
 
 def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
@@ -80,7 +107,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     fields = (mdlfld, obsfld, diffld)
     area_avg = [global_average(x, wgt) for x in fields]
 
-    d_rmse = np.sqrt(area_avg[-1] ** 2)  # RMSE
+    d_rmse = wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
 
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
@@ -370,8 +397,9 @@ def square_contour_difference(fld1, fld2, **kwargs):
            first coordinate is "month" and is length 12, use np.arange(1,13).
 
     """
-    assert fld1.shape == fld2.shape  # Same shape => allows difference
-    assert len(fld1.shape) == 2      # 2-Dimension => plot contourf
+    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."  # 2-Dimension => plot contourf
+    assert fld1.shape == fld2.shape, "Input fields must have the same array shape."    # Same shape => allows difference
+
 
     if "case1name" in kwargs:
         case1name = kwargs.pop("case1name")

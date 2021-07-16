@@ -1,0 +1,15 @@
+name: camdiag
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pyyaml
+  - scipy
+  - cartopy
+  - xarray
+  - dask
+  - matplotlib
+  - pandas
+  - netcdf4
+  - python=3.9
+prefix: /glade/u/home/brianpm/miniconda3/envs/camdiag
