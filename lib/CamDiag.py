@@ -301,16 +301,16 @@ class CamDiag:
             except TypeError:
                 if cam_climo_dict['start_year'] is None:
                     start_year = "*"
-            else:
-                raise IOError("start_year needs to be a year-like value or None, got {}".format(cam_climo_dict['start_year']))
+                else:
+                    raise IOError("start_year needs to be a year-like value or None, got '{}'".format(cam_climo_dict['start_year']))
 
             try:
                 end_year   = int(cam_climo_dict['end_year'])
             except TypeError:
                 if cam_climo_dict['end_year'] is None:
                     end_year = "*"
-            else:
-                raise IOError("end_year needs to be a year-like value or None, got {}".format(cam_climo_dict['end_year']))
+                else:
+                    raise IOError("end_year needs to be a year-like value or None, got '{}'".format(cam_climo_dict['end_year']))
 
             #Extract cam variable list:
             var_list = self.__diag_var_list
@@ -350,10 +350,7 @@ class CamDiag:
             hist_files = sorted(files_list)
 
             # Check if time series directory exists, and if not, then create it:
-            # Use pathlib to create parent directories.
-            # the check isn't necessary b/c we can use exist_ok=True kwarg.
-            # if not os.path.isdir(ts_dir):
-            #     print("    {} not found, making new directory".format(ts_dir))
+            # Use pathlib to create parent directories, if necessary.
             Path(ts_dir).mkdir(parents=True, exist_ok=True)
 
             #Loop over CAM history variables:

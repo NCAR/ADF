@@ -61,17 +61,17 @@ def global_average(fld, wgt, verbose=False):
 
 
 def wgt_rmse(fld1, fld2, wgt):
-    """Calculated the area-weighted RMSE. 
-    
+    """Calculated the area-weighted RMSE.
+
     Inputs are 2-d spatial fields, fld1 and fld2 with the same shape.
     They can be xarray DataArray or numpy arrays.
-    
+
     Input wgt is the weight vector, expected to be 1-d, matching length of one dimension of the data.
-    
+
     Returns a single float value.
     """
-    assert len(fld1.shape) == 2
-    assert fld1.shape == fld2.shape
+    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
+    assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
         return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
     else:
@@ -397,8 +397,9 @@ def square_contour_difference(fld1, fld2, **kwargs):
            first coordinate is "month" and is length 12, use np.arange(1,13).
 
     """
-    assert fld1.shape == fld2.shape  # Same shape => allows difference
-    assert len(fld1.shape) == 2      # 2-Dimension => plot contourf
+    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."  # 2-Dimension => plot contourf
+    assert fld1.shape == fld2.shape, "Input fields must have the same array shape."    # Same shape => allows difference
+
 
     if "case1name" in kwargs:
         case1name = kwargs.pop("case1name")
