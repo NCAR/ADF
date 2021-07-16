@@ -98,7 +98,8 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
     if not input_location.is_dir():
         errmsg = "Time series directory '{}' not found.  Script is exiting.".format(input_ts_loc)
         end_diag_script(errmsg)
-    print(f"DEBUG: location of files is {str(input_location)}")
+    # print(f"DEBUG: location of files is {str(input_location)}")
+    # TODO: add location of files to debug log
     #Check if analysis directory exists, and if not, then create it:
     if not output_location.is_dir():
         print("    {} not found, making new directory".format(output_loc))
