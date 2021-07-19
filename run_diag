@@ -73,15 +73,30 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Command-line wrapper to run the CAM diagnostics package.')
 
     #Add input arguments to be parsed:
-    parser.add_argument('--config-file', '--config_file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
+    #--------------------------------
+
+    #Config file:
+    parser.add_argument('configure_file', nargs='?', action='store', type=str,
                         help="YAML file used to configure CAM diagnostics.")
+
+    #Flag method to point to config file.  Will be removed at some point in the future.
+    parser.add_argument('--config-file', '--config_file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
+                        help="YAML file used to configure CAM diagnostics (deprecated).")
+
+    #Debug setting:
+    parser.add_argument('--debug', action='store_true', help="Turn on debug output.")
+
+    #--------------------------------
 
     #Parse Argument inputs
     args = parser.parse_args()
 
-    #If "config-file" isn't present, then throw an error:
-    if not args.config_file:
-        parser.error("Missing required '--config-file' argument") 
+    #If no onfig file argument is present, then throw an error:
+    if (not args.configure_file) and (not args.config_file):
+        emsg = "No Config file found, please run 'run_diag <DIAG_YAML_FILE>'.\n"
+        emsg +="Where <DIAG_YAML_FILE> is the name of the yaml file used to configure"
+        emsg +="the diagnostics package."
+        parser.error(emsg)
 
     return args
 
@@ -105,8 +120,8 @@ if __name__ == "__main__":
     if sys.version_info[0] < 3:
         end_diag_script("Script only works with Python 3. Please switch python versions.")
 
-    if sys.version_info[1] < 4:
-        end_diag_script("Script only works with Python version 3.4 or greater.  Please update python.")
+    if sys.version_info[1] < 6:
+        end_diag_script("Script only works with Python version 3.6 or greater.  Please update python.")
 
     #++++++++++++++++++++++++++++
     #Parse command-line arguments
@@ -115,14 +130,20 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     #Extract YAML config file name/path:
-    config_yaml = args.config_file
+    if args.configure_file:
+      config_yaml = args.configure_file
+    else:
+      config_yaml = args.config_file
+
+    #Extract debug flag:
+    config_debug = args.debug
 
     #+++++++++++++++++++++++++++++++++
     #Call main CAM diagnostics methods
     #+++++++++++++++++++++++++++++++++
 
     #Initalize CAM diagnostics object:
-    diag = CamDiag(config_yaml)
+    diag = CamDiag(config_yaml, debug=config_debug)
 
     #Create CAM time series:
     diag.create_time_series()

@@ -17,6 +17,8 @@ import os.path
 import glob
 import subprocess
 import importlib
+import logging
+import re
 
 from pathlib import Path
 
@@ -113,11 +115,11 @@ def read_config_obj(config_obj, varname):
     try:
         var = config_obj[varname]
     except:
-       raise KeyError("'{}' not found in config file.  Please see 'config_example.yaml'.".format(varname))
+       raise KeyError("'{}' not found in config file.  Please see 'config_cam_baseline_example.yaml'.".format(varname))
 
     #Check that configure variable is not empty (None):
     if var is None:
-        raise NameError("'{}' has not been set to a value. Please see 'config_example.yaml'.".format(varname))
+        raise NameError("'{}' has not been set to a value. Please see 'config_cam_baseline_example.yaml'.".format(varname))
 
     #return variable/list/dictionary:
     return var
@@ -172,10 +174,8 @@ def function_caller(func_name: str, func_args: list, func_kwargs: dict = {}, mod
         func = getattr(module, func_name)
     return func(*func_args, **func_kwargs)
 
-
-
 ######################################
-#Main CAM diagnostics class (cam_diag)
+#Main CAM diagnostics class (CamDiag)
 ######################################
 
 class CamDiag:
@@ -198,11 +198,19 @@ class CamDiag:
     post-processed data.
     """
 
-    def __init__(self, config_file):
+    def __init__(self, config_file, debug=False):
 
         """
         Initalize CAM diagnostics object.
         """
+
+        #Create debug log, if requested:
+        if debug:
+            logging.basicConfig(filename="cam_diag_debug.log", level=logging.DEBUG)
+            self.__debug_log = logging.getLogger("CamDiag")
+            self.__debug = True
+        else:
+            self.__debug = False
 
         #Expand any environmental user name variables in the path:
         config_file = os.path.expanduser(config_file)
@@ -216,18 +224,31 @@ class CamDiag:
             #Load YAML file:
             config = yaml.load(nfil, Loader=yaml.SafeLoader)
 
+        #Combine top-level dictionaries into one to allow searching:
+        config_search_dict = self.__create_search_dict(config)
+
         #Add basic diagnostic info to object:
         self.__basic_info = read_config_obj(config, 'diag_basic_info')
 
+        #Expand basic info variable strings:
+        self.__expand_references(self.__basic_info, config_search_dict)
+
         #Add CAM climatology info to object:
         self.__cam_climo_info = read_config_obj(config, 'diag_cam_climo')
+
+        #Expand CAM climo info variable strings:
+        self.__expand_references(self.__cam_climo_info, config_search_dict)
 
         #Check if CAM baseline climatology files will be calculated:
         if not self.__basic_info['compare_obs']:
             try:
                 if config['diag_cam_baseline_climo']['calc_cam_climo']:
+
                     #If so, then add CAM baseline climatology info to object:
                     self.__cam_bl_climo_info = read_config_obj(config, 'diag_cam_baseline_climo')
+
+                    #Expand CAM baseline climo info variable strings:
+                    self.__expand_references(self.__cam_climo_info, config_search_dict)
             except:
                 raise KeyError("'calc_bl_cam_climo' in 'diag_cam_baseline_climo' not found in config file.  Please see 'config_example.yaml'.")
 
@@ -260,6 +281,231 @@ class CamDiag:
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
         return self.__basic_info['create_html']
+
+    #########
+
+    def __expand_references(self, config_dict, search_dict):
+
+        """
+        Replace keyword (${var} or ${dict.var}) entries
+        in the YAML (config) dictionary that reference
+        other YAML dictionary variables/keys with the
+        values of those variables.
+
+        Note:  Subsitutions currently only work for the
+               following variable types:
+
+               string
+               integer
+               float
+        """
+
+        #compile regular expression:
+        kword_regex = re.compile(r'\$\{[a-z_\.\d]+\}')
+
+        #copy YAML config dictionary:
+        config_dict_copy = config_dict
+
+        #Loop through dictionary:
+        for key, value in config_dict_copy.items():
+
+            #Skip boolean type:
+            #This must be done first because
+            #booleans are technically an integer
+            #sub-class.
+            if isinstance(value, bool):
+                continue
+
+            #Skipe any other non-accepted types:
+            if (not isinstance(value, str)) and \
+               (not isinstance(value, int)) and \
+               (not isinstance(value, float)):
+               continue
+
+            #determine variable type (if not a string):
+            if isinstance(value, int):
+                type_str = "int"
+            elif isinstance(value, float):
+                type_str = "float"
+            else:
+                type_str = None
+
+            #Skip the variable if it is not a string:
+            #if not isinstance(value, str):
+            #    continue
+
+            #expand any keywords to their full values:
+            new_value = self.__expand_yaml_var_ref(value, kword_regex,
+                                                 search_dict)
+
+            #Add full string back into dictionary:
+            if type_str == "int":
+                config_dict[key] = int(new_value)
+            elif type_str == "float":
+                config_dict[key] = float(new_value)
+            else:
+                #Note that the 'expand_yaml_var_ref' function
+                #always returns a string type, so leave as-is:
+                config_dict[key] = new_value
+
+    #########
+
+    def __expand_yaml_var_ref(self, var_val, kword_regex, search_dict):
+
+        """
+        Recursive function to replace all keywords with their
+        associated values from the provided dictionary.
+        """
+
+        #If variable value is not a string, then convert it:
+        if not isinstance(var_val, str):
+            var_val = str(var_val)
+
+        #Look for keyword using provided regular expression:
+        kword_match = kword_regex.search(var_val)
+
+        #Continue if at least one match is found:
+        if kword_match:
+
+            #Copy input variable value string,
+            #which is needed for generating
+            #proper error messages:
+            new_var_val = var_val
+
+            #Find all variable matches in variable string:
+            #kword_matches = kword_regex.finditer(var_val)
+
+            #Start while loop:
+            another_match = True
+
+            while another_match:
+
+                #Extract match string:
+                kword_match_str = kword_match.group(0)
+
+                #Remove special characters ("${" and "}"):
+                kword_match_str = kword_match_str[2:-1]
+
+                #Check if period (".") is in string,
+                #If so, then the keyword will be used directly,
+                #otherwise do the following:
+                #--------------------------
+                if kword_match_str.find(".") == -1:
+
+                    #Initalize match counter:
+                    match_count = 0
+
+                    #Loop through search dictionary keys:
+                    for key in search_dict.keys():
+
+                        #Attempt to find period string index:
+                        pidx = key.find(".")
+
+                        #If no period found, then compare directly with kword:
+                        if pidx == -1:
+                           if kword_match_str == key:
+                              #Add one to counter:
+                              match_count += 1
+
+                        else:
+                            #Compare kword to text on the right side of period:
+                            if kword_match_str == key[pidx+1:]:
+                                #Set match string to full key string:
+                                kword_match_str = key
+
+                                #Add one to counter:
+                                match_count += 1
+
+                    #If more than one match, then throw an error:
+                    if match_count > 1:
+                        ermsg = f"ERROR: More than one variable matches keyword in {var_val}"
+                        ermsg += "\nPlease use '${section.variable}' keyword method to specify"
+                        ermsg += " which variable you want to use."
+                        end_diag_script(ermsg)
+                #--------------------------
+
+                #Throw an error if keyword not in dictionary:
+                if kword_match_str not in search_dict.keys():
+                    ermsg = f"ERROR: Variable '{kword_match_str}'"
+                    ermsg += " not found in config (YAML) file."
+                    end_diag_script(ermsg)
+
+                #Extract keyword value from config dictionary:
+                kword_val = search_dict[kword_match_str]
+
+                #Expand keyword if found:
+                final_kword_val = self.__expand_yaml_var_ref(kword_val, kword_regex, search_dict)
+
+                #Substitute keyword with final kword_val:
+                new_var_val = new_var_val[:kword_match.start()] + final_kword_val + new_var_val[kword_match.end():]
+
+                #Search the string again for keyword values:
+                kword_match = kword_regex.search(new_var_val)
+
+                #End loop if no other matches found:
+                if not kword_match:
+                    another_match = False
+
+            #End while loop
+
+            #Pass back final value:
+            return new_var_val
+
+        else:
+            #Return the string un-modified:
+            return var_val
+
+    #########
+
+    def __create_search_dict(self, config_dict, sub_dict=None):
+
+        """
+        Recursive function that creates a non-hierarchical
+        dictionary for use in global key/value searches.
+        """
+
+        #Create empty dictionary:
+        config_search_dict = dict()
+
+        #Loop over all top-level config variables:
+        for key, value in config_dict.items():
+
+            #Check if value is a string, integer, or another dict:
+            if isinstance(value, str) or isinstance(value, int):
+
+                #Check if sub dictionary is present:
+                if sub_dict:
+                    #Create new key with sub dictionary prefix:
+                    key = sub_dict+"."+key
+
+                #Check if key already exists in search dict:
+                if key in config_search_dict.keys():
+
+                    ermsg = f"ERROR: Multiple versions of Variable {key}"
+                    ermsg += "exist at the same level in config (YAML) file."
+                    end_diag_script(ermsg)
+
+                #Add key/value to search dict:
+                config_search_dict[key] = str(value)
+
+            #Check if value is a dictionary instead:
+            elif isinstance(value, dict):
+                #Currently this routine only handles one level of
+                #nested dictionaries, so throw an error if one has
+                #gone beyond that:
+                if sub_dict:
+                    ermsg = "ERROR: CamDiag currently only allows for a single nested dict"
+                    ermsg += f"in the config (YAML) file.\n  Variable {value} is nested too far."
+
+                #Apply routine to sub dictionary:
+                sub_config_search_dict = self.__create_search_dict(value,
+                                                                 sub_dict = key)
+
+                #Append sub-dict search dictionary to top-level dictionary:
+                config_search_dict.update(sub_config_search_dict)
+
+        #Return search dictionary:
+        return config_search_dict
 
     #########
 
@@ -450,9 +696,11 @@ class CamDiag:
                     msg = "Time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
                     end_diag_script(msg)
                 if avg_script_path not in sys.path:
+                    #Add script path to debug log if requested:
+                    if self.__debug:
+                        self.__debug_log.debug(f"create_climo: Inserting to sys.path: {avg_script_path}")
 
-                    #This statement should be added to the debug log when possible:
-                    #print(f"[INFO] Inserting to sys.path: {avg_script_path}")
+                    #Add script to python path:
                     sys.path.insert(0, avg_script_path)
 
                 # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
@@ -474,9 +722,12 @@ class CamDiag:
                     if 'kwargs' in opt:
                         avg_func_kwargs = opt['kwargs']
 
-                # print(f"DEBUG: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args= {avg_func_args}\n \t avg_kwargs= {avg_func_kwargs}")
-                # This print statement should be added to a debug log. Provides information about the parsing of the function and arguments.
-                #print(avg_func_kwargs.items())
+                #Add function calls debug log if requested:
+                if self.__debug:
+                    self.__debug_log.debug(\
+                        f"create_climo: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args = {avg_func_args}\n \t avg_kwargs = {avg_func_kwargs}")
+
+                #Call averaging function
                 function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
         else:
             #If not, then notify user that climo file generation is skipped.
@@ -553,7 +804,11 @@ class CamDiag:
                 msg = "Regridding file '{}' is missing. Script is ending here.".format(regrid_script_path)
                 end_diag_script(msg)
             if regrid_script_path not in sys.path:
-                print(f"[INFO] Inserting to sys.path: {regrid_script_path}") # Should go into a log file
+                #Add script path to debug log if requested:
+                if self.__debug:
+                    self.__debug_log.debug(f"regrid_climo: Inserting to sys.path: {regrid_script_path}")
+
+                #Add script to python path:
                 sys.path.insert(0, regrid_script_path)
 
             regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
@@ -571,7 +826,13 @@ class CamDiag:
                             print("{} is not available".format(variableToCheck))
                 if 'kwargs' in opt:
                     regrid_func_kwargs = opt['kwargs']
-            # Note: provide the function name and arguments in a debug log.
+
+                #Add function calls debug log if requested:
+                if self.__debug:
+                    self.__debug_log.debug(\
+                        f"regrid_climo: \n \t regrid_func_name = {regrid_func_name}\n \t regrid_func_args = {regrid_func_args}\n \t regrid_kwargs = {avg_func_kwargs}")
+
+            #Call regridding function:
             function_caller(regrid_func_name, regrid_func_args, func_kwargs=regrid_func_kwargs, module_name=regrid_func_name+'.py')
     #########
 
@@ -637,7 +898,11 @@ class CamDiag:
                 msg = "Analysis script file '{}' is missing. Script is ending here.".format(anly_script_path)
                 end_diag_script(msg)
             if anly_script_path not in sys.path:
-                print(f"[INFO] Inserting to sys.path: {anly_script_path}")  # Should go into a log file
+                #Add script path to debug log if requested:
+                if self.__debug:
+                    self.__debug_log.debug(f"perform_analyses: Inserting to sys.path: {anly_script_path}")
+
+                #Add script to python path:
                 sys.path.insert(0, anly_script_path)
 
             anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
@@ -655,6 +920,13 @@ class CamDiag:
                             print("{} is not available".format(variableToCheck))
                 if 'kwargs' in opt:
                     anly_func_kwargs = opt['kwargs']
+
+            #Add function calls to debug log if requested:
+            if self.__debug:
+                self.__debug_log.debug(\
+                    f"perform_analyses: \n \t anly_func_name = {anly_func_name}\n \t anly_func_args = {anly_func_args}\n \t anly_kwargs = {anly_func_kwargs}")
+
+            #Call analysis function:
             function_caller(anly_func_name, anly_func_args, func_kwargs=anly_func_kwargs, module_name=anly_func_name+'.py')
 
     #########
@@ -723,7 +995,11 @@ class CamDiag:
                 msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
                 end_diag_script(msg)
             if plot_script_path not in sys.path:
-                print(f"[INFO] Inserting to sys.path: {plot_script_path}")  # Should go into a log file
+                #Add script path to debug log if requested:
+                if self.__debug:
+                    self.__debug_log.debug(f"create_climo: Inserting to sys.path: {plot_script_path}")
+
+                #Add script to python path:
                 sys.path.insert(0, plot_script_path)
 
             plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
@@ -743,9 +1019,12 @@ class CamDiag:
                 if 'kwargs' in opt:
                     plot_func_kwargs = opt['kwargs']
 
-            # Need to add print statement to debug log when possible:
-            # print(f"[INFO ]PLOTTING ARGS: {plot_func_args}")
+            #Add function calls to debug log if requested:
+            if self.__debug:
+                self.__debug_log.debug(\
+                    f"create_plots: \n \t plot_func_name = {plot_func_name}\n \t plot_func_args = {plot_func_args}\n \t plot_kwargs = {plot_func_kwargs}")
 
+            #Call plotting function:
             function_caller(plot_func_name, plot_func_args, func_kwargs=plot_func_kwargs, module_name=plot_func_name+'.py')
 
     #########

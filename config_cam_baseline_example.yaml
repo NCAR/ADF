@@ -1,4 +1,4 @@
-#-------------------------------
+#==============================
 #config_cam_baseline.yaml
 
 #This is the main CAM diagnostics config file
@@ -11,7 +11,39 @@
 #are needed.  Running this diagnostics on
 #a different machine, or with a different model,
 #may require additional modifications.
-#--------------------------------
+#
+#Config file Keywords:
+#--------------------
+#
+#1.  Using ${xxx} will substitute that text with the
+#    variable referenced by xxx. For example:
+#
+#    cam_case_name: cool_run
+#    cam_climo_loc: /some/where/${cam_case_name}
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/cool_run
+#
+#2.  Using ${<top_level_section>.xxx} will do the same as
+#    keyword 1 above, but specifies which sub-section the
+#    variable is coming from, which is necessary for variables
+#    that are repeated in different subsections.  For example:
+#
+#    diag_basic_info:
+#      cam_climo_loc:  /some/where/${diag_cam_climo.start_year}
+#
+#    diag_cam_climo:
+#      start_year: 1850
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/1850
+#
+#Please note that for both 1 and 2 the keywords must be lowercase.
+#This is because future developments will hopefully use other keywords
+#that are uppercase.
+#--------------------
+#
+##==============================
 
 #This first set of variables specify basic info required by all diagnostic runs:
 diag_basic_info:
@@ -67,9 +99,13 @@ diag_cam_climo:
   cam_hist_loc: /location/where/you/stored/model/outputs
 
   #model year when climatology should start:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       start at earliest available year.
   start_year: 1850
 
   #model year when diagnostics should end:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       end at latest available year.
   end_year: 2100
 
   #Save interim time series files?
@@ -100,9 +136,13 @@ diag_cam_baseline_climo:
   cam_hist_loc: /location/of/second/cam/run/output/or/baseline/data
 
   #model year when climatology should start:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       start at earliest available year.
   start_year: 1850
 
   #model year when diagnostics should end:
+  #Note:  Leaving this entry blank will make diagnostics
+  #       end at latest available year.
   end_year: 2100
 
   #Save interim time series files for baseline run?
@@ -121,6 +161,10 @@ diag_cam_baseline_climo:
 #a non-standard method, or are adding your own
 #diagnostic scripts.
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#Note:  If you want to pass arguments to a particular script, you can
+#do it like so (using the "averaging_example" script in this case):
+# - {averaging_example: {kwargs: {clobber: true}}}
 
 #Name of time-averaging scripts being used to generate climatologies.
 #These scripts must be located in "scripts/averaging":
@@ -149,6 +193,7 @@ diag_var_list:
  - LWCF
  - PSL
  - Q
+#<Add more variables here.>
 
 #List of observation types (filename prefixes) CAM can be compared against:
 obs_type_list:
