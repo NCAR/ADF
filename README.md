@@ -26,9 +26,16 @@ If one wants to generate the "AMWG" model variable statistics table as well, the
 - Scipy
 - Pandas
 
-On NCAR's CISL machines (cheyenne and casper), these can be loaded by running `ncar_pylib` on the command line.
+On NCAR's CISL machines (cheyenne and casper), these can be loaded by running `ncar_pylib` on the command line.  
 
-Along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines, this can be loaded by simply running `module load nco` on the command line.
+If you are using conda on a non-CISL machine, then you can create and activate the appropriate python envirnoment using the `env/conda_environment.yaml` file like so:
+
+```
+conda env create -f env/conda_environment.yaml
+conda activate camdiag
+```
+
+Finally, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines, this can be loaded by simply running `module load nco` on the command line.
 
 ## Running CAM diagnostics
 
