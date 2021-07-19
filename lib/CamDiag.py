@@ -310,6 +310,9 @@ class CamDiag:
         for key, value in config_dict_copy.items():
 
             #Skip boolean type:
+            #This must be done first because
+            #booleans are technically an integer
+            #sub-class.
             if isinstance(value, bool):
                 continue
 
@@ -351,7 +354,7 @@ class CamDiag:
 
         """
         Recursive function to replace all keywords with their
-        associated value from the provided dictionary
+        associated values from the provided dictionary.
         """
 
         #If variable value is not a string, then convert it:
