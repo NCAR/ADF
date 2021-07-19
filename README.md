@@ -6,14 +6,14 @@ re-gridding, and plotting scripts, most of which are provided by users of CAM it
 Specifically, this package is designed to generate standard climatological comparisons between either two
 different CAM simulations, or between a CAM simulation and observational and reanalysis datasets.  Ideally
 this will allow for a quick evaluation of a CAM simulation, without requiring the user to generate numerous
-different figures on there own.
+different figures on their own.
 
 Currently, this figure only uses standard CAM monthly (h0) outputs.  However, if there is user interest then
 additional diagnostic options can be added.
 
 ## Required software environment
 
-These diagnostics currently require Python version 3.4 or highter.  They also require the following non-standard python libraries/modules:
+These diagnostics currently require Python version 3.6 or highter.  They also require the following non-standard python libraries/modules:
 
 - PyYAML
 - Numpy
@@ -32,9 +32,9 @@ Along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also
 
 ## Running CAM diagnostics
 
-To run an example of the CAM diagnostics, simply download this repo, setup your computing environment as described in the "Required software environment" section above, modify the `config_example.yaml` file (or create one of your own) to point to the relevant diretories and run:
+To run an example of the CAM diagnostics, simply download this repo, setup your computing environment as described in the "Required software environment" section above, modify the `config_cam_baseline_example.yaml` file (or create one of your own) to point to the relevant diretories and run:
 
-`./run_diag --config_file config_example.yaml`
+`./run_diag config_cam_baseline_example.yaml`
 
 This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example CAM diagnostic figures, all in their respective directories.
 
