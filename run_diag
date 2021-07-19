@@ -120,8 +120,8 @@ if __name__ == "__main__":
     if sys.version_info[0] < 3:
         end_diag_script("Script only works with Python 3. Please switch python versions.")
 
-    if sys.version_info[1] < 4:
-        end_diag_script("Script only works with Python version 3.4 or greater.  Please update python.")
+    if sys.version_info[1] < 6:
+        end_diag_script("Script only works with Python version 3.6 or greater.  Please update python.")
 
     #++++++++++++++++++++++++++++
     #Parse command-line arguments
