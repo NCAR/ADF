@@ -156,24 +156,6 @@ def construct_index_info(d, fnam, opf):
 
 #####
 
-def function_caller(func_name: str, func_args: list, func_kwargs: dict = {}, module_name=None):
-    """Call a function with given arguments.
-
-    func_name : string, name of the function to call
-    func_args : list, the arguments to pass to the function
-    func_kwargs : [optional] dict, the keyword arguments to pass to the function
-    module_name : [optional] string, the name of the module where func_name is defined; if not provided, assume func_name.py
-
-    return : the output of func_name(*func_args, **func_kwargs)
-    """
-    if module_name is None:
-        module_name = func_name #+'.py'
-    # note: when we use importlib, specify the module name without the ".py" extension.
-    module = importlib.import_module(func_name)
-    if hasattr(module, func_name) and callable(getattr(module, func_name)):
-        func = getattr(module, func_name)
-    return func(*func_args, **func_kwargs)
-
 ######################################
 #Main CAM diagnostics class (CamDiag)
 ######################################
@@ -276,6 +258,122 @@ class CamDiag:
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
         return self.__basic_info['create_html']
+
+    #########
+
+    def __diag_scripts_caller(self, scripts_dir: str, func_names: list,
+                              default_args: list = [], default_kwargs: dict = {}, 
+                              log_section: str = ''):
+  
+        """
+        Parse a list of scripts as provided by the config file,
+        and call them as functions while passing in the correct inputs.
+
+        scripts_dir    : string, sub-directory under "scripts" where scripts are located
+        func_names     : list of function/scripts (either string or dictionary): 
+        default_args   : optional list of default arguments for the scripts if none are specified by the config file
+        default_kwargs : optional list of default keyword arguments for the scripts if none are specified by the config file 
+        log_section    : optional variable that specifies where the log entries are coming from.
+                         Note:  Is it better to just make a child log instead?
+
+        """
+
+        #Loop over all averaging script names:
+        for func_name in func_names:
+
+            #Check if func_name is a dictonary,
+            #this implies that the function has user-defined inputs:
+            if isinstance(func_name, dict):
+                assert len(func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
+                has_opt = True
+                opt = func_name[list(func_name.keys())[0]]  # un-nests the dictionary
+                func_name = list(func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
+            elif isinstance(func_name, str):
+                has_opt = False
+            else:
+                raise TypeError("Provided script must either be a string or a dictionary.")
+
+            func_script =  func_name + '.py'  # default behavior: Add file suffix to script name
+            if has_opt:
+                if 'module' in opt:
+                    func_script = opt['module']
+
+            #Create full path to function script:
+            func_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH, scripts_dir), func_script)
+
+            #Check that file exists in specified directory:
+            if not os.path.exists(func_script_path):
+                msg = "Script file '{}' is missing. Diagnostics are ending here.".format(func_script_path)
+                end_diag_script(msg)
+
+            if func_script_path not in sys.path:
+               #Add script path to debug log if requested:
+               if self.__debug:
+                   if log_section:
+                       self.__debug_log.debug(f"{log_section}: Inserting to sys.path: {func_script_path}")
+                   else:
+                       self.__debug_log.debug(f"diag_scripts_caller: Inserting to sys.path: {func_script_path}")
+
+               #Add script to python path:
+               sys.path.insert(0, func_script_path)
+
+            # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
+
+            # Arguments; check if user has specified custom arguments
+            func_args   = default_args
+            func_kwargs = default_kwargs
+            if has_opt:
+                if ('args' in opt):
+                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
+                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
+                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
+                    func_args = list()  # start over
+                    for variableToCheck in opt['args']:
+                        if variableToCheck in locals():
+                            func_args.append(locals()[variableToCheck])
+                        else:
+                            print("{} is not available".format(variableToCheck))
+                if 'kwargs' in opt:
+                    func_kwargs = opt['kwargs']
+
+            #Add function calls debug log if requested:
+            if self.__debug:
+                if log_section:
+                    self.__debug_log.debug(\
+                    f"{log_section}: \n \t func_name = {func_name}\n \t func_args = {func_args}\n \t func_kwargs = {func_kwargs}")
+                else:
+                    self.__debug_log.debug(\
+                    f"diag_scripts_caller: \n \t func_name = {func_name}\n \t func_args = {func_args}\n \t func_kwargs = {func_kwargs}")
+
+
+            #Call function
+            self.__function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
+
+    #########
+
+    def __function_caller(self, func_name: str, func_args: list, func_kwargs: dict = {}, module_name=None):
+
+        """
+        Call a function with given arguments.
+
+        func_name : string, name of the function to call
+        func_args : list, the arguments to pass to the function
+        func_kwargs : [optional] dict, the keyword arguments to pass to the function
+        module_name : [optional] string, the name of the module where func_name is defined; if not provided, assume func_name.py
+
+        return : the output of func_name(*func_args, **func_kwargs)
+        """
+
+        if module_name is None:
+            module_name = func_name #+'.py'
+
+        # note: when we use importlib, specify the module name without the ".py" extension.
+        module = importlib.import_module(func_name)
+        if hasattr(module, func_name) and callable(getattr(module, func_name)):
+            func = getattr(module, func_name)
+
+        #Run function and return result:
+        return func(*func_args, **func_kwargs)
 
     #########
 
@@ -662,68 +760,21 @@ class CamDiag:
                                                             # _OR_
                                                             # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
 
-            #Extract necessary variables from CAM configure dictionary:
+            #Extract necessary variables from configure dictionary:
             input_ts_loc    = cam_climo_dict['cam_ts_loc']
             overwrite_climo = cam_climo_dict['cam_overwrite_climo']
             var_list        = self.__diag_var_list
 
-            #Loop over all averaging script names:
-            for avg_func_name in avg_func_names:
-                # option to specify the module's name:
-                if isinstance(avg_func_name, dict):
-                    assert len(avg_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                    has_opt = True
-                    opt = avg_func_name[list(avg_func_name.keys())[0]]  # un-nests the dictionary
-                    avg_func_name = list(avg_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-                else:
-                    has_opt = False
+            #Set default script arguments:
+            avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
+            avg_func_kwargs = {"clobber":overwrite_climo}
 
-                avg_script =  avg_func_name + '.py'  # default behavior: Add file suffix to script name
-                if has_opt:
-                    if 'module' in opt:
-                        avg_script = opt['module']
+            #Run the listed scripts:
+            self.__diag_scripts_caller("averaging", avg_func_names, 
+                                       default_args = avg_func_args, 
+                                       default_kwargs = avg_func_kwargs,
+                                       log_section = "create_climo")
 
-                #Create full path to averaging script:
-                avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
-
-                #Check that file exists in "scripts/averaging" directory:
-                if not os.path.exists(avg_script_path):
-                    msg = "Time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
-                    end_diag_script(msg)
-                if avg_script_path not in sys.path:
-                    #Add script path to debug log if requested:
-                    if self.__debug:
-                        self.__debug_log.debug(f"create_climo: Inserting to sys.path: {avg_script_path}")
-
-                    #Add script to python path:
-                    sys.path.insert(0, avg_script_path)
-
-                # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
-
-                # Arguments; check if user has specified custom arguments
-                avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
-                avg_func_kwargs = {"clobber":overwrite_climo}
-                if has_opt:
-                    if ('args' in opt):
-                        # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                        assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                        assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                        avg_func_args = list()  # start over
-                        for variableToCheck in opt['args']:
-                            if variableToCheck in locals():
-                                avg_func_args.append(locals()[variableToCheck])
-                            else:
-                                print("{} is not available".format(variableToCheck))
-                    if 'kwargs' in opt:
-                        avg_func_kwargs = opt['kwargs']
-
-                #Add function calls debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(\
-                        f"create_climo: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args = {avg_func_args}\n \t avg_kwargs = {avg_func_kwargs}")
-
-                #Call averaging function
-                function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
         else:
             #If not, then notify user that climo file generation is skipped.
             print("  No climatology files were requested by user, so averaging will be skipped.")
@@ -774,61 +825,15 @@ class CamDiag:
             # NOTE: if no regridding options provided, we should skip it, but
             #       do we need to still copy (symlink?) files into the regrid directory?
 
-        #Loop over all re-gridding script names:
-        for regrid_func_name in regrid_func_names:
-            # option to specify the module's name:
-            if isinstance(regrid_func_name, dict):
-                assert len(avg_func_name) == 1, "Regrid function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                has_opt = True
-                opt = regrid_func_name[list(regrid_func_name.keys())[0]]  # un-nests the dictionary
-                regrid_func_name = list(regrid_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-            else:
-                has_opt = False
 
-            regrid_script = regrid_func_name+'.py' #Add file suffix to script name (to help with the file search)
-            if has_opt:
-                if 'module' in opt:
-                    regrid_script = opt['module']
+       #Set default script arguments:
+       regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
 
-            #Create full path to regridding script:
-            regrid_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"regridding"),
-                                              regrid_script)
+       #Run the listed scripts:
+       self.__diag_scripts_caller("regridding", regrid_func_names, 
+                                  default_args = regrid_func_args,
+                                  log_section = "regrid_climo")
 
-            #Check that file exists in "scripts/regridding" directory:
-            if not os.path.exists(regrid_script_path):
-                msg = "Regridding file '{}' is missing. Script is ending here.".format(regrid_script_path)
-                end_diag_script(msg)
-            if regrid_script_path not in sys.path:
-                #Add script path to debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(f"regrid_climo: Inserting to sys.path: {regrid_script_path}")
-
-                #Add script to python path:
-                sys.path.insert(0, regrid_script_path)
-
-            regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
-            regrid_func_kwargs = {}
-            if has_opt:
-                if ('args' in opt):
-                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                    regrid_func_args = list()  # start over
-                    for variableToCheck in opt['args']:
-                        if variableToCheck in locals():
-                            regrid_func_args.append(locals()[variableToCheck])
-                        else:
-                            print("{} is not available".format(variableToCheck))
-                if 'kwargs' in opt:
-                    regrid_func_kwargs = opt['kwargs']
-
-                #Add function calls debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(\
-                        f"regrid_climo: \n \t regrid_func_name = {regrid_func_name}\n \t regrid_func_args = {regrid_func_args}\n \t regrid_kwargs = {avg_func_kwargs}")
-
-            #Call regridding function:
-            function_caller(regrid_func_name, regrid_func_args, func_kwargs=regrid_func_kwargs, module_name=regrid_func_name+'.py')
     #########
 
     def perform_analyses(self, baseline=False):
@@ -870,59 +875,13 @@ class CamDiag:
         write_html      = self.__basic_info['create_html']
         var_list        = self.__diag_var_list
 
-        #Loop over all averaging script names:
-        for anly_func_name in anly_func_names:
-            if isinstance(anly_func_name, dict):
-                assert len(anly_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                has_opt = True
-                opt = anly_func_name[list(anly_func_name.keys())[0]]  # un-nests the dictionary
-                anly_func_name = list(anly_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-            else:
-                has_opt = False
+        #Set default script arguments:
+        anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
 
-            anly_script = anly_func_name+'.py'  # Add file suffix to script name (to help with the file search):
-            if has_opt:
-                if 'module' in opt:
-                    anly_script = opt['module']
-
-            #Create full path to averaging script:
-            anly_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"analysis"), anly_script)
-
-            #Check that file exists in "scripts/analysis" directory:
-            if not os.path.exists(anly_script_path):
-                msg = "Analysis script file '{}' is missing. Script is ending here.".format(anly_script_path)
-                end_diag_script(msg)
-            if anly_script_path not in sys.path:
-                #Add script path to debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(f"perform_analyses: Inserting to sys.path: {anly_script_path}")
-
-                #Add script to python path:
-                sys.path.insert(0, anly_script_path)
-
-            anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
-            anly_func_kwargs = {}
-            if has_opt:
-                if ('args' in opt):
-                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                    anly_func_args = list()  # start over
-                    for variableToCheck in opt['args']:
-                        if variableToCheck in locals():
-                            anly_func_args.append(locals()[variableToCheck])
-                        else:
-                            print("{} is not available".format(variableToCheck))
-                if 'kwargs' in opt:
-                    anly_func_kwargs = opt['kwargs']
-
-            #Add function calls to debug log if requested:
-            if self.__debug:
-                self.__debug_log.debug(\
-                    f"perform_analyses: \n \t anly_func_name = {anly_func_name}\n \t anly_func_args = {anly_func_args}\n \t anly_kwargs = {anly_func_kwargs}")
-
-            #Call analysis function:
-            function_caller(anly_func_name, anly_func_args, func_kwargs=anly_func_kwargs, module_name=anly_func_name+'.py')
+        #Run the listed scripts:
+        self.__diag_scripts_caller("analysis", anly_func_names,
+                                   default_args = anly_func_args,
+                                   log_section = "perform_analyses")
 
     #########
 
@@ -966,61 +925,13 @@ class CamDiag:
             data_loc  = self.__basic_info['cam_baseline_climo_loc']
             data_list = [data_name]
 
-        #Loop over all re-gridding script names:
-        for plot_func_name in plot_func_names:
-            if isinstance(plot_func_name, dict):
-                assert len(plot_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                has_opt = True
-                opt = plot_func_name[list(plot_func_name.keys())[0]]  # un-nests the dictionary
-                plot_func_name = list(plot_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-            else:
-                has_opt = False
+        #Set default script arguments:
+        plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
 
-            plot_script = plot_func_name+'.py'  # Add file suffix to script name (to help with the file search)
-            if has_opt:
-                if 'module' in opt:
-                    plot_script = opt['module']
-
-            #Create full path to plotting scripts:
-            plot_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"plotting"),
-                                            plot_script)
-
-            #Check that file exists in "scripts/plotting" directory:
-            if not os.path.exists(plot_script_path):
-                msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
-                end_diag_script(msg)
-            if plot_script_path not in sys.path:
-                #Add script path to debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(f"create_climo: Inserting to sys.path: {plot_script_path}")
-
-                #Add script to python path:
-                sys.path.insert(0, plot_script_path)
-
-            plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
-
-            plot_func_kwargs = {}
-            if has_opt:
-                if ('args' in opt):
-                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                    plot_func_args = list()  # start over
-                    for variableToCheck in opt['args']:
-                        if variableToCheck in locals():
-                            plot_func_args.append(locals()[variableToCheck])
-                        else:
-                            print("{} is not available".format(variableToCheck))
-                if 'kwargs' in opt:
-                    plot_func_kwargs = opt['kwargs']
-
-            #Add function calls to debug log if requested:
-            if self.__debug:
-                self.__debug_log.debug(\
-                    f"create_plots: \n \t plot_func_name = {plot_func_name}\n \t plot_func_args = {plot_func_args}\n \t plot_kwargs = {plot_func_kwargs}")
-
-            #Call plotting function:
-            function_caller(plot_func_name, plot_func_args, func_kwargs=plot_func_kwargs, module_name=plot_func_name+'.py')
+        #Run the listed scripts:
+        self.__diag_scripts_caller("plotting", plot_func_names,
+                                   default_args = plot_func_args,
+                                   log_section = "create_plots")
 
     #########
 
