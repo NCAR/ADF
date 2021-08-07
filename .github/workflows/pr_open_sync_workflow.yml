@@ -1,0 +1,30 @@
+name: Pull Request (PR) open and sync workflow
+
+on:
+  pull_request:
+   types: [opened, synchronize, reopened]
+
+jobs:
+  #This job is designed to run all python unit tests whenever
+  #a PR is either opened or synced (i.e. additional commits are pushed
+  #to branch involved in PR).
+  python_unit_tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        #All of these python versions will be used to run tests:
+        python-version: [3.6, 3.7, 3.8, 3.9]
+    steps:
+    # Acquire github action routines:
+    - uses: actions/checkout@v2
+    # Acquire specific version of python:
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    # Run python unit tests:
+    - name: python unit tests
+      run: |
+        #AdfBase unittests:
+        python lib/unit_tests/test_adfbase.py
+
