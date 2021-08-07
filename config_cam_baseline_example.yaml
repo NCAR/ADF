@@ -108,6 +108,12 @@ diag_cam_climo:
   #       end at latest available year.
   end_year: 2100
 
+  #Do time series files need to be generated?
+  #If True, then diagnostics assumes that model files are already time series.
+  #If False, or if simply not present, then diagnostics will attempt to create
+  #time series files from history (time-slice) files:
+  cam_ts_done: false
+
   #Save interim time series files?
   #WARNING:  This can take up a significant amount of space:
   cam_ts_save: true
@@ -144,6 +150,12 @@ diag_cam_baseline_climo:
   #Note:  Leaving this entry blank will make diagnostics
   #       end at latest available year.
   end_year: 2100
+
+  #Do time series files need to be generated?
+  #If True, then diagnostics assumes that model files are already time series.
+  #If False, or if simply not present, then diagnostics will attempt to create
+  #time series files from history (time-slice) files:
+  cam_ts_done: false
 
   #Save interim time series files for baseline run?
   #WARNING:  This can take up a significant amount of space:
