@@ -245,7 +245,7 @@ class CamDiag:
             self.__cam_bl_climo_info = read_config_obj(config,'diag_cam_baseline_climo')
 
             #Expand CAM baseline climo info variable strings:
-            self.__expand_references(self.__cam_climo_info, config_search_dict)
+            self.__expand_references(self.__cam_bl_climo_info, config_search_dict)
 
         #Add averaging script names:
         self.__time_averaging_scripts = read_config_obj(config, 'time_averaging_scripts')
