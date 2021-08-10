@@ -239,18 +239,13 @@ class CamDiag:
         #Expand CAM climo info variable strings:
         self.__expand_references(self.__cam_climo_info, config_search_dict)
 
-        #Check if CAM baseline climatology files will be calculated:
+        #Check if a CAM vs CAM baseline comparison is being performed:
         if not self.__basic_info['compare_obs']:
-            try:
-                if config['diag_cam_baseline_climo']['calc_cam_climo']:
+            #If so, then add CAM baseline climatology info to object:
+            self.__cam_bl_climo_info = read_config_obj(config,'diag_cam_baseline_climo')
 
-                    #If so, then add CAM baseline climatology info to object:
-                    self.__cam_bl_climo_info = read_config_obj(config, 'diag_cam_baseline_climo')
-
-                    #Expand CAM baseline climo info variable strings:
-                    self.__expand_references(self.__cam_climo_info, config_search_dict)
-            except:
-                raise KeyError("'calc_bl_cam_climo' in 'diag_cam_baseline_climo' not found in config file.  Please see 'config_example.yaml'.")
+            #Expand CAM baseline climo info variable strings:
+            self.__expand_references(self.__cam_bl_climo_info, config_search_dict)
 
         #Add averaging script names:
         self.__time_averaging_scripts = read_config_obj(config, 'time_averaging_scripts')
