@@ -239,7 +239,7 @@ class CamDiag:
         #Expand CAM climo info variable strings:
         self.__expand_references(self.__cam_climo_info, config_search_dict)
 
-        #Check if CAM baseline climatology files will be calculated:
+        #Check if a CAM vs CAM baseline comparison is being performed:
         if not self.__basic_info['compare_obs']:
             #If so, then add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = read_config_obj(config,'diag_cam_baseline_climo')
