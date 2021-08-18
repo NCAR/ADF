@@ -12,6 +12,7 @@ import xarray as xr
 import matplotlib as mpl
 import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
+import geocat.comp as gcomp
 
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
@@ -207,7 +208,12 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None):
         pnew = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30, 20, 10, 7, 5, 3, 2, 1]  # mandatory levels
     else:
         pnew = new_levels
-    data_interp = data.interp(lev=pnew)
+    data_interp = gcomp.interp_hybrid_to_pressure(data, ps,
+                                      hyam,
+                                      hybm,
+                                      p0=P0,
+                                      new_levels=pnew
+                                     )
     return data_interp
 
 
