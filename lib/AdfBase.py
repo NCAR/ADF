@@ -1,5 +1,5 @@
 """
-Base class for the Atmospheric 
+Base class for the Atmospheric
 Diagnostics Framework (ADF).  All
 other ADF classes inherit from this
 class.

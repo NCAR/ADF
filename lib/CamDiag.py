@@ -262,17 +262,17 @@ class CamDiag:
     #########
 
     def __diag_scripts_caller(self, scripts_dir: str, func_names: list,
-                              default_args: list = [], default_kwargs: dict = {}, 
+                              default_args: list = [], default_kwargs: dict = {},
                               log_section: str = ''):
-  
+
         """
         Parse a list of scripts as provided by the config file,
         and call them as functions while passing in the correct inputs.
 
         scripts_dir    : string, sub-directory under "scripts" where scripts are located
-        func_names     : list of function/scripts (either string or dictionary): 
+        func_names     : list of function/scripts (either string or dictionary):
         default_args   : optional list of default arguments for the scripts if none are specified by the config file
-        default_kwargs : optional list of default keyword arguments for the scripts if none are specified by the config file 
+        default_kwargs : optional list of default keyword arguments for the scripts if none are specified by the config file
         log_section    : optional variable that specifies where the log entries are coming from.
                          Note:  Is it better to just make a child log instead?
 

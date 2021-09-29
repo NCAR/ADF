@@ -40,7 +40,9 @@
 #
 #Please note that for both 1 and 2 the keywords must be lowercase.
 #This is because future developments will hopefully use other keywords
-#that are uppercase.
+#that are uppercase. Also please avoid using periods (".") in variable
+#names, as this will likely cause issues with the current file parsing
+#system.
 #--------------------
 #
 ##==============================

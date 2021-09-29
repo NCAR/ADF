@@ -25,6 +25,7 @@ jobs:
     # Run python unit tests:
     - name: python unit tests
       run: |
-        #AdfBase unittests:
+        #AdfBase unit tests:
         python lib/unit_tests/test_adfbase.py
-
+        #AdfConfig unit tests:
+        python lib/unit_tests/test_adfconfig.py

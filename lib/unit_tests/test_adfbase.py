@@ -14,11 +14,11 @@ import os.path
 import logging
 
 #Set relevant path variables:
-CURRDIR = os.path.abspath(os.path.dirname(__file__))
-ADF_LIB_DIR = os.path.join(CURRDIR, os.pardir)
+_CURRDIR = os.path.abspath(os.path.dirname(__file__))
+_ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir)
 
 #Add ADF "lib" directory to python path:
-sys.path.append(ADF_LIB_DIR)
+sys.path.append(_ADF_LIB_DIR)
 
 #Import AdfBase class
 from AdfBase import AdfBase
