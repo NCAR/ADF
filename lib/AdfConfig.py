@@ -39,7 +39,7 @@ class AdfConfig(AdfBase):
     relevant config variables.
     """
 
-    def __init__(self, config_file, debug = False):
+    def __init__(self, config_file, debug=False):
 
         """
         Initalize ADF Config object.

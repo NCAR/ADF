@@ -27,7 +27,7 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
     import numpy as np
     import xarray as xr
     from pathlib import Path
-    from CamDiag import end_diag_script #Diagnostics routine
+    from AdfBase import AdfError
     import warnings  # use to warn user about missing files.
 
     #Import "special" modules:
@@ -97,7 +97,7 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
     #Check that time series input directory actually exists:
     if not input_location.is_dir():
         errmsg = "Time series directory '{}' not found.  Script is exiting.".format(input_ts_loc)
-        end_diag_script(errmsg)
+        raise AdfError(errmsg)
     # print(f"DEBUG: location of files is {str(input_location)}")
     # TODO: add location of files to debug log
     #Check if analysis directory exists, and if not, then create it:
@@ -145,7 +145,7 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
         if len(ts_files) != 1:
             errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
             errmsg += " Multiple files were found for the variable '{}'".format(var)
-            end_diag_script(errmsg)
+            raise AdfError(errmsg)
 
         #Load model data from file:
         data = _load_data(ts_files[0], var)

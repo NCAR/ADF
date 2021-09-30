@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
-script: run_diag
+script: run_adf_diag
 
 goal:  To allow a user to easily run the CAM diagnostics package from
        the command line.
@@ -31,7 +31,7 @@ import sys
 import argparse
 
 #+++++++++++++++++++++++++++++
-#Import CAM diagnostics module
+#Import ADF diagnostics module
 #+++++++++++++++++++++++++++++
 
 #Determine local directory path:
@@ -48,11 +48,11 @@ else:
     #If not, then raise error:
     raise FileNotFoundError("'./lib' directory not found. Has 'run_diag' been moved?")
 
-#Import CAM diagnostics object:
-from CamDiag import CamDiag
+#Import ADF diagnostics object:
+from AdfDiag import AdfDiag
 
-#Import CAM diagnostics exiting script:
-from CamDiag import end_diag_script
+#Import ADF diagnostics error classt:
+from AdfBase import AdfError
 
 #################
 #Helper functions
@@ -109,19 +109,19 @@ def parse_arguments():
 if __name__ == "__main__":
 
     #+++++++++++++++++++++
-    #Begin CAM diag script
+    #Begin ADF diag script
     #+++++++++++++++++++++
-    print('CAM diagnostics is starting...')
+    print('ADF diagnostics is starting...')
 
     #+++++++++++++++++++++++++++++++++++++++++++
-    #Check that python is version 3.4 or greater
+    #Check that python is version 3.6 or greater
     #+++++++++++++++++++++++++++++++++++++++++++
 
     if sys.version_info[0] < 3:
-        end_diag_script("Script only works with Python 3. Please switch python versions.")
+        raise AdfError("Script only works with Python 3. Please switch python versions.")
 
     if sys.version_info[1] < 6:
-        end_diag_script("Script only works with Python version 3.6 or greater.  Please update python.")
+        raise AdfError("Script only works with Python version 3.6 or greater.  Please update python.")
 
     #++++++++++++++++++++++++++++
     #Parse command-line arguments
@@ -139,31 +139,31 @@ if __name__ == "__main__":
     config_debug = args.debug
 
     #+++++++++++++++++++++++++++++++++
-    #Call main CAM diagnostics methods
+    #Call main ADF diagnostics methods
     #+++++++++++++++++++++++++++++++++
 
     #Initalize CAM diagnostics object:
-    diag = CamDiag(config_yaml, debug=config_debug)
+    diag = AdfDiag(config_yaml, debug=config_debug)
 
-    #Create CAM time series:
+    #Create model time series:
     diag.create_time_series()
 
-    #Create CAM baseline time series (if needed):
+    #Create model baseline time series (if needed):
     if not diag.compare_obs:
         diag.create_time_series(baseline=True)
 
-    #Create CAM climatology (climo) files.
+    #Create model climatology (climo) files.
     #This call uses the "time_averaging_script" specified
     #in the config file:
     diag.create_climo()
 
-    #Create CAM baseline climatology files (if needed).
+    #Create model baseline climatology files (if needed).
     #This call uses the "time_averaging_script" specified
     #in the config file:
     if not diag.compare_obs:
         diag.create_climo(baseline=True)
 
-    #Regrid CAM climatology files to match either
+    #Regrid model climatology files to match either
     #observations or CAM baseline climatologies:
     diag.regrid_climo()
 
@@ -184,5 +184,5 @@ if __name__ == "__main__":
     #+++++++++++++++
     #End diag script
     #+++++++++++++++
-    print('CAM diagnostics has completed successfully.')
+    print('ADF diagnostics has completed successfully.')
     sys.exit(0)
