@@ -17,8 +17,6 @@ import os.path
 import glob
 import subprocess
 import importlib
-import logging
-import re
 
 from pathlib import Path
 
@@ -63,7 +61,7 @@ except ImportError:
     sys.exit(1)
 
 #+++++++++++++++++++++++++++++
-#Add Cam diagnostics 'scripts'
+#Add ADF diagnostics 'scripts'
 #directories to Python path
 #+++++++++++++++++++++++++++++
 
@@ -76,7 +74,7 @@ _DIAG_SCRIPTS_PATH = os.path.join(_LOCAL_PATH,os.pardir,"scripts")
 #Check that "scripts" directory actually exists:
 if not os.path.isdir(_DIAG_SCRIPTS_PATH):
     #If not, then raise error:
-    raise FileNotFoundError("'{}' directory not found. Has 'CamDiag.py' been moved?".format(_DIAG_SCRIPTS_PATH))
+    raise FileNotFoundError("'{}' directory not found. Has 'AdfDiag.py' been moved?".format(_DIAG_SCRIPTS_PATH))
 
 #Walk through all sub-directories in "scripts" directory:
 for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
@@ -84,47 +82,14 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
     for dirname in dirs:
         sys.path.append(os.path.join(root,dirname))
 
+#+++++++++++++++++++++++++++++
+
+#Finally, import needed ADF modules:
+from AdfConfig import AdfConfig
+
 #################
 #Helper functions
 #################
-
-#++++++++++++++++++++++++++++++++
-#Script message and exit function
-#++++++++++++++++++++++++++++++++
-
-def end_diag_script(msg):
-
-    """
-    Prints message, and then exits script.
-    """
-
-    print("\n")
-    print(msg)
-    sys.exit(1)
-
-#####
-
-def read_config_obj(config_obj, varname):
-
-    """
-    Checks if variable/list/dictionary exists in
-    configure object,and if so returns it.
-    """
-
-    #Attempt to read in YAML config variable:
-    try:
-        var = config_obj[varname]
-    except:
-       raise KeyError("'{}' not found in config file.  Please see 'config_cam_baseline_example.yaml'.".format(varname))
-
-    #Check that configure variable is not empty (None):
-    if var is None:
-        raise NameError("'{}' has not been set to a value. Please see 'config_cam_baseline_example.yaml'.".format(varname))
-
-    #return variable/list/dictionary:
-    return var
-
-#####
 
 def construct_index_info(d, fnam, opf):
 
@@ -154,37 +119,17 @@ def construct_index_info(d, fnam, opf):
         d[vname][plot_type] = {}
     d[vname][plot_type][temporal] = opf
 
-#####
-
-def function_caller(func_name: str, func_args: list, func_kwargs: dict = {}, module_name=None):
-    """Call a function with given arguments.
-
-    func_name : string, name of the function to call
-    func_args : list, the arguments to pass to the function
-    func_kwargs : [optional] dict, the keyword arguments to pass to the function
-    module_name : [optional] string, the name of the module where func_name is defined; if not provided, assume func_name.py
-
-    return : the output of func_name(*func_args, **func_kwargs)
-    """
-    if module_name is None:
-        module_name = func_name #+'.py'
-    # note: when we use importlib, specify the module name without the ".py" extension.
-    module = importlib.import_module(func_name)
-    if hasattr(module, func_name) and callable(getattr(module, func_name)):
-        func = getattr(module, func_name)
-    return func(*func_args, **func_kwargs)
-
 ######################################
 #Main CAM diagnostics class (CamDiag)
 ######################################
 
-class CamDiag:
+class AdfDiag(AdfConfig):
 
     """
-    Main CAM diagnostics object.
+    Main ADF diagnostics object.
 
     This object is initalized using
-    a CAM diagnostics configure (YAML) file,
+    an ADF diagnostics configure (YAML) file,
     which specifies various user inputs,
     including CAM history file names and
     locations, years being analyzed,
@@ -204,66 +149,46 @@ class CamDiag:
         Initalize CAM diagnostics object.
         """
 
-        #Create debug log, if requested:
-        if debug:
-            logging.basicConfig(filename="cam_diag_debug.log", level=logging.DEBUG)
-            self.__debug_log = logging.getLogger("CamDiag")
-            self.__debug = True
-        else:
-            self.__debug = False
-
-        #Expand any environmental user name variables in the path:
-        config_file = os.path.expanduser(config_file)
-
-        #Check that YAML file actually exists:
-        if not os.path.exists(config_file):
-            raise FileNotFoundError("'{}' file not found.".format(config_file))
-
-        #Open YAML file:
-        with open(config_file) as nfil:
-            #Load YAML file:
-            config = yaml.load(nfil, Loader=yaml.SafeLoader)
-
-        #Combine top-level dictionaries into one to allow searching:
-        config_search_dict = self.__create_search_dict(config)
+        #Initialize Config/Base attributes:
+        super(AdfDiag, self).__init__(config_file, debug=debug)
 
         #Add basic diagnostic info to object:
-        self.__basic_info = read_config_obj(config, 'diag_basic_info')
+        self.__basic_info = self.read_config_var('diag_basic_info')
 
         #Expand basic info variable strings:
-        self.__expand_references(self.__basic_info, config_search_dict)
+        self.expand_references(self.__basic_info)
 
         #Add CAM climatology info to object:
-        self.__cam_climo_info = read_config_obj(config, 'diag_cam_climo')
+        self.__cam_climo_info = self.read_config_var('diag_cam_climo')
 
         #Expand CAM climo info variable strings:
-        self.__expand_references(self.__cam_climo_info, config_search_dict)
+        self.expand_references(self.__cam_climo_info)
 
         #Check if a CAM vs CAM baseline comparison is being performed:
         if not self.__basic_info['compare_obs']:
             #If so, then add CAM baseline climatology info to object:
-            self.__cam_bl_climo_info = read_config_obj(config,'diag_cam_baseline_climo')
+            self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo')
 
             #Expand CAM baseline climo info variable strings:
-            self.__expand_references(self.__cam_bl_climo_info, config_search_dict)
+            self.expand_references(self.__cam_bl_climo_info)
 
         #Add averaging script names:
-        self.__time_averaging_scripts = read_config_obj(config, 'time_averaging_scripts')
+        self.__time_averaging_scripts = self.read_config_var('time_averaging_scripts')
 
         #Add regridding script names:
-        self.__regridding_scripts = read_config_obj(config, 'regridding_scripts')
+        self.__regridding_scripts = self.read_config_var('regridding_scripts')
 
         #Add analysis script names:
-        self.__analysis_scripts = read_config_obj(config, 'analysis_scripts')
+        self.__analysis_scripts = self.read_config_var('analysis_scripts')
 
         #Add plotting script names:
-        self.__plotting_scripts = read_config_obj(config, 'plotting_scripts')
+        self.__plotting_scripts = self.read_config_var('plotting_scripts')
 
         #Add CAM variable list:
-        self.__diag_var_list = read_config_obj(config, 'diag_var_list')
+        self.__diag_var_list = self.read_config_var('diag_var_list')
 
         #Add CAM observation type list (filename prefix for observation files):
-        self.__obs_type_list = read_config_obj(config, 'obs_type_list')
+        self.__obs_type_list = self.read_config_var('obs_type_list')
 
     # Create property needed to return "compare_obs" logical to user:
     @property
@@ -279,228 +204,117 @@ class CamDiag:
 
     #########
 
-    def __expand_references(self, config_dict, search_dict):
+    def __diag_scripts_caller(self, scripts_dir: str, func_names: list,
+                              default_args: list = [], default_kwargs: dict = {},
+                              log_section: str = ''):
 
         """
-        Replace keyword (${var} or ${dict.var}) entries
-        in the YAML (config) dictionary that reference
-        other YAML dictionary variables/keys with the
-        values of those variables.
+        Parse a list of scripts as provided by the config file,
+        and call them as functions while passing in the correct inputs.
 
-        Note:  Subsitutions currently only work for the
-               following variable types:
+        scripts_dir    : string, sub-directory under "scripts" where scripts are located
+        func_names     : list of function/scripts (either string or dictionary):
+        default_args   : optional list of default arguments for the scripts if none are specified by the config file
+        default_kwargs : optional list of default keyword arguments for the scripts if none are specified by the config file
+        log_section    : optional variable that specifies where the log entries are coming from.
+                         Note:  Is it better to just make a child log instead?
 
-               string
-               integer
-               float
         """
 
-        #compile regular expression:
-        kword_regex = re.compile(r'\$\{[a-z_\.\d]+\}')
+        #Loop over all averaging script names:
+        for func_name in func_names:
 
-        #copy YAML config dictionary:
-        config_dict_copy = config_dict
-
-        #Loop through dictionary:
-        for key, value in config_dict_copy.items():
-
-            #Skip boolean type:
-            #This must be done first because
-            #booleans are technically an integer
-            #sub-class.
-            if isinstance(value, bool):
-                continue
-
-            #Skipe any other non-accepted types:
-            if (not isinstance(value, str)) and \
-               (not isinstance(value, int)) and \
-               (not isinstance(value, float)):
-               continue
-
-            #determine variable type (if not a string):
-            if isinstance(value, int):
-                type_str = "int"
-            elif isinstance(value, float):
-                type_str = "float"
+            #Check if func_name is a dictonary,
+            #this implies that the function has user-defined inputs:
+            if isinstance(func_name, dict):
+                assert len(func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
+                has_opt = True
+                opt = func_name[list(func_name.keys())[0]]  # un-nests the dictionary
+                func_name = list(func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
+            elif isinstance(func_name, str):
+                has_opt = False
             else:
-                type_str = None
+                raise TypeError("Provided script must either be a string or a dictionary.")
 
-            #Skip the variable if it is not a string:
-            #if not isinstance(value, str):
-            #    continue
+            func_script =  func_name + '.py'  # default behavior: Add file suffix to script name
+            if has_opt:
+                if 'module' in opt:
+                    func_script = opt['module']
 
-            #expand any keywords to their full values:
-            new_value = self.__expand_yaml_var_ref(value, kword_regex,
-                                                 search_dict)
+            #Create full path to function script:
+            func_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH, scripts_dir), func_script)
 
-            #Add full string back into dictionary:
-            if type_str == "int":
-                config_dict[key] = int(new_value)
-            elif type_str == "float":
-                config_dict[key] = float(new_value)
-            else:
-                #Note that the 'expand_yaml_var_ref' function
-                #always returns a string type, so leave as-is:
-                config_dict[key] = new_value
+            #Check that file exists in specified directory:
+            if not os.path.exists(func_script_path):
+                msg = "Script file '{}' is missing. Diagnostics are ending here.".format(func_script_path)
+                end_diag_script(msg)
 
-    #########
+            if func_script_path not in sys.path:
+               #Add script path to debug log if requested:
+               if log_section:
+                   self.debug_log(f"{log_section}: Inserting to sys.path: {func_script_path}")
+               else:
+                   self.debug_log(f"diag_scripts_caller: Inserting to sys.path: {func_script_path}")
 
-    def __expand_yaml_var_ref(self, var_val, kword_regex, search_dict):
+               #Add script to python path:
+               sys.path.insert(0, func_script_path)
 
-        """
-        Recursive function to replace all keywords with their
-        associated values from the provided dictionary.
-        """
+            # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
 
-        #If variable value is not a string, then convert it:
-        if not isinstance(var_val, str):
-            var_val = str(var_val)
-
-        #Look for keyword using provided regular expression:
-        kword_match = kword_regex.search(var_val)
-
-        #Continue if at least one match is found:
-        if kword_match:
-
-            #Copy input variable value string,
-            #which is needed for generating
-            #proper error messages:
-            new_var_val = var_val
-
-            #Find all variable matches in variable string:
-            #kword_matches = kword_regex.finditer(var_val)
-
-            #Start while loop:
-            another_match = True
-
-            while another_match:
-
-                #Extract match string:
-                kword_match_str = kword_match.group(0)
-
-                #Remove special characters ("${" and "}"):
-                kword_match_str = kword_match_str[2:-1]
-
-                #Check if period (".") is in string,
-                #If so, then the keyword will be used directly,
-                #otherwise do the following:
-                #--------------------------
-                if kword_match_str.find(".") == -1:
-
-                    #Initalize match counter:
-                    match_count = 0
-
-                    #Loop through search dictionary keys:
-                    for key in search_dict.keys():
-
-                        #Attempt to find period string index:
-                        pidx = key.find(".")
-
-                        #If no period found, then compare directly with kword:
-                        if pidx == -1:
-                           if kword_match_str == key:
-                              #Add one to counter:
-                              match_count += 1
-
+            # Arguments; check if user has specified custom arguments
+            func_args   = default_args
+            func_kwargs = default_kwargs
+            if has_opt:
+                if ('args' in opt):
+                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
+                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
+                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
+                    func_args = list()  # start over
+                    for variableToCheck in opt['args']:
+                        if variableToCheck in locals():
+                            func_args.append(locals()[variableToCheck])
                         else:
-                            #Compare kword to text on the right side of period:
-                            if kword_match_str == key[pidx+1:]:
-                                #Set match string to full key string:
-                                kword_match_str = key
+                            print("{} is not available".format(variableToCheck))
+                if 'kwargs' in opt:
+                    func_kwargs = opt['kwargs']
 
-                                #Add one to counter:
-                                match_count += 1
+            #Add function calls debug log if requested:
+            if log_section:
+                self.debug_log(\
+                    f"{log_section}: \n \t func_name = {func_name}\n \t func_args = {func_args}\n \t func_kwargs = {func_kwargs}")
+            else:
+                self.debug_log(\
+                    f"diag_scripts_caller: \n \t func_name = {func_name}\n \t func_args = {func_args}\n \t func_kwargs = {func_kwargs}")
 
-                    #If more than one match, then throw an error:
-                    if match_count > 1:
-                        ermsg = f"ERROR: More than one variable matches keyword in {var_val}"
-                        ermsg += "\nPlease use '${section.variable}' keyword method to specify"
-                        ermsg += " which variable you want to use."
-                        end_diag_script(ermsg)
-                #--------------------------
 
-                #Throw an error if keyword not in dictionary:
-                if kword_match_str not in search_dict.keys():
-                    ermsg = f"ERROR: Variable '{kword_match_str}'"
-                    ermsg += " not found in config (YAML) file."
-                    end_diag_script(ermsg)
-
-                #Extract keyword value from config dictionary:
-                kword_val = search_dict[kword_match_str]
-
-                #Expand keyword if found:
-                final_kword_val = self.__expand_yaml_var_ref(kword_val, kword_regex, search_dict)
-
-                #Substitute keyword with final kword_val:
-                new_var_val = new_var_val[:kword_match.start()] + final_kword_val + new_var_val[kword_match.end():]
-
-                #Search the string again for keyword values:
-                kword_match = kword_regex.search(new_var_val)
-
-                #End loop if no other matches found:
-                if not kword_match:
-                    another_match = False
-
-            #End while loop
-
-            #Pass back final value:
-            return new_var_val
-
-        else:
-            #Return the string un-modified:
-            return var_val
+            #Call function
+            self.__function_caller(func_name, func_args, func_kwargs=func_kwargs, module_name=func_name)
 
     #########
 
-    def __create_search_dict(self, config_dict, sub_dict=None):
+    def __function_caller(self, func_name: str, func_args: list, func_kwargs: dict = {}, module_name=None):
 
         """
-        Recursive function that creates a non-hierarchical
-        dictionary for use in global key/value searches.
+        Call a function with given arguments.
+
+        func_name : string, name of the function to call
+        func_args : list, the arguments to pass to the function
+        func_kwargs : [optional] dict, the keyword arguments to pass to the function
+        module_name : [optional] string, the name of the module where func_name is defined; if not provided, assume func_name.py
+
+        return : the output of func_name(*func_args, **func_kwargs)
         """
 
-        #Create empty dictionary:
-        config_search_dict = dict()
+        if module_name is None:
+            module_name = func_name #+'.py'
 
-        #Loop over all top-level config variables:
-        for key, value in config_dict.items():
+        # note: when we use importlib, specify the module name without the ".py" extension.
+        module = importlib.import_module(func_name)
+        if hasattr(module, func_name) and callable(getattr(module, func_name)):
+            func = getattr(module, func_name)
 
-            #Check if value is a string, integer, or another dict:
-            if isinstance(value, str) or isinstance(value, int):
-
-                #Check if sub dictionary is present:
-                if sub_dict:
-                    #Create new key with sub dictionary prefix:
-                    key = sub_dict+"."+key
-
-                #Check if key already exists in search dict:
-                if key in config_search_dict.keys():
-
-                    ermsg = f"ERROR: Multiple versions of Variable {key}"
-                    ermsg += "exist at the same level in config (YAML) file."
-                    end_diag_script(ermsg)
-
-                #Add key/value to search dict:
-                config_search_dict[key] = str(value)
-
-            #Check if value is a dictionary instead:
-            elif isinstance(value, dict):
-                #Currently this routine only handles one level of
-                #nested dictionaries, so throw an error if one has
-                #gone beyond that:
-                if sub_dict:
-                    ermsg = "ERROR: CamDiag currently only allows for a single nested dict"
-                    ermsg += f"in the config (YAML) file.\n  Variable {value} is nested too far."
-
-                #Apply routine to sub dictionary:
-                sub_config_search_dict = self.__create_search_dict(value,
-                                                                 sub_dict = key)
-
-                #Append sub-dict search dictionary to top-level dictionary:
-                config_search_dict.update(sub_config_search_dict)
-
-        #Return search dictionary:
-        return config_search_dict
+        #Run function and return result:
+        return func(*func_args, **func_kwargs)
 
     #########
 
@@ -662,68 +476,21 @@ class CamDiag:
                                                             # _OR_
                                                             # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
 
-            #Extract necessary variables from CAM configure dictionary:
+            #Extract necessary variables from configure dictionary:
             input_ts_loc    = cam_climo_dict['cam_ts_loc']
             overwrite_climo = cam_climo_dict['cam_overwrite_climo']
             var_list        = self.__diag_var_list
 
-            #Loop over all averaging script names:
-            for avg_func_name in avg_func_names:
-                # option to specify the module's name:
-                if isinstance(avg_func_name, dict):
-                    assert len(avg_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                    has_opt = True
-                    opt = avg_func_name[list(avg_func_name.keys())[0]]  # un-nests the dictionary
-                    avg_func_name = list(avg_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-                else:
-                    has_opt = False
+            #Set default script arguments:
+            avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
+            avg_func_kwargs = {"clobber":overwrite_climo}
 
-                avg_script =  avg_func_name + '.py'  # default behavior: Add file suffix to script name
-                if has_opt:
-                    if 'module' in opt:
-                        avg_script = opt['module']
+            #Run the listed scripts:
+            self.__diag_scripts_caller("averaging", avg_func_names, 
+                                       default_args = avg_func_args, 
+                                       default_kwargs = avg_func_kwargs,
+                                       log_section = "create_climo")
 
-                #Create full path to averaging script:
-                avg_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"averaging"),avg_script)
-
-                #Check that file exists in "scripts/averaging" directory:
-                if not os.path.exists(avg_script_path):
-                    msg = "Time averaging file '{}' is missing. Script is ending here.".format(avg_script_path)
-                    end_diag_script(msg)
-                if avg_script_path not in sys.path:
-                    #Add script path to debug log if requested:
-                    if self.__debug:
-                        self.__debug_log.debug(f"create_climo: Inserting to sys.path: {avg_script_path}")
-
-                    #Add script to python path:
-                    sys.path.insert(0, avg_script_path)
-
-                # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
-
-                # Arguments; check if user has specified custom arguments
-                avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
-                avg_func_kwargs = {"clobber":overwrite_climo}
-                if has_opt:
-                    if ('args' in opt):
-                        # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                        assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                        assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                        avg_func_args = list()  # start over
-                        for variableToCheck in opt['args']:
-                            if variableToCheck in locals():
-                                avg_func_args.append(locals()[variableToCheck])
-                            else:
-                                print("{} is not available".format(variableToCheck))
-                    if 'kwargs' in opt:
-                        avg_func_kwargs = opt['kwargs']
-
-                #Add function calls debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(\
-                        f"create_climo: \n \t avg_func_name = {avg_func_name}\n \t avg_func_args = {avg_func_args}\n \t avg_kwargs = {avg_func_kwargs}")
-
-                #Call averaging function
-                function_caller(avg_func_name, avg_func_args, func_kwargs=avg_func_kwargs, module_name=avg_func_name)
         else:
             #If not, then notify user that climo file generation is skipped.
             print("  No climatology files were requested by user, so averaging will be skipped.")
@@ -774,61 +541,15 @@ class CamDiag:
             # NOTE: if no regridding options provided, we should skip it, but
             #       do we need to still copy (symlink?) files into the regrid directory?
 
-        #Loop over all re-gridding script names:
-        for regrid_func_name in regrid_func_names:
-            # option to specify the module's name:
-            if isinstance(regrid_func_name, dict):
-                assert len(avg_func_name) == 1, "Regrid function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                has_opt = True
-                opt = regrid_func_name[list(regrid_func_name.keys())[0]]  # un-nests the dictionary
-                regrid_func_name = list(regrid_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-            else:
-                has_opt = False
 
-            regrid_script = regrid_func_name+'.py' #Add file suffix to script name (to help with the file search)
-            if has_opt:
-                if 'module' in opt:
-                    regrid_script = opt['module']
+        #Set default script arguments:
+        regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
 
-            #Create full path to regridding script:
-            regrid_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"regridding"),
-                                              regrid_script)
+        #Run the listed scripts:
+        self.__diag_scripts_caller("regridding", regrid_func_names,
+                                   default_args = regrid_func_args,
+                                   log_section = "regrid_climo")
 
-            #Check that file exists in "scripts/regridding" directory:
-            if not os.path.exists(regrid_script_path):
-                msg = "Regridding file '{}' is missing. Script is ending here.".format(regrid_script_path)
-                end_diag_script(msg)
-            if regrid_script_path not in sys.path:
-                #Add script path to debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(f"regrid_climo: Inserting to sys.path: {regrid_script_path}")
-
-                #Add script to python path:
-                sys.path.insert(0, regrid_script_path)
-
-            regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
-            regrid_func_kwargs = {}
-            if has_opt:
-                if ('args' in opt):
-                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                    regrid_func_args = list()  # start over
-                    for variableToCheck in opt['args']:
-                        if variableToCheck in locals():
-                            regrid_func_args.append(locals()[variableToCheck])
-                        else:
-                            print("{} is not available".format(variableToCheck))
-                if 'kwargs' in opt:
-                    regrid_func_kwargs = opt['kwargs']
-
-                #Add function calls debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(\
-                        f"regrid_climo: \n \t regrid_func_name = {regrid_func_name}\n \t regrid_func_args = {regrid_func_args}\n \t regrid_kwargs = {avg_func_kwargs}")
-
-            #Call regridding function:
-            function_caller(regrid_func_name, regrid_func_args, func_kwargs=regrid_func_kwargs, module_name=regrid_func_name+'.py')
     #########
 
     def perform_analyses(self, baseline=False):
@@ -870,59 +591,13 @@ class CamDiag:
         write_html      = self.__basic_info['create_html']
         var_list        = self.__diag_var_list
 
-        #Loop over all averaging script names:
-        for anly_func_name in anly_func_names:
-            if isinstance(anly_func_name, dict):
-                assert len(anly_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                has_opt = True
-                opt = anly_func_name[list(anly_func_name.keys())[0]]  # un-nests the dictionary
-                anly_func_name = list(anly_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-            else:
-                has_opt = False
+        #Set default script arguments:
+        anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
 
-            anly_script = anly_func_name+'.py'  # Add file suffix to script name (to help with the file search):
-            if has_opt:
-                if 'module' in opt:
-                    anly_script = opt['module']
-
-            #Create full path to averaging script:
-            anly_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"analysis"), anly_script)
-
-            #Check that file exists in "scripts/analysis" directory:
-            if not os.path.exists(anly_script_path):
-                msg = "Analysis script file '{}' is missing. Script is ending here.".format(anly_script_path)
-                end_diag_script(msg)
-            if anly_script_path not in sys.path:
-                #Add script path to debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(f"perform_analyses: Inserting to sys.path: {anly_script_path}")
-
-                #Add script to python path:
-                sys.path.insert(0, anly_script_path)
-
-            anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
-            anly_func_kwargs = {}
-            if has_opt:
-                if ('args' in opt):
-                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                    anly_func_args = list()  # start over
-                    for variableToCheck in opt['args']:
-                        if variableToCheck in locals():
-                            anly_func_args.append(locals()[variableToCheck])
-                        else:
-                            print("{} is not available".format(variableToCheck))
-                if 'kwargs' in opt:
-                    anly_func_kwargs = opt['kwargs']
-
-            #Add function calls to debug log if requested:
-            if self.__debug:
-                self.__debug_log.debug(\
-                    f"perform_analyses: \n \t anly_func_name = {anly_func_name}\n \t anly_func_args = {anly_func_args}\n \t anly_kwargs = {anly_func_kwargs}")
-
-            #Call analysis function:
-            function_caller(anly_func_name, anly_func_args, func_kwargs=anly_func_kwargs, module_name=anly_func_name+'.py')
+        #Run the listed scripts:
+        self.__diag_scripts_caller("analysis", anly_func_names,
+                                   default_args = anly_func_args,
+                                   log_section = "perform_analyses")
 
     #########
 
@@ -966,61 +641,13 @@ class CamDiag:
             data_loc  = self.__basic_info['cam_baseline_climo_loc']
             data_list = [data_name]
 
-        #Loop over all re-gridding script names:
-        for plot_func_name in plot_func_names:
-            if isinstance(plot_func_name, dict):
-                assert len(plot_func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
-                has_opt = True
-                opt = plot_func_name[list(plot_func_name.keys())[0]]  # un-nests the dictionary
-                plot_func_name = list(plot_func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
-            else:
-                has_opt = False
+        #Set default script arguments:
+        plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
 
-            plot_script = plot_func_name+'.py'  # Add file suffix to script name (to help with the file search)
-            if has_opt:
-                if 'module' in opt:
-                    plot_script = opt['module']
-
-            #Create full path to plotting scripts:
-            plot_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH,"plotting"),
-                                            plot_script)
-
-            #Check that file exists in "scripts/plotting" directory:
-            if not os.path.exists(plot_script_path):
-                msg = "Plotting file '{}' is missing. Script is ending here.".format(plot_script_path)
-                end_diag_script(msg)
-            if plot_script_path not in sys.path:
-                #Add script path to debug log if requested:
-                if self.__debug:
-                    self.__debug_log.debug(f"create_climo: Inserting to sys.path: {plot_script_path}")
-
-                #Add script to python path:
-                sys.path.insert(0, plot_script_path)
-
-            plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
-
-            plot_func_kwargs = {}
-            if has_opt:
-                if ('args' in opt):
-                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
-                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
-                    plot_func_args = list()  # start over
-                    for variableToCheck in opt['args']:
-                        if variableToCheck in locals():
-                            plot_func_args.append(locals()[variableToCheck])
-                        else:
-                            print("{} is not available".format(variableToCheck))
-                if 'kwargs' in opt:
-                    plot_func_kwargs = opt['kwargs']
-
-            #Add function calls to debug log if requested:
-            if self.__debug:
-                self.__debug_log.debug(\
-                    f"create_plots: \n \t plot_func_name = {plot_func_name}\n \t plot_func_args = {plot_func_args}\n \t plot_kwargs = {plot_func_kwargs}")
-
-            #Call plotting function:
-            function_caller(plot_func_name, plot_func_args, func_kwargs=plot_func_kwargs, module_name=plot_func_name+'.py')
+        #Run the listed scripts:
+        self.__diag_scripts_caller("plotting", plot_func_names,
+                                   default_args = plot_func_args,
+                                   log_section = "create_plots")
 
     #########
 

@@ -1,0 +1,58 @@
+#==============================
+#config_cam_baseline.yaml
+
+#This is the main CAM diagnostics config file
+#for doing comparisons of a CAM run against
+#another CAM run, or a CAM baseline simulation.
+
+#Currently, if one is on NCAR's Casper
+#machine, then only the CAM model data
+#paths, case names, and model year spans
+#are needed.  Running this diagnostics on
+#a different machine, or with a different model,
+#may require additional modifications.
+#
+#Config file Keywords:
+#--------------------
+#
+#1.  Using ${xxx} will substitute that text with the
+#    variable referenced by xxx. For example:
+#
+#    cam_case_name: cool_run
+#    cam_climo_loc: /some/where/${cam_case_name}
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/cool_run
+#
+#2.  Using ${<top_level_section>.xxx} will do the same as
+#    keyword 1 above, but specifies which sub-section the
+#    variable is coming from, which is necessary for variables
+#    that are repeated in different subsections.  For example:
+#
+#    diag_basic_info:
+#      cam_climo_loc:  /some/where/${diag_cam_climo.start_year}
+#
+#    diag_cam_climo:
+#      start_year: 1850
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/1850
+#
+#Please note that for both 1 and 2 the keywords must be lowercase.
+#This is because future developments will hopefully use other keywords
+#that are uppercase.
+#--------------------
+#
+##==============================
+
+test_var: yay!
+
+another_var: 5
+
+config_info:
+
+  nested_var:
+
+    double_nested_var: bad_val
+
+#END OF FILE

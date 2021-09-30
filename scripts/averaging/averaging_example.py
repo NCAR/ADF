@@ -33,7 +33,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
     #Import necessary modules:
     import xarray as xr
     from pathlib import Path
-    from CamDiag import end_diag_script
+    from AdfBase import AdfError
 
     #Notify user that script has started:
     print("  Calculating CAM climatologies...")
@@ -45,7 +45,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
     #Check that time series input directory actually exists:
     if not input_location.is_dir():
         errmsg = "Time series directory '{}' not found.  Script is exiting.".format(input_ts_loc)
-        end_diag_script(errmsg)
+        raise AdfError(errmsg)
 
     #Check if climo directory exists, and if not, then create it:
     if not output_location.is_dir():
