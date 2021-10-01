@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
     #Create website:
     if diag.create_html:
-        diag.create_webpage()
+        diag.create_website()
 
     #+++++++++++++++
     #End diag script

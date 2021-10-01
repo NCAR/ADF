@@ -56,7 +56,9 @@ diag_basic_info:
 
   #Generate HTML website:
   #Note:  The website files themselves will be located in the path
-  #specified by "cam_diag_plot_loc", under the "website" sub-directory
+  #specified by "cam_diag_plot_loc", under the "<diag_run>/website" subdirectory,
+  #where "<diag_run>" is the subdirectory created for this particular diagnostics run
+  #(usually "case_vs_obs_XXX" or "case_vs_baseline_XXX").
   create_html: true
 
   #Location of observational climatologies (only matters if "compare_obs" is true):
@@ -100,13 +102,13 @@ diag_cam_climo:
   #Location of CAM history (h0) files:
   cam_hist_loc: /location/where/you/stored/model/outputs
 
-  #model year when climatology should start:
-  #Note:  Leaving this entry blank will make diagnostics
+  #model year when time series files should start:
+  #Note:  Leaving this entry blank will make time series
   #       start at earliest available year.
   start_year: 1850
 
-  #model year when diagnostics should end:
-  #Note:  Leaving this entry blank will make diagnostics
+  #model year when time series files should end:
+  #Note:  Leaving this entry blank will make time series
   #       end at latest available year.
   end_year: 2100
 
@@ -143,12 +145,12 @@ diag_cam_baseline_climo:
   #Location of CAM history (h0) files:
   cam_hist_loc: /location/of/second/cam/run/output/or/baseline/data
 
-  #model year when climatology should start:
+  #model year when time series files should start:
   #Note:  Leaving this entry blank will make diagnostics
   #       start at earliest available year.
   start_year: 1850
 
-  #model year when diagnostics should end:
+  #model year when time series files should end:
   #Note:  Leaving this entry blank will make diagnostics
   #       end at latest available year.
   end_year: 2100

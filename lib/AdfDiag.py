@@ -1,7 +1,7 @@
 """
-Location of the "cam_diag" object, which
+Location of the "AdfDiag" object, which
 is used to store all relevant data and
-info needed for generating CAM
+info needed for generating CAM/ADF
 diagnostics, including info
 on the averaging, regridding, and
 plotting methods themselves.
@@ -120,7 +120,7 @@ def construct_index_info(d, fnam, opf):
     d[vname][plot_type][temporal] = opf
 
 ######################################
-#Main CAM diagnostics class (CamDiag)
+#Main ADF diagnostics class (AdfDiag)
 ######################################
 
 class AdfDiag(AdfConfig):
@@ -146,7 +146,7 @@ class AdfDiag(AdfConfig):
     def __init__(self, config_file, debug=False):
 
         """
-        Initalize CAM diagnostics object.
+        Initalize ADF diagnostics object.
         """
 
         #Initialize Config/Base attributes:
@@ -189,6 +189,11 @@ class AdfDiag(AdfConfig):
 
         #Add CAM observation type list (filename prefix for observation files):
         self.__obs_type_list = self.read_config_var('obs_type_list')
+
+        #Create plot location variable for potential use by the website generator.
+        #Please note that this variable is only set if "create_plots" or
+        #is called:
+        self.__plot_loc = ""
 
     # Create property needed to return "compare_obs" logical to user:
     @property
@@ -236,7 +241,7 @@ class AdfDiag(AdfConfig):
             else:
                 raise TypeError("Provided script must either be a string or a dictionary.")
 
-            func_script =  func_name + '.py'  # default behavior: Add file suffix to script name
+            func_script = func_name + '.py'  # default behavior: Add file suffix to script name
             if has_opt:
                 if 'module' in opt:
                     func_script = opt['module']
@@ -486,8 +491,8 @@ class AdfDiag(AdfConfig):
             avg_func_kwargs = {"clobber":overwrite_climo}
 
             #Run the listed scripts:
-            self.__diag_scripts_caller("averaging", avg_func_names, 
-                                       default_args = avg_func_args, 
+            self.__diag_scripts_caller("averaging", avg_func_names,
+                                       default_args = avg_func_args,
                                        default_kwargs = avg_func_kwargs,
                                        log_section = "create_climo")
 
@@ -579,20 +584,36 @@ class AdfDiag(AdfConfig):
             cam_climo_dict = self.__cam_bl_climo_info
             case_name  = self.__basic_info['cam_baseline_case_name']
         else:
-            #If not, then just extract the standard CAM climo dictionary
+            #If not, then just extract the standard ADF climo dictionary
             #case name, and output location:
             cam_climo_dict = self.__cam_climo_info
             case_name = self.__basic_info['cam_case_name']
 
 
-        #Extract necessary variables from CAM configure dictionary:
+        #Extract necessary variables from ADF configure dictionary:
         input_ts_loc    = cam_climo_dict['cam_ts_loc']
-        output_loc      = self.__basic_info['cam_diag_plot_loc']
         write_html      = self.__basic_info['create_html']
         var_list        = self.__diag_var_list
 
+        #Set "data_name" variable, which depends on "compare_obs":
+        if self.compare_obs:
+            data_name = "obs"
+        else:
+            data_name = self.__basic_info['cam_baseline_case_name']
+
+        #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
+        #Please note that this is also assumed to be the output location for the analyses scripts.
+        if not self.__plot_loc:
+            plot_dir   = self.__basic_info['cam_diag_plot_loc']
+            start_year = self.__cam_climo_info["start_year"]
+            end_year   = self.__cam_climo_info["end_year"]
+            if start_year and end_year:
+                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}_{start_year}_{end_year}")
+            else:
+                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
+
         #Set default script arguments:
-        anly_func_args = [case_name, input_ts_loc, output_loc, var_list, write_html]
+        anly_func_args = [case_name, input_ts_loc, self.__plot_loc, var_list, write_html]
 
         #Run the listed scripts:
         self.__diag_scripts_caller("analysis", anly_func_names,
@@ -604,14 +625,14 @@ class AdfDiag(AdfConfig):
     def create_plots(self):
 
         """
-        Generate CAM diagnositc plots.
+        Generate ADF diagnostic plots.
 
         The actual plotting is done using the
         scripts listed under "plotting_scripts"
         as specified in the config file.  This is done
         so that the user can add their own plotting
         script(s) without having to modify the
-        main CAM diagnostics routines.
+        main ADF diagnostics routines.
         """
 
         #Extract names of plotting scripts:
@@ -628,7 +649,6 @@ class AdfDiag(AdfConfig):
         #Extract required input variables:
         case_name       = self.__basic_info['cam_case_name']
         model_rgrid_loc = self.__basic_info['cam_regrid_loc']
-        plot_location   = self.__basic_info['cam_diag_plot_loc']
         var_list        = self.__diag_var_list
 
         #Set "data" variables, which depend on "compare_obs":
@@ -641,8 +661,18 @@ class AdfDiag(AdfConfig):
             data_loc  = self.__basic_info['cam_baseline_climo_loc']
             data_list = [data_name]
 
+        #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
+        if not self.__plot_loc:
+            plot_dir   = self.__basic_info['cam_diag_plot_loc']
+            start_year = self.__cam_climo_info["start_year"]
+            end_year   = self.__cam_climo_info["end_year"]
+            if start_year and end_year:
+                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}_{start_year}_{end_year}")
+            else:
+                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
+
         #Set default script arguments:
-        plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, plot_location]
+        plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, self.__plot_loc]
 
         #Run the listed scripts:
         self.__diag_scripts_caller("plotting", plot_func_names,
@@ -651,7 +681,7 @@ class AdfDiag(AdfConfig):
 
     #########
 
-    def create_webpage(self):
+    def create_website(self, subdir=None):
 
         """
         Generate webpages to display diagnostic results.
@@ -672,8 +702,13 @@ class AdfDiag(AdfConfig):
         #Notify user that script has started:
         print("  Generating Diagnostics webpages...")
 
+        #Check where the relevant plots are located:
+        if self.__plot_loc:
+            plot_location = self.__plot_loc
+        else:
+            plot_location  = self.__basic_info['cam_diag_plot_loc']
+
         #Extract needed variables from yaml file:
-        plot_location  = self.__basic_info['cam_diag_plot_loc']
         case_name = self.__basic_info['cam_case_name']
         var_list = self.__diag_var_list
 
@@ -704,9 +739,6 @@ class AdfDiag(AdfConfig):
         assets_dir = website_dir / "assets"
         assets_dir.mkdir(exist_ok=True)
 
-        #Specify where the images will be:
-        img_source_dir = plot_path / f"{case_name}_vs_{data_name}"
-
         #Specify where CSS files will be stored:
         css_files_dir = website_dir / "templates"
         css_files_dir.mkdir(exist_ok=True)
@@ -719,7 +751,7 @@ class AdfDiag(AdfConfig):
             shutil.copyfile(css_file, css_files_dir / css_file.name)
 
         #Copy images into the website image dictionary:
-        for img in img_source_dir.glob("*.png"):
+        for img in plot_path.glob("*.png"):
             idest = assets_dir / img.name
             shutil.copyfile(img, idest) # store image in assets
 
