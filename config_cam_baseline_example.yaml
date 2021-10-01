@@ -146,12 +146,12 @@ diag_cam_baseline_climo:
   cam_hist_loc: /location/of/second/cam/run/output/or/baseline/data
 
   #model year when time series files should start:
-  #Note:  Leaving this entry blank will make diagnostics
+  #Note:  Leaving this entry blank will make time series
   #       start at earliest available year.
   start_year: 1850
 
   #model year when time series files should end:
-  #Note:  Leaving this entry blank will make diagnostics
+  #Note:  Leaving this entry blank will make time series
   #       end at latest available year.
   end_year: 2100
 
