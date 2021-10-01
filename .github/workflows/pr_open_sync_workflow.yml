@@ -23,8 +23,13 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    # Run python unit tests:
-    - name: python unit tests
+    # Install needed python packages:
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip  # Install latest version of PIP
+        pip install pyyaml
+    # Run python unit tests related to ADF library:
+    - name: ADF lib unit tests
       run: |
         #AdfBase unit tests:
         python lib/unit_tests/test_adfbase.py

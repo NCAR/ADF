@@ -52,8 +52,7 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
     #------------------------------------
     dclimo_loc    = Path(data_loc)
     mclimo_rg_loc = Path(model_rgrid_loc)
-    plot_root     = Path(plot_location)
-    plot_loc      = plot_root / '{}_vs_{}'.format(case_name, data_name)
+    plot_loc      = Path(plot_location)
     #-----------------------------------
 
     #Set seasonal ranges:
