@@ -64,5 +64,5 @@ jobs:
       env:
         PR_NUMBER: ${{ github.event.number }}
         ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: .github/scripts/pr_mod_file_tests.py --access_token $ACCESS_TOKEN --pr_num $PR_NUMBER --rcfile test/.pylintrc --pylint_level 9.5
+      run: .github/scripts/pr_mod_file_tests.py --access_token $ACCESS_TOKEN --pr_num $PR_NUMBER --rcfile lib/test/pylintrc --pylint_level 9.5
 
