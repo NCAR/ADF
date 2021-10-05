@@ -251,10 +251,10 @@ def _main_prog():
                 print("All pylint tests passed!")
                 sys.exit(0)
 
-         #If no python files in set of testable_files, then exit script:
-         else:
-             print("No ADF classes were modified in PR, so there is nothing to test.")
-             sys.exit(0)
+        #If no python files in set of testable_files, then exit script:
+        else:
+            print("No ADF classes were modified in PR, so there is nothing to test.")
+            sys.exit(0)
 
          #End if (lint_files)
 
