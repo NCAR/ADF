@@ -32,9 +32,9 @@ jobs:
     - name: ADF lib unit tests
       run: |
         #AdfBase unit tests:
-        python lib/test/unit_tests/test_adfbase.py
+        python lib/test/unit_tests/test_adf_base.py
         #AdfConfig unit tests:
-        python lib/test/unit_tests/test_adfconfig.py
+        python lib/test/unit_tests/test_adf_config.py
 
 #####
 
