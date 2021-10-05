@@ -27,7 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip  # Install latest version of PIP
-        pip install pyyaml
+        pip install pyyaml                   # Install PyYAML python package
     # Run python unit tests related to ADF library:
     - name: ADF lib unit tests
       run: |
@@ -59,6 +59,7 @@ jobs:
         python -m pip install --upgrade pip  # Install latest version of PIP
         pip install PyGithub                 # Install PyGithub python package
         pip install pylint                   # Install Pylint python package
+        pip install pyyaml                   # Install PyYAML python package
     # run CAM source code testing master script:
     - name: source-code testing python script
       env:

@@ -57,7 +57,7 @@ class AdfConfig(AdfBase):
             raise FileNotFoundError(emsg)
 
         #Open YAML file:
-        with open(config_file) as nfil:
+        with open(config_file, encoding='UTF-8') as nfil:
             #Load YAML file:
             self.__config_dict = yaml.load(nfil, Loader=yaml.SafeLoader)
 
@@ -81,7 +81,7 @@ class AdfConfig(AdfBase):
         """
 
         #Create empty dictionary:
-        config_search_dict = dict()
+        config_search_dict = {}
 
         #Loop over all top-level config variables:
         for key, value in config_dict.items():
