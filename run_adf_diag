@@ -46,13 +46,13 @@ if os.path.isdir(_DIAG_LIB_PATH):
     sys.path.append(_DIAG_LIB_PATH)
 else:
     #If not, then raise error:
-    raise FileNotFoundError("'./lib' directory not found. Has 'run_diag' been moved?")
+    raise FileNotFoundError("'./lib' directory not found. Has 'run_adf_diag' been moved?")
 
 #Import ADF diagnostics object:
-from AdfDiag import AdfDiag
+from adf_diag import AdfDiag
 
 #Import ADF diagnostics error classt:
-from AdfBase import AdfError
+from adf_base import AdfError
 
 #################
 #Helper functions

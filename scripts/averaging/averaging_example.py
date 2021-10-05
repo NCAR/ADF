@@ -33,7 +33,7 @@ def averaging_example(case_name, input_ts_loc, output_loc, var_list, clobber=Fal
     #Import necessary modules:
     import xarray as xr
     from pathlib import Path
-    from AdfBase import AdfError
+    from adf_base import AdfError
 
     #Notify user that script has started:
     print("  Calculating CAM climatologies...")

@@ -19,8 +19,10 @@ import subprocess
 import importlib
 
 from pathlib import Path
+from typing import Optional
 
 #Check if "PyYAML" is present in python path:
+# pylint: disable=unused-import
 try:
     import yaml
 except ImportError:
@@ -59,6 +61,7 @@ except ImportError:
     print("Cartopy module does not exist in python path.")
     print("Please install module, e.g. 'pip install Cartopy'.")
     sys.exit(1)
+# pylint: enable=unused-import
 
 #+++++++++++++++++++++++++++++
 #Add ADF diagnostics 'scripts'
@@ -74,7 +77,8 @@ _DIAG_SCRIPTS_PATH = os.path.join(_LOCAL_PATH,os.pardir,"scripts")
 #Check that "scripts" directory actually exists:
 if not os.path.isdir(_DIAG_SCRIPTS_PATH):
     #If not, then raise error:
-    raise FileNotFoundError("'{}' directory not found. Has 'AdfDiag.py' been moved?".format(_DIAG_SCRIPTS_PATH))
+    ermsg = f"'{_DIAG_SCRIPTS_PATH}' directory not found. Has 'AdfDiag.py' been moved?"
+    raise FileNotFoundError(ermsg)
 
 #Walk through all sub-directories in "scripts" directory:
 for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
@@ -85,13 +89,13 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 #+++++++++++++++++++++++++++++
 
 #Finally, import needed ADF modules:
-from AdfConfig import AdfConfig
+from adf_config import AdfConfig
 
 #################
 #Helper functions
 #################
 
-def construct_index_info(d, fnam, opf):
+def construct_index_info(page_dict, fnam, opf):
 
     """
     Helper function for generating web pages.
@@ -113,11 +117,11 @@ def construct_index_info(d, fnam, opf):
     else:
         temporal = 'NoInfo'
     plot_type = plot_desc.replace(temporal+"_", "")
-    if vname not in d:
-        d[vname] = {}
-    if plot_type not in d[vname]:
-        d[vname][plot_type] = {}
-    d[vname][plot_type][temporal] = opf
+    if vname not in page_dict:
+        page_dict[vname] = {}
+    if plot_type not in page_dict[vname]:
+        page_dict[vname][plot_type] = {}
+    page_dict[vname][plot_type][temporal] = opf
 
 ######################################
 #Main ADF diagnostics class (AdfDiag)
@@ -150,7 +154,7 @@ class AdfDiag(AdfConfig):
         """
 
         #Initialize Config/Base attributes:
-        super(AdfDiag, self).__init__(config_file, debug=debug)
+        super().__init__(config_file, debug=debug)
 
         #Add basic diagnostic info to object:
         self.__basic_info = self.read_config_var('diag_basic_info')
@@ -210,8 +214,9 @@ class AdfDiag(AdfConfig):
     #########
 
     def __diag_scripts_caller(self, scripts_dir: str, func_names: list,
-                              default_args: list = [], default_kwargs: dict = {},
-                              log_section: str = ''):
+                              default_args: Optional[list] = None,
+                              default_kwargs: Optional[dict] = None,
+                              log_section: Optional[str] = None):
 
         """
         Parse a list of scripts as provided by the config file,
@@ -219,8 +224,10 @@ class AdfDiag(AdfConfig):
 
         scripts_dir    : string, sub-directory under "scripts" where scripts are located
         func_names     : list of function/scripts (either string or dictionary):
-        default_args   : optional list of default arguments for the scripts if none are specified by the config file
-        default_kwargs : optional list of default keyword arguments for the scripts if none are specified by the config file
+        default_args   : optional list of default arguments for the scripts if
+                         none are specified by the config file
+        default_kwargs : optional list of default keyword arguments for the scripts if
+                         none are specified by the config file
         log_section    : optional variable that specifies where the log entries are coming from.
                          Note:  Is it better to just make a child log instead?
 
@@ -232,10 +239,13 @@ class AdfDiag(AdfConfig):
             #Check if func_name is a dictonary,
             #this implies that the function has user-defined inputs:
             if isinstance(func_name, dict):
-                assert len(func_name) == 1, "Function dictionary must be of the form: {function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
+                emsg = "Function dictionary must be of the form: "
+                emsg += "{function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
+                assert len(func_name) == 1, emsg
                 has_opt = True
                 opt = func_name[list(func_name.keys())[0]]  # un-nests the dictionary
-                func_name = list(func_name.keys())[0]  # not ideal, but change to a str representation; iteration will continue ok
+                # not ideal, but change to a str representation; iteration will continue ok:
+                func_name = list(func_name.keys())[0]
             elif isinstance(func_name, str):
                 has_opt = False
             else:
@@ -247,57 +257,70 @@ class AdfDiag(AdfConfig):
                     func_script = opt['module']
 
             #Create full path to function script:
-            func_script_path = os.path.join(os.path.join(_DIAG_SCRIPTS_PATH, scripts_dir), func_script)
+            func_script_path = \
+                os.path.join(os.path.join(_DIAG_SCRIPTS_PATH, scripts_dir), func_script)
 
             #Check that file exists in specified directory:
             if not os.path.exists(func_script_path):
-                msg = "Script file '{}' is missing. Diagnostics are ending here.".format(func_script_path)
-                end_diag_script(msg)
+                emsg = f"Script file '{func_script_path}' is missing. Diagnostics are ending here."
+                self.end_diag_fail(emsg)
 
             if func_script_path not in sys.path:
-               #Add script path to debug log if requested:
-               if log_section:
-                   self.debug_log(f"{log_section}: Inserting to sys.path: {func_script_path}")
-               else:
-                   self.debug_log(f"diag_scripts_caller: Inserting to sys.path: {func_script_path}")
+                #Add script path to debug log if requested:
+                if log_section:
+                    dmsg = f"{log_section}: Inserting to sys.path: {func_script_path}"
+                    self.debug_log(dmsg)
+                else:
+                    dmsg = f"diag_scripts_caller: Inserting to sys.path: {func_script_path}"
+                    self.debug_log(dmsg)
 
-               #Add script to python path:
-               sys.path.insert(0, func_script_path)
+                #Add script to python path:
+                sys.path.insert(0, func_script_path)
 
-            # NOTE: when we move to making this into a proper package, this path-checking stuff should be removed and dealt with on the package-level.
+            # NOTE: when we move to making this into a proper package,
+            #       this path-checking stuff should be removed and dealt with on the package-level.
 
             # Arguments; check if user has specified custom arguments
             func_args   = default_args
             func_kwargs = default_kwargs
             if has_opt:
-                if ('args' in opt):
-                    # RULES: it has to be a list of strings, and then we will take whatever of those are in locals
+                if 'args' in opt:
+                    # RULES: it has to be a list of strings,
+                    #        and then we will take whatever of those are in locals
                     assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    assert all(isinstance(item, str) for item in opt['args']), "Function argument list elements must be of type string."
+                    emsg = "Function argument list elements must be of type string."
+                    assert all(isinstance(item, str) for item in opt['args']), emsg
                     func_args = list()  # start over
-                    for variableToCheck in opt['args']:
-                        if variableToCheck in locals():
-                            func_args.append(locals()[variableToCheck])
+                    for variable_to_check in opt['args']:
+                        if variable_to_check in locals():
+                            func_args.append(locals()[variable_to_check])
                         else:
-                            print("{} is not available".format(variableToCheck))
+                            print("{} is not available".format(variable_to_check))
                 if 'kwargs' in opt:
                     func_kwargs = opt['kwargs']
 
             #Add function calls debug log if requested:
             if log_section:
-                self.debug_log(\
-                    f"{log_section}: \n \t func_name = {func_name}\n \t func_args = {func_args}\n \t func_kwargs = {func_kwargs}")
+                dmsg = f"{log_section}: \n \t func_name = {func_name}\n "
+                dmsg += f"\t func_args = {func_args}\n \t func_kwargs = {func_kwargs}"
+                self.debug_log(dmsg)
             else:
-                self.debug_log(\
-                    f"diag_scripts_caller: \n \t func_name = {func_name}\n \t func_args = {func_args}\n \t func_kwargs = {func_kwargs}")
+                dmsg = f"diag_scripts_caller: \n \t func_name = {func_name}\n "
+                dmsg += f"\t func_args = {func_args}\n \t func_kwargs = {func_kwargs}"
+                self.debug_log(dmsg)
 
 
             #Call function
-            self.__function_caller(func_name, func_args, func_kwargs=func_kwargs, module_name=func_name)
+            self.__function_caller(func_name, func_args,
+                                   func_kwargs=func_kwargs,
+                                   module_name=func_name)
 
     #########
 
-    def __function_caller(self, func_name: str, func_args: list, func_kwargs: dict = {}, module_name=None):
+    # pylint: disable=no-self-use
+
+    def __function_caller(self, func_name: str, func_args: list,
+                          func_kwargs: Optional[dict] = None, module_name=None):
 
         """
         Call a function with given arguments.
@@ -305,7 +328,8 @@ class AdfDiag(AdfConfig):
         func_name : string, name of the function to call
         func_args : list, the arguments to pass to the function
         func_kwargs : [optional] dict, the keyword arguments to pass to the function
-        module_name : [optional] string, the name of the module where func_name is defined; if not provided, assume func_name.py
+        module_name : [optional] string, the name of the module where func_name is defined;
+                      if not provided, assume func_name.py
 
         return : the output of func_name(*func_args, **func_kwargs)
         """
@@ -319,7 +343,13 @@ class AdfDiag(AdfConfig):
             func = getattr(module, func_name)
 
         #Run function and return result:
-        return func(*func_args, **func_kwargs)
+        if func_kwargs:
+            return func(*func_args, **func_kwargs)
+        else:
+            return func(*func_args)
+        #End if
+
+    # pylint: enable=no-self-use
 
     #########
 
@@ -344,10 +374,12 @@ class AdfDiag(AdfConfig):
         #Check if climatologies are being calculated:
         if cam_climo_dict['calc_cam_climo']:
             # Skip history file stuff if time series are pre-computed:
-            if ('cam_ts_done' in cam_climo_dict) and (cam_climo_dict['cam_ts_done'] == True):
+            if ('cam_ts_done' in cam_climo_dict) and (cam_climo_dict['cam_ts_done']):
                 # skip time series generation, and just make the climo
-                print("  Configuration file indicates time series files have been pre-computed, will rely on those files only.")
-                return None
+                emsg = "  Configuration file indicates time series files have been pre-computed,"
+                emsg += " will rely on those files only."
+                print(emsg)
+                return
 
             #Notify user that script has started:
             print("  Generating CAM time series files...")
@@ -356,13 +388,18 @@ class AdfDiag(AdfConfig):
             ts_dir = cam_climo_dict['cam_ts_loc']
 
             #Extract start and end year values:
+            # pylint: disable=raise-missing-from
             try:
                 start_year = int(cam_climo_dict['start_year'])
             except TypeError:
                 if cam_climo_dict['start_year'] is None:
                     start_year = "*"
                 else:
-                    raise IOError("start_year needs to be a year-like value or None, got '{}'".format(cam_climo_dict['start_year']))
+                    emsg = "start_year needs to be a year-like value or None, "
+                    emsg += f"got '{cam_climo_dict['start_year']}'"
+                    raise IOError(emsg)
+                #End if
+            #End try
 
             try:
                 end_year   = int(cam_climo_dict['end_year'])
@@ -370,7 +407,13 @@ class AdfDiag(AdfConfig):
                 if cam_climo_dict['end_year'] is None:
                     end_year = "*"
                 else:
-                    raise IOError("end_year needs to be a year-like value or None, got '{}'".format(cam_climo_dict['end_year']))
+                    emsg = "end_year needs to be a year-like value or None, "
+                    emsg += f"got '{cam_climo_dict['end_year']}'"
+                    raise IOError(emsg)
+                #End if
+            #End try
+            # pylint: enable=raise-missing-from
+
 
             #Extract cam variable list:
             var_list = self.__diag_var_list
@@ -381,17 +424,22 @@ class AdfDiag(AdfConfig):
             #Check that path actually exists:
             if not starting_location.is_dir():
                 if baseline:
-                    msg = "Provided baseline 'cam_hist_loc' directory '{}' not found.  Script is ending here."
+                    emsg = f"Provided baseline 'cam_hist_loc' directory '{starting_location}' "
+                    emsg += "not found.  Script is ending here."
                 else:
-                    msg = "Provided 'cam_hist_loc' directory '{}' not found.  Script is ending here."
-                msg = msg.format(starting_location)
-                end_diag_script(msg)
+                    emsg = "Provided 'cam_hist_loc' directory '{starting_location}' not found."
+                    emsg += " Script is ending here."
+                #End if
+
+                self.end_diag_fail(emsg)
+            #End if
 
             #Check if history files actually exist. If not then kill script:
             if not list(starting_location.glob('*.cam.h0.*.nc')):
-                msg = "No CAM history (h0) files found in '{}'.  Script is ending here."
-                msg = msg.format(starting_location)
-                end_diag_script(msg)
+                emsg = f"No CAM history (h0) files found in '{starting_location}'."
+                emsg += " Script is ending here."
+                self.end_diag_fail(emsg)
+            #End if
 
             # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
             if start_year == end_year == "*":
@@ -403,7 +451,7 @@ class AdfDiag(AdfConfig):
                 #Loop over start and end years:
                 for year in range(start_year, end_year+1):
                     #Add files to main file list:
-                    for fname in starting_location.glob('*.cam.h0.*{}-*.nc'.format(year)):
+                    for fname in starting_location.glob(f'*.cam.h0.*{year}-*.nc'):
                         files_list.append(fname)
 
             #Create ordered list of CAM history files:
@@ -433,8 +481,9 @@ class AdfDiag(AdfConfig):
                 print("\t \u231B time series for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + hist_files + ["-o", ts_outfil_str]
-                subprocess.run(cmd)
+                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
+                      hist_files + ["-o", ts_outfil_str]
+                subprocess.run(cmd, check=True)
 
             #Notify user that script has ended:
             print("  ...CAM time series file generation has finished successfully.")
@@ -479,7 +528,10 @@ class AdfDiag(AdfConfig):
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts  # this is a list of script names
                                                             # _OR_
-                                                            # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
+                                                            # a **list** of dictionaries with
+                                                            # script names as keys that hold
+                                                            # args(list), kwargs(dict), and
+                                                            # module(str)
 
             #Extract necessary variables from configure dictionary:
             input_ts_loc    = cam_climo_dict['cam_ts_loc']
@@ -538,7 +590,9 @@ class AdfDiag(AdfConfig):
         #Extract names of re-gridding scripts:
         regrid_func_names = self.__regridding_scripts # this is a list of script names
                                                       # _OR_
-                                                      # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
+                                                      # a **list** of dictionaries with
+                                                      # script names as keys that hold
+                                                      # args(list), kwargs(dict), and module(str)
 
         if all([func_names is None for func_names in regrid_func_names]):
             print("No regridding options provided, continue.")
@@ -548,7 +602,10 @@ class AdfDiag(AdfConfig):
 
 
         #Set default script arguments:
-        regrid_func_args = [case_name, input_climo_loc, output_loc, var_list, target_list, target_loc, overwrite_regrid]
+        regrid_func_args = [case_name, input_climo_loc,
+                            output_loc, var_list,
+                            target_list, target_loc,
+                            overwrite_regrid]
 
         #Run the listed scripts:
         self.__diag_scripts_caller("regridding", regrid_func_names,
@@ -570,7 +627,9 @@ class AdfDiag(AdfConfig):
         #Extract names of plotting scripts:
         anly_func_names = self.__analysis_scripts  # this is a list of script names
                                                    # _OR_
-                                                   # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
+                                                   # a **list** of dictionaries with
+                                                   # script names as keys that hold
+                                                   # args(list), kwargs(dict), and module(str)
 
         #If no scripts are listed, then exit routine:
         if not anly_func_names:
@@ -605,10 +664,11 @@ class AdfDiag(AdfConfig):
         #Please note that this is also assumed to be the output location for the analyses scripts.
         if not self.__plot_loc:
             plot_dir   = self.__basic_info['cam_diag_plot_loc']
-            start_year = self.__cam_climo_info["start_year"]
-            end_year   = self.__cam_climo_info["end_year"]
-            if start_year and end_year:
-                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}_{start_year}_{end_year}")
+            syear = self.__cam_climo_info["start_year"]
+            eyear   = self.__cam_climo_info["end_year"]
+            if syear and eyear:
+                self.__plot_loc = os.path.join(plot_dir,
+                                               f"{case_name}_vs_{data_name}_{syear}_{eyear}")
             else:
                 self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
 
@@ -638,7 +698,9 @@ class AdfDiag(AdfConfig):
         #Extract names of plotting scripts:
         plot_func_names = self.__plotting_scripts  # this is a list of script names
                                                    # _OR_
-                                                   # a **list** of dictionaries with script names as keys that hold args(list), kwargs(dict), and module(str)
+                                                   # a **list** of dictionaries with
+                                                   # script names as keys that hold
+                                                   # args(list), kwargs(dict), and module(str)
 
 
         #If no scripts are listed, then exit routine:
@@ -664,15 +726,17 @@ class AdfDiag(AdfConfig):
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
         if not self.__plot_loc:
             plot_dir   = self.__basic_info['cam_diag_plot_loc']
-            start_year = self.__cam_climo_info["start_year"]
-            end_year   = self.__cam_climo_info["end_year"]
-            if start_year and end_year:
-                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}_{start_year}_{end_year}")
+            syear = self.__cam_climo_info["start_year"]
+            eyear   = self.__cam_climo_info["end_year"]
+            if syear and eyear:
+                self.__plot_loc = os.path.join(plot_dir,
+                                               f"{case_name}_vs_{data_name}_{syear}_{eyear}")
             else:
                 self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
 
         #Set default script arguments:
-        plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc, var_list, data_list, self.__plot_loc]
+        plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc,
+                          var_list, data_list, self.__plot_loc]
 
         #Run the listed scripts:
         self.__diag_scripts_caller("plotting", plot_func_names,
@@ -681,7 +745,7 @@ class AdfDiag(AdfConfig):
 
     #########
 
-    def create_website(self, subdir=None):
+    def create_website(self):
 
         """
         Generate webpages to display diagnostic results.
@@ -707,6 +771,7 @@ class AdfDiag(AdfConfig):
             plot_location = self.__plot_loc
         else:
             plot_location  = self.__basic_info['cam_diag_plot_loc']
+        #End if
 
         #Extract needed variables from yaml file:
         case_name = self.__basic_info['cam_case_name']
@@ -717,6 +782,7 @@ class AdfDiag(AdfConfig):
             data_name = "obs"
         else:
             data_name = self.__basic_info['cam_baseline_case_name']
+        #End if
 
         #Set preferred order of seasons:
         season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
@@ -760,7 +826,8 @@ class AdfDiag(AdfConfig):
                                         # plots provisional structure:
                                         # key = variable_name
                                         # values -> dict w/ keys being "TYPE" of plots
-                                        # w/ values being dict w/ keys being TEMPORAL sampling, values being the URL
+                                        # w/ values being dict w/ keys being TEMPORAL sampling,
+                                        # values being the URL
 
         #Create the jinja Environment object:
         jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
@@ -777,18 +844,20 @@ class AdfDiag(AdfConfig):
                     #Create the data that will be fed into the template:
                     for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
                         alt_text  = img.stem #Extract image file name text
-                        img_info  = alt_text.split("_") #Split file name into relevant sub-strings
-                        anyl_type = img_info[3] #Extract analysis type
 
                         #Create output file (don't worry about analysis type for now):
                         outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
-                        img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]  # Hacky - how to get the relative path in a better way?
+                        # Hacky - how to get the relative path in a better way?:
+                        img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                         title = f"Variable: {var}"              #Create title
                         tmpl = jinenv.get_template('template.html')  #Set template
-                        rndr = tmpl.render(title=title, value=img_data, case1=case_name, case2=data_name) #The template rendered
+                        rndr = tmpl.render(title=title, value=img_data, case1=case_name,
+                                           case2=data_name) #The template rendered
 
                         #Open HTML file:
-                        with open(outputfile,'w') as f: f.write(rndr)
+                        with open(outputfile,'w') as ofil:
+                            ofil.write(rndr)
+                        #End with
 
                         #Initialize Ordered Dictionary for variable:
                         if var not in mean_html_info:
@@ -796,7 +865,7 @@ class AdfDiag(AdfConfig):
 
                         #Initialize Ordered Dictionary for plot type:
                         if ptype not in mean_html_info[var]:
-                                mean_html_info[var][ptype] = OrderedDict()
+                            mean_html_info[var][ptype] = OrderedDict()
 
                         mean_html_info[var][ptype][season] = outputfile.name
 
@@ -810,10 +879,12 @@ class AdfDiag(AdfConfig):
 
         #Write mean diagnostic plots HTML file:
         outputfile = img_pages_dir / "mean_diag.html"
-        with open(outputfile,'w') as f: f.write(mean_rndr)
+        with open(outputfile,'w') as ofil:
+            ofil.write(mean_rndr)
+        #End with
 
         #Search for AMWG Table HTML files:
-        table_html_files = plot_path.glob("amwg_table_*.html")
+        table_html_files = list(plot_path.glob("amwg_table_*.html"))
 
         #Determine if any AMWG tables were generated:
         if table_html_files:
@@ -855,9 +926,10 @@ class AdfDiag(AdfConfig):
 
                         #If counter greater than one, then throw an error:
                         if count > 1:
-                            msg = "More than one AMWG table is associated with case '{}'.".format(case)
-                            msg += "\nNot sure what is going on, so website generation will end here."
-                            end_diag_script(msg)
+                            emsg = f"More than one AMWG table is associated with case '{case}'."
+                            emsg += "\nNot sure what is going on, "
+                            emsg += "so website generation will end here."
+                            self.end_diag_fail(emsg)
 
 
             #Construct mean_table.html
@@ -868,7 +940,9 @@ class AdfDiag(AdfConfig):
 
             #Write mean diagnostic tables HTML file:
             outputfile = table_pages_dir / "mean_table.html"
-            with open(outputfile,'w') as f: f.write(mean_rndr)
+            with open(outputfile,'w') as ofil:
+                ofil.write(mean_rndr)
+            #End with
 
         else:
             #No Tables exist, so no link will be added to main page:
@@ -884,7 +958,9 @@ class AdfDiag(AdfConfig):
 
         #Write Mean diagnostics HTML file:
         outputfile = website_dir / "index.html"
-        with open(outputfile,'w') as f: f.write(index_rndr)
+        with open(outputfile,'w') as ofil:
+            ofil.write(index_rndr)
+        #End with
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")

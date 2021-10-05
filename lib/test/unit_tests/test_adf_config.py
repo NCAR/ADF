@@ -14,15 +14,15 @@ import os.path
 
 #Set relevant path variables:
 _CURRDIR = os.path.abspath(os.path.dirname(__file__))
-_ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir)
+_ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 _TEST_FILES_DIR = os.path.join(_CURRDIR, "test_files")
 
 #Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
 #Import AdfConfig class and AdfError
-from AdfConfig import AdfConfig
-from AdfBase import AdfError
+from adf_config import AdfConfig
+from adf_base import AdfError
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #Main AdfBase testing routine, used when script is run directly
@@ -157,7 +157,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
         #Set error message:
         #Note that for some reason a KeyError adds exra quotes,
         #hence the extra string quotes here
-        ermsg = '''"Variable 'hello' not found in config file.  Please see 'config_cam_baseline_example.yaml'."'''
+        ermsg = '''"Variable 'hello' not found in config file. Please see 'config_cam_baseline_example.yaml'."'''
 
         #Expect a Key error:
         with self.assertRaises(KeyError) as err:
