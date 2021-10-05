@@ -55,10 +55,10 @@ jobs:
         python-version: '3.8' # Use python 3.8
     # install required python packages
     - name: Install dependencies
-    run: |
-      python -m pip install --upgrade pip  # Install latest version of PIP
-      pip install PyGithub                 # Install PyGithub python package
-      pip install pylint                   # Install Pylint python package
+      run: |
+        python -m pip install --upgrade pip  # Install latest version of PIP
+        pip install PyGithub                 # Install PyGithub python package
+        pip install pylint                   # Install Pylint python package
     # run CAM source code testing master script:
     - name: source-code testing python script
       env:
