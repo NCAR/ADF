@@ -27,7 +27,7 @@ def amwg_table(case_name, input_ts_loc, output_loc, var_list, write_html):
     import numpy as np
     import xarray as xr
     from pathlib import Path
-    from AdfBase import AdfError
+    from adf_base import AdfError
     import warnings  # use to warn user about missing files.
 
     #Import "special" modules:

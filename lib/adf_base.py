@@ -25,7 +25,6 @@ import logging
 class AdfError(RuntimeError):
     """Class used to handle ADF value errors
     (e.g., log user errors without backtrace)"""
-    pass
 
 #+++++++++++++++++
 #Define base class
@@ -72,10 +71,17 @@ class AdfBase:
     def end_diag_fail(self, msg: str):
 
         """
-        Prints message, and then exits program
-        with an Adf-specific error.
+        Prints message to log and screen,
+        and then exits program with an
+        an Adf-specific error.
         """
+
+        #Print message to log, if applicable:
+        self.debug_log(msg)
 
         print("\n")
         raise AdfError(msg)
 
+#++++++++++++++++++++
+#End Class definition
+#++++++++++++++++++++

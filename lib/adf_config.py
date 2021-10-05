@@ -24,7 +24,7 @@ import re
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 
 import yaml
-from AdfBase import AdfBase
+from adf_base import AdfBase
 
 #+++++++++++++++++++
 #Define config class
@@ -46,7 +46,7 @@ class AdfConfig(AdfBase):
         """
 
         #Initialize Base attributes:
-        super(AdfConfig, self).__init__(debug=debug)
+        super().__init__(debug=debug)
 
         #Expand any environmental user name variables in the path:
         config_file = os.path.expanduser(config_file)
@@ -87,7 +87,7 @@ class AdfConfig(AdfBase):
         for key, value in config_dict.items():
 
             #Check if value is a string, integer, or another dict:
-            if isinstance(value, str) or isinstance(value, int):
+            if isinstance(value, (str, int)):
 
                 #Check if sub dictionary is present:
                 if sub_dict:
@@ -165,7 +165,7 @@ class AdfConfig(AdfBase):
                     match_count = 0
 
                     #Loop through search dictionary keys:
-                    for key in self.__search_dict.keys():
+                    for key in self.__search_dict:
 
                         #Attempt to find period string index:
                         pidx = key.find(".")
@@ -200,7 +200,8 @@ class AdfConfig(AdfBase):
                 final_kword_val = self.__expand_yaml_var_ref(kword_val)
 
                 #Substitute keyword with final kword_val:
-                new_var_val = new_var_val[:kword_match.start()] + final_kword_val + new_var_val[kword_match.end():]
+                new_var_val = new_var_val[:kword_match.start()] + final_kword_val + \
+                                                                new_var_val[kword_match.end():]
 
                 #Search the string again for keyword values:
                 kword_match = self.__kword_pattern.search(new_var_val)
@@ -213,10 +214,10 @@ class AdfConfig(AdfBase):
 
             #Pass back final value:
             return new_var_val
+        #End if
 
-        else:
-            #Return the string un-modified:
-            return var_val
+        #Return the string un-modified:
+        return var_val
 
     #########
 
@@ -263,12 +264,14 @@ class AdfConfig(AdfBase):
         elif isinstance(conf_dict, type(None)):
             var_dict = self.__config_dict
         else:
-            emsg = f"Supplied 'conf_dict' variable should be a dictionary, not type '{type(conf_dict)}'"
+            emsg = "Supplied 'conf_dict' variable should be a dictionary,"
+            emsg += f" not type '{type(conf_dict)}'"
             raise TypeError(emsg)
 
         #Check that variable name exists in dictionary:
         if varname not in var_dict.keys():
-            emsg = f"Variable '{varname}' not found in config file.  Please see 'config_cam_baseline_example.yaml'."
+            emsg = f"Variable '{varname}' not found in config file."
+            emsg +=" Please see 'config_cam_baseline_example.yaml'."
             raise KeyError(emsg)
 
         #Extract variable from dictionary:
@@ -276,13 +279,13 @@ class AdfConfig(AdfBase):
 
         #Check that configure variable is not empty (None):
         if var is None:
-            emsg = f"Variable '{varname}' has not been set to a value. Please see 'config_cam_baseline_example.yaml'."
+            emsg = f"Variable '{varname}' has not been set to a value."
+            emsg += " Please see 'config_cam_baseline_example.yaml'."
             raise ValueError(emsg)
 
         #return variable/list/dictionary:
         return var
 
-#####################
+#++++++++++++++++++++
 #End Class definition
-#####################
-
+#++++++++++++++++++++

@@ -15,14 +15,14 @@ import logging
 
 #Set relevant path variables:
 _CURRDIR = os.path.abspath(os.path.dirname(__file__))
-_ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir)
+_ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 
 #Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
 #Import AdfBase class
-from AdfBase import AdfBase
-from AdfBase import AdfError
+from adf_base import AdfBase
+from adf_base import AdfError
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #Main AdfBase testing routine, used when script is run directly
