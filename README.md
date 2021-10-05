@@ -1,9 +1,9 @@
-# CAM diagnostics
+# ADF diagnostics
 
-This repository contains the CAM diagnostics python package, which includes numerous different averaging,
+This repository contains the Atmosphere Diagnostics Framework (ADF) diagnostics python package, which includes numerous different averaging,
 re-gridding, and plotting scripts, most of which are provided by users of CAM itself.
 
-Specifically, this package is designed to generate standard climatological comparisons between either two
+Specifically, this package is currently designed to generate standard climatological comparisons between either two
 different CAM simulations, or between a CAM simulation and observational and reanalysis datasets.  Ideally
 this will allow for a quick evaluation of a CAM simulation, without requiring the user to generate numerous
 different figures on their own.
@@ -37,13 +37,13 @@ conda activate camdiag
 
 Finally, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines, this can be loaded by simply running `module load nco` on the command line.
 
-## Running CAM diagnostics
+## Running ADF diagnostics
 
-To run an example of the CAM diagnostics, simply download this repo, setup your computing environment as described in the [Required software environment](https://github.com/NCAR/CAM_diagnostics/blob/main/README.md#required-software-environment) section above, modify the `config_cam_baseline_example.yaml` file (or create one of your own) to point to the relevant diretories and run:
+To run an example of the ADF diagnostics, simply download this repo, setup your computing environment as described in the [Required software environment](https://github.com/NCAR/CAM_diagnostics/blob/main/README.md#required-software-environment) section above, modify the `config_cam_baseline_example.yaml` file (or create one of your own) to point to the relevant diretories and run:
 
-`./run_diag config_cam_baseline_example.yaml`
+`./run_adf_diag config_cam_baseline_example.yaml`
 
-This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example CAM diagnostic figures, all in their respective directories.
+This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example ADF diagnostic figures, all in their respective directories.
 
 ## Troubleshooting
 
