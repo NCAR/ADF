@@ -199,22 +199,52 @@ def pres_from_hybrid(psfc, hya, hyb, p0=100000.):
     return hya*p0 + hyb*psfc
 
 
-def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None):
+def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
+                convert_to_mb=False):
     """
     Interpolate model hybrid levels to specified pressure levels.
+
+    new_levels-> 1-D numpy array (ndarray) containing list of pressure levels
+                 in Pascals (Pa).
+
+    If "new_levels" is not specified, then the levels will be set
+    to the GeoCAT defaults, which are (in hPa):
+
+    1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
+    30, 20, 10, 7, 5, 3, 2, 1
+
+    If "convert_to_mb" is True, then vertical (lev) dimension will have
+    values of mb/hPa, otherwise the units are Pa.
+
+    The function "interp_hybrid_to_pressure" used here is dask-enabled,
+    and so can potentially be sped-up via the use of a DASK cluster.
     """
-    pressure = pres_from_hybrid(ps, hyam, hybm, P0)
-    if new_levels is None:
-        pnew = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30, 20, 10, 7, 5, 3, 2, 1]  # mandatory levels
+
+    #Apply GeoCAT hybrid->pressure interpolation:
+    if new_levels is not None:
+        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,
+                                                                    hyam,
+                                                                    hybm,
+                                                                    p0=P0,
+                                                                    new_levels=new_levels
+                                                                   )
     else:
-        pnew = new_levels
-    data_interp = gcomp.interp_hybrid_to_pressure(data, ps,
-                                      hyam,
-                                      hybm,
-                                      p0=P0,
-                                      new_levels=pnew
-                                     )
-    return data_interp
+        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,
+                                                                    hyam,
+                                                                    hybm,
+                                                                    p0=P0
+                                                                   )
+
+
+    #Rename vertical dimension back to "lev" in order to work with
+    #the ADF plotting functions:
+    data_interp_rename = data_interp.rename({"plev": "lev"})
+
+    #Convert vertical dimension to mb/hPa, if requested:
+    if convert_to_mb:
+        data_interp_rename["lev"] = data_interp_rename["lev"] / 100.0
+
+    return data_interp_rename
 
 
 def zonal_mean_xr(fld):
@@ -283,7 +313,9 @@ def _zonal_plot_preslat(ax, lat, lev, data, **kwargs):
         cmap = kwargs.pop('cmap')
     else:
         cmap = 'Spectral_r'
-    img = ax.contourf(mlat, mlev, data.transpose('lat', "lev"), cmap=cmap, **kwargs)
+
+    img = ax.contourf(mlat, mlev, data.transpose('lat', 'lev'), cmap=cmap, **kwargs)
+
     minor_locator = mpl.ticker.FixedLocator(lev)
     ax.yaxis.set_minor_locator(minor_locator)
     ax.tick_params(which='minor', length=4, color='r')
@@ -318,14 +350,19 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
           + pcolormesh/contour plot
     """
     if apsurf is not None:
-        aplev = lev_to_plev(adata, apsurf, ahya, ahyb, P0=100000., new_levels=None)
-        bplev = lev_to_plev(bdata, bpsurf, bhya, bhyb, P0=100000., new_levels=None)
+        aplev = lev_to_plev(adata, apsurf, ahya, ahyb, P0=100000.,
+                            new_levels=None, convert_to_mb=True)
+        bplev = lev_to_plev(bdata, bpsurf, bhya, bhyb, P0=100000.,
+                            new_levels=None, convert_to_mb=True)
+
         azm = zonal_mean_xr(aplev)
         bzm = zonal_mean_xr(bplev)
+
         diff = azm - bzm
         # determine levels & color normalization:
         minval = np.min([np.min(azm), np.min(bzm)])
         maxval = np.max([np.max(azm), np.max(bzm)])
+
         normfunc, mplv = use_this_norm()
         if ((minval < 0) and (0 < maxval)):
             norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
