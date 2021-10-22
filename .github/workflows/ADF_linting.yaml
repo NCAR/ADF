@@ -1,0 +1,37 @@
+name: Framework Unit Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  #This job is designed to run tests on all ADF framework
+  #source-code files modified by the Pull Request (PR).
+  #This is done by running a top-level python script which
+  #collects all modified files, and then passes those files
+  #off to additional scripts, if they match a known ADF
+  #framework filename, to run the actual tests.
+  source_code_tests:
+    runs-on: ubuntu-latest
+    steps:
+    # acquire github action routines
+    - uses: actions/checkout@v2
+    # acquire specific version of python
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.8' # Use python 3.8
+    # install required python packages
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip  # Install latest version of PIP
+        pip install PyGithub                 # Install PyGithub python package
+        pip install pylint                   # Install Pylint python package
+        pip install pyyaml                   # Install PyYAML python package
+    # run CAM source code testing master script:
+    - name: source-code testing python script
+      env:
+        PR_NUMBER: ${{ github.event.number }}
+        ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: .github/scripts/pr_mod_file_tests.py --access_token $ACCESS_TOKEN --pr_num $PR_NUMBER --rcfile lib/test/pylintrc --pylint_level 9.5
+
