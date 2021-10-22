@@ -1,5 +1,7 @@
 # ADF diagnostics
 
+[![Framework Unit Tests](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml/badge.svg)](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml)
+
 This repository contains the Atmosphere Diagnostics Framework (ADF) diagnostics python package, which includes numerous different averaging,
 re-gridding, and plotting scripts, most of which are provided by users of CAM itself.
 
@@ -20,6 +22,7 @@ These diagnostics currently require Python version 3.6 or highter.  They also re
 - Xarray
 - Matplotlib
 - Cartopy
+- GeoCAT
 
 If one wants to generate the "AMWG" model variable statistics table as well, then these additional python libraries are also needed:
 
@@ -28,7 +31,7 @@ If one wants to generate the "AMWG" model variable statistics table as well, the
 
 On NCAR's CISL machines (cheyenne and casper), these can be loaded by running the following on the command line 
 ```
-module load python
+module load python/3.7.12
 ncar_pylib 
 ```
 If you are using conda on a non-CISL machine, then you can create and activate the appropriate python enviroment using the `env/conda_environment.yaml` file like so:
