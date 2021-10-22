@@ -1,4 +1,4 @@
-name: Framework Unit Tests
+name: Framework Linting and Formatting
 
 on:
   pull_request:
