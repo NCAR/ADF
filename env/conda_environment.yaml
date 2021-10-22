@@ -2,6 +2,7 @@ name: camdiag
 channels:
   - conda-forge
   - defaults
+  - ncar
 dependencies:
   - pyyaml
   - scipy
@@ -11,5 +12,6 @@ dependencies:
   - matplotlib
   - pandas
   - netcdf4
+  - geocat-comp
   - python=3.9
 prefix: /glade/u/home/brianpm/miniconda3/envs/camdiag

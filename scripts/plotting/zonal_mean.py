@@ -3,11 +3,11 @@ import numpy as np
 import xarray as xr
 import plotting_functions as pf
 import warnings  # use to warn user about missing files.
-    
+
 def my_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return str(msg) + '\n'
-    
+
 warnings.formatwarning = my_formatwarning
 
 def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
@@ -106,6 +106,8 @@ def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
                 mhyb = mclim_ds['hybm']
                 if 'time' in mhya.dims:
                     mhya = mhya.isel(time=0).squeeze()
+                if 'time' in mhyb.dims:
+                    mhyb = mhyb.isel(time=0).squeeze()
                 if 'P0' in mclim_ds:
                     P0 = mclim_ds['P0']
                 else:
@@ -125,6 +127,10 @@ def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
                 # (and/or a way to specify pressure levels or hybrid levels)
                 ohya = oclim_ds['hyam']
                 ohyb = oclim_ds['hybm']
+                if 'time' in ohya.dims:
+                    ohya = ohya.isel(time=0).squeeze()
+                if 'time' in ohyb.dims:
+                    ohyb = ohyb.isel(time=0).squeeze()
                 if 'PS' in oclim_ds:
                     ops = oclim_ds['PS']
                 else:
@@ -178,7 +184,7 @@ def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
                     plot_name.unlink()
 
                 #Create new plot:
-                pf.plot_zonal_mean_and_save(plot_name, mseasons[s], mps_season, mhya, mhyb, 
+                pf.plot_zonal_mean_and_save(plot_name, mseasons[s], mps_season, mhya, mhyb,
                                                        oseasons[s], ops_season, ohya, ohyb)
 
     #Notify user that script has ended:
