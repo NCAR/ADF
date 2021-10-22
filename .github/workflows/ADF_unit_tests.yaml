@@ -1,0 +1,46 @@
+name: Framework Unit Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    # Run the tests one more time, after the PR changes
+    # have been pushed.  The if-statement below prevents
+    # the push from running on other repos.
+    branches:
+      #Trigger workflow on push to any branch or branch heirarchy:
+      - '**'
+
+jobs:
+  #This job is designed to run all python unit tests whenever
+  #a PR is either opened or synced (i.e. additional commits are pushed
+  #to branch involved in PR).
+  python_unit_tests:
+    if: github.event_name == 'pull_request' || github.repository == 'NCAR/ADF'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        #All of these python versions will be used to run tests:
+        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10']
+      fail-fast: false
+    steps:
+    # Acquire github action routines:
+    - uses: actions/checkout@v2
+    # Acquire specific version of python:
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    # Install needed python packages:
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip  # Install latest version of PIP
+        pip install pyyaml                   # Install PyYAML python package
+    # Run python unit tests related to ADF library:
+    - name: ADF lib unit tests
+      run: |
+        #AdfBase unit tests:
+        python lib/test/unit_tests/test_adf_base.py
+        #AdfConfig unit tests:
+        python lib/test/unit_tests/test_adf_config.py
+
