@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  #This job is designed to run tests on all ADF framework
+  #This job is designed to run pylint on all ADF framework
   #source-code files modified by the Pull Request (PR).
   #This is done by running a top-level python script which
   #collects all modified files, and then passes those files
