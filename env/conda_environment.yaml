@@ -1,4 +1,4 @@
-name: camdiag
+name: adf_diag
 channels:
   - conda-forge
   - defaults
@@ -14,4 +14,4 @@ dependencies:
   - netcdf4
   - geocat-comp
   - python=3.9
-prefix: /glade/u/home/brianpm/miniconda3/envs/camdiag
+prefix: /glade/u/home/brianpm/miniconda3/envs/adf_diag
