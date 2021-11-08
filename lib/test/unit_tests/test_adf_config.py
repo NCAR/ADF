@@ -143,9 +143,33 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
         """
         Check that the "read_config_var"
+        method returns None when a
+        non-required variable is requested that
+        doesn't exist in the config dictionary.
+        """
+
+        #Use example config file:
+        baseline_example_file = os.path.join(_ADF_LIB_DIR, os.pardir, "config_cam_baseline_example.yaml")
+
+        #Create AdfConfig object:
+        adf_test = AdfConfig(baseline_example_file)
+
+        #Try to read non-existing variable:
+        conf_val = adf_test.read_config_var("hello")
+
+        #Check that provided value is "None":
+        self.assertEqual(conf_val, None)
+
+    #####
+
+    def test_AdfConfig_read_config_missing_required_var(self):
+
+        """
+        Check that the "read_config_var"
         method throws the correct error
         when a variable is requested that
-        doesn't exist in the config dictionary.
+        doesn't exist in the config dictionary,
+        and is required.
         """
 
         #Use example config file:
@@ -157,13 +181,13 @@ class AdfConfigTestRoutine(unittest.TestCase):
         #Set error message:
         #Note that for some reason a KeyError adds exra quotes,
         #hence the extra string quotes here
-        ermsg = '''"Variable 'hello' not found in config file. Please see 'config_cam_baseline_example.yaml'."'''
+        ermsg = '''"Required variable 'hello' not found in config file. Please see 'config_cam_baseline_example.yaml'."'''
 
         #Expect a Key error:
         with self.assertRaises(KeyError) as err:
 
             #Try to read non-existing variable:
-            _ = adf_test.read_config_var("hello")
+            _ = adf_test.read_config_var("hello", required=True)
 
         #Check that error message matches what's expected:
         self.assertEqual(ermsg, str(err.exception))
@@ -171,6 +195,29 @@ class AdfConfigTestRoutine(unittest.TestCase):
     #####
 
     def test_AdfConfig_read_config_unset_var(self):
+
+        """
+        Check that the "read_config_var"
+        method returns None when a
+        non-required variable is requested that
+        exists but hasn't been set to a value.
+        """
+
+        #Use unset var config file:
+        unset_example_file = os.path.join(_TEST_FILES_DIR, "config_cam_unset_var.yaml")
+
+        #Create AdfConfig object:
+        adf_test = AdfConfig(unset_example_file)
+
+        #Try to read non-existing variable:
+        conf_val = adf_test.read_config_var("bad_var")
+
+        #Check that provided value is "None":
+        self.assertEqual(conf_val, None)
+
+    #####
+
+    def test_AdfConfig_read_config_required_unset_var(self):
 
         """
         Check that the "read_config_var"
@@ -186,13 +233,13 @@ class AdfConfigTestRoutine(unittest.TestCase):
         adf_test = AdfConfig(unset_example_file)
 
         #Set error message:
-        ermsg = "Variable 'bad_var' has not been set to a value. Please see 'config_cam_baseline_example.yaml'."
+        ermsg = "Required variable 'bad_var' has not been set to a value. Please see 'config_cam_baseline_example.yaml'."
 
         #Expect a Value error:
         with self.assertRaises(ValueError) as err:
 
             #Try to read non-existing variable:
-            _ = adf_test.read_config_var("bad_var")
+            _ = adf_test.read_config_var("bad_var", required=True)
 
         #Check that error message matches what's expected:
         self.assertEqual(ermsg, str(err.exception))

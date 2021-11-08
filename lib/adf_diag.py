@@ -157,21 +157,22 @@ class AdfDiag(AdfConfig):
         super().__init__(config_file, debug=debug)
 
         #Add basic diagnostic info to object:
-        self.__basic_info = self.read_config_var('diag_basic_info')
+        self.__basic_info = self.read_config_var('diag_basic_info', required=True)
 
         #Expand basic info variable strings:
         self.expand_references(self.__basic_info)
 
         #Add CAM climatology info to object:
-        self.__cam_climo_info = self.read_config_var('diag_cam_climo')
+        self.__cam_climo_info = self.read_config_var('diag_cam_climo', required=True)
 
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
 
         #Check if a CAM vs CAM baseline comparison is being performed:
-        if not self.__basic_info['compare_obs']:
+        if not self.read_config_var('compare_obs', conf_dict=self.__basic_info):
             #If so, then add CAM baseline climatology info to object:
-            self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo')
+            self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
+                                                            required=True)
 
             #Expand CAM baseline climo info variable strings:
             self.expand_references(self.__cam_bl_climo_info)
@@ -189,7 +190,7 @@ class AdfDiag(AdfConfig):
         self.__plotting_scripts = self.read_config_var('plotting_scripts')
 
         #Add CAM variable list:
-        self.__diag_var_list = self.read_config_var('diag_var_list')
+        self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
 
         #Add CAM observation type list (filename prefix for observation files):
         self.__obs_type_list = self.read_config_var('obs_type_list')
@@ -203,13 +204,13 @@ class AdfDiag(AdfConfig):
     @property
     def compare_obs(self):
         """Return the "compare_obs" logical to user if requested."""
-        return self.__basic_info['compare_obs']
+        return self.read_config_var('compare_obs', conf_dict=self.__basic_info)
 
     # Create property needed to return "create_html" logical to user:
     @property
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
-        return self.__basic_info['create_html']
+        return self.read_config_var('create_html', conf_dict=self.__basic_info)
 
     #########
 
@@ -770,7 +771,9 @@ class AdfDiag(AdfConfig):
         if self.__plot_loc:
             plot_location = self.__plot_loc
         else:
-            plot_location  = self.__basic_info['cam_diag_plot_loc']
+            plot_location  = self.read_config_var('cam_diag_plot_loc',
+                                                  conf_dict=self.__basic_info,
+                                                  required=True)
         #End if
 
         #Extract needed variables from yaml file:
@@ -781,7 +784,9 @@ class AdfDiag(AdfConfig):
         if self.compare_obs:
             data_name = "obs"
         else:
-            data_name = self.__basic_info['cam_baseline_case_name']
+            data_name = self.read_config_var('cam_baseline_case_name',
+                                             conf_dict=self.__basic_info,
+                                             required=True)
         #End if
 
         #Set preferred order of seasons:
