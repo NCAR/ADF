@@ -157,21 +157,22 @@ class AdfDiag(AdfConfig):
         super().__init__(config_file, debug=debug)
 
         #Add basic diagnostic info to object:
-        self.__basic_info = self.read_config_var('diag_basic_info')
+        self.__basic_info = self.read_config_var('diag_basic_info', required=True)
 
         #Expand basic info variable strings:
         self.expand_references(self.__basic_info)
 
         #Add CAM climatology info to object:
-        self.__cam_climo_info = self.read_config_var('diag_cam_climo')
+        self.__cam_climo_info = self.read_config_var('diag_cam_climo', required=True)
 
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
 
         #Check if a CAM vs CAM baseline comparison is being performed:
-        if not self.__basic_info['compare_obs']:
+        if not self.read_config_var('compare_obs', conf_dict=self.__basic_info):
             #If so, then add CAM baseline climatology info to object:
-            self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo')
+            self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
+                                                            required=True)
 
             #Expand CAM baseline climo info variable strings:
             self.expand_references(self.__cam_bl_climo_info)
@@ -189,7 +190,7 @@ class AdfDiag(AdfConfig):
         self.__plotting_scripts = self.read_config_var('plotting_scripts')
 
         #Add CAM variable list:
-        self.__diag_var_list = self.read_config_var('diag_var_list')
+        self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
 
         #Add CAM observation type list (filename prefix for observation files):
         self.__obs_type_list = self.read_config_var('obs_type_list')
@@ -203,13 +204,13 @@ class AdfDiag(AdfConfig):
     @property
     def compare_obs(self):
         """Return the "compare_obs" logical to user if requested."""
-        return self.__basic_info['compare_obs']
+        return self.read_config_var('compare_obs', conf_dict=self.__basic_info)
 
     # Create property needed to return "create_html" logical to user:
     @property
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
-        return self.__basic_info['create_html']
+        return self.read_config_var('create_html', conf_dict=self.__basic_info)
 
     #########
 
@@ -364,17 +365,20 @@ class AdfDiag(AdfConfig):
             #Then use the CAM baseline climo dictionary
             #and case name:
             cam_climo_dict = self.__cam_bl_climo_info
-            case_name = self.__basic_info['cam_baseline_case_name']
         else:
             #If not, then just extract the standard CAM climo dictionary
             #and case name::
             cam_climo_dict = self.__cam_climo_info
-            case_name = self.__basic_info['cam_case_name']
+
+        #Extract case name:
+        case_name = self.read_config_var('cam_case_name',
+                                         conf_dict=cam_climo_dict,
+                                         required=True)
 
         #Check if climatologies are being calculated:
-        if cam_climo_dict['calc_cam_climo']:
+        if self.read_config_var('calc_cam_climo', conf_dict=cam_climo_dict):
             # Skip history file stuff if time series are pre-computed:
-            if ('cam_ts_done' in cam_climo_dict) and (cam_climo_dict['cam_ts_done']):
+            if self.read_config_var('cam_ts_done', conf_dict=cam_climo_dict):
                 # skip time series generation, and just make the climo
                 emsg = "  Configuration file indicates time series files have been pre-computed,"
                 emsg += " will rely on those files only."
@@ -419,7 +423,10 @@ class AdfDiag(AdfConfig):
             var_list = self.__diag_var_list
 
             #Create path object for the CAM history file(s) location:
-            starting_location = Path(cam_climo_dict['cam_hist_loc'])
+            cam_hist_loc = self.read_config_var('cam_hist_loc',
+                                                conf_dict=cam_climo_dict,
+                                                required=True)
+            starting_location = Path(cam_hist_loc)
 
             #Check that path actually exists:
             if not starting_location.is_dir():
@@ -513,17 +520,24 @@ class AdfDiag(AdfConfig):
             #If so, then use the CAM baseline climo dictionary
             #case name, and output location:
             cam_climo_dict = self.__cam_bl_climo_info
-            case_name  = self.__basic_info['cam_baseline_case_name']
-            output_loc = self.__basic_info['cam_baseline_climo_loc']
         else:
             #If not, then just extract the standard CAM climo dictionary
             #case name, and output location:
             cam_climo_dict = self.__cam_climo_info
-            case_name = self.__basic_info['cam_case_name']
-            output_loc = self.__basic_info['cam_climo_loc']
 
-        #Check if users wants climatologies to be calculated:
-        if cam_climo_dict['calc_cam_climo']:
+
+        #Check if user wants climatologies to be calculated:
+        if self.read_config_var('calc_cam_climo', conf_dict=cam_climo_dict):
+
+            #Extract case name:
+            case_name = self.read_config_var('cam_case_name',
+                                             conf_dict=cam_climo_dict,
+                                             required=True)
+
+            #Extract output location:
+            output_loc = self.read_config_var('cam_climo_loc',
+                                              conf_dict=cam_climo_dict,
+                                              required=True)
 
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts  # this is a list of script names
@@ -533,10 +547,25 @@ class AdfDiag(AdfConfig):
                                                             # args(list), kwargs(dict), and
                                                             # module(str)
 
+            if not avg_func_names:
+                emsg = "No time_averaging_scripts provided for calculating"
+                emsg += " climatologies, but climatologies were requested.\n"
+                emsg += "Please either provide a valid averaging script,"
+                emsg += " or skip the calculation of climatologies."
+                raise AdfError(emsg)
+
             #Extract necessary variables from configure dictionary:
-            input_ts_loc    = cam_climo_dict['cam_ts_loc']
-            overwrite_climo = cam_climo_dict['cam_overwrite_climo']
-            var_list        = self.__diag_var_list
+
+            #Location of time series files:
+            input_ts_loc = self.read_config_var('cam_ts_loc',
+                                                conf_dict=cam_climo_dict,
+                                                required=True)
+
+            #Will climatologies be overwritten (If not present, then will default to False):
+            overwrite_climo = self.read_config_var('cam_overwrite_climo', conf_dict=cam_climo_dict)
+
+            #Variable list:
+            var_list = self.__diag_var_list
 
             #Set default script arguments:
             avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
@@ -569,24 +598,6 @@ class AdfDiag(AdfConfig):
         nearest-neighbor regridding).
         """
 
-        #Check if comparison is being made to observations:
-        if self.compare_obs:
-            #Set regridding target to observations:
-            target_list = self.__obs_type_list
-            target_loc  = self.__basic_info['obs_climo_loc']
-        else:
-            #Assume a CAM vs. CAM comparison is being run,
-            #so set target to baseline climatologies:
-            target_list = [self.__basic_info['cam_baseline_case_name']]
-            target_loc  = self.__basic_info['cam_baseline_climo_loc']
-
-        #Extract remaining required info from configure dictionaries:
-        case_name        = self.__basic_info['cam_case_name']
-        input_climo_loc  = self.__basic_info['cam_climo_loc']
-        output_loc       = self.__basic_info['cam_regrid_loc']
-        overwrite_regrid = self.__basic_info['cam_overwrite_regrid']
-        var_list         = self.__diag_var_list
-
         #Extract names of re-gridding scripts:
         regrid_func_names = self.__regridding_scripts # this is a list of script names
                                                       # _OR_
@@ -594,11 +605,55 @@ class AdfDiag(AdfConfig):
                                                       # script names as keys that hold
                                                       # args(list), kwargs(dict), and module(str)
 
-        if all([func_names is None for func_names in regrid_func_names]):
+        if not regrid_func_names or all([func_names is None for func_names in regrid_func_names]):
             print("No regridding options provided, continue.")
             return
             # NOTE: if no regridding options provided, we should skip it, but
             #       do we need to still copy (symlink?) files into the regrid directory?
+
+
+        #Check if comparison is being made to observations:
+        if self.compare_obs:
+            #Set regridding target to observations:
+            target_list = self.__obs_type_list
+            target_loc  = self.read_config_var('obs_climo_loc',
+                                               conf_dict=self.__basic_info,
+                                               required=True)
+        else:
+            #Assume a CAM vs. CAM comparison is being run,
+            #so set target to baseline climatologies:
+            target_list = [self.read_config_var('cam_case_name',
+                                                conf_dict=self.__cam_bl_climo_info,
+                                                required=True)]
+
+            target_loc = self.read_config_var('cam_climo_loc',
+                                              conf_dict=self.__cam_bl_climo_info,
+                                              required=True)
+
+        #Extract remaining required info from configure dictionaries:
+
+        #Case name:
+        case_name = self.read_config_var('cam_case_name',
+                                         conf_dict=self.__cam_climo_info,
+                                         required=True)
+
+        #Case climo files:
+        input_climo_loc =  self.read_config_var('cam_climo_loc',
+                                         conf_dict=self.__cam_climo_info,
+                                         required=True)
+
+
+        #Regridded data output location:
+        output_loc =  self.read_config_var('cam_regrid_loc',
+                                         conf_dict=self.__basic_info,
+                                         required=True)
+
+        #Regrid overwrite check (if missing, then assume False):
+        overwrite_regrid = self.read_config_var('cam_overwrite_regrid',
+                                                conf_dict=self.__basic_info)
+
+        #Variable list:
+        var_list = self.__diag_var_list
 
 
         #Set default script arguments:
@@ -641,31 +696,55 @@ class AdfDiag(AdfConfig):
             #If so, then use the CAM baseline climo dictionary
             #case name, and output location:
             cam_climo_dict = self.__cam_bl_climo_info
-            case_name  = self.__basic_info['cam_baseline_case_name']
         else:
             #If not, then just extract the standard ADF climo dictionary
             #case name, and output location:
             cam_climo_dict = self.__cam_climo_info
-            case_name = self.__basic_info['cam_case_name']
-
 
         #Extract necessary variables from ADF configure dictionary:
-        input_ts_loc    = cam_climo_dict['cam_ts_loc']
-        write_html      = self.__basic_info['create_html']
-        var_list        = self.__diag_var_list
+
+        #case name:
+        case_name = self.read_config_var('cam_case_name',
+                                         conf_dict=cam_climo_dict,
+                                         required=True)
+
+        #Case time series location:
+        input_ts_loc = self.read_config_var('cam_ts_loc',
+                                            conf_dict=cam_climo_dict,
+                                            required=True)
+
+        #HTML-writing logical (assumed False if missing):
+        write_html = self.read_config_var('create_html',
+                                          conf_dict=self.__basic_info)
+
+        #Variable list:
+        var_list = self.__diag_var_list
 
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
-            data_name = self.__basic_info['cam_baseline_case_name']
+            data_name = self.read_config_var('cam_case_name',
+                                             conf_dict = self.__cam_bl_climo_info,
+                                             required=True)
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
         #Please note that this is also assumed to be the output location for the analyses scripts.
         if not self.__plot_loc:
-            plot_dir   = self.__basic_info['cam_diag_plot_loc']
-            syear = self.__cam_climo_info["start_year"]
-            eyear   = self.__cam_climo_info["end_year"]
+
+            #Plot directory:
+            plot_dir = self.read_config_var('cam_diag_plot_loc',
+                                            conf_dict = self.__basic_info,
+                                            required=True)
+
+            #Start year (not currently required):
+            syear = self.read_config_var('start_year',
+                                         conf_dict = self.__cam_climo_info)
+
+            #End year (not currently rquired):
+            eyear = self.read_config_var('end_year',
+                                         conf_dict = self.__cam_climo_info)
+
             if syear and eyear:
                 self.__plot_loc = os.path.join(plot_dir,
                                                f"{case_name}_vs_{data_name}_{syear}_{eyear}")
@@ -709,25 +788,57 @@ class AdfDiag(AdfConfig):
             return
 
         #Extract required input variables:
-        case_name       = self.__basic_info['cam_case_name']
-        model_rgrid_loc = self.__basic_info['cam_regrid_loc']
-        var_list        = self.__diag_var_list
+
+        #Case name:
+        case_name = self.read_config_var('cam_case_name',
+                                         conf_dict = self.__cam_climo_info,
+                                         required=True)
+
+        #Regridded model data:
+        model_rgrid_loc = self.read_config_var('cam_regrid_loc',
+                                               conf_dict = self.__basic_info,
+                                               required=True)
+
+        #Variable list:
+        var_list = self.__diag_var_list
 
         #Set "data" variables, which depend on "compare_obs":
         if self.compare_obs:
+
             data_name = "obs"
-            data_loc  = self.__basic_info['obs_climo_loc']
+
+            data_loc = self.read_config_var('obs_climo_loc',
+                                            conf_dict = self.__basic_info,
+                                            required=True)
+
             data_list = self.__obs_type_list
+
         else:
-            data_name = self.__basic_info['cam_baseline_case_name']
-            data_loc  = self.__basic_info['cam_baseline_climo_loc']
+
+            data_name = self.read_config_var('cam_case_name',
+                                             conf_dict = self.__cam_bl_climo_info,
+                                             required=True)
+
+            data_loc = self.read_config_var('cam_climo_loc',
+                                            conf_dict = self.__cam_bl_climo_info,
+                                            required=True)
+
             data_list = [data_name]
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
         if not self.__plot_loc:
-            plot_dir   = self.__basic_info['cam_diag_plot_loc']
-            syear = self.__cam_climo_info["start_year"]
-            eyear   = self.__cam_climo_info["end_year"]
+            plot_dir = self.read_config_var('cam_diag_plot_loc',
+                                            conf_dict=self.__basic_info,
+                                            required=True)
+
+            #Start year (not currently required):
+            syear = self.read_config_var('start_year',
+                                         conf_dict = self.__cam_climo_info)
+
+            #End year (not currently rquired):
+            eyear = self.read_config_var('end_year',
+                                         conf_dict = self.__cam_climo_info)
+
             if syear and eyear:
                 self.__plot_loc = os.path.join(plot_dir,
                                                f"{case_name}_vs_{data_name}_{syear}_{eyear}")
@@ -770,18 +881,25 @@ class AdfDiag(AdfConfig):
         if self.__plot_loc:
             plot_location = self.__plot_loc
         else:
-            plot_location  = self.__basic_info['cam_diag_plot_loc']
+            plot_location  = self.read_config_var('cam_diag_plot_loc',
+                                                  conf_dict=self.__basic_info,
+                                                  required=True)
         #End if
 
         #Extract needed variables from yaml file:
-        case_name = self.__basic_info['cam_case_name']
+        case_name = self.read_config_var('cam_case_name',
+                                         conf_dict=self.__cam_climo_info,
+                                         required=True)
+
         var_list = self.__diag_var_list
 
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
-            data_name = self.__basic_info['cam_baseline_case_name']
+            data_name = self.read_config_var('cam_case_name',
+                                             conf_dict=self.__cam_bl_climo_info,
+                                             required=True)
         #End if
 
         #Set preferred order of seasons:

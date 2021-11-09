@@ -220,6 +220,10 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     and so can potentially be sped-up via the use of a DASK cluster.
     """
 
+    #Temporary print statement to notify users to ignore warning messages.
+    #This should be replaced by a debug-log stdout filter at some point:
+    print("Please ignore the interpolation warnings that follow!")
+
     #Apply GeoCAT hybrid->pressure interpolation:
     if new_levels is not None:
         data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,
@@ -234,7 +238,6 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
                                                                     hybm,
                                                                     p0=P0
                                                                    )
-
 
     #Rename vertical dimension back to "lev" in order to work with
     #the ADF plotting functions:
@@ -370,7 +373,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         else:
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
             cmap1 = None
-        diffnorm = normfunc(vmin=np.min(diff), vcenter=0.0, vmax=np.max(diff))
+        diffnorm = normfunc(vmin=min(np.min(diff),-1*np.max(diff)), vcenter=0.0, vmax=np.max(diff))
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True)
         img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1)
         img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1)

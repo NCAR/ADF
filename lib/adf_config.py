@@ -251,7 +251,7 @@ class AdfConfig(AdfBase):
 
     #########
 
-    def read_config_var(self, varname, conf_dict=None):
+    def read_config_var(self, varname, conf_dict=None, required=False):
 
         """
         Checks if variable/list/dictionary exists in
@@ -270,16 +270,22 @@ class AdfConfig(AdfBase):
 
         #Check that variable name exists in dictionary:
         if varname not in var_dict.keys():
-            emsg = f"Variable '{varname}' not found in config file."
-            emsg +=" Please see 'config_cam_baseline_example.yaml'."
-            raise KeyError(emsg)
+            #If variable is required, then throw an error:
+            if required:
+                emsg = f"Required variable '{varname}' not found in config file."
+                emsg +=" Please see 'config_cam_baseline_example.yaml'."
+                raise KeyError(emsg)
+
+            #If not, then just return None:
+            return None
 
         #Extract variable from dictionary:
         var = var_dict[varname]
 
-        #Check that configure variable is not empty (None):
-        if var is None:
-            emsg = f"Variable '{varname}' has not been set to a value."
+        #If variable is required, then check that
+        #configure variable is not empty (None):
+        if required and var is None:
+            emsg = f"Required variable '{varname}' has not been set to a value."
             emsg += " Please see 'config_cam_baseline_example.yaml'."
             raise ValueError(emsg)
 

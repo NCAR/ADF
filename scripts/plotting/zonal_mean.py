@@ -150,9 +150,9 @@ def zonal_mean(case_name, model_rgrid_loc, data_name, data_loc,
             #
 
             #Create new dictionaries:
-            mseasons = dict()
-            oseasons = dict()
-            dseasons = dict() # hold the differences
+            mseasons = {}
+            oseasons = {}
+            dseasons = {} # hold the differences
 
             #Loop over season dictionary:
             for s in seasons:
