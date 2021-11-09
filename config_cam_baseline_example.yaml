@@ -5,12 +5,13 @@
 #for doing comparisons of a CAM run against
 #another CAM run, or a CAM baseline simulation.
 
-#Currently, if one is on NCAR's Casper
-#machine, then only the CAM model data
-#paths, case names, and model year spans
-#are needed.  Running this diagnostics on
-#a different machine, or with a different model,
-#may require additional modifications.
+#Currently, if one is on NCAR's Casper or
+#Cheyenne machine, then only the diagnostic output
+#paths are needed, at least to perform a quick test
+#run (these are indicated with "MUST EDIT" comments).
+#Running these diagnostics on a different machine,
+#or with a different, non-example simulation, will
+#require additional modifications.
 #
 #Config file Keywords:
 #--------------------
@@ -23,6 +24,9 @@
 #
 #    will set "cam_climo_loc" in the diagnostics package to:
 #    /some/where/cool_run
+#
+#    Please note that currently this will only work if the
+#    variable only exists in one location in the file.
 #
 #2.  Using ${<top_level_section>.xxx} will do the same as
 #    keyword 1 above, but specifies which sub-section the
@@ -38,7 +42,7 @@
 #    will set "cam_climo_loc" in the diagnostics package to:
 #    /some/where/1850
 #
-#Please note that for both 1 and 2 the keywords must be lowercase.
+#Finally, please note that for both 1 and 2 the keywords must be lowercase.
 #This is because future developments will hopefully use other keywords
 #that are uppercase. Also please avoid using periods (".") in variable
 #names, as this will likely cause issues with the current file parsing
