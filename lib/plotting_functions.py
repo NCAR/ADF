@@ -373,7 +373,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         else:
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
             cmap1 = None
-        diffnorm = normfunc(vmin=np.min(diff), vcenter=0.0, vmax=np.max(diff))
+        diffnorm = normfunc(vmin=min(np.min(diff),-1*np.max(diff)), vcenter=0.0, vmax=np.max(diff))
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True)
         img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1)
         img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1)
