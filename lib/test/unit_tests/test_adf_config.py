@@ -55,9 +55,9 @@ class AdfConfigTestRoutine(unittest.TestCase):
         #Also check that "read_config_var" works as expected:
         basic_diag_dict = adf_test.read_config_var("diag_basic_info")
 
-        cam_case_name_val = adf_test.read_config_var("cam_case_name", conf_dict=basic_diag_dict)
+        cam_case_name_val = adf_test.read_config_var("cam_regrid_loc", conf_dict=basic_diag_dict)
 
-        self.assertEqual(cam_case_name_val, "new_best.came-run")
+        self.assertEqual(cam_case_name_val, "/some/where/you/want/to/have/regridded_files")
 
     #####
 
