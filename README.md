@@ -38,7 +38,7 @@ If you are using conda on a non-CISL machine, then you can create and activate t
 
 ```
 conda env create -f env/conda_environment.yaml
-conda activate camdiag
+conda activate adf_v0.07
 ```
 
 Finally, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines, this can be loaded by simply running `module load nco` on the command line.
