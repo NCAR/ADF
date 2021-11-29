@@ -1,6 +1,4 @@
-def regrid_example(case_name, input_climo_loc, output_loc,
-                   var_list, target_list, target_loc,
-                   overwrite_regrid):
+def regrid_example(adf):
 
     """
     This is an example function showing how to set-up a
@@ -8,7 +6,7 @@ def regrid_example(case_name, input_climo_loc, output_loc,
     so that they are on the same grid as observations or
     baseline climatologies.
 
-    Description of function inputs:
+    Description of needed inputs from ADF:
 
     case_name        -> Name of CAM case provided by "cam_case_name"
     input_climo_loc  -> Location of CAM climo files provided by "cam_climo_loc"
@@ -38,6 +36,31 @@ def regrid_example(case_name, input_climo_loc, output_loc,
     #Notify user that script has started:
     print("  Regridding CAM climatologies...")
 
+    #Extract needed quantities from ADF object:
+    #-----------------------------------------
+    overwrite_regrid = adf.get_basic_info("cam_overwrite_regrid", required=True)
+    output_loc = adf.get_basic_info("cam_regrid_loc", required=True)
+    var_list = adf.diag_var_list
+
+    #CAM simulation variables:
+    case_name = adf.get_cam_info("cam_case_name", required=True)
+    input_climo_loc = adf.get_cam_info("cam_climo_loc", required=True)
+
+    #Regrid target variables (either obs or a baseline run):
+    if adf.get_basic_info("compare_obs"):
+
+        #Extract observation-derived variables:
+        target_loc  = adf.get_basic_info("obs_climo_loc", required=True)
+        target_list = adf.obs_type_list
+
+    else:
+
+        #Extract model baseline variables:
+        target_loc = adf.get_baseline_info("cam_climo_loc", required=True)
+        target_list = [adf.get_baseline_info("cam_case_name", required=True)]
+
+    #-----------------------------------------
+
     #Set input/output data path variables:
     #------------------------------------
     mclimo_loc  = Path(input_climo_loc)
@@ -58,8 +81,10 @@ def regrid_example(case_name, input_climo_loc, output_loc,
 
         #loop over regridding targets:
         for target in target_list:
-            # print(f"DEBUG: target = {target}") #TODO: add to debug log.
-            #Determine regridded variable file name:
+            #Write to debug log if enabled:
+            adf.debug_log(f"regrid_example: regrid target = {target}")
+
+           #Determine regridded variable file name:
             regridded_file_loc = rgclimo_loc / '{}_{}_{}_regridded.nc'.format(target, case_name, var)
 
             #Check if re-gridded file already exists and over-writing is allowed:
@@ -73,7 +98,9 @@ def regrid_example(case_name, input_climo_loc, output_loc,
                 #Create list of regridding target files (we should explore intake as an alternative to having this kind of repeated code)
                 # NOTE: This breaks if you have files from different cases in same directory!
                 tclim_fils = sorted(list(tclimo_loc.glob("{}*_{}_*.nc".format(target, var))))
-                # print(f"DEBUG: tclim_fils (n={len(tclim_fils)}): {tclim_fils}") # TODO: add to debug log
+
+                #Write to debug log if enabled:
+                adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
 
                 if len(tclim_fils) > 1:
                     #Combine all target files together into a single data set:

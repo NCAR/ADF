@@ -29,10 +29,10 @@ If one wants to generate the "AMWG" model variable statistics table as well, the
 - Scipy
 - Pandas
 
-On NCAR's CISL machines (cheyenne and casper), these can be loaded by running the following on the command line 
+On NCAR's CISL machines (cheyenne and casper), these can be loaded by running the following on the command line
 ```
 module load python/3.7.12
-ncar_pylib 
+ncar_pylib
 ```
 If you are using conda on a non-CISL machine, then you can create and activate the appropriate python enviroment using the `env/conda_environment.yaml` file like so:
 

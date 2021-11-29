@@ -15,6 +15,7 @@ import sys
 import os
 import os.path
 import glob
+import ast
 import subprocess
 import importlib
 
@@ -61,6 +62,7 @@ except ImportError:
     print("Cartopy module does not exist in python path.")
     print("Please install module, e.g. 'pip install Cartopy'.")
     sys.exit(1)
+
 # pylint: enable=unused-import
 
 #+++++++++++++++++++++++++++++
@@ -90,6 +92,7 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 
 #Finally, import needed ADF modules:
 from adf_config import AdfConfig
+from adf_base   import AdfError
 
 #################
 #Helper functions
@@ -168,9 +171,15 @@ class AdfDiag(AdfConfig):
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
 
-        #Check if a CAM vs CAM baseline comparison is being performed:
-        if not self.read_config_var('compare_obs', conf_dict=self.__basic_info):
-            #If so, then add CAM baseline climatology info to object:
+        #Check if a CAM vs AMWG obs comparison is being performed:
+        if self.read_config_var('compare_obs', conf_dict=self.__basic_info):
+
+            #Finally, set the baseline info to None, to ensure any scripts
+            #that check this variable won't crash:
+            self.__cam_bl_climo_info = None
+
+        else:
+            #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
                                                             required=True)
 
@@ -193,12 +202,12 @@ class AdfDiag(AdfConfig):
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
 
         #Add CAM observation type list (filename prefix for observation files):
-        self.__obs_type_list = self.read_config_var('obs_type_list')
+        self.obs_type_list = self.read_config_var('obs_type_list')
 
         #Create plot location variable for potential use by the website generator.
         #Please note that this variable is only set if "create_plots" or
         #is called:
-        self.__plot_loc = ""
+        self.__plot_location = ""
 
     # Create property needed to return "compare_obs" logical to user:
     @property
@@ -212,10 +221,78 @@ class AdfDiag(AdfConfig):
         """Return the "create_html" logical to user if requested."""
         return self.read_config_var('create_html', conf_dict=self.__basic_info)
 
+    # Create property needed to return "diag_var_list" list to user:
+    @property
+    def diag_var_list(self):
+        """Return the "diag_var_list"  list to user if requested."""
+        return self.__diag_var_list
+
+    # Create property needed to return "plot_location" variable to user:
+    @property
+    def plot_location(self):
+        """Return the '__plot_location' string to user if requested."""
+        return self.__plot_location
+
+    #########
+    #Variable extraction functions
+    #########
+
+    def get_basic_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_basic_info' as requested by
+        the user.  This function assumes that if the user is requesting it,
+        then it must be required.
+        """
+
+        return self.read_config_var(var_str,
+                                    conf_dict=self.__basic_info,
+                                    required=required)
+
+    #########
+
+    def get_cam_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_cam_climo' as requested by
+        the user.  This function assumes that if the user is requesting it,
+        then it must be required.
+        """
+
+        return self.read_config_var(var_str,
+                                    conf_dict=self.__cam_climo_info,
+                                    required=required)
+
+    #########
+
+    def get_baseline_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_cam_baseline_climo' as requested by
+        the user.  This function assumes that if the user is requesting it,
+        then it must be required.
+        """
+
+        #Check if the cam baseline dictionary exists:
+        if not self.__cam_bl_climo_info:
+            #If required, then throw an error:
+            if required:
+                emsg = "get_baseline_info: Requested variable cannot be found"
+                emsg += " because no baseline info exists.\n"
+                emsg += "This is likely because an observational comparison is being done,"
+                emsg += " so try adding 'required = False' to the get call."
+                raise AdfError(emsg)
+
+            #If not required, then return none:
+            return None
+
+        #If basline dictionary exists, then search for variable like normal:
+        return self.read_config_var(var_str,
+                                    conf_dict=self.__cam_bl_climo_info,
+                                    required=required)
+
+    #########
+    #Script-running functions
     #########
 
     def __diag_scripts_caller(self, scripts_dir: str, func_names: list,
-                              default_args: Optional[list] = None,
                               default_kwargs: Optional[dict] = None,
                               log_section: Optional[str] = None):
 
@@ -225,13 +302,10 @@ class AdfDiag(AdfConfig):
 
         scripts_dir    : string, sub-directory under "scripts" where scripts are located
         func_names     : list of function/scripts (either string or dictionary):
-        default_args   : optional list of default arguments for the scripts if
-                         none are specified by the config file
         default_kwargs : optional list of default keyword arguments for the scripts if
                          none are specified by the config file
         log_section    : optional variable that specifies where the log entries are coming from.
                          Note:  Is it better to just make a child log instead?
-
         """
 
         #Loop over all averaging script names:
@@ -241,7 +315,7 @@ class AdfDiag(AdfConfig):
             #this implies that the function has user-defined inputs:
             if isinstance(func_name, dict):
                 emsg = "Function dictionary must be of the form: "
-                emsg += "{function_name : {args:[...], kwargs:{...}, module:'xxxx'}}"
+                emsg += "{function_name : {kwargs:{...}, module:'xxxx'}}"
                 assert len(func_name) == 1, emsg
                 has_opt = True
                 opt = func_name[list(func_name.keys())[0]]  # un-nests the dictionary
@@ -261,7 +335,7 @@ class AdfDiag(AdfConfig):
             func_script_path = \
                 os.path.join(os.path.join(_DIAG_SCRIPTS_PATH, scripts_dir), func_script)
 
-            #Check that file exists in specified directory:
+           #Check that file exists in specified directory:
             if not os.path.exists(func_script_path):
                 emsg = f"Script file '{func_script_path}' is missing. Diagnostics are ending here."
                 self.end_diag_fail(emsg)
@@ -282,37 +356,24 @@ class AdfDiag(AdfConfig):
             #       this path-checking stuff should be removed and dealt with on the package-level.
 
             # Arguments; check if user has specified custom arguments
-            func_args   = default_args
             func_kwargs = default_kwargs
             if has_opt:
-                if 'args' in opt:
-                    # RULES: it has to be a list of strings,
-                    #        and then we will take whatever of those are in locals
-                    assert isinstance(opt['args'], list), "Function arguments must be of type list."
-                    emsg = "Function argument list elements must be of type string."
-                    assert all(isinstance(item, str) for item in opt['args']), emsg
-                    func_args = list()  # start over
-                    for variable_to_check in opt['args']:
-                        if variable_to_check in locals():
-                            func_args.append(locals()[variable_to_check])
-                        else:
-                            print("{} is not available".format(variable_to_check))
                 if 'kwargs' in opt:
                     func_kwargs = opt['kwargs']
 
             #Add function calls debug log if requested:
             if log_section:
                 dmsg = f"{log_section}: \n \t func_name = {func_name}\n "
-                dmsg += f"\t func_args = {func_args}\n \t func_kwargs = {func_kwargs}"
+                dmsg += f"\t func_kwargs = {func_kwargs}"
                 self.debug_log(dmsg)
             else:
                 dmsg = f"diag_scripts_caller: \n \t func_name = {func_name}\n "
-                dmsg += f"\t func_args = {func_args}\n \t func_kwargs = {func_kwargs}"
+                dmsg += f"\t func_kwargs = {func_kwargs}"
                 self.debug_log(dmsg)
 
 
             #Call function
-            self.__function_caller(func_name, func_args,
+            self.__function_caller(func_name,
                                    func_kwargs=func_kwargs,
                                    module_name=func_name)
 
@@ -320,34 +381,36 @@ class AdfDiag(AdfConfig):
 
     # pylint: disable=no-self-use
 
-    def __function_caller(self, func_name: str, func_args: list,
+    def __function_caller(self, func_name: str,
                           func_kwargs: Optional[dict] = None, module_name=None):
 
         """
         Call a function with given arguments.
 
         func_name : string, name of the function to call
-        func_args : list, the arguments to pass to the function
         func_kwargs : [optional] dict, the keyword arguments to pass to the function
         module_name : [optional] string, the name of the module where func_name is defined;
                       if not provided, assume func_name.py
 
-        return : the output of func_name(*func_args, **func_kwargs)
+        return : the output of func_name(self, **func_kwargs)
         """
 
         if module_name is None:
             module_name = func_name #+'.py'
 
         # note: when we use importlib, specify the module name without the ".py" extension.
-        module = importlib.import_module(func_name)
+        module = importlib.import_module(module_name)
         if hasattr(module, func_name) and callable(getattr(module, func_name)):
             func = getattr(module, func_name)
+        else:
+            emsg = f"Function '{func_name}' cannot be found in module '{module_name}.py'."
+            raise AdfError(emsg)
 
         #Run function and return result:
         if func_kwargs:
-            return func(*func_args, **func_kwargs)
+            return func(self, **func_kwargs)
         else:
-            return func(*func_args)
+            return func(self)
         #End if
 
     # pylint: enable=no-self-use
@@ -501,7 +564,7 @@ class AdfDiag(AdfConfig):
 
     #########
 
-    def create_climo(self, baseline=False):
+    def create_climo(self):
 
         """
         Temporally average CAM time series data
@@ -515,29 +578,10 @@ class AdfDiag(AdfConfig):
         non-weighted averaging).
         """
 
-        #Check if CAM Baselines are being calculated:
-        if baseline:
-            #If so, then use the CAM baseline climo dictionary
-            #case name, and output location:
-            cam_climo_dict = self.__cam_bl_climo_info
-        else:
-            #If not, then just extract the standard CAM climo dictionary
-            #case name, and output location:
-            cam_climo_dict = self.__cam_climo_info
+        #Check if a user wants any climatologies to be calculated:
+        if self.get_cam_info('calc_cam_climo') or \
+           self.get_baseline_info('calc_cam_climo'):
 
-
-        #Check if user wants climatologies to be calculated:
-        if self.read_config_var('calc_cam_climo', conf_dict=cam_climo_dict):
-
-            #Extract case name:
-            case_name = self.read_config_var('cam_case_name',
-                                             conf_dict=cam_climo_dict,
-                                             required=True)
-
-            #Extract output location:
-            output_loc = self.read_config_var('cam_climo_loc',
-                                              conf_dict=cam_climo_dict,
-                                              required=True)
 
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts  # this is a list of script names
@@ -554,27 +598,8 @@ class AdfDiag(AdfConfig):
                 emsg += " or skip the calculation of climatologies."
                 raise AdfError(emsg)
 
-            #Extract necessary variables from configure dictionary:
-
-            #Location of time series files:
-            input_ts_loc = self.read_config_var('cam_ts_loc',
-                                                conf_dict=cam_climo_dict,
-                                                required=True)
-
-            #Will climatologies be overwritten (If not present, then will default to False):
-            overwrite_climo = self.read_config_var('cam_overwrite_climo', conf_dict=cam_climo_dict)
-
-            #Variable list:
-            var_list = self.__diag_var_list
-
-            #Set default script arguments:
-            avg_func_args = [case_name, input_ts_loc, output_loc, var_list]
-            avg_func_kwargs = {"clobber":overwrite_climo}
-
             #Run the listed scripts:
             self.__diag_scripts_caller("averaging", avg_func_names,
-                                       default_args = avg_func_args,
-                                       default_kwargs = avg_func_kwargs,
                                        log_section = "create_climo")
 
         else:
@@ -603,7 +628,7 @@ class AdfDiag(AdfConfig):
                                                       # _OR_
                                                       # a **list** of dictionaries with
                                                       # script names as keys that hold
-                                                      # args(list), kwargs(dict), and module(str)
+                                                      # kwargs(dict) and module(str)
 
         if not regrid_func_names or all([func_names is None for func_names in regrid_func_names]):
             print("No regridding options provided, continue.")
@@ -611,65 +636,13 @@ class AdfDiag(AdfConfig):
             # NOTE: if no regridding options provided, we should skip it, but
             #       do we need to still copy (symlink?) files into the regrid directory?
 
-
-        #Check if comparison is being made to observations:
-        if self.compare_obs:
-            #Set regridding target to observations:
-            target_list = self.__obs_type_list
-            target_loc  = self.read_config_var('obs_climo_loc',
-                                               conf_dict=self.__basic_info,
-                                               required=True)
-        else:
-            #Assume a CAM vs. CAM comparison is being run,
-            #so set target to baseline climatologies:
-            target_list = [self.read_config_var('cam_case_name',
-                                                conf_dict=self.__cam_bl_climo_info,
-                                                required=True)]
-
-            target_loc = self.read_config_var('cam_climo_loc',
-                                              conf_dict=self.__cam_bl_climo_info,
-                                              required=True)
-
-        #Extract remaining required info from configure dictionaries:
-
-        #Case name:
-        case_name = self.read_config_var('cam_case_name',
-                                         conf_dict=self.__cam_climo_info,
-                                         required=True)
-
-        #Case climo files:
-        input_climo_loc =  self.read_config_var('cam_climo_loc',
-                                         conf_dict=self.__cam_climo_info,
-                                         required=True)
-
-
-        #Regridded data output location:
-        output_loc =  self.read_config_var('cam_regrid_loc',
-                                         conf_dict=self.__basic_info,
-                                         required=True)
-
-        #Regrid overwrite check (if missing, then assume False):
-        overwrite_regrid = self.read_config_var('cam_overwrite_regrid',
-                                                conf_dict=self.__basic_info)
-
-        #Variable list:
-        var_list = self.__diag_var_list
-
-
-        #Set default script arguments:
-        regrid_func_args = [case_name, input_climo_loc,
-                            output_loc, var_list,
-                            target_list, target_loc,
-                            overwrite_regrid]
-
         #Run the listed scripts:
         self.__diag_scripts_caller("regridding", regrid_func_names,
-                                   default_args = regrid_func_args,
                                    log_section = "regrid_climo")
 
     #########
 
-    def perform_analyses(self, baseline=False):
+    def perform_analyses(self):
 
         """
         Performs statistical and other analyses as specified by the
@@ -691,72 +664,36 @@ class AdfDiag(AdfConfig):
             print("Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
             return
 
-        #Check if CAM Baselines are being calculated:
-        if baseline:
-            #If so, then use the CAM baseline climo dictionary
-            #case name, and output location:
-            cam_climo_dict = self.__cam_bl_climo_info
-        else:
-            #If not, then just extract the standard ADF climo dictionary
-            #case name, and output location:
-            cam_climo_dict = self.__cam_climo_info
-
-        #Extract necessary variables from ADF configure dictionary:
-
-        #case name:
-        case_name = self.read_config_var('cam_case_name',
-                                         conf_dict=cam_climo_dict,
-                                         required=True)
-
-        #Case time series location:
-        input_ts_loc = self.read_config_var('cam_ts_loc',
-                                            conf_dict=cam_climo_dict,
-                                            required=True)
-
-        #HTML-writing logical (assumed False if missing):
-        write_html = self.read_config_var('create_html',
-                                          conf_dict=self.__basic_info)
-
-        #Variable list:
-        var_list = self.__diag_var_list
-
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
-            data_name = self.read_config_var('cam_case_name',
-                                             conf_dict = self.__cam_bl_climo_info,
-                                             required=True)
+            data_name = self.get_baseline_info('cam_case_name', required=True)
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
         #Please note that this is also assumed to be the output location for the analyses scripts.
-        if not self.__plot_loc:
+        if not self.__plot_location:
 
             #Plot directory:
-            plot_dir = self.read_config_var('cam_diag_plot_loc',
-                                            conf_dict = self.__basic_info,
-                                            required=True)
+            plot_dir = self.get_basic_info('cam_diag_plot_loc', required=True)
+
+            #Case name:
+            case_name = self.get_cam_info('cam_case_name', required=True)
 
             #Start year (not currently required):
-            syear = self.read_config_var('start_year',
-                                         conf_dict = self.__cam_climo_info)
+            syear = self.get_cam_info('start_year')
 
             #End year (not currently rquired):
-            eyear = self.read_config_var('end_year',
-                                         conf_dict = self.__cam_climo_info)
+            eyear = self.get_cam_info('end_year')
 
             if syear and eyear:
-                self.__plot_loc = os.path.join(plot_dir,
+                self.__plot_location = os.path.join(plot_dir,
                                                f"{case_name}_vs_{data_name}_{syear}_{eyear}")
             else:
-                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
-
-        #Set default script arguments:
-        anly_func_args = [case_name, input_ts_loc, self.__plot_loc, var_list, write_html]
+                self.__plot_location = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
 
         #Run the listed scripts:
         self.__diag_scripts_caller("analysis", anly_func_names,
-                                   default_args = anly_func_args,
                                    log_section = "perform_analyses")
 
     #########
@@ -787,71 +724,35 @@ class AdfDiag(AdfConfig):
             print("Nothing listed under 'plotting_scripts', so no plots will be made.")
             return
 
-        #Extract required input variables:
-
-        #Case name:
-        case_name = self.read_config_var('cam_case_name',
-                                         conf_dict = self.__cam_climo_info,
-                                         required=True)
-
-        #Regridded model data:
-        model_rgrid_loc = self.read_config_var('cam_regrid_loc',
-                                               conf_dict = self.__basic_info,
-                                               required=True)
-
-        #Variable list:
-        var_list = self.__diag_var_list
-
-        #Set "data" variables, which depend on "compare_obs":
+        #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
-
             data_name = "obs"
-
-            data_loc = self.read_config_var('obs_climo_loc',
-                                            conf_dict = self.__basic_info,
-                                            required=True)
-
-            data_list = self.__obs_type_list
-
         else:
-
-            data_name = self.read_config_var('cam_case_name',
-                                             conf_dict = self.__cam_bl_climo_info,
-                                             required=True)
-
-            data_loc = self.read_config_var('cam_climo_loc',
-                                            conf_dict = self.__cam_bl_climo_info,
-                                            required=True)
-
-            data_list = [data_name]
+            data_name = self.get_baseline_info('cam_case_name', required=True)
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
-        if not self.__plot_loc:
-            plot_dir = self.read_config_var('cam_diag_plot_loc',
-                                            conf_dict=self.__basic_info,
-                                            required=True)
+        if not self.__plot_location:
+
+            #Plot directory:
+            plot_dir = self.get_basic_info('cam_diag_plot_loc', required=True)
+
+            #Case name:
+            case_name = self.get_cam_info('cam_case_name', required=True)
 
             #Start year (not currently required):
-            syear = self.read_config_var('start_year',
-                                         conf_dict = self.__cam_climo_info)
+            syear = self.get_cam_info('start_year')
 
             #End year (not currently rquired):
-            eyear = self.read_config_var('end_year',
-                                         conf_dict = self.__cam_climo_info)
+            eyear = self.get_cam_info_('end_year')
 
             if syear and eyear:
-                self.__plot_loc = os.path.join(plot_dir,
+                self.__plot_loction = os.path.join(plot_dir,
                                                f"{case_name}_vs_{data_name}_{syear}_{eyear}")
             else:
-                self.__plot_loc = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
-
-        #Set default script arguments:
-        plot_func_args = [case_name, model_rgrid_loc, data_name, data_loc,
-                          var_list, data_list, self.__plot_loc]
+                self.__plot_loction = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
 
         #Run the listed scripts:
         self.__diag_scripts_caller("plotting", plot_func_names,
-                                   default_args = plot_func_args,
                                    log_section = "create_plots")
 
     #########
@@ -878,8 +779,8 @@ class AdfDiag(AdfConfig):
         print("  Generating Diagnostics webpages...")
 
         #Check where the relevant plots are located:
-        if self.__plot_loc:
-            plot_location = self.__plot_loc
+        if self.__plot_location:
+            plot_location = self.__plot_location
         else:
             plot_location  = self.read_config_var('cam_diag_plot_loc',
                                                   conf_dict=self.__basic_info,
