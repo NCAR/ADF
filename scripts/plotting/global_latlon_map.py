@@ -1,5 +1,4 @@
-def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
-                 var_list, data_list, plot_location):
+def global_latlon_map(adf):
 
     """
     This script/function is designed to generate global
@@ -47,6 +46,35 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
 
     #Notify user that script has started:
     print("  Generating lat/lon maps...")
+
+    #Extract needed quantities from ADF object:
+    #-----------------------------------------
+    var_list = adf.diag_var_list
+    model_rgrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
+
+    #Special ADF variable which contains the output path for
+    #all generated plots and tables:
+    plot_location = adf.plot_location
+
+
+    #CAM simulation variables:
+    case_name = adf.get_cam_info("cam_case_name", required=True)
+
+    if adf.get_basic_info("compare_obs"):
+
+        #Extract observation-derived variables:
+        data_name = "obs"
+        data_loc  = adf.get_basic_info("obs_climo_loc", required=True)
+        data_list = adf.obs_type_list
+
+    else:
+
+        #Extract model baseline variables:
+        data_name = adf.get_baseline_info("cam_case_name", required=True)
+        data_loc  = adf.get_baseline_info("cam_climo_loc", required=True)
+        data_list = [data_name]
+
+    #-----------------------------------------
 
     #Set input/output data path variables:
     #------------------------------------
