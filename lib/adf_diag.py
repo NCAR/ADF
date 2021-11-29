@@ -15,7 +15,6 @@ import sys
 import os
 import os.path
 import glob
-import ast
 import subprocess
 import importlib
 
@@ -746,10 +745,10 @@ class AdfDiag(AdfConfig):
             eyear = self.get_cam_info_('end_year')
 
             if syear and eyear:
-                self.__plot_loction = os.path.join(plot_dir,
+                self.__plot_location = os.path.join(plot_dir,
                                                f"{case_name}_vs_{data_name}_{syear}_{eyear}")
             else:
-                self.__plot_loction = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
+                self.__plot_location = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
 
         #Run the listed scripts:
         self.__diag_scripts_caller("plotting", plot_func_names,
