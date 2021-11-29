@@ -12,6 +12,7 @@ dependencies:
   - dask=2021.09.1
   - matplotlib=3.4.3
   - pandas=1.3.3
+  - netcdf4=1.5.7
   - geocat-comp
   - python=3.9
 prefix: /glade/u/home/brianpm/miniconda3/envs/adf_v0.07
