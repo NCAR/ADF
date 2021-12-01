@@ -1,5 +1,5 @@
 def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
-                 var_list, data_list, plot_location):
+                 var_list, data_list, plot_location, opt=None):
 
     """
     This script/function is designed to generate global
@@ -25,6 +25,10 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
                         "compare_obs" is false.
     plot_location    -> Location where plot files will be written to, which is
                         specified by "cam_diag_plot_loc".
+
+    opt              -> optional, 
+                        if dict : that has keys that are variable names and values that are plotting preferences/defaults. 
+                        if str  : path to a YAML file that conforms to the dict option.
     """
 
     #Import necessary modules:
@@ -44,6 +48,17 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
     # - calculate all-time and seasonal fields (from individual months)
     # - Take difference, calculate statistics
     # - make plot
+
+    # CHECK WHETHER PLOT OPTIONS ARE PROVIDED:
+    # --> change to using `res` as the name (like in NCL)
+    if opt is not None:
+        if isinstance(opt, str):
+            import yaml
+            with open(opt, 'r') as file:
+                res = yaml.safe_load(file)
+        elif isinstance(opt, dict):
+            res = opt
+
 
     #Notify user that script has started:
     print("  Generating lat/lon maps...")
