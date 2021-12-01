@@ -19,6 +19,7 @@ body:
         - New regridding method or regridding enhancement
         - New climatology method or climatology enhancement
         - New infrastructure or infrastructure enhancement
+        - Other (please explain below)
     validations:
       required: true
   - type: textarea

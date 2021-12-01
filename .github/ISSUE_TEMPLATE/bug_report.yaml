@@ -31,7 +31,7 @@ body:
     id: adf-hash
     attributes:
       label: ADF Hash you are using
-      #description: Type "git log --oneline -1" and copy the first set of letters/numbers here
+      description: Type "git log --oneline -1" and copy the first set of letters/numbers here
       placeholder: ex. 1a2b3c
     validations:
       required: true
