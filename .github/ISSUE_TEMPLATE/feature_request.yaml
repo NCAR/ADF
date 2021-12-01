@@ -1,6 +1,6 @@
 name: Feature Request
 description: File a request for a new feature
-title: ""
+title: "Put feature request title here!"
 labels: ["enhancement"]
 body:
   - type: markdown
@@ -29,7 +29,7 @@ body:
       placeholder: ex. We can solve everything by ...
     validations:
       required: true
- - type: dropdown
+  - type: dropdown
     id: assistance
     attributes:
       label: Assistance required?

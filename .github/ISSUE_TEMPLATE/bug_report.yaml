@@ -1,6 +1,6 @@
 name: Bug Report
 description: File a bug report
-title: "[Bug]: "
+title: "Put bug title here!"
 labels: ["bug"]
 body:
   - type: markdown
@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for taking the time to fill out this bug report!
   - type: dropdown
-    id: ADF run-type
+    id: adf-run-type
     attributes:
       label:  ADF run type
       description: Model vs. Model or Model vs Obs?
@@ -27,11 +27,11 @@ body:
       value: "A bug happened!"
     validations:
       required: true
- - type: input
-    id: ADF Hash
+  - type: input
+    id: adf-hash
     attributes:
       label: ADF Hash you are using
-      description: Type "git log --oneline -1" and copy the first set of letters/numbers here
+      #description: Type "git log --oneline -1" and copy the first set of letters/numbers here
       placeholder: ex. 1a2b3c
     validations:
       required: true
