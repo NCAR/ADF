@@ -1,0 +1,51 @@
+name: Feature Request
+description: File a request for a new feature
+title: ""
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for requesting a new feature!
+  - type: dropdown
+    id: new-feature-type
+    attributes:
+      label:  New feature type
+      description: What type of feature is this?
+      multiple: true
+      options:
+        - New plot and/or plot enhancement
+        - New table and/or analytic calculation
+        - New regridding method or regridding enhancement
+        - New climatology method or climatology enhancement
+        - New infrastructure or infrastructure enhancement
+    validations:
+      required: true
+  - type: textarea
+    id: new-feature
+    attributes:
+      label: What is this new feature?
+      description: Please describe this new feature
+      placeholder: ex. We can solve everything by ...
+    validations:
+      required: true
+ - type: dropdown
+    id: assistance
+    attributes:
+      label: Assistance required?
+      description: Will you need help implementing this feature?
+      multiple: false
+      options:
+        - No, I will make a PR when the feature is ready
+        - Yes, I will need some assistance before making a PR
+        - Yes, I am requesting a new feature but won't have time to develop it
+    validations:
+      required: true
+  - type: textarea
+    id: extra-info
+    attributes:
+      label: Extra info
+      description: Please provide any additional information here that you think might be relevant
+      placeholder: ex. This new feature requires GPUs
+    validations:
+      required: false
