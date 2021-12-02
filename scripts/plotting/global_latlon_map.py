@@ -49,8 +49,39 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
     # - Take difference, calculate statistics
     # - make plot
 
+
+    #
+    # Replace old arguments with new ADF api
+    #
+    var_list = adfobj.read_config_var("diag_var_list")
+    basic_info_dict = adfobj.read_config_var("diag_basic_info")
+    plot_location = basic_info_dict["cam_diag_plot_loc"]
+    compare_obs = basic_info_dict["compare_obs"]
+
+    case_info_dict = adfobj.read_config_var("diag_cam_climo")
+    case_name = case_info_dict["cam_case_name"]
+    model_rgrid_loc = case_info_dict["cam_regrid_loc"]
+
+   # CAUTION: 
+   # "data" here refers to either obs or a baseline simulation, 
+   # Until those are both treated the same (via intake-esm or similar)
+   # we will do a simple check and switch options as needed:
+    if compare_obs: 
+        data_name = "obs"  # does not get used, is just here as a placemarker
+        data_list = adfobj.read_config_var("obs_type_list")  # Double caution!
+        data_loc = basic_info_dict['obs_climo_loc']
+
+    else:
+        data_info_dict = adfobj.read_config_var("diag_cam_baseline_climo") 
+        data_name = data_info_dict["cam_case_name"] # does not get used, is just here as a placemarker
+        data_list = data_name # gets used as just the name to search for climo files
+        data_loc = data_info_dict["cam_ts_loc"]
+
+
     # CHECK WHETHER PLOT OPTIONS ARE PROVIDED:
-    # --> change to using `res` as the name (like in NCL)
+    # --> change to using `res` as the name, but that is just a style choice
+    # --> Eventually "opt" will be another attribute of adfobj, something like:
+    #     res = adfobj.read_config_var("adf_variable_defaults")
     if opt is not None:
         if isinstance(opt, str):
             import yaml
@@ -58,6 +89,8 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
                 res = yaml.safe_load(file)
         elif isinstance(opt, dict):
             res = opt
+    else:
+        res = dict()  # empty dict so we don't have to check if it exists. 
 
 
     #Notify user that script has started:
@@ -158,9 +191,15 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
                         #Remove old plot, if it already exists:
                         if plot_name.is_file():
                             plot_name.unlink()
+                        
+                        # Determine if there are defaults provided for the plot:
+                        if var in res:
+                            # do we know here what are the allowed options? 
+                            # OR should we just pass res inot plot_map_and_save ? 
+                            pass
 
                         #Create new plot:
-                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s])
+                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **res)
 
                 else: #mdata dimensions check
                     print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))

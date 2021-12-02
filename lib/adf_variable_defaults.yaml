@@ -1,0 +1,11 @@
+PSL:
+  colormap: "Oranges"
+  contour_levels: (980, 1052, 4)
+  diff_colormap: "PuOr_r"
+  diff_contour_levels: (-15, 15, 1)
+
+PS:
+  colormap: "Oranges"
+  contour_levels: (980, 1052, 4)  
+  diff_colormap: "PuOr_r"
+  diff_contour_levels: (-15, 15, 1)

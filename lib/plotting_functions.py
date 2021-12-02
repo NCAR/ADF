@@ -90,7 +90,23 @@ def wgt_rmse(fld1, fld2, wgt):
 #######
 
 def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
-    """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps."""
+    """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
+    
+    
+    If kwargs is provided, these values are used:
+    - colormap -> str, name of matplotlib colormap
+    - contour_levels -> list of explict values or a tuple: (min, max, step)
+    - diff_colormap
+    - diff_contour_levels
+    - tiString -> str, Title String 
+    - tiFontSize -> int, Title Font Size
+
+    When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range. 
+
+    ANY OTHER ENTRIES IN kwargs WILL BE PASSED TO MATPLOTLIB... if they are not valid, it will produce an error.
+
+    
+    """
     # preprocess
     # - assume all three fields have same lat/lon
     lat = obsfld['lat']
@@ -132,14 +148,30 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
         cmap1 = 'coolwarm'
 
-    if 'cnLevels' in kwargs:
+    if 'contour_levels' in kwargs:
         levels1 = kwargs.pop(cnLevels)
+        if not isinstance(levels1, list):
+            assert len(levels1) == 3
+            levels1 = np.arange(*levels1)
     else:
         levels1 = np.linspace(minval, maxval, 12)
-    # set a symmetric color bar for diff:
-    absmaxdif = np.max(np.abs(diffld))
-    # set levels for difference plot:
-    levelsd = np.linspace(-1*absmaxdif, absmaxdif, 12)
+
+    # Difference options -- Check in kwargs for colormap and levels
+    if "diff_colormap" in kwargs:
+        cmap2 = kwargs.pop("diff_colormap")
+    else:
+        cmap2 = 'coolwarm'
+    
+    if "diff_contour_levels" in kwargs:
+        levelsd = kwargs.pop("diff_contour_levels")
+        if not isinstance(levelsd, list):
+            assert len(levelsd) == 3
+            levelsd = np.arange(*levels1)
+    else:
+        # set a symmetric color bar for diff:
+        absmaxdif = np.max(np.abs(diffld))
+        # set levels for difference plot:
+        levelsd = np.linspace(-1*absmaxdif, absmaxdif, 12)
 
     fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()})
     img = [] # contour plots
@@ -147,6 +179,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     cb = []  # color bars
 
     for i, a in enumerate(wrap_fields):
+
         if i == len(wrap_fields)-1:
             levels = levelsd #Using 'levels=12' casued len() error in mpl. -JN
             #Only use "vcenter" if "matplotlib" version is greater than 2:
@@ -154,7 +187,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                 norm = normfunc(vmin=-1*absmaxdif, vcenter=0., vmax=absmaxdif)
             else:
                 norm = normfunc(vmin=-1*absmaxdif, vmax=absmaxdif)
-            cmap = 'coolwarm'
+            cmap = cmap2
         else:
             levels = levels1
             cmap = cmap1
