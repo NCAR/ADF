@@ -1,5 +1,4 @@
-def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
-                 var_list, data_list, plot_location, opt=None):
+def global_latlon_map(adfobj):
 
     """
     This script/function is designed to generate global
@@ -51,9 +50,13 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
 
 
     #
-    # Replace old arguments with new ADF api
+    # Use ADF api to get all necessary information
     #
+    print(50*"*")
+    print(adfobj)
+    print(50*"*")
     var_list = adfobj.read_config_var("diag_var_list")
+    print(f"VAR LIST FOR MAPS: {var_list}")
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_location = basic_info_dict["cam_diag_plot_loc"]
     compare_obs = basic_info_dict["compare_obs"]
@@ -74,24 +77,17 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
     else:
         data_info_dict = adfobj.read_config_var("diag_cam_baseline_climo") 
         data_name = data_info_dict["cam_case_name"] # does not get used, is just here as a placemarker
-        data_list = data_name # gets used as just the name to search for climo files
-        data_loc = data_info_dict["cam_ts_loc"]
+        data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
+        data_loc = data_info_dict["cam_climo_loc"]
 
+    res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
+    # or an empty dictionary if use_defaults was not specified in YAML. 
 
-    # CHECK WHETHER PLOT OPTIONS ARE PROVIDED:
-    # --> change to using `res` as the name, but that is just a style choice
-    # --> Eventually "opt" will be another attribute of adfobj, something like:
-    #     res = adfobj.read_config_var("adf_variable_defaults")
-    if opt is not None:
-        if isinstance(opt, str):
-            import yaml
-            with open(opt, 'r') as file:
-                res = yaml.safe_load(file)
-        elif isinstance(opt, dict):
-            res = opt
-    else:
-        res = dict()  # empty dict so we don't have to check if it exists. 
-
+    #Set plot file type:
+    # -- this should be set in basic_info_dict, but is not required
+    # -- So check for it, and default to png
+    plot_type = basic_info_dict.get('plot_type', 'png')
+    print(f"NOTE: Plot type is set to {plot_type}")
 
     #Notify user that script has started:
     print("  Generating lat/lon maps...")
@@ -102,16 +98,17 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
     mclimo_rg_loc = Path(model_rgrid_loc)
     plot_loc      = Path(plot_location)
     #-----------------------------------
+    print(dclimo_loc)
+    print(mclimo_rg_loc)
+    print(50*"*")
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
                "DJF": [12, 1, 2],
                "JJA": [6, 7, 8],
                "MAM": [3, 4, 5],
-               "SON": [9, 10, 11]}
-
-    #Set plot file type:
-    plot_type = 'png'
+               "SON": [9, 10, 11]
+               }
 
     #Check if plot output directory exists, and if not, then create it:
     if not plot_loc.is_dir():
@@ -191,14 +188,14 @@ def global_latlon_map(case_name, model_rgrid_loc, data_name, data_loc,
                         #Remove old plot, if it already exists:
                         if plot_name.is_file():
                             plot_name.unlink()
-                        
-                        # Determine if there are defaults provided for the plot:
-                        if var in res:
-                            # do we know here what are the allowed options? 
-                            # OR should we just pass res inot plot_map_and_save ? 
-                            pass
 
                         #Create new plot:
+                        # NOTE: send res as kwarg dictionary.
+                        # This relies on `plot_map_and_save` knowing how to deal with the options
+                        # currently knows how to handle: 
+                        #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
+                        #   *Any other entries will be ignored.
+                        # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
                         pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **res)
 
                 else: #mdata dimensions check

@@ -200,6 +200,27 @@ class AdfDiag(AdfConfig):
         #is called:
         self.__plot_loc = ""
 
+        # Check whether user wants to use defaults:
+        if self.read_config_var('use_defaults', conf_dict=self.__basic_info):
+            # Determine whether to use adf defaults or custom:
+            defaults_file = self.read_config_var('custom_defaults', conf_dict=self.__basic_info)
+            if defaults_file is None:
+                defaults_file = Path(_LOCAL_PATH)/'adf_variable_defaults.yaml'
+            #Open YAML file:
+            with open(defaults_file, encoding='UTF-8') as nfil:
+                self.variable_defaults = yaml.load(nfil, Loader=yaml.SafeLoader)
+        else:
+            self.variable_defaults = {}
+
+
+    @property
+    def use_defaults(self):
+        ud = self.read_config_var('use_defaults', conf_dict=self.__basic_info)
+        if ud is None:
+            return False
+        else:
+            return ud
+
     # Create property needed to return "compare_obs" logical to user:
     @property
     def compare_obs(self):

@@ -100,12 +100,23 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     - diff_contour_levels
     - tiString -> str, Title String 
     - tiFontSize -> int, Title Font Size
+    - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
+        + Organize these by the mpl function. In this function (`plot_map_and_save`)
+          we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
+          ```
+           mpl:
+             subplots: 
+               figsize: (3, 9)
+             contourf:
+               levels: 15
+               cmap: Blues
+             colorbar:
+               shrink: 0.4
+          ```
+        + This is experimental, and if you find yourself doing much with this, you probably should write a new plotting script that does not rely on this module.
+
 
     When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range. 
-
-    ANY OTHER ENTRIES IN kwargs WILL BE PASSED TO MATPLOTLIB... if they are not valid, it will produce an error.
-
-    
     """
     # preprocess
     # - assume all three fields have same lat/lon
@@ -173,7 +184,15 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         # set levels for difference plot:
         levelsd = np.linspace(-1*absmaxdif, absmaxdif, 12)
 
-    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()})
+    # extract any MPL kwargs that should be passed on:
+    if 'mpl' in kwargs:
+        subplots_opt = kwargs['mpl'].get('subplots')
+        contourf_opt = kwargs['mpl'].get('contourf')
+        colorbar_opt = kwargs['mpl'].get('colorbar')
+    else:
+        subplots_opt = contourf_opt = colorbar_opt = {}
+
+    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()}, **subplots_opt)
     img = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
@@ -193,10 +212,11 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             cmap = cmap1
             norm = norm1
 
-        img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **kwargs))
-        cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8))
+        img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
+        cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
         # add contour lines <- Unused for now -JN
+        # TODO: add an option to turn this on -BM
         #cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))
         #ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
         #ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
@@ -212,6 +232,8 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
         a.tick_params('both', length=10, width=2, which='major')
         a.tick_params('both', length=5, width=1, which='minor')
+
+    # Write final figure to file    
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
     #Close plots:
