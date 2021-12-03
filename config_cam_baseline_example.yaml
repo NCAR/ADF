@@ -136,6 +136,31 @@ diag_cam_climo:
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /some/where/you/want/to/have/time_series_files/ #MUST EDIT!
 
+    #----------------------
+
+    #You can alternatively provide a list of cases, which will make the ADF
+    #apply the same diagnostics to each case separately in a single ADF session.
+    #All of the config variables below show how it is done.
+    #Please note that config keywords cannot currently be used in list mode.
+
+    #cam_case_name:
+    #    - b.e20.BHIST.f09_g17.20thC.297_05
+    #    - b1850.f19_g17.validation_mct.004
+
+    #cam_hist_loc:
+    #    - /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05
+    #    - /glade/p/cesm/ADF/b1850.f19_g17.validation_mct.004
+
+    #start_year:
+    #    - 1990
+    #    - 90
+
+    #end_year:
+    #    - 1999
+    #    - 99
+
+    #----------------------
+
 
 #This third set of variables provide info for the CAM baseline climatologies.
 #This only matters if "compare_obs" is false:

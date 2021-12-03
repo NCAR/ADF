@@ -76,8 +76,8 @@ class AdfConfig(AdfBase):
         dictionary for use in global key/value searches.
 
         Please note that PyYAML doesn't allow for multiple
-        variables in the same dictionary, so no need to check
-        here.
+        variables with the same name in the same dictionary,
+        so no need to check here.
         """
 
         #Create empty dictionary:
