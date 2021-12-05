@@ -1,0 +1,70 @@
+name: Bug Report
+description: File a bug report
+title: "Put bug title here!"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: dropdown
+    id: adf-run-type
+    attributes:
+      label:  ADF run type
+      description: Model vs. Model or Model vs Obs?
+      multiple: false
+      options:
+        - Model vs. Model
+        - Model vs. Obs
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+      value: "A bug happened!"
+    validations:
+      required: true
+  - type: input
+    id: adf-hash
+    attributes:
+      label: ADF Hash you are using
+      description: Type "git log --oneline -1" and copy the first set of letters/numbers here
+      placeholder: ex. 1a2b3c
+    validations:
+      required: true
+  - type: dropdown
+    id: machine
+    attributes:
+      label: What machine were you running the ADF on?
+      multiple: true
+      options:
+        - CISL machine
+        - CGD machine
+        - Personal Computer
+        - Other (please explain below)
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: What python environment were you using?
+      multiple: true
+      options:
+        - NPL (CISL machines only)
+        - ADF-provided Conda env
+        - ADF-provided developmental Conda env
+        - Personl Conda env
+        - Other (please explain below)
+    validations:
+      required: true
+  - type: textarea
+    id: extra-info
+    attributes:
+      label: Extra info
+      description: Please provide any additional information here that you think might be relevant
+      placeholder: ex. I am running ADF on the Cloud.  A very dark and ominous cloud.
+    validations:
+      required: false

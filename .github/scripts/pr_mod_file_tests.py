@@ -166,7 +166,7 @@ def _main_prog():
     #++++++++++++++++++++
 
     #Official CAM repo:
-    cam_repo = ghub.get_repo("NCAR/CAM_diagnostics")
+    cam_repo = ghub.get_repo("NCAR/ADF")
 
     #++++++++++++++++++++++++++++++++++++++++++
     #Open Pull Request which triggered workflow

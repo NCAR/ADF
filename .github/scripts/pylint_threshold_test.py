@@ -90,7 +90,7 @@ def pylint_check(pyfile_list, rcfile, threshold=10.0):
                                 reporter=pylint_report, do_exit=False)
 
         #Extract linter score:
-        lint_score = lint_results.linter.stats['global_note']
+        lint_score = lint_results.linter.stats.global_note
 
         #Save pylint output as string:
         lint_msg = pylint_output.getvalue()

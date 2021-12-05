@@ -6,14 +6,14 @@ script: run_adf_diag
 goal:  To allow a user to easily run the CAM diagnostics package from
        the command line.
 
-Inputs:  The CAM diagnostics config file (in YAML format).  If the file is
+Inputs:  The ADF diagnostics config file (in YAML format).  If the file is
          located in a different directory then the system path must also be
          included.
 
 Any problems or issues with this script should be posted on the
-DiscussCESM CAM forum located online here:
+ADF Github Discussions page located online here:
 
-https://xenforo.cgd.ucar.edu/cesm/forums/cam.133/
+https://github.com/NCAR/ADF/discussions
 
 Please note that registration may be required before a message can
 be posted.  However, feel free to search the forums for similar issues
@@ -70,7 +70,7 @@ def parse_arguments():
     """
 
     #Create parser object:
-    parser = argparse.ArgumentParser(description='Command-line wrapper to run the CAM diagnostics package.')
+    parser = argparse.ArgumentParser(description='Command-line wrapper to run the ADF diagnostics package.')
 
     #Add input arguments to be parsed:
     #--------------------------------
@@ -91,7 +91,7 @@ def parse_arguments():
     #Parse Argument inputs
     args = parser.parse_args()
 
-    #If no onfig file argument is present, then throw an error:
+    #If no config file argument is present, then throw an error:
     if (not args.configure_file) and (not args.config_file):
         emsg = "No Config file found, please run 'run_diag <DIAG_YAML_FILE>'.\n"
         emsg +="Where <DIAG_YAML_FILE> is the name of the yaml file used to configure"
@@ -145,7 +145,8 @@ if __name__ == "__main__":
     #Initalize CAM diagnostics object:
     diag = AdfDiag(config_yaml, debug=config_debug)
 
-    #Create model time series:
+    #Create model time series.
+    #Please note that this is an internal ADF function:
     diag.create_time_series()
 
     #Create model baseline time series (if needed):
@@ -153,31 +154,28 @@ if __name__ == "__main__":
         diag.create_time_series(baseline=True)
 
     #Create model climatology (climo) files.
-    #This call uses the "time_averaging_script" specified
+    #This call uses the "time_averaging_scripts" specified
     #in the config file:
     diag.create_climo()
 
-    #Create model baseline climatology files (if needed).
-    #This call uses the "time_averaging_script" specified
-    #in the config file:
-    if not diag.compare_obs:
-        diag.create_climo(baseline=True)
-
     #Regrid model climatology files to match either
-    #observations or CAM baseline climatologies:
+    #observations or CAM baseline climatologies.
+    #This call uses the "regridding_scripts" specified
+    #in the config file:
     diag.regrid_climo()
 
-    #Perform analyses:
+    #Perform analyses on the simulation(s).
+    #This call uses the "analysis_scripts" specified in the
+    #config file:
     diag.perform_analyses()
 
-    #If baseline is present, then peform analyses on it as well:
-    if not diag.compare_obs:
-        diag.perform_analyses(baseline=True)
-
-    #Create plots:
+    #Create plots.
+    #This call uses the "plotting_scripts" specified
+    #in the config file:
     diag.create_plots()
 
-    #Create website:
+    #Create website.
+    #Please note that this is an internal ADF function:
     if diag.create_html:
         diag.create_website()
 
