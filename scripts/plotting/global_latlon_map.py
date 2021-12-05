@@ -52,11 +52,7 @@ def global_latlon_map(adfobj):
     #
     # Use ADF api to get all necessary information
     #
-    print(50*"*")
-    print(adfobj)
-    print(50*"*")
     var_list = adfobj.read_config_var("diag_var_list")
-    print(f"VAR LIST FOR MAPS: {var_list}")
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_location = basic_info_dict["cam_diag_plot_loc"]
     compare_obs = basic_info_dict["compare_obs"]
@@ -98,9 +94,6 @@ def global_latlon_map(adfobj):
     mclimo_rg_loc = Path(model_rgrid_loc)
     plot_loc      = Path(plot_location)
     #-----------------------------------
-    print(dclimo_loc)
-    print(mclimo_rg_loc)
-    print(50*"*")
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
@@ -120,6 +113,13 @@ def global_latlon_map(adfobj):
 
         #Notify user of variable being plotted:
         print("\t \u231B lat/lon maps for {}".format(var))
+
+
+        # Check res for any variable specific options that need to be used BEFORE going to the plot:
+        if var in res:
+            vres = res[var]
+        else:
+            vres = {}            
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
@@ -149,6 +149,14 @@ def global_latlon_map(adfobj):
             #Extract variable of interest
             odata = oclim_ds[var].squeeze()  # squeeze in case of degenerate dimensions
             mdata = mclim_ds[var].squeeze()
+
+            # APPLY UNITS TRANSFORMATION IF SPECIFIED:
+            odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+            mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+            # update units 
+            # NOTE: looks like our climo files don't have all their metadata
+            odata.attrs['units'] = vres.get("new_units", odata.attrs.get('units', 'none'))            
+            mdata.attrs['units'] = vres.get("new_units", mdata.attrs.get('units', 'none'))            
 
             #Determine dimensions of variable:
             has_dims = pf.lat_lon_validate_dims(odata)
@@ -190,13 +198,14 @@ def global_latlon_map(adfobj):
                             plot_name.unlink()
 
                         #Create new plot:
-                        # NOTE: send res as kwarg dictionary.
+                        # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
                         # This relies on `plot_map_and_save` knowing how to deal with the options
                         # currently knows how to handle: 
                         #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                         #   *Any other entries will be ignored.
                         # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **res)
+
+                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
 
                 else: #mdata dimensions check
                     print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))

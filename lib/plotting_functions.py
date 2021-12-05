@@ -93,7 +93,8 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
     
     
-    If kwargs is provided, these values are used:
+    kwargs -> optional dictionary of plotting options 
+             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.** 
     - colormap -> str, name of matplotlib colormap
     - contour_levels -> list of explict values or a tuple: (min, max, step)
     - diff_colormap
@@ -148,41 +149,59 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     else:
         tiFontSize = 8
 
-    # We want to make sure mdlfld and obsfld are on the same contours:
+    # Get data limits, which might be needed:
     minval = np.min([np.min(mdlfld), np.min(obsfld)])
     maxval = np.max([np.max(mdlfld), np.max(obsfld)])
+
+    # determine norm to use (deprecate this once minimum MPL version is high enough)
     normfunc, mplv = use_this_norm()
-    if ((minval < 0) and (0 < maxval)) and mplv > 2:
-        norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
-        cmap1 = 'coolwarm'
+
+    if 'colormap' in kwargs:
+        cmap1 = kwargs['colormap']
     else:
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
         cmap1 = 'coolwarm'
 
     if 'contour_levels' in kwargs:
-        levels1 = kwargs.pop(cnLevels)
-        if not isinstance(levels1, list):
-            assert len(levels1) == 3
-            levels1 = np.arange(*levels1)
+        levels1 = kwargs['contour_levels']
+        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+    elif 'contour_levels_range' in kwargs:
+        assert len(kwargs['contour_levels_range']) == 3
+        levels1 = np.arange(*kwargs['contour_levels_range'])
+        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
-        levels1 = np.linspace(minval, maxval, 12)
+        levels1 = np.linspace(minval, maxval, 12)   
+        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+
+
+    if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
+        if ((minval < 0) and (0 < maxval)) and mplv > 2:
+            norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
+        else:
+            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
 
     # Difference options -- Check in kwargs for colormap and levels
     if "diff_colormap" in kwargs:
-        cmap2 = kwargs.pop("diff_colormap")
+        cmapdiff = kwargs["diff_colormap"]
     else:
-        cmap2 = 'coolwarm'
+        cmapdiff = 'coolwarm'
     
     if "diff_contour_levels" in kwargs:
-        levelsd = kwargs.pop("diff_contour_levels")
-        if not isinstance(levelsd, list):
-            assert len(levelsd) == 3
-            levelsd = np.arange(*levels1)
+        levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
+    elif "diff_contour_range" in kwargs:
+            assert len(kwargs['diff_contour_range']) == 3  # start, stop, step
+            levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
         absmaxdif = np.max(np.abs(diffld))
         # set levels for difference plot:
-        levelsd = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+
+    # color normalization for difference
+    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
+        normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
+    else:
+        normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
+    
 
     # extract any MPL kwargs that should be passed on:
     if 'mpl' in kwargs:
@@ -200,13 +219,9 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     for i, a in enumerate(wrap_fields):
 
         if i == len(wrap_fields)-1:
-            levels = levelsd #Using 'levels=12' casued len() error in mpl. -JN
-            #Only use "vcenter" if "matplotlib" version is greater than 2:
-            if(mplv > 2):
-                norm = normfunc(vmin=-1*absmaxdif, vcenter=0., vmax=absmaxdif)
-            else:
-                norm = normfunc(vmin=-1*absmaxdif, vmax=absmaxdif)
-            cmap = cmap2
+            levels = levelsdiff #Using 'levels=12' casued len() error in mpl. -JN
+            cmap = cmapdiff
+            norm = normdiff
         else:
             levels = levels1
             cmap = cmap1
