@@ -1,7 +1,7 @@
 PSL:
   colormap: "Oranges"
   contour_levels_range: [980, 1052, 4]
-  diff_colormap: "PuOr_r"
+   diff_colormap: "PuOr_r"
   diff_contour_range: [-15, 15, 1]
   scale_factor: 0.01
   add_offset: 0
@@ -9,7 +9,8 @@ PSL:
 
 PS:
   colormap: "Oranges"
-  contour_levels_range: [980, 1052, 4]  
+  # contour_levels_range: [980, 1052, 4]  
+  contour_levels: [600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020]
   diff_colormap: "PuOr_r"
   diff_contour_range: [-15, 15, 1]
   scale_factor: 0.01

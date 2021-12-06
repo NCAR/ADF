@@ -165,7 +165,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         levels1 = kwargs['contour_levels']
         norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     elif 'contour_levels_range' in kwargs:
-        assert len(kwargs['contour_levels_range']) == 3
+        assert len(kwargs['contour_levels_range']) == 3, "contour_levels_range must have exactly three entries: min, max, step"
         levels1 = np.arange(*kwargs['contour_levels_range'])
         norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
@@ -188,7 +188,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     if "diff_contour_levels" in kwargs:
         levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
     elif "diff_contour_range" in kwargs:
-            assert len(kwargs['diff_contour_range']) == 3  # start, stop, step
+            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"  
             levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
@@ -219,7 +219,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     for i, a in enumerate(wrap_fields):
 
         if i == len(wrap_fields)-1:
-            levels = levelsdiff #Using 'levels=12' casued len() error in mpl. -JN
+            levels = levelsdiff
             cmap = cmapdiff
             norm = normdiff
         else:

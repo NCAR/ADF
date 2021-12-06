@@ -223,11 +223,8 @@ class AdfDiag(AdfConfig):
 
     @property
     def use_defaults(self):
-        ud = self.read_config_var('use_defaults', conf_dict=self.__basic_info)
-        if ud is None:
-            return False
-        else:
-            return ud
+        return self.read_config_var('use_defaults', conf_dict=self.__basic_info)
+        
 
     # Create property needed to return "compare_obs" logical to user:
     @property

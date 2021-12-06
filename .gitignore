@@ -1,5 +1,3 @@
-# Ignore compiled python
-*.pyc
 
 # Ignore editor temporaries and backups
 *~
@@ -7,7 +5,7 @@
 \#*#
 *.swp
 
-# Igore all the other stuff:
+# Ignore non-source python files:
 __pycache__
 *.py[cod]
 *$py.class
@@ -70,7 +68,6 @@ __pypackages__/
 # Environment
 .env
 .venv
-env/
 venv/
 ENV/
 
