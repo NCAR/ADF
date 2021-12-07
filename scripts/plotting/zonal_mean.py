@@ -43,6 +43,7 @@ def zonal_mean(adfobj):
         transformed to pressure levels.
     """
 
+    #Notify user that script has started:
     print("  Generating zonal mean plots...")
 
     #Extract needed quantities from ADF object:
@@ -83,9 +84,6 @@ def zonal_mean(adfobj):
 
     #-----------------------------------------
 
-    #Notify user that script has started:
-    print("  Generating lat/lon maps...")
-
     #Set input/output data path variables:
     #------------------------------------
     dclimo_loc    = Path(data_loc)
@@ -99,9 +97,6 @@ def zonal_mean(adfobj):
                "JJA": [6, 7, 8],
                "MAM": [3, 4, 5],
                "SON": [9, 10, 11]}
-
-    #Set plot file type:
-    plot_type = 'png'
 
     #Check if plot output directory exists, and if not, then create it:
     if not plot_loc.is_dir():
