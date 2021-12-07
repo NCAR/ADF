@@ -82,7 +82,7 @@ diag_basic_info:
     #Use default variable plot settings?
     #If "true", then variable-specific plotting attributes as defined in
     #ADF/lib/adf_variable_defaults.yaml will be used:
-    use_defaults: false
+    use_defaults: true
 
     #Location of ADF variable plotting defaults YAML file
     #if not using the one in ADF/lib:
