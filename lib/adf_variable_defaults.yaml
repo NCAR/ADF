@@ -24,6 +24,9 @@ PRECC:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm/d"
+  mpl:
+    colorbar:
+      label : "mm/d"
 
 TGCLDLWP:
   colormap: "Blues"
