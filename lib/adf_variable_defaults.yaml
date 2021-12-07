@@ -6,15 +6,21 @@ PSL:
   scale_factor: 0.01
   add_offset: 0
   new_unit: "hPa"
+  mpl:
+    colorbar:
+      label : "hPa"
 
 PS:
   colormap: "Oranges"
-  contour_levels: [600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020]
+  contour_levels: [500,600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020,1050]
   diff_colormap: "PuOr_r"
-  diff_contour_range: [-15, 15, 1]
+  diff_contour_range: [-9, 9, 0.5]
   scale_factor: 0.01
   add_offset: 0
   new_unit: "hPa"
+  mpl:
+    colorbar:
+      label : "hPa"
 
 PRECC:
   colormap: "Greens"
@@ -24,6 +30,21 @@ PRECC:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm/d"
+  mpl:
+    colorbar:
+      label : "mm/d"
+
+PRECT:
+  colormap: "Greens"
+  contour_levels_range: [0, 20, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 86400000
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
 
 TGCLDLWP:
   colormap: "Blues"
@@ -32,7 +53,10 @@ TGCLDLWP:
   diff_contour_range: [-100, 100, 10]
   scale_factor: 1000
   add_offset: 0
-  new_unit: "g/m2"
+  new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
 
 TGCLDIWP:
   colormap: "Blues"
@@ -41,5 +65,49 @@ TGCLDIWP:
   diff_contour_range: [-50, 50, 5]
   scale_factor: 1000
   add_offset: 0
-  new_unit: "g/m2"
+  new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
 
+CLDTOT:
+  colormap: "Oranges"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 2]
+  scale_factor: 100
+  add_offset: 0
+  new_unit: "Percent"
+
+CLOUD:
+  colormap: "Blues"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 2]
+  scale_factor: 100
+  add_offset: 0
+  new_unit: "Percent"
+
+SWCF:
+  colormap: "Blues"
+  contour_levels_range: [-150, 50, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+
+LWCF:
+  colormap: "Blues"
+  contour_levels_range: [-10, 100, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"

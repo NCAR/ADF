@@ -202,14 +202,15 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     else:
         normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
     
+    subplots_opt = {}
+    contourf_opt = {}
+    colorbar_opt = {}
 
     # extract any MPL kwargs that should be passed on:
     if 'mpl' in kwargs:
-        subplots_opt = kwargs['mpl'].get('subplots')
-        contourf_opt = kwargs['mpl'].get('contourf')
-        colorbar_opt = kwargs['mpl'].get('colorbar')
-    else:
-        subplots_opt = contourf_opt = colorbar_opt = {}
+        subplots_opt.update(kwargs['mpl'].get('subplots',{}))
+        contourf_opt.update(kwargs['mpl'].get('contourf',{}))
+        colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
     fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()}, **subplots_opt)
     img = [] # contour plots
