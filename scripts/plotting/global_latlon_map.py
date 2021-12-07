@@ -24,8 +24,8 @@ def global_latlon_map(adfobj):
     plot_location    -> Location where plot files will be written to, which is
                         specified by "cam_diag_plot_loc".
 
-    opt              -> optional, 
-                        if dict : that has keys that are variable names and values that are plotting preferences/defaults. 
+    opt              -> optional,
+                        if dict : that has keys that are variable names and values that are plotting preferences/defaults.
                         if str  : path to a YAML file that conforms to the dict option.
     """
 
@@ -47,73 +47,45 @@ def global_latlon_map(adfobj):
     # - Take difference, calculate statistics
     # - make plot
 
+    #Notify user that script has started:
+    print("  Generating lat/lon maps...")
 
     #
     # Use ADF api to get all necessary information
     #
-    var_list = adfobj.read_config_var("diag_var_list")
-    basic_info_dict = adfobj.read_config_var("diag_basic_info")
-    plot_location = basic_info_dict["cam_diag_plot_loc"]
-    compare_obs = basic_info_dict["compare_obs"]
+    var_list = adfobj.diag_var_list
+    model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
-    case_info_dict = adfobj.read_config_var("diag_cam_climo")
-    case_name = case_info_dict["cam_case_name"]
-    model_rgrid_loc = case_info_dict["cam_regrid_loc"]
+    #Special ADF variable which contains the output path for
+    #all generated plots and tables:
+    plot_location = adfobj.plot_location
 
-   # CAUTION: 
-   # "data" here refers to either obs or a baseline simulation, 
+    #CAM simulation variables:
+    case_name = adfobj.get_cam_info("cam_case_name", required=True)
+
+   # CAUTION:
+   # "data" here refers to either obs or a baseline simulation,
    # Until those are both treated the same (via intake-esm or similar)
    # we will do a simple check and switch options as needed:
-    if compare_obs: 
+    if adfobj.get_basic_info("compare_obs"):
         data_name = "obs"  # does not get used, is just here as a placemarker
         data_list = adfobj.read_config_var("obs_type_list")  # Double caution!
-        data_loc = basic_info_dict['obs_climo_loc']
+        data_loc  = adfobj.get_basic_info("obs_climo_loc", required=True)
 
     else:
-        data_info_dict = adfobj.read_config_var("diag_cam_baseline_climo") 
-        data_name = data_info_dict["cam_case_name"] # does not get used, is just here as a placemarker
+        data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
-        data_loc = data_info_dict["cam_climo_loc"]
+        data_loc  = adfobj.get_baseline_info("cam_climo_loc", required=True)
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
-    # or an empty dictionary if use_defaults was not specified in YAML. 
+    # or an empty dictionary if use_defaults was not specified in YAML.
 
     #Set plot file type:
     # -- this should be set in basic_info_dict, but is not required
     # -- So check for it, and default to png
+    basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
     print(f"NOTE: Plot type is set to {plot_type}")
-
-    #Notify user that script has started:
-    print("  Generating lat/lon maps...")
-
-    #Extract needed quantities from ADF object:
-    #-----------------------------------------
-    var_list = adf.diag_var_list
-    model_rgrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
-
-    #Special ADF variable which contains the output path for
-    #all generated plots and tables:
-    plot_location = adf.plot_location
-
-
-    #CAM simulation variables:
-    case_name = adf.get_cam_info("cam_case_name", required=True)
-
-    if adf.get_basic_info("compare_obs"):
-
-        #Extract observation-derived variables:
-        data_name = "obs"
-        data_loc  = adf.get_basic_info("obs_climo_loc", required=True)
-        data_list = adf.obs_type_list
-
-    else:
-
-        #Extract model baseline variables:
-        data_name = adf.get_baseline_info("cam_case_name", required=True)
-        data_loc  = adf.get_baseline_info("cam_climo_loc", required=True)
-        data_list = [data_name]
-
     #-----------------------------------------
 
     #Set input/output data path variables:
@@ -146,8 +118,10 @@ def global_latlon_map(adfobj):
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
+#            print("\t Found variable defaults for {}".format(var))
+
         else:
-            vres = {}            
+            vres = {}
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
@@ -181,10 +155,10 @@ def global_latlon_map(adfobj):
             # APPLY UNITS TRANSFORMATION IF SPECIFIED:
             odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
             mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-            # update units 
+            # update units
             # NOTE: looks like our climo files don't have all their metadata
-            odata.attrs['units'] = vres.get("new_units", odata.attrs.get('units', 'none'))            
-            mdata.attrs['units'] = vres.get("new_units", mdata.attrs.get('units', 'none'))            
+            odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
+            mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
 
             #Determine dimensions of variable:
             has_dims = pf.lat_lon_validate_dims(odata)
@@ -228,7 +202,7 @@ def global_latlon_map(adfobj):
                         #Create new plot:
                         # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
                         # This relies on `plot_map_and_save` knowing how to deal with the options
-                        # currently knows how to handle: 
+                        # currently knows how to handle:
                         #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                         #   *Any other entries will be ignored.
                         # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
