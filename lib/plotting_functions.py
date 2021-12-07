@@ -90,7 +90,35 @@ def wgt_rmse(fld1, fld2, wgt):
 #######
 
 def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
-    """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps."""
+    """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
+    
+    
+    kwargs -> optional dictionary of plotting options 
+             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.** 
+    - colormap -> str, name of matplotlib colormap
+    - contour_levels -> list of explict values or a tuple: (min, max, step)
+    - diff_colormap
+    - diff_contour_levels
+    - tiString -> str, Title String 
+    - tiFontSize -> int, Title Font Size
+    - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
+        + Organize these by the mpl function. In this function (`plot_map_and_save`)
+          we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
+          ```
+           mpl:
+             subplots: 
+               figsize: (3, 9)
+             contourf:
+               levels: 15
+               cmap: Blues
+             colorbar:
+               shrink: 0.4
+          ```
+        + This is experimental, and if you find yourself doing much with this, you probably should write a new plotting script that does not rely on this module.
+
+
+    When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range. 
+    """
     # preprocess
     # - assume all three fields have same lat/lon
     lat = obsfld['lat']
@@ -121,49 +149,89 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     else:
         tiFontSize = 8
 
-    # We want to make sure mdlfld and obsfld are on the same contours:
+    # Get data limits, which might be needed:
     minval = np.min([np.min(mdlfld), np.min(obsfld)])
     maxval = np.max([np.max(mdlfld), np.max(obsfld)])
+
+    # determine norm to use (deprecate this once minimum MPL version is high enough)
     normfunc, mplv = use_this_norm()
-    if ((minval < 0) and (0 < maxval)) and mplv > 2:
-        norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
-        cmap1 = 'coolwarm'
+
+    if 'colormap' in kwargs:
+        cmap1 = kwargs['colormap']
     else:
+        cmap1 = 'coolwarm'
+
+    if 'contour_levels' in kwargs:
+        levels1 = kwargs['contour_levels']
+        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+    elif 'contour_levels_range' in kwargs:
+        assert len(kwargs['contour_levels_range']) == 3, "contour_levels_range must have exactly three entries: min, max, step"
+        levels1 = np.arange(*kwargs['contour_levels_range'])
+        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+    else:
+        levels1 = np.linspace(minval, maxval, 12)   
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-        cmap1 = 'coolwarm'
 
-    if 'cnLevels' in kwargs:
-        levels1 = kwargs.pop(cnLevels)
+
+    if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
+        if ((minval < 0) and (0 < maxval)) and mplv > 2:
+            norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
+        else:
+            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+
+    # Difference options -- Check in kwargs for colormap and levels
+    if "diff_colormap" in kwargs:
+        cmapdiff = kwargs["diff_colormap"]
     else:
-        levels1 = np.linspace(minval, maxval, 12)
-    # set a symmetric color bar for diff:
-    absmaxdif = np.max(np.abs(diffld))
-    # set levels for difference plot:
-    levelsd = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        cmapdiff = 'coolwarm'
+    
+    if "diff_contour_levels" in kwargs:
+        levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
+    elif "diff_contour_range" in kwargs:
+            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"  
+            levelsdiff = np.arange(*kwargs['diff_contour_range'])
+    else:
+        # set a symmetric color bar for diff:
+        absmaxdif = np.max(np.abs(diffld))
+        # set levels for difference plot:
+        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
 
-    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()})
+    # color normalization for difference
+    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
+        normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
+    else:
+        normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
+    
+
+    # extract any MPL kwargs that should be passed on:
+    if 'mpl' in kwargs:
+        subplots_opt = kwargs['mpl'].get('subplots')
+        contourf_opt = kwargs['mpl'].get('contourf')
+        colorbar_opt = kwargs['mpl'].get('colorbar')
+    else:
+        subplots_opt = contourf_opt = colorbar_opt = {}
+
+    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()}, **subplots_opt)
     img = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
 
     for i, a in enumerate(wrap_fields):
+
         if i == len(wrap_fields)-1:
-            levels = levelsd #Using 'levels=12' casued len() error in mpl. -JN
-            #Only use "vcenter" if "matplotlib" version is greater than 2:
-            if(mplv > 2):
-                norm = normfunc(vmin=-1*absmaxdif, vcenter=0., vmax=absmaxdif)
-            else:
-                norm = normfunc(vmin=-1*absmaxdif, vmax=absmaxdif)
-            cmap = 'coolwarm'
+            levels = levelsdiff
+            cmap = cmapdiff
+            norm = normdiff
         else:
             levels = levels1
             cmap = cmap1
             norm = norm1
 
-        img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **kwargs))
-        cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8))
+        img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
+        cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
         # add contour lines <- Unused for now -JN
+        # TODO: add an option to turn this on -BM
         #cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))
         #ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
         #ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
@@ -179,6 +247,8 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
         a.tick_params('both', length=10, width=2, which='major')
         a.tick_params('both', length=5, width=1, which='minor')
+
+    # Write final figure to file    
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
     #Close plots:

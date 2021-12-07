@@ -1,5 +1,4 @@
-def global_latlon_map(adf):
-
+def global_latlon_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
@@ -24,6 +23,10 @@ def global_latlon_map(adf):
                         "compare_obs" is false.
     plot_location    -> Location where plot files will be written to, which is
                         specified by "cam_diag_plot_loc".
+
+    opt              -> optional,
+                        if dict : that has keys that are variable names and values that are plotting preferences/defaults.
+                        if str  : path to a YAML file that conforms to the dict option.
     """
 
     #Import necessary modules:
@@ -47,33 +50,42 @@ def global_latlon_map(adf):
     #Notify user that script has started:
     print("  Generating lat/lon maps...")
 
-    #Extract needed quantities from ADF object:
-    #-----------------------------------------
-    var_list = adf.diag_var_list
-    model_rgrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
+    #
+    # Use ADF api to get all necessary information
+    #
+    var_list = adfobj.diag_var_list
+    model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
     #Special ADF variable which contains the output path for
     #all generated plots and tables:
-    plot_location = adf.plot_location
-
+    plot_location = adfobj.plot_location
 
     #CAM simulation variables:
-    case_name = adf.get_cam_info("cam_case_name", required=True)
+    case_name = adfobj.get_cam_info("cam_case_name", required=True)
 
-    if adf.get_basic_info("compare_obs"):
-
-        #Extract observation-derived variables:
-        data_name = "obs"
-        data_loc  = adf.get_basic_info("obs_climo_loc", required=True)
-        data_list = adf.obs_type_list
+   # CAUTION:
+   # "data" here refers to either obs or a baseline simulation,
+   # Until those are both treated the same (via intake-esm or similar)
+   # we will do a simple check and switch options as needed:
+    if adfobj.get_basic_info("compare_obs"):
+        data_name = "obs"  # does not get used, is just here as a placemarker
+        data_list = adfobj.read_config_var("obs_type_list")  # Double caution!
+        data_loc  = adfobj.get_basic_info("obs_climo_loc", required=True)
 
     else:
+        data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
+        data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
+        data_loc  = adfobj.get_baseline_info("cam_climo_loc", required=True)
 
-        #Extract model baseline variables:
-        data_name = adf.get_baseline_info("cam_case_name", required=True)
-        data_loc  = adf.get_baseline_info("cam_climo_loc", required=True)
-        data_list = [data_name]
+    res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
+    # or an empty dictionary if use_defaults was not specified in YAML.
 
+    #Set plot file type:
+    # -- this should be set in basic_info_dict, but is not required
+    # -- So check for it, and default to png
+    basic_info_dict = adfobj.read_config_var("diag_basic_info")
+    plot_type = basic_info_dict.get('plot_type', 'png')
+    print(f"NOTE: Plot type is set to {plot_type}")
     #-----------------------------------------
 
     #Set input/output data path variables:
@@ -88,10 +100,8 @@ def global_latlon_map(adf):
                "DJF": [12, 1, 2],
                "JJA": [6, 7, 8],
                "MAM": [3, 4, 5],
-               "SON": [9, 10, 11]}
-
-    #Set plot file type:
-    plot_type = 'png'
+               "SON": [9, 10, 11]
+               }
 
     #Check if plot output directory exists, and if not, then create it:
     if not plot_loc.is_dir():
@@ -103,6 +113,15 @@ def global_latlon_map(adf):
 
         #Notify user of variable being plotted:
         print("\t \u231B lat/lon maps for {}".format(var))
+
+
+        # Check res for any variable specific options that need to be used BEFORE going to the plot:
+        if var in res:
+            vres = res[var]
+#            print("\t Found variable defaults for {}".format(var))
+
+        else:
+            vres = {}
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
@@ -132,6 +151,14 @@ def global_latlon_map(adf):
             #Extract variable of interest
             odata = oclim_ds[var].squeeze()  # squeeze in case of degenerate dimensions
             mdata = mclim_ds[var].squeeze()
+
+            # APPLY UNITS TRANSFORMATION IF SPECIFIED:
+            odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+            mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+            # update units
+            # NOTE: looks like our climo files don't have all their metadata
+            odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
+            mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
 
             #Determine dimensions of variable:
             has_dims = pf.lat_lon_validate_dims(odata)
@@ -173,7 +200,14 @@ def global_latlon_map(adf):
                             plot_name.unlink()
 
                         #Create new plot:
-                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s])
+                        # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
+                        # This relies on `plot_map_and_save` knowing how to deal with the options
+                        # currently knows how to handle:
+                        #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
+                        #   *Any other entries will be ignored.
+                        # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
+
+                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
 
                 else: #mdata dimensions check
                     print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))

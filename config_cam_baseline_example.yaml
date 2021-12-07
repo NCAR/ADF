@@ -79,6 +79,15 @@ diag_basic_info:
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /some/where/you/want/to/have/diag_plots #MUST EDIT!
 
+    #Use default variable plot settings?
+    #If "true", then variable-specific plotting attributes as defined in
+    #ADF/lib/adf_variable_defaults.yaml will be used:
+    use_defaults: true
+
+    #Location of ADF variable plotting defaults YAML file
+    #if not using the one in ADF/lib:
+  #  defaults_file: /some/path/to/defaults/file
+
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
