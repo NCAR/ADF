@@ -760,7 +760,7 @@ class AdfDiag(AdfConfig):
             syear = self.get_cam_info('start_year')
 
             #End year (not currently rquired):
-            eyear = self.get_cam_info_('end_year')
+            eyear = self.get_cam_info('end_year')
 
             if syear and eyear:
                 self.__plot_location = os.path.join(plot_dir,
