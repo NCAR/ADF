@@ -166,51 +166,40 @@ class AdfDiag(AdfConfig):
         #Add CAM climatology info to object:
         self.__cam_climo_info = self.read_config_var('diag_cam_climo', required=True)
 
-        #Check if inputs are strings or lists:
-        #------------------------------------
-        if isinstance(self.get_cam_info("cam_case_name"), list):
-
-            #Extract total number of test cases:
-            _num_cases = len(self.get_cam_info("cam_case_name"))
-
-            #If cam_case_name is a list, make sure
-            #all other relevant inputs are also lists,
-            #and have the same number of entries:
-
-            #cam_hist_loc
-            if not isinstance(self.get_cam_info("cam_hist_loc"), list):
-                emsg = " 'cam_hist_loc' must be a list"
-                emsg += " if 'cam_case_name' is also a list."
-                self.end_diag_fail(emsg)
-            elif len(self.get_cam_info("cam_hist_loc")) != _num_cases:
-                emsg = "The number of entries in 'cam_hist_loc'"
-                emsg += " must equal the number of cases in 'cam_case_name'"
-                self.end_diag_fail(emsg)
-
-           #start_year
-            if not isinstance(self.get_cam_info("start_year"), list):
-                emsg = " 'start_year' must be a list"
-                emsg += " if 'cam_case_name' is also a list."
-                self.end_diag_fail(emsg)
-            elif len(self.get_cam_info("start_year")) != _num_cases:
-                emsg = "The number of entries in 'start_year'"
-                emsg += " must equal the number of cases in 'cam_case_name'"
-                self.end_diag_fail(emsg)
-
-           #end_year
-            if not isinstance(self.get_cam_info("end_year"), list):
-                emsg = " 'end_year' must be a list"
-                emsg += " if 'cam_case_name' is also a list."
-                self.end_diag_fail(emsg)
-            elif len(self.get_cam_info("end_year")) != _num_cases:
-                emsg = "The number of entries in 'end_year'"
-                emsg += " must equal the number of cases in 'cam_case_name'"
-                self.end_diag_fail(emsg)
-
-        #------------------------------------
-
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
+
+        #Check if inputs are of the correct type.
+        #Ideally this sort of checking should be done
+        #in its own class that AdfDiag inherits from:
+        #-------------------------------------------
+
+        #Use "cam_case_name" as the variable that sets the total number of cases:
+        if isinstance(self.get_cam_info("cam_case_name", required=True), list):
+
+            #Extract total number of test cases:
+            num_cases = len(self.get_cam_info("cam_case_name"))
+
+        else:
+            #Set number of cases to one:
+            num_cases = 1
+        #End if
+
+
+        #Loop over all items in config dict:
+        for conf_var, conf_val in self.__cam_climo_info.items():
+            if isinstance(conf_val, list):
+                #If a list, then make sure it is has the correct number of entries:
+                if not len(conf_val) == num_cases:
+                    emsg = f"diag_cam_climo config variable '{conf_var}' should have"
+                    emsg += f" {num_cases} entries, instead it has {len(conf_val)}"
+            else:
+                #If not a list, then convert it to one:
+                self.__cam_climo_info[conf_var] = [conf_val]
+            #End if
+        #End for
+
+        #-------------------------------------------
 
         #Check if a CAM vs AMWG obs comparison is being performed:
         if self.read_config_var('compare_obs', conf_dict=self.__basic_info):
@@ -226,6 +215,7 @@ class AdfDiag(AdfConfig):
 
             #Expand CAM baseline climo info variable strings:
             self.expand_references(self.__cam_bl_climo_info)
+        #End if
 
         #Add averaging script names:
         self.__time_averaging_scripts = self.read_config_var('time_averaging_scripts')
@@ -338,9 +328,11 @@ class AdfDiag(AdfConfig):
                 emsg += "This is likely because an observational comparison is being done,"
                 emsg += " so try adding 'required = False' to the get call."
                 self.end_diag_fail(emsg)
+            #End if
 
             #If not required, then return none:
             return None
+        #End if
 
         #If basline dictionary exists, then search for variable like normal:
         return self.read_config_var(var_str,
@@ -438,8 +430,6 @@ class AdfDiag(AdfConfig):
 
     #########
 
-    # pylint: disable=no-self-use
-
     def __function_caller(self, func_name: str,
                           func_kwargs: Optional[dict] = None, module_name=None):
 
@@ -472,8 +462,6 @@ class AdfDiag(AdfConfig):
             return func(self)
         #End if
 
-    # pylint: enable=no-self-use
-
     #########
 
     def create_time_series(self, baseline=False):
@@ -492,164 +480,159 @@ class AdfDiag(AdfConfig):
             #and case name::
             cam_climo_dict = self.__cam_climo_info
 
-        #Check if climatologies are being calculated:
-        if self.read_config_var('calc_cam_climo', conf_dict=cam_climo_dict):
-            # Skip history file stuff if time series are pre-computed:
-            if self.read_config_var('cam_ts_done', conf_dict=cam_climo_dict):
-                # skip time series generation, and just make the climo
-                emsg = "  Configuration file indicates time series files have been pre-computed,"
-                emsg += " will rely on those files only."
-                print(emsg)
-                return
-            #End if
+        #Notify user that script has started:
+        print("  Generating CAM time series files...")
 
-            #Notify user that script has started:
-            print("  Generating CAM time series files...")
-
-            #Extract case name(s):
-            case_names = self.read_config_var('cam_case_name',
+        #Extract case name(s):
+        case_names = self.read_config_var('cam_case_name',
                                          conf_dict=cam_climo_dict,
                                          required=True)
 
-            #Check if case_name is actually a list of cases:
-            if isinstance(case_names, list):
-                #If so, then read in needed variables directly.
-                #Also there is no need for 'required' checks because
-                #it was already done during initiliazation:
-                start_years   = cam_climo_dict['start_year']
-                end_years     = cam_climo_dict['end_year']
-                cam_hist_locs = cam_climo_dict['cam_hist_loc']
-                #Also rename case name list:
-                case_name_list = case_names
-            else:
-                #If not, then read in variables and convert to lists:
-                start_years   = [self.read_config_var('start_year', conf_dict=cam_climo_dict)]
-                end_years     = [self.read_config_var('end_year', conf_dict=cam_climo_dict)]
-                cam_hist_locs = [self.read_config_var('cam_hist_loc', conf_dict=cam_climo_dict,
-                                                      required=True)]
-                #Also convert  case_names to list:
-                case_name_list = [case_names]
+        #Check if case_name is actually a list of cases:
+        if isinstance(case_names, list):
+            #If so, then read in needed variables directly:
+            cam_ts_done   = self.read_config_var('cam_ts_done', conf_dict=cam_climo_dict)
+            start_years   = self.read_config_var('start_year', conf_dict=cam_climo_dict)
+            end_years     = self.read_config_var('end_year', conf_dict=cam_climo_dict)
+            cam_hist_locs = self.read_config_var('cam_hist_loc', conf_dict=cam_climo_dict,
+                                                  required=True)
+            ts_dir        = self.read_config_var('cam_ts_loc', conf_dict=cam_climo_dict,
+                                                  required=True)
+            #Also rename case name list:
+            case_name_list = case_names
+        else:
+            #If not, then read in variables and convert to lists:
+            cam_ts_done   = [self.read_config_var('cam_ts_done', conf_dict=cam_climo_dict)]
+            start_years   = [self.read_config_var('start_year', conf_dict=cam_climo_dict)]
+            end_years     = [self.read_config_var('end_year', conf_dict=cam_climo_dict)]
+            cam_hist_locs = [self.read_config_var('cam_hist_loc', conf_dict=cam_climo_dict,
+                                                  required=True)]
+            ts_dir        = [self.read_config_var('cam_ts_loc', conf_dict=cam_climo_dict,
+                                                   required=True)]
+            #Also convert  case_names to list:
+            case_name_list = [case_names]
+        #End if
+
+        #Loop over cases:
+        for case_idx, case_name in enumerate(case_name_list):
+
+            #Check if particular case should be processed:
+            if cam_ts_done[case_idx]:
+                emsg = " Configuration file indicates time series files have been pre-computed"
+                emsg += f" for case '{case_name}'.  Will rely on those files directly."
+                print(emsg)
+                continue
+
+            print(f"\t Processing time series for case '{case_name}' :")
+
+            #Extract start and end year values:
+            try:
+                start_year = int(start_years[case_idx])
+            except TypeError:
+                if start_years[case_idx] is None:
+                    start_year = "*"
+                else:
+                    emsg = "start_year needs to be a year-like value or None, "
+                    emsg += f"got '{start_years[case_idx]}'"
+                    self.end_diag_fail(emsg)
+                #End if
+            #End try
+
+            try:
+                end_year   = int(end_years[case_idx])
+            except TypeError:
+                if end_years[case_idx] is None:
+                    end_year = "*"
+                else:
+                    emsg = "end_year needs to be a year-like value or None, "
+                    emsg += f"got '{end_years[case_idx]}'"
+                    self.end_diag_fail(emsg)
+                #End if
+            #End try
+
+            #Create path object for the CAM history file(s) location:
+            starting_location = Path(cam_hist_locs[case_idx])
+
+            #Check that path actually exists:
+            if not starting_location.is_dir():
+                if baseline:
+                    emsg = f"Provided baseline 'cam_hist_loc' directory '{starting_location}' "
+                    emsg += "not found.  Script is ending here."
+                else:
+                    emsg = "Provided 'cam_hist_loc' directory '{starting_location}' not found."
+                    emsg += " Script is ending here."
+                #End if
+
+                self.end_diag_fail(emsg)
             #End if
 
+            #Check if history files actually exist. If not then kill script:
+            if not list(starting_location.glob('*.cam.h0.*.nc')):
+                emsg = f"No CAM history (h0) files found in '{starting_location}'."
+                emsg += " Script is ending here."
+                self.end_diag_fail(emsg)
+            #End if
 
-            #Extract cam time series directory:
-            ts_dir = cam_climo_dict['cam_ts_loc']
+            # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
+            if start_year == end_year == "*":
+                files_list = sorted(list(starting_location.glob('*.cam.h0.*.nc')))
+            else:
+                #Create empty list:
+                files_list = list()
 
-            #Loop over cases:
-            for case_idx, case_name in enumerate(case_name_list):
-
-                #Extract start and end year values:
-                # pylint: disable=raise-missing-from
-                try:
-                    start_year = int(start_years[case_idx])
-                except TypeError:
-                    if start_years[case_idx] is None:
-                        start_year = "*"
-                    else:
-                        emsg = "start_year needs to be a year-like value or None, "
-                        emsg += f"got '{start_years[case_idx]}'"
-                        raise IOError(emsg)
-                    #End if
-                #End try
-
-                try:
-                    end_year   = int(end_years[case_idx])
-                except TypeError:
-                    if end_years[case_idx] is None:
-                        end_year = "*"
-                    else:
-                        emsg = "end_year needs to be a year-like value or None, "
-                        emsg += f"got '{end_years[case_idx]}'"
-                        raise IOError(emsg)
-                    #End if
-                #End try
-                # pylint: enable=raise-missing-from
-
-                #Create path object for the CAM history file(s) location:
-                starting_location = Path(cam_hist_locs[case_idx])
-
-                #Check that path actually exists:
-                if not starting_location.is_dir():
-                    if baseline:
-                        emsg = f"Provided baseline 'cam_hist_loc' directory '{starting_location}' "
-                        emsg += "not found.  Script is ending here."
-                    else:
-                        emsg = "Provided 'cam_hist_loc' directory '{starting_location}' not found."
-                        emsg += " Script is ending here."
-                    #End if
-
+                #For now make sure both year values are present:
+                if start_year == "*" or end_year == "*":
+                    emsg = "Must set both start_year and end_year, "
+                    emsg = "or remove them both from the config file."
                     self.end_diag_fail(emsg)
                 #End if
 
-                #Check if history files actually exist. If not then kill script:
-                if not list(starting_location.glob('*.cam.h0.*.nc')):
-                    emsg = f"No CAM history (h0) files found in '{starting_location}'."
-                    emsg += " Script is ending here."
-                    self.end_diag_fail(emsg)
-                #End if
-
-                # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
-                if start_year == end_year == "*":
-                    files_list = sorted(list(starting_location.glob('*.cam.h0.*.nc')))
-                else:
-                    #Create empty list:
-                    files_list = list()
-
-                    #For now make sure both year values are present:
-                    if start_year == "*" or end_year == "*":
-                        emsg = "Must set both start_year and end_year, "
-                        emsg = "or remove them both from the config file."
-                        self.end_diag_fail(emsg)
-                    #End if
-
-                    #Loop over start and end years:
-                    for year in range(start_year, end_year+1):
-                        #Add files to main file list:
-                        for fname in starting_location.glob(f'*.cam.h0.*{year}-*.nc'):
-                            files_list.append(fname)
-                        #End for
+                #Loop over start and end years:
+                for year in range(start_year, end_year+1):
+                    #Add files to main file list:
+                    for fname in starting_location.glob(f'*.cam.h0.*{year}-*.nc'):
+                        files_list.append(fname)
                     #End for
-                #End if
+                #End for
+            #End if
 
-                #Create ordered list of CAM history files:
-                hist_files = sorted(files_list)
+            #Create ordered list of CAM history files:
+            hist_files = sorted(files_list)
 
-                #Check if time series directory exists, and if not, then create it:
-                #Use pathlib to create parent directories, if necessary.
-                Path(ts_dir).mkdir(parents=True, exist_ok=True)
+            #Check if time series directory exists, and if not, then create it:
+            #Use pathlib to create parent directories, if necessary.
+            Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
 
-                #Loop over CAM history variables:
-                for var in self.diag_var_list:
+            #Loop over CAM history variables:
+            for var in self.diag_var_list:
 
-                    #Create full path name:
-                    ts_outfil_str = ts_dir + os.sep + case_name + \
-                                  ".ncrcat."+var+".nc"
+                #Create full path name:
+                ts_outfil_str = ts_dir[case_idx] + os.sep + case_name + \
+                              ".ncrcat."+var+".nc"
 
-                    #Check if files already exist in time series directory:
-                    ts_file_list = glob.glob(ts_outfil_str)
+                #Check if files already exist in time series directory:
+                ts_file_list = glob.glob(ts_outfil_str)
 
-                    #If files exist, then check if over-writing is allowed:
-                    if ts_file_list:
-                        if not cam_climo_dict['cam_overwrite_ts']:
-                            #If not, then simply skip this variable:
-                            continue
+                #If files exist, then check if over-writing is allowed:
+                if ts_file_list:
+                    if not cam_climo_dict['cam_overwrite_ts']:
+                        #If not, then simply skip this variable:
+                        continue
 
-                    #Notify user of new time series file:
-                    print("\t \u231B time series for {}".format(var))
+                #Notify user of new time series file:
+                print("\t \u231B time series for {}".format(var))
 
-                    #Run "ncrcat" command to generate time series file:
-                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
-                          hist_files + ["-o", ts_outfil_str]
-                    subprocess.run(cmd, check=True)
+                #Run "ncrcat" command to generate time series file:
+                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
+                       hist_files + ["-o", ts_outfil_str]
+                subprocess.run(cmd, check=True)
 
-            #End cases loop
+            #End variable loop
 
-            #Notify user that script has ended:
-            print("  ...CAM time series file generation has finished successfully.")
+        #End cases loop
 
-        else:
-            #If not, then notify user that time series generation is skipped.
-            print("  Climatology files are not being generated, so neither will time series files.")
+        #Notify user that script has ended:
+        print("  ...CAM time series file generation has finished successfully.")
 
     #########
 

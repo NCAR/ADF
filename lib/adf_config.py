@@ -18,6 +18,7 @@ Currently this class does three things:
 
 import os.path
 import re
+import copy
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -234,7 +235,7 @@ class AdfConfig(AdfBase):
         """
 
         #copy YAML config dictionary:
-        config_dict_copy = config_dict
+        config_dict_copy = copy.copy(config_dict)
 
         #Loop through dictionary:
         for key, value in config_dict_copy.items():
@@ -256,6 +257,10 @@ class AdfConfig(AdfBase):
         """
         Checks if variable/list/dictionary exists in
         configure dictionary,and if so returns it.
+
+        Please note that in order to protect the values in the original
+        YAML-defined config dictionary, only copies of the variable
+        values are returned to the user.
         """
 
         #Check if the config dictionary has been specified:
@@ -289,8 +294,8 @@ class AdfConfig(AdfBase):
             emsg += " Please see 'config_cam_baseline_example.yaml'."
             raise ValueError(emsg)
 
-        #return variable/list/dictionary:
-        return var
+        #return a copy of the variable/list/dictionary:
+        return copy.copy(var)
 
 #++++++++++++++++++++
 #End Class definition

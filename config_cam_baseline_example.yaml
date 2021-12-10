@@ -140,16 +140,30 @@ diag_cam_climo:
 
     #You can alternatively provide a list of cases, which will make the ADF
     #apply the same diagnostics to each case separately in a single ADF session.
-    #All of the config variables below show how it is done.
-    #Please note that config keywords cannot currently be used in list mode.
+    #All of the config variables below show how it is done, and are the only ones
+    #that need to be lists.
+
+    #Also, please note that config keywords cannot currently be used in list mode.
 
     #cam_case_name:
     #    - b.e20.BHIST.f09_g17.20thC.297_05
     #    - b1850.f19_g17.validation_mct.004
 
+    #calc_cam_climo:
+    #    - true
+    #    - true
+
+    #cam_overwrite_climo:
+    #    - false
+    #    - false
+
     #cam_hist_loc:
     #    - /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05
     #    - /glade/p/cesm/ADF/b1850.f19_g17.validation_mct.004
+
+    #cam_climo_loc:
+    #    -/some/where/you/want/to/have/climo_files/ #MUST EDIT!
+    #    -/the/same/or/some/other/climo/files/location
 
     #start_year:
     #    - 1990
@@ -158,6 +172,22 @@ diag_cam_climo:
     #end_year:
     #    - 1999
     #    - 99
+
+    #cam_ts_done:
+    #    - false
+    #    - false
+
+    #cam_ts_save:
+    #    - true
+    #    - true
+
+    #cam_overwrite_ts:
+    #    - false
+    #    - false
+
+    #cam_ts_loc:
+    #    - /some/where/you/want/to/have/time_series_files/
+    #    - /same/or/different/place/you/want/files
 
     #----------------------
 

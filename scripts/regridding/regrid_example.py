@@ -42,9 +42,12 @@ def regrid_example(adf):
     output_loc = adf.get_basic_info("cam_regrid_loc", required=True)
     var_list = adf.diag_var_list
 
-    #CAM simulation variables:
-    case_name = adf.get_cam_info("cam_case_name", required=True)
-    input_climo_loc = adf.get_cam_info("cam_climo_loc", required=True)
+    #CAM simulation variables (these quantities are always lists):
+    case_names = adf.get_cam_info("cam_case_name", required=True)
+    input_climo_locs = adf.get_cam_info("cam_climo_loc", required=True)
+
+    print(case_names)
+    print(input_climo_locs)
 
     #Regrid target variables (either obs or a baseline run):
     if adf.get_basic_info("compare_obs"):
@@ -61,9 +64,8 @@ def regrid_example(adf):
 
     #-----------------------------------------
 
-    #Set input/output data path variables:
+    #Set output/target data path variables:
     #------------------------------------
-    mclimo_loc  = Path(input_climo_loc)
     rgclimo_loc = Path(output_loc)
     tclimo_loc  = Path(target_loc)
     #------------------------------------
@@ -73,77 +75,91 @@ def regrid_example(adf):
         print("    {} not found, making new directory".format(rgclimo_loc))
         rgclimo_loc.mkdir(parents=True)
 
-    # probably want to do this one variable at a time:
-    for var in var_list:
+    #Loop over CAM cases:
+    for case_idx, case_name in enumerate(case_names):
 
-        #Notify user of variable being regridded:
-        print("\t [\u25B6] regridding {} (known targets: {})".format(var, len(target_list)))
+        #Notify user of model case being processed:
+        print(f"\t Regridding case '{case_name}' :")
 
-        #loop over regridding targets:
-        for target in target_list:
-            #Write to debug log if enabled:
-            adf.debug_log(f"regrid_example: regrid target = {target}")
+        #Set case climo data path:
+        mclimo_loc  = Path(input_climo_locs[case_idx])
 
-           #Determine regridded variable file name:
-            regridded_file_loc = rgclimo_loc / '{}_{}_{}_regridded.nc'.format(target, case_name, var)
+        # probably want to do this one variable at a time:
+        for var in var_list:
 
-            #Check if re-gridded file already exists and over-writing is allowed:
-            if regridded_file_loc.is_file() and overwrite_regrid:
-                #If so, then delete current file:
-                regridded_file_loc.unlink()
+            #Notify user of variable being regridded:
+            print("\t [\u25B6] regridding {} (known targets: {})".format(var, len(target_list)))
 
-            #Check again if re-gridded file already exists:
-            if not regridded_file_loc.is_file():
-
-                #Create list of regridding target files (we should explore intake as an alternative to having this kind of repeated code)
-                # NOTE: This breaks if you have files from different cases in same directory!
-                tclim_fils = sorted(list(tclimo_loc.glob("{}*_{}_*.nc".format(target, var))))
-
+            #loop over regridding targets:
+            for target in target_list:
                 #Write to debug log if enabled:
-                adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
+                adf.debug_log(f"regrid_example: regrid target = {target}")
 
-                if len(tclim_fils) > 1:
-                    #Combine all target files together into a single data set:
-                    tclim_ds = xr.open_mfdataset(tclim_fils, combine='by_coords')
-                elif len(tclim_fils) == 0:
-                    print("\t [\u25B6] regridding {} failed, no file. Continuing to next variable.".format(var))
-                    continue
-                else:
-                    #Open single file as new xarray dataset:
-                    tclim_ds = xr.open_dataset(tclim_fils[0])
+                #Determine regridded variable file name:
+                regridded_file_loc = rgclimo_loc / '{}_{}_{}_regridded.nc'.format(target, case_name, var)
 
-                #Generate CAM climatology (climo) file list:
-                mclim_fils = sorted(list(mclimo_loc.glob("{}_{}_*.nc".format(case_name, var))))
+                #Check if re-gridded file already exists and over-writing is allowed:
+                if regridded_file_loc.is_file() and overwrite_regrid:
+                    #If so, then delete current file:
+                    regridded_file_loc.unlink()
 
-                if len(mclim_fils) > 1:
-                    #Combine all cam files together into a single data set:
-                    mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-                else:
-                    #Open single file as new xsarray dataset:
-                    mclim_ds = xr.open_dataset(mclim_fils[0])
+                #Check again if re-gridded file already exists:
+                if not regridded_file_loc.is_file():
 
-                #Extract variable info from model data:
-                mdata = mclim_ds[var]
+                    #Create list of regridding target files (we should explore intake as an alternative to having this kind of repeated code)
+                    # NOTE: This breaks if you have files from different cases in same directory!
+                    tclim_fils = sorted(list(tclimo_loc.glob("{}*_{}_*.nc".format(target, var))))
 
-                #Extract grid info from target data:
-                if 'time' in tclim_ds.coords:
-                    tgrid = tclim_ds.isel(time=0).squeeze()
+                    #Write to debug log if enabled:
+                    adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
 
-                #Regrid model data to match target grid:
-                rgdata = regrid_data(mdata, tgrid, method=1)
+                    if len(tclim_fils) > 1:
+                        #Combine all target files together into a single data set:
+                        tclim_ds = xr.open_mfdataset(tclim_fils, combine='by_coords')
+                    elif len(tclim_fils) == 0:
+                        print("\t [\u25B6] regridding {} failed, no file. Continuing to next variable.".format(var))
+                        continue
+                    else:
+                        #Open single file as new xarray dataset:
+                        tclim_ds = xr.open_dataset(tclim_fils[0])
 
-                #Collect any of the "special" variables:
-                rgdata = rgdata.to_dataset()
-                for special in ["hyam", "hybm", "hyai", "hybi", "P0"]:
-                    if special in mclim_ds:
-                        rgdata[special] = mclim_ds[special]
+                    #Generate CAM climatology (climo) file list:
+                    mclim_fils = sorted(list(mclimo_loc.glob("{}_{}_*.nc".format(case_name, var))))
 
-                #Also check for PS in mdata... regrid it when found:
-                if "PS" in mclim_ds:
-                    rgdata['PS'] = regrid_data(mclim_ds['PS'], tgrid, method=1)
+                    if len(mclim_fils) > 1:
+                        #Combine all cam files together into a single data set:
+                        mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
+                    else:
+                        #Open single file as new xsarray dataset:
+                        mclim_ds = xr.open_dataset(mclim_fils[0])
 
-                #Write re-gridded data to output file:
-                save_to_nc(rgdata, regridded_file_loc)
+                    #Extract variable info from model data:
+                    mdata = mclim_ds[var]
+
+                    #Extract grid info from target data:
+                    if 'time' in tclim_ds.coords:
+                        tgrid = tclim_ds.isel(time=0).squeeze()
+
+                    #Regrid model data to match target grid:
+                    rgdata = regrid_data(mdata, tgrid, method=1)
+
+                    #Collect any of the "special" variables:
+                    rgdata = rgdata.to_dataset()
+                    for special in ["hyam", "hybm", "hyai", "hybi", "P0"]:
+                        if special in mclim_ds:
+                            rgdata[special] = mclim_ds[special]
+
+                    #Also check for PS in mdata... regrid it when found:
+                    if "PS" in mclim_ds:
+                        rgdata['PS'] = regrid_data(mclim_ds['PS'], tgrid, method=1)
+
+                    #Write re-gridded data to output file:
+                    save_to_nc(rgdata, regridded_file_loc)
+
+                #End if (file check)
+            #End do (target list)
+        #End do (variable list)
+    #End do (case list)
 
     #Notify user that script has ended:
     print("...CAM climatologies have been regridded successfully.")
