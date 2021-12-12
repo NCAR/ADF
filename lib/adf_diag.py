@@ -236,9 +236,9 @@ class AdfDiag(AdfConfig):
         self.obs_type_list = self.read_config_var('obs_type_list')
 
         #Create plot location variable for potential use by the website generator.
-        #Please note that this variable is only set if "create_plots" or
+        #Please note that this variable is only set if "create_plots" or "peform_analyses"
         #is called:
-        self.__plot_location = ""
+        self.__plot_location = [] #Must be a list to manage multiple cases
 
         # Check whether user wants to use defaults:
         if self.get_basic_info('use_defaults'):
@@ -279,7 +279,7 @@ class AdfDiag(AdfConfig):
     # Create property needed to return "plot_location" variable to user:
     @property
     def plot_location(self):
-        """Return the '__plot_location' string to user if requested."""
+        """Return the '__plot_location' string list to user if requested."""
         return self.__plot_location
 
     #########
@@ -749,20 +749,25 @@ class AdfDiag(AdfConfig):
             #Plot directory:
             plot_dir = self.get_basic_info('cam_diag_plot_loc', required=True)
 
-            #Case name:
-            case_name = self.get_cam_info('cam_case_name', required=True)
+            #Case names:
+            case_names = self.get_cam_info('cam_case_name', required=True)
 
-            #Start year (not currently required):
-            syear = self.get_cam_info('start_year')
+            #Start years (not currently required):
+            syears = self.get_cam_info('start_year')
 
             #End year (not currently rquired):
-            eyear = self.get_cam_info('end_year')
+            eyears = self.get_cam_info('end_year')
 
-            if syear and eyear:
-                self.__plot_location = os.path.join(plot_dir,
-                                               f"{case_name}_vs_{data_name}_{syear}_{eyear}")
-            else:
-                self.__plot_location = os.path.join(plot_dir, f"{case_name}_vs_{data_name}")
+            #Loop over cases:
+            for case_idx, case_name in enumerate(case_names):
+
+                #Check if case has start and end years:
+                if syears[case_idx] and eyears[case_idx]:
+                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
+                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
+                else:
+                    direc_name = f"{case_name}_vs_{data_name}"
+                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
 
         #Run the listed scripts:
         self.__diag_scripts_caller("analysis", anly_func_names,
