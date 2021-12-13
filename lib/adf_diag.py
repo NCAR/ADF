@@ -17,6 +17,7 @@ import os.path
 import glob
 import subprocess
 import importlib
+import copy
 
 from pathlib import Path
 from typing import Optional
@@ -262,25 +263,29 @@ class AdfDiag(AdfConfig):
     @property
     def compare_obs(self):
         """Return the "compare_obs" logical to user if requested."""
-        return self.read_config_var('compare_obs', conf_dict=self.__basic_info)
+        return self.get_basic_info('compare_obs')
 
     # Create property needed to return "create_html" logical to user:
     @property
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
-        return self.read_config_var('create_html', conf_dict=self.__basic_info)
+        return self.get_basic_info('create_html')
 
     # Create property needed to return "diag_var_list" list to user:
     @property
     def diag_var_list(self):
-        """Return the "diag_var_list"  list to user if requested."""
-        return self.__diag_var_list
+        """Return a copy of the "diag_var_list" list to user if requested."""
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable:
+        return copy.copy(self.__diag_var_list)
 
     # Create property needed to return "plot_location" variable to user:
     @property
     def plot_location(self):
-        """Return the '__plot_location' string list to user if requested."""
-        return self.__plot_location
+        """Return a copy ofthe '__plot_location' string list to user if requested."""
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable:
+        return copy.copy(self.__plot_location)
 
     #########
     #Variable extraction functions
