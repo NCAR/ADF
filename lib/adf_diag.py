@@ -194,6 +194,7 @@ class AdfDiag(AdfConfig):
                 if not len(conf_val) == num_cases:
                     emsg = f"diag_cam_climo config variable '{conf_var}' should have"
                     emsg += f" {num_cases} entries, instead it has {len(conf_val)}"
+                    self.end_diag_fail(emsg)
             else:
                 #If not a list, then convert it to one:
                 self.__cam_climo_info[conf_var] = [conf_val]
