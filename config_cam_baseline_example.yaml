@@ -141,9 +141,11 @@ diag_cam_climo:
     #You can alternatively provide a list of cases, which will make the ADF
     #apply the same diagnostics to each case separately in a single ADF session.
     #All of the config variables below show how it is done, and are the only ones
-    #that need to be lists.
+    #that need to be lists.  This also automatically enables the generation of
+    #a "main_website" in "cam_diag_plot_loc" that brings all of the different cases
+    #together under a single website.
 
-    #Also, please note that config keywords cannot currently be used in list mode.
+    #Also please note that config keywords cannot currently be used in list mode.
 
     #cam_case_name:
     #    - b.e20.BHIST.f09_g17.20thC.297_05
