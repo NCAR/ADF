@@ -864,13 +864,20 @@ class AdfDiag(AdfConfig):
         if self.__plot_location:
             plot_location = self.__plot_location
         else:
-            plot_location  = self.read_config_var('cam_diag_plot_loc',
-                                                  conf_dict=self.__basic_info,
-                                                  required=True)
+            plot_location.append(self.get_basic_info('cam_diag_plot_loc', required=True))
         #End if
 
+        #If there is more than one plot location, then create new website directory:
+        if len(plot_location) > 1:
+            main_site_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
+            main_site_path = main_site_path / "main_website"
+            main_site_path.mkdir(exist_ok=True)
+            case_sites = OrderedDict()
+        else:
+            main_site_path = "" #Set main_site_path to blank value
+
         #Extract needed variables from yaml file:
-        case_name = self.read_config_var('cam_case_name',
+        case_names = self.read_config_var('cam_case_name',
                                          conf_dict=self.__cam_climo_info,
                                          required=True)
 
@@ -891,44 +898,8 @@ class AdfDiag(AdfConfig):
         #Set preferred order of plot types:
         plot_type_order = ["LatLon", "Zonal"]
 
-        #Create new path object from user-specified plot directory path:
-        plot_path = Path(plot_location)
-
-        #Create the directory where the website will be built:
-        website_dir = plot_path / "website"
-        website_dir.mkdir(exist_ok=True)
-
-        #Create a directory that will hold just the html files for individual images:
-        img_pages_dir = website_dir / "html_img"
-        img_pages_dir.mkdir(exist_ok=True)
-
-        #Create a directory that will hold copies of the actual images:
-        assets_dir = website_dir / "assets"
-        assets_dir.mkdir(exist_ok=True)
-
-        #Specify where CSS files will be stored:
-        css_files_dir = website_dir / "templates"
-        css_files_dir.mkdir(exist_ok=True)
-
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
-
-        #Copy CSS files over to output directory:
-        for css_file in jinja_template_dir.glob('*.css'):
-            shutil.copyfile(css_file, css_files_dir / css_file.name)
-
-        #Copy images into the website image dictionary:
-        for img in plot_path.glob("*.png"):
-            idest = assets_dir / img.name
-            shutil.copyfile(img, idest) # store image in assets
-
-
-        mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
-                                        # plots provisional structure:
-                                        # key = variable_name
-                                        # values -> dict w/ keys being "TYPE" of plots
-                                        # w/ values being dict w/ keys being TEMPORAL sampling,
-                                        # values being the URL
 
         #Create the jinja Environment object:
         jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
@@ -936,132 +907,209 @@ class AdfDiag(AdfConfig):
         #Create alphabetically-sorted variable list:
         var_list_alpha = sorted(var_list)
 
-        #Loop over variables:
-        for var in var_list_alpha:
-            #Loop over plot type:
-            for ptype in plot_type_order:
-                #Loop over seasons:
-                for season in season_order:
-                    #Create the data that will be fed into the template:
-                    for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
-                        alt_text  = img.stem #Extract image file name text
+        #Loop over model cases:
+        for case_idx, case_name in enumerate(case_names):
 
-                        #Create output file (don't worry about analysis type for now):
-                        outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
-                        # Hacky - how to get the relative path in a better way?:
-                        img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                        title = f"Variable: {var}"              #Create title
-                        tmpl = jinenv.get_template('template.html')  #Set template
-                        rndr = tmpl.render(title=title, value=img_data, case1=case_name,
-                                           case2=data_name) #The template rendered
+            #Create new path object from user-specified plot directory path:
+            plot_path = Path(plot_location[case_idx])
 
-                        #Open HTML file:
-                        with open(outputfile,'w') as ofil:
-                            ofil.write(rndr)
-                        #End with
+            #Create the directory where the website will be built:
+            website_dir = plot_path / "website"
+            website_dir.mkdir(exist_ok=True)
 
-                        #Initialize Ordered Dictionary for variable:
-                        if var not in mean_html_info:
-                            mean_html_info[var] = OrderedDict()
+            #Create a directory that will hold just the html files for individual images:
+            img_pages_dir = website_dir / "html_img"
+            img_pages_dir.mkdir(exist_ok=True)
 
-                        #Initialize Ordered Dictionary for plot type:
-                        if ptype not in mean_html_info[var]:
-                            mean_html_info[var][ptype] = OrderedDict()
+            #Create a directory that will hold copies of the actual images:
+            assets_dir = website_dir / "assets"
+            assets_dir.mkdir(exist_ok=True)
 
-                        mean_html_info[var][ptype][season] = outputfile.name
+            #Specify where CSS files will be stored:
+            css_files_dir = website_dir / "templates"
+            css_files_dir.mkdir(exist_ok=True)
 
-        #Construct mean_diag.html
-        mean_title = "AMP Diagnostic Plots"
-        mean_tmpl = jinenv.get_template('template_mean_diag.html')
-        mean_rndr = mean_tmpl.render(title=mean_title,
-                        case1=case_name,
-                        case2=data_name,
-                        mydata=mean_html_info)
+            #Copy CSS files over to output directory:
+            for css_file in jinja_template_dir.glob('*.css'):
+                shutil.copyfile(css_file, css_files_dir / css_file.name)
 
-        #Write mean diagnostic plots HTML file:
-        outputfile = img_pages_dir / "mean_diag.html"
-        with open(outputfile,'w') as ofil:
-            ofil.write(mean_rndr)
-        #End with
-
-        #Search for AMWG Table HTML files:
-        table_html_files = list(plot_path.glob("amwg_table_*.html"))
-
-        #Determine if any AMWG tables were generated:
-        if table_html_files:
-
-            #Set Table HTML generation logical to "TRUE":
-            gen_table_html = True
-
-            #Create a directory that will hold table html files:
-            table_pages_dir = website_dir / "html_table"
-            table_pages_dir.mkdir(exist_ok=True)
-
-            #Move all table html files to new directory:
-            for table_html in table_html_files:
-                shutil.move(table_html, table_pages_dir / table_html.name)
-
-            #Construct dictionary needed for HTML page:
-            amwg_tables = OrderedDict()
-
-            #Loop over cases:
-            for case in [case_name, data_name]:
-
-                #Search for case name in moved HTML files:
-                table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
-
-                #Check if file exists:
-                if table_htmls:
-
-                    #Initialize loop counter:
-                    count = 0
-
-                    #Loop over globbed files:
-                    for table_html in table_htmls:
-
-                        #Create relative path for HTML file:
-                        amwg_tables[case] = table_html.name
-
-                        #Update counter:
-                        count += 1
-
-                        #If counter greater than one, then throw an error:
-                        if count > 1:
-                            emsg = f"More than one AMWG table is associated with case '{case}'."
-                            emsg += "\nNot sure what is going on, "
-                            emsg += "so website generation will end here."
-                            self.end_diag_fail(emsg)
+            #Copy images into the website image dictionary:
+            for img in plot_path.glob("*.png"):
+                idest = assets_dir / img.name
+                shutil.copyfile(img, idest) # store image in assets
 
 
-            #Construct mean_table.html
-            mean_title = "AMP Diagnostic Tables:"
-            mean_tmpl = jinenv.get_template('template_mean_table.html')
+            mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
+                                            # plots provisional structure:
+                                            # key = variable_name
+                                            # values -> dict w/ keys being "TYPE" of plots
+                                            # w/ values being dict w/ keys being TEMPORAL sampling,
+                                            # values being the URL
+
+            #Loop over variables:
+            for var in var_list_alpha:
+                #Loop over plot type:
+                for ptype in plot_type_order:
+                    #Loop over seasons:
+                    for season in season_order:
+                        #Create the data that will be fed into the template:
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                            alt_text  = img.stem #Extract image file name text
+
+                            #Create output file (don't worry about analysis type for now):
+                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                            # Hacky - how to get the relative path in a better way?:
+                            img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                            title = f"Variable: {var}"              #Create title
+                            tmpl = jinenv.get_template('template.html')  #Set template
+                            rndr = tmpl.render(title=title, value=img_data, case1=case_name,
+                                               case2=data_name) #The template rendered
+
+                            #Open HTML file:
+                            with open(outputfile,'w') as ofil:
+                                ofil.write(rndr)
+                            #End with
+
+                            #Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info:
+                                mean_html_info[var] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[var]:
+                                mean_html_info[var][ptype] = OrderedDict()
+
+                            mean_html_info[var][ptype][season] = outputfile.name
+                        #End for (assests loop)
+                    #End for (seasons loop)
+                #End for (plot type loop)
+            #End for (variable loop)
+
+            #Construct mean_diag.html
+            mean_title = "AMP Diagnostic Plots"
+            mean_tmpl = jinenv.get_template('template_mean_diag.html')
             mean_rndr = mean_tmpl.render(title=mean_title,
-                            amwg_tables=amwg_tables)
+                            case1=case_name,
+                            case2=data_name,
+                            mydata=mean_html_info)
 
-            #Write mean diagnostic tables HTML file:
-            outputfile = table_pages_dir / "mean_table.html"
+            #Write mean diagnostic plots HTML file:
+            outputfile = img_pages_dir / "mean_diag.html"
             with open(outputfile,'w') as ofil:
                 ofil.write(mean_rndr)
             #End with
 
-        else:
-            #No Tables exist, so no link will be added to main page:
-            gen_table_html = False
+            #Grab AMWG Table HTML files:
+            table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
 
-        #Construct index.html
-        index_title = "AMP Diagnostics Prototype"
-        index_tmpl = jinenv.get_template('template_index.html')
-        index_rndr = index_tmpl.render(title=index_title,
-                         case1=case_name,
-                         case2=data_name,
-                         gen_table_html=gen_table_html)
+            #Also grab baseline/obs tables, which are always stored in the first case directory:
+            if case_idx == 0:
+                data_table_html_files = list(plot_path.glob(f"amwg_table_{data_name}*.html"))
 
-        #Write Mean diagnostics HTML file:
-        outputfile = website_dir / "index.html"
-        with open(outputfile,'w') as ofil:
-            ofil.write(index_rndr)
-        #End with
+            #Determine if any AMWG tables were generated:
+            if table_html_files:
+
+                #Set Table HTML generation logical to "TRUE":
+                gen_table_html = True
+
+                #Create a directory that will hold table html files:
+                table_pages_dir = website_dir / "html_table"
+                table_pages_dir.mkdir(exist_ok=True)
+
+                #Move all case table html files to new directory:
+                for table_html in table_html_files:
+                    shutil.move(table_html, table_pages_dir / table_html.name)
+
+                #copy all data table html files as well:
+                for data_table_html in data_table_html_files:
+                    shutil.copy2(data_table_html, table_pages_dir / data_table_html.name)
+
+                #Construct dictionary needed for HTML page:
+                amwg_tables = OrderedDict()
+
+                for case in [case_name, data_name]:
+
+                    #Search for case name in moved HTML files:
+                    table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
+
+                    #Check if file exists:
+                    if table_htmls:
+
+                        #Initialize loop counter:
+                        count = 0
+
+                        #Loop over globbed files:
+                        for table_html in table_htmls:
+
+                            #Create relative path for HTML file:
+                            amwg_tables[case] = table_html.name
+
+                            #Update counter:
+                            count += 1
+
+                            #If counter greater than one, then throw an error:
+                            if count > 1:
+                                emsg = f"More than one AMWG table is associated with case '{case}'."
+                                emsg += "\nNot sure what is going on, "
+                                emsg += "so website generation will end here."
+                                self.end_diag_fail(emsg)
+                            #End if
+                        #End for (table html file loop)
+                    #End if (table html file exists check)
+                #End for (case vs data)
+
+                #Construct mean_table.html
+                mean_title = "AMP Diagnostic Tables:"
+                mean_tmpl = jinenv.get_template('template_mean_table.html')
+                mean_rndr = mean_tmpl.render(title=mean_title,
+                                amwg_tables=amwg_tables)
+
+                #Write mean diagnostic tables HTML file:
+                outputfile = table_pages_dir / "mean_table.html"
+                with open(outputfile,'w') as ofil:
+                    ofil.write(mean_rndr)
+                #End with
+
+            else:
+                #No Tables exist, so no link will be added to main page:
+                gen_table_html = False
+            #End if
+
+            #Construct index.html
+            index_title = "AMP Diagnostics Prototype"
+            index_tmpl = jinenv.get_template('template_index.html')
+            index_rndr = index_tmpl.render(title=index_title,
+                             case1=case_name,
+                             case2=data_name,
+                             gen_table_html=gen_table_html)
+
+            #Write Mean diagnostics HTML file:
+            outputfile = website_dir / "index.html"
+            with open(outputfile,'w') as ofil:
+                ofil.write(index_rndr)
+            #End with
+
+            #If this is a multi-case instance, then copy website to "main" directory:
+            if main_site_path:
+                shutil.copytree(website_dir, main_site_path / case_name)
+                #Also add path to case_sites dictionary:
+                case_sites[case_name] = os.path.join(os.curdir, case_name, "index.html")
+                #Finally, if first case, then also copy templates directory for CSS files:
+                if case_idx == 0:
+                    shutil.copytree(css_files_dir, main_site_path / "templates")
+
+        #End for (model case loop)
+
+        #Create multi-case site, if needed:
+        if main_site_path:
+            main_title = "ADF Diagnostics"
+            main_tmpl = jinenv.get_template('template_multi_case_index.html')
+            main_rndr = main_tmpl.render(title=main_title,
+                            case_sites=case_sites)
+            #Write multi-case main HTML file:
+            outputfile = main_site_path / "index.html"
+            with open(outputfile,'w') as ofil:
+                ofil.write(main_rndr)
+            #End with
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
