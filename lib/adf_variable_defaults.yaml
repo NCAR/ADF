@@ -35,9 +35,9 @@ PRECC:
       label : "mm/d"
 
 PRECT:
-  colormap: "Greens"
+  colormap: "Blues"
   contour_levels_range: [0, 20, 1]
-  diff_colormap: "BrBG"
+  diff_colormap: "seismic"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
