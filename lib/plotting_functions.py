@@ -91,22 +91,22 @@ def wgt_rmse(fld1, fld2, wgt):
 
 def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
-    
-    
-    kwargs -> optional dictionary of plotting options 
-             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.** 
+
+
+    kwargs -> optional dictionary of plotting options
+             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
     - colormap -> str, name of matplotlib colormap
     - contour_levels -> list of explict values or a tuple: (min, max, step)
     - diff_colormap
     - diff_contour_levels
-    - tiString -> str, Title String 
+    - tiString -> str, Title String
     - tiFontSize -> int, Title Font Size
     - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
         + Organize these by the mpl function. In this function (`plot_map_and_save`)
           we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
           ```
            mpl:
-             subplots: 
+             subplots:
                figsize: (3, 9)
              contourf:
                levels: 15
@@ -117,7 +117,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         + This is experimental, and if you find yourself doing much with this, you probably should write a new plotting script that does not rely on this module.
 
 
-    When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range. 
+    When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
     """
     # preprocess
     # - assume all three fields have same lat/lon
@@ -169,7 +169,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         levels1 = np.arange(*kwargs['contour_levels_range'])
         norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
-        levels1 = np.linspace(minval, maxval, 12)   
+        levels1 = np.linspace(minval, maxval, 12)
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
 
 
@@ -184,11 +184,11 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         cmapdiff = kwargs["diff_colormap"]
     else:
         cmapdiff = 'coolwarm'
-    
+
     if "diff_contour_levels" in kwargs:
         levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
     elif "diff_contour_range" in kwargs:
-            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"  
+            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"
             levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
@@ -201,7 +201,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
     else:
         normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
-    
+
     subplots_opt = {}
     contourf_opt = {}
     colorbar_opt = {}
@@ -249,7 +249,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.tick_params('both', length=10, width=2, which='major')
         a.tick_params('both', length=5, width=1, which='minor')
 
-    # Write final figure to file    
+    # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
     #Close plots:
@@ -422,20 +422,20 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         - For 3-D variables (reduced to (lev,lat)):
           + 3 panels: (top) zonal mean adata, (middle) zonal mean bdata, (bottom) diffdata
           + pcolormesh/contour plot
-    kwargs -> optional dictionary of plotting options 
-             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.** 
+    kwargs -> optional dictionary of plotting options
+             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
     - colormap -> str, name of matplotlib colormap
     - contour_levels -> list of explict values or a tuple: (min, max, step)
     - diff_colormap
     - diff_contour_levels
-    - tiString -> str, Title String 
+    - tiString -> str, Title String
     - tiFontSize -> int, Title Font Size
     - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
         + Organize these by the mpl function. In this function (`plot_map_and_save`)
           we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
           ```
            mpl:
-             subplots: 
+             subplots:
                figsize: (3, 9)
              contourf:
                levels: 15
@@ -443,8 +443,8 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
              colorbar:
                shrink: 0.4
           ```
-    
-    
+
+
     """
     if apsurf is not None:
         aplev = lev_to_plev(adata, apsurf, ahya, ahyb, P0=100000.,
@@ -476,7 +476,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             levels1 = np.arange(*kwargs['contour_levels_range'])
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
         else:
-            levels1 = np.linspace(minval, maxval, 12)   
+            levels1 = np.linspace(minval, maxval, 12)
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
 
 
@@ -491,15 +491,15 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             cmapdiff = kwargs["diff_colormap"]
         else:
             cmapdiff = 'coolwarm'
-    
+
         if "diff_contour_levels" in kwargs:
             levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
         elif "diff_contour_range" in kwargs:
-            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"  
+            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"
             levelsdiff = np.arange(*kwargs['diff_contour_range'])
         else:
             # set a symmetric color bar for diff:
-            absmaxdif = np.max(np.abs(diffld))
+            absmaxdif = np.max(np.abs(diff))
             # set levels for difference plot:
             levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
 
@@ -508,7 +508,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
         else:
             normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
-    
+
         subplots_opt = {}
         contourf_opt = {}
         colorbar_opt = {}
@@ -519,13 +519,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             contourf_opt.update(kwargs['mpl'].get('contourf',{}))
             colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
-#        normfunc, mplv = use_this_norm()
-        #if ((minval < 0) and (0 < maxval)):
-        #    norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
-        #    cmap1 = 'coolwarm'
-        #else:
-        #    norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-        #    cmap1 = None
+        # Generate zonal plot:
         diffnorm = normfunc(vmin=min(np.min(diff),-1*np.max(diff)), vcenter=0.0, vmax=np.max(diff))
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**subplots_opt)
         img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
