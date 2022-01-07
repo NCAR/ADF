@@ -283,7 +283,7 @@ class AdfDiag(AdfConfig):
     # Create property needed to return "plot_location" variable to user:
     @property
     def plot_location(self):
-        """Return a copy ofthe '__plot_location' string list to user if requested."""
+        """Return a copy of the '__plot_location' string list to user if requested."""
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable:
         return copy.copy(self.__plot_location)
