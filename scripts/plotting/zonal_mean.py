@@ -106,7 +106,8 @@ def zonal_mean(adfobj):
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
-#            print("\t Found variable defaults for {}".format(var))
+            #If found then notify user, assuming debug log is enabled:
+            adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
 
         else:
             vres = {}
