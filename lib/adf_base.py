@@ -73,7 +73,7 @@ class AdfBase:
         """
         Prints message to log and screen,
         and then exits program with an
-        an Adf-specific error.
+        ADF-specific error.
         """
 
         #Print message to log, if applicable:

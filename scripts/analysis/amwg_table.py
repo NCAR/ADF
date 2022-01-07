@@ -104,13 +104,13 @@ def amwg_table(adf):
     write_html = adf.get_basic_info("create_html")
     var_list   = adf.diag_var_list
 
-    #Special ADF variable which contains the output path for
-    #all generated plots and tables:
-    output_loc = adf.plot_location
+    #Special ADF variable which contains the output paths for
+    #all generated plots and tables for each case:
+    output_locs = adf.plot_location
 
-    #CAM simulation variables (must be lists):
-    case_names    = [adf.get_cam_info("cam_case_name", required=True)]
-    input_ts_locs = [adf.get_cam_info("cam_ts_loc", required=True)]
+    #CAM simulation variables (these quantities are always lists):
+    case_names    = adf.get_cam_info("cam_case_name", required=True)
+    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
 
     #Check if a baseline simulation is also being used:
     if not adf.get_basic_info("compare_obs"):
@@ -121,26 +121,30 @@ def amwg_table(adf):
         #Append to case list:
         case_names.append(baseline_name)
         input_ts_locs.append(input_ts_baseline)
-    #-----------------------------------------
 
-    #Convert output location string to a Path object:
-    output_location = Path(output_loc)
+        #Save the baseline to the first case's plots directory:
+        output_locs.append(output_locs[0])
+
+    #-----------------------------------------
 
     #Loop over CAM cases:
     for case_idx, case_name in enumerate(case_names):
+
+        #Convert output location string to a Path object:
+        output_location = Path(output_locs[case_idx])
 
         #Generate input file path:
         input_location = Path(input_ts_locs[case_idx])
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
-            errmsg = "Time series directory '{}' not found.  Script is exiting.".format(input_ts_loc)
+            errmsg = f"Time series directory '{input_ts_loc}' not found.  Script is exiting."
             raise AdfError(errmsg)
         #Write to debug log if enabled:
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
         #Check if analysis directory exists, and if not, then create it:
         if not output_location.is_dir():
-            print("    {} not found, making new directory".format(output_loc))
+            print(f"    {output_locs[case_idx]} not found, making new directory")
             output_location.mkdir(parents=True)
 
         #Create output file name:

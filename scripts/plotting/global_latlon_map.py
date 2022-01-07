@@ -56,17 +56,17 @@ def global_latlon_map(adfobj):
     var_list = adfobj.diag_var_list
     model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
-    #Special ADF variable which contains the output path for
-    #all generated plots and tables:
-    plot_location = adfobj.plot_location
+    #Special ADF variable which contains the output paths for
+    #all generated plots and tables for each case:
+    plot_locations = adfobj.plot_location
 
-    #CAM simulation variables:
-    case_name = adfobj.get_cam_info("cam_case_name", required=True)
+    #CAM simulation variables (this is always assumed to be a list):
+    case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
-   # CAUTION:
-   # "data" here refers to either obs or a baseline simulation,
-   # Until those are both treated the same (via intake-esm or similar)
-   # we will do a simple check and switch options as needed:
+    # CAUTION:
+    # "data" here refers to either obs or a baseline simulation,
+    # Until those are both treated the same (via intake-esm or similar)
+    # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
         data_name = "obs"  # does not get used, is just here as a placemarker
         data_list = adfobj.read_config_var("obs_type_list")  # Double caution!
@@ -88,12 +88,11 @@ def global_latlon_map(adfobj):
     print(f"NOTE: Plot type is set to {plot_type}")
     #-----------------------------------------
 
-    #Set input/output data path variables:
-    #------------------------------------
+    #Set data path variables:
+    #-----------------------
     dclimo_loc    = Path(data_loc)
     mclimo_rg_loc = Path(model_rgrid_loc)
-    plot_loc      = Path(plot_location)
-    #-----------------------------------
+    #-----------------------
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
@@ -103,22 +102,17 @@ def global_latlon_map(adfobj):
                "SON": [9, 10, 11]
                }
 
-    #Check if plot output directory exists, and if not, then create it:
-    if not plot_loc.is_dir():
-        print("    {} not found, making new directory".format(plot_loc))
-        plot_loc.mkdir(parents=True)
-
     # probably want to do this one variable at a time:
     for var in var_list:
 
         #Notify user of variable being plotted:
         print("\t \u231B lat/lon maps for {}".format(var))
 
-
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
-#            print("\t Found variable defaults for {}".format(var))
+            #If found then notify user, assuming debug log is enabled:
+            adfobj.debug_log(f"global_latlon_map: Found variable defaults for {var}")
 
         else:
             vres = {}
@@ -135,85 +129,102 @@ def global_latlon_map(adfobj):
                 sfil = str(oclim_fils[0])
                 oclim_ds = xr.open_dataset(sfil)
             else:
-                print("ERROR: Did not find any oclim_fils. Will try to skip.")
+                print("WARNING: Did not find any oclim_fils. Will try to skip.")
                 print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
                 print(f"INFO: The glob is: {data_src}_{var}_*.nc")
                 continue
 
-            # load re-gridded model files:
-            mclim_fils = sorted(list(mclimo_rg_loc.glob("{}_{}_{}_*.nc".format(data_src, case_name, var))))
+            #Loop over model cases:
+            for case_idx, case_name in enumerate(case_names):
 
-            if len(mclim_fils) > 1:
-                mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-            else:
-                mclim_ds = xr.open_dataset(mclim_fils[0])
+                #Set output plot location:
+                plot_loc = Path(plot_locations[case_idx])
 
-            #Extract variable of interest
-            odata = oclim_ds[var].squeeze()  # squeeze in case of degenerate dimensions
-            mdata = mclim_ds[var].squeeze()
+                #Check if plot output directory exists, and if not, then create it:
+                if not plot_loc.is_dir():
+                    print("    {} not found, making new directory".format(plot_loc))
+                    plot_loc.mkdir(parents=True)
 
-            # APPLY UNITS TRANSFORMATION IF SPECIFIED:
-            odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-            mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-            # update units
-            # NOTE: looks like our climo files don't have all their metadata
-            odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
-            mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
+                # load re-gridded model files:
+                mclim_fils = sorted(list(mclimo_rg_loc.glob("{}_{}_{}_*.nc".format(data_src, case_name, var))))
 
-            #Determine dimensions of variable:
-            has_dims = pf.lat_lon_validate_dims(odata)
-            if has_dims:
-                #If observations/baseline CAM have the correct
-                #dimensions, does the input CAM run have correct
-                #dimensions as well?
-                has_dims_cam = pf.lat_lon_validate_dims(mdata)
+                if len(mclim_fils) > 1:
+                    mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
+                else:
+                    mclim_ds = xr.open_dataset(mclim_fils[0])
 
-                #If both fields have the required dimensions, then
-                #proceed with plotting:
-                if has_dims_cam:
+                #Extract variable of interest
+                odata = oclim_ds[var].squeeze()  # squeeze in case of degenerate dimensions
+                mdata = mclim_ds[var].squeeze()
 
-                    #
-                    # Seasonal Averages
-                    # Note: xarray can do seasonal averaging,
-                    # but depends on having time accessor,
-                    # which these prototype climo files do not have.
-                    #
+                # APPLY UNITS TRANSFORMATION IF SPECIFIED:
+                odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                # update units
+                # NOTE: looks like our climo files don't have all their metadata
+                odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
+                mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
 
-                    #Create new dictionaries:
-                    mseasons = {}
-                    oseasons = {}
-                    dseasons = {} # hold the differences
+                #Determine dimensions of variable:
+                has_dims = pf.lat_lon_validate_dims(odata)
+                if has_dims:
+                    #If observations/baseline CAM have the correct
+                    #dimensions, does the input CAM run have correct
+                    #dimensions as well?
+                    has_dims_cam = pf.lat_lon_validate_dims(mdata)
 
-                    #Loop over season dictionary:
-                    for s in seasons:
-                        mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                        oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
-                        # difference: each entry should be (lat, lon)
-                        dseasons[s] = mseasons[s] - oseasons[s]
+                    #If both fields have the required dimensions, then
+                    #proceed with plotting:
+                    if has_dims_cam:
 
-                        # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                        # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                        plot_name = plot_loc / "{}_{}_LatLon_Mean.{}".format(var, s, plot_type)
+                        #
+                        # Seasonal Averages
+                        # Note: xarray can do seasonal averaging,
+                        # but depends on having time accessor,
+                        # which these prototype climo files do not have.
+                        #
 
-                        #Remove old plot, if it already exists:
-                        if plot_name.is_file():
-                            plot_name.unlink()
+                        #Create new dictionaries:
+                        mseasons = {}
+                        oseasons = {}
+                        dseasons = {} # hold the differences
 
-                        #Create new plot:
-                        # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
-                        # This relies on `plot_map_and_save` knowing how to deal with the options
-                        # currently knows how to handle:
-                        #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
-                        #   *Any other entries will be ignored.
-                        # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
+                        #Loop over season dictionary:
+                        for s in seasons:
+                            mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
+                            oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
+                            # difference: each entry should be (lat, lon)
+                            dseasons[s] = mseasons[s] - oseasons[s]
 
-                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+                            # time to make plot; here we'd probably loop over whatever plots we want for this variable
+                            # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
+                            plot_name = plot_loc / "{}_{}_LatLon_Mean.{}".format(var, s, plot_type)
 
-                else: #mdata dimensions check
-                    print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
+                            #Remove old plot, if it already exists:
+                            if plot_name.is_file():
+                                plot_name.unlink()
 
-            else: #odata dimensions check
-                print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
+                            #Create new plot:
+                            # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
+                            # This relies on `plot_map_and_save` knowing how to deal with the options
+                            # currently knows how to handle:
+                            #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
+                            #   *Any other entries will be ignored.
+                            # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
+
+                            pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+
+                    else: #mdata dimensions check
+                        print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
+                    #End if (dimensions check)
+
+                else: #odata dimensions check
+                     print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
+
+                #End if (dimensions check)
+            #End for (case loop)
+        #End for (obs/baseline loop)
+    #End for (variable loop)
 
     #Notify user that script has ended:
     print("  ...lat/lon maps have been generated successfully.")

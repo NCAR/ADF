@@ -50,11 +50,11 @@ def averaging_example(adf, clobber=False, search=None):
     #-----------------------------------------
     var_list = adf.diag_var_list
 
-    #CAM simulation variables (must be lists):
-    case_names    = [adf.get_cam_info("cam_case_name", required=True)]
-    input_ts_locs = [adf.get_cam_info("cam_ts_loc", required=True)]
-    output_locs   = [adf.get_cam_info("cam_climo_loc", required=True)]
-    calc_climos   = [adf.get_cam_info("calc_cam_climo")]
+    #CAM simulation variables (These quantities are always lists):
+    case_names    = adf.get_cam_info("cam_case_name", required=True)
+    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
+    output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
+    calc_climos   = adf.get_cam_info("calc_cam_climo")
 
     #Check if a baseline simulation is also being used:
     if not adf.get_basic_info("compare_obs"):
@@ -78,6 +78,9 @@ def averaging_example(adf, clobber=False, search=None):
         #If not then just continue on to the next case:
         if not calc_climos[case_idx]:
             continue
+
+        #Notify user of model case being processed:
+        print(f"\t Calculating climatologies for case '{case_name}' :")
 
         #Create "Path" objects:
         input_location  = Path(input_ts_locs[case_idx])
