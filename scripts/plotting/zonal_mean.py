@@ -244,7 +244,7 @@ def zonal_mean(adfobj):
 
                     #Create new plot:
                     pf.plot_zonal_mean_and_save(plot_name, mseasons[s], mps_season, mhya, mhyb,
-                                                           oseasons[s], ops_season, ohya, ohyb)
+                                                           oseasons[s], ops_season, ohya, ohyb, **vres)
 
                 #End for (seasons loop)
             #End for (case names loop)
