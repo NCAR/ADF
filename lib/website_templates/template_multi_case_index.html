@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ADF diagnostics</title>
+    <link rel="stylesheet" href="./templates/adf_diag.css">
+  </head>
+  <body >
+
+    <nav role="navigation" class="primary-navigation">
+      <ul>
+        <li><a href=".">Home</a></li>
+        <li><a href="#">Links &dtrif;</a>
+          <ul class="dropdown">
+            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+          </ul>
+        </li>
+        <li><a href="https://github.com/NCAR/ADF">About</a></li>
+        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+      </ul>
+    </nav>
+
+    <h1> {{title}} </h1>
+
+    <table class="big-table">
+      {% for case_name, case_path in case_sites.items() %}
+        <tr>
+          <td><a href="{{ case_path }}">{{ case_name }}</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+
+  </body>
+</html>
