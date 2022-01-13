@@ -19,6 +19,7 @@ import pandas as pd
 import geocat.comp as gc  # use geocat's interpolation
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from plotting_functions import pres_from_hybrid
 import warnings  # use to warn user about missing files.
 
 def my_formatwarning(msg, *args, **kwargs):
@@ -134,16 +135,9 @@ def cam_taylor_diagram(adfobj):
 
 # --- DERIVED VARIABLES --- 
 
-def _pressure_from_hybrid(psfc, hya, hyb, p0=100000.):
-    """Calculate pressure at the hybrid levels."""
-    # p(k) = hya(k) * p0 + hyb(k) * psfc
-    # This will be in Pa
-    return hya * p0 + hyb * psfc
-
-
 def vertical_average(fld, ps, acoef, bcoef):
     """Calculate weighted vertical average using trapezoidal rule. Uses full column."""
-    pres = _pressure_from_hybrid(ps, acoef, bcoef)
+    pres = pres_from_hybrid(ps, acoef, bcoef)
     # integral of del_pressure turns out to be just the average of the square of the boundaries:
     # -- assume lev is a coordinate and is nominally in pressure units
     maxlev = pres['lev'].max().item()
@@ -226,18 +220,26 @@ def get_tropical_ocean_precip(adf, casename, location, **kwargs):
         raise ValueError("No landfrac returned")
     prect = get_prect(casename, location)
     # mask to only keep ocean locations
-    prect = xr.DataArray(np.where(landfrac <= 0, prect, np.nan),
+    prect = xr.DataArray(np.where(landfrac <= 0.05, prect, np.nan),
                          dims=prect.dims,
                          coords=prect.coords,
                          attrs=prect.attrs)  
     return prect.sel(lat=slice(-30,30))
 
 
+def get_var_at_plev(adf, casename, location, variable, plev):
+    """
+    Get `variable` from the data and then interpolate it to isobaric level `plev` (units of hPa).
+
+    """
+    dset = _retrieve(adf, variable, casename, location, return_dataset=True)
+    vplev = gc.interp_hybrid_to_pressure(dset['U'], dset['PS'], dset['hyam'], dset['hybm'], new_levels=np.array([100. * plev]), lev_dim='lev')
+    vplev = vplev.squeeze(drop=True).load()
+    return vplev
+
+
 def get_u_at_plev(adf, casename, location):
-    uwind = _retrieve(adf, "U", casename, location, return_dataset=True)
-    u300 = gc.interp_hybrid_to_pressure(uwind['U'], uwind['PS'], uwind['hyam'], uwind['hybm'], new_levels=np.array([30000.0]), lev_dim='lev')
-    u300 = u300.squeeze(drop=True).load()
-    return u300
+    return get_var_at_plev(adf, casename, location, "U", 300)
 
 
 def get_vertical_average(adf, casename, location, varname):
@@ -308,7 +310,7 @@ def get_derive_func(fld):
 
 
 def _retrieve(adfobj, variable, casename, location, return_dataset=False):
-    """Custom function that retrieves a variable. Returns the variable as a DaraArray.
+    """Custom function that retrieves a variable. Returns the variable as a DataArray.
     
     kwarg: 
     return_dataset -> if true, return the dataset object, otherwise return the DataArray
@@ -344,8 +346,7 @@ def weighted_correlation(x, y, weights):
     mean_y = y.weighted(weights).mean()
     dev_x = x - mean_x
     dev_y = y - mean_y
-    dev_xy = dev_x * dev_y
-    cov_xy = dev_xy.weighted(weights).mean()
+    dev_xy = (dev_x * dev_y).weighted(weights).mean()
     cov_xx = (dev_x * dev_x).weighted(weights).mean()
     cov_yy = (dev_y * dev_y).weighted(weights).mean()
     return cov_xy / np.sqrt(cov_xx * cov_yy)
