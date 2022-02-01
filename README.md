@@ -45,6 +45,9 @@ Finally, along with these python requirements, the `ncrcat` NetCDF Operator (NCO
 
 ## Running ADF diagnostics
 
+Detailed instructions for users and developers are availabe on this repository's [wiki](https://github.com/NCAR/ADF/wiki).
+
+
 To run an example of the ADF diagnostics, simply download this repo, setup your computing environment as described in the [Required software environment](https://github.com/NCAR/CAM_diagnostics/blob/main/README.md#required-software-environment) section above, modify the `config_cam_baseline_example.yaml` file (or create one of your own) to point to the relevant diretories and run:
 
 `./run_adf_diag config_cam_baseline_example.yaml`
