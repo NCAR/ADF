@@ -53,8 +53,7 @@ This should generate a collection of time series files, climatology (climo) file
 
 ## Troubleshooting
 
-Any problems or issues with this script should be posted on the
-DiscussCESM CAM forum located online [here](https://xenforo.cgd.ucar.edu/cesm/forums/cam.133/).
+Any problems or issues with this software should be posted on the ADF discussions page located online [here](https://github.com/NCAR/ADF/discussions).
 
 Please note that registration may be required before a message can
 be posted.  However, feel free to search the forums for similar issues
