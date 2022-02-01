@@ -346,7 +346,7 @@ def weighted_correlation(x, y, weights):
     mean_y = y.weighted(weights).mean()
     dev_x = x - mean_x
     dev_y = y - mean_y
-    dev_xy = (dev_x * dev_y).weighted(weights).mean()
+    cov_xy = (dev_x * dev_y).weighted(weights).mean()
     cov_xx = (dev_x * dev_x).weighted(weights).mean()
     cov_yy = (dev_y * dev_y).weighted(weights).mean()
     return cov_xy / np.sqrt(cov_xx * cov_yy)
