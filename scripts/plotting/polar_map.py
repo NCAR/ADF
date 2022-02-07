@@ -20,7 +20,7 @@ import plotting_functions as pf
 
 def polar_map(adfobj):
     """
-    This script/function is generates polar maps of model fields with continental overlays.
+    This script/function generates polar maps of model fields with continental overlays.
 
     Plots style follows old AMWG diagnostics:
       - plots for ANN, DJF, MAM, JJA, SON
@@ -207,6 +207,10 @@ def polar_map(adfobj):
                             nhfig.savefig(nh_plot_name, bbox_inches='tight', dpi=300)
                             shfig.savefig(sh_plot_name, bbox_inches='tight', dpi=300)
 
+                            # Close figures to avoid memory issues:
+                            plt.close(nhfig)
+                            plt.close(shfigh)
+
                     else: #mdata dimensions check
                         print("\t \u231B skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
                     #End if (dimensions check)
@@ -236,7 +240,7 @@ def domain_stats(data, domain):
 
 def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.DataArray]=None, domain:Optional[list]=None, hemisphere:Optional[str]=None, **kwargs):
     '''
-    Make a stereographic polar polt for the given data and hemisphere.
+    Make a stereographic polar plot for the given data and hemisphere.
     - Uses contourf. No contour lines (yet).
 
     d1, d2 -> the data to be plotted. Any tranformations/operations should be done, and dimensions should be [lat, lon]

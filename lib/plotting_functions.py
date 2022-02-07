@@ -54,9 +54,9 @@ def get_difference_colors(values):
         cmap = mpl.cm.RdBu_r
     else:
         dnorm = mpl.colors.Normalize(vmin=np.min(values), vmax=np.max(values))
-        if dmin > 0:
+        if dmin >= 0:
             cmap = mpl.cm.OrRd
-        elif dmax < 0:
+        elif dmax <= 0:
             cmap = mpl.cm.BuPu_r
         else:
             dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
