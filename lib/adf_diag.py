@@ -902,7 +902,7 @@ class AdfDiag(AdfConfig):
         season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
         #Set preferred order of plot types:
-        plot_type_order = ["LatLon", "Zonal"]
+        plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')

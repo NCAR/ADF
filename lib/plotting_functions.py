@@ -36,6 +36,33 @@ def use_this_norm():
         else:
             return mpl.colors.TwoSlopeNorm, mplversion[0]
 
+
+def get_difference_colors(values):
+    """Provide a color norm and colormap assuming this is a difference field.
+
+       Values can be either the data field or a set of specified contour levels. 
+    
+       Uses 'OrRd' colormap for positive definite, 'BuPu_r' for negative definite,
+       and 'RdBu_r' centered on zero if there are values of both signs.
+    """
+    normfunc, mplv = use_this_norm()
+    dmin = np.min(values)
+    dmax = np.max(values)
+    # color normalization for difference
+    if ((dmin < 0) and (0 < dmax)):
+        dnorm = normfunc(vmin=np.min(values), vmax=np.max(values), vcenter=0.0)
+        cmap = mpl.cm.RdBu_r
+    else:
+        dnorm = mpl.colors.Normalize(vmin=np.min(values), vmax=np.max(values))
+        if dmin >= 0:
+            cmap = mpl.cm.OrRd
+        elif dmax <= 0:
+            cmap = mpl.cm.BuPu_r
+        else:
+            dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
+    return dnorm, cmap
+
+
 #######
 
 def global_average(fld, wgt, verbose=False):
