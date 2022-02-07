@@ -272,6 +272,7 @@ analysis_scripts:
 plotting_scripts:
     - global_latlon_map
     - zonal_mean
+    - polar_map
 
 #List of CAM variables that will be processesd:
 diag_var_list:

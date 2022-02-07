@@ -5,7 +5,7 @@ from typing import Optional  # this is just for type hints
 import xarray as xr
 import numpy as np
 
-# plotting 
+# plotting
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -209,7 +209,7 @@ def polar_map(adfobj):
 
                             # Close figures to avoid memory issues:
                             plt.close(nhfig)
-                            plt.close(shfigh)
+                            plt.close(shfig)
 
                     else: #mdata dimensions check
                         print("\t \u231B skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
@@ -248,7 +248,7 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
     domain -> optional, a list of [west_lon, east_lon, south_lat, north_lat] that defines the domain to be plotted. If not provided, defaults to all longitudes, 45deg to pole of the given hemisphere
     hemisphere -> must be provided as NH or SH to determine which hemisphere to plot
 
-    kwargs -> expected to be variable-dependent options for plots. 
+    kwargs -> expected to be variable-dependent options for plots.
     '''
     if difference is None:
         dif = d2 - d1
@@ -320,8 +320,8 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
         dnorm, _ = pf.get_difference_colors(levelsdiff)  # color map output ignored
     else:
         dnorm, cmapdiff = pf.get_difference_colors(levelsdiff)
-    
-    # -- end options 
+
+    # -- end options
 
     lons, lats = np.meshgrid(lon_cyclic, d1.lat)
 
