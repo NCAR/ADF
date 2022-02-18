@@ -65,8 +65,10 @@ diag_basic_info:
     #(usually "case_vs_obs_XXX" or "case_vs_baseline_XXX").
     create_html: true
 
-    #Location of observational climatologies (only matters if "compare_obs" is true):
-    obs_climo_loc: /glade/work/brianpm/observations/climo_files
+    #Location of observational datasets:
+    #Note: this only matters if "compare_obs" is true and the path
+    #isn't specified in the variable defaults file.
+    obs_data_loc: /glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs
 
     #Location where re-gridded CAM climatology files are stored:
     cam_regrid_loc: /some/where/you/want/to/have/regridded_files #MUST EDIT!
@@ -281,9 +283,5 @@ diag_var_list:
     - PSL
     - Q
 #<Add more variables here.>
-
-#List of observation types (filename prefixes) CAM can be compared against:
-obs_type_list:
-    - CERES_EBAF_Ed4.1
 
 #END OF FILE

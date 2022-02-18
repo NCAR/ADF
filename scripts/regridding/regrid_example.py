@@ -50,11 +50,16 @@ def regrid_example(adf):
     print(input_climo_locs)
 
     #Regrid target variables (either obs or a baseline run):
-    if adf.get_basic_info("compare_obs"):
+    if adf.compare_obs:
 
-        #Extract observation-derived variables:
-        target_loc  = adf.get_basic_info("obs_climo_loc", required=True)
-        target_list = adf.obs_type_list
+        #Extract variable-obs dictionary:
+        var_obs_dict = adf.var_obs_dict
+
+        #If dictionary is empty, then  there are no observations to regrid to,
+        #so quit here:
+        if not var_obs_dict:
+            print("No observations found to regrid to, so no re-gridding will be done.")
+            return
 
     else:
 
@@ -67,7 +72,8 @@ def regrid_example(adf):
     #Set output/target data path variables:
     #------------------------------------
     rgclimo_loc = Path(output_loc)
-    tclimo_loc  = Path(target_loc)
+    if not adf.compare_obs:
+        tclimo_loc  = Path(target_loc)
     #------------------------------------
 
     #Check if re-gridded directory exists, and if not, then create it:
@@ -86,6 +92,20 @@ def regrid_example(adf):
 
         # probably want to do this one variable at a time:
         for var in var_list:
+
+            if adf.compare_obs:
+                #Check if obs exist for the variable:
+                if var in var_obs_dict:
+                    #Note: In the future these may all be lists, but for
+                    #now just convert the target_list.
+                    #Extract target file:
+                    tclimo_loc = var_obs_dict[var]["obs_file"]
+                    #Extract target list (eventually will be a list, for now need to convert):
+                    target_list = [var_obs_dict[var]["obs_name"]]
+                else:
+                    dmsg = f"No obs found for variable `{var}`, regridding skipped."
+                    adf.debug_log(dmsg)
+                    continue
 
             #Notify user of variable being regridded:
             print("\t [\u25B6] regridding {} (known targets: {})".format(var, len(target_list)))
@@ -108,7 +128,11 @@ def regrid_example(adf):
 
                     #Create list of regridding target files (we should explore intake as an alternative to having this kind of repeated code)
                     # NOTE: This breaks if you have files from different cases in same directory!
-                    tclim_fils = sorted(list(tclimo_loc.glob("{}*_{}_*.nc".format(target, var))))
+                    if adf.compare_obs:
+                        #For now, only grab one file (but convert to list for use below):
+                        tclim_fils = [tclimo_loc]
+                    else:
+                       tclim_fils = sorted(list(tclimo_loc.glob("{}*_{}_*.nc".format(target, var))))
 
                     #Write to debug log if enabled:
                     adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")

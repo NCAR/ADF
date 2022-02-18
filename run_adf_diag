@@ -158,6 +158,12 @@ if __name__ == "__main__":
     #in the config file:
     diag.create_climo()
 
+    #If a user is doing a model vs obs comparison, but
+    #no observations were found, then stop here:
+    if diag.compare_obs and not diag.var_obs_dict:
+        print('ADF diagnostics has completed successfully.')
+        sys.exit(0)
+
     #Regrid model climatology files to match either
     #observations or CAM baseline climatologies.
     #This call uses the "regridding_scripts" specified

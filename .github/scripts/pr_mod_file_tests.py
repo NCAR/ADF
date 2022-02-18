@@ -141,6 +141,7 @@ def _main_prog():
     #argument, and include everything inside the "lib" directory -JN:
     testable_files = {"lib/adf_base.py",
                       "lib/adf_config.py",
+                      "lib/adf_obs.py",
                       "lib/adf_diag.py"}
 
     #+++++++++++++++++++++++
