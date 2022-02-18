@@ -75,7 +75,7 @@ def global_latlon_map(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("No observations found to regrid to, so no re-gridding will be done.")
+            print("No observations found to plot against, so no lat/lon maps will be generated.")
             return
 
     else:
