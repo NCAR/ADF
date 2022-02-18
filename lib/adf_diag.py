@@ -91,7 +91,7 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 #+++++++++++++++++++++++++++++
 
 #Finally, import needed ADF module:
-from adf_config import AdfConfig
+from adf_obs import AdfObs
 
 #################
 #Helper functions
@@ -129,7 +129,7 @@ def construct_index_info(page_dict, fnam, opf):
 #Main ADF diagnostics class (AdfDiag)
 ######################################
 
-class AdfDiag(AdfConfig):
+class AdfDiag(AdfObs):
 
     """
     Main ADF diagnostics object.
@@ -204,7 +204,7 @@ class AdfDiag(AdfConfig):
         #-------------------------------------------
 
         #Check if a CAM vs AMWG obs comparison is being performed:
-        if self.read_config_var('compare_obs', conf_dict=self.__basic_info):
+        if self.compare_obs:
 
             #Finally, set the baseline info to None, to ensure any scripts
             #that check this variable won't crash:
@@ -231,54 +231,18 @@ class AdfDiag(AdfConfig):
         #Add plotting script names:
         self.__plotting_scripts = self.read_config_var('plotting_scripts')
 
-        #Add CAM variable list:
-        self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
-
-        #Add CAM observation type list (filename prefix for observation files):
-        self.obs_type_list = self.read_config_var('obs_type_list')
-
         #Create plot location variable for potential use by the website generator.
         #Please note that this variable is only set if "create_plots" or "peform_analyses"
         #is called:
         self.__plot_location = [] #Must be a list to manage multiple cases
 
-        # Check whether user wants to use defaults:
-        if self.get_basic_info('use_defaults'):
-            # Determine whether to use adf defaults or custom:
-            defaults_file = self.get_basic_info('custom_defaults')
-            if defaults_file is None:
-                defaults_file = Path(_LOCAL_PATH)/'adf_variable_defaults.yaml'
-            #Open YAML file:
-            with open(defaults_file, encoding='UTF-8') as nfil:
-                self.variable_defaults = yaml.load(nfil, Loader=yaml.SafeLoader)
-        else:
-            self.variable_defaults = {}
-
-
-    @property
-    def use_defaults(self):
-        return self.get_basic_info('use_defaults')
-
-
-    # Create property needed to return "compare_obs" logical to user:
-    @property
-    def compare_obs(self):
-        """Return the "compare_obs" logical to user if requested."""
-        return self.get_basic_info('compare_obs')
+    #####
 
     # Create property needed to return "create_html" logical to user:
     @property
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
         return self.get_basic_info('create_html')
-
-    # Create property needed to return "diag_var_list" list to user:
-    @property
-    def diag_var_list(self):
-        """Return a copy of the "diag_var_list" list to user if requested."""
-        #Note that a copy is needed in order to avoid having a script mistakenly
-        #modify this variable:
-        return copy.copy(self.__diag_var_list)
 
     # Create property needed to return "plot_location" variable to user:
     @property
@@ -862,6 +826,7 @@ class AdfDiag(AdfConfig):
             print("Jinja2 module does not exist in python path, but is needed for website.")
             print("Please install module, e.g. 'pip install Jinja2'.")
             sys.exit(1)
+        #End except
 
         #Notify user that script has started:
         print("  Generating Diagnostics webpages...")
@@ -881,13 +846,15 @@ class AdfDiag(AdfConfig):
             case_sites = OrderedDict()
         else:
             main_site_path = "" #Set main_site_path to blank value
+        #End if
 
         #Extract needed variables from yaml file:
         case_names = self.read_config_var('cam_case_name',
                                          conf_dict=self.__cam_climo_info,
                                          required=True)
 
-        var_list = self.__diag_var_list
+        #Extract variable list:
+        var_list = self.diag_var_list
 
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:

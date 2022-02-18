@@ -294,8 +294,11 @@ class AdfConfig(AdfBase):
             emsg += " Please see 'config_cam_baseline_example.yaml'."
             raise ValueError(emsg)
 
-        #return a copy of the variable/list/dictionary:
-        return copy.copy(var)
+        #return a copy of the variable/list/dictionary,
+        #this is done so that scripts can modify the copy
+        #without worrying about modifying the actual
+        #config variables dictionary:
+        return copy.deepcopy(var)
 
 #++++++++++++++++++++
 #End Class definition

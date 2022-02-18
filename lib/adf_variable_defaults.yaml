@@ -1,3 +1,42 @@
+
+#This file lists out variable-specific defaults
+#for plotting and observations.  These defaults
+#are:
+#
+# PLOTTING:
+#
+# colormap             -> The colormap that will be used for filled contour plots.
+# contour_levels       -> A list of the specific contour values that will be used for contour plots.
+#                         Cannot be used with "contour_levels_range".
+# contour_levels_range -> The contour range that will be used for plots.
+#                         Values are min, max, and stride.  Cannot be used with "contour_levels".
+# diff_colormap        -> The colormap that will be used for filled contour different plots
+# diff_contour_levels  -> A list of the specific contour values thta will be used for difference plots.
+#                         Cannot be used with "diff_contour_range".
+# diff_contour_range   -> The contour range that will be used for difference plots.
+#                         Values are min, max, and stride. Cannot be used with "diff_contour_levels".
+# scale_factor         -> Amount to scale the variable (relative to its "raw" model values).
+# add_offset           -> Amount of offset to add to the variable (relatie to its "raw" model values).
+# new_unit             -> Variable units (if not using the  "raw" model units).
+# mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
+#
+#
+# OBSERVATIONS:
+#
+# obs_file     -> Path to observations file.  If only the file name is given, then the file is assumed to
+#                 exist in the path specified by "obs_data_loc" in the config file.
+# obs_name     -> Name of the observational dataset (mostly used for plotting and generated file naming).
+#                 If this isn't present then the obs_file name is used.
+# obs_var_name -> Variable in the observations file to compare against.  If this isn't present then the
+#                 variable name is assumed to be the same as the model variable name.
+#
+# Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
+#              If you would like to modify this file for your personal ADF runs then it is recommended
+#              to make a copy of this file, make modifications in that copy, and then point the ADF to
+#              it using the "defaults_file" config variable.
+#
+#+++++++++++
+
 PSL:
   colormap: "Oranges"
   contour_levels_range: [980, 1052, 4]
@@ -114,6 +153,9 @@ SWCF:
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_SWCF_climo.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "SWCF"
 
 LWCF:
   colormap: "Blues"
@@ -126,3 +168,9 @@ LWCF:
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_LWCF_climo.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "LWCF"
+
+#-----------
+#End of File

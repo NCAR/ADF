@@ -63,9 +63,15 @@ def zonal_mean(adfobj):
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
-        data_name = "obs"  # does not get used, is just here as a placemarker
-        data_list = adfobj.read_config_var("obs_type_list")  # Double caution!
-        data_loc = adfobj.get_basic_info("obs_climo_loc", required=True)
+
+        #Extract variable-obs dictionary:
+        var_obs_dict = adfobj.var_obs_dict
+
+        #If dictionary is empty, then  there are no observations to regrid to,
+        #so quit here:
+        if not var_obs_dict:
+            print("No observations found to regrid to, so no re-gridding will be done.")
+            return
 
     else:
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
@@ -86,8 +92,9 @@ def zonal_mean(adfobj):
 
     #Set data path variables:
     #-----------------------
-    dclimo_loc    = Path(data_loc)
     mclimo_rg_loc = Path(model_rgrid_loc)
+    if not adfobj.compare_obs:
+        dclimo_loc  = Path(data_loc)
     #-----------------------
 
     #Set seasonal ranges:
@@ -100,6 +107,27 @@ def zonal_mean(adfobj):
     #Loop over variables:
     for var in var_list:
 
+        if adfobj.compare_obs:
+            #Check if obs exist for the variable:
+            if var in var_obs_dict:
+                #Note: In the future these may all be lists, but for
+                #now just convert the target_list.
+                #Extract target file:
+                dclimo_loc = var_obs_dict[var]["obs_file"]
+                #Extract target list (eventually will be a list, for now need to convert):
+                data_list = [var_obs_dict[var]["obs_name"]]
+                #Extract target variable name:
+                data_var = var_obs_dict[var]["obs_var"]
+            else:
+                dmsg = f"No obs found for variable `{var}`, zonal mean plotting skipped."
+                adfobj.debug_log(dmsg)
+                continue
+            #End if
+        else:
+            #Set "data_var" for consistent use below:
+            data_var = var
+        #End if
+
         #Notify user of variable being plotted:
         print("\t \u231B zonal mean plots for {}".format(var))
 
@@ -111,12 +139,18 @@ def zonal_mean(adfobj):
 
         else:
             vres = {}
+        #End if
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
             # load data (observational) comparison files
             # (we should explore intake as an alternative to having this kind of repeated code):
-            oclim_fils = sorted(list(dclimo_loc.glob("{}_{}_*.nc".format(data_src, var))))
+            if adfobj.compare_obs:
+                #For now, only grab one file (but convert to list for use below)
+                oclim_fils = [dclimo_loc]
+            else:
+                oclim_fils = sorted(list(dclimo_loc.glob("{}_{}_*.nc".format(data_src, var))))
+            #End if
             oclim_ds = _load_dataset(oclim_fils)
 
             #Loop over model cases:
@@ -140,16 +174,20 @@ def zonal_mean(adfobj):
                     continue
 
                 #Extract variable of interest
-                odata = oclim_ds[var].squeeze()  # squeeze in case of degenerate dimensions
+                odata = oclim_ds[data_var].squeeze()  # squeeze in case of degenerate dimensions
                 mdata = mclim_ds[var].squeeze()
 
                 # APPLY UNITS TRANSFORMATION IF SPECIFIED:
-                odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                # NOTE: looks like our climo files don't have all their metadata
                 mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
                 # update units
-                # NOTE: looks like our climo files don't have all their metadata
-                odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
                 mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
+
+                # Do the same for the baseline case if need be:
+                if not adfobj.compare_obs:
+                    odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                    # update units
+                    odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
