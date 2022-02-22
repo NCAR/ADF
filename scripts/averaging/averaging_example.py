@@ -55,6 +55,7 @@ def averaging_example(adf, clobber=False, search=None):
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
+    overwrite     = adf.get_cam_info("cam_overwrite_climo", required=True)
 
     #Check if a baseline simulation is also being used:
     if not adf.get_basic_info("compare_obs"):
@@ -63,12 +64,14 @@ def averaging_example(adf, clobber=False, search=None):
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
         output_bl_loc     = adf.get_baseline_info("cam_climo_loc", required=True)
         calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
+        ovr_bl            = adf.get_baseline_info("cam_overwrite_climo", required=True)
 
         #Append to case lists:
         case_names.append(baseline_name)
         input_ts_locs.append(input_ts_baseline)
         output_locs.append(output_bl_loc)
         calc_climos.append(calc_bl_climos)
+        overwrite.append(ovr_bl)
     #-----------------------------------------
 
     #Loop over CAM cases:
@@ -85,6 +88,9 @@ def averaging_example(adf, clobber=False, search=None):
         #Create "Path" objects:
         input_location  = Path(input_ts_locs[case_idx])
         output_location = Path(output_locs[case_idx])
+
+        #Whether to overwrite existing climo files
+        clobber = overwrite[case_idx]
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
@@ -108,6 +114,8 @@ def averaging_example(adf, clobber=False, search=None):
             if (not clobber) and (output_file.is_file()):
                 print(f"INFO: Found climo file and clobber is False, so skipping {var} and moving to next variable.")
                 continue
+            elif (clobber) and (output_file.is_file()):
+                print(f"INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
 
             #Create list of time series files present for variable:
             ts_filenames = search.format(CASE=case_name, VARIABLE=var)
@@ -135,6 +143,20 @@ def averaging_example(adf, clobber=False, search=None):
                 cam_ts_data['time'] = time
                 cam_ts_data.assign_coords(time=time)
                 cam_ts_data = xr.decode_cf(cam_ts_data)
+
+            # Check whether averaging interval is supplied
+            # -> using only years takes from the beginning of first year to end of second year.
+            # -> slice('1991','1998') will get all of [1991,1998].
+            # -> slice(None,None) will use all times.
+            if ('start_year' in calc_climos):
+                sy = calc_climos['start_year']
+            else:
+                sy = None
+            if ('end_year' in calc_climos):
+                ey = calc_climos['end_year']
+            else:
+                ey = None
+            cam_ts_data = cam_ts_data.sel(time=slice(sy,ey))  
 
             #Group time series values by month, and average those months together:
             cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')
