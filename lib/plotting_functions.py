@@ -14,6 +14,14 @@ import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
 
+# check if we have dask (probably yes)
+# later we can check if objects are instances of da.Array
+try:
+    import dask.array as da
+    has_dask = True
+except ImportError:
+    has_dask = False
+
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
 
@@ -100,6 +108,10 @@ def wgt_rmse(fld1, fld2, wgt):
     """
     assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
+    if has_dask and isinstance(fld1, da.Array):
+        fld1 = fld1.compute()
+    if has_dask and isinstance(fld2, da.Array):
+        fld2 = fld2.compute()
     if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
         return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
     else:
@@ -483,6 +495,16 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         bzm = zonal_mean_xr(bplev)
 
         diff = azm - bzm
+
+        # lev_to_plev may return dask array b/c geocat's interp can do that
+        # In that case, force into xarray or numpy array here. 
+        if has_dask and isinstance(azm, da.Array):
+            azm = azm.compute()
+        if has_dask and isinstance(bzm, da.Array):
+            bzm = bzm.compute()
+        if has_dask and isinstance(diff, da.Array):
+            diff = diff.compute()
+        
         # determine levels & color normalization:
         minval = np.min([np.min(azm), np.min(bzm)])
         maxval = np.max([np.max(azm), np.max(bzm)])
