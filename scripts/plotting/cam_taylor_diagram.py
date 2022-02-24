@@ -3,10 +3,10 @@ Module: cam_taylor_diagram
 
 Provides a Taylor diagram following the AMWG package. Uses spatial information only.
 
-This module, for better or worse, provides both the computation and plotting functionality. 
-It depends on an ADF instance to obtain the `climo` files. 
-It is designed to have one "reference" case (could be observations) and arbitrary test cases. 
-When multiple test cases are provided, they are plotted with different colors. 
+This module, for better or worse, provides both the computation and plotting functionality.
+It depends on an ADF instance to obtain the `climo` files.
+It is designed to have one "reference" case (could be observations) and arbitrary test cases.
+When multiple test cases are provided, they are plotted with different colors.
 
 '''
 #
@@ -87,10 +87,10 @@ def cam_taylor_diagram(adfobj):
                "MAM": [3, 4, 5],
                "SON": [9, 10, 11]}
 
-    # TAYLOR PLOT VARIABLES:    
-    var_list = ['PSL', 'SWCF', 'LWCF', 
-                'TropicalLandPrecip', 'TropicalOceanPrecip', 
-                'Land2mTemperature', 'EquatorialPacificStress', 
+    # TAYLOR PLOT VARIABLES:
+    var_list = ['PSL', 'SWCF', 'LWCF',
+                'TropicalLandPrecip', 'TropicalOceanPrecip',
+                'Land2mTemperature', 'EquatorialPacificStress',
                 'U300', 'ColumnRelativeHumidity', 'ColumnTemperature']
 
     case_colors = [mpl.cm.tab20(i) for i, case in enumerate(case_names)] # change color for each case
@@ -108,11 +108,11 @@ def cam_taylor_diagram(adfobj):
         for v in var_list:
             base_x = _retrieve(adfobj, v, data_name, data_loc) # get the baseline field
             for casenumber, case in enumerate(case_names):     # LOOP THROUGH CASES
-                case_x = _retrieve(adfobj, v, case, case_climo_loc[casenumber])  
+                case_x = _retrieve(adfobj, v, case, case_climo_loc[casenumber])
                 # ASSUMING `time` is 1-12, get the current season:
                 case_x = case_x.sel(time=seasons[s]).mean(dim='time')
                 result_by_case[case].loc[v] = taylor_stats_single(case_x, base_x)
-        # 
+        #
         # -- PLOTTING (one per season) --
         #
         fig, ax = taylor_plot_setup()
@@ -133,7 +133,7 @@ def cam_taylor_diagram(adfobj):
 # --- Local Functions ---
 #
 
-# --- DERIVED VARIABLES --- 
+# --- DERIVED VARIABLES ---
 
 def vertical_average(fld, ps, acoef, bcoef):
     """Calculate weighted vertical average using trapezoidal rule. Uses full column."""
@@ -191,11 +191,11 @@ def get_prect(casename, location, **kwargs):
             if len(fils1) == 1:
                 precc = xr.open_dataset(fils1[0])['PRECC']
                 precl = xr.open_dataset(fils2[0])['PRECL']
-                prect = precc + precl 
+                prect = precc + precl
             else:
                 raise NotImplementedError("Need to deal with mult-file case.")
     elif len(fils) > 1:
-        prect = xr.open_mfdataset(fils)['PRECT'].load()  # do we ever expect climo files split into pieces? 
+        prect = xr.open_mfdataset(fils)['PRECT'].load()  # do we ever expect climo files split into pieces?
     else:
         prect = xr.open_dataset(fils[0])['PRECT']
     return prect
@@ -223,7 +223,7 @@ def get_tropical_ocean_precip(adf, casename, location, **kwargs):
     prect = xr.DataArray(np.where(landfrac <= 0.05, prect, np.nan),
                          dims=prect.dims,
                          coords=prect.coords,
-                         attrs=prect.attrs)  
+                         attrs=prect.attrs)
     return prect.sel(lat=slice(-30,30))
 
 
@@ -272,7 +272,7 @@ def get_landt2m(adf, casename, location):
     if len(fils) == 0:
         raise IOError(f"TREFHT could not be found in the files.")
     elif len(fils) > 1:
-        t = xr.open_mfdataset(fils)['TREFHT'].load()  # do we ever expect climo files split into pieces? 
+        t = xr.open_mfdataset(fils)['TREFHT'].load()  # do we ever expect climo files split into pieces?
     else:
         t = xr.open_dataset(fils[0])['TREFHT']
     landfrac = find_landmask(adf, casename, location)
@@ -289,7 +289,7 @@ def get_eqpactaux(adf, casename, location):
     if len(fils) == 0:
         raise IOError(f"TAUX could not be found in the files.")
     elif len(fils) > 1:
-        taux = xr.open_mfdataset(fils)['TAUX'].load()  # do we ever expect climo files split into pieces? 
+        taux = xr.open_mfdataset(fils)['TAUX'].load()  # do we ever expect climo files split into pieces?
     else:
         taux = xr.open_dataset(fils[0])['TAUX']
     return taux.sel(lat=slice(-5, 5))
@@ -311,21 +311,21 @@ def get_derive_func(fld):
 
 def _retrieve(adfobj, variable, casename, location, return_dataset=False):
     """Custom function that retrieves a variable. Returns the variable as a DataArray.
-    
-    kwarg: 
+
+    kwarg:
     return_dataset -> if true, return the dataset object, otherwise return the DataArray
                       with `variable`
                       This option allows get_u_at_plev to use _retrieve.
     """
 
-    v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress', 
+    v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress',
                 'U300', 'ColumnRelativeHumidity', 'ColumnTemperature', 'Land2mTemperature']
     if variable not in v_to_derive:
         fils = sorted(list(Path(location).glob(f"{casename}*_{variable}_*.nc")))
         if len(fils) == 0:
             raise ValueError(f"something went wrong for variable: {variable}")
         elif len(fils) > 1:
-            ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces? 
+            ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces?
         else:
             ds = xr.open_dataset(fils[0])
         if return_dataset:
@@ -352,6 +352,32 @@ def weighted_correlation(x, y, weights):
     return cov_xy / np.sqrt(cov_xx * cov_yy)
 
 
+def weighted_std(x, weights):
+    """Weighted standard deviation.
+
+    x -> xr.DataArray
+    weights -> array-like of weights, probably xr.DataArray
+
+    If weights is not the same shape as x, will use `broadcast_like` to
+    create weights array.
+
+    Returns the weighted standard deviation of the full x array.
+
+    """
+    xshape = x.shape
+    wshape = weights.shape
+    if xshape != wshape:
+        wa = weights.broadcast_like(x)
+    else:
+        wa = weights
+    mean_x = x.weighted(weights).mean()
+    dev_x = x - mean_x
+    swdev = (weights * dev_x**2).sum()
+    total_weights = wa.where(x.notnull()).sum()
+    return np.sqrt(swdev / total_weights)
+
+
+
 def taylor_stats_single(casedata, refdata, w=True):
     """This replicates the basic functionality of 'taylor_stats' from NCL.
 
@@ -359,18 +385,18 @@ def taylor_stats_single(casedata, refdata, w=True):
         casedata : input data, DataArray
         refdata  : reference case data, DataArray
         w        : if true use cos(latitude) as spatial weight, if false assume uniform weight
-    
-    returns: 
+
+    returns:
         pattern_correlation, ratio of standard deviation (case/ref), bias
     """
     lat = casedata['lat']
-    if w: 
+    if w:
         wgt = np.cos(np.radians(lat))
     else:
         wgt = np.ones(len(lat))
     correlation = weighted_correlation(casedata, refdata, wgt).item()
-    a_sigma = casedata.weighted(wgt).std().item()
-    b_sigma = refdata.weighted(wgt).std().item()
+    a_sigma = weighted_std(casedata, wgt)
+    b_sigma = weighted_std(refdata, wgt)
     mean_case = casedata.weighted(wgt).mean()
     mean_ref = refdata.weighted(wgt).mean()
     bias = (100*((mean_case - mean_ref)/mean_ref)).item()
@@ -385,7 +411,7 @@ def taylor_plot_setup():
     ax.set_thetamin(0)
     ax.set_thetamax(90)
     ax.set_ylim([0, 1.6])  # Works better than set_rmin / set_rmax
-    ax.set_theta_zero_location("N") # zero at top, 
+    ax.set_theta_zero_location("N") # zero at top,
     ax.set_theta_direction(-1)  # angle increases clockwise
     thetalines, thetalabels = ax.set_thetagrids(np.degrees(corr_locations), corr_labels)
     ax.grid(axis='x', linewidth=0)  # turn off radial grid
@@ -403,13 +429,13 @@ def taylor_plot_setup():
 
 def plot_taylor_data(wks, df, **kwargs):
     """Apply data on top of the Taylor Diagram Axes.
-    
+
         wks -> Axes object, probably from taylor_plot_setup
         df  -> DataFrame holding the Taylor stats.
         kwargs -> optional arguments
           look for 'use_bias'
           look for 'case_color'
-    
+
     """
     # option is whether to stylize the markers by the bias:
     use_bias = False
@@ -425,7 +451,7 @@ def plot_taylor_data(wks, df, **kwargs):
         color = kwargs['case_color']
         if isinstance(color, int):
             # assume we should use this as an index
-            color = mpl.cm.tab20(color) # convert to RGBA 
+            color = mpl.cm.tab20(color) # convert to RGBA
             # TODO: allow colormap to be specified.
     annos = []  # list will hold strings for legend
     k = 1
@@ -439,8 +465,8 @@ def plot_taylor_data(wks, df, **kwargs):
         else:
             wks.plot(theta, row['ratio'], marker='o', markersize=16, color=color)
         annos.append(f"{k} - {ndx.replace('_','')}")
-        wks.annotate(str(k), (theta, row['ratio']), ha='center', va='bottom', 
-                            xytext=(0,5), textcoords='offset points', fontsize='x-large', 
+        wks.annotate(str(k), (theta, row['ratio']), ha='center', va='bottom',
+                            xytext=(0,5), textcoords='offset points', fontsize='x-large',
                             color=color)
         k += 1  # increment the annotation number (THIS REQUIRES CASES TO HAVE SAME ORDER IN DataFrame)
     return wks
@@ -448,7 +474,7 @@ def plot_taylor_data(wks, df, **kwargs):
 
 def taylor_plot_finalize(wks, casenames, casecolors, needs_bias_labels=True):
     """Apply final formatting to a Taylor diagram.
-    
+
         wks -> Axes object that has passed through taylor_plot_setup and plot_taylor_data
         casenames -> list of case names for the legend
         casecolors -> list of colors for the cases
@@ -460,7 +486,7 @@ def taylor_plot_finalize(wks, casenames, casecolors, needs_bias_labels=True):
     height_of_lines = 0.03
     n = 0
     for s, c in zip(casenames, casecolors):
-            text = wks.text(0.052, bottom_of_text + n*height_of_lines, s, 
+            text = wks.text(0.052, bottom_of_text + n*height_of_lines, s,
             color=c, ha='left', va='bottom', transform=wks.transAxes, fontsize=11)
             n += 1
     # BIAS LEGEND
