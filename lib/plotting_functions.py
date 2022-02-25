@@ -41,8 +41,8 @@ def use_this_norm():
 def get_difference_colors(values):
     """Provide a color norm and colormap assuming this is a difference field.
 
-       Values can be either the data field or a set of specified contour levels. 
-    
+       Values can be either the data field or a set of specified contour levels.
+
        Uses 'OrRd' colormap for positive definite, 'BuPu_r' for negative definite,
        and 'RdBu_r' centered on zero if there are values of both signs.
     """
@@ -101,9 +101,9 @@ def wgt_rmse(fld1, fld2, wgt):
     assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     # in case these fields are in dask arrays, compute them now.
-    if has_attr(fld1, "compute"):
+    if hasattr(fld1, "compute"):
         fld1 = fld1.compute()
-    if has_attr(fld2, "compute"):
+    if hasattr(fld2, "compute"):
         fld2 = fld2.compute()
     if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
         return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
