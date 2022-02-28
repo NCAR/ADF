@@ -46,9 +46,6 @@ def regrid_example(adf):
     case_names = adf.get_cam_info("cam_case_name", required=True)
     input_climo_locs = adf.get_cam_info("cam_climo_loc", required=True)
 
-    print(case_names)
-    print(input_climo_locs)
-
     #Regrid target variables (either obs or a baseline run):
     if adf.compare_obs:
 
@@ -108,7 +105,7 @@ def regrid_example(adf):
                     continue
 
             #Notify user of variable being regridded:
-            print("\t [\u25B6] regridding {} (known targets: {})".format(var, len(target_list)))
+            print("\t - regridding {} (known targets: {})".format(var, len(target_list)))
 
             #loop over regridding targets:
             for target in target_list:
@@ -141,7 +138,7 @@ def regrid_example(adf):
                         #Combine all target files together into a single data set:
                         tclim_ds = xr.open_mfdataset(tclim_fils, combine='by_coords')
                     elif len(tclim_fils) == 0:
-                        print("\t [\u25B6] regridding {} failed, no file. Continuing to next variable.".format(var))
+                        print("\t - regridding {} failed, no file. Continuing to next variable.".format(var))
                         continue
                     else:
                         #Open single file as new xarray dataset:

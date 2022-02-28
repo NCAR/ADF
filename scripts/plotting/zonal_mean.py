@@ -129,7 +129,7 @@ def zonal_mean(adfobj):
         #End if
 
         #Notify user of variable being plotted:
-        print("\t \u231B zonal mean plots for {}".format(var))
+        print("\t - zonal mean plots for {}".format(var))
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
@@ -196,7 +196,7 @@ def zonal_mean(adfobj):
                     print("{} has lev dimension.".format(var))
                     # need hyam, hybm, PS, P0 for both datasets
                     if 'hyam' not in mclim_ds:
-                        print("\u2757 PROBLEM -- NO hyam, skipping to next case/obs data")
+                        print("!! PROBLEM -- NO hyam, skipping to next case/obs data")
                         print(mclim_ds)
                         continue
                     mhya = mclim_ds['hyam']

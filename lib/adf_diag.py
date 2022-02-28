@@ -468,6 +468,20 @@ class AdfDiag(AdfObs):
                                                   required=True)
             ts_dir        = self.read_config_var('cam_ts_loc', conf_dict=cam_climo_dict,
                                                   required=True)
+            overwrite_ts  = self.read_config_var('cam_overwrite_ts', conf_dict=cam_climo_dict)
+
+            #If variables weren't provided in config file, then make them a list
+            #containing only None-type entries:
+            if not cam_ts_done:
+                cam_ts_done = [None]*len(case_names)
+            if not overwrite_ts:
+                overwrite_ts = [None]*len(case_names)
+            if not start_years:
+                start_years = [None]*len(case_names)
+            if not end_years:
+                end_years = [None]*len(case_names)
+            #End if
+
             #Also rename case name list:
             case_name_list = case_names
         else:
@@ -479,6 +493,8 @@ class AdfDiag(AdfObs):
                                                   required=True)]
             ts_dir        = [self.read_config_var('cam_ts_loc', conf_dict=cam_climo_dict,
                                                    required=True)]
+            overwrite_ts  = [self.read_config_var('cam_overwrite_ts', conf_dict=cam_climo_dict)]
+
             #Also convert  case_names to list:
             case_name_list = [case_names]
         #End if
@@ -548,7 +564,7 @@ class AdfDiag(AdfObs):
                 files_list = sorted(list(starting_location.glob('*.cam.h0.*.nc')))
             else:
                 #Create empty list:
-                files_list = list()
+                files_list = []
 
                 #For now make sure both year values are present:
                 if start_year == "*" or end_year == "*":
@@ -585,12 +601,12 @@ class AdfDiag(AdfObs):
 
                 #If files exist, then check if over-writing is allowed:
                 if ts_file_list:
-                    if not cam_climo_dict['cam_overwrite_ts']:
+                    if not overwrite_ts[case_idx]:
                         #If not, then simply skip this variable:
                         continue
 
                 #Notify user of new time series file:
-                print("\t \u231B time series for {}".format(var))
+                print("\t - time series for {}".format(var))
 
                 #Run "ncrcat" command to generate time series file:
                 cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \

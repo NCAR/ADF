@@ -166,7 +166,7 @@ def amwg_table(adf):
         for var in var_list:
 
             #Notify users of variable being added to table:
-            print("\t \u25B6 Variable '{}' being added to table".format(var))
+            print("\t - Variable '{}' being added to table".format(var))
 
             #Create list of time series files present for variable:
             ts_filenames = '{}.*.{}.*nc'.format(case_name, var)

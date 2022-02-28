@@ -116,7 +116,7 @@ def polar_map(adfobj):
         #End if
 
         #Notify user of variable being plotted:
-        print("\t \u231B polar maps for {}".format(var))
+        print("\t - polar maps for {}".format(var))
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
@@ -249,11 +249,11 @@ def polar_map(adfobj):
                             plt.close(shfig)
 
                     else: #mdata dimensions check
-                        print("\t \u231B skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
+                        print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
                     #End if (dimensions check)
 
                 else: #odata dimensions check
-                     print("\t \u231B skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
+                     print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
 
                 #End if (dimensions check)
             #End for (case loop)

@@ -133,7 +133,7 @@ def global_latlon_map(adfobj):
         #End if
 
         #Notify user of variable being plotted:
-        print("\t \u231B lat/lon maps for {}".format(var))
+        print("\t - lat/lon maps for {}".format(var))
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
@@ -250,11 +250,11 @@ def global_latlon_map(adfobj):
                             pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
 
                     else: #mdata dimensions check
-                        print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
+                        print("\t - skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
                     #End if (dimensions check)
 
                 else: #odata dimensions check
-                     print("\t \u231B skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
+                     print("\t - skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
 
                 #End if (dimensions check)
             #End for (case loop)
