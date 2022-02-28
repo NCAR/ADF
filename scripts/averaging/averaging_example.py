@@ -55,7 +55,21 @@ def averaging_example(adf, clobber=False, search=None):
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
-    overwrite     = adf.get_cam_info("cam_overwrite_climo", required=True)
+    overwrite     = adf.get_cam_info("cam_overwrite_climo")
+    start_year    = adf.get_cam_info("start_year")
+    end_year      = adf.get_cam_info("end_year")
+
+    #If variables weren't provided in config file, then make them a list
+    #containing only None-type entries:
+    if not calc_climos:
+        calc_climos = [None]*len(case_names)
+    if not overwrite:
+        overwrite = [None]*len(case_names)
+    if not start_year:
+        start_year = [None]*len(case_names)
+    if not end_year:
+        end_year = [None]*len(case_names)
+    #End if
 
     #Check if a baseline simulation is also being used:
     if not adf.get_basic_info("compare_obs"):
@@ -64,7 +78,9 @@ def averaging_example(adf, clobber=False, search=None):
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
         output_bl_loc     = adf.get_baseline_info("cam_climo_loc", required=True)
         calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
-        ovr_bl            = adf.get_baseline_info("cam_overwrite_climo", required=True)
+        ovr_bl            = adf.get_baseline_info("cam_overwrite_climo")
+        bl_syr            = adf.get_baseline_info("start_year")
+        bl_eyr            = adf.get_baseline_info("end_year")
 
         #Append to case lists:
         case_names.append(baseline_name)
@@ -72,6 +88,8 @@ def averaging_example(adf, clobber=False, search=None):
         output_locs.append(output_bl_loc)
         calc_climos.append(calc_bl_climos)
         overwrite.append(ovr_bl)
+        start_year.append(bl_syr)
+        end_year.append(bl_eyr)
     #-----------------------------------------
 
     #Loop over CAM cases:
@@ -148,15 +166,68 @@ def averaging_example(adf, clobber=False, search=None):
             # -> using only years takes from the beginning of first year to end of second year.
             # -> slice('1991','1998') will get all of [1991,1998].
             # -> slice(None,None) will use all times.
-            if ('start_year' in calc_climos):
-                sy = calc_climos['start_year']
+
+            #For now, make sure year inputs are integers or None,
+            #in order to allow for the zero additions done below:
+            if start_year[case_idx]:
+                check_syr = int(start_year[case_idx])
             else:
-                sy = None
-            if ('end_year' in calc_climos):
-                ey = calc_climos['end_year']
+                check_syr = None
+            #end if
+
+            if end_year[case_idx]:
+                check_eyr = int(end_year[case_idx])
             else:
-                ey = None
-            cam_ts_data = cam_ts_data.sel(time=slice(sy,ey))  
+                check_eyr = None
+
+            #Need to add zeros if year values aren't long enough:
+            #------------------
+            #start year:
+            if check_syr:
+                if check_syr < 1000:
+                    if check_syr > 100:
+                        syr = f"0{check_syr}"
+                    elif check_syr > 10:
+                        syr = f"00{check_syr}"
+                    elif check_syr > 1:
+                        syr = f"000{check_syr}"
+                    else:
+                        errmsg = " 'start_year' values must be positive whole numbers"
+                        errmsg += f"not '{start_year[case_idx]}'."
+                        raise AdfError(errmsg)
+                    #End if
+                else:
+                    #Use year value as-is:
+                    syr = f"{check_syr}"
+                #End if
+            else:
+                syr = None
+            #End if
+
+            #end year:
+            if check_eyr:
+                if check_eyr < 1000:
+                    if check_eyr > 100:
+                        eyr = f"0{check_eyr}"
+                    elif check_eyr > 10:
+                        eyr = f"00{check_eyr}"
+                    elif check_eyr > 1:
+                        eyr = f"000{check_eyr}"
+                    else:
+                        errmsg = " 'end_year' values must be positive whole numbers"
+                        errmsg += f"not '{end_year[case_idx]}'."
+                        raise AdfError(errmsg)
+                    #End if
+                else:
+                    #Use year value as-is:
+                    eyr = f"{check_eyr}"
+                #End if
+            else:
+                eyr = None
+            #End if
+            #------------------
+
+            cam_ts_data = cam_ts_data.sel(time=slice(syr, eyr))
 
             #Group time series values by month, and average those months together:
             cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')

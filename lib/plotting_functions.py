@@ -40,8 +40,8 @@ def use_this_norm():
 def get_difference_colors(values):
     """Provide a color norm and colormap assuming this is a difference field.
 
-       Values can be either the data field or a set of specified contour levels. 
-    
+       Values can be either the data field or a set of specified contour levels.
+
        Uses 'OrRd' colormap for positive definite, 'BuPu_r' for negative definite,
        and 'RdBu_r' centered on zero if there are values of both signs.
     """
