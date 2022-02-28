@@ -185,11 +185,11 @@ def averaging_example(adf, clobber=False, search=None):
             #start year:
             if check_syr:
                 if check_syr < 1000:
-                    if check_syr > 100:
+                    if check_syr >= 100:
                         syr = f"0{check_syr}"
-                    elif check_syr > 10:
+                    elif check_syr >= 10:
                         syr = f"00{check_syr}"
-                    elif check_syr > 1:
+                    elif check_syr >= 1:
                         syr = f"000{check_syr}"
                     else:
                         errmsg = " 'start_year' values must be positive whole numbers"
@@ -207,11 +207,11 @@ def averaging_example(adf, clobber=False, search=None):
             #end year:
             if check_eyr:
                 if check_eyr < 1000:
-                    if check_eyr > 100:
+                    if check_eyr >= 100:
                         eyr = f"0{check_eyr}"
-                    elif check_eyr > 10:
+                    elif check_eyr >= 10:
                         eyr = f"00{check_eyr}"
-                    elif check_eyr > 1:
+                    elif check_eyr >= 1:
                         eyr = f"000{check_eyr}"
                     else:
                         errmsg = " 'end_year' values must be positive whole numbers"
@@ -227,6 +227,7 @@ def averaging_example(adf, clobber=False, search=None):
             #End if
             #------------------
 
+            #Extract data subset using provided year bounds:
             cam_ts_data = cam_ts_data.sel(time=slice(syr, eyr))
 
             #Group time series values by month, and average those months together:
