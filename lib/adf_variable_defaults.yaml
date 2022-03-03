@@ -258,12 +258,12 @@ SWCF:
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_SWCF_climo.nc"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "SWCF"
+  obs_var_name: "toa_cre_sw_mon"
 
 LWCF:
-  colormap: "Blues"
+  colormap: "Oranges"
   contour_levels_range: [-10, 100, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 1]
@@ -273,9 +273,9 @@ LWCF:
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_LWCF_climo.nc"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "LWCF"
+  obs_var_name: "toa_cre_lw_mon"
 
 #-----------
 #End of File
