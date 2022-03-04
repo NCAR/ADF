@@ -261,6 +261,9 @@ SWCF:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_sw_mon"
+  obs_scale_factor: 1
+  obs_add_offset: 0
+ 
 
 LWCF:
   colormap: "Oranges"
