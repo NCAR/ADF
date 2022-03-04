@@ -277,5 +277,95 @@ LWCF:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
 
+FSUTOA:
+  colormap: "Blues"
+  contour_levels_range: [-10, 180, 15]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_sw_all_mon"
+
+FLNT:
+  colormap: "Oranges"
+  contour_levels_range: [120, 320, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_all_mon"
+
+FLNTC:
+  colormap: "Oranges"
+  contour_levels_range: [120, 320, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_clr_t_mon"
+
+FSNS:
+  colormap: "Blues"
+  contour_levels_range: [-10, 300, 20]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-24, 24, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_sw_all_mon"
+
+FSNSC:
+  colormap: "Blues"
+  contour_levels_range: [-10, 300, 20]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-24, 24, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_sw_clr_t_mon"
+
+FLDS:
+  colormap: "Oranges"
+  contour_levels_range: [100, 500, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_lw_down_all_mon"
+
 #-----------
 #End of File
