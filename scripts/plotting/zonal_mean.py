@@ -188,6 +188,11 @@ def zonal_mean(adfobj):
                     odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
                     # update units
                     odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
+                # Or for observations
+                else:
+                    odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
+                    # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit. 
+
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
