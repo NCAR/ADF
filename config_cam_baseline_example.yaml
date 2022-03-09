@@ -214,7 +214,7 @@ diag_cam_baseline_climo:
     #Location of CAM baseline history (h0) files:
     cam_hist_loc: /glade/p/cesm/ADF/b.e20.BHIST.f09_g16.20thC.125.02/
 
-    #Location of baseline CAM cliimatologies:
+    #Location of baseline CAM climatologies:
     cam_climo_loc: /some/where/you/want/to/have/baseline_climo_files/ #MUST EDIT!
 
     #model year when time series files should start:
