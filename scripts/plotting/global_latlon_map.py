@@ -308,15 +308,11 @@ def global_latlon_map(adfobj):
 
                     else: #mdata dimensions check
                         has_dims = pf.lat_lon_validate_dims(odata)
-                        print('has_dims',has_dims)
-                        print('Let me hear you say, this shit is bananas. B-A-N-A-N-A-S')
                         print("\t - skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
                     #End if (dimensions check)
 
                 elif provided_levs: #odata dimensions check
                     has_dims_cam = pf.lat_lon_validate_dims(mdata)
-                    print('has_dims_cam',has_dims_cam)
-                    print('BOYYYYY, Let me hear you say, this shit is bananas. B-A-N-A-N-A-S')    
                     print("has lev dimension.")
 
                     # need hyam, hybm, P0 once, and need PS for both datasets
@@ -405,8 +401,6 @@ def global_latlon_map(adfobj):
                     
                 else: #odata dimensions check
                     has_dims_cam = pf.lat_lon_validate_dims(mdata)
-                    print('has_dims_cam',has_dims_cam)
-                    print('Let me hear you say, this shit is bananas. B-A-N-A-N-A-S')
                     print("\t - skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
 
                 #End if (dimensions check)
