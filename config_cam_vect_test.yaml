@@ -56,7 +56,7 @@ diag_basic_info:
 
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
-    compare_obs: False
+    compare_obs: false
 
     #Generate HTML website (assumed false if missing):
     #Note:  The website files themselves will be located in the path
@@ -65,13 +65,11 @@ diag_basic_info:
     #(usually "case_vs_obs_XXX" or "case_vs_baseline_XXX").
     create_html: true
 
-    #Location of observational datasets:
-    #Note: this only matters if "compare_obs" is true and the path
-    #isn't specified in the variable defaults file.
-    obs_data_loc: /glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs
+    #Location of observational climatologies (only matters if "compare_obs" is true):
+    obs_climo_loc: /glade/work/brianpm/observations/climo_files
 
     #Location where re-gridded CAM climatology files are stored:
-    cam_regrid_loc: /glade/work/wchapman/ADF_diagnose/clima_files_hacked #MUST EDIT!
+    cam_regrid_loc: /glade/scratch/jcaron/archive/adf_vect_test/ #MUST EDIT!
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
@@ -79,7 +77,7 @@ diag_basic_info:
     cam_overwrite_regrid: false
 
     #Location where diagnostic plots are stored:
-    cam_diag_plot_loc: /glade/work/wchapman/ADF_diagnose/diag_plots #MUST EDIT!
+    cam_diag_plot_loc: /glade/scratch/jcaron/archive/adf_vect_test/ #MUST EDIT!
 
     #Use default variable plot settings?
     #If "true", then variable-specific plotting attributes as defined in
@@ -89,8 +87,6 @@ diag_basic_info:
     #Location of ADF variable plotting defaults YAML file
     #if not using the one in ADF/lib:
   #  defaults_file: /some/path/to/defaults/file
-  
-    plot_press_levels: [200,850]
 
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
@@ -98,11 +94,11 @@ diag_cam_climo:
 
     #Calculate climatologies?
     #If false, neither the climatology or time-series files will be created:
-    calc_cam_climo: false
+    calc_cam_climo: true
 
     #Overwrite CAM climatology files?
     #If false, or not prsent, then already existing climatology files will be skipped:
-    cam_overwrite_climo: false
+    cam_overwrite_climo: true
 
     #Name of CAM case (or CAM run name):
     cam_case_name: b.e20.BHIST.f09_g17.20thC.297_05
@@ -111,12 +107,12 @@ diag_cam_climo:
     cam_hist_loc: /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05/
 
     #Location of CAM climatologies:
-    cam_climo_loc: /glade/work/wchapman/ADF_diagnose/clima_files_hacked #MUST EDIT!
+    cam_climo_loc: /glade/scratch/jcaron/archive/adf_vect_test/ #MUST EDIT!
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1996
+    start_year: 1990
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
@@ -138,63 +134,7 @@ diag_cam_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/work/wchapman/ADF_diagnose/time_series_files #MUST EDIT!
-    #----------------------
-
-    #You can alternatively provide a list of cases, which will make the ADF
-    #apply the same diagnostics to each case separately in a single ADF session.
-    #All of the config variables below show how it is done, and are the only ones
-    #that need to be lists.  This also automatically enables the generation of
-    #a "main_website" in "cam_diag_plot_loc" that brings all of the different cases
-    #together under a single website.
-
-    #Also please note that config keywords cannot currently be used in list mode.
-
-    #cam_case_name:
-    #    - b.e20.BHIST.f09_g17.20thC.297_05
-    #    - b1850.f19_g17.validation_mct.004
-
-    #calc_cam_climo:
-    #    - true
-    #    - true
-
-    #cam_overwrite_climo:
-    #    - false
-    #    - false
-
-    #cam_hist_loc:
-    #    - /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05
-    #    - /glade/p/cesm/ADF/b1850.f19_g17.validation_mct.004
-
-    #cam_climo_loc:
-    #    -/some/where/you/want/to/have/climo_files/ #MUST EDIT!
-    #    -/the/same/or/some/other/climo/files/location
-
-    #start_year:
-    #    - 1990
-    #    - 90
-
-    #end_year:
-    #    - 1999
-    #    - 99
-
-    #cam_ts_done:
-    #    - false
-    #    - false
-
-    #cam_ts_save:
-    #    - true
-    #    - true
-
-    #cam_overwrite_ts:
-    #    - false
-    #    - false
-
-    #cam_ts_loc:
-    #    - /some/where/you/want/to/have/time_series_files/
-    #    - /same/or/different/place/you/want/files
-
-    #----------------------
+    cam_ts_loc: /glade/scratch/jcaron/archive/adf_vect_test/ #MUST EDIT!
 
 
 #This third set of variables provide info for the CAM baseline climatologies.
@@ -203,11 +143,11 @@ diag_cam_baseline_climo:
 
     #Calculate cam baseline climatologies?
     #If false, neither the climatology or time-series files will be created:
-    calc_cam_climo: false
+    calc_cam_climo: true
 
     #Overwrite CAM climatology files?
     #If false, or not present, then already existing climatology files will be skipped:
-    cam_overwrite_climo: false
+    cam_overwrite_climo: true
 
     #Name of CAM baseline case:
     cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
@@ -216,12 +156,12 @@ diag_cam_baseline_climo:
     cam_hist_loc: /glade/p/cesm/ADF/b.e20.BHIST.f09_g16.20thC.125.02/
 
     #Location of baseline CAM cliimatologies:
-    cam_climo_loc: /glade/work/wchapman/ADF_diagnose/clima_files_hacked/ #MUST EDIT!
+    cam_climo_loc: /glade/scratch/jcaron/archive/adf_vect_test/ #MUST EDIT!
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1996
+    start_year: 1990
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
@@ -243,7 +183,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/work/wchapman/ADF_diagnose/baseline_time_series_files/ #MUST EDIT!
+    cam_ts_loc: /glade/scratch/jcaron/archive/adf_vect_test/ #MUST EDIT!
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 #These variables below only matter if you are using
@@ -273,16 +213,18 @@ analysis_scripts:
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-    - global_latlon_map
+#    - global_latlon_map
+    - global_latlon_vect_map
 #    - zonal_mean
-#    - polar_map
 
 #List of CAM variables that will be processesd:
 diag_var_list:
-    - SWCF
     - U
-#    - PSL
-#    - Q
+    - V
 #<Add more variables here.>
+
+#List of observation types (filename prefixes) CAM can be compared against:
+obs_type_list:
+    - CERES_EBAF_Ed4.1
 
 #END OF FILE

@@ -36,6 +36,8 @@ def global_latlon_map(adfobj):
     # data loading / analysis
     import xarray as xr
     import numpy as np
+    import geocat.comp as gcomp
+    import pandas as pd
 
     #CAM diagnostic plotting functions:
     import plotting_functions as pf
@@ -49,7 +51,21 @@ def global_latlon_map(adfobj):
 
     #Notify user that script has started:
     print("  Generating lat/lon maps...")
-
+    
+    ###########################################################
+    ###########################################################
+    ###########################################################
+    #dummy variables!!!! must get from ADF yaml architecture....
+    levs_des = adfobj.get_basic_info("plot_press_levels")
+    if levs_des: 
+        provided_levs = True
+    else: 
+        provided_levs = False
+    #levs_des = [850,200]
+    ###########################################################
+    ###########################################################
+    ###########################################################
+    ###########################################################
     #
     # Use ADF api to get all necessary information
     #
@@ -218,6 +234,27 @@ def global_latlon_map(adfobj):
                         # but depends on having time accessor,
                         # which these prototype climo files do not have.
                         #
+                        
+                        
+                        ##################################
+                        #this is how we should weight the months based on the days. 
+                        #month_length = DScam.time.dt.days_in_month
+                        # Calculate the weights by grouping by 'time.season'.
+                        #weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
+                        # Test that the sum of the weights for each season is 1.0
+                        #np.testing.assert_allclose(weights.groupby("time.season").sum().values, np.ones(4))
+                        # Calculate the weighted average
+                        #DS = (DScam * weights).groupby("time.season").sum(dim="time")
+                        ##################################
+                        
+                        
+                        #need to add a date stamp.... this could be a problem...maybe? 
+                        timefix = pd.date_range(start='1/1/1980', end='12/1/1980', freq='MS') 
+                        mdata['time']=timefix
+                        odata['time']=timefix
+                        
+                        month_length = mdata.time.dt.days_in_month
+                        weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
 
                         #Create new dictionaries:
                         mseasons = {}
@@ -226,11 +263,31 @@ def global_latlon_map(adfobj):
 
                         #Loop over season dictionary:
                         for s in seasons:
-                            mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                            oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
-                            # difference: each entry should be (lat, lon)
-                            dseasons[s] = mseasons[s] - oseasons[s]
-
+                            
+                            if s == 'ANN':
+                                mseasons[s] = (mdata * weights).sum(dim='time')
+                                oseasons[s] = (odata * weights).sum(dim='time')
+                                # difference: each entry should be (lat, lon)
+                                dseasons[s] = mseasons[s] - oseasons[s]
+                            else:
+                                #this is inefficient because we do same calc over and over
+                                mseasons[s] =(mdata * weights).groupby("time.season").sum(dim="time").sel(season=s)
+                                oseasons[s] =(odata * weights).groupby("time.season").sum(dim="time").sel(season=s)
+                                # difference: each entry should be (lat, lon)
+                                dseasons[s] = mseasons[s] - oseasons[s]
+                                
+                                
+                            #print(s,'this is s')
+                            #print(seasons[s],'this is seasons[s]')
+                            #print((mdata * weights).groupby("time.season").sum(dim="time"))
+                            ##mseasons[s] = (mdata * weights).groupby("time.season").sum(dim="time").sel()
+                            
+                            #old method:
+                            #mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
+                            #oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
+                            ## difference: each entry should be (lat, lon)
+                            #dseasons[s] = mseasons[s] - oseasons[s]
+                            
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                             plot_name = plot_loc / "{}_{}_LatLon_Mean.{}".format(var, s, plot_type)
@@ -250,11 +307,107 @@ def global_latlon_map(adfobj):
                             pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
 
                     else: #mdata dimensions check
+                        has_dims = pf.lat_lon_validate_dims(odata)
+                        print('has_dims',has_dims)
+                        print('Let me hear you say, this shit is bananas. B-A-N-A-N-A-S')
                         print("\t - skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
                     #End if (dimensions check)
 
+                elif provided_levs: #odata dimensions check
+                    has_dims_cam = pf.lat_lon_validate_dims(mdata)
+                    print('has_dims_cam',has_dims_cam)
+                    print('BOYYYYY, Let me hear you say, this shit is bananas. B-A-N-A-N-A-S')    
+                    print("has lev dimension.")
+
+                    # need hyam, hybm, P0 once, and need PS for both datasets
+                    # note in future, they may have different vertical levels or one may need pressure level interp and one may not
+                    #julie did nice things with conditional statements here: we should integrate it? 
+                    mhya = oclim_ds['hyam']
+                    mhyb = oclim_ds['hybm']
+                    mps = mclim_ds['PS']
+                    ops = oclim_ds['PS']
+                    
+                    
+                    print(oclim_ds)
+                    ########################################
+                    print('interpolating vertical')
+                    mdata_i = gcomp.interpolation.interp_hybrid_to_pressure(mdata, mps, mhya, mhyb, p0=100000.0, new_levels=np.array(np.array(levs_des)*100,dtype='float32'), \
+                                                                            lev_dim=None, method='linear')
+                    
+                    odata_i =  gcomp.interpolation.interp_hybrid_to_pressure(odata, ops, mhya, mhyb, p0=100000.0, new_levels=np.array(np.array(levs_des)*100,dtype='float32'), \
+                                                                             lev_dim=None, method='linear')
+                    
+                    mdata_i.attrs['units'] = vres.get("new_unit", mdata_i.attrs.get('units', 'none'))
+                    odata_i.attrs['units'] = vres.get("new_unit", odata_i.attrs.get('units', 'none'))
+                    
+                    
+                    print('loading')
+                    mdata_i =mdata_i.load()
+                    odata_i =odata_i.load()
+                    
+                    #this is hacky.
+                    timefix = pd.date_range(start='1/1/1980', end='12/1/1980', freq='MS') 
+                    mdata_i['time']=timefix
+                    odata_i['time']=timefix
+                    print(mdata_i.time.dt.days_in_month)
+                    print(odata_i.time.dt.days_in_month)
+                        
+                    month_length = mdata_i.time.dt.days_in_month
+                    weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
+                    print(weights)
+                    
+                    
+                    
+                    
+                    print('done')
+                    #plot loop in order: (1)level, (2)season. 
+                    for levsdo in levs_des:
+                        mseasons = {}
+                        oseasons = {}
+                        dseasons = {}
+                        for s in seasons:
+                            
+                            if s == 'ANN':
+                                mseasons[s] = (mdata_i * weights).sum(dim='time').sel(plev=levsdo*100)
+                                oseasons[s] = (odata_i * weights).sum(dim='time').sel(plev=levsdo*100)
+                                # difference: each entry should be (lat, lon)
+                                dseasons[s] = mseasons[s] - oseasons[s]
+                            else:
+                                #this is inefficient because we do same calc over and over
+                                mseasons[s] =(mdata_i * weights).groupby("time.season").sum(dim="time").sel(season=s,plev=levsdo*100)
+                                oseasons[s] =(odata_i * weights).groupby("time.season").sum(dim="time").sel(season=s,plev=levsdo*100)
+                                # difference: each entry should be (lat, lon)
+                                dseasons[s] = mseasons[s] - oseasons[s]
+                                
+                            #oldway to calc: 
+                            #mseasons[s] = mdata_i.sel(time=seasons[s],plev=levsdo*100).mean(dim='time').squeeze()
+                            #oseasons[s] = odata_i.sel(time=seasons[s],plev=levsdo*100).mean(dim='time').squeeze()
+                            ## difference: each entry should be (lat, lon)
+                            #dseasons[s] = mseasons[s] - oseasons[s]
+                        
+                            # time to make plot; here we'd probably loop over whatever plots we want for this variable
+                            # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
+                            plot_name = plot_loc / "{}_{}_Lev_{}hpa_LatLon_Mean.{}".format(var,s,levsdo,plot_type)
+                            print('plotname:',plot_name)
+                            #Remove old plot, if it already exists:
+                            if plot_name.is_file():
+                                plot_name.unlink()
+
+                            #Create new plot:
+                            # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
+                            # This relies on `plot_map_and_save` knowing how to deal with the options
+                            # currently knows how to handle:
+                            #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
+                            #   *Any other entries will be ignored.
+                            # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
+                            pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+                    
+                    
                 else: #odata dimensions check
-                     print("\t - skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
+                    has_dims_cam = pf.lat_lon_validate_dims(mdata)
+                    print('has_dims_cam',has_dims_cam)
+                    print('Let me hear you say, this shit is bananas. B-A-N-A-N-A-S')
+                    print("\t - skipping lat/lon map for {} as it doesn't have only lat/lon dims.".format(var))
 
                 #End if (dimensions check)
             #End for (case loop)
