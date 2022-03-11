@@ -170,6 +170,12 @@ class AdfDiag(AdfObs):
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
 
+        #Add CVDP info to object:
+        self.__cvdp_info = self.read_config_var('diag_cvdp_info', required=True)
+
+        #Expand CVDP climo info variable strings:
+        self.expand_references(self.__cvdp_info)
+
         #Check if inputs are of the correct type.
         #Ideally this sort of checking should be done
         #in its own class that AdfDiag inherits from:
@@ -278,6 +284,19 @@ class AdfDiag(AdfObs):
 
         return self.read_config_var(var_str,
                                     conf_dict=self.__cam_climo_info,
+                                    required=required)
+
+    #########
+
+    def get_cvdp_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_cvdp_info' as requested by
+        the user.  This function assumes that if the user is requesting it,
+        then it must be required.
+        """
+
+        return self.read_config_var(var_str,
+                                    conf_dict=self.__cvdp_info,
                                     required=required)
 
     #########
@@ -589,12 +608,24 @@ class AdfDiag(AdfObs):
             #Use pathlib to create parent directories, if necessary.
             Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
 
+            #INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending] 
+            first_file_split = str(hist_files[0]).split(".")
+            if first_file_split[-1] == "nc":
+                time_string_start = first_file_split[-2].replace("-","")
+            else:    
+                time_string_start = first_file_split[-1].replace("-","")
+            last_file_split = str(hist_files[-1]).split(".")
+            if last_file_split[-1] == "nc":
+                time_string_finish = last_file_split[-2].replace("-","")
+            else:    
+                time_string_finish = last_file_split[-1].replace("-","")
+            time_string = "-".join([time_string_start, time_string_finish])
+
             #Loop over CAM history variables:
             for var in self.diag_var_list:
 
-                #Create full path name:
-                ts_outfil_str = ts_dir[case_idx] + os.sep + case_name + \
-                              ".ncrcat."+var+".nc"
+                #Create full path name,  file name template: $cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
+                ts_outfil_str = ts_dir[case_idx] + os.sep + ".".join([case_name, "h0", var, time_string, "nc" ])
 
                 #Check if files already exist in time series directory:
                 ts_file_list = glob.glob(ts_outfil_str)
@@ -1102,5 +1133,97 @@ class AdfDiag(AdfObs):
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
+
+    #########
+
+    def setup_run_cvdp(self, baseline=False):
+
+        """
+        Create CVDP directory tree, generate namelist file and edit driver.ncl needed to run CVDP. Submit CVDP diagnostics. 
+
+        """
+
+        #import needed standard modules:
+        import shutil
+        import subprocess
+
+        #Case names:
+        case_names = self.get_cam_info('cam_case_name', required=True)
+
+        #Start years (not currently required):
+        syears = self.get_cam_info('start_year')
+
+        #End year (not currently rquired):
+        eyears = self.get_cam_info('end_year')
+
+        #Timeseries locations:
+        cam_ts_loc = self.get_cam_info('cam_ts_loc')
+
+        #set CVDP directory, recursively copy cvdp codebase to the CVDP directory
+        cvdp_dir = self.get_cvdp_info('cvdp_loc', required=True)+case_names[0]
+        if not os.path.isdir(cvdp_dir):
+            shutil.copytree(self.get_cvdp_info('cvdp_codebase_loc', required=True),cvdp_dir)
+
+        #check to see if there is a CAM baseline case. If there is, read in relevant information.
+        if not self.get_basic_info('compare_obs'):
+            case_name_baseline = self.get_baseline_info('cam_case_name')
+            syears_baseline = self.get_baseline_info('start_year')
+            eyears_baseline = self.get_baseline_info('end_year')
+            baseline_ts_loc = self.get_baseline_info('cam_ts_loc')
+
+        #Loop over cases to create individual text array to be written to namelist file.
+        row_list = list()
+        for case_idx, case_name in enumerate(case_names):
+            row = [case_name,' | ',str(cam_ts_loc[case_idx]),'/ | ',str(syears[case_idx]),' | ',str(eyears[case_idx])]
+            row_list.append("".join(row))
+
+        #Create new namelist file. If CAM baseline case present add it to list. namelist file must end in a blank line.
+        f = open(cvdp_dir+"/namelist",'w')
+        for row_n, rowtext in enumerate(row_list):
+            f.write(rowtext)
+        f.write('\n\n')
+        if "baseline_ts_loc" in locals():
+            rowb_list = list()
+            rowb = [case_name_baseline,' | ',str(baseline_ts_loc),'/ | ',str(syears_baseline),' | ',str(eyears_baseline)]
+            rowb_list.append("".join(rowb))
+            for row_n, rowtextb in enumerate(rowb_list):
+                f.write(rowtextb)
+        f.write('\n\n')
+
+        #modify driver.ncl to set the proper output directory, webpage title, location of CVDP NCL scripts, 
+        #set modular = True (to run multiple CVDP scripts at once), modify the modular_list to exclude 
+        #all scripts focused solely on non-atmospheric variables, and set tar_output to True if cvdp_tar: true
+        with open(cvdp_dir+"/driver.ncl",'r') as f_in, open(cvdp_dir+"/driver."+case_names[0]+".ncl", 'w') as f_out:
+            for line in f_in:
+                if '  outdir  ' in line:
+                    line = '  outdir = "'+cvdp_dir+'/output/"' 
+                if '  webpage_title  ' in line:
+                    line = '  webpage_title = "ADF/CVDP Comparison"'  
+                if 'directory path of CVDP NCL scripts' in line:
+                    line = '  zp = "'+cvdp_dir+'/ncl_scripts/"'
+                if '  modular = ' in line:
+                    line = '  modular = "True"'
+                if '  modular_list = ' in line:
+                    line = '  modular_list = "psl.nam_nao,psl.pna_npo,tas.trends_timeseries,snd.trends,psl.trends,amo,pdo,sst.indices,pr.trends_timeseries,psl.sam_psa,sst.mean_stddev,psl.mean_stddev,pr.mean_stddev,sst.trends_timeseries,tas.mean_stddev,ipo"'
+                if self.get_cvdp_info('cvdp_tar'):
+                    if '  tar_output  ' in line:
+                        line = '  tar_output = "True"'
+                f_out.write(line)         
+
+        #Submit the CVDP driver script in background mode, send output to cvdp.out file
+        g = open(cvdp_dir+'/cvdp.out','w')
+        subpout = subprocess.Popen(['cd '+cvdp_dir+'; ncl -Q '+cvdp_dir+'/driver.'+case_names[0]+'.ncl'], shell=True, stdout=g, close_fds=True)
+        
+        print('   ')
+        print('CVDP is running in background. ADF continuing.')
+        print('CVDP terminal output is located in '+cvdp_dir+'/cvdp.out')
+        if self.get_cvdp_info('cvdp_tar'):
+            print('CVDP graphical and netCDF file output can be found here: '+cvdp_dir+'/output/cvdp.tar')
+            print('Open index.html (within cvdp.tar file) in web browser to view CVDP results.')
+        else:
+            print('CVDP graphical and netCDF file output can be found here: '+cvdp_dir+'/output/')
+            print('Open '+cvdp_dir+'/output/index.html file in web browser to view CVDP results.')
+        print('For CVDP information visit: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/')
+        print('   ')
 
 ###############
