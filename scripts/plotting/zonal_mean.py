@@ -191,7 +191,7 @@ def zonal_mean(adfobj):
                 # Or for observations
                 else:
                     odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
-                    # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit. 
+                    # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit.
 
 
                 # determine whether it's 2D or 3D

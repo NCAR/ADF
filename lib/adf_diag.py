@@ -887,6 +887,14 @@ class AdfDiag(AdfObs):
         #Set preferred order of plot types:
         plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
 
+        #Also add pressure level Lat-Lon plots, if applicable:
+        pres_levs = self.get_basic_info("plot_press_levels")
+        if pres_levs:
+            for pres in pres_levs:
+                plot_type_order.append(f"Lev_{pres}hpa_LatLon")
+            #End for
+        #End if
+
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
 
