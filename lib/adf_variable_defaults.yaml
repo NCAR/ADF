@@ -60,6 +60,9 @@ PS:
   mpl:
     colorbar:
       label : "hPa"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "PS"
 
 PRECC:
   colormap: "Greens"
@@ -84,6 +87,9 @@ PRECT:
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "PRECT"
 
 TGCLDLWP:
   colormap: "Blues"
@@ -111,12 +117,63 @@ TGCLDIWP:
 
 CLDTOT:
   colormap: "Oranges"
-  contour_levels_range: [0, 105, 5]
+  contour_levels_range: [0, 1.05, 0.05]
   diff_colormap: "BrBG"
-  diff_contour_range: [-15, 15, 2]
-  scale_factor: 100
+  diff_contour_range: [-0.4, 0.4, 0.05]
+  scale_factor: 1.
   add_offset: 0
-  new_unit: "Percent"
+  new_unit: "Fraction"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "CLDTOT"
+
+CLDLOW:
+  colormap: "Oranges"
+  contour_levels_range: [0, 1.05, 0.05]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-0.4, 0.4, 0.05]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Fraction"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "CLDLOW"
+
+CLDHGH:
+  colormap: "Oranges"
+  contour_levels_range: [0, 1.05, 0.05]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-0.4, 0.4, 0.05]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Fraction"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "CLDHGH"
+
+CLDMED:
+  colormap: "Oranges"
+  contour_levels_range: [0, 1.05, 0.05]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-0.4, 0.4, 0.05]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Fraction"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "CLDMED"
+
+TMQ:
+  colormap: "Oranges"
+  contour_levels_range: [0, 75.0, 5.0]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "kg m$^{-2}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "PREH2O"
 
 CLOUD:
   colormap: "Blues"
@@ -130,6 +187,21 @@ CLOUD:
     colorbar:
       label : "Percent"
 
+RELHUM:
+  colormap: "Blues"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Fraction"
+  mpl:
+    colorbar:
+      label : "Fraction"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "RELHUM"
+
 U:
   colormap: "Blues"
   contour_levels_range: [-10, 90, 5]
@@ -141,6 +213,39 @@ U:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "U"
+
+TS:
+  colormap: "Blues"
+  contour_levels_range: [220,320, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "K"
+  mpl:
+    colorbar:
+      label : "K"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "TS"
+
+LHFLX:
+  colormap: "Blues"
+  contour_levels_range: [0, 220, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-45, 45, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "LHFLX"
 
 SWCF:
   colormap: "Blues"
@@ -156,9 +261,11 @@ SWCF:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_sw_mon"
-
+  obs_scale_factor: 1
+  obs_add_offset: 0
+ 
 LWCF:
-  colormap: "Blues"
+  colormap: "Oranges"
   contour_levels_range: [-10, 100, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 1]
@@ -171,6 +278,96 @@ LWCF:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
+
+FSUTOA:
+  colormap: "Blues"
+  contour_levels_range: [-10, 180, 15]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_sw_all_mon"
+
+FLNT:
+  colormap: "Oranges"
+  contour_levels_range: [120, 320, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_all_mon"
+
+FLNTC:
+  colormap: "Oranges"
+  contour_levels_range: [120, 320, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_clr_t_mon"
+
+FSNS:
+  colormap: "Blues"
+  contour_levels_range: [-10, 300, 20]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-24, 24, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_sw_all_mon"
+
+FSNSC:
+  colormap: "Blues"
+  contour_levels_range: [-10, 300, 20]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-24, 24, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_sw_clr_t_mon"
+
+FLDS:
+  colormap: "Oranges"
+  contour_levels_range: [100, 500, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_lw_down_all_mon"
 
 #-----------
 #End of File
