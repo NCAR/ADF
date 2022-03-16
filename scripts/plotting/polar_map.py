@@ -310,6 +310,11 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
     d2_region_mean, d2_region_max, d2_region_min = domain_stats(d2, domain)
     dif_region_mean, dif_region_max, dif_region_min = domain_stats(dif, domain)
 
+    #downsize to the specified region; makes plotting/rendering/saving much faster
+    d1 = d1.sel(lat=slice(domain[2],domain[3]))
+    d2 = d2.sel(lat=slice(domain[2],domain[3]))
+    dif = dif.sel(lat=slice(domain[2],domain[3]))
+
     # add cyclic point to the data for better-looking plot
     d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
     d2_cyclic, _ = add_cyclic_point(d2, coord=d2.lon)  # since we can take difference, assume same longitude coord.
