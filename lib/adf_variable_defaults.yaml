@@ -264,7 +264,6 @@ SWCF:
   obs_scale_factor: 1
   obs_add_offset: 0
  
-
 LWCF:
   colormap: "Oranges"
   contour_levels_range: [-10, 100, 5]
