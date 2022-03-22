@@ -16,6 +16,8 @@ import os
 import os.path
 import glob
 import subprocess
+import multiprocessing as mp
+
 import importlib
 import copy
 
@@ -440,6 +442,18 @@ class AdfDiag(AdfObs):
         Generate time series versions of the CAM history file data.
         """
 
+        global call_ncrcat
+        def call_ncrcat(cmd):
+            '''this is an internal function to `create_time_series` 
+            It just wraps the subprocess.call() function, so it can be
+            used with the multiprocessing Pool that is constructed below.
+            It is declared as global to avoid AttributeError. 
+            '''
+            return subprocess.run(cmd, shell=False)
+        
+        number_of_cpu = mp.cpu_count()  # Max number of processes is set to how many CPUs we have.
+        pool = mp.Pool(processes=number_of_cpu)  # Sets up a pool for the calls to ncrcat.
+
         #Check if baseline time-series files are being created:
         if baseline:
             #Then use the CAM baseline climo dictionary
@@ -590,6 +604,7 @@ class AdfDiag(AdfObs):
             Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
 
             #Loop over CAM history variables:
+            list_of_commands = []
             for var in self.diag_var_list:
 
                 #Create full path name:
@@ -611,8 +626,13 @@ class AdfDiag(AdfObs):
                 #Run "ncrcat" command to generate time series file:
                 cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
                        hist_files + ["-o", ts_outfil_str]
-                subprocess.run(cmd, check=True)
+                list_of_commands.append(cmd)
 
+            with pool as p:
+                result = p.map(call_ncrcat, list_of_commands)
+
+            print("DONE WITH TIME SERIES GENERATOR")
+        
             #End variable loop
 
         #End cases loop
