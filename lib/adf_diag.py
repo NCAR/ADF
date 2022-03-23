@@ -997,6 +997,9 @@ class AdfDiag(AdfObs):
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
+            
+            #Grab the comparison table and move it to website dir
+            comp_table_html_file = list(plot_path.glob(f"*comp.html"))
 
             #Also grab baseline/obs tables, which are always stored in the first case directory:
             if case_idx == 0:
@@ -1011,6 +1014,10 @@ class AdfDiag(AdfObs):
                 #Create a directory that will hold table html files:
                 table_pages_dir = website_dir / "html_table"
                 table_pages_dir.mkdir(exist_ok=True)
+
+                #Move the comparison table html file to new directory
+                for comp_table in comp_table_html_file:
+                    shutil.move(comp_table, table_pages_dir / comp_table.name)
 
                 #Move all case table html files to new directory:
                 for table_html in table_html_files:
@@ -1053,6 +1060,9 @@ class AdfDiag(AdfObs):
                         #End for (table html file loop)
                     #End if (table html file exists check)
                 #End for (case vs data)
+
+                #Add comparison table to website dictionary
+                amwg_tables["Case Comparison"] = comp_table.name
 
                 #Construct mean_table.html
                 mean_title = "AMP Diagnostic Tables:"
