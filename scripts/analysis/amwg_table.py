@@ -250,8 +250,8 @@ def amwg_table(adf):
     #End of model case loop
     #----------------------
 
-    #create comparison table for both cases
-    print(f"\n* * * * * * * * * * * * *\nmaking comparison table...\n* * * * * * * * * * * * *\n")
+    #Create comparison table for both cases
+    print("  Making comparison table...")
     _df_comp_table(write_html,output_location,list(case_names),adf)
 
     #Notify user that script has ended:
@@ -314,8 +314,7 @@ def _df_comp_table(write_html,output_location,case_names,adf):
     import pandas as pd
 
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-    # Need to figure out how to make sure the first csv is case and
-    # and second is baseline/obs 
+    # first csv is case and second is baseline/obs 
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
     case = output_location/f"amwg_table_{case_names[0]}.csv"
@@ -335,7 +334,7 @@ def _df_comp_table(write_html,output_location,case_names,adf):
         output_html_file_color_comp = output_location / "amwg_table_color_comp.html"
 
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    preamble = f"""<html><head></head><body><h1>{output_csv_file_comp.stem} - New df for comparison made!!<h1>"""
+    preamble = f"""<html><head></head><body><h1>{output_csv_file_comp.stem}<h1>"""
     ending = """</body></html>"""
     with open(output_html_file_comp, 'w') as hfil:
         hfil.write(preamble)
@@ -399,15 +398,14 @@ def _df_styler(write_html,f,output_html_color_file,adf):
 
     import pandas as pd
     df_csv = pd.read_csv(f)
-    print(list(df_csv.columns))
-    print("Number of rows in the data frame:",len(df_csv.iloc[:]))
     
     # ***** This isn't ready to be run yet until two cases can be compared to obs *****
     """if adf.get_basic_info("compare_obs"):
         formatter = {('mean'):"{:,.3g}",('standard dev.'):"{:,.3g}",('standard error'):"{:,.3g}",('95% CI'):"{:,.3g}",
                            ('trend p-value'):"{:,.3g}"}
         df_colored = df_csv.style.apply(color_rule, axis=1, subset=['variable','case','baseline','obs']).format(
-                                    formatter=formatter).hide_index()"""
+                                    formatter=formatter).hide_index()
+    """
     
     if not adf.get_basic_info("compare_obs"):
         formatter = {('case'):"{:,.3g}",('baseline'):"{:,.3g}",('diff'):"{:,.3g}"}
