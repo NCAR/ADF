@@ -338,7 +338,7 @@ def _df_comp_table(write_html,output_location,case_names):
         hfil.write(html)
         hfil.write(ending)
 
-    _write_html(output_csv_file_comp, output_html_file_comp)
+    #_write_html(output_csv_file_comp, output_html_file_comp)
 
 ##############
 #END OF SCRIPT
