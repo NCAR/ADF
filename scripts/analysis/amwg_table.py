@@ -252,7 +252,7 @@ def amwg_table(adf):
 
     #Create comparison table for both cases
     print("  Making comparison table...")
-    _df_comp_table(write_html,output_location,list(case_names),adf)
+    _df_comp_table(write_html,output_location,list(case_names))
 
     #Notify user that script has ended:
     print("...AMWG variable table has been generated successfully.")
@@ -301,7 +301,7 @@ def _write_html(f, out):
         hfil.write(html)
         hfil.write(ending)
 
-def _df_comp_table(write_html,output_location,case_names,adf):
+def _df_comp_table(write_html,output_location,case_names):
     import pandas as pd
 
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -323,13 +323,21 @@ def _df_comp_table(write_html,output_location,case_names,adf):
     # ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * !
     df_comp['diff'] = df_comp['baseline'].values-df_comp['case'].values
 
-    cols_comp = ['variable', 'unit', 'case', 'baseline', 'diff']
+    cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
     #Create HTML output file name as well, if needed:
     if write_html:
         output_html_file_comp = output_location / "amwg_table_comp.html"
     
+    html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
+    preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1>"""
+    ending = """</body></html>"""
+    with open(output_html_file_comp, 'w') as hfil:
+        hfil.write(preamble)
+        hfil.write(html)
+        hfil.write(ending)
+
     _write_html(output_csv_file_comp, output_html_file_comp)
 
 ##############
