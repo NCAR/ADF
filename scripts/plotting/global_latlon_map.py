@@ -40,6 +40,8 @@ def global_latlon_map(adfobj):
 
     #CAM diagnostic plotting functions:
     import plotting_functions as pf
+
+    import time
     #-------------------------
 
     # Steps:
@@ -118,6 +120,7 @@ def global_latlon_map(adfobj):
                "SON": [9, 10, 11]
                }
 
+    tic = time.perf_counter()
     # probably want to do this one variable at a time:
     for var in var_list:
 
@@ -451,6 +454,8 @@ def global_latlon_map(adfobj):
 
     #Notify user that script has ended:
     print("  ...lat/lon maps have been generated successfully.")
+    toc = time.perf_counter()
+    print(f"Lat/Lon plots take {toc-tic:0.4f} seconds\n")
 
 ##############
 #END OF SCRIPT

@@ -42,6 +42,7 @@ def zonal_mean(adfobj):
         files are using native hybrid-sigma levels rather than being
         transformed to pressure levels.
     """
+    import time
 
     #Notify user that script has started:
     print("  Generating zonal mean plots...")
@@ -104,6 +105,8 @@ def zonal_mean(adfobj):
                "MAM": [3, 4, 5],
                "SON": [9, 10, 11]}
 
+
+    tic = time.perf_counter()
     #Loop over variables:
     for var in var_list:
 
@@ -297,6 +300,8 @@ def zonal_mean(adfobj):
 
     #Notify user that script has ended:
     print("  ...Zonal mean plots have been generated successfully.")
+    toc = time.perf_counter()
+    print(f"\nZonal mean plots take {toc-tic:0.4f} seconds\n")
 
 
 #

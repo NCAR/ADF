@@ -17,6 +17,7 @@ from cartopy.util import add_cyclic_point
 # ADF library
 import plotting_functions as pf
 
+import time
 
 def polar_map(adfobj):
     """
@@ -92,6 +93,7 @@ def polar_map(adfobj):
                "SON": [9, 10, 11]
                }
 
+    tic = time.perf_counter()
     # probably want to do this one variable at a time:
     for var in var_list:
 
@@ -266,6 +268,8 @@ def polar_map(adfobj):
 
     #Notify user that script has ended:
     print("  ...polar maps have been generated successfully.")
+    toc = time.perf_counter()
+    print(f"Polar plots take {toc-tic:0.4f} seconds\n")
 
 ##############
 #END OF `polar_map` function
