@@ -332,15 +332,5 @@ def _df_comp_table(write_html,output_location,case_names,adf):
     
     _write_html(output_csv_file_comp, output_html_file_comp)
 
-    '''html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    preamble = f"""<html><head></head><body><h1>{output_csv_file_comp.stem}<h1>"""
-    ending = """</body></html>"""
-    with open(output_html_file_comp, 'w') as hfil:
-        hfil.write(preamble)
-        hfil.write(html)
-        hfil.write(ending)'''
-
-    
-
 ##############
 #END OF SCRIPT
