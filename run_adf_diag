@@ -54,6 +54,8 @@ from adf_diag import AdfDiag
 #Import ADF diagnostics error classt:
 from adf_base import AdfError
 
+import time
+
 #################
 #Helper functions
 #################
@@ -147,16 +149,25 @@ if __name__ == "__main__":
 
     #Create model time series.
     #Please note that this is an internal ADF function:
+    tic = time.perf_counter()
     diag.create_time_series()
+    toc = time.perf_counter()
+    print(f"Creating time series takes {toc-tic:0.4f} seconds\n")
 
     #Create model baseline time series (if needed):
     if not diag.compare_obs:
+        tic = time.perf_counter()
         diag.create_time_series(baseline=True)
+        toc = time.perf_counter()
+        print(f"Creating baseline time series takes {toc-tic:0.4f} seconds\n")
 
     #Create model climatology (climo) files.
     #This call uses the "time_averaging_scripts" specified
     #in the config file:
+    tic = time.perf_counter()
     diag.create_climo()
+    toc = time.perf_counter()
+    print(f"Creating climo takes {toc-tic:0.4f} seconds\n")
 
     #If a user is doing a model vs obs comparison, but
     #no observations were found, then stop here:
@@ -168,22 +179,34 @@ if __name__ == "__main__":
     #observations or CAM baseline climatologies.
     #This call uses the "regridding_scripts" specified
     #in the config file:
+    tic = time.perf_counter()
     diag.regrid_climo()
+    toc = time.perf_counter()
+    print(f"Regridding takes {toc-tic:0.4f} seconds\n")
 
     #Perform analyses on the simulation(s).
     #This call uses the "analysis_scripts" specified in the
     #config file:
+    tic = time.perf_counter()
     diag.perform_analyses()
+    toc = time.perf_counter()
+    print(f"Creating analysis takes {toc-tic:0.4f} seconds\n")
 
     #Create plots.
     #This call uses the "plotting_scripts" specified
     #in the config file:
+    tic = time.perf_counter()
     diag.create_plots()
+    toc = time.perf_counter()
+    print(f"Creating plots take {toc-tic:0.4f} seconds\n")
 
     #Create website.
     #Please note that this is an internal ADF function:
     if diag.create_html:
+        tic = time.perf_counter()
         diag.create_website()
+        toc = time.perf_counter()
+        print(f"Creating webpages take {toc-tic:0.4f} seconds\n")
 
     #+++++++++++++++
     #End diag script
