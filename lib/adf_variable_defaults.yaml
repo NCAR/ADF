@@ -61,7 +61,7 @@ PS:
     colorbar:
       label : "hPa"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "PS"
 
 PRECC:
@@ -88,7 +88,7 @@ PRECT:
     colorbar:
       label : "mm d$^{-1}$"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "PRECT"
 
 TGCLDLWP:
@@ -124,7 +124,7 @@ CLDTOT:
   add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "CLDTOT"
 
 CLDLOW:
@@ -136,7 +136,7 @@ CLDLOW:
   add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "CLDLOW"
 
 CLDHGH:
@@ -148,7 +148,7 @@ CLDHGH:
   add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "CLDHGH"
 
 CLDMED:
@@ -160,7 +160,7 @@ CLDMED:
   add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "CLDMED"
 
 TMQ:
@@ -172,7 +172,7 @@ TMQ:
   add_offset: 0
   new_unit: "kg m$^{-2}$"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "PREH2O"
 
 CLOUD:
@@ -199,7 +199,7 @@ RELHUM:
     colorbar:
       label : "Fraction"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "RELHUM"
 
 U:
@@ -214,7 +214,7 @@ U:
     colorbar:
       label : "ms$^{-1}$"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "U"
 
 TS:
@@ -229,7 +229,7 @@ TS:
     colorbar:
       label : "K"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "TS"
 
 LHFLX:
@@ -244,7 +244,7 @@ LHFLX:
     colorbar:
       label : "Wm$^{-2}$"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "LHFLX"
 
 SWCF:
@@ -263,7 +263,7 @@ SWCF:
   obs_var_name: "toa_cre_sw_mon"
   obs_scale_factor: 1
   obs_add_offset: 0
- 
+
 LWCF:
   colormap: "Oranges"
   contour_levels_range: [-10, 100, 5]

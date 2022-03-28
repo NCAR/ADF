@@ -171,10 +171,12 @@ class AdfDiag(AdfObs):
         self.expand_references(self.__cam_climo_info)
 
         #Add CVDP info to object:
-        self.__cvdp_info = self.read_config_var('diag_cvdp_info', required=True)
+        self.__cvdp_info = self.read_config_var('diag_cvdp_info')
 
         #Expand CVDP climo info variable strings:
-        self.expand_references(self.__cvdp_info)
+        if self.__cvdp_info is not None:
+            self.expand_references(self.__cvdp_info)
+        #End if
 
         #Check if inputs are of the correct type.
         #Ideally this sort of checking should be done
@@ -291,8 +293,9 @@ class AdfDiag(AdfObs):
     def get_cvdp_info(self, var_str, required=False):
         """
         Return the config variable from 'diag_cvdp_info' as requested by
-        the user.  This function assumes that if the user is requesting it,
-        then it must be required.
+        the user. If 'diag_cvdp_info' is not found then try grabbing the
+        variable from the top level of the YAML config file dictionary
+        instead.
         """
 
         return self.read_config_var(var_str,
@@ -1171,7 +1174,11 @@ class AdfDiag(AdfObs):
         cam_ts_loc = self.get_cam_info('cam_ts_loc')
 
         #set CVDP directory, recursively copy cvdp codebase to the CVDP directory
-        cvdp_dir = self.get_cvdp_info('cvdp_loc', required=True)+case_names[0]
+        if len(case_names) > 1:
+            cvdp_dir = self.get_cvdp_info('cvdp_loc', required=True)+case_names[0]+'_multi_case'
+        else:
+            cvdp_dir = self.get_cvdp_info('cvdp_loc', required=True)+case_names[0]
+        #end if
         if not os.path.isdir(cvdp_dir):
             shutil.copytree(self.get_cvdp_info('cvdp_codebase_loc', required=True),cvdp_dir)
 
@@ -1185,7 +1192,7 @@ class AdfDiag(AdfObs):
         #Loop over cases to create individual text array to be written to namelist file.
         row_list = []
         for case_idx, case_name in enumerate(case_names):
-            row = [case_name,' | ',str(cam_ts_loc[case_idx]),'/ | ',
+            row = [case_name,' | ',str(cam_ts_loc[case_idx]),os.sep,' | ',
                    str(syears[case_idx]),' | ',str(eyears[case_idx])]
             row_list.append("".join(row))
 
@@ -1196,13 +1203,13 @@ class AdfDiag(AdfObs):
                 fnml.write(rowtext)
             fnml.write('\n\n')
             if "baseline_ts_loc" in locals():
-                rowb_list = []
-                rowb = [case_name_baseline,' | ',str(baseline_ts_loc),'/ | ',
+                rowb = [case_name_baseline,' | ',str(baseline_ts_loc),os.sep,' | ',
                         str(syears_baseline),' | ',str(eyears_baseline)]
-                rowb_list.append("".join(rowb))
-                for rowtextb in rowb_list:
-                    fnml.write(rowtextb)
-            fnml.write('\n\n')
+                rowtextb = "".join(rowb)
+                fnml.write(rowtextb)
+                fnml.write('\n\n')
+            #End if
+        #End with
 
         #modify driver.ncl to set the proper output directory, webpage title, and location
         #of CVDP NCL scripts, set modular = True (to run multiple CVDP scripts at once),
@@ -1231,6 +1238,8 @@ class AdfDiag(AdfObs):
                     if '  tar_output  ' in line:
                         line = '  tar_output = "True"'
                 f_out.write(line)
+            #End for
+        #End with
 
         #Submit the CVDP driver script in background mode, send output to cvdp.out file
         with open(os.path.join(cvdp_dir,'cvdp.out'), 'w', encoding='utf-8') as subout:

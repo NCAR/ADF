@@ -255,8 +255,12 @@ def global_latlon_map(adfobj):
 
                                 #Calculate monthly-weighted seasonal averages:
                                 if s == 'ANN':
-                                    mseasons[s] = (mdata * weights).sum(dim='time')
-                                    oseasons[s] = (odata * weights).sum(dim='time')
+
+                                    #Calculate annual weights (i.e. don't group by season):
+                                    weights_ann = month_length / month_length.sum()
+
+                                    mseasons[s] = (mdata * weights_ann).sum(dim='time')
+                                    oseasons[s] = (odata * weights_ann).sum(dim='time')
                                     # difference: each entry should be (lat, lon)
                                     dseasons[s] = mseasons[s] - oseasons[s]
                                 else:
