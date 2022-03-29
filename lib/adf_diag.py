@@ -1058,7 +1058,7 @@ class AdfDiag(AdfObs):
                             if count > 1:
                                 emsg = f"More than one AMWG table is associated with case '{case}'."
                                 emsg += "\nNot sure what is going on, "
-                                emsg += "so website generation will end here."
+                                emsg += "\nso website generation will end here."
                                 self.end_diag_fail(emsg)
                             #End if
                         #End for (table html file loop)
@@ -1068,6 +1068,7 @@ class AdfDiag(AdfObs):
                     for color_table in color_table_html_file:
                         print(f"\n\n{color_table}\n\n")
                         shutil.copy2(color_table, table_pages_dir / color_table.name)
+                        print(color_table.name)
                     amwg_tables[f"Colored Table {case}"] = color_table.name
                 #End for (case vs data)
 
