@@ -1001,6 +1001,7 @@ class AdfDiag(AdfObs):
             #Grab the comparison table and move it to website dir
             comp_table_html_file = list(plot_path.glob(f"*comp.html"))
             color_table_html_file = list(plot_path.glob(f"*color*.html"))
+            print("all the color html files:",color_table_html_file)
 
             #Also grab baseline/obs tables, which are always stored in the first case directory:
             if case_idx == 0:
@@ -1064,11 +1065,12 @@ class AdfDiag(AdfObs):
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)
+                    amwg_tables[f"Colored Table {case}"] = color_table.name
                 #End for (case vs data)
 
                 #Add comparison table to website dictionary
                 amwg_tables["Case Comparison"] = comp_table.name
-                amwg_tables["Colored Table"] = color_table.name
+                
 
                 #Construct mean_table.html
                 mean_title = "AMP Diagnostic Tables:"
