@@ -1050,7 +1050,9 @@ class AdfDiag(AdfObs):
 
                             #Create relative path for HTML file:
                             amwg_tables[case] = table_html.name
-
+                            color_table = color_table_html_file[count]
+                            print(f"\nColor table name: {color_table.name}\n")
+                            amwg_tables[f"Colored Table {case}"] = color_table.name
                             #Update counter:
                             count += 1
 
@@ -1062,12 +1064,8 @@ class AdfDiag(AdfObs):
                                 self.end_diag_fail(emsg)
                             #End if
                         #End for (table html file loop)
-                    #End if (table html file exists check)
-                    #Move colored table html file to new directory
-                    
-                        color_table = color_table_html_file[count]
-                        print(f"\nColor table name: {color_table.name}\n")
-                        amwg_tables[f"Colored Table {case}"] = color_table.name
+                    #End if (table html file exists check)                        
+                            
                 #End for (case vs data)
 
                 #Add comparison table to website dictionary
