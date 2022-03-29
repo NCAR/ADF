@@ -1065,7 +1065,7 @@ class AdfDiag(AdfObs):
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)
-                    amwg_tables[f"Colored Table {case}"] = color_table.name
+                    amwg_tables[f"Colored Table {case_idx}"] = color_table.name
                 #End for (case vs data)
 
                 #Add comparison table to website dictionary
