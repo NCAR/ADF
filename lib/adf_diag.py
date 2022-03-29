@@ -1021,7 +1021,8 @@ class AdfDiag(AdfObs):
                 for comp_table in comp_table_html_file:
                     shutil.move(comp_table, table_pages_dir / comp_table.name)
 
-                
+                for color_table in color_table_html_file:
+                    shutil.copy2(color_table, table_pages_dir / color_table.name)
 
                 #Move all case table html files to new directory:
                 for table_html in table_html_files:
