@@ -250,6 +250,12 @@ def amwg_table(adf):
     #End of model case loop
     #----------------------
 
+    # Style the DataFrame
+    #--------------------
+    #print(f'\n\n{case_name}\n\n')
+    output_html_color_file = output_location / "amwg_table_{}_color.html".format(case_name)
+    _df_styler(write_html,output_csv_file,output_html_color_file,adf)
+
     #Create comparison table for both cases
     print("  Making comparison table...")
     _df_comp_table(write_html,output_location,list(case_names))
@@ -301,6 +307,14 @@ def _write_html(f, out):
         hfil.write(html)
         hfil.write(ending)
 
+def _write_html_colored(f,df_colored, out):
+    preamble = f"""<html><head></head><body><h1>{f.stem} - DataFrame styled<h1>"""
+    ending = """</body></html>"""
+    with open(out, 'w') as hfil:
+        hfil.write(preamble)
+        hfil.write(df_colored.render())
+        hfil.write(ending)
+
 def _df_comp_table(write_html,output_location,case_names):
     import pandas as pd
 
@@ -339,6 +353,74 @@ def _df_comp_table(write_html,output_location,case_names):
         hfil.write(ending)
 
     #_write_html(output_csv_file_comp, output_html_file_comp)
+
+def _df_styler(write_html,f,output_html_color_file,adf):
+    '''
+    create stylized dataframe and save to html file
+    '''
+
+    def color_rule(row):
+        """
+        color function for stylizing the DataFrame
+        ------------------------------------------
+
+        This will *try* and color the case/baseline that is closest to obs as green 
+        and the other case/baseline as red
+
+        Know Issues
+        -----------
+        - What happens if both cases are close??
+            * haven't accounted for this scenario yet
+
+        """
+        # Name of the column to which we compare
+        obs_col_name = 'obs'
+
+        # names of all other columns that we compare to 'obs', without 'obs'
+        case_cols = [col for col in row.index if col != obs_col_name and col != 'variable']
+    
+        # here we will keep colour rules
+        cr = []
+
+        ## loop over all column names
+        for colname in row.index:
+            # color the variable just to see what control we have
+            if colname == 'variable':
+                cr.append('background-color: lemonchiffon')
+            if colname == obs_col_name:
+                cr.append('background-color: lightcyan')
+                
+            else:
+                # color the closest green
+                if row[colname] == min(row[case_cols], key=lambda x:abs(x-row[obs_col_name])):
+                    cr.append('background-color: lightgreen')
+                # color the furthest red
+                elif row[colname] == max(row[case_cols], key=lambda x:abs(x-row[obs_col_name])):
+                    cr.append('background-color: orangered')
+                # ** use this if not coloring the obs column **
+                # Nether here nor there, do not color
+                #else:
+                #    cr.append('')
+        return cr
+
+    import pandas as pd
+    df_csv = pd.read_csv(f)
+    print(list(df_csv.columns))
+    print("Number of rows in the data frame:",len(df_csv.iloc[:]))
+    
+    # ***** This isn't ready to be run yet until two cases can be compared to obs *****
+    """if adf.get_basic_info("compare_obs"):
+        formatter = {('mean'):"{:,.3g}",('standard dev.'):"{:,.3g}",('standard error'):"{:,.3g}",('95% CI'):"{:,.3g}",
+                           ('trend p-value'):"{:,.3g}"}
+        df_colored = df_csv.style.apply(color_rule, axis=1, subset=['variable','case','baseline','obs']).format(
+                                    formatter=formatter).hide_index()"""
+    
+    if not adf.get_basic_info("compare_obs"):
+        formatter = {('case'):"{:,.3g}",('baseline'):"{:,.3g}",('diff'):"{:,.3g}"}
+        df_colored = df_csv.style.set_properties(**{'background-color': 'lemonchiffon'},subset=['variable']).format(
+                                formatter=formatter).hide_index() 
+    
+    df_colored.set_table_attributes('border="1"')
 
 ##############
 #END OF SCRIPT
