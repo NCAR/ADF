@@ -355,6 +355,7 @@ def _df_comp_table(write_html,output_location,case_names):
     #_write_html(output_csv_file_comp, output_html_file_comp)
 
 def _df_styler(write_html,f,output_html_color_file,adf):
+#_df_styler(write_html,output_csv_file,output_html_color_file,adf)
     '''
     create stylized dataframe and save to html file
     '''
@@ -417,10 +418,13 @@ def _df_styler(write_html,f,output_html_color_file,adf):
     
     if not adf.get_basic_info("compare_obs"):
         formatter = {('case'):"{:,.3g}",('baseline'):"{:,.3g}",('diff'):"{:,.3g}"}
-        df_colored = df_csv.style.set_properties(**{'background-color': 'lemonchiffon'},subset=['variable']).format(
-                                formatter=formatter).hide_index() 
+        #df_colored = df_csv.style.set_properties(**{'background-color': 'lemonchiffon'},subset=['variable']).format(
+        #                        formatter=formatter).hide_index()
+
+        df_colored = df_csv.style.set_properties(**{'background-color': 'lemonchiffon'},subset=['variable']).hide_index() 
     
     df_colored.set_table_attributes('border="1"')
 
+    _write_html_colored(f,df_colored, output_html_color_file)
 ##############
 #END OF SCRIPT
