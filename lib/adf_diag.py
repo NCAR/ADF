@@ -1040,7 +1040,7 @@ class AdfDiag(AdfObs):
 
                     #Search for case name in moved HTML files:
                     table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
-
+                    print(case[0])
                     #Check if file exists:
                     if table_htmls:
 
@@ -1065,7 +1065,7 @@ class AdfDiag(AdfObs):
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)
-                    amwg_tables[f"Colored Table {case_name}"] = color_table.name
+                    amwg_tables[f"Colored Table {case[0]}"] = color_table.name
                 #End for (case vs data)
 
                 #Add comparison table to website dictionary
