@@ -1066,10 +1066,7 @@ class AdfDiag(AdfObs):
                     #End if (table html file exists check)
                     #Move colored table html file to new directory
                     
-                    for color_table in color_table_html_file:
-                        print(f"\n\n{color_table}\n\n")
-                        shutil.copy2(color_table, table_pages_dir / color_table.name)
-                        print(color_table.name)
+                    
                     amwg_tables[f"Colored Table {case}"] = color_table.name
                 #End for (case vs data)
 
