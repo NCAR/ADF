@@ -1065,7 +1065,7 @@ class AdfDiag(AdfObs):
                         #End for (table html file loop)
                     #End if (table html file exists check)                        
                     
-                    color_table = color_table_html_file[i]
+                    color_table = color_table_html_file[::-1][i]
                     print(f"\nColor table name: {color_table.name}\n")
                     amwg_tables[f"Colored Table {case}"] = color_table.name
                     i+=1
