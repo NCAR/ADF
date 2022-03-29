@@ -1021,9 +1021,7 @@ class AdfDiag(AdfObs):
                 for comp_table in comp_table_html_file:
                     shutil.move(comp_table, table_pages_dir / comp_table.name)
 
-                #Move colored table html file to new directory
-                for color_table in color_table_html_file:
-                    shutil.copy2(color_table, table_pages_dir / color_table.name)
+                
 
                 #Move all case table html files to new directory:
                 for table_html in table_html_files:
@@ -1040,7 +1038,7 @@ class AdfDiag(AdfObs):
 
                     #Search for case name in moved HTML files:
                     table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
-                    print(case[0])
+                    print(case)
                     #Check if file exists:
                     if table_htmls:
 
@@ -1065,7 +1063,10 @@ class AdfDiag(AdfObs):
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)
-                    amwg_tables[f"Colored Table {case[0]}"] = color_table.name
+                    #Move colored table html file to new directory
+                    for color_table in color_table_html_file:
+                        shutil.copy2(color_table, table_pages_dir / color_table.name)
+                    amwg_tables[f"Colored Table {case}"] = color_table.name
                 #End for (case vs data)
 
                 #Add comparison table to website dictionary
