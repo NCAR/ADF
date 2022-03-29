@@ -474,7 +474,6 @@ class AdfDiag(AdfObs):
             return subprocess.run(cmd, shell=False)
         
         number_of_cpu = mp.cpu_count()  # Max number of processes is set to how many CPUs we have.
-        pool = mp.Pool(processes=number_of_cpu)  # Sets up a pool for the calls to ncrcat.
 
         #Check if baseline time-series files are being created:
         if baseline:
@@ -663,9 +662,10 @@ class AdfDiag(AdfObs):
                 #Run "ncrcat" command to generate time series file:
                 cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
                        hist_files + ["-o", ts_outfil_str]
+
                 list_of_commands.append(cmd)
 
-            with pool as p:
+            with mp.Pool(processes=number_of_cpu) as p:
                 result = p.map(call_ncrcat, list_of_commands)
 
             print("DONE WITH TIME SERIES GENERATOR")
