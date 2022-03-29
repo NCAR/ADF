@@ -360,8 +360,14 @@ def _df_styler(write_html,f,output_html_color_file,adf):
     create stylized dataframe and save to html file
     '''
 
+    import pandas as pd
+    df_csv = pd.read_csv(f)
+    
+    # ***** This isn't ready to be run yet until two cases can be compared to obs *****
+    """
+    
     def color_rule(row):
-        """
+        '''
         color function for stylizing the DataFrame
         ------------------------------------------
 
@@ -373,7 +379,7 @@ def _df_styler(write_html,f,output_html_color_file,adf):
         - What happens if both cases are close??
             * haven't accounted for this scenario yet
 
-        """
+        '''
         # Name of the column to which we compare
         obs_col_name = 'obs'
 
@@ -403,21 +409,15 @@ def _df_styler(write_html,f,output_html_color_file,adf):
                 #else:
                 #    cr.append('')
         return cr
-
-    import pandas as pd
-    df_csv = pd.read_csv(f)
-    print(list(df_csv.columns))
-    print("Number of rows in the data frame:",len(df_csv.iloc[:]))
     
-    # ***** This isn't ready to be run yet until two cases can be compared to obs *****
-    """if adf.get_basic_info("compare_obs"):
+    if adf.get_basic_info("compare_obs"):
         formatter = {('mean'):"{:,.3g}",('standard dev.'):"{:,.3g}",('standard error'):"{:,.3g}",('95% CI'):"{:,.3g}",
                            ('trend p-value'):"{:,.3g}"}
         df_colored = df_csv.style.apply(color_rule, axis=1, subset=['variable','case','baseline','obs']).format(
                                     formatter=formatter).hide_index()"""
     
     if not adf.get_basic_info("compare_obs"):
-        formatter = {('case'):"{:,.3g}",('baseline'):"{:,.3g}",('diff'):"{:,.3g}"}
+        #formatter = {('case'):"{:,.3g}",('baseline'):"{:,.3g}",('diff'):"{:,.3g}"}
         #df_colored = df_csv.style.set_properties(**{'background-color': 'lemonchiffon'},subset=['variable']).format(
         #                        formatter=formatter).hide_index()
 
