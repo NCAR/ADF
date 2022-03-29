@@ -17,7 +17,6 @@ from cartopy.util import add_cyclic_point
 # ADF library
 import plotting_functions as pf
 
-
 def polar_map(adfobj):
     """
     This script/function generates polar maps of model fields with continental overlays.
@@ -184,6 +183,10 @@ def polar_map(adfobj):
                     odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
                     # update units
                     odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
+                # or for observations.
+                else:
+                    odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
+                    # Note: assume obs are set to have same untis as model.
 
                 #Determine dimensions of variable:
                 has_dims = pf.lat_lon_validate_dims(odata)
@@ -233,6 +236,7 @@ def polar_map(adfobj):
                             # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
 
                             # pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+
                             nhfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="NH", **vres)
                             shfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="SH", **vres)
 
@@ -310,6 +314,11 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
     d2_region_mean, d2_region_max, d2_region_min = domain_stats(d2, domain)
     dif_region_mean, dif_region_max, dif_region_min = domain_stats(dif, domain)
 
+    #downsize to the specified region; makes plotting/rendering/saving much faster
+    d1 = d1.sel(lat=slice(domain[2],domain[3]))
+    d2 = d2.sel(lat=slice(domain[2],domain[3]))
+    dif = dif.sel(lat=slice(domain[2],domain[3]))
+
     # add cyclic point to the data for better-looking plot
     d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
     d2_cyclic, _ = add_cyclic_point(d2, coord=d2.lon)  # since we can take difference, assume same longitude coord.
@@ -318,8 +327,9 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
     # -- deal with optional plotting arguments that might provide variable-dependent choices
 
     # determine levels & color normalization:
-    minval = np.min([np.min(d1), np.min(d2)])
-    maxval = np.max([np.max(d1), np.max(d2)])
+    minval    = np.min([np.min(d1), np.min(d2)])
+    maxval    = np.max([np.max(d1), np.max(d2)])
+    absmaxdif = np.max(np.abs(dif))
 
     if 'colormap' in kwargs:
         cmap1 = kwargs['colormap']
@@ -346,10 +356,32 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
             assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"
             levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
-        # set a symmetric color bar for diff:
-        absmaxdif = np.max(np.abs(dif))
-        # set levels for difference plot:
+        # set levels for difference plot (with a symmetric color bar):
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+    #End if
+
+    #NOTE: Sometimes the contour levels chosen in the defaults file
+    #can result in the "contourf" software stack generating a
+    #'TypologyException', which should manifest itself as a
+    #"PredicateError", but due to bugs in the stack itself
+    #will also sometimes raise an AttributeError.
+
+    #To prevent this from happening, the poloar max and min values
+    #are calculated, and if the default contour values are significantly
+    #larger then the min-max values, then the min-max values are used instead:
+    #-------------------------------
+    if max(levels1) > 10*maxval:
+        levels1 = np.linspace(minval, maxval, 12)
+        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+    elif minval < 0 and min(levels1) < 10*minval:
+        levels1 = np.linspace(minval, maxval, 12)
+        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+    #End if
+
+    if max(abs(levelsdiff)) > 10*absmaxdif:
+        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+    #End if
+    #-------------------------------
 
     # Difference options -- Check in kwargs for colormap and levels
     if "diff_colormap" in kwargs:
@@ -357,6 +389,7 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
         dnorm, _ = pf.get_difference_colors(levelsdiff)  # color map output ignored
     else:
         dnorm, cmapdiff = pf.get_difference_colors(levelsdiff)
+    #End if
 
     # -- end options
 

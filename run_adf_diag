@@ -153,6 +153,10 @@ if __name__ == "__main__":
     if not diag.compare_obs:
         diag.create_time_series(baseline=True)
 
+    #Call the CVDP:
+    if diag.get_cvdp_info('cvdp_run'):
+       diag.setup_run_cvdp()
+
     #Create model climatology (climo) files.
     #This call uses the "time_averaging_scripts" specified
     #in the config file:
