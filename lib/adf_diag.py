@@ -1035,8 +1035,9 @@ class AdfDiag(AdfObs):
                 #Construct dictionary needed for HTML page:
                 amwg_tables = OrderedDict()
 
+                i=0
                 for case in [case_name, data_name]:
-                    i=0
+                    
                     #Search for case name in moved HTML files:
                     table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
                     #Check if file exists:
@@ -1063,6 +1064,7 @@ class AdfDiag(AdfObs):
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)                        
+                    
                     color_table = color_table_html_file[i]
                     print(f"\nColor table name: {color_table.name}\n")
                     amwg_tables[f"Colored Table {case}"] = color_table.name
