@@ -1065,9 +1065,9 @@ class AdfDiag(AdfObs):
                     #End if (table html file exists check)
                     #Move colored table html file to new directory
                     
-                            color_table = color_table_html_file[count]
-                            print(f"\nColor table name: {color_table.name}\n")
-                            amwg_tables[f"Colored Table {case}"] = color_table.name
+                        color_table = color_table_html_file[count]
+                        print(f"\nColor table name: {color_table.name}\n")
+                        amwg_tables[f"Colored Table {case}"] = color_table.name
                 #End for (case vs data)
 
                 #Add comparison table to website dictionary
