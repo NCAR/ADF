@@ -260,11 +260,6 @@ def amwg_table(adf):
     print("  Making comparison table...")
     _df_comp_table(write_html,output_location,list(case_names))
 
-
-    from glob import glob
-    print(glob(str(output_location)+"/amwg_table_*_color.html"))
-
-
     #Notify user that script has ended:
     print("...AMWG variable table has been generated successfully.")
 
