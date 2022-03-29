@@ -1022,7 +1022,7 @@ class AdfDiag(AdfObs):
 
                 #Move colored table html file to new directory
                 for color_table in color_table_html_file:
-                    print(table_pages_dir / color_table.name)
+                    print("***********table page dir and color table name\n",table_pages_dir / color_table.name,"***********")
                     shutil.copy2(color_table, table_pages_dir / color_table.name)
 
                 #Move all case table html files to new directory:
