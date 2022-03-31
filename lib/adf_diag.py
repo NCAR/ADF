@@ -1000,8 +1000,7 @@ class AdfDiag(AdfObs):
             
             #Grab the comparison table and move it to website dir
             comp_table_html_file = list(plot_path.glob(f"*comp.html"))
-            color_table_html_file = list(plot_path.glob(f"*color*.html"))
-            print("all the color html files:",color_table_html_file)
+            #color_table_html_file = list(plot_path.glob(f"*color*.html"))
 
             #Also grab baseline/obs tables, which are always stored in the first case directory:
             if case_idx == 0:
@@ -1021,8 +1020,8 @@ class AdfDiag(AdfObs):
                 for comp_table in comp_table_html_file:
                     shutil.move(comp_table, table_pages_dir / comp_table.name)
 
-                for color_table in color_table_html_file:
-                    shutil.copy2(color_table, table_pages_dir / color_table.name)
+                #for color_table in color_table_html_file:
+                #    shutil.copy2(color_table, table_pages_dir / color_table.name)
 
                 #Move all case table html files to new directory:
                 for table_html in table_html_files:
@@ -1035,7 +1034,7 @@ class AdfDiag(AdfObs):
                 #Construct dictionary needed for HTML page:
                 amwg_tables = OrderedDict()
 
-                i=0
+                #i=0
                 for case in [case_name, data_name]:
                     
                     #Search for case name in moved HTML files:
@@ -1065,10 +1064,10 @@ class AdfDiag(AdfObs):
                         #End for (table html file loop)
                     #End if (table html file exists check)                        
                     
-                    color_table = color_table_html_file[::-1][i]
-                    print(f"\nColor table name: {color_table.name}\n")
-                    amwg_tables[f"Colored Table {case}"] = color_table.name
-                    i+=1
+                    #color_table = color_table_html_file[::-1][i]
+                    #print(f"\nColor table name: {color_table.name}\n")
+                    #amwg_tables[f"Colored Table {case}"] = color_table.name
+                    #i+=1
                 #End for (case vs data)
 
                 #Add comparison table to website dictionary
