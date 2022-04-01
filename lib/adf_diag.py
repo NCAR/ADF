@@ -1010,9 +1010,9 @@ class AdfDiag(AdfObs):
 
 
             #Loop over variables:
-            for var in var_list_alpha:
+            for ptype in plot_type_order:
                 #Loop over plot type:
-                for ptype in plot_type_order:
+                for var in var_list_alpha:
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
@@ -1050,18 +1050,18 @@ class AdfDiag(AdfObs):
             #Construct mean_diag.html
             #mean_title = "AMP Diagnostic Plots"
             
-            mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
-            mean_rndr = mean_tmpl.render(title=main_title,
-                            case1=case_name,
-                            case2=data_name,
-                            mydata=mean_html_info,
-                            plot_types=plot_type_html)
+                mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+                mean_rndr = mean_tmpl.render(title=main_title,
+                                case1=case_name,
+                                case2=data_name,
+                                mydata=mean_html_info,
+                                plot_types=plot_type_html)
 
-            #Write mean diagnostic plots HTML file:
-            outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
-            with open(outputfile,'w') as ofil:
-                ofil.write(mean_rndr)
-            #End with
+                #Write mean diagnostic plots HTML file:
+                outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
+                with open(outputfile,'w') as ofil:
+                    ofil.write(mean_rndr)
+                #End with
 
 
 
