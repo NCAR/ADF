@@ -1009,7 +1009,7 @@ class AdfDiag(AdfObs):
 
 
 
-            #Loop over variables:
+            #Loop over plot type:
             for ptype in plot_type_order:
                 mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
                                             # plots provisional structure:
@@ -1017,7 +1017,8 @@ class AdfDiag(AdfObs):
                                             # values -> dict w/ keys being "TYPE" of plots
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
-                #Loop over plot type:
+        
+                #Loop over variables:
                 for var in var_list_alpha:
                     #Loop over seasons:
                     for season in season_order:
@@ -1053,34 +1054,22 @@ class AdfDiag(AdfObs):
                             mean_html_info[var][ptype][season] = outputfile.name
                         #End for (assests loop)
                     #End for (seasons loop)
-                #End for (plot type loop)
-            #End for (variable loop)
 
-            #Construct mean_diag.html
-            #mean_title = "AMP Diagnostic Plots"
-            
+                    #Construct individual plot type mean_diag html files
                     mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
                     mean_rndr = mean_tmpl.render(title=main_title,
                                     case1=case_name,
                                     case2=data_name,
                                     mydata=mean_html_info,
                                     plot_types=plot_type_html)
-
                     #Write mean diagnostic plots HTML file:
                     outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
                     with open(outputfile,'w') as ofil:
                         ofil.write(mean_rndr)
                     #End with
 
-
-
-
-
-
-
-
-
-
+                #End for (variable loop)
+            #End for (plot type loop)
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
