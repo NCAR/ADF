@@ -27,7 +27,7 @@
 
      <h2>Plot Types: {% for type, html_file in plot_types.items() %}
       <!--<a href={{html_file}}> {{type}}</a>-->
-      {% if type == Table}
+      {% if type == "Table"}
       <a href=html_img/mean_diag.html> {{type}}</a>
       {% endif %}
       {% endfor %}
