@@ -24,6 +24,12 @@
      <h1> {{title}} </h1>
      <h2> Case 1: {{case1}}</h2>
      <h2> Case 2: {{case2}}</h2>
+     <h2>Plot Types: 
+      <a href=html_table/mean_table.html> Tables</a> 
+      {% for type, html_file in plot_types.items() %}
+      <a href={{html_file}}> {{type}}</a>
+      {% endfor %}
+     </h2>
 
      <table class="big-table">
         {% for key, value in mydata.items() %}
@@ -33,7 +39,7 @@
         {% for pkey, pvalue in value.items() %}
         <tr>
           <td> &nbsp; </td>
-          <th>{{pkey}}</th>
+          <!--<th>{{pkey}}</th>-->
           {% for tkey, tvalue in pvalue.items() %}
           <td>
             <a href="{{ tvalue }}">{{ tkey }}</a>
