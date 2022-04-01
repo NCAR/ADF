@@ -885,7 +885,8 @@ class AdfDiag(AdfObs):
         season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
         #Set preferred order of plot types:
-        plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
+        #plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
+        plot_type_order = ["LatLon", "Zonal"]
         plot_type_web = ["","","",""]
         plot_type_html = dict(zip(plot_type_order, plot_type_web))
         main_title = "AMP Diagnostics"
