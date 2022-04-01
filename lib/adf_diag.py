@@ -1088,7 +1088,7 @@ class AdfDiag(AdfObs):
                 with open(outputfile,'w') as ofil:
                     ofil.write(mean_rndr)
                 #End with
-                print("where tables html page lives:",outputfile)
+                print("where tables html page lives:",outputfile,type(outputfile))
             else:
                 #No Tables exist, so no link will be added to main page:
                 gen_table_html = False
