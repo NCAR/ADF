@@ -1100,7 +1100,8 @@ class AdfDiag(AdfObs):
             index_rndr = index_tmpl.render(title=main_title,
                              case1=case_name,
                              case2=data_name,
-                             gen_table_html=gen_table_html)
+                             gen_table_html=gen_table_html,
+                             plot_types=["Tables","LatLon","Zonal"])
 
             #Write Mean diagnostics HTML file:
             outputfile = website_dir / "index.html"
