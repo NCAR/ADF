@@ -1025,8 +1025,11 @@ class AdfDiag(AdfObs):
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                             var_title = f"Variable: {var}"              #Create title
                             tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,var_title=var_title, value=img_data, case1=case_name,
-                                               case2=data_name) #The template rendered
+                            rndr = tmpl.render(title=main_title,var_title=var_title,
+                                               value=img_data, 
+                                               case1=case_name,
+                                               case2=data_name,
+                                               plot_types=plot_type_html) #The template rendered
 
                             #Open HTML file:
                             with open(outputfile,'w') as ofil:
