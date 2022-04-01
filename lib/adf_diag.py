@@ -1099,7 +1099,7 @@ class AdfDiag(AdfObs):
             #plot_type_order_web = plot_type_order
 
             #plot_type_html = OrderedDict()
-            plot_type_web_name = plot_type_order.append("Tables")
+            plot_type_web_name = plot_type_order+["Tables"]
             plot_type_web = ["template_mean_table.html","","","",""]
             plot_type_html = dict(zip(plot_type_web_name, plot_type_web))
          
