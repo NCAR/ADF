@@ -25,8 +25,8 @@
      <h2> Case 1: {{case1}}</h2>
      <h2> Case 2: {{case2}}</h2>
 
-     <h2>Plot Types:  {% for type in plot_types %}  
-      <a href=""> {{type}}</a>
+     <h2>Plot Types: {% for type, html_file in plot_types.items() %}
+      <a href={{html_file}}> {{type}}</a>
       {% endfor %}
      </h2>
      <!--<table class="big-table">
