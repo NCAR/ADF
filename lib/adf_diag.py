@@ -1100,7 +1100,7 @@ class AdfDiag(AdfObs):
 
             #plot_type_html = OrderedDict()
             plot_type_web_name = ["Tables"]+plot_type_order
-            mean_table = table_pages_dir / "mean_table.html"
+            mean_table = "https://project.cgd.ucar.edu/projects/ADF/web_update/f.e21.FWscHIST.ne30_L48_BL10_cam6_3_041_kzz3_zmtop75.hf.001_vs_f.e21.FWscHIST.ne30_L48_BL10_cam6_3_041_control.hf.001_1982_1990/website/html_table/mean_table.html"
             plot_type_web = [mean_table,"","","",""]
             plot_type_html = dict(zip(plot_type_web_name, plot_type_web))
          
