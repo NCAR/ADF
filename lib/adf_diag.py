@@ -940,14 +940,14 @@ class AdfDiag(AdfObs):
                 shutil.copyfile(img, idest) # store image in assets
 
 
-            mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
+            """mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
                                             # plots provisional structure:
                                             # key = variable_name
                                             # values -> dict w/ keys being "TYPE" of plots
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
 
-            """#Loop over variables:
+            #Loop over variables:
             for var in var_list_alpha:
                 #Loop over plot type:
                 for ptype in plot_type_order:
@@ -1011,6 +1011,12 @@ class AdfDiag(AdfObs):
 
             #Loop over variables:
             for ptype in plot_type_order:
+                mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
+                                            # plots provisional structure:
+                                            # key = variable_name
+                                            # values -> dict w/ keys being "TYPE" of plots
+                                            # w/ values being dict w/ keys being TEMPORAL sampling,
+                                            # values being the URL
                 #Loop over plot type:
                 for var in var_list_alpha:
                     #Loop over seasons:
