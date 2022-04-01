@@ -1093,6 +1093,16 @@ class AdfDiag(AdfObs):
                 #No Tables exist, so no link will be added to main page:
                 gen_table_html = False
             #End if
+            
+            #template_mean_table.html
+
+            #plot_type_order_web = plot_type_order
+
+            #plot_type_html = OrderedDict()
+            plot_type_web_name = plot_type_order.append("Tables")
+            plot_type_web = ["template_mean_table.html","","","",""]
+            plot_type_html = dict(zip(plot_type_web_name, plot_type_web))
+         
 
             #Construct index.html
             index_title = "AMP Diagnostics Prototype"
@@ -1101,7 +1111,7 @@ class AdfDiag(AdfObs):
                              case1=case_name,
                              case2=data_name,
                              gen_table_html=gen_table_html,
-                             plot_types=["Tables","LatLon","Zonal"])
+                             plot_types=plot_type_html)
 
             #Write Mean diagnostics HTML file:
             outputfile = website_dir / "index.html"
