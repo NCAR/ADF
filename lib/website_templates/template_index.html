@@ -25,7 +25,7 @@
      <h2> Case 1: {{case1}}</h2>
      <h2> Case 2: {{case2}}</h2>
 
-     <h2>Plot Types:  {% for key, value in plot_types.items() %} {{key}}</h2>
+     <h2>Plot Types:  {% for key, value in plot_types.items() %} {{key}} {% endfor %}</h2>
      <table class="big-table">
         <tr>
           <th><a href="html_img/mean_diag.html">Mean Diagnostic Plots</a></th>
