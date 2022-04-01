@@ -1097,7 +1097,7 @@ class AdfDiag(AdfObs):
             #Construct index.html
             index_title = "AMP Diagnostics Prototype"
             index_tmpl = jinenv.get_template('template_index.html')
-            index_rndr = index_tmpl.render(title=index_title,
+            index_rndr = index_tmpl.render(title=main_title,
                              case1=case_name,
                              case2=data_name,
                              gen_table_html=gen_table_html)
