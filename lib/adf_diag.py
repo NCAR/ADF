@@ -888,6 +888,7 @@ class AdfDiag(AdfObs):
         plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
         plot_type_web = ["","","",""]
         plot_type_html = dict(zip(plot_type_order, plot_type_web))
+        main_title = "AMP Diagnostics"
 
         #Also add pressure level Lat-Lon plots, if applicable:
         pres_levs = self.get_basic_info("plot_press_levels")
@@ -945,7 +946,7 @@ class AdfDiag(AdfObs):
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
 
-            #Loop over variables:
+            """#Loop over variables:
             for var in var_list_alpha:
                 #Loop over plot type:
                 for ptype in plot_type_order:
@@ -959,9 +960,9 @@ class AdfDiag(AdfObs):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                            title = f"Variable: {var}"              #Create title
+                            var_title = f"Variable: {var}"              #Create title
                             tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=title, value=img_data, case1=case_name,
+                            rndr = tmpl.render(title=main_title,var_title=var_title, value=img_data, case1=case_name,
                                                case2=data_name) #The template rendered
 
                             #Open HTML file:
@@ -984,8 +985,8 @@ class AdfDiag(AdfObs):
             #End for (variable loop)
 
             #Construct mean_diag.html
-            mean_title = "AMP Diagnostic Plots"
-            main_title = "AMP Diagnostics"
+            #mean_title = "AMP Diagnostic Plots"
+            
             mean_tmpl = jinenv.get_template('template_mean_diag.html')
             mean_rndr = mean_tmpl.render(title=main_title,
                             case1=case_name,
@@ -997,7 +998,79 @@ class AdfDiag(AdfObs):
             outputfile = img_pages_dir / "mean_diag.html"
             with open(outputfile,'w') as ofil:
                 ofil.write(mean_rndr)
+            #End with"""
+
+
+
+
+
+
+
+
+
+            #Loop over variables:
+            for var in var_list_alpha:
+                #Loop over plot type:
+                for ptype in plot_type_order:
+                    #Loop over seasons:
+                    for season in season_order:
+                        #Create the data that will be fed into the template:
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                            alt_text  = img.stem #Extract image file name text
+
+                            #Create output file (don't worry about analysis type for now):
+                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                            # Hacky - how to get the relative path in a better way?:
+                            img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                            var_title = f"Variable: {var}"              #Create title
+                            tmpl = jinenv.get_template('template.html')  #Set template
+                            rndr = tmpl.render(title=main_title,var_title=var_title, value=img_data, case1=case_name,
+                                               case2=data_name) #The template rendered
+
+                            #Open HTML file:
+                            with open(outputfile,'w') as ofil:
+                                ofil.write(rndr)
+                            #End with
+
+                            #Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info:
+                                mean_html_info[var] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[var]:
+                                mean_html_info[var][ptype] = OrderedDict()
+
+                            mean_html_info[var][ptype][season] = outputfile.name
+                        #End for (assests loop)
+                    #End for (seasons loop)
+                #End for (plot type loop)
+            #End for (variable loop)
+
+            #Construct mean_diag.html
+            #mean_title = "AMP Diagnostic Plots"
+            
+            mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+            mean_rndr = mean_tmpl.render(title=main_title,
+                            case1=case_name,
+                            case2=data_name,
+                            mydata=mean_html_info,
+                            plot_types=plot_type_html)
+
+            #Write mean diagnostic plots HTML file:
+            outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
+            with open(outputfile,'w') as ofil:
+                ofil.write(mean_rndr)
             #End with
+
+
+
+
+
+
+
+
+
+
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
