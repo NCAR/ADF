@@ -1039,7 +1039,7 @@ class AdfDiag(AdfObs):
                             if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()
 
-                            mean_html_info[var][ptype][season] = outputfile.name
+                            #mean_html_info[var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
                             tmpl = jinenv.get_template('template.html')  #Set template
                             rndr = tmpl.render(title=main_title,var_title=var_title,
@@ -1061,9 +1061,9 @@ class AdfDiag(AdfObs):
 
                             #Initialize Ordered Dictionary for plot type:
                             if ptype not in mean_html_info[var]:
-                                mean_html_info[var][ptype] = OrderedDict()
-
-                            mean_html_info[var][ptype][season] = outputfile.name"""
+                                mean_html_info[var][ptype] = OrderedDict()"""
+                            print("outputfile.name:",outputfile.name)
+                            mean_html_info[var][ptype][season] = outputfile.name
                         #End for (assests loop)
                     #End for (seasons loop)
 
