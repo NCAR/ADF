@@ -1032,7 +1032,7 @@ class AdfDiag(AdfObs):
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                             #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
-                            print("checking img_data list contents:",img_data)
+                            #print("checking img_data list contents:",img_data)
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info:
                                 mean_html_info[var] = OrderedDict()
@@ -1065,7 +1065,7 @@ class AdfDiag(AdfObs):
                             #Initialize Ordered Dictionary for plot type:
                             if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()"""
-                            print("outputfile.name:",outputfile.name,"\n")
+                            #print("outputfile.name:",outputfile.name,"\n")
                             mean_html_info[var][ptype][season] = outputfile.name
                         #End for (assests loop)
                     #End for (seasons loop)
