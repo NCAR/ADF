@@ -301,14 +301,14 @@ def _write_html(f, out):
     import pandas as pd
     df = pd.read_csv(f)
     html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
+    '''preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
         hfil.write(html)
-        hfil.write(ending)
+        hfil.write(ending)'''
 
-    """from pathlib import Path
+    from pathlib import Path
     import sys,os
     try:
         import jinja2
@@ -321,7 +321,8 @@ def _write_html(f, out):
     #Determine local directory path:
     _LOCAL_PATH = os.path.dirname(os.path.abspath(__file__))
     #Set path to Jinja2 template files:
-    jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
+    #jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
+    jinja_template_dir ="/glade/work/richling/ADF/ADF_dev/My_ADF/ADF/lib/website_templates"
 
         #Create the jinja Environment object:
     jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
@@ -337,7 +338,7 @@ def _write_html(f, out):
     #Write mean diagnostic tables HTML file:
     #outputfile = table_pages_dir / "mean_table.html"
     with open(out,'w') as ofil:
-        ofil.write(mean_rndr)"""
+        ofil.write(mean_rndr)
 
 def _write_html_colored(f,df_colored, out):
     preamble = f"""<html><head></head><body><h1>{f.stem} - DataFrame styled<h1>"""
