@@ -1004,9 +1004,9 @@ class AdfDiag(AdfObs):
 
 
             subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv" "CLUBB"]
-
+            indv_html_info = OrderedDict()
             for ptype in plot_type_order:
-                indv_html_info = OrderedDict()
+                
            #Loop over variables:
                 for var in var_list_alpha:
                         #Loop over seasons:
@@ -1070,8 +1070,9 @@ class AdfDiag(AdfObs):
                             print("mean_html_info:",indv_html_info.values())
                             #mean_html_info[var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
+                            season_title = f"Season: {season}"
                             tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,var_title=var_title,
+                            rndr = tmpl.render(title=main_title,var_title=var_title,season_title=season_title,
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
