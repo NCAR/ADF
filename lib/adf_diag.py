@@ -1029,6 +1029,8 @@ class AdfDiag(AdfObs):
                             if ptype not in indv_html_info[var]:
                                 indv_html_info[var][ptype] = OrderedDict()
 
+                            indv_html_info[var][ptype][season] = outputfile.name
+
 
             #Loop over plot type:
             for ptype in plot_type_order:
