@@ -25,13 +25,6 @@
     <h2> Case 1: {{case1}}</h2>
     <h2> Case 2: {{case2}}</h2>
 
-    <h2>Plot Types: 
-      <a> Tables</a> 
-      {% for type, html_file in plot_types.items() %}
-      <a href={{html_file}}> {{type}}</a>
-      {% endfor %}
-     </h2>
-
     <table class="big-table">
       {% for case_name, html_file in amwg_tables.items() %}
         <tr>
