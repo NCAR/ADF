@@ -1041,6 +1041,9 @@ class AdfDiag(AdfObs):
                             if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()
 
+                            if season not in mean_html_info[var][ptype]:
+                                mean_html_info[var][ptype][season] = OrderedDict()
+
                             print("mean_html_info:",mean_html_info.values())
                             #mean_html_info[var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
