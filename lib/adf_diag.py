@@ -1096,7 +1096,7 @@ class AdfDiag(AdfObs):
                             #    mean_html_info[var][ptype][season] = OrderedDict()
 
                             print("mean_html_info:",indv_html_info.values())
-                            #mean_html_info[var][ptype][season] = outputfile.name
+                            mean_html_info[var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
                             season_title = f"Season: {season}"
                             tmpl = jinenv.get_template('template.html')  #Set template
@@ -1104,7 +1104,7 @@ class AdfDiag(AdfObs):
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
-                                               mydata=indv_html_info,
+                                               mydata=mean_html_info,
                                                plot_types=plot_type_html
                                                ) #The template rendered
 
