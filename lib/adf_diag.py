@@ -1030,6 +1030,7 @@ class AdfDiag(AdfObs):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                            print("checking img_data list contents:",img_data,"\n")
                             var_title = f"Variable: {var}"              #Create title
                             tmpl = jinenv.get_template('template.html')  #Set template
                             rndr = tmpl.render(title=main_title,var_title=var_title,
