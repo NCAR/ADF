@@ -1004,7 +1004,7 @@ class AdfDiag(AdfObs):
 
 
             subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv" "CLUBB"]
-            indv_html_info = OrderedDict()
+            """indv_html_info = OrderedDict()
             for ptype in plot_type_order:
                 
            #Loop over variables:
@@ -1029,7 +1029,7 @@ class AdfDiag(AdfObs):
                             if ptype not in indv_html_info[var]:
                                 indv_html_info[var][ptype] = OrderedDict()
 
-                            indv_html_info[var][ptype][season] = outputfile.name
+                            indv_html_info[var][ptype][season] = outputfile.name"""
 
 
             #Loop over plot type:
@@ -1041,6 +1041,34 @@ class AdfDiag(AdfObs):
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
                 #img_data = []
+                indv_html_info = OrderedDict()
+                for var in var_list_alpha:
+                        #Loop over seasons:
+                    for season in season_order:
+                            #Create the data that will be fed into the template:
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                            alt_text  = img.stem #Extract image file name text
+
+                                #Create output file (don't worry about analysis type for now):
+                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                                # Hacky - how to get the relative path in a better way?:
+                            #img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                                #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
+                                #print("checking img_data list contents:",img_data)
+                                #Initialize Ordered Dictionary for variable:
+                            if var not in indv_html_info:
+                                indv_html_info[var] = OrderedDict()
+
+                                #Initialize Ordered Dictionary for plot type:
+                            if ptype not in indv_html_info[var]:
+                                indv_html_info[var][ptype] = OrderedDict()
+
+                            indv_html_info[var][ptype][season] = outputfile.name
+
+
+
+
+
         
                 #Loop over variables:
                 for var in var_list_alpha:
