@@ -301,14 +301,14 @@ def _write_html(f, out):
     import pandas as pd
     df = pd.read_csv(f)
     html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    '''preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
+    preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
         hfil.write(html)
-        hfil.write(ending)'''
+        hfil.write(ending)
 
-    from pathlib import Path
+    """from pathlib import Path
     import sys,os
     try:
         import jinja2
@@ -337,7 +337,7 @@ def _write_html(f, out):
     #Write mean diagnostic tables HTML file:
     #outputfile = table_pages_dir / "mean_table.html"
     with open(out,'w') as ofil:
-        ofil.write(mean_rndr)
+        ofil.write(mean_rndr)"""
 
 def _write_html_colored(f,df_colored, out):
     preamble = f"""<html><head></head><body><h1>{f.stem} - DataFrame styled<h1>"""
