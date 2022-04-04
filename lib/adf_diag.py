@@ -1005,8 +1005,29 @@ class AdfDiag(AdfObs):
 
             subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv" "CLUBB"]
 
+            for ptype in plot_type_order:
+                indv_html_info = OrderedDict()
+           #Loop over variables:
+                for var in var_list_alpha:
+                        #Loop over seasons:
+                    for season in season_order:
+                            #Create the data that will be fed into the template:
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                            alt_text  = img.stem #Extract image file name text
 
+                                #Create output file (don't worry about analysis type for now):
+                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                                # Hacky - how to get the relative path in a better way?:
+                            #img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                                #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
+                                #print("checking img_data list contents:",img_data)
+                                #Initialize Ordered Dictionary for variable:
+                            if var not in indv_html_info:
+                                indv_html_info[var] = OrderedDict()
 
+                                #Initialize Ordered Dictionary for plot type:
+                            if ptype not in indv_html_info[var]:
+                                indv_html_info[var][ptype] = OrderedDict()
 
 
             #Loop over plot type:
@@ -1038,13 +1059,13 @@ class AdfDiag(AdfObs):
                                 mean_html_info[var] = OrderedDict()
 
                             #Initialize Ordered Dictionary for plot type:
-                            if ptype not in mean_html_info[var]:
-                                mean_html_info[var][ptype] = OrderedDict()
+                            #if ptype not in mean_html_info[var]:
+                            #    mean_html_info[var][ptype] = OrderedDict()
 
-                            if season not in mean_html_info[var][ptype]:
-                                mean_html_info[var][ptype][season] = OrderedDict()
+                            #if season not in mean_html_info[var][ptype]:
+                            #    mean_html_info[var][ptype][season] = OrderedDict()
 
-                            print("mean_html_info:",mean_html_info.values())
+                            print("mean_html_info:",indv_html_info.values())
                             #mean_html_info[var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
                             tmpl = jinenv.get_template('template.html')  #Set template
@@ -1052,7 +1073,7 @@ class AdfDiag(AdfObs):
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
-                                               mydata=mean_html_info,
+                                               mydata=indv_html_info,
                                                plot_types=plot_type_html
                                                ) #The template rendered
 
