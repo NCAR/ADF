@@ -24,11 +24,11 @@
      <h1> {{title}}</h1>
      <h2> Case 1: {{case1}}</h2>
      <h2> Case 2: {{case2}}</h2>
-
+     {{home}}
      <h2>Plot Types: 
-      <a href={{home}}/html_table/mean_table.html> Tables</a> 
+      <a href=html_table/mean_table.html> Tables</a> 
       {% for type, html_file in plot_types.items() %}
-      <a href={{home}}/{{html_file}}> {{type}}</a>
+      <a href={{html_file}}> {{type}}</a>
       {% endfor %}
      </h2>
      <!--<table class="big-table">
