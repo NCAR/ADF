@@ -301,12 +301,43 @@ def _write_html(f, out):
     import pandas as pd
     df = pd.read_csv(f)
     html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
+    '''preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
         hfil.write(html)
-        hfil.write(ending)
+        hfil.write(ending)'''
+
+    from pathlib import Path
+    import sys,os
+    try:
+        import jinja2
+    except ImportError:
+        print("Jinja2 module does not exist in python path, but is needed for website.")
+        print("Please install module, e.g. 'pip install Jinja2'.")
+        sys.exit(1)
+        #End except
+
+    #Determine local directory path:
+    _LOCAL_PATH = os.path.dirname(os.path.abspath(__file__))
+    #Set path to Jinja2 template files:
+    jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
+
+        #Create the jinja Environment object:
+    jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
+
+    mean_tmpl = jinenv.get_template('template_mean_table.html')
+    mean_rndr = mean_tmpl.render(title=f"{f.stem}",
+                    #case1=case_name,
+                    #case2=data_name,
+                    amwg_tables=html,
+                    #plot_types=plot_type_html
+                    )
+
+    #Write mean diagnostic tables HTML file:
+    #outputfile = table_pages_dir / "mean_table.html"
+    with open(out,'w') as ofil:
+        ofil.write(mean_rndr)
 
 def _write_html_colored(f,df_colored, out):
     preamble = f"""<html><head></head><body><h1>{f.stem} - DataFrame styled<h1>"""
@@ -352,6 +383,10 @@ def _df_comp_table(write_html,output_location,case_names):
         hfil.write(preamble)
         hfil.write(html)
         hfil.write(ending)
+
+
+
+
 
     #_write_html(output_csv_file_comp, output_html_file_comp)
 
