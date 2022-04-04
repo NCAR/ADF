@@ -24,14 +24,22 @@
     <h1> {{title}} </h1>
     <h2> Case 1: {{case1}}</h2>
     <h2> Case 2: {{case2}}</h2>
+    <div style="width: 100%;">
+      <div style="width: 50%; height: 100px; float: left;"> 
+        <table class="big-table">
+          {% for case_name, html_file in amwg_tables.items() %}
+            <tr>
+              <td><a href="{{ html_file }}">{{ case_name }}</a></td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
 
-    <table class="big-table">
-      {% for case_name, html_file in amwg_tables.items() %}
-        <tr>
-          <td><a href="{{ html_file }}">{{ case_name }}</a></td>
-        </tr>
-      {% endfor %}
-    </table>
+      <h2> CASES </h2>
+      <div style="margin-left: 50%; height: 100px;">
+        <h3>ummmm</h3>
+      </div>
+    </div>
 
   </body>
 </html>
