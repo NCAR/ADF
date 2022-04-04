@@ -1046,6 +1046,7 @@ class AdfDiag(AdfObs):
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
+                                               mydata=mean_html_info,
                                                plot_types=plot_type_html
                                                ) #The template rendered
 
