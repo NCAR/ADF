@@ -1017,6 +1017,7 @@ class AdfDiag(AdfObs):
                                             # values -> dict w/ keys being "TYPE" of plots
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
+                img_data = []
         
                 #Loop over variables:
                 for var in var_list_alpha:
@@ -1029,8 +1030,9 @@ class AdfDiag(AdfObs):
                             #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                             # Hacky - how to get the relative path in a better way?:
-                            img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                            print("checking img_data list contents:",img_data,"\n")
+                            #img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                            img_data.append((os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text))
+                            print("checking img_data list contents:",img_data)
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info:
                                 mean_html_info[var] = OrderedDict()
@@ -1062,7 +1064,7 @@ class AdfDiag(AdfObs):
                             #Initialize Ordered Dictionary for plot type:
                             if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()"""
-                            print("outputfile.name:",outputfile.name)
+                            print("outputfile.name:",outputfile.name,"\n")
                             mean_html_info[var][ptype][season] = outputfile.name
                         #End for (assests loop)
                     #End for (seasons loop)
