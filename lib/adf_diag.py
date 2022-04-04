@@ -901,6 +901,7 @@ class AdfDiag(AdfObs):
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
+        print("jinja template path: ",jinja_template_dir)
 
         #Create the jinja Environment object:
         jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
