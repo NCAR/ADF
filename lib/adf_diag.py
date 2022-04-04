@@ -901,7 +901,6 @@ class AdfDiag(AdfObs):
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
-        print("jinja template path: ",jinja_template_dir)
 
         #Create the jinja Environment object:
         jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
@@ -1004,7 +1003,11 @@ class AdfDiag(AdfObs):
 
 
 
-            subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv", "CLUBB"]
+            subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv" "CLUBB"]
+
+
+
+
 
             #Loop over plot type:
             for ptype in plot_type_order:
@@ -1027,6 +1030,18 @@ class AdfDiag(AdfObs):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                            var_title = f"Variable: {var}"              #Create title
+                            tmpl = jinenv.get_template('template.html')  #Set template
+                            rndr = tmpl.render(title=main_title,var_title=var_title,
+                                               value=img_data, 
+                                               case1=case_name,
+                                               case2=data_name,
+                                               plot_types=plot_type_html) #The template rendered
+
+                            #Open HTML file:
+                            with open(outputfile,'w') as ofil:
+                                ofil.write(rndr)
+                            #End with
 
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info:
@@ -1035,30 +1050,8 @@ class AdfDiag(AdfObs):
                             #Initialize Ordered Dictionary for plot type:
                             if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()
+
                             mean_html_info[var][ptype][season] = outputfile.name
-                            var_title = f"Variable: {var}"              #Create title
-                            tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,var_title=var_title,
-                                               value=img_data, 
-                                               case1=case_name,
-                                               case2=data_name,
-                                               mydata=mean_html_info,
-                                               plot_types=plot_type_html) #The template rendered
-
-                            #Open HTML file:
-                            with open(outputfile,'w') as ofil:
-                                ofil.write(rndr)
-                            #End with
-
-                            """#Initialize Ordered Dictionary for variable:
-                            if var not in mean_html_info:
-                                mean_html_info[var] = OrderedDict()
-
-                            #Initialize Ordered Dictionary for plot type:
-                            if ptype not in mean_html_info[var]:
-                                mean_html_info[var][ptype] = OrderedDict()"""
-
-                            #mean_html_info[var][ptype][season] = outputfile.name
                         #End for (assests loop)
                     #End for (seasons loop)
 
@@ -1171,6 +1164,7 @@ class AdfDiag(AdfObs):
                 with open(outputfile,'w') as ofil:
                     ofil.write(mean_rndr)
                 #End with
+                print("where tables html page lives:",outputfile,type(outputfile),"\n",type(str(outputfile)))
             else:
                 #No Tables exist, so no link will be added to main page:
                 gen_table_html = False
