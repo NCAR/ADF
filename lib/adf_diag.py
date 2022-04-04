@@ -1026,18 +1026,6 @@ class AdfDiag(AdfObs):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                            var_title = f"Variable: {var}"              #Create title
-                            tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,var_title=var_title,
-                                               value=img_data, 
-                                               case1=case_name,
-                                               case2=data_name,
-                                               plot_types=plot_type_html) #The template rendered
-
-                            #Open HTML file:
-                            with open(outputfile,'w') as ofil:
-                                ofil.write(rndr)
-                            #End with
 
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info:
@@ -1046,6 +1034,28 @@ class AdfDiag(AdfObs):
                             #Initialize Ordered Dictionary for plot type:
                             if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()
+
+                            var_title = f"Variable: {var}"              #Create title
+                            tmpl = jinenv.get_template('template.html')  #Set template
+                            rndr = tmpl.render(title=main_title,var_title=var_title,
+                                               value=img_data, 
+                                               case1=case_name,
+                                               case2=data_name,
+                                               #mydata=mean_html_info,
+                                               plot_types=plot_type_html) #The template rendered
+
+                            #Open HTML file:
+                            with open(outputfile,'w') as ofil:
+                                ofil.write(rndr)
+                            #End with
+
+                            """#Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info:
+                                mean_html_info[var] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[var]:
+                                mean_html_info[var][ptype] = OrderedDict()"""
 
                             mean_html_info[var][ptype][season] = outputfile.name
                         #End for (assests loop)
