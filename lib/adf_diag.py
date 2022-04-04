@@ -1031,20 +1031,6 @@ class AdfDiag(AdfObs):
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                             print("checking img_data list contents:",img_data,"\n")
-                            var_title = f"Variable: {var}"              #Create title
-                            tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,var_title=var_title,
-                                               value=img_data, 
-                                               case1=case_name,
-                                               case2=data_name,
-                                               #plot_types=plot_type_html
-                                               ) #The template rendered
-
-                            #Open HTML file:
-                            with open(outputfile,'w') as ofil:
-                                ofil.write(rndr)
-                            #End with
-
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info:
                                 mean_html_info[var] = OrderedDict()
@@ -1054,21 +1040,44 @@ class AdfDiag(AdfObs):
                                 mean_html_info[var][ptype] = OrderedDict()
 
                             mean_html_info[var][ptype][season] = outputfile.name
+                            var_title = f"Variable: {var}"              #Create title
+                            tmpl = jinenv.get_template('template.html')  #Set template
+                            rndr = tmpl.render(title=main_title,var_title=var_title,
+                                               value=img_data, 
+                                               case1=case_name,
+                                               case2=data_name,
+                                               plot_types=plot_type_html
+                                               ) #The template rendered
+
+                            #Open HTML file:
+                            with open(outputfile,'w') as ofil:
+                                ofil.write(rndr)
+                            #End with
+
+                            """#Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info:
+                                mean_html_info[var] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[var]:
+                                mean_html_info[var][ptype] = OrderedDict()
+
+                            mean_html_info[var][ptype][season] = outputfile.name"""
                         #End for (assests loop)
                     #End for (seasons loop)
 
-                    #Construct individual plot type mean_diag html files
-                    mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
-                    mean_rndr = mean_tmpl.render(title=main_title,
-                                    case1=case_name,
-                                    case2=data_name,
-                                    mydata=mean_html_info,
-                                    plot_types=plot_type_html)
-                    #Write mean diagnostic plots HTML file:
-                    outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
-                    with open(outputfile,'w') as ofil:
-                        ofil.write(mean_rndr)
-                    #End with
+                            #Construct individual plot type mean_diag html files
+                            mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+                            mean_rndr = mean_tmpl.render(title=main_title,
+                                            case1=case_name,
+                                            case2=data_name,
+                                            mydata=mean_html_info,
+                                            plot_types=plot_type_html)
+                            #Write mean diagnostic plots HTML file:
+                            outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
+                            with open(outputfile,'w') as ofil:
+                                ofil.write(mean_rndr)
+                            #End with
 
                 #End for (variable loop)
             #End for (plot type loop)
