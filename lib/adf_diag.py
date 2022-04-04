@@ -1037,7 +1037,8 @@ class AdfDiag(AdfObs):
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
-                                               plot_types=plot_type_html) #The template rendered
+                                               #plot_types=plot_type_html
+                                               ) #The template rendered
 
                             #Open HTML file:
                             with open(outputfile,'w') as ofil:
