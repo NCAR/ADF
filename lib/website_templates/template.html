@@ -34,7 +34,24 @@
      </h2>
      <div style="width: 100%;">
       <div style="width: 50%; height: 100px; float: left;"> 
-        Left Div 
+        <table class="big-table">
+          {% for key, value in mydata.items() %}
+          <tr>
+            <th colspan="100%"> {{key}} </th>
+          </tr>
+          {% for pkey, pvalue in value.items() %}
+          <tr>
+            <td> &nbsp; </td>
+            <!--<th>{{pkey}}</th>-->
+            {% for tkey, tvalue in pvalue.items() %}
+            <td>
+              <a href="{{ tvalue }}">{{ tkey }}</a>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+          {% endfor %}
+      </table>
       </div>
 
       <h2> {{var_title}} </h2>
