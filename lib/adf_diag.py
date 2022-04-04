@@ -1003,11 +1003,7 @@ class AdfDiag(AdfObs):
 
 
 
-
-
-
-
-
+            subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv", "CLUBB"]
 
             #Loop over plot type:
             for ptype in plot_type_order:
