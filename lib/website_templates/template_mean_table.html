@@ -37,7 +37,8 @@
         <table class="big-table">
           {% for case_name, html_file in amwg_tables.items() %}
             <tr>
-              <td><a href="{{ html_file }}">{{ case_name }}</a></td>
+              <!--<td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>-->
+              <td><a id="amwg_table">{{ case_name }}</a></td>
             </tr>
           {% endfor %}
         </table>
@@ -45,7 +46,7 @@
 
       <h2> CASES </h2>
       <div style="margin-left: 50%; height: 100px;">
-        <a href="{{value[0]}}"></a>
+        <a href="amwg_table"><embed type="{{ html_file }}" src="ahh" width="500" height="200"></a>
         <h3>ummmm</h3>
       </div>
     </div>
