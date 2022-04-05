@@ -109,3 +109,10 @@ table.dataframe td {
     font-family: Tahoma, Geneva, Verdana, sans-serif;
     padding-left: 10px;
 }
+
+tbody{
+  display:block;
+  border: 2px solid black;
+  border-collapse: separate;
+  border-spacing: 4px; 
+}
