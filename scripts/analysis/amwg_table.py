@@ -345,7 +345,24 @@ def _df_comp_table(write_html,output_location,case_names):
         output_html_file_comp = output_location / "amwg_table_comp.html"
     
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[1]}</h2>"""
+    #preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[1]}</h2>"""
+    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
+
+    <nav role="navigation" class="primary-navigation">
+      <ul>
+        <li><a href="../index.html">Home</a></li>
+        <li><a href="#">Links &dtrif;</a>
+          <ul class="dropdown">
+            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+          </ul>
+        </li>
+        <li><a href="https://github.com/NCAR/ADF">About</a></li>
+        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+      </ul>
+    </nav>"""
+
     ending = """</body></html>"""
     with open(output_html_file_comp, 'w') as hfil:
         hfil.write(preamble)
