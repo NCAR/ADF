@@ -32,24 +32,24 @@
       {% endfor %}
      </h2>
 
-    <div style="width: 100%;">
-      <div style="width: 50%; height: 100px; float: left;"> 
+    <!--<div style="width: 100%;">-->
+      <!--<div style="width: 50%; height: 100px; float: left;"> -->
         <table class="big-table">
           {% for case_name, html_file in amwg_tables.items() %}
             <tr>
               <!--<td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>-->
               <!--<td><a id="amwg_table">{{ case_name }}</a></td>-->
-              <td><a><embed type="text/html" src="{{ html_file }}" width="500" height="200">{{ case_name }}</a></td>
+              <td><a><embed type="text/html" src="{{ html_file }}" width="100%">{{ case_name }}</a></td>
             </tr>
           {% endfor %}
         </table>
-      </div>
+      <!--</div>-->
 
-      <h2> CASES </h2>
-      <div style="margin-left: 50%; height: 100px;">
+      <!--<h2> CASES </h2>-->
+      <!--<div style="margin-left: 50%; height: 100px;">-->
         <!--<a href="amwg_table"><embed type="text/html" src="{{ html_file }}" width="500" height="200"></a>-->
-      </div>
-    </div>
+      <!--</div>-->
+    <!--</div>-->
 
   </body>
 </html>
