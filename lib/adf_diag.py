@@ -1121,11 +1121,14 @@ class AdfDiag(AdfObs):
                 #Add comparison table to website dictionary
                 amwg_tables["Case Comparison"] = comp_table.name
                 
+                # need this to grab the locations of the amwg tables...
+                amwg_table_data = [str(table_pages_dir / table_html.name), ""]
 
                 #Construct mean_table.html
                 mean_title = "AMP Diagnostic Tables:"
                 mean_tmpl = jinenv.get_template('template_mean_table.html')
                 mean_rndr = mean_tmpl.render(title=main_title,
+                                value=amwg_table_data,
                                 case1=case_name,
                                 case2=data_name,
                                 amwg_tables=amwg_tables,
