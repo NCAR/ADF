@@ -1040,7 +1040,9 @@ class AdfDiag(AdfObs):
                                             # values -> dict w/ keys being "TYPE" of plots
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
-                #img_data = []
+                
+                # ---------------------------
+                # This code eleminates the error of disappearing seasons...
                 indv_html_info = OrderedDict()
                 for var in var_list_alpha:
                         #Loop over seasons:
@@ -1051,10 +1053,7 @@ class AdfDiag(AdfObs):
 
                                 #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
-                                # Hacky - how to get the relative path in a better way?:
-                            #img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                                #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
-                                #print("checking img_data list contents:",img_data)
+                             
                                 #Initialize Ordered Dictionary for variable:
                             if var not in indv_html_info:
                                 indv_html_info[var] = OrderedDict()
@@ -1083,7 +1082,7 @@ class AdfDiag(AdfObs):
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                             #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
-                            #print("checking img_data list contents:",img_data)
+                            
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info:
                                 mean_html_info[var] = OrderedDict()
@@ -1095,7 +1094,6 @@ class AdfDiag(AdfObs):
                             #if season not in mean_html_info[var][ptype]:
                             #    mean_html_info[var][ptype][season] = OrderedDict()
 
-                            print("mean_html_info:",indv_html_info.values())
                             mean_html_info[var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
                             season_title = f"Season: {season}"
