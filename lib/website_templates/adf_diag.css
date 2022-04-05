@@ -110,12 +110,12 @@ table.dataframe td {
     padding-left: 10px;
 }
 
-tbody{
+/*tbody{
   display:block;
   border: 2px solid black;
   border-collapse: separate;
   border-spacing: 4px; 
-}
+}*/
 
 /*table{
   display:block;
