@@ -251,7 +251,6 @@ def amwg_table(adf):
         #--------------------
       
         output_html_color_file = output_location / "amwg_table_{}_color.html".format(case_name)
-        print("\nTrying to stylize df:","amwg_table_{}_color.html".format(case_name),"")
         _df_styler(write_html,output_csv_file,output_html_color_file,adf)
 
     #End of model case loop
