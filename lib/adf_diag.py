@@ -1013,7 +1013,7 @@ class AdfDiag(AdfObs):
                                                case2=data_name,
                                                mydata=indv_html_info,
                                                plot_types=plot_type_html,
-                                               home=website_dir
+                                               
                                                ) #The template rendered
 
                             #Open HTML file:
@@ -1030,7 +1030,7 @@ class AdfDiag(AdfObs):
                                             case2=data_name,
                                             mydata=mean_html_info,
                                             plot_types=plot_type_html,
-                                            home=website_dir)
+                                            )
                             #Write mean diagnostic plots HTML file:
                             outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
                             with open(outputfile,'w') as ofil:
@@ -1133,7 +1133,7 @@ class AdfDiag(AdfObs):
                                 case2=data_name,
                                 amwg_tables=amwg_tables,
                                 plot_types=plot_type_html,
-                                home=website_dir)
+                                )
 
                 #Write mean diagnostic tables HTML file:
                 outputfile = table_pages_dir / "mean_table.html"
@@ -1158,7 +1158,7 @@ class AdfDiag(AdfObs):
                              case2=data_name,
                              gen_table_html=gen_table_html,
                              plot_types=plot_type_html,
-                             home=website_dir)
+                             )
 
             #Write Mean diagnostics HTML file:
             outputfile = website_dir / "index.html"
@@ -1183,7 +1183,7 @@ class AdfDiag(AdfObs):
             main_tmpl = jinenv.get_template('template_multi_case_index.html')
             main_rndr = main_tmpl.render(title=main_title,
                             case_sites=case_sites,
-                            home=website_dir)
+                            )
             #Write multi-case main HTML file:
             outputfile = main_site_path / "index.html"
             with open(outputfile,'w') as ofil:
