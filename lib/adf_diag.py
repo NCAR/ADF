@@ -1013,7 +1013,14 @@ class AdfDiag(AdfObs):
                             #if season not in mean_html_info[var][ptype]:
                             #    mean_html_info[var][ptype][season] = OrderedDict()
 
-                            mean_html_info[var][ptype][season] = outputfile.name
+                            for cat in var_cat_dict.keys():
+                                if var in var_cat_dict[cat]:
+                                    
+                                    category = cat
+                                    mean_html_info[category] = OrderedDict()
+                                    print(var,cat)
+
+                            mean_html_info[var][ptype][season][category] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
                             season_title = f"Season: {season}"
                             tmpl = jinenv.get_template('template.html')  #Set template
@@ -1022,6 +1029,7 @@ class AdfDiag(AdfObs):
                                                case1=case_name,
                                                case2=data_name,
                                                mydata=indv_html_info,
+                                               #category=category,
                                                plot_types=plot_type_html,
                                                
                                                ) #The template rendered
@@ -1036,11 +1044,7 @@ class AdfDiag(AdfObs):
                             #Construct individual plot type mean_diag html files
                             mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
 
-                            for cat in var_cat_dict.keys():
-                                if var in var_cat_dict[cat]:
-                                    #mean_html_info[cat] = OrderedDict()
-                                    category = cat
-                                    print(var,cat)
+                            
                             mean_rndr = mean_tmpl.render(title=main_title,
                                             case1=case_name,
                                             case2=data_name,

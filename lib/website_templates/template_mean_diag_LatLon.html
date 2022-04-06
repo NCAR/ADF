@@ -31,9 +31,10 @@
       {% endfor %}
      </h2>
 
-     <h3>{{category}}</h3>
+     
      <table class="big-table">
-        {% for key, value in mydata.items() %}
+        {% for cat,key, value in mydata.items() %}
+        <h3>{{cat}}</h3>
         <tr>
           <th colspan="100%"> {{key}} </th>
         </tr>
