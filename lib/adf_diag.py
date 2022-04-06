@@ -1092,12 +1092,8 @@ class AdfDiag(AdfObs):
                     # This code eleminates the error of disappearing seasons...
                     # Can't figure why I have to make simialr nested loop to create it and not from the same nested loop below....
                     indv_html_info = OrderedDict()
-                    
                     for var in var_list_alpha:
-                        if var in var_cat_dict[cat]:
-                            category = cat
-                            mean_html_info[category] = OrderedDict()
-                            print(category)
+                    
                         #Loop over seasons:
                         for season in season_order:
                                 #Create the data that will be fed into the template:
@@ -1115,7 +1111,24 @@ class AdfDiag(AdfObs):
                                 if ptype not in indv_html_info[var]:
                                     indv_html_info[var][ptype] = OrderedDict()
 
-                                indv_html_info[var][ptype][season] = outputfile.name    
+                                indv_html_info[var][ptype][season] = outputfile.name
+
+                    
+                    for var in var_list_alpha:
+                        if var in var_cat_dict[cat]:
+                            category = cat
+                            mean_html_info[category] = OrderedDict()
+                            print(category)
+                        #Loop over seasons:
+                        for season in season_order:
+                                #Create the data that will be fed into the template:
+                            for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                                alt_text  = img.stem #Extract image file name text
+
+                                    #Create output file (don't worry about analysis type for now):
+                                outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+
+                                #indv_html_info[var][ptype][season] = outputfile.name    
 
                                 # Hacky - how to get the relative path in a better way?:
                                 img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
