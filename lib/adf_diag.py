@@ -1009,8 +1009,12 @@ class AdfDiag(AdfObs):
                                     mean_html_info[category] = OrderedDict()
                                     #print(var,cat)
                             
+                                #Initialize Ordered Dictionary for variable:
+                                if cat not in mean_html_info:
+                                   mean_html_info[category] = OrderedDict()
+                            
                             #Initialize Ordered Dictionary for variable:
-                            if var not in mean_html_info:
+                            if var not in mean_html_info[category]:
                                 mean_html_info[category][var] = OrderedDict()
 
                             #Initialize Ordered Dictionary for plot type:
