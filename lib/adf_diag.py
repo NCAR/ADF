@@ -1009,18 +1009,18 @@ class AdfDiag(AdfObs):
                                     mean_html_info[category] = OrderedDict()
                                     #print(var,cat)
                             
-                                #Initialize Ordered Dictionary for variable:
-                                if var not in mean_html_info[category]:
-                                    mean_html_info[category][var] = OrderedDict()
+                            #Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info:
+                                mean_html_info[category][var] = OrderedDict()
 
-                                #Initialize Ordered Dictionary for plot type:
-                                if ptype not in mean_html_info[category][var]:
-                                    mean_html_info[category][var][ptype] = OrderedDict()
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[category][var]:
+                                mean_html_info[category][var][ptype] = OrderedDict()
 
-                                #if season not in mean_html_info[var][ptype]:
-                                #    mean_html_info[var][ptype][season] = OrderedDict()
+                            #if season not in mean_html_info[var][ptype]:
+                            #    mean_html_info[var][ptype][season] = OrderedDict()
 
-                                mean_html_info[category][var][ptype][season] = outputfile.name
+                            mean_html_info[category][var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
                             season_title = f"Season: {season}"
                             tmpl = jinenv.get_template('template.html')  #Set template
