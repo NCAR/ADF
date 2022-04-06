@@ -990,12 +990,6 @@ class AdfDiag(AdfObs):
 
                 #Loop over variables:
                 for var in var_list_alpha:
-                    print(var)
-                    for cat in var_cat_dict.keys():
-                        if var in cat:
-                            #mean_html_info[cat] = OrderedDict()
-                            print(var,cat)
-
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
@@ -1041,10 +1035,17 @@ class AdfDiag(AdfObs):
                         
                             #Construct individual plot type mean_diag html files
                             mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+
+                            for cat in var_cat_dict.keys():
+                                if var in var_cat_dict[cat]:
+                                    #mean_html_info[cat] = OrderedDict()
+                                    category = cat
+                                    print(var,cat)
                             mean_rndr = mean_tmpl.render(title=main_title,
                                             case1=case_name,
                                             case2=data_name,
                                             mydata=mean_html_info,
+                                            category=category,
                                             plot_types=plot_type_html,
                                             )
                             #Write mean diagnostic plots HTML file:
