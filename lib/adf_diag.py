@@ -1004,10 +1004,9 @@ class AdfDiag(AdfObs):
 
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
-                                    
                                     category = cat
                                     mean_html_info[category] = OrderedDict()
-                            
+                            print(mean_html_info[category])
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
                                 mean_html_info[category][var] = OrderedDict()
@@ -1019,7 +1018,6 @@ class AdfDiag(AdfObs):
                             #if season not in mean_html_info[category][var][ptype]:
                             #    mean_html_info[category][var][ptype][season] = OrderedDict()
 
-                            
 
                             var_title = f"Variable: {var}"              #Create title
                             season_title = f"Season: {season}"
@@ -1029,7 +1027,6 @@ class AdfDiag(AdfObs):
                                                case1=case_name,
                                                case2=data_name,
                                                mydata=indv_html_info,
-                                               #category=category,
                                                plot_types=plot_type_html,
                                                
                                                ) #The template rendered
@@ -1038,18 +1035,16 @@ class AdfDiag(AdfObs):
                             with open(outputfile,'w') as ofil:
                                 ofil.write(rndr)
                             #End with
+
                             print(season)
                             mean_html_info[category][var][ptype][season] = outputfile.name
-                            print(mean_html_info[category][var][ptype][season])
+                            print(mean_html_info[var][ptype][season])
                             #Construct individual plot type mean_diag html files
                             mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
-
-                            
                             mean_rndr = mean_tmpl.render(title=main_title,
                                             case1=case_name,
                                             case2=data_name,
                                             mydata=mean_html_info,
-                                            category=category,
                                             plot_types=plot_type_html,
                                             )
                             #Write mean diagnostic plots HTML file:
