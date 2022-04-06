@@ -1017,7 +1017,7 @@ class AdfDiag(AdfObs):
                             if ptype not in mean_html_info[category][var]:
                                 mean_html_info[category][var][ptype] = OrderedDict()
 
-                            if season not in mean_html_info[var][ptype]:
+                            if season not in mean_html_info[category][var][ptype]:
                                 mean_html_info[category][var][ptype][season] = OrderedDict()
 
                             mean_html_info[category][var][ptype][season] = outputfile.name
