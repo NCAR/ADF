@@ -11,6 +11,8 @@ def my_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return str(msg) + '\n'
 
+warnings.formatwarning = my_formatwarning
+
 def plotqbo(adfobj):
     """ 
     This subroutine plots...
@@ -26,42 +28,36 @@ def plotqbo(adfobj):
     Isla Simpson (islas@ucar.edu) 22nd March 2022
 
     """
-    #print(dir(adfobj))
-    basicinfo = adfobj.read_config_var("diag_basic_info")
-    case_dict = adfobj.read_config_var("diag_cam_climo")
-    base_dict = adfobj.read_config_var("diag_cam_baseline_climo")
-    case_name = case_dict['cam_case_name']
-    case_loc = case_dict['cam_ts_loc']
-    base_name = base_dict['cam_case_name']
-    base_loc = base_dict['cam_ts_loc']   
-    obsdir = basicinfo['obs_data_loc']
-    #plot_loc = adfobj.plot_location 
-    plot_loc = '/glade/scratch/islas/'
-
-    # convert to lists in the case of a single string
-    if (isinstance(case_loc, str)):
-        case_name = [case_name]
-        case_loc = [case_loc]
+    case_name = adfobj.get_cam_info('cam_case_name', required=True)
+    case_loc = adfobj.get_cam_info('cam_ts_loc', required=True)
+    base_name = adfobj.get_baseline_info('cam_case_name')
+    base_loc = adfobj.get_baseline_info('cam_ts_loc') 
+    obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
+    plot_loc = adfobj.plot_location
 
     #----Read in the OBS (ERA5, 5S-5N average already
     obs = xr.open_dataset(obsdir+"/U_ERA5_5S_5N_1979_2019.nc").U_5S_5N
 
     #----Read in the case data and baseline
     ncases = len(case_loc)
-    casedat = [ _load_dataset(case_loc[i], case_name[i],'U') for i in np.arange(0,ncases,1) ]
-    basedat = _load_dataset(base_loc, base_name,'U')
+    casedat = [ _load_dataset(case_loc[i], case_name[i],'U') for i in np.range(0,ncases,1) ]
+    
+    if not adfobj.compare_obs:
+        basedat = _load_dataset(base_loc, base_name,'U')
 
     #----Calculate the zonal mean
-    casedatzm = [ casedat[i].U.mean("lon") for i in np.arange(0,ncases,1) ]
-    basedatzm = basedat.U.mean("lon")
+    casedatzm = [ casedat[i].U.mean("lon") for i in np.range(0,ncases,1) ]
+    
+    if not adfobj.compare_obs:
+        basedatzm = basedat.U.mean("lon")
 
     #----Calculate the 5S-5N average
-    casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in np.arange(0,ncases,1) ] 
+    casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in np.range(0,ncases,1) ] 
     basedat_5S_5N = cosweightlat(basedatzm,-5,5)
 
     #----Find the minimum number of years across dataset for plotting the timeseries.
     nyobs = np.floor(obs.time.size/12.)
-    nycase = [ np.floor(casedat_5S_5N[i].time.size/12.) for i in np.arange(0,ncases,1) ]
+    nycase = [ np.floor(casedat_5S_5N[i].time.size/12.) for i in np.range(0,ncases,1) ]
     nycase.append(nyobs)
     minny = np.int(np.min(nycase))
       
@@ -72,11 +68,13 @@ def plotqbo(adfobj):
     ax = plotqbotimeseries(fig, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')
 
     casecount=0
-    for icase in np.arange(0,ncases,1):
+    for icase in np.range(0,ncases,1):
         if (icase < 11 ): # only only going to work with 12 panels currently
             ax = plotqbotimeseries(fig, casedat_5S_5N[icase],minny, 
                 x1[icase+1],x2[icase+1],y1[icase+1],y2[icase+1], case_name[icase])
             casecount=casecount+1
+        else:
+            break
 
     ax = plotcolorbar(fig, x1[0]+0.2, x2[2]-0.2,y1[casecount]-0.035,y1[casecount]-0.03) 
 
@@ -85,7 +83,7 @@ def plotqbo(adfobj):
 
     #---Dunkerton and Delisi QBO amplitude
     obsamp = calcddamp(obs)
-    modamp = [ calcddamp(casedat_5S_5N[i]) for i in np.arange(0,ncases,1) ]
+    modamp = [ calcddamp(casedat_5S_5N[i]) for i in np.range(0,ncases,1) ]
 
     fig = plt.figure(figsize=(16,16))
 
@@ -99,7 +97,7 @@ def plotqbo(adfobj):
 
     ax.plot(obsamp, -np.log10(obsamp.pre), color='black', linewidth=2, label='ERA5')
 
-    for icase in np.arange(0,ncases,1):
+    for icase in np.range(0,ncases,1):
         ax.plot(modamp[icase], -np.log10(modamp[icase].lev), linewidth=2, label=case_name[icase])
 
     ax.legend(loc='upper left')
@@ -127,7 +125,7 @@ def _load_dataset(data_loc, case_name, variable, other_name=None):
     # a hack here: ADF uses different file names for "reference" case and regridded model data,
     # - try the longer name first (regridded), then try the shorter name
 
-    fils = sorted(list(dloc.glob("{}.*.{}.nc".format(case_name, variable))))
+    fils = sorted(dloc.glob(f"{case_name}.*.{variable}.nc"))
     if (len(fils) == 0):
         warnings.warn(f"Input file list is empty.")
         return None
@@ -146,7 +144,7 @@ def cosweightlat(darray, lat1, lat2):
 
     # flip latitudes if they are decreasing
     if (darray.lat[0] > darray.lat[darray.lat.size -1]):
-        print("flipping latitudes")
+        print("QBO: flipping latitudes")
         darray = darray.sortby('lat')
 
     region = darray.sel(lat=slice(lat1, lat2))
@@ -189,17 +187,19 @@ def plotqbotimeseries(fig, dat, ny, x1, x2, y1, y2, title):
     datplot = dat.isel(time=slice(0,ny*12)).transpose()
     ci = 1 ; cmax=45
     nlevs = (cmax - (-1*cmax))/ci + 1
-    clevs = np.arange(-1*cmax, cmax+ci, ci)
+    clevs = np.range(-1*cmax, cmax+ci, ci)
     mymap = blue2red_cmap(nlevs)
     
     plt.rcParams['font.size'] = '12'
-    
-    try:
+
+    if "lev" in datplot:
         ax.contourf(datplot.time.dt.year + (datplot.time.dt.month/12.), -1.*np.log10(datplot.lev), datplot, 
                 levels = clevs, cmap=mymap, extent='both')
-    except:
+    else if "pre" in datplot:
         ax.contourf(datplot.time.dt.year + (datplot.time.dt.month/12.), -1.*np.log10(datplot.pre), datplot, 
                 levels = clevs, cmap=mymap, extent='both')
+    else:
+        raise ValueError("Cannot find either 'lev' or 'pre' in datasets for QBO diagnostics")
         
     ax.set_ylim(-np.log10(1000.), -np.log10(1))
     ax.set_yticks([-np.log10(1000),-np.log10(300),-np.log10(100),-np.log10(30),-np.log10(10),
@@ -214,7 +214,7 @@ def plotcolorbar(fig, x1, x2, y1, y2):
     """ Plotting the color bar at location [x1, y1, x2-x2, y2-y1 ] """
     ci = 1 ; cmax=45
     nlevs = (cmax - (-1*cmax))/ci + 1
-    clevs = np.arange(-1.*cmax, cmax+ci, ci)
+    clevs = np.range(-1.*cmax, cmax+ci, ci)
     mymap = blue2red_cmap(nlevs)
 
     ax = fig.add_axes([x1, y1, x2-x1, y2-y1])
