@@ -33,7 +33,9 @@
 
      <table class="big-table">
       {% for key, value in mydata.items() %}
-      <h3>{{key}}</h3>
+      <td>
+        <h3>{{key}}</h3>
+     </td>
       {% for key1, value1 in value.items() %}
       <tr>
         <th colspan="100%"> {{key1}} </th>
