@@ -954,7 +954,7 @@ class AdfDiag(AdfObs):
 
             
 
-            #Loop over plot type:
+            """#Loop over plot type:
             for ptype in plot_type_order:
                 mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
                                             # plots provisional structure:
@@ -967,8 +967,13 @@ class AdfDiag(AdfObs):
                 # This code eleminates the error of disappearing seasons...
                 # Can't figure why I have to make simialr nested loop to create it and not from the same nested loop below....
                 indv_html_info = OrderedDict()
+                
                 for var in var_list_alpha:
-                        #Loop over seasons:
+                    if var in var_cat_dict[cat]:
+                        category = cat
+                        mean_html_info[category] = OrderedDict()
+                        print(category)
+                    #Loop over seasons:
                     for season in season_order:
                             #Create the data that will be fed into the template:
                         for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
@@ -985,10 +990,10 @@ class AdfDiag(AdfObs):
                             if ptype not in indv_html_info[var]:
                                 indv_html_info[var][ptype] = OrderedDict()
 
-                            indv_html_info[var][ptype][season] = outputfile.name       
+                            indv_html_info[var][ptype][season] = outputfile.name      
 
 
-                """#Loop over variables:
+                #Loop over variables:
                 for var in var_list_alpha:
                     #Loop over seasons:
                     for season in season_order:
@@ -1072,14 +1077,21 @@ class AdfDiag(AdfObs):
 
 
 
-
-
-
-
-
-
-                for cat in var_cat_dict.keys():
-                    #Loop over variables:
+            for cat in var_cat_dict.keys():
+            #Loop over plot type:
+                for ptype in plot_type_order:
+                    mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
+                                                # plots provisional structure:
+                                                # key = variable_name
+                                                # values -> dict w/ keys being "TYPE" of plots
+                                                # w/ values being dict w/ keys being TEMPORAL sampling,
+                                                # values being the URL
+                    
+                    # ---------------------------
+                    # This code eleminates the error of disappearing seasons...
+                    # Can't figure why I have to make simialr nested loop to create it and not from the same nested loop below....
+                    indv_html_info = OrderedDict()
+                    
                     for var in var_list_alpha:
                         if var in var_cat_dict[cat]:
                             category = cat
@@ -1087,12 +1099,23 @@ class AdfDiag(AdfObs):
                             print(category)
                         #Loop over seasons:
                         for season in season_order:
-                            #Create the data that will be fed into the template:
+                                #Create the data that will be fed into the template:
                             for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
                                 alt_text  = img.stem #Extract image file name text
 
-                                #Create output file (don't worry about analysis type for now):
+                                    #Create output file (don't worry about analysis type for now):
                                 outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                                
+                                    #Initialize Ordered Dictionary for variable:
+                                if var not in indv_html_info:
+                                    indv_html_info[var] = OrderedDict()
+
+                                    #Initialize Ordered Dictionary for plot type:
+                                if ptype not in indv_html_info[var]:
+                                    indv_html_info[var][ptype] = OrderedDict()
+
+                                indv_html_info[var][ptype][season] = outputfile.name    
+
                                 # Hacky - how to get the relative path in a better way?:
                                 img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                                 print(category)
