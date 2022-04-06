@@ -242,7 +242,7 @@ def amwg_table(adf):
 
             # last step is to write the html file; overwrites previous version since we're supposed to be adding to it
             if write_html:
-                _write_html(output_csv_file, output_html_file)
+                _write_html(output_csv_file, output_html_file,case_name,list(case_names))
 
         #End of var_list loop
         #--------------------
@@ -250,8 +250,8 @@ def amwg_table(adf):
         # Style the DataFrame
         #--------------------
       
-        output_html_color_file = output_location / "amwg_table_{}_color.html".format(case_name)
-        _df_styler(write_html,output_csv_file,output_html_color_file,adf)
+        #output_html_color_file = output_location / "amwg_table_{}_color.html".format(case_name)
+        #_df_styler(write_html,output_csv_file,output_html_color_file,adf)
 
     #End of model case loop
     #----------------------
@@ -296,7 +296,11 @@ def _spatial_average(indata):
 
 #####
 
-def _write_html(f, out):
+def _write_html(f, out,case_name,case_name_list):
+    if case_name == case_name_list[0]:
+        case = "Test"
+    else:
+        case = "Control"
     import pandas as pd
     df = pd.read_csv(f)
     html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
@@ -317,14 +321,18 @@ def _write_html(f, out):
         <li><a href="https://github.com/NCAR/ADF">About</a></li>
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
-    </nav><h1>AMP Diagnostics</h1><h2>{f.stem}<h2>"""
+    </nav><h1>AMP Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
         hfil.write(html)
         hfil.write(ending)
 
-def _write_html_colored(f,df_colored, out):
+def _write_html_colored(f,df_colored, out,case_name,case_name_list):
+    if case_name == case_name_list[0]:
+        case = "Test"
+    else:
+        case = "Control"
     #preamble = f"""<html><head></head><body><h1>{f.stem} - DataFrame styled<h1>"""
     preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
 
@@ -342,7 +350,7 @@ def _write_html_colored(f,df_colored, out):
         <li><a href="https://github.com/NCAR/ADF">About</a></li>
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
-    </nav><h1>AMP Diagnostics</h1><h2>{f.stem}<h2>"""
+    </nav><h1>AMP Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
@@ -397,7 +405,7 @@ def _df_comp_table(write_html,output_location,case_names):
         <li><a href="https://github.com/NCAR/ADF">About</a></li>
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
-    </nav><h1>AMP Diagnostics</h1><h2>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[1]}</h2>"""
+    </nav><h1>AMP Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[1]}</h2>"""
 
     ending = """</body></html>"""
     with open(output_html_file_comp, 'w') as hfil:
