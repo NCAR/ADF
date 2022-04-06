@@ -32,11 +32,8 @@
      </h2>
 
      {% for key, value in mydata.items() %}
+     <h3>{{key}}</h3>
      <table class="big-table">
-      
-      <td>
-        <h3>{{key}}</h3>
-     </td>
       {% for key1, value1 in value.items() %}
       <tr>
         <th colspan="100%"> {{key1}} </th>
