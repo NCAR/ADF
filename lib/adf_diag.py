@@ -1006,7 +1006,7 @@ class AdfDiag(AdfObs):
                                 if var in var_cat_dict[cat]:
                                     
                                     category = cat
-                                    mean_html_info[category][var] = OrderedDict()
+                                    mean_html_info[category] = OrderedDict()
                                     #print(var,cat)
                             
                             #Initialize Ordered Dictionary for variable:
