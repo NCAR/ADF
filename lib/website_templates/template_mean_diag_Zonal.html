@@ -32,24 +32,23 @@
      </h2>
 
      <table class="big-table">
-        {% for key, value in mydata.items() %}
-        <h3>{{key}}</h3>
-        {% for ckey, cvalue in value.items() %}
-        <tr>
-          <th colspan="100%"> {{ckey}} </th>
-        </tr>
-        {% for pkey, pvalue in cvalue.items() %}
-        <tr>
-          <td> &nbsp; </td>
-          {% for tkey, tvalue in pvalue.items() %}
-          <td>
-            <a href="{{ tvalue }}">{{ tkey }}</a>
-          </td>
-          {% endfor %}
-        </tr>
+      {% for key, value in mydata.items() %}
+     
+      <tr>
+        <th colspan="100%"> {{key}} </th>
+      </tr>
+      {% for pkey, pvalue in value.items() %}
+      <tr>
+        <td> &nbsp; </td>
+        <!--<th>{{pkey}}</th>-->
+        {% for tkey, tvalue in pvalue.items() %}
+        <td>
+          <a href="{{ tvalue }}">{{ tkey }}</a>
+        </td>
         {% endfor %}
-        {% endfor %}
-        {% endfor %}
+      </tr>
+      {% endfor %}
+      {% endfor %}
     </table>
     
 
