@@ -1001,24 +1001,24 @@ class AdfDiag(AdfObs):
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                             #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
-                            
-                            #Initialize Ordered Dictionary for variable:
-                            if var not in mean_html_info:
-                                mean_html_info[var] = OrderedDict()
-
-                            #Initialize Ordered Dictionary for plot type:
-                            if ptype not in mean_html_info[var]:
-                                mean_html_info[var][ptype] = OrderedDict()
-
-                            #if season not in mean_html_info[var][ptype]:
-                            #    mean_html_info[var][ptype][season] = OrderedDict()
 
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     
                                     category = cat
-                                    mean_html_info[category][var][ptype] = OrderedDict()
+                                    mean_html_info[category][var] = OrderedDict()
                                     #print(var,cat)
+                            
+                            #Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info:
+                                mean_html_info[category][var] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[var]:
+                                mean_html_info[category][var][ptype] = OrderedDict()
+
+                            #if season not in mean_html_info[var][ptype]:
+                            #    mean_html_info[var][ptype][season] = OrderedDict()
 
                             mean_html_info[category][var][ptype][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
