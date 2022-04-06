@@ -33,8 +33,10 @@
 
      <table class="big-table">
         {% for key, value in mydata.items() %}
+        <h3>{{key}}</h3>
+        {% for ckey, cvalue in value.items() %}
         <tr>
-          <th colspan="100%"> {{key}} </th>
+          <th colspan="100%"> {{cvalue}} </th>
         </tr>
         {% for pkey, pvalue in value.items() %}
         <tr>
