@@ -1094,14 +1094,6 @@ class AdfDiag(AdfObs):
                                 outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                                 # Hacky - how to get the relative path in a better way?:
                                 img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                                #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
-
-                                for cat in var_cat_dict.keys():
-                                    if var in var_cat_dict[cat]:
-                                        
-                                        category = cat
-                                        mean_html_info[category] = OrderedDict()
-                                        #print(var,cat)
                                 
                                 #Initialize Ordered Dictionary for variable:
                                 if var not in mean_html_info[category]:
