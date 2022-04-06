@@ -1078,9 +1078,10 @@ class AdfDiag(AdfObs):
 
 
             for cat in var_cat_dict.keys():
+                mean_html_info = OrderedDict()
             #Loop over plot type:
                 for ptype in plot_type_order:
-                    mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
+                      # this is going to hold the data for building the mean
                                                 # plots provisional structure:
                                                 # key = variable_name
                                                 # values -> dict w/ keys being "TYPE" of plots
