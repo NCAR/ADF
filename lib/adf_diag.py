@@ -1020,7 +1020,7 @@ class AdfDiag(AdfObs):
                                     mean_html_info[var][ptype][category] = OrderedDict()
                                     print(var,cat)
 
-                            mean_html_info[var][ptype][season][category] = outputfile.name
+                            mean_html_info[var][ptype][category][season] = outputfile.name
                             var_title = f"Variable: {var}"              #Create title
                             season_title = f"Season: {season}"
                             tmpl = jinenv.get_template('template.html')  #Set template
