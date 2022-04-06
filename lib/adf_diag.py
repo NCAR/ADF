@@ -988,7 +988,7 @@ class AdfDiag(AdfObs):
                             indv_html_info[var][ptype][season] = outputfile.name       
 
 
-                #Loop over variables:
+                """#Loop over variables:
                 for var in var_list_alpha:
                     #Loop over seasons:
                     for season in season_order:
@@ -1008,10 +1008,6 @@ class AdfDiag(AdfObs):
                                     category = cat
                                     mean_html_info[category] = OrderedDict()
                                     #print(var,cat)
-                            
-                                    #Initialize Ordered Dictionary for variable:
-                                    if category not in mean_html_info:
-                                        mean_html_info[category] = OrderedDict()
                             
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
@@ -1063,7 +1059,116 @@ class AdfDiag(AdfObs):
                             #End with
                         #End for (assests loop)
                     #End for (seasons loop)
-                #End for (variable loop)
+                #End for (variable loop)"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                for cat in var_cat_dict.keys():
+                    #Loop over variables:
+                    for var in var_list_alpha:
+                        if var in var_cat_dict[cat]:
+                            category = cat
+                            mean_html_info[category] = OrderedDict()
+                        #Loop over seasons:
+                        for season in season_order:
+                            #Create the data that will be fed into the template:
+                            for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                                alt_text  = img.stem #Extract image file name text
+
+                                #Create output file (don't worry about analysis type for now):
+                                outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                                # Hacky - how to get the relative path in a better way?:
+                                img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+                                #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
+
+                                for cat in var_cat_dict.keys():
+                                    if var in var_cat_dict[cat]:
+                                        
+                                        category = cat
+                                        mean_html_info[category] = OrderedDict()
+                                        #print(var,cat)
+                                
+                                #Initialize Ordered Dictionary for variable:
+                                if var not in mean_html_info[category]:
+                                    mean_html_info[category][var] = OrderedDict()
+
+                                #Initialize Ordered Dictionary for plot type:
+                                if ptype not in mean_html_info[category][var]:
+                                    mean_html_info[category][var][ptype] = OrderedDict()
+
+                                if season not in mean_html_info[category][var][ptype]:
+                                    mean_html_info[category][var][ptype][season] = OrderedDict()
+
+                                mean_html_info[category][var][ptype][season] = outputfile.name
+                                var_title = f"Variable: {var}"              #Create title
+                                season_title = f"Season: {season}"
+                                tmpl = jinenv.get_template('template.html')  #Set template
+                                rndr = tmpl.render(title=main_title,var_title=var_title,season_title=season_title,
+                                                value=img_data, 
+                                                case1=case_name,
+                                                case2=data_name,
+                                                mydata=indv_html_info,
+                                                #category=category,
+                                                plot_types=plot_type_html,
+                                                
+                                                ) #The template rendered
+
+                                #Open HTML file:
+                                with open(outputfile,'w') as ofil:
+                                    ofil.write(rndr)
+                                #End with
+
+                                #mean_html_info[var][ptype][season] = outputfile.name
+                            
+                                #Construct individual plot type mean_diag html files
+                                mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+
+                                
+                                mean_rndr = mean_tmpl.render(title=main_title,
+                                                case1=case_name,
+                                                case2=data_name,
+                                                mydata=mean_html_info,
+                                                category=category,
+                                                plot_types=plot_type_html,
+                                                )
+                                #Write mean diagnostic plots HTML file:
+                                outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
+                                with open(outputfile,'w') as ofil:
+                                    ofil.write(mean_rndr)
+                                #End with
+                            #End for (assests loop)
+                        #End for (seasons loop)
+                    #End for (variable loop)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             #End for (plot type loop)
 
             #Grab AMWG Table HTML files:
