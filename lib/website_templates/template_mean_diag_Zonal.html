@@ -31,10 +31,11 @@
       {% endfor %}
      </h2>
 
+     {% for key, value in mydata.items() %}
      <table class="big-table">
-      {% for key, value in mydata.items() %}
+      
       <td>
-        <th colspan="100%"><h3>{{key}}</h3> </th>
+        <h3>{{key}}</h3>
      </td>
       {% for key1, value1 in value.items() %}
       <tr>
@@ -43,7 +44,7 @@
       {% for key2, value2 in value1.items() %}
       <tr>
         <td> &nbsp; </td>
-        {{value2.items()}}
+       
         {% for key3, value3 in value2.items() %}
         <td>
           <a href="{{ value3 }}">{{ key3 }}</a>
@@ -52,8 +53,9 @@
       </tr>
       {% endfor %}
       {% endfor %}
-      {% endfor %}
+      
     </table>
+    {% endfor %}
 
      <!--<table class="big-table">
       {% for key, value in mydata.items() %}
