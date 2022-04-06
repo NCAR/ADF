@@ -990,7 +990,7 @@ class AdfDiag(AdfObs):
 
                 #Loop over variables:
                 for var in var_list_alpha:
-
+                    print(var)
                     for cat in var_cat_dict.keys():
                         if var in cat:
                             #mean_html_info[cat] = OrderedDict()
