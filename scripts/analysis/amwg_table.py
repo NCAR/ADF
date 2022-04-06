@@ -305,7 +305,7 @@ def _write_html(f, out):
 
     <nav role="navigation" class="primary-navigation">
       <ul>
-        <li><a href="../index.html">Home</a></li>
+        <li><a href="../index.html">Case Home</a></li>
         <li><a href="#">Links &dtrif;</a>
           <ul class="dropdown">
             <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
@@ -329,7 +329,7 @@ def _write_html_colored(f,df_colored, out):
 
     <nav role="navigation" class="primary-navigation">
       <ul>
-        <li><a href="../index.html">Home</a></li>
+        <li><a href="../index.html">Case Home</a></li>
         <li><a href="#">Links &dtrif;</a>
           <ul class="dropdown">
             <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
@@ -383,7 +383,7 @@ def _df_comp_table(write_html,output_location,case_names):
 
     <nav role="navigation" class="primary-navigation">
       <ul>
-        <li><a href="../index.html">Home</a></li>
+        <li><a href="../index.html">Case Home</a></li>
         <li><a href="#">Links &dtrif;</a>
           <ul class="dropdown">
             <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
