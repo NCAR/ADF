@@ -36,9 +36,9 @@
         <h3>{{key}}</h3>
         {% for ckey, cvalue in value.items() %}
         <tr>
-          <th colspan="100%"> {{cvalue}} </th>
+          <th colspan="100%"> {{ckey}} </th>
         </tr>
-        {% for pkey, pvalue in value.items() %}
+        {% for pkey, pvalue in cvalue.items() %}
         <tr>
           <td> &nbsp; </td>
           {% for tkey, tvalue in pvalue.items() %}
@@ -47,6 +47,7 @@
           </td>
           {% endfor %}
         </tr>
+        {% endfor %}
         {% endfor %}
         {% endfor %}
     </table>
