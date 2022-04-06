@@ -993,7 +993,8 @@ class AdfDiag(AdfObs):
 
                     for cat in var_cat_dict.keys():
                         if var in cat:
-                            mean_html_info[cat] = OrderedDict()
+                            #mean_html_info[cat] = OrderedDict()
+                            print(var,cat)
 
                     #Loop over seasons:
                     for season in season_order:
@@ -1036,7 +1037,7 @@ class AdfDiag(AdfObs):
                                 ofil.write(rndr)
                             #End with
 
-                            mean_html_info[cat][var][ptype][season] = outputfile.name
+                            mean_html_info[var][ptype][season] = outputfile.name
                         
                             #Construct individual plot type mean_diag html files
                             mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
