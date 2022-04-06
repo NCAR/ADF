@@ -1017,7 +1017,7 @@ class AdfDiag(AdfObs):
                                 if var in var_cat_dict[cat]:
                                     
                                     category = cat
-                                    mean_html_info[category] = OrderedDict()
+                                    mean_html_info[var][ptype][category] = OrderedDict()
                                     print(var,cat)
 
                             mean_html_info[var][ptype][season][category] = outputfile.name
