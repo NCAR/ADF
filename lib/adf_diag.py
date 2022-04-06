@@ -1016,8 +1016,8 @@ class AdfDiag(AdfObs):
                             if ptype not in mean_html_info[category][var]:
                                 mean_html_info[category][var][ptype] = OrderedDict()
 
-                            if season not in mean_html_info[category][var][ptype]:
-                                mean_html_info[category][var][ptype][season] = OrderedDict()
+                            #if season not in mean_html_info[category][var][ptype]:
+                            #    mean_html_info[category][var][ptype][season] = OrderedDict()
 
                             
 
@@ -1038,9 +1038,9 @@ class AdfDiag(AdfObs):
                             with open(outputfile,'w') as ofil:
                                 ofil.write(rndr)
                             #End with
-
+                            print(season)
                             mean_html_info[category][var][ptype][season] = outputfile.name
-                        
+                            print(mean_html_info[category][var][ptype][season])
                             #Construct individual plot type mean_diag html files
                             mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
 
