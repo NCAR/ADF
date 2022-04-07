@@ -1037,9 +1037,7 @@ class AdfDiag(AdfObs):
                                 ofil.write(rndr)
                             #End with
 
-                            print(season)
                             mean_html_info[category][var][ptype][season] = outputfile.name
-                            print(mean_html_info[category][var][ptype][season])
                             #Construct individual plot type mean_diag html files
                             mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
                             mean_rndr = mean_tmpl.render(title=main_title,
