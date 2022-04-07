@@ -1013,6 +1013,9 @@ class AdfDiag(AdfObs):
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
 
+                            # Search through all categories and see which one the current
+                            # variable is part of
+                            # Could be a better way fo doing this - Refractor?
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
@@ -1041,7 +1044,7 @@ class AdfDiag(AdfObs):
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
-                                               mydata=mean_html_info,#indv_html_info,
+                                               mydata=indv_html_info,#mean_html_info,#indv_html_info,
                                                plot_types=plot_type_html) #The template rendered
 
                             #Open HTML file:
