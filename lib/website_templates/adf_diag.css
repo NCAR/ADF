@@ -81,6 +81,13 @@ h2 {
     color: gray;
     font-family: Tahoma, Geneva, Verdana, sans-serif;
 }
+
+h2 {
+  color: black;
+  font-family: Tahoma, Geneva, Verdana, sans-serif;
+  text-decoration: underline;
+}
+
 img {
     max-width:100%;
     height:auto;
