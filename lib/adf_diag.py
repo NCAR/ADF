@@ -1008,6 +1008,7 @@ class AdfDiag(AdfObs):
                                     category = cat
                                     if category not in mean_html_info:
                                         mean_html_info[category] = OrderedDict()
+                            print(category)
                             #for key, value in mean_html_info.items():
                             #    print(key, value)
                             #Initialize Ordered Dictionary for variable:
