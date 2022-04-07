@@ -116,7 +116,11 @@ table.dataframe td {
     font-family: Tahoma, Geneva, Verdana, sans-serif;
     padding-left: 10px;
 }
-
+div
+{
+    position:fixed;
+    top:20px;
+}
 /*tbody{
   display:block;
   border: 2px solid black;
