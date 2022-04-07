@@ -1002,8 +1002,8 @@ class AdfDiag(AdfObs):
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                             #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
 
+                            print(var)
                             for cat in var_cat_dict.keys():
-                                print(var)
                                 if var in var_cat_dict[cat]:
                                     category = cat
                                     mean_html_info[category] = OrderedDict()
@@ -1021,10 +1021,10 @@ class AdfDiag(AdfObs):
                             #    mean_html_info[category][var][ptype][season] = OrderedDict()
 
 
-                            var_title = f"Variable: {var}"              #Create title
-                            season_title = f"Season: {season}"
-                            tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,var_title=var_title,season_title=season_title,
+                        var_title = f"Variable: {var}"              #Create title
+                        season_title = f"Season: {season}"
+                        tmpl = jinenv.get_template('template.html')  #Set template
+                        rndr = tmpl.render(title=main_title,var_title=var_title,season_title=season_title,
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
@@ -1034,24 +1034,25 @@ class AdfDiag(AdfObs):
                                                ) #The template rendered
 
                             #Open HTML file:
-                            with open(outputfile,'w') as ofil:
-                                ofil.write(rndr)
+                        with open(outputfile,'w') as ofil:
+                            ofil.write(rndr)
                             #End with
 
-                            mean_html_info[category][var][ptype][season] = outputfile.name
+                        mean_html_info[category][var][ptype][season] = outputfile.name
                             #Construct individual plot type mean_diag html files
-                            mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
-                            mean_rndr = mean_tmpl.render(title=main_title,
+                        mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+                        mean_rndr = mean_tmpl.render(title=main_title,
                                             case1=case_name,
                                             case2=data_name,
                                             mydata=mean_html_info,
                                             plot_types=plot_type_html,
                                             )
                             #Write mean diagnostic plots HTML file:
-                            outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
-                            with open(outputfile,'w') as ofil:
-                                ofil.write(mean_rndr)
+                        outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
+                        with open(outputfile,'w') as ofil:
+                            ofil.write(mean_rndr)
                             #End with
+
                         #End for (assests loop)
                     #End for (seasons loop)
                 #End for (variable loop)
