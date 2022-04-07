@@ -33,23 +33,28 @@
      </h2>
      <div style="width: 100%;">
       <div style="width: 50%; height: 100px; float: left;"> 
-        <table class="big-table">
-          {% for key, value in mydata.items() %}
-          <tr>
-            <th colspan="100%"> {{key}} </th>
-          </tr>
-          {% for pkey, pvalue in value.items() %}
-          <tr>
-            <td> &nbsp; </td>
-            {% for tkey, tvalue in pvalue.items() %}
-            <td>
-              <a href="{{ tvalue }}">{{ tkey }}</a>
-            </td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-          {% endfor %}
-      </table>
+        {% for key, value in mydata.items() %}
+     <h3>{{key}}</h3>
+     <table class="big-table">
+      {% for key1, value1 in value.items() %}
+      <!--<tr>-->
+        <th colspan="100%"> {{key1}} </th>
+      <!--</tr>-->
+      {% for key2, value2 in value1.items() %}
+      <tr>
+        <!--<td> &nbsp; </td>-->
+       
+        {% for key3, value3 in value2.items() %}
+        <td>
+          <a href="{{ value3 }}">{{ key3 }}</a>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      {% endfor %}
+      
+    </table>
+    {% endfor %}
       </div> <!-- end left inner div -->
       
       <div style="width: 70%; height: 100px; float: right; padding-right: 100px">
@@ -57,5 +62,6 @@
         <img src="{{value[0]}}" alt="{{value[1]}}"></img>
       </div> <!-- end right inner div -->
      </div> <!-- end main div -->
+
   </body>
 </html>
