@@ -976,16 +976,25 @@ class AdfDiag(AdfObs):
 
                                 #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+
+                            for cat in var_cat_dict.keys():
+                                if var in var_cat_dict[cat]:
+                                    category = cat
+                                    if category not in mean_html_info:
+                                        mean_html_info[category] = OrderedDict()
                              
-                                #Initialize Ordered Dictionary for variable:
-                            if var not in indv_html_info:
-                                indv_html_info[var] = OrderedDict()
+                            #Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info[category]:
+                                mean_html_info[category][var] = OrderedDict()
 
-                                #Initialize Ordered Dictionary for plot type:
-                            if ptype not in indv_html_info[var]:
-                                indv_html_info[var][ptype] = OrderedDict()
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[category][var]:
+                                mean_html_info[category][var][ptype] = OrderedDict()
 
-                            indv_html_info[var][ptype][season] = outputfile.name       
+                            if season not in mean_html_info[category][var][ptype]:
+                                mean_html_info[category][var][ptype][season] = OrderedDict()
+
+                            indv_html_info[category][var][ptype][season] = outputfile.name       
 
 
                 #Loop over variables:
