@@ -1003,11 +1003,12 @@ class AdfDiag(AdfObs):
                             #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
 
                             for cat in var_cat_dict.keys():
+                                print(var)
                                 if var in var_cat_dict[cat]:
                                     category = cat
                                     mean_html_info[category] = OrderedDict()
-                            for key, value in mean_html_info.items():
-                                print(key, value)
+                            #for key, value in mean_html_info.items():
+                            #    print(key, value)
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
                                 mean_html_info[category][var] = OrderedDict()
