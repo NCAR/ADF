@@ -1002,7 +1002,7 @@ class AdfDiag(AdfObs):
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
                             #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
 
-                            print(var)
+                            print(case_name,ptype,var,season)
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
