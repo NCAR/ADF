@@ -974,12 +974,14 @@ class AdfDiag(AdfObs):
                         for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
                             alt_text  = img.stem #Extract image file name text
 
-                                #Create output file (don't worry about analysis type for now):
+                            #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
 
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
+                                    
+                                    #Initialize Ordered Dictionary for category:
                                     if category not in indv_html_info:
                                         indv_html_info[category] = OrderedDict()
                              
@@ -991,6 +993,7 @@ class AdfDiag(AdfObs):
                             if ptype not in indv_html_info[category][var]:
                                 indv_html_info[category][var][ptype] = OrderedDict()
 
+                            #Initialize Ordered Dictionary for season:
                             if season not in indv_html_info[category][var][ptype]:
                                 indv_html_info[category][var][ptype][season] = OrderedDict()
 
@@ -1009,17 +1012,15 @@ class AdfDiag(AdfObs):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                            #img_data.append(os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text)
 
-                            print(var)
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
+
+                                    #Initialize Ordered Dictionary for category:
                                     if category not in mean_html_info:
                                         mean_html_info[category] = OrderedDict()
-                            print(category)
-                            #for key, value in mean_html_info.items():
-                            #    print(key, value)
+
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
                                 mean_html_info[category][var] = OrderedDict()
@@ -1028,6 +1029,7 @@ class AdfDiag(AdfObs):
                             if ptype not in mean_html_info[category][var]:
                                 mean_html_info[category][var][ptype] = OrderedDict()
 
+                            #Initialize Ordered Dictionary for season:
                             if season not in mean_html_info[category][var][ptype]:
                                 mean_html_info[category][var][ptype][season] = OrderedDict()
 
