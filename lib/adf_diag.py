@@ -980,7 +980,7 @@ class AdfDiag(AdfObs):
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
-                                    
+
                                     #Initialize Ordered Dictionary for category:
                                     if category not in indv_html_info:
                                         indv_html_info[category] = OrderedDict()
@@ -1041,10 +1041,8 @@ class AdfDiag(AdfObs):
                                                value=img_data, 
                                                case1=case_name,
                                                case2=data_name,
-                                               mydata=indv_html_info,
-                                               plot_types=plot_type_html,
-                                               
-                                               ) #The template rendered
+                                               mydata=mean_html_info,#indv_html_info,
+                                               plot_types=plot_type_html) #The template rendered
 
                             #Open HTML file:
                             with open(outputfile,'w') as ofil:
@@ -1058,8 +1056,8 @@ class AdfDiag(AdfObs):
                                             case1=case_name,
                                             case2=data_name,
                                             mydata=mean_html_info,
-                                            plot_types=plot_type_html,
-                                            )
+                                            plot_types=plot_type_html)
+
                             #Write mean diagnostic plots HTML file:
                             outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
                             with open(outputfile,'w') as ofil:
