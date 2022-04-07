@@ -116,7 +116,7 @@ table.dataframe td {
     font-family: Tahoma, Geneva, Verdana, sans-serif;
     padding-left: 10px;
 }
-div
+.fixedDiv
 {
     position:fixed;
     top:20px;
