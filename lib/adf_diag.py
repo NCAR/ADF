@@ -981,18 +981,18 @@ class AdfDiag(AdfObs):
                                 if var in var_cat_dict[cat]:
                                     category = cat
                                     if category not in mean_html_info:
-                                        mean_html_info[category] = OrderedDict()
+                                        indv_html_info[category] = OrderedDict()
                              
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
-                                mean_html_info[category][var] = OrderedDict()
+                                indv_html_info[category][var] = OrderedDict()
 
                             #Initialize Ordered Dictionary for plot type:
                             if ptype not in mean_html_info[category][var]:
-                                mean_html_info[category][var][ptype] = OrderedDict()
+                                indv_html_info[category][var][ptype] = OrderedDict()
 
                             if season not in mean_html_info[category][var][ptype]:
-                                mean_html_info[category][var][ptype][season] = OrderedDict()
+                                indv_html_info[category][var][ptype][season] = OrderedDict()
 
                             indv_html_info[category][var][ptype][season] = outputfile.name       
 
