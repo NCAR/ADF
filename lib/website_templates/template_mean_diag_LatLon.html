@@ -31,6 +31,8 @@
       {% endfor %}
      </h2>
 
+     <div style="width: 100%;">
+      <div style="width: 50%; height: 100px; float: left;"> 
      {% for key, value in mydata.items() %}
      <h3>{{key}}</h3>
      <table class="big-table">
@@ -53,26 +55,11 @@
       
     </table>
     {% endfor %}
-
-     
-     <!--<table class="big-table">
-        {% for key, value in mydata.items() %}
-       
-        <tr>
-          <th colspan="100%"> {{key}} </th>
-        </tr>
-        {% for pkey, pvalue in value.items() %}
-        <tr>
-          <td> &nbsp; </td>
-          {% for tkey, tvalue in pvalue.items() %}
-          <td>
-            <a href="{{ tvalue }}">{{ tkey }}</a>
-          </td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-        {% endfor %}
-    </table>-->
+      </div> <!-- end left inner div -->
+          
+      <div style="width: 70%; height: 100px; float: right; padding-right: 100px">
+      </div> <!-- end right inner div -->
+    </div> <!-- end main div -->
 
 
   </body>
