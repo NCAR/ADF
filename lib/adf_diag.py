@@ -1115,7 +1115,7 @@ class AdfDiag(AdfObs):
                 for case in [case_name, data_name]:
                     
                     #Search for case name in moved HTML files:
-                    table_htmls = table_pages_dir.glob(f"amwg_table_{case}.html")
+                    table_htmls = sorted(table_pages_dir.glob(f"amwg_table_{case}.html"))
                     #Check if file exists:
                     if table_htmls:
 
