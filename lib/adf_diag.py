@@ -1036,7 +1036,6 @@ class AdfDiag(AdfObs):
                             if season not in mean_html_info[category][var][ptype]:
                                 mean_html_info[category][var][ptype][season] = OrderedDict()
 
-
                             var_title = f"Variable: {var}"              #Create title
                             season_title = f"Season: {season}"
                             tmpl = jinenv.get_template('template.html')  #Set template
