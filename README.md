@@ -10,8 +10,10 @@ different CAM simulations, or between a CAM simulation and observational and rea
 this will allow for a quick evaluation of a CAM simulation, without requiring the user to generate numerous
 different figures on their own.
 
-Currently, this figure only uses standard CAM monthly (h0) outputs.  However, if there is user interest then
-additional diagnostic options can be added.
+Currently, this package only uses standard CAM monthly time-slice (h0) outputs or single-variable monthly time series files.  However, if there is user interest then
+additional model input options can be added.
+
+Finally, if you are interested in general (but non-supported) tools used by AMP scientists and engineers in their work, then please check out the [AMP Toolbox](https://github.com/NCAR/AMP_toolbox).
 
 ## Required software environment
 
