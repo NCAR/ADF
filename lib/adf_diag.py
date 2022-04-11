@@ -886,16 +886,18 @@ class AdfDiag(AdfObs):
 
         # Variable categories
         #subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv" "CLUBB"]
-        var_cat_dict = {'Clouds': ['ACTNI', 'ACTNL', 'ACTREI', 'ACTREL', 'ADRAIN', 'ADSNOW', 'AREI', 'AREL', 'CCN3', 'CDNUMC', 'CLDHGH', 'CLDICE', 'CLDLIQ', 'CLDLOW', 'CLDMED', 'CLDTOT', 'CLOUD', 'CONCLD', 'EVAPPREC', 'EVAPSNOW', 'FCTI', 'FCTL', 'FICE', 'FREQI', 'FREQL', 'FREQR', 'FREQS', 'MPDQ', 'PRECC', 'PRECL', 'PRECSC', 'PRECSL', 'PRECT', 'TGCLDIWP', 'TGCLDLWP'],
-        'Deep Convection': ['CAPE', 'CMFMC_DP', 'FREQZM', 'ZMDQ', 'ZMDT'],
-        'No category yet': ['CH4', 'CT_H2O'],
-        'COSP': ['CLDTOT_ISCCP', 'CLIMODIS', 'CLTMODIS', 'CLWMODIS', 'FISCCP1_COSP', 'ICE_ICLD_VISTAU', 'IWPMODIS', 'LIQ_ICLD_VISTAU', 'LWPMODIS', 'MEANCLDALB_ISCCP', 'MEANPTOP_ISCCP', 'MEANTAU_ISCCP', 'MEANTB_ISCCP', 'MEANTBCLR_ISCCP', 'PCTMODIS', 'REFFCLIMODIS', 'REFFCLWMODIS', 'SNOW_ICLD_VISTAU', 'TAUTMODIS', 'TAUWMODIS', 'TOT_CLD_VISTAU', 'TOT_ICLD_VISTAU'],
-        'Budget': ['DCQ', 'DQCORE', 'DTCORE', 'MPDICE', 'MPDLIQ', 'PTEQ'],
-        'Radiation': ['FLNS', 'FLNSC', 'FLNT', 'FLNTC', 'FLUT', 'FSDS', 'FSDSC', 'FSNS', 'FSNSC', 'FSNT', 'FSNTC', 'FSNTOA', 'LHFLX', 'LWCF', 'QRL', 'QRS', 'SHFLX', 'SWCF'],
-        'State': ['OMEGA', 'OMEGA500', 'PINT', 'PMID', 'PS', 'PSL', 'Q', 'RELHUM', 'T', 'U', 'V', 'Z3'],
-        'Surface': ['PBLH', 'QFLX', 'TAUX', 'TAUY', 'TREFHT', 'U10'],
-        'GW': ['QTGW', 'UGTW_TOTAL', 'UTGWORO', 'VGTW_TOTAL', 'VTGWORO'],
-        'CLUBB': ['RVMTEND_CLUBB', 'STEND_CLUBB', 'WPRTP_CLUBB', 'WPTHLP_CLUBB']}
+        var_cat_dict = {
+            'Clouds': ['ACTNI', 'ACTNL', 'ACTREI', 'ACTREL', 'ADRAIN', 'ADSNOW', 'AREI', 'AREL', 'CCN3', 'CDNUMC', 'CLDHGH', 'CLDICE', 'CLDLIQ', 'CLDLOW', 'CLDMED', 'CLDTOT', 'CLOUD', 'CONCLD', 'EVAPPREC', 'EVAPSNOW', 'FCTI', 'FCTL', 'FICE', 'FREQI', 'FREQL', 'FREQR', 'FREQS', 'MPDQ', 'PRECC', 'PRECL', 'PRECSC', 'PRECSL', 'PRECT', 'TGCLDIWP', 'TGCLDLWP'],
+            'Deep Convection': ['CAPE', 'CMFMC_DP', 'FREQZM', 'ZMDQ', 'ZMDT'],
+            'No category yet': ['CH4', 'CT_H2O'],
+            'COSP': ['CLDTOT_ISCCP', 'CLIMODIS', 'CLTMODIS', 'CLWMODIS', 'FISCCP1_COSP', 'ICE_ICLD_VISTAU', 'IWPMODIS', 'LIQ_ICLD_VISTAU', 'LWPMODIS', 'MEANCLDALB_ISCCP', 'MEANPTOP_ISCCP', 'MEANTAU_ISCCP', 'MEANTB_ISCCP', 'MEANTBCLR_ISCCP', 'PCTMODIS', 'REFFCLIMODIS', 'REFFCLWMODIS', 'SNOW_ICLD_VISTAU', 'TAUTMODIS', 'TAUWMODIS', 'TOT_CLD_VISTAU', 'TOT_ICLD_VISTAU'],
+            'Budget': ['DCQ', 'DQCORE', 'DTCORE', 'MPDICE', 'MPDLIQ', 'PTEQ'],
+            'Radiation': ['FLNS', 'FLNSC', 'FLNT', 'FLNTC', 'FLUT', 'FSDS', 'FSDSC', 'FSNS', 'FSNSC', 'FSNT', 'FSNTC', 'FSNTOA', 'LHFLX', 'LWCF', 'QRL', 'QRS', 'SHFLX', 'SWCF'],
+            'State': ['OMEGA', 'OMEGA500', 'PINT', 'PMID', 'PS', 'PSL', 'Q', 'RELHUM', 'T', 'U', 'V', 'Z3'],
+            'Surface': ['PBLH', 'QFLX', 'TAUX', 'TAUY', 'TREFHT', 'U10'],
+            'GW': ['QTGW', 'UGTW_TOTAL', 'UTGWORO', 'VGTW_TOTAL', 'VTGWORO'],
+            'CLUBB': ['RVMTEND_CLUBB', 'STEND_CLUBB', 'WPRTP_CLUBB', 'WPTHLP_CLUBB']
+        }
 
         #Set preferred order of plot types:
         #plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
