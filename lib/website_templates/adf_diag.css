@@ -70,6 +70,10 @@ a:hover {
     color: #3ca0e7;
 }
 
+body {
+  padding-bottom: 50px;
+}
+
 ul li ul li a {
     transition: all 0.5s ease;
 }
