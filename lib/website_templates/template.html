@@ -32,11 +32,11 @@
       {% endfor %}
      </h2>
 
-     <div style="width: 100%;">
-      <div style="width: 50%; height: 100px; float: left;"> 
+     <div style="width: 100%;"> <!-- main div-->
+      <div style="width: 50%; height: 100px; float: left; padding-bottom: 50px;"> 
         {% for key, value in mydata.items() %}
      <h3>{{key}}</h3>
-     <table class="big-table" style="padding-bottom: 50px;">
+     <table class="big-table">
       {% for key1, value1 in value.items() %}
       <!--<tr>-->
         <th colspan="100%"> {{key1}} </th>
