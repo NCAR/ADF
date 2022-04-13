@@ -922,6 +922,7 @@ class AdfDiag(AdfObs):
 
         #Create alphabetically-sorted variable list:
         var_list_alpha = sorted(var_list)
+        print(var_list_alpha)
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(case_names):
@@ -982,11 +983,11 @@ class AdfDiag(AdfObs):
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
-                                    print(category) 
+                                    
                                     #Initialize Ordered Dictionary for category:
                                     if category not in indv_html_info:
                                         indv_html_info[category] = OrderedDict()
-                            print(category) 
+                            
                             #Initialize Ordered Dictionary for variable:
                             if var not in indv_html_info[category]:
                                 indv_html_info[category][var] = OrderedDict()
