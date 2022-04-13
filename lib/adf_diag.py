@@ -980,19 +980,30 @@ class AdfDiag(AdfObs):
                             #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
 
-                            for cat in var_cat_dict.keys():
+                            #next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+
+                            if next((cat for cat, varz in var_cat_dict.items() if var in varz), None) == None:
+                                print(f"No category yet for {var}...")
+                                category = 'No category yet'
+                            else:
+                                category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+
+                            if category not in indv_html_info:
+                                indv_html_info[category] = OrderedDict()
+
+                            """for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
-                                    
                                     #Initialize Ordered Dictionary for category:
-                                    #if category not in indv_html_info:
-                                    #    indv_html_info[category] = OrderedDict()
+                                    if category not in indv_html_info:
+                                        indv_html_info[category] = OrderedDict()
+
                                 else:
                                     category = 'No category yet'
+                                    #Initialize Ordered Dictionary for category:
+                                    if category not in indv_html_info:
+                                        indv_html_info[category] = OrderedDict()"""
 
-                                #Initialize Ordered Dictionary for category:
-                                if category not in indv_html_info:
-                                    indv_html_info[category] = OrderedDict()
                             #Initialize Ordered Dictionary for variable:
                             if var not in indv_html_info[category]:
                                 indv_html_info[category][var] = OrderedDict()
@@ -1021,7 +1032,7 @@ class AdfDiag(AdfObs):
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
 
-                            # Search through all categories and see which one the current
+                            """# Search through all categories and see which one the current
                             # variable is part of
                             # Could be a better way of doing this - Refractor?
                             for cat in var_cat_dict.keys():
@@ -1029,17 +1040,26 @@ class AdfDiag(AdfObs):
                                     category = cat
 
                                     #Initialize Ordered Dictionary for category:
-                                    #if category not in mean_html_info:
-                                        #mean_html_info[category] = OrderedDict()
+                                    if category not in mean_html_info:
+                                        mean_html_info[category] = OrderedDict()
                                 
                                 else:
                                     category = 'No category yet'
-                                    #if category not in mean_html_info:
-                                        #mean_html_info[category] = OrderedDict()
+                                    if category not in mean_html_info:
+                                        mean_html_info[category] = OrderedDict()
 
                                 #Initialize Ordered Dictionary for category:
-                                if category not in mean_html_info:
-                                    mean_html_info[category] = OrderedDict()
+                                #if category not in mean_html_info:
+                                #    mean_html_info[category] = OrderedDict()"""
+
+                            if next((cat for cat, varz in var_cat_dict.items() if var in varz), None) == None:
+                                print(f"No category yet for {var}...")
+                                category = 'No category yet'
+                            else:
+                                category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+
+                            if category not in indv_html_info:
+                                mean_html_info[category] = OrderedDict()
 
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
