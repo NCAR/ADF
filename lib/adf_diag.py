@@ -1029,6 +1029,11 @@ class AdfDiag(AdfObs):
                                     #Initialize Ordered Dictionary for category:
                                     if category not in mean_html_info:
                                         mean_html_info[category] = OrderedDict()
+                                
+                                else:
+                                    category = 'No category yet'
+                                    if category not in indv_html_info:
+                                        indv_html_info[category] = OrderedDict()
 
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
