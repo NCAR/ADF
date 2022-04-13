@@ -982,11 +982,11 @@ class AdfDiag(AdfObs):
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
-
+                                    print(category) 
                                     #Initialize Ordered Dictionary for category:
                                     if category not in indv_html_info:
                                         indv_html_info[category] = OrderedDict()
-                             
+                            print(category) 
                             #Initialize Ordered Dictionary for variable:
                             if var not in indv_html_info[category]:
                                 indv_html_info[category][var] = OrderedDict()
