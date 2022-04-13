@@ -985,12 +985,14 @@ class AdfDiag(AdfObs):
                                     category = cat
                                     
                                     #Initialize Ordered Dictionary for category:
-                                    if category not in indv_html_info:
-                                        indv_html_info[category] = OrderedDict()
+                                    #if category not in indv_html_info:
+                                    #    indv_html_info[category] = OrderedDict()
                                 else:
                                     category = 'No category yet'
-                                    if category not in indv_html_info:
-                                        indv_html_info[category] = OrderedDict()
+
+                                #Initialize Ordered Dictionary for category:
+                                if category not in indv_html_info:
+                                    indv_html_info[category] = OrderedDict()
                             #Initialize Ordered Dictionary for variable:
                             if var not in indv_html_info[category]:
                                 indv_html_info[category][var] = OrderedDict()
@@ -1021,19 +1023,23 @@ class AdfDiag(AdfObs):
 
                             # Search through all categories and see which one the current
                             # variable is part of
-                            # Could be a better way fo doing this - Refractor?
+                            # Could be a better way of doing this - Refractor?
                             for cat in var_cat_dict.keys():
                                 if var in var_cat_dict[cat]:
                                     category = cat
 
                                     #Initialize Ordered Dictionary for category:
-                                    if category not in mean_html_info:
-                                        mean_html_info[category] = OrderedDict()
+                                    #if category not in mean_html_info:
+                                        #mean_html_info[category] = OrderedDict()
                                 
                                 else:
                                     category = 'No category yet'
-                                    if category not in mean_html_info:
-                                        mean_html_info[category] = OrderedDict()
+                                    #if category not in mean_html_info:
+                                        #mean_html_info[category] = OrderedDict()
+
+                                #Initialize Ordered Dictionary for category:
+                                if category not in mean_html_info:
+                                    mean_html_info[category] = OrderedDict()
 
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info[category]:
