@@ -1058,7 +1058,7 @@ class AdfDiag(AdfObs):
                             else:
                                 category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
 
-                            if category not in indv_html_info:
+                            if category not in mean_html_info:
                                 mean_html_info[category] = OrderedDict()
 
                             #Initialize Ordered Dictionary for variable:
