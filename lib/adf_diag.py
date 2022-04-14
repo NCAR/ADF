@@ -584,13 +584,20 @@ class AdfDiag(AdfObs):
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
-
+            #Get a list of data variables in the 1st hist file:
+            hist_file_var_list = list(xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False).data_vars)
+            #Note: could use `open_mfdataset`, but that can become very slow;
+            #      This approach effectively assumes that all files contain the same variables.
+            
             #Check if time series directory exists, and if not, then create it:
             #Use pathlib to create parent directories, if necessary.
             Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
 
             #Loop over CAM history variables:
             for var in self.diag_var_list:
+                if var not in hist_file_var_list:
+                    print(f"WARNING: {var} is not in the file {hist_files[1]}. No time series will be generated.")
+                    continue
 
                 #Create full path name:
                 ts_outfil_str = ts_dir[case_idx] + os.sep + case_name + \
