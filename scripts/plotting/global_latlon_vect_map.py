@@ -198,9 +198,6 @@ def global_latlon_vect_map(adfobj):
             umdata = umclim_ds[var].squeeze()
             vmdata = vmclim_ds[var_pair].squeeze()
 
-            print(var)
-            print(umdata.dims)
-
             # APPLY UNITS TRANSFORMATION IF SPECIFIED:
 
             uodata = uodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
@@ -308,7 +305,7 @@ def global_latlon_vect_map(adfobj):
                     vdseasons = {} # hold the differences
 
                     if has_lev:
-                        print("i has levs so i loop seasons")
+
                         # Loop over levels
                         for lv in pres_levs:
 
@@ -376,9 +373,7 @@ def global_latlon_vect_map(adfobj):
                              #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                              #   *Any other entries will be ignored.
                              # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                    print(umseasons[s].dims)
-                                    print(uoseasons[s].dims)
-                                    print(udseasons[s].dims)
+
                                     pf.plot_map_vect_and_save(plot_name, None, umseasons[s], vmseasons[s], uoseasons[s], voseasons[s], udseasons[s], vdseasons[s], **vres)
 
 

@@ -411,6 +411,7 @@ def global_latlon_map(adfobj):
                                             #End if
                                         else:
                                             #Just average months as-is:
+
                                             mseasons[s] = mdata.sel(time=seasons[s], lev=pres).mean(dim='time')
                                             oseasons[s] = odata.sel(time=seasons[s], lev=pres).mean(dim='time')
                                             # difference: each entry should be (lat, lon)
