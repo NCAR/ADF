@@ -922,15 +922,23 @@ class AdfDiag(AdfObs):
         season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
         #Set preferred order of plot types:
-        plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
+        plot_type_order = ["LatLon_Vector","LatLon", "Zonal", "NHPolar", "SHPolar"]
 
         #Also add pressure level Lat-Lon plots, if applicable:
         pres_levs = self.get_basic_info("plot_press_levels")
         if pres_levs:
             for pres in pres_levs:
                 plot_type_order.append(f"Lev_{pres}hpa_LatLon")
+                plot_type_order.append(f"{pres}_LatLon_Vector")
             #End for
         #End if
+
+        for var in var_list:
+            if var in self.variable_defaults:
+               vect_name = self.variable_defaults[var].get("vector_name",None)
+               if vect_name and (vect_name not in var_list):
+                   var_list.append(vect_name)                   
+
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')

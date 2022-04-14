@@ -216,6 +216,33 @@ U:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "U"
+  vector_pair: "V"
+  vector_name: "Wind"
+
+V:
+  colormap: "Blues"
+  contour_levels_range: [-10, 90, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"  
+  obs_var_name: "V"
+  vector_pair: "U"
+  vector_name: "Wind"
+
+TAUX:
+  vector_pair: "TAUY"
+  vector_name: "Surface_Wind_Stress"
+
+TAUY:
+  vector_pair: "TAUX"
+  vector_name: "Surface_Wind_Stress"
 
 TS:
   colormap: "Blues"

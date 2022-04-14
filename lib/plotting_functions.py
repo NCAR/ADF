@@ -13,6 +13,7 @@ import matplotlib as mpl
 import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 
 #Set non-X-window backend for matplotlib:
@@ -120,6 +121,99 @@ def wgt_rmse(fld1, fld2, wgt):
 
 
 #######
+
+def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffld, vdiffld, **kwargs):
+    """This plots a vector plot. bringing in two variables which respresent a vector pair
+
+    kwargs -> optional dictionary of plotting options
+             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
+
+    """
+
+    proj = ccrs.PlateCarree()
+    lons, lats = np.meshgrid(umdlfld['lon'], umdlfld['lat'])
+
+    fig = plt.figure(figsize=(20,12))
+
+    # LAYOUT WITH GRIDSPEC
+    gs = mpl.gridspec.GridSpec(2, 4)
+    gs.update(wspace=0.25)
+    ax1 = plt.subplot(gs[0, :2], projection=proj)
+    ax2 = plt.subplot(gs[0, 2:], projection=proj)
+    ax3 = plt.subplot(gs[1, 1:3], projection=proj)
+
+    # too many vectors to see well, so prune by striding through data:
+    skip=(slice(None,None,5),slice(None,None,8))
+
+    title_string = "Missing title!"
+    title_string_base = title_string 
+    if "var_name" in kwargs:
+        var_name = kwargs["var_name"]
+    else:
+        var_name = "missing VAR name"
+
+    if "case_name" in kwargs:
+        case_name = kwargs["case_name"]
+        if plev:
+            title_string = f"{case_name} {var_name} [{plev} hPa]"
+        else:
+            title_string = f"{case_name} {var_name}"
+    if "baseline" in kwargs:
+        data_name = kwargs["baseline"]
+        if plev:
+            title_string_base = f"{data_name} {var_name} [{plev} hPa]"
+        else:
+            title_string_base = f"{data_name} {var_name}"
+
+    # Candidate 1:
+    #  - contourf to show magnitude w/ colorbar
+    #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
+    img1 = ax1.contourf(lons, lats, np.sqrt(umdlfld**2 + vmdlfld**2), cmap='Greys', transform=ccrs.PlateCarree())
+    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], np.sqrt(umdlfld**2 + vmdlfld**2).values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax1.set_title(title_string)
+
+    img2 = ax2.contourf(lons, lats, np.sqrt(umdlfld**2 + vmdlfld**2), cmap='Greys', transform=ccrs.PlateCarree())
+    ax2.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], np.sqrt(umdlfld**2 + vmdlfld**2).values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax2.set_title(title_string_base)
+
+    ## Add colorbar to Candidate 1:
+    cb_c1_ax = inset_axes(ax1,
+                   width="3%",  # width = 5% of parent_bbox width
+                   height="90%",  # height : 50%
+                   loc='lower left',
+                   bbox_to_anchor=(1.01, 0.05, 1, 1),
+                   bbox_transform=ax1.transAxes,
+                   borderpad=0,
+                   )
+
+    fig.colorbar(img1, cax=cb_c1_ax)
+    fig.colorbar(img2, cax=cb_c1_ax)
+
+
+    img3 = ax3.contourf(lons, lats, np.sqrt(udiffld**2 + vdiffld**2), transform=ccrs.PlateCarree(), norm=mpl.colors.TwoSlopeNorm(vmin=-5, vcenter=0.0, vmax=5), cmap='PuOr', alpha=0.5)
+    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
+
+    ax3.set_title(f"Difference []", loc='left')
+    cb_d_ax = inset_axes(ax3,
+                   width="3%",  # width = 5% of parent_bbox width
+                   height="90%",  # height : 50%
+                   loc='lower left',
+                   bbox_to_anchor=(1.01, 0.05, 1, 1),
+                   bbox_transform=ax3.transAxes,
+                   borderpad=0
+                   )
+    fig.colorbar(img3, cax=cb_d_ax)
+
+#    [a.coastlines() for a in [ax1,ax2,ax3]]
+    [a.coastlines() for a in [ax1,ax3]]
+
+    # Write final figure to file    
+    fig.savefig(wks, bbox_inches='tight', dpi=300)
+
+    #Close plots:
+    plt.close()
+
+
 
 def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
