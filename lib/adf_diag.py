@@ -922,7 +922,6 @@ class AdfDiag(AdfObs):
 
         #Create alphabetically-sorted variable list:
         var_list_alpha = sorted(var_list)
-        print(var_list_alpha)
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(case_names):
