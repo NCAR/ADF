@@ -765,6 +765,12 @@ class AdfDiag(AdfObs):
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
+        #Start years (not currently required):
+        syears_baseline = self.get_baseline_info('start_year')
+
+        #End year (not currently rquired):
+        eyears_baseline = self.get_baseline_info('end_year')
+
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
         #Please note that this is also assumed to be the output location for the analyses scripts:
         if not self.__plot_location:
@@ -786,7 +792,7 @@ class AdfDiag(AdfObs):
 
                 #Check if case has start and end years:
                 if syears[case_idx] and eyears[case_idx]:
-                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
+                    direc_name = f"{case_name}_{syears[case_idx]}_{eyears[case_idx]}_vs_{data_name}_{syears_baseline}_{eyears_baseline}"
                     self.__plot_location.append(os.path.join(plot_dir, direc_name))
                 else:
                     direc_name = f"{case_name}_vs_{data_name}"
