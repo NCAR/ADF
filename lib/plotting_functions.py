@@ -10,6 +10,8 @@ plotting scripts.
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
+import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
@@ -244,7 +246,15 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
-    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()}, **subplots_opt)
+    fig = plt.figure(figsize=(12,8))
+    # LAYOUT WITH GRIDSPEC
+    gs = gridspec.GridSpec(2, 4) # 2 rows, 4 columns, but each map will take up 2 columns
+    gs.update(wspace=0.5,hspace=0.05)
+    proj = ccrs.PlateCarree()
+    ax1 = plt.subplot(gs[0, :2], projection=proj)
+    ax2 = plt.subplot(gs[0, 2:], projection=proj)
+    ax3 = plt.subplot(gs[1, 1:3], projection=proj)
+    ax = [ax1,ax2,ax3]
     img = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
