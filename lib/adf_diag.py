@@ -1107,27 +1107,6 @@ class AdfDiag(AdfObs):
                             
                         #End for (assests loop)
                     #End for (seasons loop)
-<<<<<<< HEAD
-                #End for (variable loop)
-            #End for (plot type loop)
-=======
-                #End for (plot type loop)
-            #End for (variable loop)
-
-            #Construct mean_diag.html
-            mean_title = "AMP Diagnostic Plots"
-            mean_tmpl = jinenv.get_template('template_mean_diag.html')
-            mean_rndr = mean_tmpl.render(title=mean_title,
-                            case1=case_name,
-                            case2=data_name,
-                            mydata=mean_html_info)
-
-            #Write mean diagnostic plots HTML file:
-            outputfile = img_pages_dir / "mean_diag.html"
-            with open(outputfile, 'w', encoding='utf-8') as ofil:
-                ofil.write(mean_rndr)
-            #End with
->>>>>>> 2247d92e24c91280af6314082b2dd810527642e6
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
@@ -1173,10 +1152,7 @@ class AdfDiag(AdfObs):
                     
                     #Search for case name in moved HTML files:
                     table_htmls = sorted(table_pages_dir.glob(f"amwg_table_{case}.html"))
-<<<<<<< HEAD
-=======
 
->>>>>>> 2247d92e24c91280af6314082b2dd810527642e6
                     #Check if file exists:
                     if table_htmls:
 
