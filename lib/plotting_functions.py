@@ -290,7 +290,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
         a.tick_params('both', length=10, width=2, which='major')
         a.tick_params('both', length=5, width=1, which='minor')
-    plt.subplots_adjust(vspace=0.2)
+
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
