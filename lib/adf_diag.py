@@ -900,10 +900,9 @@ class AdfDiag(AdfObs):
         }
 
         #Set preferred order of plot types:
-        #plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
-        plot_type_order = ["LatLon", "Zonal","NHPolar"]
+        plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
         plot_type_web = ["html_img/mean_diag_LatLon.html","html_img/mean_diag_Zonal.html",
-                            "html_img/mean_diag_NHPolar.html"]
+                            "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html"]
         plot_type_html = dict(zip(plot_type_order, plot_type_web))
         main_title = "AMP Diagnostics"
 
