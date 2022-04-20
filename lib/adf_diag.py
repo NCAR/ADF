@@ -170,6 +170,14 @@ class AdfDiag(AdfObs):
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
 
+        #Add CVDP info to object:
+        self.__cvdp_info = self.read_config_var('diag_cvdp_info')
+
+        #Expand CVDP climo info variable strings:
+        if self.__cvdp_info is not None:
+            self.expand_references(self.__cvdp_info)
+        #End if
+
         #Check if inputs are of the correct type.
         #Ideally this sort of checking should be done
         #in its own class that AdfDiag inherits from:
@@ -278,6 +286,20 @@ class AdfDiag(AdfObs):
 
         return self.read_config_var(var_str,
                                     conf_dict=self.__cam_climo_info,
+                                    required=required)
+
+    #########
+
+    def get_cvdp_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_cvdp_info' as requested by
+        the user. If 'diag_cvdp_info' is not found then try grabbing the
+        variable from the top level of the YAML config file dictionary
+        instead.
+        """
+
+        return self.read_config_var(var_str,
+                                    conf_dict=self.__cvdp_info,
                                     required=required)
 
     #########
@@ -425,12 +447,12 @@ class AdfDiag(AdfObs):
             emsg = f"Function '{func_name}' cannot be found in module '{module_name}.py'."
             self.end_diag_fail(emsg)
 
-        #Run function and return result:
+        #If kwargs are present, then run function with kwargs and return result:
         if func_kwargs:
             return func(self, **func_kwargs)
-        else:
-            return func(self)
-        #End if
+
+        #Otherwise just run function as-is, and return result:
+        return func(self)
 
     #########
 
@@ -589,12 +611,27 @@ class AdfDiag(AdfObs):
             #Use pathlib to create parent directories, if necessary.
             Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
 
+            #INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
+            first_file_split = str(hist_files[0]).split(".")
+            if first_file_split[-1] == "nc":
+                time_string_start = first_file_split[-2].replace("-","")
+            else:
+                time_string_start = first_file_split[-1].replace("-","")
+            last_file_split = str(hist_files[-1]).split(".")
+            if last_file_split[-1] == "nc":
+                time_string_finish = last_file_split[-2].replace("-","")
+            else:
+                time_string_finish = last_file_split[-1].replace("-","")
+            time_string = "-".join([time_string_start, time_string_finish])
+
             #Loop over CAM history variables:
             for var in self.diag_var_list:
 
-                #Create full path name:
-                ts_outfil_str = ts_dir[case_idx] + os.sep + case_name + \
-                              ".ncrcat."+var+".nc"
+                #Create full path name,  file name template:
+                #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
+
+                ts_outfil_str = ts_dir[case_idx] + os.sep + \
+                ".".join([case_name, "h0", var, time_string, "nc" ])
 
                 #Check if files already exist in time series directory:
                 ts_file_list = glob.glob(ts_outfil_str)
@@ -606,7 +643,7 @@ class AdfDiag(AdfObs):
                         continue
 
                 #Notify user of new time series file:
-                print("\t - time series for {}".format(var))
+                print(f"\t - time series for {var}")
 
                 #Run "ncrcat" command to generate time series file:
                 cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
@@ -688,7 +725,7 @@ class AdfDiag(AdfObs):
                                                       # script names as keys that hold
                                                       # kwargs(dict) and module(str)
 
-        if not regrid_func_names or all([func_names is None for func_names in regrid_func_names]):
+        if not regrid_func_names or all(func_names is None for func_names in regrid_func_names):
             print("No regridding options provided, continue.")
             return
             # NOTE: if no regridding options provided, we should skip it, but
@@ -1049,7 +1086,7 @@ class AdfDiag(AdfObs):
                                                plot_types=plot_type_html) #The template rendered
 
                             #Open HTML file:
-                            with open(outputfile,'w') as ofil:
+                            with open(outputfile, 'w', encoding='utf-8') as ofil:
                                 ofil.write(rndr)
                             #End with
 
@@ -1070,8 +1107,27 @@ class AdfDiag(AdfObs):
                             
                         #End for (assests loop)
                     #End for (seasons loop)
+<<<<<<< HEAD
                 #End for (variable loop)
             #End for (plot type loop)
+=======
+                #End for (plot type loop)
+            #End for (variable loop)
+
+            #Construct mean_diag.html
+            mean_title = "AMP Diagnostic Plots"
+            mean_tmpl = jinenv.get_template('template_mean_diag.html')
+            mean_rndr = mean_tmpl.render(title=mean_title,
+                            case1=case_name,
+                            case2=data_name,
+                            mydata=mean_html_info)
+
+            #Write mean diagnostic plots HTML file:
+            outputfile = img_pages_dir / "mean_diag.html"
+            with open(outputfile, 'w', encoding='utf-8') as ofil:
+                ofil.write(mean_rndr)
+            #End with
+>>>>>>> 2247d92e24c91280af6314082b2dd810527642e6
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
@@ -1117,6 +1173,10 @@ class AdfDiag(AdfObs):
                     
                     #Search for case name in moved HTML files:
                     table_htmls = sorted(table_pages_dir.glob(f"amwg_table_{case}.html"))
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2247d92e24c91280af6314082b2dd810527642e6
                     #Check if file exists:
                     if table_htmls:
 
@@ -1169,7 +1229,7 @@ class AdfDiag(AdfObs):
 
                 #Write mean diagnostic tables HTML file:
                 outputfile = table_pages_dir / "mean_table.html"
-                with open(outputfile,'w') as ofil:
+                with open(outputfile, 'w', encoding='utf-8') as ofil:
                     ofil.write(mean_rndr)
                 #End with
             else:
@@ -1194,7 +1254,7 @@ class AdfDiag(AdfObs):
 
             #Write Mean diagnostics HTML file:
             outputfile = website_dir / "index.html"
-            with open(outputfile,'w') as ofil:
+            with open(outputfile, 'w', encoding='utf-8') as ofil:
                 ofil.write(index_rndr)
             #End with
 
@@ -1218,11 +1278,124 @@ class AdfDiag(AdfObs):
                             )
             #Write multi-case main HTML file:
             outputfile = main_site_path / "index.html"
-            with open(outputfile,'w') as ofil:
+            with open(outputfile, 'w', encoding='utf-8') as ofil:
                 ofil.write(main_rndr)
             #End with
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
+
+    #########
+
+    def setup_run_cvdp(self):
+
+        """
+        Create CVDP directory tree, generate namelist file and
+        edit driver.ncl needed to run CVDP. Submit CVDP diagnostics.
+
+        """
+
+        #import needed standard modules:
+        import shutil
+
+        #Case names:
+        case_names = self.get_cam_info('cam_case_name', required=True)
+
+        #Start years (not currently required):
+        syears = self.get_cam_info('start_year')
+
+        #End year (not currently rquired):
+        eyears = self.get_cam_info('end_year')
+
+        #Timeseries locations:
+        cam_ts_loc = self.get_cam_info('cam_ts_loc')
+
+        #set CVDP directory, recursively copy cvdp codebase to the CVDP directory
+        if len(case_names) > 1:
+            cvdp_dir = self.get_cvdp_info('cvdp_loc', required=True)+case_names[0]+'_multi_case'
+        else:
+            cvdp_dir = self.get_cvdp_info('cvdp_loc', required=True)+case_names[0]
+        #end if
+        if not os.path.isdir(cvdp_dir):
+            shutil.copytree(self.get_cvdp_info('cvdp_codebase_loc', required=True),cvdp_dir)
+
+        #check to see if there is a CAM baseline case. If there is, read in relevant information.
+        if not self.get_basic_info('compare_obs'):
+            case_name_baseline = self.get_baseline_info('cam_case_name')
+            syears_baseline = self.get_baseline_info('start_year')
+            eyears_baseline = self.get_baseline_info('end_year')
+            baseline_ts_loc = self.get_baseline_info('cam_ts_loc')
+
+        #Loop over cases to create individual text array to be written to namelist file.
+        row_list = []
+        for case_idx, case_name in enumerate(case_names):
+            row = [case_name,' | ',str(cam_ts_loc[case_idx]),os.sep,' | ',
+                   str(syears[case_idx]),' | ',str(eyears[case_idx])]
+            row_list.append("".join(row))
+
+        #Create new namelist file. If CAM baseline case present add it to list,
+        #namelist file must end in a blank line.
+        with open(os.path.join(cvdp_dir, "namelist"), 'w', encoding='utf-8') as fnml:
+            for rowtext in row_list:
+                fnml.write(rowtext)
+            fnml.write('\n\n')
+            if "baseline_ts_loc" in locals():
+                rowb = [case_name_baseline,' | ',str(baseline_ts_loc),os.sep,' | ',
+                        str(syears_baseline),' | ',str(eyears_baseline)]
+                rowtextb = "".join(rowb)
+                fnml.write(rowtextb)
+                fnml.write('\n\n')
+            #End if
+        #End with
+
+        #modify driver.ncl to set the proper output directory, webpage title, and location
+        #of CVDP NCL scripts, set modular = True (to run multiple CVDP scripts at once),
+        #and modify the modular_list to exclude all scripts focused solely on non-atmospheric
+        #variables, and set tar_output to True if cvdp_tar: true
+        with open(os.path.join(cvdp_dir, "driver.ncl"), 'r', encoding='utf-8') as f_in, \
+             open(os.path.join(cvdp_dir, f"driver.{case_names[0]}.ncl"), 'w', \
+                               encoding='utf-8') as f_out:
+            for line in f_in:
+                if '  outdir  ' in line:
+                    line = '  outdir = "'+cvdp_dir+'/output/"'
+                if '  webpage_title  ' in line:
+                    line = '  webpage_title = "ADF/CVDP Comparison"'
+                if 'directory path of CVDP NCL scripts' in line:
+                    line = '  zp = "'+cvdp_dir+'/ncl_scripts/"'
+                if '  modular = ' in line:
+                    line = '  modular = "True"'
+                if '  modular_list = ' in line:
+                    line = '  modular_list = "'
+                    line += 'psl.nam_nao,psl.pna_npo,tas.trends_timeseries,snd.trends,'
+                    line += 'psl.trends,amo,pdo,sst.indices,pr.trends_timeseries,'
+                    line += 'psl.sam_psa,sst.mean_stddev,'
+                    line += 'psl.mean_stddev,pr.mean_stddev,sst.trends_timeseries,'
+                    line += 'tas.mean_stddev,ipo"'
+                if self.get_cvdp_info('cvdp_tar'):
+                    if '  tar_output  ' in line:
+                        line = '  tar_output = "True"'
+                f_out.write(line)
+            #End for
+        #End with
+
+        #Submit the CVDP driver script in background mode, send output to cvdp.out file
+        with open(os.path.join(cvdp_dir,'cvdp.out'), 'w', encoding='utf-8') as subout:
+            _ = subprocess.Popen([f'cd {cvdp_dir}; ncl -Q '+ \
+                                  os.path.join(cvdp_dir,f'driver.{case_names[0]}.ncl')],
+                                  shell=True, stdout=subout, close_fds=True)
+        #End with
+
+        print('   ')
+        print('CVDP is running in background. ADF continuing.')
+        print(f'CVDP terminal output is located in {cvdp_dir}/cvdp.out')
+        if self.get_cvdp_info('cvdp_tar'):
+            print('CVDP graphical and netCDF file output can be found here:' + \
+                  f' {cvdp_dir}/output/cvdp.tar')
+            print('Open index.html (within cvdp.tar file) in web browser to view CVDP results.')
+        else:
+            print(f'CVDP graphical and netCDF file output can be found here: {cvdp_dir}/output/')
+            print(f'Open {cvdp_dir}/output/index.html file in web browser to view CVDP results.')
+        print('For CVDP information visit: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/')
+        print('   ')
 
 ###############

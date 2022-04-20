@@ -254,6 +254,30 @@ diag_cam_baseline_climo:
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /some/where/you/want/to/have/baseline_time_series_files/ #MUST EDIT!
 
+#This fourth set of variables provides settings for calling the Climate Variability
+# Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
+# run in background mode, likely completing after the ADF has completed.
+# If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+# in the diag_var_list variable listing.
+# For more CVDP information: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/
+diag_cvdp_info:
+
+    # Run the CVDP on the listed run(s)?
+    cvdp_run: false
+
+    # CVDP code path, sets the location of the CVDP codebase
+    #  CGD systems path = /home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+    #  CISL systems path = /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+    #  github location = https://github.com/NCAR/CVDP-ncl
+    cvdp_codebase_loc: /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+
+    # Location where cvdp codebase will be copied to and diagnostic plots will be stored
+    cvdp_loc: /glade/scratch/asphilli/ADF-Sandbox/cvdp/      #MUST EDIT!
+
+    # tar up CVDP results?
+    cvdp_tar: false
+
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 #These variables below only matter if you are using
 #a non-standard method, or are adding your own
@@ -287,11 +311,16 @@ plotting_scripts:
     - polar_map
 
 #List of CAM variables that will be processesd:
+#If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
     - SWCF
     - LWCF
+    - PRECC
+    - PRECL
     - PSL
     - Q
+    - TREFHT
+    - TS
 #<Add more variables here.>
 
 #END OF FILE
