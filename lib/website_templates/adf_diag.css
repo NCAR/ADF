@@ -1,7 +1,7 @@
 nav.primary-navigation {
     margin: 0 auto;
     display: block;
-    padding: 20px 0 0 0;
+    padding: 10px 0 0 0;
     text-align: center;
     font-size: 16px;
   }
@@ -123,7 +123,7 @@ table.dataframe td {
 .fixedDiv
 {
     position:fixed;
-    top:270px;
+    top:260px;
     right:150px;
 }
 /*tbody{
