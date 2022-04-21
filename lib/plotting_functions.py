@@ -246,10 +246,11 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
-    fig = plt.figure(figsize=(12,8))
+    fig = plt.figure(figsize=(10,10))
     # LAYOUT WITH GRIDSPEC
     gs = gridspec.GridSpec(2, 4) # 2 rows, 4 columns, but each map will take up 2 columns
-    gs.update(wspace=0.5,hspace=0.05)
+    #gs.update(wspace=0.5,hspace=0.05)
+    gs.update(wspace=0.9)
     proj = ccrs.PlateCarree()
     ax1 = plt.subplot(gs[0, :2], projection=proj)
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
