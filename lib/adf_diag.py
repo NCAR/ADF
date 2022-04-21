@@ -466,14 +466,12 @@ class AdfDiag(AdfObs):
 
         global call_ncrcat
         def call_ncrcat(cmd):
-            '''this is an internal function to `create_time_series` 
+            '''this is an internal function to `create_time_series`
             It just wraps the subprocess.call() function, so it can be
             used with the multiprocessing Pool that is constructed below.
-            It is declared as global to avoid AttributeError. 
+            It is declared as global to avoid AttributeError.
             '''
             return subprocess.run(cmd, shell=False)
-        
-        number_of_cpu = mp.cpu_count()  # Max number of processes is set to how many CPUs we have.
 
         #Check if baseline time-series files are being created:
         if baseline:
@@ -663,14 +661,15 @@ class AdfDiag(AdfObs):
                 cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
                        hist_files + ["-o", ts_outfil_str]
 
+                #Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
 
-            with mp.Pool(processes=number_of_cpu) as p:
-                result = p.map(call_ncrcat, list_of_commands)
-
-            print("DONE WITH TIME SERIES GENERATOR")
-        
             #End variable loop
+
+            #Now run the "ncrcat" subprocesses in parallel:
+            with mp.Pool(processes=self.num_procs) as p:
+                result = p.map(call_ncrcat, list_of_commands)
+            #End with
 
         #End cases loop
 

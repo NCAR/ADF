@@ -101,6 +101,13 @@ diag_basic_info:
     #given the same weight:
     weight_season: True
 
+    #Number of processors on which to run the ADF.
+    #If this config variable isn't present then
+    #the ADF defaults to one processor.  Also, if
+    #you set it to "*" then it will default
+    #to all of the processors on a single node:
+    num_procs: '*'
+
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
 
@@ -286,12 +293,12 @@ diag_cvdp_info:
 
 #Note:  If you want to pass arguments to a particular script, you can
 #do it like so (using the "averaging_example" script in this case):
-# - {averaging_example: {kwargs: {clobber: true}}}
+# - {create_climo_files: {kwargs: {clobber: true}}}
 
 #Name of time-averaging scripts being used to generate climatologies.
 #These scripts must be located in "scripts/averaging":
 time_averaging_scripts:
-    - averaging_example
+    - create_climo_files
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":

@@ -23,7 +23,7 @@ def create_climo_files(adf, clobber=False, search=None):
     This is an example function showing
     how to set-up a time-averaging method
     for calculating climatologies from
-    CAM time series files using 
+    CAM time series files using
     multiprocessing for parallelization.
 
     Description of needed inputs from ADF:
@@ -52,10 +52,8 @@ def create_climo_files(adf, clobber=False, search=None):
     #Notify user that script has started:
     print("  Calculating CAM climatologies...")
 
-    # Set up multiprocessing pool to parallelize writing climo files.            
-    number_of_cpu = mp.cpu_count()  # Max number of processes is set to how many CPUs we have.
-
-    print(f"\t MULTIPROCESSING SAYS YOU HAVE {number_of_cpu} CPUs AVAILABLE.")
+    # Set up multiprocessing pool to parallelize writing climo files.
+    number_of_cpu = adf.num_procs  # Get number of available processors from the ADF
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -167,7 +165,7 @@ def create_climo_files(adf, clobber=False, search=None):
                 #  end_diag_script(errmsg) # Previously we would kill the run here.
                 warnings.warn(errmsg)
                 continue
-            
+
             list_of_arguments.append((ts_files, syr, eyr, output_file))
         #End of var_list loop
         #--------------------
