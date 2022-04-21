@@ -250,7 +250,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     # LAYOUT WITH GRIDSPEC
     gs = gridspec.GridSpec(2, 4) # 2 rows, 4 columns, but each map will take up 2 columns
     #gs.update(wspace=0.5,hspace=0.05)
-    gs.update(hspace=0.9)
+    gs.update(hspace=0.09)
     gs.tight_layout(fig)
     proj = ccrs.PlateCarree()
     ax1 = plt.subplot(gs[0, :2], projection=proj)
