@@ -248,7 +248,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     fig = plt.figure(figsize=(10,10))
     # LAYOUT WITH GRIDSPEC
-    gs = gridspec.GridSpec(2, 4) # 2 rows, 4 columns, but each map will take up 2 columns
+    gs = gridspec.GridSpec(2, 4, width_ratios=[3, 3,3]) # 2 rows, 4 columns, but each map will take up 2 columns
     #gs.update(wspace=0.5,hspace=0.05)
     gs.update(wspace=0.9)
     proj = ccrs.PlateCarree()
@@ -280,8 +280,8 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         #ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
         #ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
         #bbox=dict(facecolor='none', edgecolor='black'), fontsize=tiFontSize-2)
-    cb.append(fig.colorbar(img[0], ax=ax[0], shrink=0.8, **colorbar_opt))
-    cb.append(fig.colorbar(img[2], ax=ax[2], shrink=0.8, **colorbar_opt))
+    #cb.append(fig.colorbar(img[0], ax=ax[0], shrink=0.8, **colorbar_opt))
+    #cb.append(fig.colorbar(img[2], ax=ax[2], shrink=0.8, **colorbar_opt))
     # set rmse title:
     ax[-1].set_title("RMSE: {0:.3f}".format(d_rmse), fontsize=tiFontSize)
 
@@ -292,6 +292,27 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
         a.tick_params('both', length=10, width=2, which='major')
         a.tick_params('both', length=5, width=1, which='minor')
+
+    # __COLORBARS__
+    cb_mean_ax = inset_axes(ax2,
+                    width="5%",  # width = 5% of parent_bbox width
+                    height="90%",  # height : 50%
+                    loc='lower left',
+                    bbox_to_anchor=(1.05, 0.05, 1, 1),
+                    bbox_transform=ax2.transAxes,
+                    borderpad=0,
+                    )
+    fig.colorbar(img[1], cax=cb_mean_ax)
+
+    cb_diff_ax = inset_axes(ax3,
+                    width="5%",  # width = 5% of parent_bbox width
+                    height="90%",  # height : 50%
+                    loc='lower left',
+                    bbox_to_anchor=(1.05, 0.05, 1, 1),
+                    bbox_transform=ax3.transAxes,
+                    borderpad=0,
+                    )
+    fig.colorbar(img[3], cax=cb_diff_ax)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
