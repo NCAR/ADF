@@ -312,7 +312,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax3.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[3], cax=cb_diff_ax)
+    fig.colorbar(img[2], cax=cb_diff_ax)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
