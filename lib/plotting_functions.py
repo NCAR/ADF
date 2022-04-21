@@ -299,7 +299,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     width="5%",  # width = 5% of parent_bbox width
                     height="100%",  # height : 50%
                     loc='lower left',
-                    bbox_to_anchor=(1.05, 0.05, 1, 1),
+                    bbox_to_anchor=(1.05, 0, 1, 1),
                     bbox_transform=ax2.transAxes,
                     borderpad=0,
                     )
@@ -309,7 +309,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     width="5%",  # width = 5% of parent_bbox width
                     height="100%",  # height : 50%
                     loc='lower left',
-                    bbox_to_anchor=(1.05, 0.05, 1, 1),
+                    bbox_to_anchor=(1.05, 0, 1, 1),
                     bbox_transform=ax3.transAxes,
                     borderpad=0,
                     )
