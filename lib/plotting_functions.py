@@ -248,7 +248,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     fig = plt.figure(figsize=(10,10))
     # LAYOUT WITH GRIDSPEC
-    gs = gridspec.GridSpec(2, 4, width_ratios=[3, 3,3]) # 2 rows, 4 columns, but each map will take up 2 columns
+    gs = gridspec.GridSpec(2, 4) # 2 rows, 4 columns, but each map will take up 2 columns
     #gs.update(wspace=0.5,hspace=0.05)
     gs.update(wspace=0.9)
     proj = ccrs.PlateCarree()
