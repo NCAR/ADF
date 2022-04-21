@@ -241,8 +241,8 @@ def polar_map(adfobj):
                             shfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="SH", **vres)
 
                             # Assign titles to each figure:
-                            nhfig.suptitle(f"{s} - {case_name} and {data_name}")
-                            shfig.suptitle(f"{s} - {case_name} and {data_name}")
+                            #nhfig.suptitle(f"{s} - {case_name} and {data_name}")
+                            #shfig.suptitle(f"{s} - {case_name} and {data_name}")
 
                             # Save files
                             nhfig.savefig(nh_plot_name, bbox_inches='tight', dpi=300)
