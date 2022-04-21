@@ -120,11 +120,21 @@ table.dataframe td {
     font-family: Tahoma, Geneva, Verdana, sans-serif;
     padding-left: 10px;
 }
+
 .fixedDiv
 {
     position:fixed;
     top:255px;
     right:150px;
+}
+
+#footer {
+  background: indigo;
+  width: 100%;
+  height: auto;	
+  text-align: center;
+  -webkit-flex: 0 0 64px;
+  flex: 0 0 64px;
 }
 /*tbody{
   display:block;
