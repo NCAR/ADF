@@ -447,7 +447,7 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
                     borderpad=0,
                     )
     fig.colorbar(img3, cax=cb_diff_ax)
-    fig.suptitle("SEASON IN TITLE")
+    #fig.suptitle("SEASON IN TITLE")
     return fig
 
 
