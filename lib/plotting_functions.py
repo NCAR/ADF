@@ -246,11 +246,12 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
-    fig = plt.figure(figsize=(10,10))
+    fig = plt.figure(figsize=(10,8))
     # LAYOUT WITH GRIDSPEC
     gs = gridspec.GridSpec(2, 4) # 2 rows, 4 columns, but each map will take up 2 columns
     #gs.update(wspace=0.5,hspace=0.05)
-    gs.update(wspace=0.9)
+    gs.update(hspace=0.9)
+    gs.tight_layout(fig)
     proj = ccrs.PlateCarree()
     ax1 = plt.subplot(gs[0, :2], projection=proj)
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
@@ -296,7 +297,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     # __COLORBARS__
     cb_mean_ax = inset_axes(ax2,
                     width="5%",  # width = 5% of parent_bbox width
-                    height="90%",  # height : 50%
+                    height="100%",  # height : 50%
                     loc='lower left',
                     bbox_to_anchor=(1.05, 0.05, 1, 1),
                     bbox_transform=ax2.transAxes,
@@ -306,7 +307,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     cb_diff_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
-                    height="90%",  # height : 50%
+                    height="100%",  # height : 50%
                     loc='lower left',
                     bbox_to_anchor=(1.05, 0.05, 1, 1),
                     bbox_transform=ax3.transAxes,
