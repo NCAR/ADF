@@ -105,7 +105,7 @@ class AdfObs(AdfConfig):
         else:
             #Check if variable is a string and matches keyword:
             if isinstance(temp_num_procs, str) and \
-               temp_num_procs == "*":
+               temp_num_procs.strip() == "*":
 
                 #Set number of processors to total number of CPUs
                 #on the node.  Please note that at some point this

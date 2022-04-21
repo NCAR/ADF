@@ -105,7 +105,8 @@ diag_basic_info:
     #If this config variable isn't present then
     #the ADF defaults to one processor.  Also, if
     #you set it to "*" then it will default
-    #to all of the processors on a single node:
+    #to all of the processors available on a
+    #single node/machine:
     num_procs: '*'
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
