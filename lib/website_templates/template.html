@@ -32,7 +32,7 @@
      <h2>Plot Types: 
       <a href=../html_table/mean_table.html> Tables</a> 
       {% for type, html_file in plot_types.items() %}
-      {% if type == plottype_title %}
+      {% if type == plottype_title[6:] %}
       <a style="color: black; text-decoration: underline;"> {{type}}</a>
       {% else %}
       <a href=../{{html_file}}> {{type}}</a>
