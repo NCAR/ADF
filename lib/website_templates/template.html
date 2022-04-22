@@ -38,29 +38,27 @@
      <div style="width: 100%;"> <!-- main div-->
       <div style="width: 50%; height: 100px; float: left;"> 
         {% for key, value in mydata.items() %}
-     <h3>{{key}}</h3>
-     <table class="big-table">
-      {% for key1, value1 in value.items() %}
-      <!--<tr>-->
-        <th colspan="100%"> {{key1}} </th>
-      <!--</tr>-->
-      {% for key2, value2 in value1.items() %}
-      <tr>
-        {% for key3, value3 in value2.items() %}
-        <td>
-          {% if key3 == season_title[8:] and if key2 == var_title[10:] %}
-          <a style="color: black; text-decoration: underline;">{{ key3 }}</a>
-          {% else %}
-          <a href="{{ value3 }}">{{ key3 }}</a>
-          {% endif %}
-        </td>
+          <h3>{{key}}</h3>
+          <table class="big-table">
+            {% for key1, value1 in value.items() %}
+              <th colspan="100%"> {{key1}} </th>
+              {% for key2, value2 in value1.items() %}
+              <tr>
+                {% for key3, value3 in value2.items() %}
+                <td>
+                  {% if ( key3 == season_title[8:] and if key2 == var_title[10:] ) %}
+                  <a style="color: black; text-decoration: underline;">{{ key3 }}</a>
+                  {% else %}
+                  <a href="{{ value3 }}">{{ key3 }}</a>
+                  {% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            {% endfor %}
+            
+          </table>
         {% endfor %}
-      </tr>
-      {% endfor %}
-      {% endfor %}
-      
-    </table>
-    {% endfor %}
         <div style="padding-bottom: 50px;"> 
         </div>
       </div> <!-- end left inner div -->
