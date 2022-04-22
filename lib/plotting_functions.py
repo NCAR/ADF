@@ -14,6 +14,7 @@ import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
 
+
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
 
@@ -80,7 +81,6 @@ def global_average(fld, wgt, verbose=False):
             break
     fld2 = np.ma.masked_invalid(fld)
     if verbose:
-        print("(global_average)-- fraction input missing: {}".format(fraction_nan(fld)))
         print("(global_average)-- fraction of mask that is True: {}".format(np.count_nonzero(fld2.mask) / np.size(fld2)))
         print("(global_average)-- apply ma.average along axis = {} // validate: {}".format(a, fld2.shape))
     avg1, sofw = np.ma.average(fld2, axis=a, weights=wgt, returned=True) # sofw is sum of weights
@@ -100,6 +100,11 @@ def wgt_rmse(fld1, fld2, wgt):
     """
     assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
+    # in case these fields are in dask arrays, compute them now.
+    if hasattr(fld1, "compute"):
+        fld1 = fld1.compute()
+    if hasattr(fld2, "compute"):
+        fld2 = fld2.compute()
     if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
         return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
     else:
@@ -337,6 +342,11 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
                                                                     p0=P0
                                                                    )
 
+    # data_interp may contain a dask array, which can cause
+    # trouble downstream with numpy functions, so call compute() here.
+    if hasattr(data_interp, "compute"):
+        data_interp = data_interp.compute()
+
     #Rename vertical dimension back to "lev" in order to work with
     #the ADF plotting functions:
     data_interp_rename = data_interp.rename({"plev": "lev"})
@@ -483,6 +493,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         bzm = zonal_mean_xr(bplev)
 
         diff = azm - bzm
+
         # determine levels & color normalization:
         minval = np.min([np.min(azm), np.min(bzm)])
         maxval = np.max([np.max(azm), np.max(bzm)])
@@ -547,7 +558,6 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
         # Generate zonal plot:
-        diffnorm = normfunc(vmin=min(np.min(diff),-1*np.max(diff)), vcenter=0.0, vmax=np.max(diff))
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**subplots_opt)
         img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
         img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
