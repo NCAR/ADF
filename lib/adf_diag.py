@@ -621,7 +621,7 @@ class AdfDiag(AdfObs):
             hist_file_var_list = list(xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False).data_vars)
             #Note: could use `open_mfdataset`, but that can become very slow;
             #      This approach effectively assumes that all files contain the same variables.
-            
+
             #Check if time series directory exists, and if not, then create it:
             #Use pathlib to create parent directories, if necessary.
             Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
@@ -643,7 +643,7 @@ class AdfDiag(AdfObs):
             list_of_commands = []
             for var in self.diag_var_list:
                 if var not in hist_file_var_list:
-                    print(f"WARNING: {var} is not in the file {hist_files[1]}. No time series will be generated.")
+                    print(f"WARNING: {var} is not in the file {hist_files[0]}. No time series will be generated.")
                     continue
 
                 #Create full path name,  file name template:
@@ -784,12 +784,24 @@ class AdfDiag(AdfObs):
         if not anly_func_names:
             print("Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
             return
+        #End if
 
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
+            #Set data_name to basline case:
             data_name = self.get_baseline_info('cam_case_name', required=True)
+
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #If years exist, then add them to the data_name string:
+            if syear_baseline and eyear_baseline:
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            #End if
+        #End if
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
         #Please note that this is also assumed to be the output location for the analyses scripts:
@@ -810,13 +822,16 @@ class AdfDiag(AdfObs):
             #Loop over cases:
             for case_idx, case_name in enumerate(case_names):
 
-                #Check if case has start and end years:
+                #Set case name if start and end year are present:
                 if syears[case_idx] and eyears[case_idx]:
-                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
-                else:
-                    direc_name = f"{case_name}_vs_{data_name}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
+                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+                #End if
+
+                #Set the final directory name and save it to plot_location:
+                direc_name = f"{case_name}_vs_{data_name}"
+                self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            #End for
+        #End if
 
         #Run the listed scripts:
         self.__diag_scripts_caller("analysis", anly_func_names,
@@ -849,12 +864,24 @@ class AdfDiag(AdfObs):
         if not plot_func_names:
             print("Nothing listed under 'plotting_scripts', so no plots will be made.")
             return
+        #End if
 
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
+            #Set data_name to basline case:
             data_name = self.get_baseline_info('cam_case_name', required=True)
+
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #If years exist, then add them to the data_name string:
+            if syear_baseline and eyear_baseline:
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            #End if
+        #End if
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
         if not self.__plot_location:
@@ -874,13 +901,16 @@ class AdfDiag(AdfObs):
             #Loop over cases:
             for case_idx, case_name in enumerate(case_names):
 
-                #Check if case has start and end years:
+                #Set case name if start and end year are present:
                 if syears[case_idx] and eyears[case_idx]:
-                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
-                else:
-                    direc_name = f"{case_name}_vs_{data_name}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
+                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+                #End if
+
+                #Set the final directory name and save it to plot_location:
+                direc_name = f"{case_name}_vs_{data_name}"
+                self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            #End for
+        #End if
 
         #Run the listed scripts:
         self.__diag_scripts_caller("plotting", plot_func_names,
