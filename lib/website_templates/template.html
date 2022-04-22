@@ -47,7 +47,7 @@
                 {% for key3, value3 in value2.items() %}
                 <td>
                   {% if (key3 == season_title[8:]) and (key1 == var_title[10:]) %}
-                  <a style="color: black; text-decoration: underline;">{{ key3 }}</a>
+                  <a style="color: black; text-decoration: underline; font-weight: bold;">{{ key3 }}</a>
                   {% else %}
                   <a href="{{ value3 }}">{{ key3 }}</a>
                   {% endif %}
