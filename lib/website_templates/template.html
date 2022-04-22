@@ -28,13 +28,12 @@
      <h1> {{title}} </h1>
      <h2> Test Case: {{case1}}</h2>
      <h2> Control Case: {{case2}}</h2>
-     {{plottype_title}}
      <h2>Plot Types: 
       <a href=../html_table/mean_table.html> Tables</a> 
       {% for type, html_file in plot_types.items() %}
-      {% if type == plottype_title[6:] %}
+      <!--{% if type == plottype_title[6:] %}
       <a style="color: black; text-decoration: underline;"> {{type}}</a>
-      {% else %}
+      {% else %}-->
       <a href=../{{html_file}}> {{type}}</a>
       {% endif %}
       {% endfor %}
@@ -70,7 +69,7 @@
       
       <div id="footer">
       <div class="fixedDiv" style="width: 50%; height: 100px; float: right; padding-right: 50px; padding-bottom: 50px;">
-        <h2> {{plottype_title}} &emsp;&emsp; {{var_title}} &emsp;&emsp; {{season_title}}</h2>
+        <h2> {{plottype_title}} &emsp; {{var_title}} &emsp; {{season_title}}</h2>
         <a href="{{value[0]}}" target="_blank">
           <img src="{{value[0]}}" alt="{{value[1]}}"></img>
         </a>
