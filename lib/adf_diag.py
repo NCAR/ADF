@@ -941,7 +941,6 @@ class AdfDiag(AdfObs):
         season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
         # Variable categories
-        #subcatlist = ["Cloud", "Radiation", "Surface", "State", "Aerosol", "Winds", "DeepConv" "CLUBB"]
         var_cat_dict = {
             'Clouds': ['ACTNI', 'ACTNL', 'ACTREI', 'ACTREL', 'ADRAIN', 'ADSNOW', 'AREI', 'AREL', 'CCN3', 'CDNUMC', 'CLDHGH', 'CLDICE', 'CLDLIQ', 'CLDLOW', 'CLDMED', 'CLDTOT', 'CLOUD', 'CONCLD', 'EVAPPREC', 'EVAPSNOW', 'FCTI', 'FCTL', 'FICE', 'FREQI', 'FREQL', 'FREQR', 'FREQS', 'MPDQ', 'PRECC', 'PRECL', 'PRECSC', 'PRECSL', 'PRECT', 'TGCLDIWP', 'TGCLDLWP'],
             'Deep Convection': ['CAPE', 'CMFMC_DP', 'FREQZM', 'ZMDQ', 'ZMDT'],
@@ -1023,7 +1022,8 @@ class AdfDiag(AdfObs):
                 
                 # ---------------------------
                 # This code eleminates the error of disappearing seasons...
-                # Can't figure why I have to make simialr nested loop to create it and not from the same nested loop below....
+                # Can't figure why I have to make similar nested loop to create it 
+                # # and not from the same nested loop below....
                 indv_html_info = OrderedDict()
                 for var in var_list_alpha:
                         #Loop over seasons:
