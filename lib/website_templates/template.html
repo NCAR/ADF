@@ -45,11 +45,10 @@
         <th colspan="100%"> {{key1}} </th>
       <!--</tr>-->
       {% for key2, value2 in value1.items() %}
-      {% if key2 == var_title[10:] %}
       <tr>
         {% for key3, value3 in value2.items() %}
         <td>
-          {% if key3 == season_title[8:] %}
+          {% if key3 == season_title[8:] and if key2 == var_title[10:] %}
           <a style="color: black; text-decoration: underline;">{{ key3 }}</a>
           {% else %}
           <a href="{{ value3 }}">{{ key3 }}</a>
@@ -57,17 +56,6 @@
         </td>
         {% endfor %}
       </tr>
-
-      {% else %}
-      <tr>
-        {% for key3, value3 in value2.items() %}
-        <td>
-          <a href="{{ value3 }}">{{ key3 }}</a>
-        </td>
-        {% endfor %}
-      </tr>
-      {% endif %}
-
       {% endfor %}
       {% endfor %}
       
