@@ -245,7 +245,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
-    fig = plt.figure(figsize=(18,12))
+    fig = plt.figure(figsize=(18,16))
     # LAYOUT WITH GRIDSPEC
     gs = gridspec.GridSpec(2, 4, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
     #gs.update(wspace=0.5,hspace=0.05)
