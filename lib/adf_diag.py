@@ -16,6 +16,8 @@ import os
 import os.path
 import glob
 import subprocess
+import multiprocessing as mp
+
 import importlib
 import copy
 
@@ -462,6 +464,15 @@ class AdfDiag(AdfObs):
         Generate time series versions of the CAM history file data.
         """
 
+        global call_ncrcat
+        def call_ncrcat(cmd):
+            '''this is an internal function to `create_time_series`
+            It just wraps the subprocess.call() function, so it can be
+            used with the multiprocessing Pool that is constructed below.
+            It is declared as global to avoid AttributeError.
+            '''
+            return subprocess.run(cmd, shell=False)
+
         #Check if baseline time-series files are being created:
         if baseline:
             #Then use the CAM baseline climo dictionary
@@ -606,6 +617,10 @@ class AdfDiag(AdfObs):
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
+            #Get a list of data variables in the 1st hist file:
+            hist_file_var_list = list(xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False).data_vars)
+            #Note: could use `open_mfdataset`, but that can become very slow;
+            #      This approach effectively assumes that all files contain the same variables.
 
             #Check if time series directory exists, and if not, then create it:
             #Use pathlib to create parent directories, if necessary.
@@ -625,7 +640,11 @@ class AdfDiag(AdfObs):
             time_string = "-".join([time_string_start, time_string_finish])
 
             #Loop over CAM history variables:
+            list_of_commands = []
             for var in self.diag_var_list:
+                if var not in hist_file_var_list:
+                    print(f"WARNING: {var} is not in the file {hist_files[0]}. No time series will be generated.")
+                    continue
 
                 #Create full path name,  file name template:
                 #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
@@ -648,9 +667,16 @@ class AdfDiag(AdfObs):
                 #Run "ncrcat" command to generate time series file:
                 cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
                        hist_files + ["-o", ts_outfil_str]
-                subprocess.run(cmd, check=True)
+
+                #Add to command list for use in multi-processing pool:
+                list_of_commands.append(cmd)
 
             #End variable loop
+
+            #Now run the "ncrcat" subprocesses in parallel:
+            with mp.Pool(processes=self.num_procs) as p:
+                result = p.map(call_ncrcat, list_of_commands)
+            #End with
 
         #End cases loop
 
@@ -758,12 +784,24 @@ class AdfDiag(AdfObs):
         if not anly_func_names:
             print("Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
             return
+        #End if
 
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
+            #Set data_name to basline case:
             data_name = self.get_baseline_info('cam_case_name', required=True)
+
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #If years exist, then add them to the data_name string:
+            if syear_baseline and eyear_baseline:
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            #End if
+        #End if
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
         #Please note that this is also assumed to be the output location for the analyses scripts:
@@ -784,13 +822,16 @@ class AdfDiag(AdfObs):
             #Loop over cases:
             for case_idx, case_name in enumerate(case_names):
 
-                #Check if case has start and end years:
+                #Set case name if start and end year are present:
                 if syears[case_idx] and eyears[case_idx]:
-                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
-                else:
-                    direc_name = f"{case_name}_vs_{data_name}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
+                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+                #End if
+
+                #Set the final directory name and save it to plot_location:
+                direc_name = f"{case_name}_vs_{data_name}"
+                self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            #End for
+        #End if
 
         #Run the listed scripts:
         self.__diag_scripts_caller("analysis", anly_func_names,
@@ -823,12 +864,24 @@ class AdfDiag(AdfObs):
         if not plot_func_names:
             print("Nothing listed under 'plotting_scripts', so no plots will be made.")
             return
+        #End if
 
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
+            #Set data_name to basline case:
             data_name = self.get_baseline_info('cam_case_name', required=True)
+
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #If years exist, then add them to the data_name string:
+            if syear_baseline and eyear_baseline:
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            #End if
+        #End if
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
         if not self.__plot_location:
@@ -848,13 +901,16 @@ class AdfDiag(AdfObs):
             #Loop over cases:
             for case_idx, case_name in enumerate(case_names):
 
-                #Check if case has start and end years:
+                #Set case name if start and end year are present:
                 if syears[case_idx] and eyears[case_idx]:
-                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
-                else:
-                    direc_name = f"{case_name}_vs_{data_name}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
+                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+                #End if
+
+                #Set the final directory name and save it to plot_location:
+                direc_name = f"{case_name}_vs_{data_name}"
+                self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            #End for
+        #End if
 
         #Run the listed scripts:
         self.__diag_scripts_caller("plotting", plot_func_names,
