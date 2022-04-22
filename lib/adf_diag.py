@@ -1216,7 +1216,7 @@ class AdfDiag(AdfObs):
                 #Construct mean_table.html
                 mean_title = "AMP Diagnostic Tables:"
                 mean_tmpl = jinenv.get_template('template_mean_table.html')
-                mean_rndr = mean_tmpl.render(title=main_title,plottype_title="Table"
+                mean_rndr = mean_tmpl.render(title=main_title,
                                 value=amwg_table_data,
                                 case1=case_name,
                                 case2=data_name,
