@@ -206,7 +206,6 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         levels1 = np.linspace(minval, maxval, 12)
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
 
-
     if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
         if ((minval < 0) and (0 < maxval)) and mplv > 2:
             norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
@@ -248,9 +247,8 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     fig = plt.figure(figsize=(14,8))
     # LAYOUT WITH GRIDSPEC
-    gs = gridspec.GridSpec(2, 4) # 2 rows, 4 columns, but each map will take up 2 columns
-    gs.update(wspace=0.5,hspace=0.05)
-    #gs.update(hspace=0.09)
+    gs = gridspec.GridSpec(2, 4, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
+    #gs.update(wspace=0.5,hspace=0.05)
     gs.tight_layout(fig)
     proj = ccrs.PlateCarree()
     ax1 = plt.subplot(gs[0, :2], projection=proj)
@@ -273,8 +271,8 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             norm = norm1
 
         img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
-        #cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
+        
         # add contour lines <- Unused for now -JN
         # TODO: add an option to turn this on -BM
         #cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))

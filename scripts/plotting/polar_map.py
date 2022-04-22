@@ -396,8 +396,8 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
     lons, lats = np.meshgrid(lon_cyclic, d1.lat)
 
     fig = plt.figure(figsize=(10,10))
-    gs = gridspec.GridSpec(2, 4)
-    gs.update(wspace=0.9)
+    gs = gridspec.GridSpec(2, 4, wspace=0.9)
+    #gs.update(wspace=0.9)
     ax1 = plt.subplot(gs[0, :2], projection=proj)
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
     ax3 = plt.subplot(gs[1, 1:3], projection=proj)
