@@ -293,7 +293,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.tick_params('both', length=5, width=1, which='minor')
 
     # __COLORBARS__
-    """cb_mean_ax = inset_axes(ax2,
+    cb_mean_ax = inset_axes(ax2,
                     width="5%",  # width = 5% of parent_bbox width
                     height="100%",  # height : 50%
                     loc='lower left',
@@ -301,9 +301,9 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax2.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[1], cax=cb_mean_ax)"""
+    fig.colorbar(img[1], cax=cb_mean_ax)
 
-    """cb_diff_ax = inset_axes(ax3,
+    cb_diff_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
                     height="100%",  # height : 50%
                     loc='lower left',
@@ -311,7 +311,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax3.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[2], cax=cb_diff_ax)"""
+    fig.colorbar(img[2], cax=cb_diff_ax)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
