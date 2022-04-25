@@ -250,9 +250,11 @@ def amwg_table(adf):
     #End of model case loop
     #----------------------
 
-    #Create comparison table for both cases
-    print("  Making comparison table...")
-    _df_comp_table(write_html,output_location,list(case_names))
+    #Check if observations are being comapred to, if so skip table comparison...
+    if not adf.get_basic_info("compare_obs"):
+        #Create comparison table for both cases
+        print("  Making comparison table...")
+        _df_comp_table(write_html,output_location,list(case_names))
 
     #Notify user that script has ended:
     print("...AMWG variable table has been generated successfully.")
