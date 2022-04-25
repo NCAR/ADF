@@ -1061,8 +1061,10 @@ class AdfDiag(AdfObs):
                     #End if (table html file exists check)
                 #End for (case vs data)
 
-                #Add comparison table to website dictionary
-                amwg_tables["Case Comparison"] = comp_table.name
+                #Check if comp table exists (if not, then obs are being compared and comp table is not created)
+                if comp_table_html_file:
+                    #Add comparison table to website dictionary
+                    amwg_tables["Case Comparison"] = comp_table.name
 
                 #Construct mean_table.html
                 mean_title = "AMP Diagnostic Tables:"
