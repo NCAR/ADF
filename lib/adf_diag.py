@@ -1207,7 +1207,7 @@ class AdfDiag(AdfObs):
                     #i+=1
                 #End for (case vs data)
 
-                if comp_table:
+                if comp_table_html_file:
                     #Add comparison table to website dictionary
                     amwg_tables["Case Comparison"] = comp_table.name
                 
