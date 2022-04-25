@@ -1207,8 +1207,9 @@ class AdfDiag(AdfObs):
                     #i+=1
                 #End for (case vs data)
 
-                #Add comparison table to website dictionary
-                amwg_tables["Case Comparison"] = comp_table.name
+                if comp_table:
+                    #Add comparison table to website dictionary
+                    amwg_tables["Case Comparison"] = comp_table.name
                 
                 # need this to grab the locations of the amwg tables...
                 amwg_table_data = [str(table_pages_dir / table_html.name), ""]
