@@ -256,9 +256,11 @@ def amwg_table(adf):
     #End of model case loop
     #----------------------
 
-    #Create comparison table for both cases
-    print("  Making comparison table...")
-    _df_comp_table(write_html,output_location,list(case_names))
+    #Check if observations are being comapred to, if so skip table comparison...
+    if not adf.get_basic_info("compare_obs"):
+        #Create comparison table for both cases
+        print("  Making comparison table...")
+        _df_comp_table(write_html,output_location,list(case_names))
 
     #Notify user that script has ended:
     print("...AMWG variable table has been generated successfully.")
@@ -361,7 +363,10 @@ def _df_comp_table(write_html,output_location,case_names):
     import pandas as pd
 
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-    # first csv is case and second is baseline/obs 
+    # first csv is case and second is baseline 
+
+    # Obs are not currently creating a table, so this will only
+    # work with model vs model at the moment!
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
     case = output_location/f"amwg_table_{case_names[0]}.csv"
