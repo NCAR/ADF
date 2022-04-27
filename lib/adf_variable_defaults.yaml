@@ -32,11 +32,10 @@
 #
 # VECTORS:
 #
-# vector_pair  -> Another variable that when combined with the given varible makes up a vector pair.
+# vector_pair  -> Another variable that when combined with the given variable makes up a vector pair.
 #                 If this default is not present then it is assumed the given variable is not a vector
-#                 component, and will thus be skipped during that plotting phase.
-#
-# vector_name  -> The name of the vector the variable is associated with, and which will be used to
+#                 component, and will thus be skipped during the vector plotting phase.
+# vector_name  -> The name of the vector the variable is associated with, which will be used to
 #                 title the respective vector plot(s).
 #
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
