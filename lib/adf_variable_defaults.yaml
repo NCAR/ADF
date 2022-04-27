@@ -30,6 +30,15 @@
 # obs_var_name -> Variable in the observations file to compare against.  If this isn't present then the
 #                 variable name is assumed to be the same as the model variable name.
 #
+# VECTORS:
+#
+# vector_pair  -> Another variable that when combined with the given varible makes up a vector pair.
+#                 If this default is not present then it is assumed the given variable is not a vector
+#                 component, and will thus be skipped during that plotting phase.
+#
+# vector_name  -> The name of the vector the variable is associated with, and which will be used to
+#                 title the respective vector plot(s).
+#
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
 #              If you would like to modify this file for your personal ADF runs then it is recommended
 #              to make a copy of this file, make modifications in that copy, and then point the ADF to
@@ -231,7 +240,7 @@ V:
     colorbar:
       label : "ms$^{-1}$"
   obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"  
+  obs_name: "ERAI"
   obs_var_name: "V"
   vector_pair: "U"
   vector_name: "Wind"

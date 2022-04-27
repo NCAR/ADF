@@ -126,7 +126,8 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
     """This plots a vector plot. bringing in two variables which respresent a vector pair
 
     kwargs -> optional dictionary of plotting options
-             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
+             ** Expecting this to be a variable-specific section,
+                possibly provided by an ADF Variable Defaults YAML file.**
 
     """
 
@@ -146,11 +147,12 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
     skip=(slice(None,None,5),slice(None,None,8))
 
     title_string = "Missing title!"
-    title_string_base = title_string 
+    title_string_base = title_string
     if "var_name" in kwargs:
         var_name = kwargs["var_name"]
     else:
         var_name = "missing VAR name"
+    #End if
 
     if "case_name" in kwargs:
         case_name = kwargs["case_name"]
@@ -158,25 +160,48 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
             title_string = f"{case_name} {var_name} [{plev} hPa]"
         else:
             title_string = f"{case_name} {var_name}"
+        #End if
+    #End if
     if "baseline" in kwargs:
         data_name = kwargs["baseline"]
         if plev:
             title_string_base = f"{data_name} {var_name} [{plev} hPa]"
         else:
             title_string_base = f"{data_name} {var_name}"
+        #End if
+    #End if
 
-    # Candidate 1:
+    # Calculate vector magnitudes.
+    # Please note that the difference field needs
+    # to be calculated from the model and obs fields
+    # in order to get the correct sign:
+    mdl_mag  = np.sqrt(umdlfld**2 + vmdlfld**2)
+    obs_mag  = np.sqrt(uobsfld**2 + vobsfld**2)
+    diff_mag = mdl_mag - obs_mag
+
+    # Get difference limits, in order to plot the correct range:
+    min_diff_val = np.min(diff_mag)
+    max_diff_val = np.max(diff_mag)
+
+    # Color normalization for difference
+    if (min_diff_val < 0) and (0 < max_diff_val):
+        normdiff = mpl.colors.TwoSlopeNorm(vmin=min_diff_val, vmax=max_diff_val, vcenter=0.0)
+    else:
+        normdiff = mpl.colors.Normalize(vmin=min_diff_val, vmax=max_diff_val)
+    #End if
+
+    # Generate vector plot:
     #  - contourf to show magnitude w/ colorbar
     #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
-    img1 = ax1.contourf(lons, lats, np.sqrt(umdlfld**2 + vmdlfld**2), cmap='Greys', transform=ccrs.PlateCarree())
-    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], np.sqrt(umdlfld**2 + vmdlfld**2).values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
     ax1.set_title(title_string)
 
-    img2 = ax2.contourf(lons, lats, np.sqrt(umdlfld**2 + vmdlfld**2), cmap='Greys', transform=ccrs.PlateCarree())
-    ax2.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], np.sqrt(umdlfld**2 + vmdlfld**2).values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
     ax2.set_title(title_string_base)
 
-    ## Add colorbar to Candidate 1:
+    ## Add colorbar to vector plot:
     cb_c1_ax = inset_axes(ax1,
                    width="3%",  # width = 5% of parent_bbox width
                    height="90%",  # height : 50%
@@ -189,11 +214,11 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
     fig.colorbar(img1, cax=cb_c1_ax)
     fig.colorbar(img2, cax=cb_c1_ax)
 
-
-    img3 = ax3.contourf(lons, lats, np.sqrt(udiffld**2 + vdiffld**2), transform=ccrs.PlateCarree(), norm=mpl.colors.TwoSlopeNorm(vmin=-5, vcenter=0.0, vmax=5), cmap='PuOr', alpha=0.5)
+    # Plot vector differences:
+    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
     ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
 
-    ax3.set_title(f"Difference []", loc='left')
+    ax3.set_title(f"Difference in {var_name}", loc='left')
     cb_d_ax = inset_axes(ax3,
                    width="3%",  # width = 5% of parent_bbox width
                    height="90%",  # height : 50%
@@ -204,16 +229,17 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
                    )
     fig.colorbar(img3, cax=cb_d_ax)
 
-#    [a.coastlines() for a in [ax1,ax2,ax3]]
-    [a.coastlines() for a in [ax1,ax3]]
+    # Add coastlines:
+    [a.coastlines() for a in [ax1,ax2,ax3]]
 
-    # Write final figure to file    
+    # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
     #Close plots:
     plt.close()
 
 
+#######
 
 def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
