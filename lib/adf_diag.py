@@ -617,6 +617,10 @@ class AdfDiag(AdfObs):
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
+            #Get a list of data variables in the 1st hist file:
+            hist_file_var_list = list(xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False).data_vars)
+            #Note: could use `open_mfdataset`, but that can become very slow;
+            #      This approach effectively assumes that all files contain the same variables.
 
             #Check if time series directory exists, and if not, then create it:
             #Use pathlib to create parent directories, if necessary.
@@ -638,6 +642,9 @@ class AdfDiag(AdfObs):
             #Loop over CAM history variables:
             list_of_commands = []
             for var in self.diag_var_list:
+                if var not in hist_file_var_list:
+                    print(f"WARNING: {var} is not in the file {hist_files[0]}. No time series will be generated.")
+                    continue
 
                 #Create full path name,  file name template:
                 #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
@@ -777,12 +784,24 @@ class AdfDiag(AdfObs):
         if not anly_func_names:
             print("Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
             return
+        #End if
 
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
+            #Set data_name to basline case:
             data_name = self.get_baseline_info('cam_case_name', required=True)
+
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #If years exist, then add them to the data_name string:
+            if syear_baseline and eyear_baseline:
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            #End if
+        #End if
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
         #Please note that this is also assumed to be the output location for the analyses scripts:
@@ -803,13 +822,16 @@ class AdfDiag(AdfObs):
             #Loop over cases:
             for case_idx, case_name in enumerate(case_names):
 
-                #Check if case has start and end years:
+                #Set case name if start and end year are present:
                 if syears[case_idx] and eyears[case_idx]:
-                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
-                else:
-                    direc_name = f"{case_name}_vs_{data_name}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
+                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+                #End if
+
+                #Set the final directory name and save it to plot_location:
+                direc_name = f"{case_name}_vs_{data_name}"
+                self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            #End for
+        #End if
 
         #Run the listed scripts:
         self.__diag_scripts_caller("analysis", anly_func_names,
@@ -842,12 +864,24 @@ class AdfDiag(AdfObs):
         if not plot_func_names:
             print("Nothing listed under 'plotting_scripts', so no plots will be made.")
             return
+        #End if
 
         #Set "data_name" variable, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "obs"
         else:
+            #Set data_name to basline case:
             data_name = self.get_baseline_info('cam_case_name', required=True)
+
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #If years exist, then add them to the data_name string:
+            if syear_baseline and eyear_baseline:
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            #End if
+        #End if
 
         #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
         if not self.__plot_location:
@@ -867,13 +901,16 @@ class AdfDiag(AdfObs):
             #Loop over cases:
             for case_idx, case_name in enumerate(case_names):
 
-                #Check if case has start and end years:
+                #Set case name if start and end year are present:
                 if syears[case_idx] and eyears[case_idx]:
-                    direc_name = f"{case_name}_vs_{data_name}_{syears[case_idx]}_{eyears[case_idx]}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
-                else:
-                    direc_name = f"{case_name}_vs_{data_name}"
-                    self.__plot_location.append(os.path.join(plot_dir, direc_name))
+                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+                #End if
+
+                #Set the final directory name and save it to plot_location:
+                direc_name = f"{case_name}_vs_{data_name}"
+                self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            #End for
+        #End if
 
         #Run the listed scripts:
         self.__diag_scripts_caller("plotting", plot_func_names,
@@ -965,9 +1002,21 @@ class AdfDiag(AdfObs):
         pres_levs = self.get_basic_info("plot_press_levels")
         if pres_levs:
             for pres in pres_levs:
-                plot_type_order.append(f"Lev_{pres}hpa_LatLon")
+                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Mean")
+                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Vector_Mean")
             #End for
         #End if
+
+        #Check if any variables are associated with specific vector quantities,
+        #and if so then add the vectors to the website variable list.
+        for var in var_list:
+            if var in self.variable_defaults:
+                vect_name = self.variable_defaults[var].get("vector_name", None)
+                if vect_name and (vect_name not in var_list):
+                    var_list.append(vect_name)
+                #End if
+            #End if
+        #End for
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
@@ -1003,13 +1052,13 @@ class AdfDiag(AdfObs):
             #Copy CSS files over to output directory:
             for css_file in jinja_template_dir.glob('*.css'):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
+            #End for
 
             #Copy images into the website image dictionary:
             for img in plot_path.glob("*.png"):
                 idest = assets_dir / img.name
                 shutil.copyfile(img, idest) # store image in assets
-
-            
+            #End for
 
             #Loop over plot type:
             for ptype in plot_type_order:
@@ -1064,7 +1113,7 @@ class AdfDiag(AdfObs):
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}.png"):
                             alt_text  = img.stem #Extract image file name text
 
                             #Create output file (don't worry about analysis type for now):
@@ -1139,6 +1188,7 @@ class AdfDiag(AdfObs):
             #Also grab baseline/obs tables, which are always stored in the first case directory:
             if case_idx == 0:
                 data_table_html_files = list(plot_path.glob(f"amwg_table_{data_name}*.html"))
+            #End if
 
             #Determine if any AMWG tables were generated:
             if table_html_files:
@@ -1160,10 +1210,12 @@ class AdfDiag(AdfObs):
                 #Move all case table html files to new directory:
                 for table_html in table_html_files:
                     shutil.move(table_html, table_pages_dir / table_html.name)
+                #End for
 
                 #copy all data table html files as well:
                 for data_table_html in data_table_html_files:
                     shutil.copy2(data_table_html, table_pages_dir / data_table_html.name)
+                #End for
 
                 #Construct dictionary needed for HTML page:
                 amwg_tables = OrderedDict()
@@ -1263,6 +1315,8 @@ class AdfDiag(AdfObs):
                 #Finally, if first case, then also copy templates directory for CSS files:
                 if case_idx == 0:
                     shutil.copytree(css_files_dir, main_site_path / "templates")
+                #End if
+            #End if
 
         #End for (model case loop)
 
@@ -1278,6 +1332,7 @@ class AdfDiag(AdfObs):
             with open(outputfile, 'w', encoding='utf-8') as ofil:
                 ofil.write(main_rndr)
             #End with
+        #End if
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
@@ -1315,6 +1370,7 @@ class AdfDiag(AdfObs):
         #end if
         if not os.path.isdir(cvdp_dir):
             shutil.copytree(self.get_cvdp_info('cvdp_codebase_loc', required=True),cvdp_dir)
+        #End if
 
         #check to see if there is a CAM baseline case. If there is, read in relevant information.
         if not self.get_basic_info('compare_obs'):
@@ -1322,6 +1378,7 @@ class AdfDiag(AdfObs):
             syears_baseline = self.get_baseline_info('start_year')
             eyears_baseline = self.get_baseline_info('end_year')
             baseline_ts_loc = self.get_baseline_info('cam_ts_loc')
+        #End if
 
         #Loop over cases to create individual text array to be written to namelist file.
         row_list = []
@@ -1329,12 +1386,14 @@ class AdfDiag(AdfObs):
             row = [case_name,' | ',str(cam_ts_loc[case_idx]),os.sep,' | ',
                    str(syears[case_idx]),' | ',str(eyears[case_idx])]
             row_list.append("".join(row))
+        #End for
 
         #Create new namelist file. If CAM baseline case present add it to list,
         #namelist file must end in a blank line.
         with open(os.path.join(cvdp_dir, "namelist"), 'w', encoding='utf-8') as fnml:
             for rowtext in row_list:
                 fnml.write(rowtext)
+            #End for
             fnml.write('\n\n')
             if "baseline_ts_loc" in locals():
                 rowb = [case_name_baseline,' | ',str(baseline_ts_loc),os.sep,' | ',
@@ -1371,6 +1430,8 @@ class AdfDiag(AdfObs):
                 if self.get_cvdp_info('cvdp_tar'):
                     if '  tar_output  ' in line:
                         line = '  tar_output = "True"'
+                    #End if
+                #End if
                 f_out.write(line)
             #End for
         #End with
@@ -1392,6 +1453,7 @@ class AdfDiag(AdfObs):
         else:
             print(f'CVDP graphical and netCDF file output can be found here: {cvdp_dir}/output/')
             print(f'Open {cvdp_dir}/output/index.html file in web browser to view CVDP results.')
+        #End if
         print('For CVDP information visit: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/')
         print('   ')
 

@@ -315,6 +315,7 @@ analysis_scripts:
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
     - global_latlon_map
+    - global_latlon_vect_map
     - zonal_mean
     - polar_map
 
@@ -329,6 +330,8 @@ diag_var_list:
     - Q
     - TREFHT
     - TS
+    - TAUX
+    - TAUY
 #<Add more variables here.>
 
 #END OF FILE
