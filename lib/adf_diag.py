@@ -1063,7 +1063,11 @@ class AdfDiag(AdfObs):
                     for comp_table in comp_table_html_file:
                         shutil.move(comp_table, table_pages_dir / comp_table.name)
                     #Add comparison table to website dictionary
+                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                    #This will be for single-case for now, 
+                    #will need to think how to change as multi-case is introduced
                     amwg_tables["Case Comparison"] = comp_table.name
+                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
                 #Construct mean_table.html
                 mean_title = "AMP Diagnostic Tables:"
