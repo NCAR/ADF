@@ -320,10 +320,7 @@ def _df_comp_table(write_html,output_location,case_names):
     df_comp[['variable','unit','case']] = df_case[['variable','unit','mean']]
     df_comp['baseline'] = df_base[['mean']]
     
-    # ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * !
-    # Should this be an absolute value difference, or case minus baseline?
-    # ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * !
-    df_comp['diff'] = df_comp['baseline'].values-df_comp['case'].values
+    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
 
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
