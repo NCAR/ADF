@@ -1085,7 +1085,7 @@ class AdfDiag(AdfObs):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
 
                             # Search through all categories and see which one the current variable is part of
-                            if next((cat for cat, varz in var_cat_dict.items() if var in varz), None) == None:
+                            if next((cat for (cat, varz) in var_cat_dict.items() if var in varz), None) is None:
                                 category = 'No category yet'
                             else:
                                 category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
@@ -1123,7 +1123,7 @@ class AdfDiag(AdfObs):
 
                            
                             # Search through all categories and see which one the current variable is part of
-                            if next((cat for cat, varz in var_cat_dict.items() if var in varz), None) == None:
+                            if next((cat for (cat, varz) in var_cat_dict.items() if var in varz), None) is None:
                                 category = 'No category yet'
                             else:
                                 category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
