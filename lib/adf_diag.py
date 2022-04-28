@@ -1122,7 +1122,7 @@ class AdfDiag(AdfObs):
 
                             #Write mean diagnostic plots HTML file:
                             outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
-                            with open(outputfile,'w') as ofil:
+                            with open(outputfile,'w', encoding='utf-8') as ofil:
                                 ofil.write(mean_rndr)
                             #End with
                             
