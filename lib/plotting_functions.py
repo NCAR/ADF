@@ -559,13 +559,24 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
 
         # Generate zonal plot:
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**subplots_opt)
-        img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
-        img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
-        img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=normdiff,cmap=cmapdiff,levels=levelsdiff,**contourf_opt)
+        levs = np.unique(np.array(levels1))
+        if len(levs) < 2:
+            empty_message = "No Valid\nData Points"
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+            img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0])
+            ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
+            img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1])
+            ax[1].text(0.4, 0.4, empty_message, transform=ax[1].transAxes, bbox=props)
+            img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2])
+            ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
+        else:
+            img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
+            img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
+            img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=normdiff,cmap=cmapdiff,levels=levelsdiff,**contourf_opt)
+            cb0 = fig.colorbar(img0, ax=ax[0], location='right',**colorbar_opt)
+            cb1 = fig.colorbar(img1, ax=ax[1], location='right',**colorbar_opt)
+            cb2 = fig.colorbar(img2, ax=ax[2], location='right',**colorbar_opt)
         # style the plot:
-        cb0 = fig.colorbar(img0, ax=ax[0], location='right',**colorbar_opt)
-        cb1 = fig.colorbar(img1, ax=ax[1], location='right',**colorbar_opt)
-        cb2 = fig.colorbar(img2, ax=ax[2], location='right',**colorbar_opt)
         ax[-1].set_xlabel("LATITUDE")
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
