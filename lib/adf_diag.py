@@ -1071,7 +1071,7 @@ class AdfDiag(AdfObs):
                 
                 # ---------------------------
                 # This code eleminates the error of disappearing seasons...
-                # Can't figure why I have to make similar nested loop to create it 
+                # Can't figure why I have to make similar nested loop to create it
                 # # and not from the same nested loop below....
                 indv_html_info = OrderedDict()
                 for var in var_list_alpha:
@@ -1105,7 +1105,7 @@ class AdfDiag(AdfObs):
                             if season not in indv_html_info[category][var][ptype]:
                                 indv_html_info[category][var][ptype][season] = OrderedDict()
 
-                            indv_html_info[category][var][ptype][season] = outputfile.name       
+                            indv_html_info[category][var][ptype][season] = outputfile.name
 
 
                 #Loop over variables:
@@ -1121,7 +1121,6 @@ class AdfDiag(AdfObs):
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
 
-                           
                             # Search through all categories and see which one the current variable is part of
                             if next((cat for (cat, varz) in var_cat_dict.items() if var in varz), None) is None:
                                 category = 'No category yet'
@@ -1149,7 +1148,7 @@ class AdfDiag(AdfObs):
                             tmpl = jinenv.get_template('template.html')  #Set template
                             rndr = tmpl.render(title=main_title,var_title=var_title,season_title=season_title,
                                                plottype_title=plottype_title,
-                                               value=img_data, 
+                                               value=img_data,
                                                case1=case_name,
                                                case2=data_name,
                                                mydata=indv_html_info,#mean_html_info,#indv_html_info,
