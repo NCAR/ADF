@@ -402,17 +402,29 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
     ax3 = plt.subplot(gs[1, 1:3], projection=proj)
 
-    img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-    ax1.set_title(f"{d1.name} [{d1.units}]")
+    empty_message = "No Valid\nData Points"
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+    levs = np.unique(np.array(levels1))
+    if len(levs) < 2:
+        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+        ax1.text(0.4, 0.4, empty_message, transform=ax1.transAxes, bbox=props)
+
+        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+        ax2.text(0.4, 0.4, empty_message, transform=ax2.transAxes, bbox=props)
+
+        img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
+        ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
+    else:
+        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
+        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
+        img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
+
     ax1.text(-0.2, -0.10, f"Mean: {d1_region_mean:5.2f}\nMax: {d1_region_max:5.2f}\nMin: {d1_region_min:5.2f}", transform=ax1.transAxes)
-
-    img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-    ax2.set_title(f"{d2.name} [{d2.units}]")
+    ax1.set_title(f"{d1.name} [{d1.units}]")
     ax2.text(-0.2, -0.10, f"Mean: {d2_region_mean:5.2f}\nMax: {d2_region_max:5.2f}\nMin: {d2_region_min:5.2f}", transform=ax2.transAxes)
-
-    img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
-    ax3.set_title(f"Difference [{dif.units}]", loc='left')
+    ax2.set_title(f"{d2.name} [{d2.units}]")
     ax3.text(-0.2, -0.10, f"Mean: {dif_region_mean:5.2f}\nMax: {dif_region_max:5.2f}\nMin: {dif_region_min:5.2f}", transform=ax3.transAxes)
+    ax3.set_title(f"Difference [{dif.units}]", loc='left')
 
     [a.set_extent(domain, ccrs.PlateCarree()) for a in [ax1, ax2, ax3]]
     [a.coastlines() for a in [ax1, ax2, ax3]]
