@@ -260,8 +260,15 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             cmap = cmap1
             norm = norm1
 
-        img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
-        cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
+        empty_message = "No Valid\nData Points"
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+        levs = np.unique(np.array(levels))
+        if len(levs) < 2:
+            img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
+            ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
+        else:
+            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
+            cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
         # add contour lines <- Unused for now -JN
         # TODO: add an option to turn this on -BM
