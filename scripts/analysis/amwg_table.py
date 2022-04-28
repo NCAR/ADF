@@ -306,9 +306,6 @@ def _write_html(f, out):
 def _df_comp_table(write_html,output_location,case_names):
     import pandas as pd
 
-    # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-    # first csv is case and second is baseline/obs 
-    # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
     case = output_location/f"amwg_table_{case_names[0]}.csv"
     baseline = output_location/f"amwg_table_{case_names[len(case_names)-1]}.csv"
