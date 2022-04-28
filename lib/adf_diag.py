@@ -1133,7 +1133,7 @@ class AdfDiag(AdfObs):
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
             
             #Grab the comparison table and move it to website dir
-            comp_table_html_file = list(plot_path.glob(f"*comp.html"))
+            comp_table_html_file = list(plot_path.glob("*comp.html"))
             #color_table_html_file = list(plot_path.glob(f"*color*.html"))
 
             #Also grab baseline/obs tables, which are always stored in the first case directory:
