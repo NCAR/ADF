@@ -1173,13 +1173,12 @@ class AdfDiag(AdfObs):
                             with open(outputfile,'w', encoding='utf-8') as ofil:
                                 ofil.write(mean_rndr)
                             #End with
-                            
                         #End for (assests loop)
                     #End for (seasons loop)
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
-            
+
             #Grab the comparison table and move it to website dir
             comp_table_html_file = list(plot_path.glob("*comp.html"))
             #color_table_html_file = list(plot_path.glob(f"*color*.html"))
@@ -1221,7 +1220,7 @@ class AdfDiag(AdfObs):
 
                 #i=0
                 for case in [case_name, data_name]:
-                    
+
                     #Search for case name in moved HTML files:
                     table_htmls = sorted(table_pages_dir.glob(f"amwg_table_{case}.html"))
 
@@ -1236,7 +1235,7 @@ class AdfDiag(AdfObs):
 
                             #Create relative path for HTML file:
                             amwg_tables[case] = table_html.name
-                            
+
                             #Update counter:
                             count += 1
 
@@ -1249,7 +1248,7 @@ class AdfDiag(AdfObs):
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)                        
-                    
+
                     # --------------------------------------------
                     # uncomment for generating color tables
                     #color_table = color_table_html_file[::-1][i]
@@ -1261,7 +1260,7 @@ class AdfDiag(AdfObs):
                 if comp_table_html_file:
                     #Add comparison table to website dictionary
                     amwg_tables["Case Comparison"] = comp_table.name
-                
+
                 # need this to grab the locations of the amwg tables...
                 amwg_table_data = [str(table_pages_dir / table_html.name), ""]
 
@@ -1284,11 +1283,9 @@ class AdfDiag(AdfObs):
                 #No Tables exist, so no link will be added to main page:
                 gen_table_html = False
             #End if
-            
+
             #plot_type_web_name = ["Tables"]+plot_type_order
             #mean_table = str(outputfile)
-            
-         
 
             #Construct index.html
             #index_title = "AMP Diagnostics Prototype"
