@@ -308,7 +308,7 @@ def _df_comp_table(write_html,output_location,case_names):
 
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
     case = output_location/f"amwg_table_{case_names[0]}.csv"
-    baseline = output_location/f"amwg_table_{case_names[len(case_names)-1]}.csv"
+    baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
     
     df_case = pd.read_csv(case)
     df_base = pd.read_csv(baseline)
@@ -331,7 +331,7 @@ def _df_comp_table(write_html,output_location,case_names):
     #This will be for single-case for now, 
     #will need to think how to change as multi-case is introduced
     # ie case_names[0] will need to be modified for more cases
-    preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[len(case_names)-1]}</h2>"""
+    preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
     ending = """</body></html>"""
     with open(output_html_file_comp, 'w') as hfil:
         hfil.write(preamble)
