@@ -1068,7 +1068,7 @@ class AdfDiag(AdfObs):
                                             # values -> dict w/ keys being "TYPE" of plots
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
-                
+
                 # ---------------------------
                 # This code eleminates the error of disappearing seasons...
                 # Can't figure why I have to make similar nested loop to create it
@@ -1243,7 +1243,7 @@ class AdfDiag(AdfObs):
                                 self.end_diag_fail(emsg)
                             #End if
                         #End for (table html file loop)
-                    #End if (table html file exists check)                        
+                    #End if (table html file exists check)                  
 
                     # --------------------------------------------
                     # uncomment for generating color tables
@@ -1260,7 +1260,7 @@ class AdfDiag(AdfObs):
                         shutil.move(comp_table, table_pages_dir / comp_table.name)
                     #Add comparison table to website dictionary
                     # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-                    #This will be for single-case for now, 
+                    #This will be for single-case for now,
                     #will need to think how to change as multi-case is introduced
                     amwg_tables["Case Comparison"] = comp_table.name
                     # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
