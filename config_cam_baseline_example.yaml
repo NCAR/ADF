@@ -101,6 +101,14 @@ diag_basic_info:
     #given the same weight:
     weight_season: True
 
+    #Number of processors on which to run the ADF.
+    #If this config variable isn't present then
+    #the ADF defaults to one processor.  Also, if
+    #you set it to "*" then it will default
+    #to all of the processors available on a
+    #single node/machine:
+    num_procs: 8
+
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
 
