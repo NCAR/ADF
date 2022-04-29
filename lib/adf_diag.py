@@ -1198,10 +1198,6 @@ class AdfDiag(AdfObs):
                 table_pages_dir = website_dir / "html_table"
                 table_pages_dir.mkdir(exist_ok=True)
 
-                #Move the comparison table html file to new directory
-                for comp_table in comp_table_html_file:
-                    shutil.move(comp_table, table_pages_dir / comp_table.name)
-
                 #for color_table in color_table_html_file:
                 #    shutil.copy2(color_table, table_pages_dir / color_table.name)
 
@@ -1257,9 +1253,17 @@ class AdfDiag(AdfObs):
                     #i+=1
                 #End for (case vs data)
 
+                #Check if comp table exists (if not, then obs are being compared and comp table is not created)
                 if comp_table_html_file:
+                    #Move the comparison table html file to new directory
+                    for comp_table in comp_table_html_file:
+                        shutil.move(comp_table, table_pages_dir / comp_table.name)
                     #Add comparison table to website dictionary
+                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                    #This will be for single-case for now, 
+                    #will need to think how to change as multi-case is introduced
                     amwg_tables["Case Comparison"] = comp_table.name
+                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
                 # need this to grab the locations of the amwg tables...
                 amwg_table_data = [str(table_pages_dir / table_html.name), ""]
