@@ -262,6 +262,30 @@ diag_cam_baseline_climo:
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /some/where/you/want/to/have/baseline_time_series_files/ #MUST EDIT!
 
+#This fourth set of variables provides settings for calling the Climate Variability
+# Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
+# run in background mode, likely completing after the ADF has completed.
+# If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+# in the diag_var_list variable listing.
+# For more CVDP information: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/
+diag_cvdp_info:
+
+    # Run the CVDP on the listed run(s)?
+    cvdp_run: false
+
+    # CVDP code path, sets the location of the CVDP codebase
+    #  CGD systems path = /home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+    #  CISL systems path = /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+    #  github location = https://github.com/NCAR/CVDP-ncl
+    cvdp_codebase_loc: /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+
+    # Location where cvdp codebase will be copied to and diagnostic plots will be stored
+    cvdp_loc: /glade/scratch/asphilli/ADF-Sandbox/cvdp/      #MUST EDIT!
+
+    # tar up CVDP results?
+    cvdp_tar: false
+
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 #These variables below only matter if you are using
 #a non-standard method, or are adding your own
@@ -270,12 +294,12 @@ diag_cam_baseline_climo:
 
 #Note:  If you want to pass arguments to a particular script, you can
 #do it like so (using the "averaging_example" script in this case):
-# - {averaging_example: {kwargs: {clobber: true}}}
+# - {create_climo_files: {kwargs: {clobber: true}}}
 
 #Name of time-averaging scripts being used to generate climatologies.
 #These scripts must be located in "scripts/averaging":
 time_averaging_scripts:
-    - averaging_example
+    - create_climo_files
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
@@ -291,15 +315,23 @@ analysis_scripts:
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
     - global_latlon_map
+    - global_latlon_vect_map
     - zonal_mean
     - polar_map
 
 #List of CAM variables that will be processesd:
+#If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
     - SWCF
     - LWCF
+    - PRECC
+    - PRECL
     - PSL
     - Q
+    - TREFHT
+    - TS
+    - TAUX
+    - TAUY
 #<Add more variables here.>
 
 #END OF FILE

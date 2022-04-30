@@ -10,8 +10,10 @@ different CAM simulations, or between a CAM simulation and observational and rea
 this will allow for a quick evaluation of a CAM simulation, without requiring the user to generate numerous
 different figures on their own.
 
-Currently, this figure only uses standard CAM monthly (h0) outputs.  However, if there is user interest then
-additional diagnostic options can be added.
+Currently, this package only uses standard CAM monthly time-slice (h0) outputs or single-variable monthly time series files.  However, if there is user interest then
+additional model input options can be added.
+
+Finally, if you are interested in general (but non-supported) tools used by AMP scientists and engineers in their work, then please check out the [AMP Toolbox](https://github.com/NCAR/AMP_toolbox).
 
 ## Required software environment
 
@@ -29,7 +31,7 @@ If one wants to generate the "AMWG" model variable statistics table as well, the
 - Scipy
 - Pandas
 
-On NCAR's CISL machines (cheyenne and casper), these can be loaded by running the following on the command line
+On NCAR's CISL machines (cheyenne and casper), these can be loaded by running the following on the command line:
 ```
 module load conda
 conda activate npl
@@ -41,7 +43,25 @@ conda env create -f env/conda_environment.yaml
 conda activate adf_v0.07
 ```
 
-Finally, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines, this can be loaded by simply running `module load nco` on the command line.
+Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running:
+```
+module load nco
+``` 
+or on the CGD machines by simply running:
+```
+module load tool/nco
+```
+on the command line.
+
+Finally, if you also want to run the [Climate Variability Diagnostics Package](https://www.cesm.ucar.edu/working_groups/CVC/cvdp/) (CVDP) as part of the ADF then you'll also need NCL.  On the CISL machines this can be done using the command:
+```
+module load ncl
+```
+or on the CGD machines by using the command:
+```
+module load tool/ncl/6.6.2
+```
+on the command line.
 
 ## Running ADF diagnostics
 

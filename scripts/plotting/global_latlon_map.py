@@ -3,10 +3,6 @@ def global_latlon_map(adfobj):
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
 
-    This script is actually the same as 'plot_example', except
-    that it uses the shared diagnostics plotting library, as
-    opposed to being entirely self-contained.
-
     Description of function inputs:
 
     case_name        -> Name of CAM case provided by "cam_case_name".
@@ -255,8 +251,12 @@ def global_latlon_map(adfobj):
 
                                 #Calculate monthly-weighted seasonal averages:
                                 if s == 'ANN':
-                                    mseasons[s] = (mdata * weights).sum(dim='time')
-                                    oseasons[s] = (odata * weights).sum(dim='time')
+
+                                    #Calculate annual weights (i.e. don't group by season):
+                                    weights_ann = month_length / month_length.sum()
+
+                                    mseasons[s] = (mdata * weights_ann).sum(dim='time')
+                                    oseasons[s] = (odata * weights_ann).sum(dim='time')
                                     # difference: each entry should be (lat, lon)
                                     dseasons[s] = mseasons[s] - oseasons[s]
                                 else:

@@ -26,6 +26,7 @@ in various scripts.
 #++++++++++++++++++++++++++++++
 
 import copy
+import os
 
 from pathlib import Path
 
@@ -93,6 +94,64 @@ class AdfObs(AdfConfig):
 
         #Initialize "compare_obs" variable:
         self.__compare_obs = self.read_config_var('compare_obs', conf_dict=_basic_info)
+
+        #Initialize "num_procs" variable:
+        #-----------------------------------------
+        temp_num_procs = self.read_config_var('num_procs', conf_dict=_basic_info)
+
+        if not temp_num_procs:
+            #Variable not present, so set to a single processor:
+            self.__num_procs = 1
+        else:
+            #Check if variable is a string and matches keyword:
+            if isinstance(temp_num_procs, str) and \
+               temp_num_procs.strip() == "*":
+
+                #Set number of processors to total number of CPUs
+                #on the node.  Please note that at some point this
+                #may need to be replaced with a DASK implementation
+                #instead:
+
+                #First try to get CPUs allowed by OS for process to use:
+                try:
+                    self.__num_procs = len(os.sched_getaffinity(0))
+                except AttributeError:
+                    #Operating system doesn't support getaffinity, so try
+                    #straight CPU number:
+                    if os.cpu_count():
+                        self.__num_procs = os.cpu_count()
+                    else:
+                        #Something is weird with this Operating System,
+                        #so warn user and then try to run in serial mode:
+                        wmsg = "WARNING!!!! ADF unable to determine how"
+                        wmsg += " many processors are availble on this system,"
+                        wmsg += " so defaulting to a single process/core."
+                        print(wmsg)
+                        self.__num_procs = 1
+                    #End if
+                #End except
+
+            else:
+                #If anything else, then try to convert to integer:
+                try:
+                    self.__num_procs = int(temp_num_procs)
+                except ValueError:
+                    #This variable has been set to something that
+                    #can't be converted into an integer, so warn
+                    #user and then try to run in serial mode:
+                    wmsg = "WARNING!!!!  The 'num_procs' variable"
+                    wmsg += f" has been set to '{temp_num_procs}'"
+                    wmsg += " which cannot be converted to an integer."
+                    wmsg += "\nThe ADF will now default to a single core"
+                    wmsg += " and attempt to run."
+                    print(wmsg)
+                    self.__num_procs = 1
+                #End except
+            #End if
+        #End if
+        #Print number of processors being used to debug log (if requested):
+        self.debug_log(f"ADF is running with {self.__num_procs} processors.")
+        #-----------------------------------------
 
         #Initialize observations dictionary:
         self.__var_obs_dict = {}
@@ -209,40 +268,44 @@ class AdfObs(AdfConfig):
     # Create property needed to return "variable_defaults" variable to user:
     @property
     def variable_defaults(self):
-        """Return a copy of the '__variable_defaults' string list to user if requested."""
+        """Return a copy of the '__variable_defaults' dictionary to the user if requested."""
         #Note that a copy is needed in order to avoid having a script mistakenly
-        #modify this variable:
+        #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__variable_defaults)
 
     # Create property needed to return "use_defaults" variable to user:
     @property
     def use_defaults(self):
-        """Return a copy of the '__use_defaults' logical to user if requested."""
-        #Note that a copy is needed in order to avoid having a script mistakenly
-        #modify this variable:
-        return copy.copy(self.__use_defaults)
+        """Return the '__use_defaults' logical to the user if requested."""
+        return self.__use_defaults
 
     # Create property needed to return "compare_obs" logical to user:
     @property
     def compare_obs(self):
-        """Return the "compare_obs" logical to user if requested."""
-        return copy.copy(self.__compare_obs)
+        """Return the "compare_obs" logical to the user if requested."""
+        return self.__compare_obs
 
     # Create property needed to return "diag_var_list" list to user:
     @property
     def diag_var_list(self):
-        """Return a copy of the "diag_var_list" list to user if requested."""
+        """Return a copy of the "diag_var_list" list to the user if requested."""
         #Note that a copy is needed in order to avoid having a script mistakenly
-        #modify this variable:
+        #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__diag_var_list)
 
-    #Create property needed to return "var_obs_dict" list to user:
+    # Create property needed to return "var_obs_dict" dictionary to user:
     @property
     def var_obs_dict(self):
-        """Return a copy of the "var_obs_dict" list to user if requested."""
+        """Return a copy of the "var_obs_dict" list to the user if requested."""
         #Note that a copy is needed in order to avoid having a script mistakenly
-        #modify this variable:
+        #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__var_obs_dict)
+
+    # Create property needed to return "num_procs" to user:
+    @property
+    def num_procs(self):
+        """Return the "num_procs" logical to the user if requested."""
+        return self.__num_procs
 
 #++++++++++++++++++++
 #End Class definition
