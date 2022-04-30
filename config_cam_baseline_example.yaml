@@ -107,7 +107,7 @@ diag_basic_info:
     #you set it to "*" then it will default
     #to all of the processors available on a
     #single node/machine:
-    num_procs: '*'
+    num_procs: 8
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:

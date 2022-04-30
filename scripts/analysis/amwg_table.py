@@ -250,6 +250,15 @@ def amwg_table(adf):
     #End of model case loop
     #----------------------
 
+    #Check if observations are being comapred to, if so skip table comparison...
+    if not adf.get_basic_info("compare_obs"):
+        #Create comparison table for both cases
+        print("  Making comparison table...")
+        _df_comp_table(write_html,output_location,case_names)
+    else:
+        print(" Comparison table currently doesn't work with obs, so skipping...")
+    #End if
+
     #Notify user that script has ended:
     print("...AMWG variable table has been generated successfully.")
 
@@ -293,6 +302,45 @@ def _write_html(f, out):
     preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
+        hfil.write(preamble)
+        hfil.write(html)
+        hfil.write(ending)
+
+def _df_comp_table(write_html,output_location,case_names):
+    import pandas as pd
+
+    output_csv_file_comp = output_location / "amwg_table_comp.csv"
+
+    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    #This will be for single-case for now (case_names[0]),
+    #will need to change to loop as multi-case is introduced
+    case = output_location/f"amwg_table_{case_names[0]}.csv"
+    baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
+
+    df_case = pd.read_csv(case)
+    df_base = pd.read_csv(baseline)
+    df_comp = pd.DataFrame(dtype=object)
+
+    df_comp[['variable','unit','case']] = df_case[['variable','unit','mean']]
+    df_comp['baseline'] = df_base[['mean']]
+
+    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
+
+    cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
+    df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
+
+    #Create HTML output file name as well, if needed:
+    if write_html:
+        output_html_file_comp = output_location / "amwg_table_comp.html"
+
+    html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
+    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    #This will be for single-case for now,
+    #will need to think how to change as multi-case is introduced
+    # ie case_names[0] will need to be modified for more cases
+    preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
+    ending = """</body></html>"""
+    with open(output_html_file_comp, 'w') as hfil:
         hfil.write(preamble)
         hfil.write(html)
         hfil.write(ending)
