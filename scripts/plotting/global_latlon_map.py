@@ -1,3 +1,16 @@
+
+#Import standard modules:
+from pathlib import Path
+import numpy as np
+import xarray as xr
+import warnings  # use to warn user about missing files.
+
+#Format warning messages:
+def my_formatwarning(msg, *args, **kwargs):
+    # ignore everything except the message
+    return str(msg) + '\n'
+warnings.formatwarning = my_formatwarning
+
 def global_latlon_map(adfobj):
     """
     This script/function is designed to generate global
@@ -27,11 +40,6 @@ def global_latlon_map(adfobj):
 
     #Import necessary modules:
     #------------------------
-    from pathlib import Path  # python standard library
-
-    # data loading / analysis
-    import xarray as xr
-    import numpy as np
     import pandas as pd
 
     #CAM diagnostic plotting functions:
@@ -451,6 +459,22 @@ def global_latlon_map(adfobj):
 
     #Notify user that script has ended:
     print("  ...lat/lon maps have been generated successfully.")
+
+#########
+# Helpers
+#########
+
+def _load_dataset(fils):
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        sfil = str(fils[0])
+        return xr.open_dataset(sfil)
+    #End if
+#End def
 
 ##############
 #END OF SCRIPT
