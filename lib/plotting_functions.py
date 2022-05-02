@@ -389,7 +389,9 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         else:
             img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
             cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
+        #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
+
         # add contour lines <- Unused for now -JN
         # TODO: add an option to turn this on -BM
         #cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))
@@ -632,6 +634,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             cmap1 = kwargs['colormap']
         else:
             cmap1 = 'coolwarm'
+        #End if
 
         if 'contour_levels' in kwargs:
             levels1 = kwargs['contour_levels']
@@ -643,6 +646,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         else:
             levels1 = np.linspace(minval, maxval, 12)
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+        #End if
 
 
         if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
@@ -650,12 +654,15 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
                 norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
             else:
                 norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+            #End if
+        #End if
 
     # Difference options -- Check in kwargs for colormap and levels
         if "diff_colormap" in kwargs:
             cmapdiff = kwargs["diff_colormap"]
         else:
             cmapdiff = 'coolwarm'
+        #End if
 
         if "diff_contour_levels" in kwargs:
             levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
@@ -667,12 +674,14 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             absmaxdif = np.max(np.abs(diff))
             # set levels for difference plot:
             levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        #End if
 
     # color normalization for difference
         if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
             normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
         else:
             normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
+        #End if
 
         subplots_opt = {}
         contourf_opt = {}
@@ -683,6 +692,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             subplots_opt.update(kwargs['mpl'].get('subplots',{}))
             contourf_opt.update(kwargs['mpl'].get('contourf',{}))
             colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
+        #End if
 
         # Generate zonal plot:
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**subplots_opt)
@@ -703,6 +713,8 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             cb0 = fig.colorbar(img0, ax=ax[0], location='right',**colorbar_opt)
             cb1 = fig.colorbar(img1, ax=ax[1], location='right',**colorbar_opt)
             cb2 = fig.colorbar(img2, ax=ax[2], location='right',**colorbar_opt)
+        #End if
+
         # style the plot:
         ax[-1].set_xlabel("LATITUDE")
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
@@ -719,6 +731,9 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
                 a.label_outer()
             except:
                 pass
+            #End except
+        #End for
+    #End if
 
     #Write the figure to provided workspace/file:
     fig.savefig(wks, bbox_inches='tight', dpi=300)
