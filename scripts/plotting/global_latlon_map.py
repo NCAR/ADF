@@ -3,10 +3,6 @@ def global_latlon_map(adfobj):
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
 
-    This script is actually the same as 'plot_example', except
-    that it uses the shared diagnostics plotting library, as
-    opposed to being entirely self-contained.
-
     Description of function inputs:
 
     case_name        -> Name of CAM case provided by "cam_case_name".

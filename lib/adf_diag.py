@@ -978,15 +978,28 @@ class AdfDiag(AdfObs):
         season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
         #Set preferred order of plot types:
-        plot_type_order = ["LatLon", "Zonal", "NHPolar", "SHPolar"]
+        plot_type_order = ["LatLon_Vector_Mean","LatLon_Mean",
+                           "Zonal_Mean", "NHPolar_Mean", "SHPolar_Mean"]
 
         #Also add pressure level Lat-Lon plots, if applicable:
         pres_levs = self.get_basic_info("plot_press_levels")
         if pres_levs:
             for pres in pres_levs:
-                plot_type_order.append(f"Lev_{pres}hpa_LatLon")
+                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Mean")
+                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Vector_Mean")
             #End for
         #End if
+
+        #Check if any variables are associated with specific vector quantities,
+        #and if so then add the vectors to the website variable list.
+        for var in var_list:
+            if var in self.variable_defaults:
+                vect_name = self.variable_defaults[var].get("vector_name", None)
+                if vect_name and (vect_name not in var_list):
+                    var_list.append(vect_name)
+                #End if
+            #End if
+        #End for
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
@@ -1022,12 +1035,13 @@ class AdfDiag(AdfObs):
             #Copy CSS files over to output directory:
             for css_file in jinja_template_dir.glob('*.css'):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
+            #End for
 
             #Copy images into the website image dictionary:
             for img in plot_path.glob("*.png"):
                 idest = assets_dir / img.name
                 shutil.copyfile(img, idest) # store image in assets
-
+            #End for
 
             mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
                                             # plots provisional structure:
@@ -1043,7 +1057,7 @@ class AdfDiag(AdfObs):
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}.png"):
                             alt_text  = img.stem #Extract image file name text
 
                             #Create output file (don't worry about analysis type for now):
@@ -1063,10 +1077,12 @@ class AdfDiag(AdfObs):
                             #Initialize Ordered Dictionary for variable:
                             if var not in mean_html_info:
                                 mean_html_info[var] = OrderedDict()
+                            #End if
 
                             #Initialize Ordered Dictionary for plot type:
                             if ptype not in mean_html_info[var]:
                                 mean_html_info[var][ptype] = OrderedDict()
+                            #End if
 
                             mean_html_info[var][ptype][season] = outputfile.name
                         #End for (assests loop)
@@ -1090,10 +1106,14 @@ class AdfDiag(AdfObs):
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
+            
+            #Grab the comparison table and move it to website dir
+            comp_table_html_file = list(plot_path.glob("*comp.html"))
 
             #Also grab baseline/obs tables, which are always stored in the first case directory:
             if case_idx == 0:
                 data_table_html_files = list(plot_path.glob(f"amwg_table_{data_name}*.html"))
+            #End if
 
             #Determine if any AMWG tables were generated:
             if table_html_files:
@@ -1108,10 +1128,12 @@ class AdfDiag(AdfObs):
                 #Move all case table html files to new directory:
                 for table_html in table_html_files:
                     shutil.move(table_html, table_pages_dir / table_html.name)
+                #End for
 
                 #copy all data table html files as well:
                 for data_table_html in data_table_html_files:
                     shutil.copy2(data_table_html, table_pages_dir / data_table_html.name)
+                #End for
 
                 #Construct dictionary needed for HTML page:
                 amwg_tables = OrderedDict()
@@ -1146,6 +1168,18 @@ class AdfDiag(AdfObs):
                         #End for (table html file loop)
                     #End if (table html file exists check)
                 #End for (case vs data)
+
+                #Check if comp table exists (if not, then obs are being compared and comp table is not created)
+                if comp_table_html_file:
+                    #Move the comparison table html file to new directory
+                    for comp_table in comp_table_html_file:
+                        shutil.move(comp_table, table_pages_dir / comp_table.name)
+                    #Add comparison table to website dictionary
+                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                    #This will be for single-case for now, 
+                    #will need to think how to change as multi-case is introduced
+                    amwg_tables["Case Comparison"] = comp_table.name
+                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
                 #Construct mean_table.html
                 mean_title = "AMP Diagnostic Tables:"
@@ -1186,6 +1220,8 @@ class AdfDiag(AdfObs):
                 #Finally, if first case, then also copy templates directory for CSS files:
                 if case_idx == 0:
                     shutil.copytree(css_files_dir, main_site_path / "templates")
+                #End if
+            #End if
 
         #End for (model case loop)
 
@@ -1200,6 +1236,7 @@ class AdfDiag(AdfObs):
             with open(outputfile, 'w', encoding='utf-8') as ofil:
                 ofil.write(main_rndr)
             #End with
+        #End if
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
@@ -1237,6 +1274,7 @@ class AdfDiag(AdfObs):
         #end if
         if not os.path.isdir(cvdp_dir):
             shutil.copytree(self.get_cvdp_info('cvdp_codebase_loc', required=True),cvdp_dir)
+        #End if
 
         #check to see if there is a CAM baseline case. If there is, read in relevant information.
         if not self.get_basic_info('compare_obs'):
@@ -1244,6 +1282,7 @@ class AdfDiag(AdfObs):
             syears_baseline = self.get_baseline_info('start_year')
             eyears_baseline = self.get_baseline_info('end_year')
             baseline_ts_loc = self.get_baseline_info('cam_ts_loc')
+        #End if
 
         #Loop over cases to create individual text array to be written to namelist file.
         row_list = []
@@ -1251,12 +1290,14 @@ class AdfDiag(AdfObs):
             row = [case_name,' | ',str(cam_ts_loc[case_idx]),os.sep,' | ',
                    str(syears[case_idx]),' | ',str(eyears[case_idx])]
             row_list.append("".join(row))
+        #End for
 
         #Create new namelist file. If CAM baseline case present add it to list,
         #namelist file must end in a blank line.
         with open(os.path.join(cvdp_dir, "namelist"), 'w', encoding='utf-8') as fnml:
             for rowtext in row_list:
                 fnml.write(rowtext)
+            #End for
             fnml.write('\n\n')
             if "baseline_ts_loc" in locals():
                 rowb = [case_name_baseline,' | ',str(baseline_ts_loc),os.sep,' | ',
@@ -1293,6 +1334,8 @@ class AdfDiag(AdfObs):
                 if self.get_cvdp_info('cvdp_tar'):
                     if '  tar_output  ' in line:
                         line = '  tar_output = "True"'
+                    #End if
+                #End if
                 f_out.write(line)
             #End for
         #End with
@@ -1314,6 +1357,7 @@ class AdfDiag(AdfObs):
         else:
             print(f'CVDP graphical and netCDF file output can be found here: {cvdp_dir}/output/')
             print(f'Open {cvdp_dir}/output/index.html file in web browser to view CVDP results.')
+        #End if
         print('For CVDP information visit: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/')
         print('   ')
 
