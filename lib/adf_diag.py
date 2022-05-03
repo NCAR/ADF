@@ -1192,6 +1192,9 @@ class AdfDiag(AdfObs):
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
+            
+            #Grab the comparison table and move it to website dir
+            comp_table_html_file = list(plot_path.glob("*comp.html"))
 
             #Grab the comparison table and move it to website dir
             comp_table_html_file = list(plot_path.glob("*comp.html"))

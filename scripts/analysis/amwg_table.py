@@ -260,7 +260,11 @@ def amwg_table(adf):
     if not adf.get_basic_info("compare_obs"):
         #Create comparison table for both cases
         print("  Making comparison table...")
-        _df_comp_table(write_html,output_location,list(case_names))
+
+        _df_comp_table(write_html,output_location,case_names)
+    else:
+        print(" Comparison table currently doesn't work with obs, so skipping...")
+    #End if
 
     #Notify user that script has ended:
     print("...AMWG variable table has been generated successfully.")
@@ -330,59 +334,27 @@ def _write_html(f, out,case_name,case_name_list):
         hfil.write(html)
         hfil.write(ending)
 
-def _write_html_colored(f,df_colored, out,case_name,case_name_list):
-    if case_name == case_name_list[0]:
-        case = "Test"
-    else:
-        case = "Control"
-    #preamble = f"""<html><head></head><body><h1>{f.stem} - DataFrame styled<h1>"""
-    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
-
-    <nav role="navigation" class="primary-navigation">
-      <ul>
-        <li><a href="../index.html">Case Home</a></li>
-        <li><a href="../html_table/mean_table.html">Case Tables</a></li>
-        <li><a href="#">Links &dtrif;</a>
-          <ul class="dropdown">
-            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-          </ul>
-        </li>
-        <li><a href="https://github.com/NCAR/ADF">About</a></li>
-        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-      </ul>
-    </nav><h1>AMP Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
-    ending = """</body></html>"""
-    with open(out, 'w') as hfil:
-        hfil.write(preamble)
-        hfil.write(df_colored.render())
-        hfil.write(ending)
 
 def _df_comp_table(write_html,output_location,case_names):
     import pandas as pd
 
-    # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-    # first csv is case and second is baseline 
-
-    # Obs are not currently creating a table, so this will only
-    # work with model vs model at the moment!
-    # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
+
+    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    #This will be for single-case for now (case_names[0]),
+    #will need to change to loop as multi-case is introduced
     case = output_location/f"amwg_table_{case_names[0]}.csv"
-    baseline = output_location/f"amwg_table_{case_names[1]}.csv"
-    
+    baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
+
     df_case = pd.read_csv(case)
     df_base = pd.read_csv(baseline)
     df_comp = pd.DataFrame(dtype=object)
 
-    df_comp[['variable','unit','test']] = df_case[['variable','unit','mean']]
-    df_comp['control'] = df_base[['mean']]
-    
-    # ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * !
-    # Should this be an absolute value difference, or case minus baseline?
-    # ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * ! * !
-    df_comp['diff'] = df_comp['control'].values-df_comp['test'].values
+    df_comp[['variable','unit','case']] = df_case[['variable','unit','mean']]
+    df_comp['baseline'] = df_base[['mean']]
+
+    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
+
 
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
@@ -392,10 +364,8 @@ def _df_comp_table(write_html,output_location,case_names):
         output_html_file_comp = output_location / "amwg_table_comp.html"
     
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    #preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[1]}</h2>"""
     preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     
-
     <nav role="navigation" class="primary-navigation">
       <ul>
         <li><a href="../index.html">Case Home</a></li>
@@ -410,7 +380,7 @@ def _df_comp_table(write_html,output_location,case_names):
         <li><a href="https://github.com/NCAR/ADF">About</a></li>
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
-    </nav><h1>AMP Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[1]}</h2>"""
+    </nav><h1>AMP Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
 
     ending = """</body></html>"""
     with open(output_html_file_comp, 'w') as hfil:
@@ -418,83 +388,5 @@ def _df_comp_table(write_html,output_location,case_names):
         hfil.write(html)
         hfil.write(ending)
 
-
-
-
-
-    #_write_html(output_csv_file_comp, output_html_file_comp)
-
-def _df_styler(write_html,f,output_html_color_file,adf):
-#_df_styler(write_html,output_csv_file,output_html_color_file,adf)
-    '''
-    create stylized dataframe and save to html file
-    '''
-
-    import pandas as pd
-    df_csv = pd.read_csv(f)
-    
-    # ***** This isn't ready to be run yet until two cases can be compared to obs *****
-    """
-    
-    def color_rule(row):
-        '''
-        color function for stylizing the DataFrame
-        ------------------------------------------
-
-        This will *try* and color the case/baseline that is closest to obs as green 
-        and the other case/baseline as red
-
-        Know Issues
-        -----------
-        - What happens if both cases are close??
-            * haven't accounted for this scenario yet
-
-        '''
-        # Name of the column to which we compare
-        obs_col_name = 'obs'
-
-        # names of all other columns that we compare to 'obs', without 'obs'
-        case_cols = [col for col in row.index if col != obs_col_name and col != 'variable']
-    
-        # here we will keep colour rules
-        cr = []
-
-        ## loop over all column names
-        for colname in row.index:
-            # color the variable just to see what control we have
-            if colname == 'variable':
-                cr.append('background-color: lemonchiffon')
-            if colname == obs_col_name:
-                cr.append('background-color: lightcyan')
-                
-            else:
-                # color the closest green
-                if row[colname] == min(row[case_cols], key=lambda x:abs(x-row[obs_col_name])):
-                    cr.append('background-color: lightgreen')
-                # color the furthest red
-                elif row[colname] == max(row[case_cols], key=lambda x:abs(x-row[obs_col_name])):
-                    cr.append('background-color: orangered')
-                # ** use this if not coloring the obs column **
-                # Nether here nor there, do not color
-                #else:
-                #    cr.append('')
-        return cr
-    
-    if adf.get_basic_info("compare_obs"):
-        formatter = {('mean'):"{:,.3g}",('standard dev.'):"{:,.3g}",('standard error'):"{:,.3g}",('95% CI'):"{:,.3g}",
-                           ('trend p-value'):"{:,.3g}"}
-        df_colored = df_csv.style.apply(color_rule, axis=1, subset=['variable','case','baseline','obs']).format(
-                                    formatter=formatter).hide_index()"""
-    
-    if not adf.get_basic_info("compare_obs"):
-        #formatter = {('case'):"{:,.3g}",('baseline'):"{:,.3g}",('diff'):"{:,.3g}"}
-        #df_colored = df_csv.style.set_properties(**{'background-color': 'lemonchiffon'},subset=['variable']).format(
-        #                        formatter=formatter).hide_index()
-
-        df_colored = df_csv.style.set_properties(**{'background-color': 'lemonchiffon'},subset=['variable']).hide_index() 
-    
-    df_colored.set_table_attributes('border="1"')
-
-    _write_html_colored(f,df_colored, output_html_color_file)
 ##############
 #END OF SCRIPT
