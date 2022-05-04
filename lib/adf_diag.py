@@ -1127,7 +1127,7 @@ class AdfDiag(AdfObs):
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}.png"):
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
                             alt_text  = img.stem #Extract image file name text
 
                             #Create output file (don't worry about analysis type for now):
