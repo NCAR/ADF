@@ -1011,7 +1011,7 @@ class AdfDiag(AdfObs):
                     "html_img/mean_diag_LatLon_Vector.html","html_img/mean_diag_Zonal.html",
                             "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html"]
         plot_type_html = dict(zip(plot_type_order, plot_type_web))
-        main_title = "AMP Diagnostics"
+        main_title = "CAM Diagnostics"
 
         #Also add pressure level Lat-Lon plots, if applicable:
         pres_levs = self.get_basic_info("plot_press_levels")
