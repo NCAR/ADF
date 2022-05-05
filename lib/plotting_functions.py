@@ -77,17 +77,20 @@ def get_central_longitude(*args):
        This allows a script to, for example, allow a config file to specify, but also have a preference:
        get_central_longitude(AdfObj, 30.0)
     """
+    chk_for_adf = [isinstance(a, AdfDiag) for a in args]
+    # preference is to get value from AdfDiag:
+    if any(chk_for_adf):
+        for a in args:
+            if isinstance(a, AdfDiag):
+                result = a.get_basic_info('central_longitude', required=False)
+                if (result >= -180) and (result <= 360):
+                    return result
+                else:
+                    continue # keep looking
+    # 2nd pass through arguments, look for numbers:
     for a in args:
-        if isinstance(a, AdfDiag):
-            result = a.get_basic_info('central_longitude', required=False)
-            if (result >= -180) and (result <= 360):
-                return result
-            else:
-                continue # keep looking
-        elif (isinstance(a, float) or isinstance(a, int)) and ((a >= -180) and (a <= 360)):
+        if (isinstance(a, float) or isinstance(a, int)) and ((a >= -180) and (a <= 360)):
             return a
-        else:
-            continue
     else:
         # this is the `else` on the for loop --> if non of the arguments meet the criteria, do this.
         print("No valid central longitude specified. Defaults to 180.")
