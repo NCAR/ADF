@@ -240,10 +240,6 @@ def polar_map(adfobj):
                             nhfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="NH", **vres)
                             shfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="SH", **vres)
 
-                            # Assign titles to each figure:
-                            #nhfig.suptitle(f"{s} - {case_name} and {data_name}")
-                            #shfig.suptitle(f"{s} - {case_name} and {data_name}")
-
                             # Save files
                             nhfig.savefig(nh_plot_name, bbox_inches='tight', dpi=300)
                             shfig.savefig(sh_plot_name, bbox_inches='tight', dpi=300)
@@ -397,7 +393,7 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
 
     fig = plt.figure(figsize=(10,10))
     gs = gridspec.GridSpec(2, 4, wspace=0.9)
-    #gs.update(wspace=0.9)
+    
     ax1 = plt.subplot(gs[0, :2], projection=proj)
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
     ax3 = plt.subplot(gs[1, 1:3], projection=proj)
@@ -459,7 +455,7 @@ def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.Dat
                     borderpad=0,
                     )
     fig.colorbar(img3, cax=cb_diff_ax)
-    #fig.suptitle("SEASON IN TITLE")
+    
     return fig
 
 
