@@ -1090,9 +1090,9 @@ class AdfDiag(AdfObs):
                 # # and not from the same nested loop below....
                 indv_html_info = OrderedDict()
                 for var in var_list_alpha:
-                        #Loop over seasons:
+                    #Loop over seasons:
                     for season in season_order:
-                            #Create the data that will be fed into the template:
+                        #Create the data that will be fed into the template:
                         for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
                             alt_text  = img.stem #Extract image file name text
 
