@@ -297,7 +297,9 @@ def _spatial_average(indata):
 #####
 
 def _write_html(f, out,case_name,case_name_list):
-    if case_name == case_name_list[0]:
+    if case_name != case_name_list[-1]:
+        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+        # This will need to change when applying multi-case runs; ie Test 1, Test 2, etc.
         case = "Test"
     else:
         case = "Control"
@@ -320,7 +322,7 @@ def _write_html(f, out,case_name,case_name_list):
         <li><a href="https://github.com/NCAR/ADF">About</a></li>
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
-    </nav><h1>AMP Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
+    </nav><h1>CAM Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
     
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
@@ -374,7 +376,7 @@ def _df_comp_table(write_html,output_location,case_names):
         <li><a href="https://github.com/NCAR/ADF">About</a></li>
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
-    </nav><h1>AMP Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
+    </nav><h1>CAM Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
 
     ending = """</body></html>"""
     with open(output_html_file_comp, 'w') as hfil:
