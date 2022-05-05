@@ -986,7 +986,6 @@ class AdfDiag(AdfObs):
                        'FREQL', 'FREQR', 'FREQS', 'MPDQ', 'PRECC', 'PRECL',
                        'PRECSC', 'PRECSL', 'PRECT', 'TGCLDIWP', 'TGCLDLWP'},
             'Deep Convection': {'CAPE', 'CMFMC_DP', 'FREQZM', 'ZMDQ', 'ZMDT'},
-            'No category yet': {'CH4', 'CT_H2O'},
             'COSP': {'CLDTOT_ISCCP', 'CLIMODIS', 'CLTMODIS', 'CLWMODIS',
                      'FISCCP1_COSP', 'ICE_ICLD_VISTAU', 'IWPMODIS',
                      'LIQ_ICLD_VISTAU', 'LWPMODIS', 'MEANCLDALB_ISCCP',
