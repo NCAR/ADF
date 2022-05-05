@@ -1166,7 +1166,7 @@ class AdfDiag(AdfObs):
                                                value=img_data,
                                                case1=case_name,
                                                case2=data_name,
-                                               mydata=indv_html_info,#mean_html_info,#indv_html_info,
+                                               mydata=indv_html_info,
                                                plot_types=plot_type_html) #The template rendered
 
                             #Open HTML file:
@@ -1199,7 +1199,6 @@ class AdfDiag(AdfObs):
 
             #Grab the comparison table and move it to website dir
             comp_table_html_file = list(plot_path.glob("*comp.html"))
-            #color_table_html_file = list(plot_path.glob(f"*color*.html"))
 
             #Also grab baseline/obs tables, which are always stored in the first case directory:
             if case_idx == 0:
@@ -1216,9 +1215,6 @@ class AdfDiag(AdfObs):
                 table_pages_dir = website_dir / "html_table"
                 table_pages_dir.mkdir(exist_ok=True)
 
-                #for color_table in color_table_html_file:
-                #    shutil.copy2(color_table, table_pages_dir / color_table.name)
-
                 #Move all case table html files to new directory:
                 for table_html in table_html_files:
                     shutil.move(table_html, table_pages_dir / table_html.name)
@@ -1232,7 +1228,6 @@ class AdfDiag(AdfObs):
                 #Construct dictionary needed for HTML page:
                 amwg_tables = OrderedDict()
 
-                #i=0
                 for case in [case_name, data_name]:
 
                     #Search for case name in moved HTML files:
@@ -1262,13 +1257,6 @@ class AdfDiag(AdfObs):
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)
-
-                    # --------------------------------------------
-                    # uncomment for generating color tables
-                    #color_table = color_table_html_file[::-1][i]
-                    #print(f"\nColor table name: {color_table.name}\n")
-                    #amwg_tables[f"Colored Table {case}"] = color_table.name
-                    #i+=1
                 #End for (case vs data)
 
                 #Check if comp table exists (if not, then obs are being compared and comp table is not created)
@@ -1306,9 +1294,6 @@ class AdfDiag(AdfObs):
                 gen_table_html = False
             #End if
 
-            #plot_type_web_name = ["Tables"]+plot_type_order
-            #mean_table = str(outputfile)
-
             #Construct index.html
             #index_title = "AMP Diagnostics Prototype"
             index_tmpl = jinenv.get_template('template_index.html')
@@ -1335,7 +1320,6 @@ class AdfDiag(AdfObs):
                     shutil.copytree(css_files_dir, main_site_path / "templates")
                 #End if
             #End if
-
         #End for (model case loop)
 
         #Create multi-case site, if needed:
