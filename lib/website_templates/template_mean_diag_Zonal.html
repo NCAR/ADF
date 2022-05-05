@@ -35,28 +35,28 @@
       {% endfor %}
      </h2>
 
-     <div style="width: 100%;">
+     <div style="width: 100%;"> <!-- main div-->
       <div style="width: 50%; height: 100px; float: left;"> 
-     {% for key, value in mydata.items() %}
-     <h3>{{key}}</h3>
-     <table class="big-table">
-      {% for key1, value1 in value.items() %}
-        <th colspan="100%"> {{key1}} </th>
-      {% for key2, value2 in value1.items() %}
-      <tr>
-        {% for key3, value3 in value2.items() %}
-        <td>
-          <a href="{{ value3 }}">{{ key3 }}</a>
-        </td>
+        {% for category, var_ptype_seas in mydata.items() %}
+          <h3>{{category}}</h3>
+          <table class="big-table">
+            {% for var_name, ptype_seas in var_ptype_seas.items() %}
+              <th colspan="100%"> {{var_name}} </th>
+              {% for plot_type, season in ptype_seas.items() %}
+              <tr>
+                {% for season_name, seas in season.items() %}
+                <td>
+                  <a href="{{ seas }}">{{ season_name }}</a>
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            {% endfor %}
+          </table>
         {% endfor %}
-      </tr>
-      {% endfor %}
-      {% endfor %}
-    </table>
-    {% endfor %}
-      <div style="padding-bottom: 50px;"> 
-      </div>
-    </div> <!-- end left inner div -->
+        <div style="padding-bottom: 50px;"> 
+        </div>
+      </div> <!-- end left inner div -->
             
     <div style="width: 70%; height: 100px; float: right; padding-right: 100px">
     </div> <!-- end right inner div -->
