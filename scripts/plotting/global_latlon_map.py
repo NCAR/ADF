@@ -87,6 +87,11 @@ def global_latlon_map(adfobj):
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
 
+    # For global maps, also set the central longitude:
+    # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
+    # otherwise defaults to 180
+    res['central_longitude'] = pf.get_central_longitude(adfobj)
+
     #Set plot file type:
     # -- this should be set in basic_info_dict, but is not required
     # -- So check for it, and default to png

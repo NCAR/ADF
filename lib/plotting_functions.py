@@ -14,6 +14,7 @@ import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
 
+from adf_diag import AdfDiag
 
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
@@ -63,6 +64,34 @@ def get_difference_colors(values):
             dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
     return dnorm, cmap
 
+
+def get_central_longitude(*args):
+    """Determine central longitude for maps. 
+       Can provide multiple arguments.
+       If any of the arguments is an instance of AdfDiag, then check whether it has a central_longitude in `diag_basic_info`. 
+       --> This takes precedence.
+         --> Else: if any of the arguments are scalars in [-180, 360], assumes the FIRST ONE is the central longitude.
+       There are no other possible conditions, so if none of those are met,
+       RETURN the default value of 180.
+       
+       This allows a script to, for example, allow a config file to specify, but also have a preference:
+       get_central_longitude(AdfObj, 30.0)
+    """
+    for a in args:
+        if isinstance(a, AdfDiag):
+            result = a.get_basic_info('central_longitude', required=False)
+            if (result >= -180) and (result <= 360):
+                return result
+            else:
+                continue # keep looking
+        elif (isinstance(a, float) or isinstance(a, int)) and ((a >= -180) and (a <= 360)):
+            return a
+        else:
+            continue
+    else:
+        # this is the `else` on the for loop --> if non of the arguments meet the criteria, do this.
+        print("No valid central longitude specified. Defaults to 180.")
+        return 180
 
 #######
 
@@ -151,6 +180,10 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
     """
+    
+    #nice formatting for tick labels
+    from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+
     # preprocess
     # - assume all three fields have same lat/lon
     lat = obsfld['lat']
@@ -244,10 +277,20 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
-    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()}, **subplots_opt)
+    # specify the central longitude for the plot
+    central_longitude = kwargs.get('central_longitude', 180)
+
+    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree(central_longitude=central_longitude)}, **subplots_opt)
     img = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
+
+    # formatting for tick labels
+    lon_formatter = LongitudeFormatter(number_format='0.0f',
+                                        degree_symbol='',
+                                        dateline_direction_label=False)
+    lat_formatter = LatitudeFormatter(number_format='0.0f',
+                                        degree_symbol='')
 
     for i, a in enumerate(wrap_fields):
 
@@ -274,12 +317,15 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     ax[-1].set_title("RMSE: {0:.3f}".format(d_rmse), fontsize=tiFontSize)
 
     for a in ax:
-        a.outline_patch.set_linewidth(1)
+        # a.outline_patch.set_linewidth(1) # the old way
+        a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         a.coastlines()
-        a.set_xticks(np.linspace(-180, 180, 7), crs=ccrs.PlateCarree())
+        a.set_xticks(np.linspace(-180, 120, 6), crs=ccrs.PlateCarree())
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
-        a.tick_params('both', length=10, width=2, which='major')
-        a.tick_params('both', length=5, width=1, which='minor')
+        a.tick_params('both', length=5, width=1.5, which='major')
+        a.tick_params('both', length=5, width=1.5, which='minor')
+        a.xaxis.set_major_formatter(lon_formatter)
+        a.yaxis.set_major_formatter(lat_formatter)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
