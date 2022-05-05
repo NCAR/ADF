@@ -242,16 +242,10 @@ def amwg_table(adf):
 
             # last step is to write the html file; overwrites previous version since we're supposed to be adding to it
             if write_html:
-                _write_html(output_csv_file, output_html_file,case_name,list(case_names))
+                _write_html(output_csv_file, output_html_file,case_name,case_names)
 
         #End of var_list loop
         #--------------------
-
-        # Style the DataFrame
-        #--------------------
-      
-        #output_html_color_file = output_location / "amwg_table_{}_color.html".format(case_name)
-        #_df_styler(write_html,output_csv_file,output_html_color_file,adf)
 
     #End of model case loop
     #----------------------
@@ -310,9 +304,8 @@ def _write_html(f, out,case_name,case_name_list):
     import pandas as pd
     df = pd.read_csv(f)
     html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    #preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
-    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
 
+    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     <nav role="navigation" class="primary-navigation">
       <ul>
         <li><a href="../index.html">Case Home</a></li>
@@ -328,6 +321,7 @@ def _write_html(f, out,case_name,case_name_list):
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
     </nav><h1>AMP Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
+    
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
@@ -364,8 +358,8 @@ def _df_comp_table(write_html,output_location,case_names):
         output_html_file_comp = output_location / "amwg_table_comp.html"
     
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     
+    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     <nav role="navigation" class="primary-navigation">
       <ul>
         <li><a href="../index.html">Case Home</a></li>
