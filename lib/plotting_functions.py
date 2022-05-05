@@ -366,7 +366,6 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     fig = plt.figure(figsize=(14,10))
     # LAYOUT WITH GRIDSPEC
     gs = gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
-    #gs.update(wspace=0.5,hspace=0.05)
     gs.tight_layout(fig)
     proj = ccrs.PlateCarree()
     ax1 = plt.subplot(gs[0:2, :3], projection=proj)
@@ -406,8 +405,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         #ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
         #ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
         #bbox=dict(facecolor='none', edgecolor='black'), fontsize=tiFontSize-2)
-    #cb.append(fig.colorbar(img[0], ax=ax[0], shrink=0.8, **colorbar_opt))
-    #cb.append(fig.colorbar(img[2], ax=ax[2], shrink=0.8, **colorbar_opt))
+
     # set rmse title:
     ax[-1].set_title("RMSE: {0:.3f}".format(d_rmse), fontsize=tiFontSize)
 
