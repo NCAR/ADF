@@ -187,7 +187,7 @@ def global_latlon_vect_map(adfobj):
         #End if
 
         #Notify user of variable being plotted:
-        print(f"\t \u231B lat/lon vector maps for {var},{var_pair}")
+        print(f"\t - lat/lon vector maps for {var},{var_pair}")
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
