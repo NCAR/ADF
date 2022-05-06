@@ -1083,57 +1083,14 @@ class AdfDiag(AdfObs):
                                             # w/ values being dict w/ keys being TEMPORAL sampling,
                                             # values being the URL
 
-                # ---------------------------
-                # This code eleminates the error of disappearing seasons...
-                # Can't figure why I have to make similar nested loop to create it
-                # # and not from the same nested loop below....
-                indv_html_info = OrderedDict()
                 for var in var_list_alpha:
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
                         for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
-                            alt_text  = img.stem #Extract image file name text
 
                             #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
-
-                            # Search through all categories and see which one the current variable is part of
-                            if next((cat for (cat, varz) in var_cat_dict.items() if var in varz), None) is None:
-                                category = 'No category yet'
-                            else:
-                                category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
-
-                            if category not in indv_html_info:
-                                indv_html_info[category] = OrderedDict()
-
-                            #Initialize Ordered Dictionary for variable:
-                            if var not in indv_html_info[category]:
-                                indv_html_info[category][var] = OrderedDict()
-
-                            #Initialize Ordered Dictionary for plot type:
-                            if ptype not in indv_html_info[category][var]:
-                                indv_html_info[category][var][ptype] = OrderedDict()
-
-                            #Initialize Ordered Dictionary for season:
-                            if season not in indv_html_info[category][var][ptype]:
-                                indv_html_info[category][var][ptype][season] = OrderedDict()
-
-                            indv_html_info[category][var][ptype][season] = outputfile.name
-
-
-                #Loop over variables:
-                for var in var_list_alpha:
-                    #Loop over seasons:
-                    for season in season_order:
-                        #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
-                            alt_text  = img.stem #Extract image file name text
-
-                            #Create output file (don't worry about analysis type for now):
-                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
-                            # Hacky - how to get the relative path in a better way?:
-                            img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
 
                             # Search through all categories and see which one the current variable is part of
                             if next((cat for (cat, varz) in var_cat_dict.items() if var in varz), None) is None:
@@ -1156,16 +1113,32 @@ class AdfDiag(AdfObs):
                             if season not in mean_html_info[category][var][ptype]:
                                 mean_html_info[category][var][ptype][season] = OrderedDict()
 
-                            var_title = f"Variable: {var}"              #Create title
+                            mean_html_info[category][var][ptype][season] = outputfile.name
+
+                #Loop over variables:
+                for var in var_list_alpha:
+                    #Loop over seasons:
+                    for season in season_order:
+                        #Create the data that will be fed into the template:
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                            alt_text  = img.stem #Extract image file name text
+
+                            #Create output file (don't worry about analysis type for now):
+                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                            # Hacky - how to get the relative path in a better way?:
+                            img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+
+                            #Create titles
+                            var_title = f"Variable: {var}"              
                             season_title = f"Season: {season}"
                             plottype_title = f"Plot: {ptype}"
                             tmpl = jinenv.get_template('template.html')  #Set template
                             rndr = tmpl.render(title=main_title,var_title=var_title,season_title=season_title,
                                                plottype_title=plottype_title,
-                                               value=img_data,
+                                               imgs=img_data,
                                                case1=case_name,
                                                case2=data_name,
-                                               mydata=indv_html_info,
+                                               mydata=mean_html_info,
                                                plot_types=plot_type_html) #The template rendered
 
                             #Open HTML file:
@@ -1173,7 +1146,6 @@ class AdfDiag(AdfObs):
                                 ofil.write(rndr)
                             #End with
 
-                            mean_html_info[category][var][ptype][season] = outputfile.name
                             #Construct individual plot type mean_diag html files
                             mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
                             mean_rndr = mean_tmpl.render(title=main_title,
