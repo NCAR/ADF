@@ -1087,7 +1087,7 @@ class AdfDiag(AdfObs):
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_Mean*.png"):
 
                             #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
@@ -1120,7 +1120,7 @@ class AdfDiag(AdfObs):
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_*.png"):
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_Mean*.png"):
                             alt_text  = img.stem #Extract image file name text
 
                             #Create output file (don't worry about analysis type for now):
