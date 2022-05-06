@@ -395,7 +395,6 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
             img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
-            cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
 
