@@ -365,7 +365,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     fig = plt.figure(figsize=(14,10))
     # LAYOUT WITH GRIDSPEC
-    gs = gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
+    gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
     gs.tight_layout(fig)
     proj = ccrs.PlateCarree()
     ax1 = plt.subplot(gs[0:2, :3], projection=proj)
