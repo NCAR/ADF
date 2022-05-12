@@ -324,7 +324,6 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         levels1 = np.linspace(minval, maxval, 12)
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
 
-
     if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
         if ((minval < 0) and (0 < maxval)) and mplv > 2:
             norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
@@ -364,7 +363,15 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
-    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree()}, **subplots_opt)
+    fig = plt.figure(figsize=(14,10))
+    # LAYOUT WITH GRIDSPEC
+    gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
+    gs.tight_layout(fig)
+    proj = ccrs.PlateCarree()
+    ax1 = plt.subplot(gs[0:2, :3], projection=proj)
+    ax2 = plt.subplot(gs[0:2, 3:], projection=proj)
+    ax3 = plt.subplot(gs[2, 1:5], projection=proj)
+    ax = [ax1,ax2,ax3]
     img = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
@@ -388,7 +395,6 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
             img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
-            cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
 
@@ -409,6 +415,27 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
         a.tick_params('both', length=10, width=2, which='major')
         a.tick_params('both', length=5, width=1, which='minor')
+
+    # __COLORBARS__
+    cb_mean_ax = inset_axes(ax2,
+                    width="5%",  # width = 5% of parent_bbox width
+                    height="100%",  # height : 50%
+                    loc='lower left',
+                    bbox_to_anchor=(1.05, 0, 1, 1),
+                    bbox_transform=ax2.transAxes,
+                    borderpad=0,
+                    )
+    fig.colorbar(img[1], cax=cb_mean_ax)
+
+    cb_diff_ax = inset_axes(ax3,
+                    width="5%",  # width = 5% of parent_bbox width
+                    height="100%",  # height : 50%
+                    loc='lower left',
+                    bbox_to_anchor=(1.05, 0, 1, 1),
+                    bbox_transform=ax3.transAxes,
+                    borderpad=0,
+                    )
+    fig.colorbar(img[2], cax=cb_diff_ax)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)

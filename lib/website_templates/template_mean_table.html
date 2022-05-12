@@ -8,7 +8,7 @@
 
     <nav role="navigation" class="primary-navigation">
       <ul>
-        <li><a href=".">Home</a></li>
+        <li><a href="../index.html">Case Home</a></li>
         <li><a href="#">Links &dtrif;</a>
           <ul class="dropdown">
             <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
@@ -22,14 +22,24 @@
     </nav>
 
     <h1> {{title}} </h1>
-
-    <table class="big-table">
-      {% for case_name, html_file in amwg_tables.items() %}
-        <tr>
-          <td><a href="{{ html_file }}">{{ case_name }}</a></td>
-        </tr>
+    <h2> Test Case: {{case1}}</h2>
+    <h2> Control Case: {{case2}}</h2>
+    
+     <h2>Plot Types: 
+      <a style="color: black; font-weight: bold;"> &nbsp; Tables</a>
+      {% for type, html_file in plot_types.items() %}
+      <a href=../{{html_file}}>  &nbsp; {{type}}</a>
       {% endfor %}
-    </table>
+     </h2>
 
+    <div style="width: 100%;">
+        <table class="big-table">
+          {% for case_name, html_file in amwg_tables.items() %}
+            <tr>
+              <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
   </body>
 </html>

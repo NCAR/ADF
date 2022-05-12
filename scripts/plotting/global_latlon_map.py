@@ -423,7 +423,7 @@ def global_latlon_map(adfobj):
 
                                         # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                         # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                                        plot_name = plot_loc / f"{var}_{s}_Lev_{pres}hpa_LatLon_Mean.{plot_type}"
+                                        plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
 
                                         #Remove old plot, if it already exists:
                                         if plot_name.is_file():

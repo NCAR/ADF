@@ -242,7 +242,7 @@ def amwg_table(adf):
 
             # last step is to write the html file; overwrites previous version since we're supposed to be adding to it
             if write_html:
-                _write_html(output_csv_file, output_html_file)
+                _write_html(output_csv_file, output_html_file,case_name,case_names)
 
         #End of var_list loop
         #--------------------
@@ -254,6 +254,7 @@ def amwg_table(adf):
     if not adf.get_basic_info("compare_obs"):
         #Create comparison table for both cases
         print("  Making comparison table...")
+
         _df_comp_table(write_html,output_location,case_names)
     else:
         print(" Comparison table currently doesn't work with obs, so skipping...")
@@ -295,16 +296,40 @@ def _spatial_average(indata):
 
 #####
 
-def _write_html(f, out):
+def _write_html(f, out,case_name,case_name_list):
+    if case_name != case_name_list[-1]:
+        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+        # This will need to change when applying multi-case runs; ie Test 1, Test 2, etc.
+        case = "Test"
+    else:
+        case = "Control"
     import pandas as pd
     df = pd.read_csv(f)
     html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    preamble = f"""<html><head></head><body><h1>{f.stem}<h1>"""
+
+    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
+    <nav role="navigation" class="primary-navigation">
+      <ul>
+        <li><a href="../index.html">Case Home</a></li>
+        <li><a href="../html_table/mean_table.html">Case Tables</a></li>
+        <li><a href="#">Links &dtrif;</a>
+          <ul class="dropdown">
+            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+          </ul>
+        </li>
+        <li><a href="https://github.com/NCAR/ADF">About</a></li>
+        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+      </ul>
+    </nav><h1>CAM Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
+    
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
         hfil.write(html)
         hfil.write(ending)
+
 
 def _df_comp_table(write_html,output_location,case_names):
     import pandas as pd
@@ -326,19 +351,33 @@ def _df_comp_table(write_html,output_location,case_names):
 
     df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
 
+
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
     #Create HTML output file name as well, if needed:
     if write_html:
         output_html_file_comp = output_location / "amwg_table_comp.html"
-
+    
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-    #This will be for single-case for now,
-    #will need to think how to change as multi-case is introduced
-    # ie case_names[0] will need to be modified for more cases
-    preamble = f"""<html><head></head><body><h1>AMWG Case Comparison<h1><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
+    
+    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
+    <nav role="navigation" class="primary-navigation">
+      <ul>
+        <li><a href="../index.html">Case Home</a></li>
+        <li><a href="../html_table/mean_table.html">Case Tables</a></li>
+        <li><a href="#">Links &dtrif;</a>
+          <ul class="dropdown">
+            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+          </ul>
+        </li>
+        <li><a href="https://github.com/NCAR/ADF">About</a></li>
+        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+      </ul>
+    </nav><h1>CAM Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
+
     ending = """</body></html>"""
     with open(output_html_file_comp, 'w') as hfil:
         hfil.write(preamble)
