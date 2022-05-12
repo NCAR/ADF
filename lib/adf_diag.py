@@ -998,28 +998,20 @@ class AdfDiag(AdfObs):
                           'FSDSC', 'FSNS', 'FSNSC', 'FSNT', 'FSNTC', 'FSNTOA',
                           'LHFLX', 'LWCF', 'QRL', 'QRS', 'SHFLX', 'SWCF'},
             'State': {'OMEGA', 'OMEGA500', 'PINT', 'PMID', 'PS', 'PSL', 'Q',
-                      'RELHUM', 'T', 'U', 'V', 'Z3'},
-            'Surface': {'PBLH', 'QFLX', 'TAUX', 'TAUY', 'TREFHT', 'U10'},
+                      'RELHUM', 'T', 'U', 'V', 'Z3', 'Wind'},
+            'Surface': {'PBLH', 'QFLX', 'TAUX', 'TAUY', 'TREFHT', 'U10',
+                        'Surface_Wind_Stress'},
             'GW': {'QTGW', 'UGTW_TOTAL', 'UTGWORO', 'VGTW_TOTAL', 'VTGWORO'},
             'CLUBB': {'RVMTEND_CLUBB', 'STEND_CLUBB', 'WPRTP_CLUBB', 'WPTHLP_CLUBB'}
         }
 
         #Set preferred order of plot types:
         plot_type_order = ["LatLon", "LatLon_Vector", "Zonal", "NHPolar", "SHPolar"]
-        plot_type_web = ["html_img/mean_diag_LatLon.html", 
+        plot_type_web = ["html_img/mean_diag_LatLon.html",
                     "html_img/mean_diag_LatLon_Vector.html","html_img/mean_diag_Zonal.html",
                             "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html"]
         plot_type_html = dict(zip(plot_type_order, plot_type_web))
         main_title = "CAM Diagnostics"
-
-        #Also add pressure level Lat-Lon plots, if applicable:
-        pres_levs = self.get_basic_info("plot_press_levels")
-        if pres_levs:
-            for pres in pres_levs:
-                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Mean")
-                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Vector_Mean")
-            #End for
-        #End if
 
         #Check if any variables are associated with specific vector quantities,
         #and if so then add the vectors to the website variable list.
@@ -1031,6 +1023,52 @@ class AdfDiag(AdfObs):
                 #End if
             #End if
         #End for
+
+        #Extract pressure levels being plotted:
+        pres_levs = self.get_basic_info("plot_press_levels")
+
+        if pres_levs:
+            #Create pressure-level variable dictionary:
+            pres_levs_var_dict = {}
+
+            #Now add variables on pressure levels, if applicable.
+            #Please note that this method is not particularly
+            #efficient as most of these variables won't actually exist:
+            for var in var_list:
+                #Find variable category:
+                category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+
+                #Add variable with pressure levels:
+                #Please note that this method is not particularly
+                #efficient as most of these variables won't actually exist:
+                for pres in pres_levs:
+                    if category:
+                        if category in pres_levs_var_dict:
+                            pres_levs_var_dict[category].append(f"{var}_{pres}hpa")
+                        else:
+                            pres_levs_var_dict[category] = [f"{var}_{pres}hpa"]
+                        #End if
+                    else:
+                        if "none" in pres_levs_var_dict:
+                            pres_levs_var_dict["none"].append(f"{var}_{pres}hpa")
+                        else:
+                            pres_levs_var_dict["none"] = [f"{var}_{pres}hpa"]
+                        #End if
+                    #End if
+                #End for
+            #End for
+
+            #Now loop over pressure variable dictionary:
+            for category, pres_var_names in pres_levs_var_dict.items():
+                #Add pressure-level variable to category if applicable:
+                if category in var_cat_dict:
+                    var_cat_dict[category].update(pres_var_names)
+                #End if
+
+                #Add pressure-level variable to variable list:
+                var_list.extend(pres_var_names)
+            #End for
+        #End if
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
@@ -1086,6 +1124,7 @@ class AdfDiag(AdfObs):
                 for var in var_list_alpha:
                     #Loop over seasons:
                     for season in season_order:
+
                         #Create the data that will be fed into the template:
                         for img in assets_dir.glob(f"{var}_{season}_{ptype}_Mean*.png"):
 
@@ -1093,10 +1132,10 @@ class AdfDiag(AdfObs):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
 
                             # Search through all categories and see which one the current variable is part of
-                            if next((cat for (cat, varz) in var_cat_dict.items() if var in varz), None) is None:
+                            category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+                            if not category:
                                 category = 'No category yet'
-                            else:
-                                category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+                            #End if
 
                             if category not in mean_html_info:
                                 mean_html_info[category] = OrderedDict()
@@ -1129,7 +1168,7 @@ class AdfDiag(AdfObs):
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
 
                             #Create titles
-                            var_title = f"Variable: {var}"              
+                            var_title = f"Variable: {var}"
                             season_title = f"Season: {season}"
                             plottype_title = f"Plot: {ptype}"
                             tmpl = jinenv.get_template('template.html')  #Set template
@@ -1164,9 +1203,6 @@ class AdfDiag(AdfObs):
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
-            
-            #Grab the comparison table and move it to website dir
-            comp_table_html_file = list(plot_path.glob("*comp.html"))
 
             #Grab the comparison table and move it to website dir
             comp_table_html_file = list(plot_path.glob("*comp.html"))
