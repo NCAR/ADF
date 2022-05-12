@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ADF {{var_title}}</title>
+    <title>ADF Mean Plots</title>
     <link rel="stylesheet" href="../templates/adf_diag.css">
   </head>
-  <body>
+  <body >
 
     <nav role="navigation" class="primary-navigation">
       <ul>
@@ -27,7 +27,7 @@
      <h2>Plot Types: 
       <a href=../html_table/mean_table.html> &nbsp; Tables</a> 
       {% for type, html_file in plot_types.items() %}
-      {% if type == plottype_title[6:] %}
+      {% if type == "SHPolar" %}
       <a style="color: black; font-weight: bold;"> &nbsp; {{type}}</a>
       {% else %}
       <a href=../{{html_file}}> &nbsp; {{type}}</a>
@@ -46,11 +46,7 @@
               <tr>
                 {% for season_name, seas in season.items() %}
                 <td>
-                  {% if (season_name == season_title[8:]) and (var_name == var_title[10:]) %}
-                  <a style="color: black; text-decoration: underline;">{{ season_name }}</a>
-                  {% else %}
                   <a href="{{ seas }}">{{ season_name }}</a>
-                  {% endif %}
                 </td>
                 {% endfor %}
               </tr>
@@ -61,15 +57,11 @@
         <div style="padding-bottom: 50px;"> 
         </div>
       </div> <!-- end left inner div -->
-      
-      <div id="footer">
-      <div class="fixedDiv" style="width: 50%; height: 100px; float: right; padding-right: 50px; padding-bottom: 50px;">
-        <a href="{{imgs[0]}}" target="_blank">
-          <img src="{{imgs[0]}}" alt="{{imgs[1]}}"></img>
-        </a>
+          
+      <div style="width: 70%; height: 100px; float: right; padding-right: 100px">
       </div> <!-- end right inner div -->
-      </div>
-     </div> <!-- end main div -->
+    </div> <!-- end main div -->
+
 
   </body>
 </html>

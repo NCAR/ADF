@@ -193,11 +193,18 @@ def zonal_mean(adfobj):
                     odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
                     # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit.
 
-
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
                 has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
                 if has_lev:
+
+                    #For now, there is no easy way to use observations with specified pressure levels, so
+                    #bail out here:
+                    if adfobj.compare_obs:
+                        print(f"\t - plot_press_levels currently doesn't work with observations, so skipping case for variabe '{var}'.")
+                        continue #Skip variable
+                    #End if
+
                     print("{} has lev dimension.".format(var))
                     # need hyam, hybm, PS, P0 for both datasets
                     if 'hyam' not in mclim_ds:

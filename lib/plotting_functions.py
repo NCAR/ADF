@@ -13,6 +13,7 @@ import matplotlib as mpl
 import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from adf_diag import AdfDiag
 
@@ -66,14 +67,14 @@ def get_difference_colors(values):
 
 
 def get_central_longitude(*args):
-    """Determine central longitude for maps. 
+    """Determine central longitude for maps.
        Can provide multiple arguments.
-       If any of the arguments is an instance of AdfDiag, then check whether it has a central_longitude in `diag_basic_info`. 
+       If any of the arguments is an instance of AdfDiag, then check whether it has a central_longitude in `diag_basic_info`.
        --> This takes precedence.
          --> Else: if any of the arguments are scalars in [-180, 360], assumes the FIRST ONE is the central longitude.
        There are no other possible conditions, so if none of those are met,
        RETURN the default value of 180.
-       
+
        This allows a script to, for example, allow a config file to specify, but also have a preference:
        get_central_longitude(AdfObj, 30.0)
     """
@@ -153,6 +154,125 @@ def wgt_rmse(fld1, fld2, wgt):
 
 #######
 
+def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffld, vdiffld, **kwargs):
+    """This plots a vector plot. bringing in two variables which respresent a vector pair
+
+    kwargs -> optional dictionary of plotting options
+             ** Expecting this to be a variable-specific section,
+                possibly provided by an ADF Variable Defaults YAML file.**
+
+    """
+
+    proj = ccrs.PlateCarree()
+    lons, lats = np.meshgrid(umdlfld['lon'], umdlfld['lat'])
+
+    fig = plt.figure(figsize=(20,12))
+
+    # LAYOUT WITH GRIDSPEC
+    gs = mpl.gridspec.GridSpec(2, 4)
+    gs.update(wspace=0.25)
+    ax1 = plt.subplot(gs[0, :2], projection=proj)
+    ax2 = plt.subplot(gs[0, 2:], projection=proj)
+    ax3 = plt.subplot(gs[1, 1:3], projection=proj)
+
+    # too many vectors to see well, so prune by striding through data:
+    skip=(slice(None,None,5),slice(None,None,8))
+
+    title_string = "Missing title!"
+    title_string_base = title_string
+    if "var_name" in kwargs:
+        var_name = kwargs["var_name"]
+    else:
+        var_name = "missing VAR name"
+    #End if
+
+    if "case_name" in kwargs:
+        case_name = kwargs["case_name"]
+        if plev:
+            title_string = f"{case_name} {var_name} [{plev} hPa]"
+        else:
+            title_string = f"{case_name} {var_name}"
+        #End if
+    #End if
+    if "baseline" in kwargs:
+        data_name = kwargs["baseline"]
+        if plev:
+            title_string_base = f"{data_name} {var_name} [{plev} hPa]"
+        else:
+            title_string_base = f"{data_name} {var_name}"
+        #End if
+    #End if
+
+    # Calculate vector magnitudes.
+    # Please note that the difference field needs
+    # to be calculated from the model and obs fields
+    # in order to get the correct sign:
+    mdl_mag  = np.sqrt(umdlfld**2 + vmdlfld**2)
+    obs_mag  = np.sqrt(uobsfld**2 + vobsfld**2)
+    diff_mag = mdl_mag - obs_mag
+
+    # Get difference limits, in order to plot the correct range:
+    min_diff_val = np.min(diff_mag)
+    max_diff_val = np.max(diff_mag)
+
+    # Color normalization for difference
+    if (min_diff_val < 0) and (0 < max_diff_val):
+        normdiff = mpl.colors.TwoSlopeNorm(vmin=min_diff_val, vmax=max_diff_val, vcenter=0.0)
+    else:
+        normdiff = mpl.colors.Normalize(vmin=min_diff_val, vmax=max_diff_val)
+    #End if
+
+    # Generate vector plot:
+    #  - contourf to show magnitude w/ colorbar
+    #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
+    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax1.set_title(title_string)
+
+    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax2.set_title(title_string_base)
+
+    ## Add colorbar to vector plot:
+    cb_c1_ax = inset_axes(ax1,
+                   width="3%",  # width = 5% of parent_bbox width
+                   height="90%",  # height : 50%
+                   loc='lower left',
+                   bbox_to_anchor=(1.01, 0.05, 1, 1),
+                   bbox_transform=ax1.transAxes,
+                   borderpad=0,
+                   )
+
+    fig.colorbar(img1, cax=cb_c1_ax)
+    fig.colorbar(img2, cax=cb_c1_ax)
+
+    # Plot vector differences:
+    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
+    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
+
+    ax3.set_title(f"Difference in {var_name}", loc='left')
+    cb_d_ax = inset_axes(ax3,
+                   width="3%",  # width = 5% of parent_bbox width
+                   height="90%",  # height : 50%
+                   loc='lower left',
+                   bbox_to_anchor=(1.01, 0.05, 1, 1),
+                   bbox_transform=ax3.transAxes,
+                   borderpad=0
+                   )
+    fig.colorbar(img3, cax=cb_d_ax)
+
+    # Add coastlines:
+    [a.coastlines() for a in [ax1,ax2,ax3]]
+
+    # Write final figure to file
+    fig.savefig(wks, bbox_inches='tight', dpi=300)
+
+    #Close plots:
+    plt.close()
+
+
+#######
+
 def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
 
@@ -183,7 +303,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
     """
-    
+
     #nice formatting for tick labels
     from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 
@@ -240,7 +360,6 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         levels1 = np.linspace(minval, maxval, 12)
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
 
-
     if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
         if ((minval < 0) and (0 < maxval)) and mplv > 2:
             norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
@@ -284,6 +403,17 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     central_longitude = kwargs.get('central_longitude', 180)
 
     fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree(central_longitude=central_longitude)}, **subplots_opt)
+
+    fig = plt.figure(figsize=(14,10))
+    # LAYOUT WITH GRIDSPEC
+    gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
+    gs.tight_layout(fig)
+    proj = ccrs.PlateCarree()
+    ax1 = plt.subplot(gs[0:2, :3], projection=proj)
+    ax2 = plt.subplot(gs[0:2, 3:], projection=proj)
+    ax3 = plt.subplot(gs[2, 1:5], projection=proj)
+    ax = [ax1,ax2,ax3]
+
     img = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
@@ -306,9 +436,17 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             cmap = cmap1
             norm = norm1
 
-        img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
-        cb.append(fig.colorbar(img[i], ax=ax[i], shrink=0.8, **colorbar_opt))
+        empty_message = "No Valid\nData Points"
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+        levs = np.unique(np.array(levels))
+        if len(levs) < 2:
+            img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
+            ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
+        else:
+            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
+        #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
+
         # add contour lines <- Unused for now -JN
         # TODO: add an option to turn this on -BM
         #cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))
@@ -329,6 +467,27 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         a.tick_params('both', length=5, width=1.5, which='minor')
         a.xaxis.set_major_formatter(lon_formatter)
         a.yaxis.set_major_formatter(lat_formatter)
+
+    # __COLORBARS__
+    cb_mean_ax = inset_axes(ax2,
+                    width="5%",  # width = 5% of parent_bbox width
+                    height="100%",  # height : 50%
+                    loc='lower left',
+                    bbox_to_anchor=(1.05, 0, 1, 1),
+                    bbox_transform=ax2.transAxes,
+                    borderpad=0,
+                    )
+    fig.colorbar(img[1], cax=cb_mean_ax)
+
+    cb_diff_ax = inset_axes(ax3,
+                    width="5%",  # width = 5% of parent_bbox width
+                    height="100%",  # height : 50%
+                    loc='lower left',
+                    bbox_to_anchor=(1.05, 0, 1, 1),
+                    bbox_transform=ax3.transAxes,
+                    borderpad=0,
+                    )
+    fig.colorbar(img[2], cax=cb_diff_ax)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
@@ -554,6 +713,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             cmap1 = kwargs['colormap']
         else:
             cmap1 = 'coolwarm'
+        #End if
 
         if 'contour_levels' in kwargs:
             levels1 = kwargs['contour_levels']
@@ -565,6 +725,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         else:
             levels1 = np.linspace(minval, maxval, 12)
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+        #End if
 
 
         if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
@@ -572,12 +733,15 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
                 norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
             else:
                 norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+            #End if
+        #End if
 
     # Difference options -- Check in kwargs for colormap and levels
         if "diff_colormap" in kwargs:
             cmapdiff = kwargs["diff_colormap"]
         else:
             cmapdiff = 'coolwarm'
+        #End if
 
         if "diff_contour_levels" in kwargs:
             levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
@@ -589,12 +753,14 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             absmaxdif = np.max(np.abs(diff))
             # set levels for difference plot:
             levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        #End if
 
     # color normalization for difference
         if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
             normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
         else:
             normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
+        #End if
 
         subplots_opt = {}
         contourf_opt = {}
@@ -605,16 +771,30 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             subplots_opt.update(kwargs['mpl'].get('subplots',{}))
             contourf_opt.update(kwargs['mpl'].get('contourf',{}))
             colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
+        #End if
 
         # Generate zonal plot:
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**subplots_opt)
-        img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
-        img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
-        img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=normdiff,cmap=cmapdiff,levels=levelsdiff,**contourf_opt)
+        levs = np.unique(np.array(levels1))
+        if len(levs) < 2:
+            empty_message = "No Valid\nData Points"
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+            img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0])
+            ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
+            img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1])
+            ax[1].text(0.4, 0.4, empty_message, transform=ax[1].transAxes, bbox=props)
+            img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2])
+            ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
+        else:
+            img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
+            img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
+            img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=normdiff,cmap=cmapdiff,levels=levelsdiff,**contourf_opt)
+            cb0 = fig.colorbar(img0, ax=ax[0], location='right',**colorbar_opt)
+            cb1 = fig.colorbar(img1, ax=ax[1], location='right',**colorbar_opt)
+            cb2 = fig.colorbar(img2, ax=ax[2], location='right',**colorbar_opt)
+        #End if
+
         # style the plot:
-        cb0 = fig.colorbar(img0, ax=ax[0], location='right',**colorbar_opt)
-        cb1 = fig.colorbar(img1, ax=ax[1], location='right',**colorbar_opt)
-        cb2 = fig.colorbar(img2, ax=ax[2], location='right',**colorbar_opt)
         ax[-1].set_xlabel("LATITUDE")
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
@@ -630,6 +810,9 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
                 a.label_outer()
             except:
                 pass
+            #End except
+        #End for
+    #End if
 
     #Write the figure to provided workspace/file:
     fig.savefig(wks, bbox_inches='tight', dpi=300)

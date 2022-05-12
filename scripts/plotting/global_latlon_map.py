@@ -1,11 +1,20 @@
+
+#Import standard modules:
+from pathlib import Path
+import numpy as np
+import xarray as xr
+import warnings  # use to warn user about missing files.
+
+#Format warning messages:
+def my_formatwarning(msg, *args, **kwargs):
+    # ignore everything except the message
+    return str(msg) + '\n'
+warnings.formatwarning = my_formatwarning
+
 def global_latlon_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
-
-    This script is actually the same as 'plot_example', except
-    that it uses the shared diagnostics plotting library, as
-    opposed to being entirely self-contained.
 
     Description of function inputs:
 
@@ -31,11 +40,6 @@ def global_latlon_map(adfobj):
 
     #Import necessary modules:
     #------------------------
-    from pathlib import Path  # python standard library
-
-    # data loading / analysis
-    import xarray as xr
-    import numpy as np
     import pandas as pd
 
     #CAM diagnostic plotting functions:
@@ -424,7 +428,7 @@ def global_latlon_map(adfobj):
 
                                         # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                         # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                                        plot_name = plot_loc / f"{var}_{s}_Lev_{pres}hpa_LatLon_Mean.{plot_type}"
+                                        plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
 
                                         #Remove old plot, if it already exists:
                                         if plot_name.is_file():
@@ -460,6 +464,22 @@ def global_latlon_map(adfobj):
 
     #Notify user that script has ended:
     print("  ...lat/lon maps have been generated successfully.")
+
+#########
+# Helpers
+#########
+
+def _load_dataset(fils):
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        sfil = str(fils[0])
+        return xr.open_dataset(sfil)
+    #End if
+#End def
 
 ##############
 #END OF SCRIPT
