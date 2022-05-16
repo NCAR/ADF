@@ -156,6 +156,12 @@ def global_latlon_map(adfobj):
 
         else:
             vres = {}
+        #End if
+
+        # For global maps, also set the central longitude:
+        # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
+        # otherwise defaults to 180
+        vres['central_longitude'] = pf.get_central_longitude(adfobj)
 
         #loop over different data sets to plot model against:
         for data_src in data_list:

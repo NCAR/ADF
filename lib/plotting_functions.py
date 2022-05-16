@@ -15,6 +15,7 @@ from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
+from adf_diag import AdfDiag
 
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
@@ -64,6 +65,56 @@ def get_difference_colors(values):
             dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
     return dnorm, cmap
 
+
+def get_central_longitude(*args):
+    """Determine central longitude for maps.
+       Can provide multiple arguments.
+       If any of the arguments is an instance of AdfDiag, then check whether it has a central_longitude in `diag_basic_info`.
+       --> This takes precedence.
+         --> Else: if any of the arguments are scalars in [-180, 360], assumes the FIRST ONE is the central longitude.
+       There are no other possible conditions, so if none of those are met,
+       RETURN the default value of 180.
+
+       This allows a script to, for example, allow a config file to specify, but also have a preference:
+       get_central_longitude(AdfObj, 30.0)
+    """
+    chk_for_adf = [isinstance(arg, AdfDiag) for arg in args]
+    # preference is to get value from AdfDiag:
+    if any(chk_for_adf):
+        for arg in args:
+            if isinstance(arg, AdfDiag):
+                result = arg.get_basic_info('central_longitude', required=False)
+                if (isinstance(result, int) or isinstance(result, float)) and \
+                   (result >= -180) and (result <= 360):
+                    return result
+                else:
+                    #If result exists, then write info to debug log:
+                    if result:
+                        msg = f"central_lngitude of type '{type(result).__name__}'"
+                        msg += f" and value '{result}', which is not a valid longitude"
+                        msg += " for the ADF."
+                        arg.debug_log(msg)
+                    #End if
+
+                    #There is only one ADF object per ADF run, so if its
+                    #not present or configured correctly then no
+                    #reason to keep looking:
+                    break
+                #End if
+            #End if
+        #End for
+    #End if
+
+    # 2nd pass through arguments, look for numbers:
+    for arg in args:
+        if (isinstance(arg, float) or isinstance(arg, int)) and ((arg >= -180) and (arg <= 360)):
+            return arg
+        #End if
+    else:
+        # this is the `else` on the for loop --> if non of the arguments meet the criteria, do this.
+        print("No valid central longitude specified. Defaults to 180.")
+        return 180
+    #End if
 
 #######
 
@@ -131,9 +182,16 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
 
     """
 
-    proj = ccrs.PlateCarree()
+    # specify the central longitude for the plot:
+    cent_long = kwargs.get('central_longitude', 180)
+
+    # generate progjection:
+    proj = ccrs.PlateCarree(central_longitude=cent_long)
+
+    # extract lat/lon values:
     lons, lats = np.meshgrid(umdlfld['lon'], umdlfld['lat'])
 
+    # create figure:
     fig = plt.figure(figsize=(20,12))
 
     # LAYOUT WITH GRIDSPEC
@@ -194,11 +252,11 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
     #  - contourf to show magnitude w/ colorbar
     #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
     img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree())
-    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(central_longitude=cent_long), cmap='Reds')
     ax1.set_title(title_string)
 
     img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree())
-    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(central_longitude=cent_long), cmap='Reds')
     ax2.set_title(title_string_base)
 
     ## Add colorbar to vector plot:
@@ -216,7 +274,7 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
 
     # Plot vector differences:
     img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
-    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
+    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree(central_longitude=cent_long))
 
     ax3.set_title(f"Difference in {var_name}", loc='left')
     cb_d_ax = inset_axes(ax3,
@@ -271,6 +329,10 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
 
     When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
     """
+
+    #nice formatting for tick labels
+    from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+
     # preprocess
     # - assume all three fields have same lat/lon
     lat = obsfld['lat']
@@ -353,6 +415,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     else:
         normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
 
+    # initialize plotting keyword options:
     subplots_opt = {}
     contourf_opt = {}
     colorbar_opt = {}
@@ -363,18 +426,31 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
 
+    # specify the central longitude for the plot
+    central_longitude = kwargs.get('central_longitude', 180)
+
+    # create figure object
     fig = plt.figure(figsize=(14,10))
+
     # LAYOUT WITH GRIDSPEC
     gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
     gs.tight_layout(fig)
-    proj = ccrs.PlateCarree()
-    ax1 = plt.subplot(gs[0:2, :3], projection=proj)
-    ax2 = plt.subplot(gs[0:2, 3:], projection=proj)
-    ax3 = plt.subplot(gs[2, 1:5], projection=proj)
+    proj = ccrs.PlateCarree(central_longitude=central_longitude)
+    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **subplots_opt)
+    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **subplots_opt)
+    ax3 = plt.subplot(gs[2, 1:5], projection=proj,  **subplots_opt)
     ax = [ax1,ax2,ax3]
+
     img = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
+
+    # formatting for tick labels
+    lon_formatter = LongitudeFormatter(number_format='0.0f',
+                                        degree_symbol='',
+                                        dateline_direction_label=False)
+    lat_formatter = LatitudeFormatter(number_format='0.0f',
+                                        degree_symbol='')
 
     for i, a in enumerate(wrap_fields):
 
@@ -409,12 +485,14 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     ax[-1].set_title("RMSE: {0:.3f}".format(d_rmse), fontsize=tiFontSize)
 
     for a in ax:
-        a.outline_patch.set_linewidth(1)
+        a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         a.coastlines()
-        a.set_xticks(np.linspace(-180, 180, 7), crs=ccrs.PlateCarree())
+        a.set_xticks(np.linspace(-180, 120, 6), crs=ccrs.PlateCarree())
         a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
-        a.tick_params('both', length=10, width=2, which='major')
-        a.tick_params('both', length=5, width=1, which='minor')
+        a.tick_params('both', length=5, width=1.5, which='major')
+        a.tick_params('both', length=5, width=1.5, which='minor')
+        a.xaxis.set_major_formatter(lon_formatter)
+        a.yaxis.set_major_formatter(lat_formatter)
 
     # __COLORBARS__
     cb_mean_ax = inset_axes(ax2,
@@ -425,7 +503,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax2.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[1], cax=cb_mean_ax)
+    fig.colorbar(img[1], cax=cb_mean_ax, **colorbar_opt)
 
     cb_diff_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
@@ -435,7 +513,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax3.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[2], cax=cb_diff_ax)
+    fig.colorbar(img[2], cax=cb_diff_ax, **colorbar_opt)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
