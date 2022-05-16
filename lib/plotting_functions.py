@@ -78,24 +78,43 @@ def get_central_longitude(*args):
        This allows a script to, for example, allow a config file to specify, but also have a preference:
        get_central_longitude(AdfObj, 30.0)
     """
-    chk_for_adf = [isinstance(a, AdfDiag) for a in args]
+    chk_for_adf = [isinstance(arg, AdfDiag) for arg in args]
     # preference is to get value from AdfDiag:
     if any(chk_for_adf):
-        for a in args:
-            if isinstance(a, AdfDiag):
-                result = a.get_basic_info('central_longitude', required=False)
-                if (result >= -180) and (result <= 360):
+        for arg in args:
+            if isinstance(arg, AdfDiag):
+                result = arg.get_basic_info('central_longitude', required=False)
+                if (isinstance(result, int) or isinstance(result, float)) and \
+                   (result >= -180) and (result <= 360):
                     return result
                 else:
-                    continue # keep looking
+                    #If result exists, then write info to debug log:
+                    if result:
+                        msg = f"central_lngitude of type '{type(result).__name__}'"
+                        msg += f" and value '{result}', which is not a valid longitude"
+                        msg += " for the ADF."
+                        arg.debug_log(msg)
+                    #End if
+
+                    #There is only one ADF object per ADF run, so if its
+                    #not present or configured correctly then no
+                    #reason to keep looking:
+                    break
+                #End if
+            #End if
+        #End for
+    #End if
+
     # 2nd pass through arguments, look for numbers:
-    for a in args:
-        if (isinstance(a, float) or isinstance(a, int)) and ((a >= -180) and (a <= 360)):
-            return a
+    for arg in args:
+        if (isinstance(arg, float) or isinstance(arg, int)) and ((arg >= -180) and (arg <= 360)):
+            return arg
+        #End if
     else:
         # this is the `else` on the for loop --> if non of the arguments meet the criteria, do this.
         print("No valid central longitude specified. Defaults to 180.")
         return 180
+    #End if
 
 #######
 
@@ -163,9 +182,16 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
 
     """
 
-    proj = ccrs.PlateCarree()
+    # specify the central longitude for the plot:
+    cent_long = kwargs.get('central_longitude', 180)
+
+    # generate progjection:
+    proj = ccrs.PlateCarree(central_longitude=cent_long)
+
+    # extract lat/lon values:
     lons, lats = np.meshgrid(umdlfld['lon'], umdlfld['lat'])
 
+    # create figure:
     fig = plt.figure(figsize=(20,12))
 
     # LAYOUT WITH GRIDSPEC
@@ -226,11 +252,11 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
     #  - contourf to show magnitude w/ colorbar
     #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
     img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree())
-    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(central_longitude=cent_long), cmap='Reds')
     ax1.set_title(title_string)
 
     img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree())
-    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
+    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(central_longitude=cent_long), cmap='Reds')
     ax2.set_title(title_string_base)
 
     ## Add colorbar to vector plot:
@@ -248,7 +274,7 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
 
     # Plot vector differences:
     img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
-    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
+    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree(central_longitude=cent_long))
 
     ax3.set_title(f"Difference in {var_name}", loc='left')
     cb_d_ax = inset_axes(ax3,
@@ -389,6 +415,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     else:
         normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
 
+    # initialize plotting keyword options:
     subplots_opt = {}
     contourf_opt = {}
     colorbar_opt = {}
@@ -402,16 +429,16 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     # specify the central longitude for the plot
     central_longitude = kwargs.get('central_longitude', 180)
 
-    fig, ax = plt.subplots(figsize=(6,12), nrows=3, subplot_kw={"projection":ccrs.PlateCarree(central_longitude=central_longitude)}, **subplots_opt)
-
+    # create figure object
     fig = plt.figure(figsize=(14,10))
+
     # LAYOUT WITH GRIDSPEC
     gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
     gs.tight_layout(fig)
-    proj = ccrs.PlateCarree()
-    ax1 = plt.subplot(gs[0:2, :3], projection=proj)
-    ax2 = plt.subplot(gs[0:2, 3:], projection=proj)
-    ax3 = plt.subplot(gs[2, 1:5], projection=proj)
+    proj = ccrs.PlateCarree(central_longitude=central_longitude)
+    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **subplots_opt)
+    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **subplots_opt)
+    ax3 = plt.subplot(gs[2, 1:5], projection=proj,  **subplots_opt)
     ax = [ax1,ax2,ax3]
 
     img = [] # contour plots
@@ -458,7 +485,6 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     ax[-1].set_title("RMSE: {0:.3f}".format(d_rmse), fontsize=tiFontSize)
 
     for a in ax:
-        # a.outline_patch.set_linewidth(1) # the old way
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         a.coastlines()
         a.set_xticks(np.linspace(-180, 120, 6), crs=ccrs.PlateCarree())
@@ -477,7 +503,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax2.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[1], cax=cb_mean_ax)
+    fig.colorbar(img[1], cax=cb_mean_ax, **colorbar_opt)
 
     cb_diff_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
@@ -487,7 +513,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax3.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[2], cax=cb_diff_ax)
+    fig.colorbar(img[2], cax=cb_diff_ax, **colorbar_opt)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)

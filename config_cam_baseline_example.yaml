@@ -96,6 +96,11 @@ diag_basic_info:
     #horizontal maps:
     plot_press_levels: [200,850]
 
+    #Longitude line on which to center all lat/lon maps.
+    #If this config option is missing then the central
+    #longitude will default to 180 degrees E.
+    central_longitude: 180
+
     #Apply monthly weights to seasonal averages.
     #If False or missing, then all months are
     #given the same weight:

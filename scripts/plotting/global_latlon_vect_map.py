@@ -148,6 +148,11 @@ def global_latlon_vect_map(adfobj):
         skip_vars.add(var)
         skip_vars.add(var_pair)
 
+        # For global maps, also set the central longitude:
+        # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
+        # otherwise defaults to 180
+        vres['central_longitude'] = pf.get_central_longitude(adfobj)
+
         #Determine observations to compare against:
         if adfobj.compare_obs:
             #Check if obs exist for the variable:
