@@ -32,9 +32,6 @@ def regrid_and_vert_interp(adf):
 
     from pathlib import Path
 
-    #Import ADF-specific functions:
-    import plotting_functions as pf
-
     # regridding
     # Try just using the xarray method
     # import xesmf as xe  # This package is for regridding, and is just one potential solution.
@@ -197,7 +194,7 @@ def regrid_and_vert_interp(adf):
                     #Perform regridding and interpolation of variable:
                     if target in ps_loc_dict:
                         rgdata_interp = _regrid_and_interpolate_levs(mclim_ds, var,
-                                                                     regrid_dataset = tclim_ds
+                                                                     regrid_dataset=tclim_ds,
                                                                      ps_file=ps_loc_dict[target])
                     else:
                         rgdata_interp = _regrid_and_interpolate_levs(mclim_ds, var,
@@ -235,7 +232,8 @@ def regrid_and_vert_interp(adf):
                         #Write interpolated baseline climatology to file:
                         save_to_nc(tgdata_interp, interp_bl_file)
                     #End if
-
+                else:
+                    print(f"\t Regridded file '{regridded_file_loc}' already exists, so skipping...")
                 #End if (file check)
             #End do (target list)
         #End do (variable list)
@@ -271,25 +269,81 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
     and/or vertically-interpolated model variable.
     """
 
-    #Extract variable info from model data:
-    mdata = model_dataset[var_name]
+    #Import necessary modules:
+    import xarray as xr
+
+    #Import ADF-specific functions:
+    import plotting_functions as pf
+
+    #Extract variable info from model data (and remove any degenerate dimensions):
+    mdata = model_dataset[var_name].squeeze()
+
+    #Check if variable has a vertical component:
+    if 'lev' in mdata.dims:
+        has_lev = True
+
+        #If lev exits, then determine what kind of vertical coordinate
+        #is being used:
+        lev_attrs = model_dataset['lev'].attrs
+
+        #First check if there is a "vert_coord" attribute:
+        if 'vert_coord' in lev_attrs:
+            vert_coord_type = lev_attrs['vert_coord']
+        else:
+            #Next check that the "long_name" attribute exists:
+            if 'long_name' in lev_attrs:
+                #Extract long name:
+                lev_long_name = lev_attrs['long_name']
+
+                #Check for "keywords" in the long name:
+                if 'hybrid level' in lev_long_name:
+                    #Set model to hybrid vertical levels:
+                    vert_coord_type = "hybrid"
+                else:
+                    #Print a warning, and skip variable re-gridding/interpolation:
+                    wmsg = "WARNING! Unable to determine the vertical coordinate"
+                    wmsg +=f" type from the 'lev' long name, which is:\n'{lev_long_name}'"
+                    print(wmsg)
+                    return None
+                #End if
+
+            else:
+                #Print a warning, and assume hybrid levels (for now):
+                wmsg = "WARNING!  No long name found for the 'lev' dimension,"
+                wmsg += f" so no re-gridding/interpolation will be done."
+                print(wmsg)
+                return None
+            #End if
+        #End if
+
+    else:
+        has_lev = False
+    #End if
 
     #Check if variable has a vertical levels dimension:
-    if 'lev' in mdata.dims:
+    if has_lev:
 
         # Need hyam, hybm, and P0 for vertical interpolation:
-        if ('hyam' not in mclim_ds) or ('hybm' not in mclim_ds):
+        if ('hyam' not in model_dataset) or ('hybm' not in model_dataset):
             print(f"!! PROBLEM -- NO hyam or hybm for 3-D variable {var}, so it will not be re-gridded.")
             return None #Return None to skip to next variable.
         #End if
-        mhya = mclim_ds['hyam']
-        mhyb = mclim_ds['hybm']
+        mhya = model_dataset['hyam']
+        mhyb = model_dataset['hybm']
         if 'time' in mhya.dims:
             mhya = mhya.isel(time=0).squeeze()
         if 'time' in mhyb.dims:
             mhyb = mhyb.isel(time=0).squeeze()
-        if 'P0' in mclim_ds:
-            P0 = model_dataset['P0']
+        if 'P0' in model_dataset:
+            P0_tmp = model_dataset['P0']
+            if isinstance(P0_tmp, xr.DataArray):
+                #All of these value should be the same,
+                #so just grab the first one:
+                P0 = P0_tmp[0]
+            else:
+                #Just rename variable:
+                P0 = P0_tmp
+            #End if
         else:
             P0 = 100000.0  # Pa
         #End if
@@ -298,12 +352,12 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
         regridded_ps = False
 
         #Also need surface pressure (PS) for vertical interpolation as well:
-        if 'PS' in mclim_ds:
-            mps = mclim_ds['PS']
+        if 'PS' in model_dataset:
+            mps = model_dataset['PS']
         else:
             #Check if target has an associated surface pressure field:
             if ps_file:
-                mpsds = _load_dataset(ps_file)
+                mps_ds = _load_dataset(ps_file)
                 mps = mps_ds['PS']
                 #This surface pressure field has already been regridded:
                 regridded_ps = True
@@ -319,17 +373,23 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
 
         #Extract grid info from target data:
         if 'time' in regrid_dataset.coords:
-            tgrid = tclim_ds.isel(time=0).squeeze()
+            if 'lev' in regrid_dataset.coords:
+                tgrid = regrid_dataset.isel(time=0, lev=0).squeeze()
+            else:
+                tgrid = regrid_dataset.isel(time=0).squeeze()
+            #End if
         #End if
 
         #Regrid model data to match target grid:
         rgdata = regrid_data(mdata, tgrid, method=1)
 
         #Regrid surface pressure if need be:
-        if not regridded_ps:
-            rg_mps = regrid_data(mps, tgrid, method=1)
-        else:
-            rg_mps = mps
+        if has_lev:
+            if not regridded_ps:
+                rg_mps = regrid_data(mps, tgrid, method=1)
+            else:
+                rg_mps = mps
+            #End if
         #End if
     else:
         #Just rename variable:
@@ -339,17 +399,37 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
     #Vertical interpolation:
 
     #Interpolate variable to default pressure levels:
-    rgdata_interp = pf.lev_to_plev(rgdata, rg_mps, mhya, mhyb, P0=P0, \
-                                   convert_to_mb=True)
+    if has_lev:
+
+        if vert_coord_type == "hybrid":
+            #Interpolate from hybrid sigma-pressure to the standard pressure levels:
+            rgdata_interp = pf.lev_to_plev(rgdata, rg_mps, mhya, mhyb, P0=P0, \
+                                           convert_to_mb=True)
+        else:
+            #The vertical coordinate type is un-recognized, so print warning and
+            #skip vertical interpolation:
+            wmsg = f"WARNING! Un-recognized vertical coordinate type: '{vert_coord_type}',"
+            wmsg += f" for variable '{var_name}'.  Skipping vertical interpolation."
+            print(wmsg)
+            #Don't process variable:
+            return None
+        #End if
+    else:
+        #Just rename variable:
+        rgdata_interp = rgdata
+    #End if
 
     #Convert to xarray dataset:
     rgdata_interp.to_dataset()
 
     #Add surface pressure to variable (just in case):
-    rgdata_interp['PS'] = rg_mps
+    if has_lev:
+        rgdata_interp['PS'] = rg_mps
 
-    #Update "vert_coord" attrigute for variable "lev":
-    rgdata_interp['lev'].assign_attrs({"vert_coord": "pressure"})
+        #Update "vert_coord" attribute for variable "lev":
+        #rgdata_interp['lev'].assign_attrs({"vert_coord": "pressure"})
+        rgdata_interp['lev'].attrs.update({"vert_coord": "pressure"})
+    #End if
 
     #Return dataset:
     return rgdata_interp

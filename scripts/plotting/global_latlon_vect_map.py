@@ -160,7 +160,7 @@ def global_latlon_vect_map(adfobj):
                 #Note: In the future these may all be lists, but for
                 #now just convert the target_list.
                 #Extract target file:
-                dclimo_loc = var_obs_dict[var]["obs_file"]
+                udclimo_loc = var_obs_dict[var]["obs_file"]
                 #Extract target list (eventually will be a list, for now need to convert):
                 data_list = [var_obs_dict[var]["obs_name"]]
                 #Extract target variable name:
@@ -175,9 +175,7 @@ def global_latlon_vect_map(adfobj):
                 #Note: In the future these may all be lists, but for
                 #now just convert the target_list.
                 #Extract target file:
-                dclimo_loc = var_obs_dict[var_pair]["obs_file"]
-                #Extract target list (eventually will be a list, for now need to convert):
-                data_list = [var_obs_dict[var_pair]["obs_name"]]
+                vdclimo_loc = var_obs_dict[var_pair]["obs_file"]
                 #Extract target variable name:
                 data_var.append(var_obs_dict[var_pair]["obs_var"])
             else:
@@ -198,8 +196,14 @@ def global_latlon_vect_map(adfobj):
         for data_src in data_list:
 
             # load data (observational) commparison files (we should explore intake as an alternative to having this kind of repeated code):
-            uoclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[0]}_*.nc"))
-            voclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[1]}_*.nc"))
+            if adfobj.compare_obs:
+                #For now, only grab one file (but convert to list for use below)
+                uoclim_fils = [udclimo_loc]
+                voclim_fils = [vdclimo_loc]
+            else:
+                uoclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[0]}_*.nc"))
+                voclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[1]}_*.nc"))
+            #End if
 
             if len(uoclim_fils) > 1:
                 uoclim_ds = xr.open_mfdataset(uoclim_fils, combine='by_coords')
@@ -276,79 +280,6 @@ def global_latlon_vect_map(adfobj):
                 #Check dimensions:
                 has_lat, has_lev = pf.zm_validate_dims(umdata)  # assumes will work for both mdata & odata
 
-                if has_lev:
-
-                    #For now, there is no easy way to use observations with specified pressure levels, so
-                    #bail out here:
-                    if adfobj.compare_obs:
-                        print(f"\t - plot_press_levels currently doesn't work with observations, so skipping case for variable '{var}'.")
-                        continue #Skip variable
-                    #End if
-
-                    print("latlon_vect: variable has lev dimension.")
-                    # need hyam, hybm, P0 once, and need PS for both datasets
-                    # note in future, they may have different vertical levels or one may need pressure level interp and one may not
-
-                    if 'hyam' not in umclim_ds:
-                        print(f"\t - plot_pres_levels currently only works with hybrid coordinates, so skipping '{var}'.")
-                        continue #Skip variable
-                    #End if
-                    mhya = umclim_ds['hyam']
-                    mhyb = umclim_ds['hybm']
-                    if 'time' in mhya.dims:
-                        mhya = mhya.isel(time=0).squeeze()
-                    if 'time' in mhyb.dims:
-                        mhyb = mhyb.isel(time=0).squeeze()
-                    if 'P0' in umclim_ds:
-                        P0 = umclim_ds['P0']
-                    else:
-                        P0 = 100000.0  # Pa
-                    if 'PS' in umclim_ds:
-                        mps = umclim_ds['PS']
-                    else:
-                        # look for the file (this isn't great b/c we'd have to constantly re-load)
-                        mps_files = sorted(list(mclimo_rg_loc.glob("{}_{}_PS_*.nc".format(data_src, case_name))))
-                        if len(mps_files) > 0:
-                            mps_ds = _load_dataset(mps_files)
-                            mps = mps_ds['PS']
-                        else:
-                            print("\t - can't find surface pressure (PS) anywhere, so skipping '{var}'.")
-                            continue  # what else could we do?
-                        #End if
-                    #End if
-                    if 'PS' in uoclim_ds:
-                        ops = uoclim_ds['PS']
-                    else:
-                        # look for the file (this isn't great b/c we'd have to constantly re-load)
-                        ops_files = sorted(list(oclimo_rg_loc.glob("{}_{}_PS_*.nc".format(data_src, case_name))))
-                        if len(ops_files) > 0:
-                            ops_ds = _load_dataset(ops_files)
-                            ops = ops_ds['PS']
-                        else:
-                            print("\t - can't find surface pressure (PS) anywhere, so skipping '{var}'.")
-                            continue  # what else could we do?
-                        #End if
-                    #End if
-
-                    if not pres_levs:
-                        print("vector plot only works with pressure levels")
-                        continue
-                    #End if
-
-                    # now add in syntax to interpolate to a pressure level with geocat
-                    # this needs to be improved by checking if it's on plevs already, hybrid or sigma
-
-                    umdata = pf.lev_to_plev(umdata, mps, mhya, mhyb, P0=100000.0, new_levels=np.array(np.array(pres_levs)*100,dtype='float32'),convert_to_mb=True)
-                    vmdata = pf.lev_to_plev(vmdata, mps, mhya, mhyb, P0=100000.0, new_levels=np.array(np.array(pres_levs)*100,dtype='float32'),convert_to_mb=True)
-
-                    #Only do this for the first case:
-                    if case_idx == 0:
-                        uodata = pf.lev_to_plev(uodata, ops, mhya, mhyb, P0=100000.0, new_levels=np.array(np.array(pres_levs)*100,dtype='float32'),convert_to_mb=True)
-                        vodata = pf.lev_to_plev(vodata, ops, mhya, mhyb, P0=100000.0, new_levels=np.array(np.array(pres_levs)*100,dtype='float32'),convert_to_mb=True)
-                    #End if
-
-                # end if for has_lev
-
                 # update units
                 # NOTE: looks like our climo files don't have all their metadata
                 uodata.attrs['units'] = vres.get("new_unit", uodata.attrs.get('units', 'none'))
@@ -356,7 +287,7 @@ def global_latlon_vect_map(adfobj):
                 umdata.attrs['units'] = vres.get("new_unit", umdata.attrs.get('units', 'none'))
                 vmdata.attrs['units'] = vres.get("new_unit", vmdata.attrs.get('units', 'none'))
 
-                #Determine dimensions of variable:
+                #Determine if observations/baseline have the correct dimensions:
                 if has_lev:
                     has_dims = pf.lat_lon_validate_dims(uodata.isel(lev=0))
                 else:
@@ -398,6 +329,16 @@ def global_latlon_vect_map(adfobj):
                         # Loop over levels
                         for lv in pres_levs:
 
+                            #Check that the user-requested pressure level
+                            #exists in the model data, which should already
+                            #have been interpolated to the standard reference
+                            #pressure levels:
+                            if not (lv in umclim_ds['lev']):
+                                #Move on to the next pressure level:
+                                print(f"plot_press_levels value '{lv}' not a standard reference pressure, so skipping.")
+                                continue
+                            #End if
+
                             #Loop over season dictionary:
                             for s in seasons:
                                 umseasons[s] = umdata.sel(time=seasons[s],lev=lv).mean(dim='time')
@@ -419,7 +360,7 @@ def global_latlon_vect_map(adfobj):
 
                                 # pass in casenames
                                 vres["case_name"] = case_name
-                                vres["baseline"] = data_name
+                                vres["baseline"] = data_src
                                 vres["var_name"] = var_name
 
                                 #Create new plot:
@@ -446,7 +387,7 @@ def global_latlon_vect_map(adfobj):
 
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                            plot_name = plot_loc / "{}_{}_LatLon_Vector_Mean.{}".format(var_name, s, plot_type)
+                            plot_name = plot_loc / f"{var_name}_{s}_LatLon_Vector_Mean.{png}".format(var_name, s, plot_type)
 
                             #Remove old plot, if it already exists:
                             if plot_name.is_file():
@@ -455,7 +396,7 @@ def global_latlon_vect_map(adfobj):
 
                             # pass in casenames
                             vres["case_name"] = case_name
-                            vres["baseline"] = data_name
+                            vres["baseline"] = data_src
                             vres["var_name"] = var_name
 
                             #Create new plot:
