@@ -208,12 +208,12 @@ def regrid_and_vert_interp(adf):
                     #if applicable:
 
                     #Set interpolated baseline file name:
-                    interp_bl_file = rgclimo_loc / f'{var}_baseline.nc'
+                    interp_bl_file = rgclimo_loc / f'{target}_{var}_baseline.nc'
 
                     if not adf.compare_obs and not interp_bl_file.is_file():
 
                         #Look for a baseline climo file for surface pressure (PS):
-                        bl_ps_fil = target_loc / f'{target}_PS_climo.nc'
+                        bl_ps_fil = tclimo_loc / f'{target}_PS_climo.nc'
 
                         #Generate vertically-interpolated baseline dataset:
                         if bl_ps_fil:
@@ -223,7 +223,7 @@ def regrid_and_vert_interp(adf):
                             tgdata_interp = _regrid_and_interpolate_levs(tclim_ds, var)
                         #End if
 
-                        if not tgdata_interp:
+                        if tgdata_interp is None:
                             #Something went wrong during interpolation, so just cycle through
                             #for now:
                             continue
@@ -392,8 +392,11 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
             #End if
         #End if
     else:
-        #Just rename variable:
+        #Just rename variables:
         rgdata = mdata
+        if has_lev:
+            rg_mps = mps
+        #End if
     #End if
 
     #Vertical interpolation:

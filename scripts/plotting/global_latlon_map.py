@@ -23,9 +23,9 @@ def global_latlon_map(adfobj):
     data_name        -> Name of data set CAM case is being compared against,
                         which is always either "obs" or the baseline CAM case name,
                         depending on whether "compare_obs" is true or false.
-    data_loc         -> Location of comparison data, which is either "obs_climo_loc"
-                        or "cam_baseline_climo_loc", depending on whether
-                        "compare_obs" is true or false.
+    data_loc         -> Location of comparison data, which is either the location listed
+                        in each variable's ""obs_file", or the same as "model_rgrid_loc",
+                        depending on whether "compare_obs" is true or false.
     var_list         -> List of CAM output variables provided by "diag_var_list"
     data_list        -> List of data sets CAM will be compared against, which
                         is simply the baseline case name in situations when
@@ -86,7 +86,7 @@ def global_latlon_map(adfobj):
     else:
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
-        data_loc  = adfobj.get_baseline_info("cam_climo_loc", required=True)
+        data_loc  = model_rgrid_loc #Just use the re-gridded model data path
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -171,7 +171,7 @@ def global_latlon_map(adfobj):
                 #For now, only grab one file (but convert to list for use below)
                 oclim_fils = [dclimo_loc]
             else:
-                oclim_fils = sorted(list(dclimo_loc.glob("{}_{}_*.nc".format(data_src, var))))
+                oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
 
             if len(oclim_fils) > 1:
                 oclim_ds = xr.open_mfdataset(oclim_fils, combine='by_coords')
@@ -403,7 +403,9 @@ def global_latlon_map(adfobj):
                     else:
                         print(f"\t - variable '{var}' has no vertical dimension but is not just time/lat/lon, so skipping.")
                     #End if (has_lev)
-                #End if (plotting pressure levels)
+                else:
+                    print(f"\t - skipping polar map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
+                #End if (dimensions check and plotting pressure levels)
             #End for (case loop)
         #End for (obs/baseline loop)
     #End for (variable loop)

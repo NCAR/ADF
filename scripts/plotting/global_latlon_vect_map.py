@@ -78,7 +78,7 @@ def global_latlon_vect_map(adfobj):
     else:
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
-        data_loc  = adfobj.get_baseline_info("cam_climo_loc", required=True)
+        data_loc  = model_rgrid_loc #Just use the re-gridded model data path
     #End if
 
 
@@ -201,8 +201,8 @@ def global_latlon_vect_map(adfobj):
                 uoclim_fils = [udclimo_loc]
                 voclim_fils = [vdclimo_loc]
             else:
-                uoclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[0]}_*.nc"))
-                voclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[1]}_*.nc"))
+                uoclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[0]}_baseline.nc"))
+                voclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[1]}_baseline.nc"))
             #End if
 
             if len(uoclim_fils) > 1:
@@ -387,7 +387,7 @@ def global_latlon_vect_map(adfobj):
 
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                            plot_name = plot_loc / f"{var_name}_{s}_LatLon_Vector_Mean.{png}".format(var_name, s, plot_type)
+                            plot_name = plot_loc / f"{var_name}_{s}_LatLon_Vector_Mean.{plot_type}"
 
                             #Remove old plot, if it already exists:
                             if plot_name.is_file():
