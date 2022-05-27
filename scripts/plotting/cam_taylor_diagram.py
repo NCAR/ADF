@@ -48,7 +48,7 @@ def cam_taylor_diagram(adfobj):
             plpth = Path(pl)
             #Check if plot output directory exists, and if not, then create it:
             if not plpth.is_dir():
-                print("    {} not found, making new directory".format(pl))
+                print("\t    {} not found, making new directory".format(pl))
                 plpth.mkdir(parents=True)
         if len(plot_location) == 1:
             plot_loc = Path(plot_location[0])

@@ -117,7 +117,7 @@ def averaging_example(adf, clobber=False, search=None):
 
         #Check if climo directory exists, and if not, then create it:
         if not output_location.is_dir():
-            print(f"    {output_location} not found, making new directory")
+            print(f"\t    {output_location} not found, making new directory")
             output_location.mkdir(parents=True)
 
         #Time series file search

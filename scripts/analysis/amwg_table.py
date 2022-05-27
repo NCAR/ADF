@@ -96,7 +96,7 @@ def amwg_table(adf):
     #----------------------
 
     #Notify user that script has started:
-    print("  Calculating AMWG variable table...")
+    print("\n  Calculating AMWG variable table...")
 
 
     #Extract needed quantities from ADF object:
@@ -144,7 +144,7 @@ def amwg_table(adf):
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
         #Check if analysis directory exists, and if not, then create it:
         if not output_location.is_dir():
-            print(f"    {output_locs[case_idx]} not found, making new directory")
+            print(f"\t    {output_locs[case_idx]} not found, making new directory")
             output_location.mkdir(parents=True)
 
         #Create output file name:
@@ -196,7 +196,7 @@ def amwg_table(adf):
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
-                print("Variable '{}' has a vertical dimension, ".format(var)+\
+                print("\t   Variable '{}' has a vertical dimension, ".format(var)+\
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
@@ -250,18 +250,20 @@ def amwg_table(adf):
     #End of model case loop
     #----------------------
 
+
+    #Notify user that script has ended:
+    print("  ...AMWG variable table has been generated successfully.")
+
     #Check if observations are being comapred to, if so skip table comparison...
     if not adf.get_basic_info("compare_obs"):
         #Create comparison table for both cases
-        print("  Making comparison table...")
-
+        print("\n  Making comparison table...")
         _df_comp_table(write_html,output_location,case_names)
+        print("  ... Comparison table has been generated successfully")
     else:
         print(" Comparison table currently doesn't work with obs, so skipping...")
     #End if
 
-    #Notify user that script has ended:
-    print("...AMWG variable table has been generated successfully.")
 
 ##################
 # Helper functions

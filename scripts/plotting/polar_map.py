@@ -30,7 +30,7 @@ def polar_map(adfobj):
 
     """
     #Notify user that script has started:
-    print("  Generating polar maps...")
+    print("\n  Generating polar maps...")
 
     #
     # Use ADF api to get all necessary information
@@ -73,7 +73,12 @@ def polar_map(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"NOTE: Plot type is set to {plot_type}")
+    print(f"\t NOTE: Plot type is set to {plot_type}")
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
     #-----------------------------------------
 
     #Set data path variables:
@@ -157,7 +162,7 @@ def polar_map(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("    {} not found, making new directory".format(plot_loc))
+                    print("\t    {} not found, making new directory".format(plot_loc))
                     plot_loc.mkdir(parents=True)
 
                 # load re-gridded model files:
@@ -224,36 +229,42 @@ def polar_map(adfobj):
                             nh_plot_name = plot_loc / f"{var}_{s}_NHPolar_Mean.{plot_type}"
                             sh_plot_name = plot_loc / f"{var}_{s}_SHPolar_Mean.{plot_type}"
 
-                            #Remove old plot, if it already exists:
-                            [pn.unlink() for pn in [nh_plot_name, sh_plot_name] if pn.is_file()]
+                            # If redo_plot set to True: remove old plot, if it already exists:
+                            for plot_name in [nh_plot_name, sh_plot_name]:
+                                print(plot_name)
 
-                            #Create new plot:
-                            # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
-                            # This relies on `plot_map_and_save` knowing how to deal with the options
-                            # currently knows how to handle:
-                            #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
-                            #   *Any other entries will be ignored.
-                            # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-
-                            # pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
-
-                            nhfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="NH", **vres)
-                            shfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="SH", **vres)
-
-                            # Save files
-                            nhfig.savefig(nh_plot_name, bbox_inches='tight', dpi=300)
-                            shfig.savefig(sh_plot_name, bbox_inches='tight', dpi=300)
-
-                            # Close figures to avoid memory issues:
-                            plt.close(nhfig)
-                            plt.close(shfig)
+                                if (not redo_plot) and plot_name.is_file():
+                                    continue
+                                elif (redo_plot) and plot_name.is_file():
+                                    plot_name.unlink()
+                            
+                                    #Create new plot:
+                                    # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
+                                    # This relies on `plot_map_and_save` knowing how to deal with the options
+                                    # currently knows how to handle:
+                                    #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
+                                    #   *Any other entries will be ignored.
+                                    # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
+                                    
+                                    # pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+                                    
+                                    nhfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="NH", **vres)
+                                    shfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="SH", **vres)
+                                    
+                                    # Save files
+                                    nhfig.savefig(nh_plot_name, bbox_inches='tight', dpi=300)
+                                    shfig.savefig(sh_plot_name, bbox_inches='tight', dpi=300)
+                                    
+                                    # Close figures to avoid memory issues:
+                                    plt.close(nhfig)
+                                    plt.close(shfig)
 
                     else: #mdata dimensions check
-                        print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
+                        print("\t   INFO: Skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
                     #End if (dimensions check)
 
                 else: #odata dimensions check
-                     print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
+                     print("\t   INFO: Skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
 
                 #End if (dimensions check)
             #End for (case loop)

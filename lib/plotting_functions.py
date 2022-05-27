@@ -40,6 +40,7 @@ def use_this_norm():
             return mpl.colors.TwoSlopeNorm, mplversion[0]
 
 
+
 def get_difference_colors(values):
     """Provide a color norm and colormap assuming this is a difference field.
 

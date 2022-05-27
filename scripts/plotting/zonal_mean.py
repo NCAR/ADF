@@ -44,7 +44,7 @@ def zonal_mean(adfobj):
     """
 
     #Notify user that script has started:
-    print("  Generating zonal mean plots...")
+    print("\n  Generating zonal mean plots...")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -86,7 +86,11 @@ def zonal_mean(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"NOTE: Plot type is set to {plot_type}")
+    print(f"\t NOTE: Plot type is set to {plot_type}")
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
     #-----------------------------------------
 
@@ -161,7 +165,7 @@ def zonal_mean(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("    {} not found, making new directory".format(plot_loc))
+                    print("\t    {} not found, making new directory".format(plot_loc))
                     plot_loc.mkdir(parents=True)
 
                 # load re-gridded model files:
@@ -205,7 +209,7 @@ def zonal_mean(adfobj):
                         continue #Skip variable
                     #End if
 
-                    print("{} has lev dimension.".format(var))
+                    print("\tNOTE:{} has lev dimension.".format(var))
                     # need hyam, hybm, PS, P0 for both datasets
                     if 'hyam' not in mclim_ds:
                         print("!! PROBLEM -- NO hyam, skipping to next case/obs data")
@@ -289,8 +293,10 @@ def zonal_mean(adfobj):
                     #
                     plot_name = plot_loc / "{}_{}_Zonal_Mean.{}".format(var, s, plot_type)
 
-                    #Remove old plot, if it already exists:
-                    if plot_name.is_file():
+                    # Check redo_plot. If set to True: remove old plot, if it already exists:
+                    if (not redo_plot) and plot_name.is_file():
+                        continue
+                    elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()
 
                     #Create new plot:

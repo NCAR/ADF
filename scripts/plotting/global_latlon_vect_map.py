@@ -45,7 +45,7 @@ def global_latlon_vect_map(adfobj):
     # - make plot
 
     #Notify user that script has started:
-    print("  Generating lat/lon vector maps...")
+    print("\n  Generating lat/lon vector maps...")
 
     #
     # Use ADF api to get all necessary information
@@ -91,6 +91,11 @@ def global_latlon_vect_map(adfobj):
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
     adfobj.debug_log(f"Vector plot type is set to {plot_type}")
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
     #-----------------------------------------
 
     #Set input/output data path variables:
@@ -241,7 +246,7 @@ def global_latlon_vect_map(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("    {} not found, making new directory".format(plot_loc))
+                    print("\t    {} not found, making new directory".format(plot_loc))
                     plot_loc.mkdir(parents=True)
                 #End if
 
@@ -412,10 +417,12 @@ def global_latlon_vect_map(adfobj):
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                                 plot_name = plot_loc / f"{var_name}_{lv}hpa_{s}_LatLon_Vector_Mean.{plot_type}"
 
-                                #Remove old plot, if it already exists:
-                                if plot_name.is_file():
+
+                                # Check redo_plot. If set to True: remove old plot, if it already exists:
+                                if (not redo_plot) and plot_name.is_file():
+                                    continue
+                                elif (redo_plot) and plot_name.is_file():
                                     plot_name.unlink()
-                                #End if
 
                                 # pass in casenames
                                 vres["case_name"] = case_name
@@ -448,11 +455,13 @@ def global_latlon_vect_map(adfobj):
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                             plot_name = plot_loc / "{}_{}_LatLon_Vector_Mean.{}".format(var_name, s, plot_type)
 
-                            #Remove old plot, if it already exists:
-                            if plot_name.is_file():
+                            # Check redo_plot. If set to True: remove old plot, if it already exists:
+                            redo_plot = adfobj.get_basic_info('redo_plot')
+                            if (not redo_plot) and plot_name.is_file():
+                                continue
+                            elif (redo_plot) and plot_name.is_file():
                                 plot_name.unlink()
-                            #End if
-
+                     
                             # pass in casenames
                             vres["case_name"] = case_name
                             vres["baseline"] = data_name

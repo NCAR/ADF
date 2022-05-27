@@ -34,7 +34,7 @@ def regrid_example(adf):
     # - regrid one to the other (probably should be a choice)
 
     #Notify user that script has started:
-    print("  Regridding CAM climatologies...")
+    print("\n  Regridding CAM climatologies...")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -75,7 +75,7 @@ def regrid_example(adf):
 
     #Check if re-gridded directory exists, and if not, then create it:
     if not rgclimo_loc.is_dir():
-        print("    {} not found, making new directory".format(rgclimo_loc))
+        print("\t    {} not found, making new directory".format(rgclimo_loc))
         rgclimo_loc.mkdir(parents=True)
 
     #Loop over CAM cases:
@@ -183,7 +183,7 @@ def regrid_example(adf):
     #End do (case list)
 
     #Notify user that script has ended:
-    print("...CAM climatologies have been regridded successfully.")
+    print("  ...CAM climatologies have been regridded successfully.")
 
 #################
 #Helper functions
