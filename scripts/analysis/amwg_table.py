@@ -332,13 +332,14 @@ def _load_data(dataloc, varname):
 def _spatial_average(indata):
     import xarray as xr
     import numpy as np
+    import warnings
     assert 'lev' not in indata.coords
     assert 'ilev' not in indata.coords
     if 'lat' in indata.coords:
         weights = np.cos(np.deg2rad(indata.lat))
         weights.name = "weights"
     elif 'ncol' in indata.coords:
-        print("WARNING: We need a way to get area variable. Using equal weights.")
+        warnings.warn("We need a way to get area variable. Using equal weights.")
         weights = xr.DataArray(1.)
         weights.name = "weights"
     else:
