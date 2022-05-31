@@ -70,7 +70,7 @@ diag_basic_info:
     #isn't specified in the variable defaults file.
     obs_data_loc: /glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs
 
-    #Location where re-gridded CAM climatology files are stored:
+    #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_regrid_loc: /some/where/you/want/to/have/regridded_files #MUST EDIT!
 
     #Overwrite CAM re-gridded files?
@@ -93,7 +93,9 @@ diag_basic_info:
     #Vertical pressure levels (in hPa) on which to plot 3-D variables
     #when using horizontal (e.g. lat/lon) map projections.
     #If this config option is missing, then no 3-D variables will be plotted on
-    #horizontal maps:
+    #horizontal maps.  Please note too that pressure levels must currently match
+    #what is available in the observations file in order to be plotted in a
+    #model vs obs run:
     plot_press_levels: [200,850]
 
     #Longitude line on which to center all lat/lon maps.
@@ -309,7 +311,7 @@ time_averaging_scripts:
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
 regridding_scripts:
-    - regrid_example
+    - regrid_and_vert_interp
 
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":

@@ -322,122 +322,122 @@ def amwg_table(adf):
 # Helper functions
 ##################
 
-	def _load_data(dataloc, varname):
-	    import xarray as xr
-	    ds = xr.open_dataset(dataloc)
-	    return ds[varname]
+def _load_data(dataloc, varname):
+    import xarray as xr
+    ds = xr.open_dataset(dataloc)
+    return ds[varname]
 
-	#####
+#####
 
-	def _spatial_average(indata):
-	    import xarray as xr
-	    import numpy as np
-	    assert 'lev' not in indata.coords
-	    assert 'ilev' not in indata.coords
-	    if 'lat' in indata.coords:
-		weights = np.cos(np.deg2rad(indata.lat))
-		weights.name = "weights"
-	    elif 'ncol' in indata.coords:
-		print("WARNING: We need a way to get area variable. Using equal weights.")
-		weights = xr.DataArray(1.)
-		weights.name = "weights"
-	    else:
-		weights = xr.DataArray(1.)
-		weights.name = "weights"
-	    weighted = indata.weighted(weights)
-	    # we want to average over all non-time dimensions
-	    avgdims = [dim for dim in indata.dims if dim != 'time']
-	    return weighted.mean(dim=avgdims)
+def _spatial_average(indata):
+    import xarray as xr
+    import numpy as np
+    assert 'lev' not in indata.coords
+    assert 'ilev' not in indata.coords
+    if 'lat' in indata.coords:
+        weights = np.cos(np.deg2rad(indata.lat))
+        weights.name = "weights"
+    elif 'ncol' in indata.coords:
+        print("WARNING: We need a way to get area variable. Using equal weights.")
+        weights = xr.DataArray(1.)
+        weights.name = "weights"
+    else:
+        weights = xr.DataArray(1.)
+        weights.name = "weights"
+    weighted = indata.weighted(weights)
+    # we want to average over all non-time dimensions
+    avgdims = [dim for dim in indata.dims if dim != 'time']
+    return weighted.mean(dim=avgdims)
 
-	#####
+#####
 
-	def _write_html(f, out,case_name,case_name_list):
-	    if case_name != case_name_list[-1]:
-		# * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-		# This will need to change when applying multi-case runs; ie Test 1, Test 2, etc.
-		case = "Test"
-	    else:
-		case = "Control"
-	    import pandas as pd
-	    df = pd.read_csv(f)
-	    html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
+def _write_html(f, out,case_name,case_name_list):
+    if case_name != case_name_list[-1]:
+        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+        # This will need to change when applying multi-case runs; ie Test 1, Test 2, etc.
+        case = "Test"
+    else:
+        case = "Control"
+    import pandas as pd
+    df = pd.read_csv(f)
+    html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
 
-	    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
-	    <nav role="navigation" class="primary-navigation">
-	      <ul>
-		<li><a href="../index.html">Case Home</a></li>
-		<li><a href="../html_table/mean_table.html">Case Tables</a></li>
-		<li><a href="#">Links &dtrif;</a>
-		  <ul class="dropdown">
-		    <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-		    <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-		    <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-		  </ul>
-		</li>
-		<li><a href="https://github.com/NCAR/ADF">About</a></li>
-		<li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-	      </ul>
-	    </nav><h1>CAM Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
+    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
+    <nav role="navigation" class="primary-navigation">
+      <ul>
+        <li><a href="../index.html">Case Home</a></li>
+        <li><a href="../html_table/mean_table.html">Case Tables</a></li>
+        <li><a href="#">Links &dtrif;</a>
+          <ul class="dropdown">
+            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+          </ul>
+        </li>
+        <li><a href="https://github.com/NCAR/ADF">About</a></li>
+        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+      </ul>
+    </nav><h1>CAM Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
 
-	    ending = """</body></html>"""
-	    with open(out, 'w') as hfil:
-		hfil.write(preamble)
-		hfil.write(html)
-		hfil.write(ending)
-
-
-	def _df_comp_table(write_html,output_location,case_names):
-	    import pandas as pd
-
-	    output_csv_file_comp = output_location / "amwg_table_comp.csv"
-
-	    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-	    #This will be for single-case for now (case_names[0]),
-	    #will need to change to loop as multi-case is introduced
-	    case = output_location/f"amwg_table_{case_names[0]}.csv"
-	    baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
-
-	    df_case = pd.read_csv(case)
-	    df_base = pd.read_csv(baseline)
-	    df_comp = pd.DataFrame(dtype=object)
-
-	    df_comp[['variable','unit','case']] = df_case[['variable','unit','mean']]
-	    df_comp['baseline'] = df_base[['mean']]
-
-	    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
+    ending = """</body></html>"""
+    with open(out, 'w') as hfil:
+        hfil.write(preamble)
+        hfil.write(html)
+        hfil.write(ending)
 
 
-	    cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
-	    df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
+def _df_comp_table(write_html,output_location,case_names):
+    import pandas as pd
 
-	    #Create HTML output file name as well, if needed:
-	    if write_html:
-		output_html_file_comp = output_location / "amwg_table_comp.html"
+    output_csv_file_comp = output_location / "amwg_table_comp.csv"
 
-	    html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
+    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    #This will be for single-case for now (case_names[0]),
+    #will need to change to loop as multi-case is introduced
+    case = output_location/f"amwg_table_{case_names[0]}.csv"
+    baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
 
-	    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
-	    <nav role="navigation" class="primary-navigation">
-	      <ul>
-		<li><a href="../index.html">Case Home</a></li>
-		<li><a href="../html_table/mean_table.html">Case Tables</a></li>
-		<li><a href="#">Links &dtrif;</a>
-		  <ul class="dropdown">
-		    <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-		    <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-		    <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-		  </ul>
-		</li>
-		<li><a href="https://github.com/NCAR/ADF">About</a></li>
-		<li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-	      </ul>
-	    </nav><h1>CAM Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
+    df_case = pd.read_csv(case)
+    df_base = pd.read_csv(baseline)
+    df_comp = pd.DataFrame(dtype=object)
 
-	    ending = """</body></html>"""
-	    with open(output_html_file_comp, 'w') as hfil:
-		hfil.write(preamble)
-		hfil.write(html)
-		hfil.write(ending)
+    df_comp[['variable','unit','case']] = df_case[['variable','unit','mean']]
+    df_comp['baseline'] = df_base[['mean']]
 
-	##############
+    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
+
+
+    cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
+    df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
+
+    #Create HTML output file name as well, if needed:
+    if write_html:
+        output_html_file_comp = output_location / "amwg_table_comp.html"
+
+    html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
+
+    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
+    <nav role="navigation" class="primary-navigation">
+      <ul>
+        <li><a href="../index.html">Case Home</a></li>
+        <li><a href="../html_table/mean_table.html">Case Tables</a></li>
+        <li><a href="#">Links &dtrif;</a>
+          <ul class="dropdown">
+            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+          </ul>
+        </li>
+        <li><a href="https://github.com/NCAR/ADF">About</a></li>
+        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+      </ul>
+    </nav><h1>CAM Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
+
+    ending = """</body></html>"""
+    with open(output_html_file_comp, 'w') as hfil:
+        hfil.write(preamble)
+        hfil.write(html)
+        hfil.write(ending)
+
+##############
 #END OF SCRIPT

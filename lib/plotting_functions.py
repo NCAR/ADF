@@ -682,12 +682,13 @@ def zonal_plot(lat, data, ax=None, **kwargs):
         return ax
 
 
-def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya, bhyb, **kwargs):
+def plot_zonal_mean_and_save(wks, adata, bdata, has_lev, **kwargs):
     """This is the default zonal mean plot:
-        adata: data to plot ([lev], lat, [lon])
-        apsurf: surface pressure (Pa) for adata when lev present; otherwise None
-        ahya, ahyb: a and b hybrid-sigma coefficients when lev present; otherwise None
-        same for b*.
+        adata: data to plot ([lev], lat, [lon]).
+               The vertical coordinate (lev) must be pressure levels.
+        bdata: baseline or observations to plot adata against.
+               It must have the same dimensions and verttical levels as adata.
+
         - For 2-d variables (reduced to (lat,)):
           + 2 panels: (top) zonal mean, (bottom) difference
         - For 3-D variables (reduced to (lev,lat)):
@@ -717,15 +718,13 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
 
 
     """
-    if apsurf is not None:
-        aplev = lev_to_plev(adata, apsurf, ahya, ahyb, P0=100000.,
-                            new_levels=None, convert_to_mb=True)
-        bplev = lev_to_plev(bdata, bpsurf, bhya, bhyb, P0=100000.,
-                            new_levels=None, convert_to_mb=True)
+    if has_lev:
 
-        azm = zonal_mean_xr(aplev)
-        bzm = zonal_mean_xr(bplev)
+        # calculate zonal average:
+        azm = zonal_mean_xr(adata)
+        bzm = zonal_mean_xr(bdata)
 
+        # calculate difference:
         diff = azm - bzm
 
         # determine levels & color normalization:
@@ -781,7 +780,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
             levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
         #End if
 
-    # color normalization for difference
+        # color normalization for difference
         if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
             normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
         else:
@@ -792,7 +791,7 @@ def plot_zonal_mean_and_save(wks, adata, apsurf, ahya, ahyb, bdata, bpsurf, bhya
         contourf_opt = {}
         colorbar_opt = {}
 
-    # extract any MPL kwargs that should be passed on:
+        # extract any MPL kwargs that should be passed on:
         if 'mpl' in kwargs:
             subplots_opt.update(kwargs['mpl'].get('subplots',{}))
             contourf_opt.update(kwargs['mpl'].get('contourf',{}))
