@@ -323,7 +323,7 @@ def _write_html(f, out,case_name,case_name_list):
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
     </nav><h1>CAM Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
-    
+
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
@@ -358,9 +358,9 @@ def _df_comp_table(write_html,output_location,case_names):
     #Create HTML output file name as well, if needed:
     if write_html:
         output_html_file_comp = output_location / "amwg_table_comp.html"
-    
+
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    
+
     preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     <nav role="navigation" class="primary-navigation">
       <ul>

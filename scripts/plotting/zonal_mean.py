@@ -76,7 +76,7 @@ def zonal_mean(adfobj):
     else:
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
-        data_loc = adfobj.get_baseline_info("cam_climo_loc", required=True)
+        data_loc  = model_rgrid_loc #Just use the re-gridded model data path
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -129,7 +129,7 @@ def zonal_mean(adfobj):
         #End if
 
         #Notify user of variable being plotted:
-        print("\t - zonal mean plots for {}".format(var))
+        print(f"\t - zonal mean plots for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
@@ -149,7 +149,7 @@ def zonal_mean(adfobj):
                 #For now, only grab one file (but convert to list for use below)
                 oclim_fils = [dclimo_loc]
             else:
-                oclim_fils = sorted(list(dclimo_loc.glob("{}_{}_*.nc".format(data_src, var))))
+                oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
             #End if
             oclim_ds = _load_dataset(oclim_fils)
 
@@ -161,11 +161,11 @@ def zonal_mean(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("    {} not found, making new directory".format(plot_loc))
+                    print(f"    {plot_loc} not found, making new directory")
                     plot_loc.mkdir(parents=True)
 
                 # load re-gridded model files:
-                mclim_fils = sorted(list(mclimo_rg_loc.glob("{}_{}_{}_*.nc".format(data_src, case_name, var))))
+                mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
                 mclim_ds = _load_dataset(mclim_fils)
 
                 # stop if data is invalid:
@@ -196,62 +196,10 @@ def zonal_mean(adfobj):
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
                 has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
+
+                #Notify user of level dimension:
                 if has_lev:
-
-                    #For now, there is no easy way to use observations with specified pressure levels, so
-                    #bail out here:
-                    if adfobj.compare_obs:
-                        print(f"\t - plot_press_levels currently doesn't work with observations, so skipping case for variabe '{var}'.")
-                        continue #Skip variable
-                    #End if
-
-                    print("{} has lev dimension.".format(var))
-                    # need hyam, hybm, PS, P0 for both datasets
-                    if 'hyam' not in mclim_ds:
-                        print("!! PROBLEM -- NO hyam, skipping to next case/obs data")
-                        print(mclim_ds)
-                        continue
-                    mhya = mclim_ds['hyam']
-                    mhyb = mclim_ds['hybm']
-                    if 'time' in mhya.dims:
-                        mhya = mhya.isel(time=0).squeeze()
-                    if 'time' in mhyb.dims:
-                        mhyb = mhyb.isel(time=0).squeeze()
-                    if 'P0' in mclim_ds:
-                        P0 = mclim_ds['P0']
-                    else:
-                        P0 = 100000.0  # Pa
-                    if 'PS' in mclim_ds:
-                        mps = mclim_ds['PS']
-                    else:
-                        # look for the file (this isn't great b/c we'd have to constantly re-load)
-                        mps_files = sorted(list(mclimo_rg_loc.glob("{}_{}_PS_*.nc".format(data_src, case_name))))
-                        if len(mps_files) > 0:
-                            mps_ds = _load_dataset(mps_files)
-                            mps = mps_ds['PS']
-                        else:
-                            continue  # what else could we do?
-
-                    # We need a way to check whether 'obs' or 'baseline' here:
-                    # (and/or a way to specify pressure levels or hybrid levels)
-                    ohya = oclim_ds['hyam']
-                    ohyb = oclim_ds['hybm']
-                    if 'time' in ohya.dims:
-                        ohya = ohya.isel(time=0).squeeze()
-                    if 'time' in ohyb.dims:
-                        ohyb = ohyb.isel(time=0).squeeze()
-                    if 'PS' in oclim_ds:
-                        ops = oclim_ds['PS']
-                    else:
-                        # look for the file (this isn't great b/c we'd have to constantly re-load)
-                        ops_files = sorted(list(dclimo_loc.glob("{}_PS_*.nc".format(data_src))))
-                        if len(ops_files) > 0:
-                            ops_ds = _load_dataset(ops_files)
-                            ops = ops_ds['PS']
-                        else:
-                            continue  # what else could we do?
-                else:
-                    mhya = mhyb = ohya = ohyb = None
+                    print(f"{var} has lev dimension.")
 
                 #
                 # Seasonal Averages
@@ -269,12 +217,6 @@ def zonal_mean(adfobj):
                     mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
                     oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
 
-                    if has_lev:
-                        mps_season = mps.sel(time=seasons[s]).mean(dim='time')
-                        ops_season = ops.sel(time=seasons[s]).mean(dim='time')
-                    else:
-                        mps_season = ops_season = None
-
                     # difference: each entry should be (lat, lon) or (plev, lat, lon)
                     # dseasons[s] = mseasons[s] - oseasons[s]
                     # difference will be calculated in plot_zonal_mean_and_save;
@@ -283,19 +225,19 @@ def zonal_mean(adfobj):
 
                     # time to make plot; here we'd probably loop over whatever plots we want for this variable
                     # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                    # NOTE: Up to this point, nothing really differs from plot_example, except to deal with getting PS ready,
+                    # NOTE: Up to this point, nothing really differs from global_latlon_map,
                     #       so we could have made one script instead of two.
                     #       Merging would make overall timing better because looping twice will double I/O steps.
                     #
-                    plot_name = plot_loc / "{}_{}_Zonal_Mean.{}".format(var, s, plot_type)
+                    plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
 
                     #Remove old plot, if it already exists:
                     if plot_name.is_file():
                         plot_name.unlink()
 
                     #Create new plot:
-                    pf.plot_zonal_mean_and_save(plot_name, mseasons[s], mps_season, mhya, mhyb,
-                                                           oseasons[s], ops_season, ohya, ohyb, **vres)
+                    pf.plot_zonal_mean_and_save(plot_name, mseasons[s],
+                                                oseasons[s], has_lev, **vres)
 
                 #End for (seasons loop)
             #End for (case names loop)
