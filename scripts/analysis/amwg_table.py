@@ -155,7 +155,7 @@ def amwg_table(adf):
 
         #Create HTML output file name as well, if needed:
         if write_html:
-            output_html_file = output_location / "amwg_table_{case_name}.html"
+            output_html_file = output_location / f"amwg_table_{case_name}.html"
 
         #Given that this is a final, user-facing analysis, go ahead and re-do it every time:
         if Path(output_csv_file).is_file():
@@ -216,6 +216,8 @@ def amwg_table(adf):
             #Add necessary data for RESTOM calcs below
             if var == "FLNT":
                 restom_dict[case_name][var] = data
+                #Copy units for RESTOM as well:
+                restom_units = unit_str
             if var == "FSNT":
                 restom_dict[case_name][var] = data
 
@@ -277,7 +279,7 @@ def amwg_table(adf):
             # create a dataframe:
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                         'standard error', '95% CI', 'trend', 'trend p-value']
-            row_values = [var, unit_str, data_mean.data.item(), data_sample,
+            row_values = [var, restom_units, data_mean.data.item(), data_sample,
                             data_std.data.item(), data_sem.data.item(), data_ci.data.item(),
                             f'{data_trend.intercept : 0.3f} + {data_trend.slope : 0.3f} t',
                             data_trend.pvalue]
@@ -398,22 +400,30 @@ def _df_comp_table(write_html,output_location,case_names):
     case = output_location/f"amwg_table_{case_names[0]}.csv"
     baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
 
+    #Read in test case and baseline dataframes:
     df_case = pd.read_csv(case)
     df_base = pd.read_csv(baseline)
+
+    #Create a merged dataframe that contains only the variables
+    #contained within both the test case and the baseline:
+    df_merge = pd.merge(df_case, df_base, how='inner', on=['variable'])
+
+    #Create the "comparison" dataframe:
     df_comp = pd.DataFrame(dtype=object)
-
-    df_comp[['variable','unit','case']] = df_case[['variable','unit','mean']]
-    df_comp['baseline'] = df_base[['mean']]
-
+    df_comp[['variable','unit','case']] = df_merge[['variable','unit_x','mean_x']]
+    df_comp['baseline'] = df_merge[['mean_y']]
     df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
 
-
+    #Write the comparison dataframe to a new CSV file:
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
     #Create HTML output file name as well, if needed:
     if write_html:
         output_html_file_comp = output_location / "amwg_table_comp.html"
+    else:
+        #No website is being generated, so exit funcion here:
+        return
 
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
 
