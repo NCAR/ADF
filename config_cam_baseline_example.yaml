@@ -339,6 +339,8 @@ diag_var_list:
     - TS
     - TAUX
     - TAUY
+    - FSNT
+    - FLNT
 #<Add more variables here.>
 
 #END OF FILE
