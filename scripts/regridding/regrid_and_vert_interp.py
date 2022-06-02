@@ -1,3 +1,6 @@
+#Import standard modules:
+import xarray as xr
+
 def regrid_and_vert_interp(adf):
 
     """
@@ -27,7 +30,6 @@ def regrid_and_vert_interp(adf):
     """
 
     #Import necessary modules:
-    import xarray as xr
     import numpy as np
 
     from pathlib import Path
@@ -269,9 +271,6 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
     and/or vertically-interpolated model variable.
     """
 
-    #Import necessary modules:
-    import xarray as xr
-
     #Import ADF-specific functions:
     import plotting_functions as pf
 
@@ -357,7 +356,7 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
         else:
             #Check if target has an associated surface pressure field:
             if ps_file:
-                mps_ds = _load_dataset(ps_file)
+                mps_ds = xr.open_dataset(ps_file)
                 mps = mps_ds['PS']
                 #This surface pressure field has already been regridded:
                 regridded_ps = True
@@ -442,9 +441,6 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, ps_file=None, regrid_d
 def save_to_nc(tosave, outname, attrs=None, proc=None):
     """Saves xarray variable to new netCDF file"""
 
-    #Import necessary modules:
-    import xarray as xr
-
     xo = tosave  # used to have more stuff here.
     # deal with getting non-nan fill values.
     if isinstance(xo, xr.Dataset):
@@ -464,9 +460,6 @@ def save_to_nc(tosave, outname, attrs=None, proc=None):
 
 def regrid_data(fromthis, tothis, method=1):
     """Regrid data using various different methods"""
-
-    #Import necessary modules:
-    import xarray as xr
 
     if method == 1:
         # kludgy: spatial regridding only, seems like can't automatically deal with time
@@ -496,5 +489,6 @@ def regrid_data(fromthis, tothis, method=1):
         result = geocat.comp.linint2(fromthis, newlon, newlat, False)
         result.name = fromthis.name
         return result
+    #End if
 
 #####
