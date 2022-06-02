@@ -209,7 +209,7 @@ def zonal_mean(adfobj):
                         continue #Skip variable
                     #End if
 
-                    print("\tNOTE:{} has lev dimension.".format(var))
+                    print(f"\tNOTE:{var} has lev dimension.")
                     # need hyam, hybm, PS, P0 for both datasets
                     if 'hyam' not in mclim_ds:
                         print("!! PROBLEM -- NO hyam, skipping to next case/obs data")
