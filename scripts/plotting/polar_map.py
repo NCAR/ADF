@@ -260,7 +260,7 @@ def polar_map(adfobj):
                                     plt.close(shfig)
 
                     else: #mdata dimensions check
-                        print("\t   INFO: Skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
+                        print(f"\t   INFO: Skipping polar map for {var} as it doesn't have only lat/lon dims.")
                     #End if (dimensions check)
 
                 else: #odata dimensions check
