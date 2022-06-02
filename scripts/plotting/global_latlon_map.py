@@ -173,12 +173,8 @@ def global_latlon_map(adfobj):
             else:
                 oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
 
-            if len(oclim_fils) > 1:
-                oclim_ds = xr.open_mfdataset(oclim_fils, combine='by_coords')
-            elif len(oclim_fils) == 1:
-                sfil = str(oclim_fils[0])
-                oclim_ds = xr.open_dataset(sfil)
-            else:
+            oclim_ds = _load_dataset(oclim_fils)
+            if oclim_ds is None:
                 print("WARNING: Did not find any oclim_fils. Will try to skip.")
                 print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
                 print(f"INFO: The glob is: {data_src}_{var}_*.nc")
@@ -196,12 +192,8 @@ def global_latlon_map(adfobj):
                     plot_loc.mkdir(parents=True)
 
                 # load re-gridded model files:
-                mclim_fils = sorted(list(mclimo_rg_loc.glob("{}_{}_{}_*.nc".format(data_src, case_name, var))))
-
-                if len(mclim_fils) > 1:
-                    mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-                else:
-                    mclim_ds = xr.open_dataset(mclim_fils[0])
+                mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
+                mclim_ds = _load_dataset(mclim_fils)
 
                 #Extract variable of interest
                 odata = oclim_ds[data_var].squeeze()  # squeeze in case of degenerate dimensions
