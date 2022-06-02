@@ -165,7 +165,7 @@ def zonal_mean(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("\t    {} not found, making new directory".format(plot_loc))
+                    print(f"\t    {plot_loc} not found, making new directory")
                     plot_loc.mkdir(parents=True)
 
                 # load re-gridded model files:
