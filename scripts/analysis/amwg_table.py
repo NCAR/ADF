@@ -196,7 +196,7 @@ def amwg_table(adf):
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
-                print("\t   Variable '{}' has a vertical dimension, ".format(var)+\
+                print(f"\t   Variable '{var}' has a vertical dimension, "+\
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
