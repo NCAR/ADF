@@ -114,8 +114,8 @@ diag_basic_info:
     #single node/machine:
     num_procs: 8
 
-    #If set to true, redo all plots even if those that exist.
-    #If set to false, when a plot if found, then plotting will be skipped:
+    #If set to true, then redo all plots even if they already exist.
+    #If set to false, then if a plot is found it will be skipped:
     redo_plot: false
 
 
