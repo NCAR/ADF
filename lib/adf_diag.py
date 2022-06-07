@@ -649,19 +649,20 @@ class AdfDiag(AdfObs):
                             #Set model to height (z) vertical levels:
                             vert_coord_type = "height"
                         else:
-                           #Print a warning, and assume that no vertical level information is needed.
-                           wmsg = "WARNING! Unable to determine the vertical coordinate"
-                           wmsg +=f" type from the 'lev' long name, which is:\n'{lev_long_name}'."
-                           wmsg += "\nNo additional vertical coordinate information will be"
-                           wmsg += " transferred beyond the 'lev' dimension itself."
-                           print(wmsg)
+                            #Print a warning, and assume that no vertical
+                            #level information is needed.
+                            wmsg = "WARNING! Unable to determine the vertical coordinate"
+                            wmsg +=f" type from the 'lev' long name, which is:\n'{lev_long_name}'."
+                            wmsg += "\nNo additional vertical coordinate information will be"
+                            wmsg += " transferred beyond the 'lev' dimension itself."
+                            print(wmsg)
 
-                           vert_coord_type = None
+                            vert_coord_type = None
                         #End if
                     else:
                         #Print a warning, and assume hybrid levels (for now):
                         wmsg = "WARNING!  No long name found for the 'lev' dimension,"
-                        wmsg += f" so no additional vertical coordinate information will be"
+                        wmsg += " so no additional vertical coordinate information will be"
                         wmsg += " transferred beyond the 'lev' dimension itself."
                         print(wmsg)
 
@@ -695,7 +696,9 @@ class AdfDiag(AdfObs):
             list_of_commands = []
             for var in self.diag_var_list:
                 if var not in hist_file_var_list:
-                    print(f"WARNING: {var} is not in the file {hist_files[0]}. No time series will be generated.")
+                    msg = f"WARNING: {var} is not in the file {hist_files[0]}."
+                    msg += " No time series will be generated."
+                    print(msg)
                     continue
 
                 #Check if variable has a "lev" dimension according to first file:
@@ -740,7 +743,8 @@ class AdfDiag(AdfObs):
                                 hist_files + ["-o", ts_outfil_str]
                     #End if
                 else:
-                    #No vertical coordinate (or no coordinate meta-data), so no additional variables needed:
+                    #No vertical coordinate (or no coordinate meta-data),
+                    #so no additional variables needed:
                     cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var}"] + \
                            hist_files + ["-o", ts_outfil_str]
                 #End if
@@ -1191,12 +1195,13 @@ class AdfDiag(AdfObs):
 
             #Loop over plot type:
             for ptype in plot_type_order:
-                mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
-                                            # plots provisional structure:
-                                            # key = variable_name
-                                            # values -> dict w/ keys being "TYPE" of plots
-                                            # w/ values being dict w/ keys being TEMPORAL sampling,
-                                            # values being the URL
+                # this is going to hold the data for building the mean
+                # plots provisional structure:
+                # key = variable_name
+                # values -> dict w/ keys being "TYPE" of plots
+                # w/ values being dict w/ keys being TEMPORAL sampling,
+                # values being the URL
+                mean_html_info = OrderedDict()
 
                 for var in var_list_alpha:
                     #Loop over seasons:
@@ -1208,8 +1213,10 @@ class AdfDiag(AdfObs):
                             #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
 
-                            # Search through all categories and see which one the current variable is part of
-                            category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+                            # Search through all categories and see
+                            # which one the current variable is part of
+                            category = next((cat for cat, varz \
+                                             in var_cat_dict.items() if var in varz), None)
                             if not category:
                                 category = 'No category yet'
                             #End if
@@ -1249,7 +1256,9 @@ class AdfDiag(AdfObs):
                             season_title = f"Season: {season}"
                             plottype_title = f"Plot: {ptype}"
                             tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,var_title=var_title,season_title=season_title,
+                            rndr = tmpl.render(title=main_title,
+                                               var_title=var_title,
+                                               season_title=season_title,
                                                plottype_title=plottype_title,
                                                imgs=img_data,
                                                case1=case_name,
@@ -1343,17 +1352,19 @@ class AdfDiag(AdfObs):
                     #End if (table html file exists check)
                 #End for (case vs data)
 
-                #Check if comp table exists (if not, then obs are being compared and comp table is not created)
+                #Check if comp table exists
+                #(if not, then obs are being compared and comp table is not created)
                 if comp_table_html_file:
                     #Move the comparison table html file to new directory
                     for comp_table in comp_table_html_file:
                         shutil.move(comp_table, table_pages_dir / comp_table.name)
-                    #Add comparison table to website dictionary
-                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-                    #This will be for single-case for now,
-                    #will need to think how to change as multi-case is introduced
-                    amwg_tables["Case Comparison"] = comp_table.name
-                    # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                        #Add comparison table to website dictionary
+                        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                        #This will be for single-case for now,
+                        #will need to think how to change as multi-case is introduced
+                        amwg_tables["Case Comparison"] = comp_table.name
+                        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                    #End for
 
                 # need this to grab the locations of the amwg tables...
                 amwg_table_data = [str(table_pages_dir / table_html.name), ""]
