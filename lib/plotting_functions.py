@@ -522,7 +522,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     plt.close()
 
 #
-#  -- zonal mean code --
+#  -- vertical interpolation code --
 #
 
 def pres_from_hybrid(psfc, hya, hyb, p0=100000.):
@@ -535,6 +535,32 @@ def pres_from_hybrid(psfc, hya, hyb, p0=100000.):
     """
     return hya*p0 + hyb*psfc
 
+#####
+
+def vert_remap(x_mdl, p_mdl, plev):
+    """
+    Apply simple 1-d interpolation to a field, x
+    given the pressure p and the new pressures plev.
+    x_mdl, p_mdl are numpy arrays of shape (nlevel, spacetime).
+
+    Andrew G.: changed to do interpolation in log pressure
+    """
+
+    #Determine array shape of output array:
+    out_shape = (plev.shape[0], x_mdl.shape[1])
+
+    #Initialize interpolated output numpy array:
+    output = np.full(out_shape, np.nan)
+
+    #Perform 1-D interpolation in log-space:
+    for i in range(out_shape[1]):
+        output[:,i] = np.interp(np.log(plev), np.log(p_mdl[:,i]), x_mdl[:,i])
+    #End for
+
+    #Return interpolated output:
+    return output
+
+#####
 
 def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
                 convert_to_mb=False):
@@ -591,6 +617,49 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
 
     return data_interp_rename
 
+#####
+
+def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
+    """
+    Interpolate data from hybrid-sigma levels to isobaric levels.
+
+    data : DataArray with a 'lev' coordinate
+    pmid : like data array but the pressure  of each point (Pa)
+    new_levels : the output pressure levels (Pa)
+    """
+
+    # determine pressure levels to interpolate to:
+    if new_levels is None:
+        pnew = 100.0 * np.array([1000, 925, 850, 700, 500, 400,
+                                 300, 250, 200, 150, 100, 70, 50,
+                                 30, 20, 10, 7, 5, 3, 2, 1])  # mandatory levels, converted to Pa
+    else:
+        pnew = new_levels
+    #End if
+
+    # save name of DataArray:
+    data_name = data.name
+
+    # reshape data and pressure assuming "lev" is the name of the coordinate
+    zdims = [i for i in data.dims if i != 'lev']
+    dstack = data.stack(z=zdims)
+    pstack = pmid.stack(z=zdims)
+    output = vert_remap(dstack.values, pstack.values, pnew)
+    output = xr.DataArray(output, name=data_name, dims=("lev", "z"),
+                          coords={"lev":pnew, "z":pstack['z']})
+    output = output.unstack()
+
+    # convert vertical dimension to mb/hPa, if requested:
+    if convert_to_mb:
+        output["lev"] = output["lev"] / 100.0
+    #End if
+
+    #Return interpolated output:
+    return output
+
+#
+#  -- zonal mean code --
+#
 
 def zonal_mean_xr(fld):
     """Average over all dimensions except `lev` and `lat`."""

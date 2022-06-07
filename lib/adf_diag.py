@@ -196,7 +196,6 @@ class AdfDiag(AdfObs):
             num_cases = 1
         #End if
 
-
         #Loop over all items in config dict:
         for conf_var, conf_val in self.__cam_climo_info.items():
             if isinstance(conf_val, list):
@@ -541,6 +540,7 @@ class AdfDiag(AdfObs):
                 emsg += f" for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 continue
+            #End if
 
             print(f"\t Processing time series for case '{case_name}' :")
 
@@ -594,7 +594,7 @@ class AdfDiag(AdfObs):
 
             # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
             if start_year == end_year == "*":
-                files_list = sorted(list(starting_location.glob('*.cam.h0.*.nc')))
+                files_list = sorted(starting_location.glob('*.cam.h0.*.nc'))
             else:
                 #Create empty list:
                 files_list = []
@@ -617,10 +617,62 @@ class AdfDiag(AdfObs):
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
+
+            #Open an xarray dataset from the first model history file:
+            hist_file_ds = xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False)
+
             #Get a list of data variables in the 1st hist file:
-            hist_file_var_list = list(xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False).data_vars)
+            hist_file_var_list = list(hist_file_ds.data_vars)
             #Note: could use `open_mfdataset`, but that can become very slow;
             #      This approach effectively assumes that all files contain the same variables.
+
+            #Check what kind of vertical coordinate (if any) is being used for this model run:
+            #------------------------
+            if 'lev' in hist_file_ds:
+                #Extract vertical level attributes:
+                lev_attrs = hist_file_ds['lev'].attrs
+
+                #First check if there is a "vert_coord" attribute:
+                if 'vert_coord' in lev_attrs:
+                    vert_coord_type = lev_attrs['vert_coord']
+                else:
+                    #Next check that the "long_name" attribute exists:
+                    if 'long_name' in lev_attrs:
+                        #Extract long name:
+                        lev_long_name = lev_attrs['long_name']
+
+                        #Check for "keywords" in the long name:
+                        if 'hybrid level' in lev_long_name:
+                            #Set model to hybrid vertical levels:
+                            vert_coord_type = "hybrid"
+                        elif 'zeta level' in lev_long_name:
+                            #Set model to height (z) vertical levels:
+                            vert_coord_type = "height"
+                        else:
+                           #Print a warning, and assume that no vertical level information is needed.
+                           wmsg = "WARNING! Unable to determine the vertical coordinate"
+                           wmsg +=f" type from the 'lev' long name, which is:\n'{lev_long_name}'."
+                           wmsg += "\nNo additional vertical coordinate information will be"
+                           wmsg += " transferred beyond the 'lev' dimension itself."
+                           print(wmsg)
+
+                           vert_coord_type = None
+                        #End if
+                    else:
+                        #Print a warning, and assume hybrid levels (for now):
+                        wmsg = "WARNING!  No long name found for the 'lev' dimension,"
+                        wmsg += f" so no additional vertical coordinate information will be"
+                        wmsg += " transferred beyond the 'lev' dimension itself."
+                        print(wmsg)
+
+                        vert_coord_type = None
+                    #End if (long name)
+                #End if (vert_coord)
+            else:
+                #No level dimension found, so assume there is no vertical coordinate:
+                vert_coord_type = None
+            #End if (lev existence)
+            #------------------------
 
             #Check if time series directory exists, and if not, then create it:
             #Use pathlib to create parent directories, if necessary.
@@ -646,6 +698,13 @@ class AdfDiag(AdfObs):
                     print(f"WARNING: {var} is not in the file {hist_files[0]}. No time series will be generated.")
                     continue
 
+                #Check if variable has a "lev" dimension according to first file:
+                if 'lev' in hist_file_ds[var].dims:
+                    has_lev = True
+                else:
+                    has_lev = False
+                #End if
+
                 #Create full path name,  file name template:
                 #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
 
@@ -664,9 +723,27 @@ class AdfDiag(AdfObs):
                 #Notify user of new time series file:
                 print(f"\t - time series for {var}")
 
-                #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
-                       hist_files + ["-o", ts_outfil_str]
+                #Determine "ncrcat" command to generate time series file:
+                if has_lev and vert_coord_type:
+                    if vert_coord_type == "hybrid":
+                        cmd = ["ncrcat", "-O", "-4", "-h", "-v",
+                               f"{var},hyam,hybm,hyai,hybi,PS"] + \
+                               hist_files + ["-o", ts_outfil_str]
+                    elif vert_coord_type == "height":
+                        #Adding PMID here works, but significantly increases
+                        #the storage (disk usage) requirements of the ADF.
+                        #This can be alleviated in the future by figuring out
+                        #a way to determine all of the regridding targets at
+                        #the start of the ADF run, and then regridding a single
+                        #PMID file to each one of those targets separately. -JN
+                        cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},PMID,PS"] + \
+                                hist_files + ["-o", ts_outfil_str]
+                    #End if
+                else:
+                    #No vertical coordinate (or no coordinate meta-data), so no additional variables needed:
+                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var}"] + \
+                           hist_files + ["-o", ts_outfil_str]
+                #End if
 
                 #Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
