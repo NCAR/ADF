@@ -231,7 +231,6 @@ def polar_map(adfobj):
 
                             # If redo_plot set to True: remove old plot, if it already exists:
                             for plot_name in [nh_plot_name, sh_plot_name]:
-                                print(plot_name)
 
                                 if (not redo_plot) and plot_name.is_file():
                                     continue

@@ -27,7 +27,9 @@ def qbo(adfobj):
 
     Isla Simpson (islas@ucar.edu) 22nd March 2022
 
-    """
+    """   
+ #Notify user that script has started:
+    print("\n  Generating qbo plots...")
 
     #Extract relevant info from the ADF:
     case_name = adfobj.get_cam_info('cam_case_name', required=True)
@@ -37,6 +39,11 @@ def qbo(adfobj):
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
     plot_locations = adfobj.plot_location
     plot_type = adfobj.get_basic_info('plot_type')
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
     if not plot_type:
         plot_type = 'png'
     #End if
@@ -51,6 +58,24 @@ def qbo(adfobj):
         return
     #End if
 
+    #Set path for QBO figures:
+    plot_loc_ts  = Path(plot_locations[0]) / f'QBOts.{plot_type}'
+    plot_loc_amp = Path(plot_locations[0]) / f'QBOamp.{plot_type}'
+
+    #Until a multi-case plot directory exists, let user know
+    #that the QBO plot will be kept in the first case directory:
+    print(f"\t QBO plots will be saved here: {plot_locations[0]}")
+
+    # Check redo_plot. If set to True: remove old plots, if they already exist:
+    if (not redo_plot) and plot_loc_ts.is_file() and plot_loc_amp.is_file():
+        return
+    elif (redo_plot):
+        if plot_loc_ts.is_file():
+            plot_loc_ts.unlink()
+        if plot_loc_amp.is_file():
+            plot_loc_amp.unlink()
+    #End if
+     
     #----Read in the OBS (ERA5, 5S-5N average already
     obs = xr.open_dataset(obsdir+"/U_ERA5_5S_5N_1979_2019.nc").U_5S_5N
 
@@ -105,14 +130,6 @@ def qbo(adfobj):
 
     ax = plotcolorbar(fig, x1[0]+0.2, x2[2]-0.2,y1[casecount]-0.035,y1[casecount]-0.03)
 
-    #Set path for QBO figures:
-    plot_loc_ts  = Path(plot_locations[0]) / f'QBOts.{plot_type}'
-    plot_loc_amp = Path(plot_locations[0]) / f'QBOamp.{plot_type}'
-
-    #Until a multi-case plot directory exists, let user know
-    #that the QBO plot will be kept in the first case directory:
-    print(f"QBO plots will be saved here: {plot_locations[0]}")
-
     #Save figure to file:
     fig.savefig(plot_loc_ts, bbox_inches='tight', facecolor='white')
     #-----------------
@@ -138,7 +155,11 @@ def qbo(adfobj):
 
     ax.legend(loc='upper left')
     fig.savefig(plot_loc_amp, bbox_inches='tight', facecolor='white')
+
     #-------------------
+
+    #Notify user that script has ended:
+    print("  ...QBO plots have been generated successfully.")
 
     #End QBO plotting script:
     return
@@ -162,7 +183,7 @@ def _load_dataset(data_loc, case_name, variable, other_name=None):
     # a hack here: ADF uses different file names for "reference" case and regridded model data,
     # - try the longer name first (regridded), then try the shorter name
 
-    fils = sorted(dloc.glob(f"{case_name}.*.{variable}.nc"))
+    fils = sorted(dloc.glob(f"{case_name}.*.{variable}.*.nc"))
     if (len(fils) == 0):
         warnings.warn("Input file list is empty.")
         return None
