@@ -248,17 +248,21 @@ def polar_map(adfobj):
                                     #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                                     #   *Any other entries will be ignored.
                                     # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
+                                        
+                                    #Determine hemisphere to plot based on plot file name:
+                                    if plot_name == nh_plot_name:
+                                        hemi = "NH"
+                                    else:
+                                        hemi = "SH"
+                                    #End if
                                     
-                                    nhfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="NH", **vres)
-                                    shfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="SH", **vres)
+                                    fig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
                                     
-                                    # Save files
-                                    nhfig.savefig(nh_plot_name, bbox_inches='tight', dpi=300)
-                                    shfig.savefig(sh_plot_name, bbox_inches='tight', dpi=300)
-                                    
-                                    # Close figures to avoid memory issues:
-                                    plt.close(nhfig)
-                                    plt.close(shfig)
+                                    # Save file:
+                                    fig.savefig(plot_name, bbox_inches='tight', dpi=300)
+                                                                        
+                                    # Close figure to avoid memory issues:
+                                    plt.close(fig)
 
                     else: #mdata dimensions check
                         print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
@@ -317,17 +321,22 @@ def polar_map(adfobj):
                                         #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                                         #   *Any other entries will be ignored.
                                         # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                        
-                                        nhfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="NH", **vres)
-                                        shfig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere="SH", **vres)
-                                        
-                                        # Save files
-                                        nhfig.savefig(nh_plot_name, bbox_inches='tight', dpi=300)
-                                        shfig.savefig(sh_plot_name, bbox_inches='tight', dpi=300)
 
-                                        # Close figures to avoid memory issues:
-                                        plt.close(nhfig)
-                                        plt.close(shfig)
+                                        #Determine hemisphere to plot based on plot file name:
+                                        if plot_name == nh_plot_name:
+                                            hemi = "NH"
+                                        else:
+                                            hemi = "SH"
+                                        #End if
+                                    
+                                        fig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
+                                    
+                                        # Save file:
+                                        fig.savefig(plot_name, bbox_inches='tight', dpi=300)
+                                        
+                                        # Close figure to avoid memory issues:
+                                        plt.close(fig)
+
                             #End for (seasons)
                         #End for (pressure level)
                     else:
