@@ -23,9 +23,9 @@ def global_latlon_map(adfobj):
     data_name        -> Name of data set CAM case is being compared against,
                         which is always either "obs" or the baseline CAM case name,
                         depending on whether "compare_obs" is true or false.
-    data_loc         -> Location of comparison data, which is either "obs_climo_loc"
-                        or "cam_baseline_climo_loc", depending on whether
-                        "compare_obs" is true or false.
+    data_loc         -> Location of comparison data, which is either the location listed
+                        in each variable's ""obs_file", or the same as "model_rgrid_loc",
+                        depending on whether "compare_obs" is true or false.
     var_list         -> List of CAM output variables provided by "diag_var_list"
     data_list        -> List of data sets CAM will be compared against, which
                         is simply the baseline case name in situations when
@@ -86,7 +86,7 @@ def global_latlon_map(adfobj):
     else:
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
-        data_loc  = adfobj.get_baseline_info("cam_climo_loc", required=True)
+        data_loc  = model_rgrid_loc #Just use the re-gridded model data path
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -101,7 +101,6 @@ def global_latlon_map(adfobj):
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
-
     #-----------------------------------------
 
     #Set data path variables:
@@ -176,14 +175,10 @@ def global_latlon_map(adfobj):
                 #For now, only grab one file (but convert to list for use below)
                 oclim_fils = [dclimo_loc]
             else:
-                oclim_fils = sorted(list(dclimo_loc.glob("{}_{}_*.nc".format(data_src, var))))
+                oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
 
-            if len(oclim_fils) > 1:
-                oclim_ds = xr.open_mfdataset(oclim_fils, combine='by_coords')
-            elif len(oclim_fils) == 1:
-                sfil = str(oclim_fils[0])
-                oclim_ds = xr.open_dataset(sfil)
-            else:
+            oclim_ds = _load_dataset(oclim_fils)
+            if oclim_ds is None:
                 print("WARNING: Did not find any oclim_fils. Will try to skip.")
                 print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
                 print(f"INFO: The glob is: {data_src}_{var}_*.nc")
@@ -197,16 +192,12 @@ def global_latlon_map(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print(f"\t    {plot_loc} not found, making new directory")
+                    print("    {} not found, making new directory".format(plot_loc))
                     plot_loc.mkdir(parents=True)
 
                 # load re-gridded model files:
-                mclim_fils = sorted(list(mclimo_rg_loc.glob("{}_{}_{}_*.nc".format(data_src, case_name, var))))
-
-                if len(mclim_fils) > 1:
-                    mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-                else:
-                    mclim_ds = xr.open_dataset(mclim_fils[0])
+                mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
+                mclim_ds = _load_dataset(mclim_fils)
 
                 #Extract variable of interest
                 odata = oclim_ds[data_var].squeeze()  # squeeze in case of degenerate dimensions
@@ -303,7 +294,7 @@ def global_latlon_map(adfobj):
                                 continue
                             elif (redo_plot) and plot_name.is_file():
                                 plot_name.unlink()
-                        
+
                             #Create new plot:
                             # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
                             # This relies on `plot_map_and_save` knowing how to deal with the options
@@ -320,156 +311,101 @@ def global_latlon_map(adfobj):
 
                 elif pres_levs: #Is the user wanting to interpolate to a specific pressure level?
 
-                    #For now, there is no easy way to use observations with specified pressure levels, so
-                    #bail out here:
-                    if adfobj.compare_obs:
-                        print(f"\t - plot_press_levels currently doesn't work with observations, so skipping variable '{var}'.")
+                    #Check that case inputs have the correct dimensions (including "lev"):
+                    _, has_lev = pf.zm_validate_dims(mdata)
+
+                    if has_lev:
+
+                        #Calculate monthly weights (if applicable):
+                        if weight_season:
+                            #Add date-stamp to time dimension:
+                            #Note: For now using made-up dates, but in the future
+                            #it might be good to extract this info from the files
+                            #themselves.
+                            timefix = pd.date_range(start='1/1/1980', end='12/1/1980', freq='MS')
+                            mdata['time']=timefix
+                            odata['time']=timefix
+
+                            #Calculate monthly weights based on number of days:
+                            month_length = mdata.time.dt.days_in_month
+                            weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
+                        #End if
+
+                        #Loop over pressure levels:
+                        for pres in pres_levs:
+
+                            #Check that the user-requested pressure level
+                            #exists in the model data, which should already
+                            #have been interpolated to the standard reference
+                            #pressure levels:
+                            if not (pres in mclim_ds['lev']):
+                                #Move on to the next pressure level:
+                                print(f"plot_press_levels value '{pres}' not a standard reference pressure, so skipping.")
+                                continue
+                            #End if
+
+                            #Create new dictionaries:
+                            mseasons = {}
+                            oseasons = {}
+                            dseasons = {}
+
+                            #Loop over seasons:
+                            for s in seasons:
+
+                                #If requested, then calculate the monthly-weighted seasonal averages:
+                                if weight_season:
+                                    if s == 'ANN':
+                                        #Calculate annual weights (i.e. don't group by season):
+                                        weights_ann = month_length / month_length.sum()
+
+                                        mseasons[s] = (mdata * weights_ann).sum(dim='time').sel(lev=pres)
+                                        oseasons[s] = (odata * weights_ann).sum(dim='time').sel(lev=pres)
+                                        # difference: each entry should be (lat, lon)
+                                        dseasons[s] = mseasons[s] - oseasons[s]
+                                    else:
+                                        #this is inefficient because we do same calc over and over
+                                        mseasons[s] =(mdata * weights).groupby("time.season").sum(dim="time").sel(season=s,lev=pres)
+                                        oseasons[s] =(odata * weights).groupby("time.season").sum(dim="time").sel(season=s,lev=pres)
+                                        # difference: each entry should be (lat, lon)
+                                        dseasons[s] = mseasons[s] - oseasons[s]
+                                    #End if
+                                else:
+                                    #Just average months as-is:
+                                    mseasons[s] = mdata.sel(time=seasons[s], lev=pres).mean(dim='time')
+                                    oseasons[s] = odata.sel(time=seasons[s], lev=pres).mean(dim='time')
+                                    # difference: each entry should be (lat, lon)
+                                    dseasons[s] = mseasons[s] - oseasons[s]
+                                #End if
+
+                                # time to make plot; here we'd probably loop over whatever plots we want for this variable
+                                # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
+                                plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
+
+                                # Check redo_plot. If set to True: remove old plot, if it already exists:
+                                redo_plot = adfobj.get_basic_info('redo_plot')
+                                if (not redo_plot) and plot_name.is_file():
+                                    continue
+                                elif (redo_plot) and plot_name.is_file():
+                                    plot_name.unlink()
+                                    
+                                #Create new plot:
+                                # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
+                                # This relies on `plot_map_and_save` knowing how to deal with the options
+                                # currently knows how to handle:
+                                #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
+                                #   *Any other entries will be ignored.
+                                # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
+                                pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+
+                            #End for (seasons)
+                        #End for (pressure levels)
 
                     else:
-
-                        #Check that case inputs have the correct dimensions (including "lev"):
-                        _, has_lev = pf.zm_validate_dims(mdata)
-
-                        if has_lev:
-
-                            #Next check if the data set contains CAM hybrid level info:
-                            if 'hyam' in mclim_ds:
-                                mhya = mclim_ds['hyam']
-                                mhyb = mclim_ds['hybm']
-                                if 'time' in mhya.dims:
-                                    mhya = mhya.isel(time=0).squeeze()
-                                if 'time' in mhyb.dims:
-                                    mhyb = mhyb.isel(time=0).squeeze()
-                                if 'P0' in mclim_ds:
-                                    P0 = mclim_ds['P0']
-                                else:
-                                    P0 = 100000.0  # Pa
-                                #End if
-                                if 'PS' in mclim_ds:
-                                    mps = mclim_ds['PS']
-                                else:
-                                    # look for the file (this isn't great b/c we'd have to constantly re-load)
-                                    mps_files = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_PS_*.nc"))
-                                    if len(mps_files) > 0:
-                                        mps_ds = _load_dataset(mps_files)
-                                        mps = mps_ds['PS']
-                                    else:
-                                        continue  # what else could we do?
-                                    #End if
-                                #End if
-
-                                # We need a way to check whether 'obs' or 'baseline' here:
-                                # (and/or a way to specify pressure levels or hybrid levels)
-                                ohya = oclim_ds['hyam']
-                                ohyb = oclim_ds['hybm']
-                                if 'time' in ohya.dims:
-                                    ohya = ohya.isel(time=0).squeeze()
-                                if 'time' in ohyb.dims:
-                                    ohyb = ohyb.isel(time=0).squeeze()
-                                if 'PS' in oclim_ds:
-                                    ops = oclim_ds['PS']
-                                else:
-                                    # look for the file (this isn't great b/c we'd have to constantly re-load)
-                                    ops_files = sorted(dclimo_loc.glob(f"{data_src}_PS_*.nc"))
-                                    if len(ops_files) > 0:
-                                        ops_ds = _load_dataset(ops_files)
-                                        ops = ops_ds['PS']
-                                    else:
-                                        continue  # what else could we do?
-                                    #End if
-                                #End if
-
-                                #Interpolate variable to provided pressure levels:
-                                mdata_i = pf.lev_to_plev(mdata, mps, mhya, mhyb, P0=P0, new_levels=np.array(np.array(pres_levs)*100,dtype='float32'), \
-                                                         convert_to_mb=True)
-
-                                odata_i = pf.lev_to_plev(odata, ops, ohya, ohyb, P0=P0, new_levels=np.array(np.array(pres_levs)*100,dtype='float32'), \
-                                                         convert_to_mb=True)
-
-                                #Calculate monthly weights (if applicable):
-                                if weight_season:
-                                    #Add date-stamp to time dimension:
-                                    #Note: For now using made-up dates, but in the future
-                                    #it might be good to extract this info from the files
-                                    #themselves.
-                                    timefix = pd.date_range(start='1/1/1980', end='12/1/1980', freq='MS')
-                                    mdata_i['time']=timefix
-                                    odata_i['time']=timefix
-
-                                    #Calculate monthly weights based on number of days:
-                                    month_length = mdata_i.time.dt.days_in_month
-                                    weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
-                                #End if
-
-                                #Loop over pressure levels:
-                                for pres in pres_levs:
-
-                                    #Create new dictionaries:
-                                    mseasons = {}
-                                    oseasons = {}
-                                    dseasons = {}
-
-                                    #Loop over seasons:
-                                    for s in seasons:
-
-                                        #If requested, then calculate the monthly-weighted seasona averages:
-                                        if weight_season:
-                                            if s == 'ANN':
-                                                mseasons[s] = (mdata_i * weights).sum(dim='time').sel(lev=pres)
-                                                oseasons[s] = (odata_i * weights).sum(dim='time').sel(lev=pres)
-                                                # difference: each entry should be (lat, lon)
-                                                dseasons[s] = mseasons[s] - oseasons[s]
-                                            else:
-                                                #this is inefficient because we do same calc over and over
-                                                mseasons[s] =(mdata_i * weights).groupby("time.season").sum(dim="time").sel(season=s,lev=pres)
-                                                oseasons[s] =(odata_i * weights).groupby("time.season").sum(dim="time").sel(season=s,lev=pres)
-                                                # difference: each entry should be (lat, lon)
-                                                dseasons[s] = mseasons[s] - oseasons[s]
-                                            #End if
-                                        else:
-                                            #Just average months as-is:
-                                            mseasons[s] = mdata.sel(time=seasons[s], lev=pres).mean(dim='time')
-                                            oseasons[s] = odata.sel(time=seasons[s], lev=pres).mean(dim='time')
-                                            # difference: each entry should be (lat, lon)
-                                            dseasons[s] = mseasons[s] - oseasons[s]
-                                        #End if
-
-                                        # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                                        # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                                        plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
-
-
-                                        # Check redo_plot. If set to True: remove old plot, if it already exists:
-                                        redo_plot = adfobj.get_basic_info('redo_plot')
-                                        if (not redo_plot) and plot_name.is_file():
-                                            continue
-                                        elif (redo_plot) and plot_name.is_file():
-                                            plot_name.unlink()
-
-                                        #Create new plot:
-                                        # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
-                                        # This relies on `plot_map_and_save` knowing how to deal with the options
-                                        # currently knows how to handle:
-                                        #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
-                                        #   *Any other entries will be ignored.
-                                        # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                        pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
-
-                                    #End for (seasons)
-                                #End for (pressure levels)
-
-                            else:
-                                print(f"\t - plot_pres_levels currently only works with hybrid coordinates, so skipping '{var}'.")
-                            #End if (hyam)
-
-                        else:
-                            print(f"\t - variable '{var}' has no vertical dimension but is not just time/lat/lon, so skipping.")
-                        #End if (has_lev)
-
-                else: #odata dimensions check
-                     print(f"\t - skipping lat/lon map for {var} as it doesn't have only lat/lon dims.")
-
-                #End if (dimensions check)
+                        print(f"\t - variable '{var}' has no vertical dimension but is not just time/lat/lon, so skipping.")
+                    #End if (has_lev)
+                else:
+                    print(f"\t - skipping polar map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
+                #End if (dimensions check and plotting pressure levels)
             #End for (case loop)
         #End for (obs/baseline loop)
     #End for (variable loop)

@@ -126,6 +126,9 @@ def amwg_table(adf):
         output_locs.append(output_locs[0])
 
     #-----------------------------------------
+    #Create (empty) dictionary to use for the
+    #residual top of model (RESTOM) radiation calculation:
+    restom_dict = {}
 
     #Loop over CAM cases:
     for case_idx, case_name in enumerate(case_names):
@@ -138,7 +141,7 @@ def amwg_table(adf):
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
-            errmsg = f"Time series directory '{input_ts_loc}' not found.  Script is exiting."
+            errmsg = f"Time series directory '{input_location}' not found.  Script is exiting."
             raise AdfError(errmsg)
         #Write to debug log if enabled:
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
@@ -148,11 +151,11 @@ def amwg_table(adf):
             output_location.mkdir(parents=True)
 
         #Create output file name:
-        output_csv_file = output_location / "amwg_table_{}.csv".format(case_name)
+        output_csv_file = output_location / f"amwg_table_{case_name}.csv"
 
         #Create HTML output file name as well, if needed:
         if write_html:
-            output_html_file = output_location / "amwg_table_{}.html".format(case_name)
+            output_html_file = output_location / f"amwg_table_{case_name}.html"
 
         #Given that this is a final, user-facing analysis, go ahead and re-do it every time:
         if Path(output_csv_file).is_file():
@@ -162,27 +165,29 @@ def amwg_table(adf):
             if Path(output_html_file).is_file():
                 Path.unlink(output_html_file)
 
+        #Save case name as a new key in the RESTOM dictonary:
+        restom_dict[case_name] = {}
+
         #Loop over CAM output variables:
         for var in var_list:
 
             #Notify users of variable being added to table:
-            print("\t - Variable '{}' being added to table".format(var))
+            print(f"\t - Variable '{var}' being added to table")
 
             #Create list of time series files present for variable:
-            ts_filenames = '{}.*.{}.*nc'.format(case_name, var)
-            ts_files = sorted(list(input_location.glob(ts_filenames)))
+            ts_filenames = f'{case_name}.*.{var}.*nc'
+            ts_files = sorted(input_location.glob(ts_filenames))
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
-                errmsg = "Time series files for variable '{}' not found.  Script will continue to next variable.".format(var)
-                #  end_diag_script(errmsg) # Previously we would kill the run here.
+                errmsg = f"Time series files for variable '{var}' not found.  Script will continue to next variable."
                 warnings.warn(errmsg)
                 continue
 
             #TEMPORARY:  For now, make sure only one file exists:
             if len(ts_files) != 1:
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
-                errmsg += " Multiple files were found for the variable '{}'".format(var)
+                errmsg += f" Multiple files were found for the variable '{var}'"
                 raise AdfError(errmsg)
 
             #Load model data from file:
@@ -207,6 +212,14 @@ def amwg_table(adf):
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
                 data = _spatial_average(data)  # changes data "in place"
+
+            #Add necessary data for RESTOM calcs below
+            if var == "FLNT":
+                restom_dict[case_name][var] = data
+                #Copy units for RESTOM as well:
+                restom_units = unit_str
+            if var == "FSNT":
+                restom_dict[case_name][var] = data
 
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
@@ -247,6 +260,50 @@ def amwg_table(adf):
         #End of var_list loop
         #--------------------
 
+        if "FSNT" and "FLNT" in var_list:
+            #RESTOM Calcs
+            var = "RESTOM" #RESTOM = FSNT-FLNT
+            print(f"\t - Variable '{var}' being added to table")
+            data = restom_dict[case_name]["FSNT"] - restom_dict[case_name]["FLNT"]
+            # In order to get correct statistics, average to annual or seasonal
+            data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
+                                                                # NOTE: data will now have a 'year' dimension instead of 'time'
+            # Now that data is (time,), we can do our simple stats:
+            data_mean = data.mean()
+            data_sample = len(data)
+            data_std = data.std()
+            data_sem = data_std / data_sample
+            data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
+            data_trend = stats.linregress(data.year, data.values)
+            # These get written to our output file:
+            # create a dataframe:
+            cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
+                        'standard error', '95% CI', 'trend', 'trend p-value']
+            row_values = [var, restom_units, data_mean.data.item(), data_sample,
+                            data_std.data.item(), data_sem.data.item(), data_ci.data.item(),
+                            f'{data_trend.intercept : 0.3f} + {data_trend.slope : 0.3f} t',
+                            data_trend.pvalue]
+
+            # Format entries:
+            dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
+
+            # Add entries to Pandas structure:
+            df = pd.DataFrame(dfentries)
+
+            # Check if the output CSV file exists,
+            # if so, then append to it:
+            if output_csv_file.is_file():
+                df.to_csv(output_csv_file, mode='a', header=False, index=False)
+            else:
+                df.to_csv(output_csv_file, header=cols, index=False)
+
+            # last step is to write the html file; overwrites previous version since we're supposed to be adding to it
+            if write_html:
+                _write_html(output_csv_file, output_html_file,case_name,case_names)
+        else:
+            #Print message to debug log:
+            adf.debug_log("RESTOM not calculated because FSNT and/or FLNT variables not in dataset")
+
     #End of model case loop
     #----------------------
 
@@ -279,13 +336,14 @@ def _load_data(dataloc, varname):
 def _spatial_average(indata):
     import xarray as xr
     import numpy as np
+    import warnings
     assert 'lev' not in indata.coords
     assert 'ilev' not in indata.coords
     if 'lat' in indata.coords:
         weights = np.cos(np.deg2rad(indata.lat))
         weights.name = "weights"
     elif 'ncol' in indata.coords:
-        print("WARNING: We need a way to get area variable. Using equal weights.")
+        warnings.warn("We need a way to get area variable. Using equal weights.")
         weights = xr.DataArray(1.)
         weights.name = "weights"
     else:
@@ -325,7 +383,7 @@ def _write_html(f, out,case_name,case_name_list):
         <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
       </ul>
     </nav><h1>CAM Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
-    
+
     ending = """</body></html>"""
     with open(out, 'w') as hfil:
         hfil.write(preamble)
@@ -344,25 +402,33 @@ def _df_comp_table(write_html,output_location,case_names):
     case = output_location/f"amwg_table_{case_names[0]}.csv"
     baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
 
+    #Read in test case and baseline dataframes:
     df_case = pd.read_csv(case)
     df_base = pd.read_csv(baseline)
+
+    #Create a merged dataframe that contains only the variables
+    #contained within both the test case and the baseline:
+    df_merge = pd.merge(df_case, df_base, how='inner', on=['variable'])
+
+    #Create the "comparison" dataframe:
     df_comp = pd.DataFrame(dtype=object)
-
-    df_comp[['variable','unit','case']] = df_case[['variable','unit','mean']]
-    df_comp['baseline'] = df_base[['mean']]
-
+    df_comp[['variable','unit','case']] = df_merge[['variable','unit_x','mean_x']]
+    df_comp['baseline'] = df_merge[['mean_y']]
     df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
 
-
+    #Write the comparison dataframe to a new CSV file:
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
     #Create HTML output file name as well, if needed:
     if write_html:
         output_html_file_comp = output_location / "amwg_table_comp.html"
-    
+    else:
+        #No website is being generated, so exit funcion here:
+        return
+
     html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-    
+
     preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     <nav role="navigation" class="primary-navigation">
       <ul>
