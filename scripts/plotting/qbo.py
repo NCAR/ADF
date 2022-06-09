@@ -75,7 +75,13 @@ def qbo(adfobj):
         if plot_loc_amp.is_file():
             plot_loc_amp.unlink()
     #End if
-     
+
+    #Check if model vs model run, and if so, append baseline to case lists:
+    if not adfobj.compare_obs:
+        case_loc.append(base_loc)
+        case_name.append(base_name)
+    #End if
+
     #----Read in the OBS (ERA5, 5S-5N average already
     obs = xr.open_dataset(obsdir+"/U_ERA5_5S_5N_1979_2019.nc").U_5S_5N
 
@@ -83,26 +89,27 @@ def qbo(adfobj):
     ncases = len(case_loc)
     casedat = [ _load_dataset(case_loc[i], case_name[i],'U') for i in range(0,ncases,1) ]
 
-    if not adfobj.compare_obs:
-        basedat = _load_dataset(base_loc, base_name,'U')
+    #Find indices for all case datasets that don't contain a zonal wind field (U):
+    bad_idxs = []
+    for idx, dat in enumerate(casedat):
+        if 'U' not in dat.variables:
+            warngings.warn(f"QBO: case {case_name[i]} contains no 'U' field, skipping...")
+            bad_idxs.append(idx)
+        #End if
+    #End for
+
+    #Pare list down to cases that actually contain a zonal wind field (U):
+    if bad_idxs:
+        for bad_idx in bad_idxs:
+            casedat.pop(bad_idx)
+        #End for
+    #End if
 
     #----Calculate the zonal mean
     casedatzm = [ casedat[i].U.mean("lon") for i in range(0,ncases,1) ]
 
-    if not adfobj.compare_obs:
-        basedatzm = basedat.U.mean("lon")
-
     #----Calculate the 5S-5N average
     casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]
-
-    if not adfobj.compare_obs:
-        basedat_5S_5N = cosweightlat(basedatzm,-5,5)
-
-    #----Add baseline run to list of cases if present
-    if not adfobj.compare_obs:
-        casedat_5S_5N.append(basedat_5S_5N)
-        case_name.append(base_name)
-        ncases += 1
 
     #----Find the minimum number of years across dataset for plotting the timeseries.
     nyobs = np.floor(obs.time.size/12.)
@@ -185,7 +192,7 @@ def _load_dataset(data_loc, case_name, variable, other_name=None):
 
     fils = sorted(dloc.glob(f"{case_name}.*.{variable}.*.nc"))
     if (len(fils) == 0):
-        warnings.warn("Input file list is empty.")
+        warnings.warn("QBO: Input file list is empty.")
         return None
     elif (len(fils) > 1):
         return xr.open_mfdataset(fils, combine='by_coords')
