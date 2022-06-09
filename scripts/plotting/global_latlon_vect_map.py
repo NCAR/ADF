@@ -72,7 +72,7 @@ def global_latlon_vect_map(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("No observations found to plot against, so no vector maps will be generated.")
+            print("\t No observations found to plot against, so no vector maps will be generated.")
             return
 
     else:
@@ -216,9 +216,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(uoclim_fils[0])
                 uoclim_ds = xr.open_dataset(sfil)
             else:
-                print("ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
+                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
+                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
                 continue
             #End if
 
@@ -228,9 +228,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(voclim_fils[0])
                 voclim_ds = xr.open_dataset(sfil)
             else:
-                print("ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
+                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
+                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
                 continue
             #End if
 
@@ -270,7 +270,7 @@ def global_latlon_vect_map(adfobj):
                     vmclim_ds = xr.open_dataset(vmclim_fils[0])
                 else:
                     #The vector pair was never processed, so skip varaible:
-                    print(f"Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
+                    print(f"\t Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
                     continue
                 #End if
 
@@ -340,7 +340,7 @@ def global_latlon_vect_map(adfobj):
                             #pressure levels:
                             if not (lv in umclim_ds['lev']):
                                 #Move on to the next pressure level:
-                                print(f"plot_press_levels value '{lv}' not a standard reference pressure, so skipping.")
+                                print(f"\t plot_press_levels value '{lv}' not a standard reference pressure, so skipping.")
                                 continue
                             #End if
 
