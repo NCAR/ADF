@@ -45,7 +45,7 @@ def global_latlon_vect_map(adfobj):
     # - make plot
 
     #Notify user that script has started:
-    print("  Generating lat/lon vector maps...")
+    print("\n  Generating lat/lon vector maps...")
 
     #
     # Use ADF api to get all necessary information
@@ -72,7 +72,7 @@ def global_latlon_vect_map(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("No observations found to plot against, so no vector maps will be generated.")
+            print("\t No observations found to plot against, so no vector maps will be generated.")
             return
 
     else:
@@ -91,6 +91,11 @@ def global_latlon_vect_map(adfobj):
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
     adfobj.debug_log(f"Vector plot type is set to {plot_type}")
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
     #-----------------------------------------
 
     #Set input/output data path variables:
@@ -211,9 +216,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(uoclim_fils[0])
                 uoclim_ds = xr.open_dataset(sfil)
             else:
-                print("ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
+                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
+                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
                 continue
             #End if
 
@@ -223,9 +228,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(voclim_fils[0])
                 voclim_ds = xr.open_dataset(sfil)
             else:
-                print("ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
+                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
+                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
                 continue
             #End if
 
@@ -245,7 +250,7 @@ def global_latlon_vect_map(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("    {} not found, making new directory".format(plot_loc))
+                    print("\t    {} not found, making new directory".format(plot_loc))
                     plot_loc.mkdir(parents=True)
                 #End if
 
@@ -265,7 +270,7 @@ def global_latlon_vect_map(adfobj):
                     vmclim_ds = xr.open_dataset(vmclim_fils[0])
                 else:
                     #The vector pair was never processed, so skip varaible:
-                    print(f"Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
+                    print(f"\t Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
                     continue
                 #End if
 
@@ -335,7 +340,7 @@ def global_latlon_vect_map(adfobj):
                             #pressure levels:
                             if not (lv in umclim_ds['lev']):
                                 #Move on to the next pressure level:
-                                print(f"plot_press_levels value '{lv}' not a standard reference pressure, so skipping.")
+                                print(f"\t plot_press_levels value '{lv}' not a standard reference pressure, so skipping.")
                                 continue
                             #End if
 
@@ -353,10 +358,12 @@ def global_latlon_vect_map(adfobj):
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                                 plot_name = plot_loc / f"{var_name}_{lv}hpa_{s}_LatLon_Vector_Mean.{plot_type}"
 
-                                #Remove old plot, if it already exists:
-                                if plot_name.is_file():
+
+                                # Check redo_plot. If set to True: remove old plot, if it already exists:
+                                if (not redo_plot) and plot_name.is_file():
+                                    continue
+                                elif (redo_plot) and plot_name.is_file():
                                     plot_name.unlink()
-                                #End if
 
                                 # pass in casenames
                                 vres["case_name"] = case_name
@@ -389,11 +396,13 @@ def global_latlon_vect_map(adfobj):
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                             plot_name = plot_loc / f"{var_name}_{s}_LatLon_Vector_Mean.{plot_type}"
 
-                            #Remove old plot, if it already exists:
-                            if plot_name.is_file():
+                            # Check redo_plot. If set to True: remove old plot, if it already exists:
+                            redo_plot = adfobj.get_basic_info('redo_plot')
+                            if (not redo_plot) and plot_name.is_file():
+                                continue
+                            elif (redo_plot) and plot_name.is_file():
                                 plot_name.unlink()
-                            #End if
-
+                     
                             # pass in casenames
                             vres["case_name"] = case_name
                             vres["baseline"] = data_src

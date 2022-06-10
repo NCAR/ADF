@@ -44,7 +44,7 @@ def regrid_and_vert_interp(adf):
     # - regrid one to the other (probably should be a choice)
 
     #Notify user that script has started:
-    print("  Regridding CAM climatologies...")
+    print("\n  Regridding CAM climatologies...")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -86,7 +86,7 @@ def regrid_and_vert_interp(adf):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("No observations found to regrid to, so no re-gridding will be done.")
+            print("\t No observations found to regrid to, so no re-gridding will be done.")
             return
         #End if
 
@@ -265,14 +265,14 @@ def regrid_and_vert_interp(adf):
                         save_to_nc(tgdata_interp, interp_bl_file)
                     #End if
                 else:
-                    print(f"\t Regridded file '{regridded_file_loc}' already exists, so skipping...")
+                    print("\t Regridded file already exists, so skipping...")
                 #End if (file check)
             #End do (target list)
         #End do (variable list)
     #End do (case list)
 
     #Notify user that script has ended:
-    print("...CAM climatologies have been regridded successfully.")
+    print("  ...CAM climatologies have been regridded successfully.")
 
 #################
 #Helper functions

@@ -50,7 +50,7 @@ def create_climo_files(adf, clobber=False, search=None):
     from adf_base import AdfError
 
     #Notify user that script has started:
-    print("  Calculating CAM climatologies...")
+    print("\n  Calculating CAM climatologies...")
 
     # Set up multiprocessing pool to parallelize writing climo files.
     number_of_cpu = adf.num_procs  # Get number of available processors from the ADF
@@ -132,7 +132,7 @@ def create_climo_files(adf, clobber=False, search=None):
 
         #Check if climo directory exists, and if not, then create it:
         if not output_location.is_dir():
-            print(f"    {output_location} not found, making new directory")
+            print(f"\t    {output_location} not found, making new directory")
             output_location.mkdir(parents=True)
 
         #Time series file search
@@ -149,10 +149,10 @@ def create_climo_files(adf, clobber=False, search=None):
             # and check whether it is there (don't do computation if we don't want to overwrite):
             output_file = output_location / f"{case_name}_{var}_climo.nc"
             if (not clobber) and (output_file.is_file()):
-                print(f"INFO: Found climo file and clobber is False, so skipping {var} and moving to next variable.")
+                print(f"\t    INFO: Found climo file and clobber is False, so skipping {var} and moving to next variable.")
                 continue
             elif (clobber) and (output_file.is_file()):
-                print(f"INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
+                print(f"\t    INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
 
             #Create list of time series files present for variable:
             ts_filenames = search.format(CASE=case_name, VARIABLE=var)
