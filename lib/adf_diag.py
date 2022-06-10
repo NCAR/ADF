@@ -904,8 +904,10 @@ class AdfDiag(AdfObs):
             for case_idx, case_name in enumerate(case_names):
 
                 #Set case name if start and end year are present:
-                if syears[case_idx] and eyears[case_idx]:
+                if syears and eyears != "NoneType":
                     case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+                else:
+                    print(f"Missing start and end climo years for {case_name}")
                 #End if
 
                 #Set the final directory name and save it to plot_location:
