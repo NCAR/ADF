@@ -904,7 +904,7 @@ class AdfDiag(AdfObs):
             for case_idx, case_name in enumerate(case_names):
 
                 #Set case name if start and end year are present:
-                if syears and eyears != "NoneType":
+                if syears[case_idx] and eyears[case_idx] != "NoneType":
                     case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
                 else:
                     print(f"WARNING: Missing start and end climo years for {case_name}.")
