@@ -907,7 +907,8 @@ class AdfDiag(AdfObs):
                 if syears and eyears != "NoneType":
                     case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
                 else:
-                    print(f"Missing start and end climo years for {case_name}")
+                    print(f"WARNING: Missing start and end climo years for {case_name}." \
+                        "Will assume years from files.")
                 #End if
 
                 #Set the final directory name and save it to plot_location:
