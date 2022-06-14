@@ -165,7 +165,7 @@ if __name__ == "__main__":
     #If a user is doing a model vs obs comparison, but
     #no observations were found, then stop here:
     if diag.compare_obs and not diag.var_obs_dict:
-        print('ADF diagnostics has completed successfully.')
+        print('\nADF diagnostics has completed successfully.')
         sys.exit(0)
 
     #Regrid model climatology files to match either
@@ -192,5 +192,5 @@ if __name__ == "__main__":
     #+++++++++++++++
     #End diag script
     #+++++++++++++++
-    print('ADF diagnostics has completed successfully.')
+    print('\nADF diagnostics has completed successfully.')
     sys.exit(0)

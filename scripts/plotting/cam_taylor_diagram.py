@@ -31,6 +31,10 @@ warnings.formatwarning = my_formatwarning
 # --- Main Function Shares Name with Module: cam_taylor_diagram ---
 #
 def cam_taylor_diagram(adfobj):
+
+    #Notify user that script has started:
+    print("\n  Generating Taylor Diagrams...")
+
     # Extract needed quantities from ADF object:
     # -----------------------------------------
     # Case names:
@@ -48,7 +52,7 @@ def cam_taylor_diagram(adfobj):
             plpth = Path(pl)
             #Check if plot output directory exists, and if not, then create it:
             if not plpth.is_dir():
-                print("    {} not found, making new directory".format(pl))
+                print(f"\t    {pl} not found, making new directory")
                 plpth.mkdir(parents=True)
         if len(plot_location) == 1:
             plot_loc = Path(plot_location[0])
@@ -79,6 +83,11 @@ def cam_taylor_diagram(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
+    print(f"\t NOTE: Plot type is set to {plot_type}")
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
@@ -98,6 +107,16 @@ def cam_taylor_diagram(adfobj):
     # LOOP OVER SEASON
     #
     for s in seasons:
+
+        plot_name = plot_loc / f"amwg_taylor_diagram_{s}.{plot_type}"
+        print(f"\t - Plotting Taylor Diagram, {s}")
+
+        # Check redo_plot. If set to True: remove old plot, if it already exists:
+        if (not redo_plot) and plot_name.is_file():
+            continue
+        elif (redo_plot) and plot_name.is_file():
+            plot_name.unlink()
+
         # hold the data in a DataFrame for each case
         # variable | correlation | stddev ratio | bias
         df_template = pd.DataFrame(index=var_list, columns=['corr', 'ratio', 'bias'])
@@ -124,9 +143,12 @@ def cam_taylor_diagram(adfobj):
         # add text with variable names:
         txtstrs = [f"{i+1} - {v}" for i, v in enumerate(var_list)]
         fig.text(0.9, 0.9, "\n".join(txtstrs), va='top')
-        out_file_name = plot_loc / f"amwg_taylor_diagram_{s}.{plot_type}"
-        fig.savefig(out_file_name, bbox_inches='tight')
-        print(f"Taylor Diagram: completed {s}. File: {out_file_name}")
+        fig.savefig(plot_name, bbox_inches='tight')
+        print(f"\t Taylor Diagram: completed {s}. \n\t File: {plot_name}")
+
+    #Notify user that script has ended:
+    print("  ...Taylor Diagrams have been generated successfully.")
+
     return
 
 #
@@ -148,7 +170,6 @@ def vertical_average(fld, ps, acoef, bcoef):
     fld_integrated = np.trapz(fld * pres, x=pres, axis=levaxis)
     return fld_integrated / dp_integrated
 
-
 def find_landmask(adf, casename, location):
     # maybe it's in the climo files, but we might need to look in the history files:
     landfrac_fils = list(Path(location).glob(f"{casename}*_LANDFRAC_*.nc"))
@@ -169,7 +190,7 @@ def find_landmask(adf, casename, location):
         for h in hfils:
             dstmp = xr.open_dataset(h)
             if 'LANDFRAC' in dstmp:
-                print(f"Good news, found LANDFRAC in history file")
+                print(f"\tGood news, found LANDFRAC in history file")
                 return dstmp['LANDFRAC']
             else:
                 k += 1
@@ -177,12 +198,11 @@ def find_landmask(adf, casename, location):
             raise IOError(f"Checked {k} files, but did not find LANDFRAC in any of them.")
     # should not reach past the `if` statement without returning landfrac or raising exception.
 
-
 def get_prect(casename, location, **kwargs):
     # look for prect first:
     fils = sorted(list(Path(location).glob(f"{casename}*_PRECT_*.nc")))
     if len(fils) == 0:
-        print("Need to derive PRECT = PRECC + PRECL")
+        print("\t Need to derive PRECT = PRECC + PRECL")
         fils1 = sorted(list(Path(location).glob(f"{casename}*_PRECC_*.nc")))
         fils2 = sorted(list(Path(location).glob(f"{casename}*_PRECL_*.nc")))
         if (len(fils1) == 0) or (len(fils2) == 0):
@@ -204,7 +224,7 @@ def get_prect(casename, location, **kwargs):
 def get_tropical_land_precip(adf, casename, location, **kwargs):
     landfrac = find_landmask(adf, casename, location)
     if landfrac is None:
-        raise ValueError("No landfrac returned")
+        raise ValueError("\t No landfrac returned")
     prect = get_prect(casename, location)
     # mask to only keep land locations
     prect = xr.DataArray(np.where(landfrac >= .95, prect, np.nan),

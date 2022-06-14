@@ -116,6 +116,11 @@ diag_basic_info:
     #single node/machine:
     num_procs: 8
 
+    #If set to true, then redo all plots even if they already exist.
+    #If set to false, then if a plot is found it will be skipped:
+    redo_plot: false
+
+
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
 
