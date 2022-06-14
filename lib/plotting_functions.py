@@ -394,14 +394,22 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
     lons, lats = np.meshgrid(umdlfld['lon'], umdlfld['lat'])
 
     # create figure:
-    fig = plt.figure(figsize=(20,12))
+    fig = plt.figure(figsize=(14,10))
 
     # LAYOUT WITH GRIDSPEC
-    gs = mpl.gridspec.GridSpec(2, 4)
-    gs.update(wspace=0.25)
-    ax1 = plt.subplot(gs[0, :2], projection=proj)
-    ax2 = plt.subplot(gs[0, 2:], projection=proj)
-    ax3 = plt.subplot(gs[1, 1:3], projection=proj)
+    gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05)
+    gs.tight_layout(fig)
+    ax1 = plt.subplot(gs[0:2, :3], projection=proj)
+    ax2 = plt.subplot(gs[0:2, 3:], projection=proj)
+    ax3 = plt.subplot(gs[2, 1:5], projection=proj)
+    ax = [ax1,ax2,ax3]
+
+    # formatting for tick labels
+    lon_formatter = LongitudeFormatter(number_format='0.0f',
+                                        degree_symbol='',
+                                        dateline_direction_label=False)
+    lat_formatter = LatitudeFormatter(number_format='0.0f',
+                                        degree_symbol='')
 
     # too many vectors to see well, so prune by striding through data:
     skip=(slice(None,None,5),slice(None,None,8))
@@ -461,18 +469,42 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
     ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(central_longitude=cent_long), cmap='Reds')
     ax2.set_title(title_string_base)
 
+    # We should think about how to do plot customization and defaults.
+    # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
+    if 'tiString' in kwargs:
+        tiString = kwargs.pop("tiString")
+    else:
+        tiString = ''
+    if 'tiFontSize' in kwargs:
+        tiFontSize = kwargs.pop('tiFontSize')
+    else:
+        tiFontSize = 8
+
+    #Set Main title for subplots:
+    st = fig.suptitle(wks.stem[:-19].replace("_"," - "), fontsize=12)
+    st.set_y(0.81)    
+
+    for a in ax:
+        a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
+        a.coastlines()
+        a.set_xticks(np.linspace(-180, 120, 6), crs=ccrs.PlateCarree())
+        a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
+        a.tick_params('both', length=5, width=1.5, which='major')
+        a.tick_params('both', length=5, width=1.5, which='minor')
+        a.xaxis.set_major_formatter(lon_formatter)
+        a.yaxis.set_major_formatter(lat_formatter)
+
     ## Add colorbar to vector plot:
-    cb_c1_ax = inset_axes(ax1,
-                   width="3%",  # width = 5% of parent_bbox width
-                   height="90%",  # height : 50%
+    cb_c2_ax = inset_axes(ax2,
+                   width="5%",  # width = 5% of parent_bbox width
+                   height="100%",  # height : 50%
                    loc='lower left',
-                   bbox_to_anchor=(1.01, 0.05, 1, 1),
+                   bbox_to_anchor=(1.05, 0, 1, 1),
                    bbox_transform=ax1.transAxes,
                    borderpad=0,
                    )
 
-    fig.colorbar(img1, cax=cb_c1_ax)
-    fig.colorbar(img2, cax=cb_c1_ax)
+    fig.colorbar(img2, cax=cb_c2_ax)
 
     # Plot vector differences:
     img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
@@ -480,10 +512,10 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
 
     ax3.set_title(f"Difference in {var_name}", loc='left')
     cb_d_ax = inset_axes(ax3,
-                   width="3%",  # width = 5% of parent_bbox width
-                   height="90%",  # height : 50%
+                   width="5%",  # width = 5% of parent_bbox width
+                   height="100%",  # height : 50%
                    loc='lower left',
-                   bbox_to_anchor=(1.01, 0.05, 1, 1),
+                   bbox_to_anchor=(1.05, 0, 1, 1),
                    bbox_transform=ax3.transAxes,
                    borderpad=0
                    )
