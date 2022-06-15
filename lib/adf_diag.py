@@ -1087,10 +1087,14 @@ class AdfDiag(AdfObs):
         }
 
         #Set preferred order of plot types:
-        plot_type_order = ["LatLon", "LatLon_Vector", "Zonal", "NHPolar", "SHPolar"]
+        plot_type_order = ["LatLon", 
+                           "LatLon_Vector", "Zonal", 
+                           "NHPolar", "SHPolar",
+                           "TaylorDiag"]
         plot_type_web = ["html_img/mean_diag_LatLon.html",
-                    "html_img/mean_diag_LatLon_Vector.html","html_img/mean_diag_Zonal.html",
-                            "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html"]
+                         "html_img/mean_diag_LatLon_Vector.html","html_img/mean_diag_Zonal.html",
+                         "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html",
+                         "html_img/mean_diag_TaylorDiag.html",]
         plot_type_html = dict(zip(plot_type_order, plot_type_web))
         main_title = "CAM Diagnostics"
 
@@ -1148,9 +1152,13 @@ class AdfDiag(AdfObs):
 
                 #Add pressure-level variable to variable list:
                 var_list.extend(pres_var_names)
+
             #End for
         #End if
 
+        # add Taylor diagrams plot (Cecile needs to add)
+        var_list.extend(['cam'])
+        
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
 
