@@ -96,7 +96,7 @@ def amwg_table(adf):
     #----------------------
 
     #Notify user that script has started:
-    print("  Calculating AMWG variable table...")
+    print("\n  Calculating AMWG variable table...")
 
 
     #Extract needed quantities from ADF object:
@@ -118,8 +118,11 @@ def amwg_table(adf):
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
 
-        #Append to case list:
-        case_names.append(baseline_name)
+        if "CMIP6" in baseline_name:
+            print("CMIP6 data will not be added to AMWG tables")
+        else:
+            #Append to case list:
+            case_names.append(baseline_name)
         input_ts_locs.append(input_ts_baseline)
 
         #Save the baseline to the first case's plots directory:
@@ -129,7 +132,7 @@ def amwg_table(adf):
     #Create (empty) dictionary to use for the
     #residual top of model (RESTOM) radiation calculation:
     restom_dict = {}
-
+    print(len(case_names))
     #Loop over CAM cases:
     for case_idx, case_name in enumerate(case_names):
 
@@ -147,7 +150,7 @@ def amwg_table(adf):
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
         #Check if analysis directory exists, and if not, then create it:
         if not output_location.is_dir():
-            print(f"    {output_locs[case_idx]} not found, making new directory")
+            print(f"\t    {output_locs[case_idx]} not found, making new directory")
             output_location.mkdir(parents=True)
 
         #Create output file name:
@@ -201,7 +204,7 @@ def amwg_table(adf):
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
-                print(f"Variable '{var}' has a vertical dimension, "+\
+                print(f"\t   Variable '{var}' has a vertical dimension, "+\
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
@@ -307,18 +310,19 @@ def amwg_table(adf):
     #End of model case loop
     #----------------------
 
+    #Notify user that script has ended:
+    print("  ...AMWG variable table has been generated successfully.")
+
     #Check if observations are being comapred to, if so skip table comparison...
     if not adf.get_basic_info("compare_obs"):
         #Create comparison table for both cases
-        print("  Making comparison table...")
-
+        print("\n  Making comparison table...")
         _df_comp_table(write_html,output_location,case_names)
+        print("  ... Comparison table has been generated successfully")
     else:
         print(" Comparison table currently doesn't work with obs, so skipping...")
     #End if
 
-    #Notify user that script has ended:
-    print("...AMWG variable table has been generated successfully.")
 
 ##################
 # Helper functions
@@ -397,37 +401,43 @@ def _df_comp_table(write_html,output_location,case_names):
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
     #This will be for single-case for now (case_names[0]),
     #will need to change to loop as multi-case is introduced
-    case = output_location/f"amwg_table_{case_names[0]}.csv"
-    baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
+    
+    #Check if there are more than one case to compare to
+    #If not, skip and inform user no comp table will be made
+    #This is intended for cases vs CMIP6, CMIP6 won't have amwg tables, so
+    #we don't want to make a comp table with only one case
+    if len(case_names) > 1:
+        case = output_location/f"amwg_table_{case_names[0]}.csv"
+        baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
 
-    #Read in test case and baseline dataframes:
-    df_case = pd.read_csv(case)
-    df_base = pd.read_csv(baseline)
+        #Read in test case and baseline dataframes:
+        df_case = pd.read_csv(case)
+        df_base = pd.read_csv(baseline)
 
-    #Create a merged dataframe that contains only the variables
-    #contained within both the test case and the baseline:
-    df_merge = pd.merge(df_case, df_base, how='inner', on=['variable'])
+        #Create a merged dataframe that contains only the variables
+        #contained within both the test case and the baseline:
+        df_merge = pd.merge(df_case, df_base, how='inner', on=['variable'])
 
-    #Create the "comparison" dataframe:
-    df_comp = pd.DataFrame(dtype=object)
-    df_comp[['variable','unit','case']] = df_merge[['variable','unit_x','mean_x']]
-    df_comp['baseline'] = df_merge[['mean_y']]
-    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
+        #Create the "comparison" dataframe:
+        df_comp = pd.DataFrame(dtype=object)
+        df_comp[['variable','unit','case']] = df_merge[['variable','unit_x','mean_x']]
+        df_comp['baseline'] = df_merge[['mean_y']]
+        df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
 
-    #Write the comparison dataframe to a new CSV file:
-    cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
-    df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
+        #Write the comparison dataframe to a new CSV file:
+        cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
+        df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
-    #Create HTML output file name as well, if needed:
-    if write_html:
-        output_html_file_comp = output_location / "amwg_table_comp.html"
-    else:
-        #No website is being generated, so exit funcion here:
-        return
+        #Create HTML output file name as well, if needed:
+        if write_html:
+            output_html_file_comp = output_location / "amwg_table_comp.html"
+        else:
+            #No website is being generated, so exit funcion here:
+            return
 
-    html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
+        html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
 
-    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
+        preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     <nav role="navigation" class="primary-navigation">
       <ul>
         <li><a href="../index.html">Case Home</a></li>
@@ -444,11 +454,13 @@ def _df_comp_table(write_html,output_location,case_names):
       </ul>
     </nav><h1>CAM Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
 
-    ending = """</body></html>"""
-    with open(output_html_file_comp, 'w') as hfil:
-        hfil.write(preamble)
-        hfil.write(html)
-        hfil.write(ending)
+        ending = """</body></html>"""
+            with open(output_html_file_comp, 'w') as hfil:
+                hfil.write(preamble)
+                hfil.write(html)
+                hfil.write(ending)
+    else:
+        print(" Comparison table not generated; only one test case...")
 
 ##############
 #END OF SCRIPT

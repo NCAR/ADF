@@ -44,7 +44,7 @@ def zonal_mean(adfobj):
     """
 
     #Notify user that script has started:
-    print("  Generating zonal mean plots...")
+    print("\n  Generating zonal mean plots...")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -70,7 +70,7 @@ def zonal_mean(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("No observations found to plot against, so no zonal-mean maps will be generated.")
+            print("\t No observations found to plot against, so no zonal-mean maps will be generated.")
             return
 
     else:
@@ -86,8 +86,11 @@ def zonal_mean(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"NOTE: Plot type is set to {plot_type}")
+    print(f"\t NOTE: Plot type is set to {plot_type}")
 
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
     #Set data path variables:
@@ -199,7 +202,7 @@ def zonal_mean(adfobj):
 
                 #Notify user of level dimension:
                 if has_lev:
-                    print(f"{var} has lev dimension.")
+                    print(f"\t   {var} has lev dimension.")
 
                 #
                 # Seasonal Averages
@@ -231,8 +234,10 @@ def zonal_mean(adfobj):
                     #
                     plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
 
-                    #Remove old plot, if it already exists:
-                    if plot_name.is_file():
+                    # Check redo_plot. If set to True: remove old plot, if it already exists:
+                    if (not redo_plot) and plot_name.is_file():
+                        continue
+                    elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()
 
                     #Create new plot:

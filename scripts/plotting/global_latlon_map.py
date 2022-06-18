@@ -53,7 +53,7 @@ def global_latlon_map(adfobj):
     # - make plot
 
     #Notify user that script has started:
-    print("  Generating lat/lon maps...")
+    print("\n  Generating lat/lon maps...")
 
     #
     # Use ADF api to get all necessary information
@@ -96,7 +96,11 @@ def global_latlon_map(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"NOTE: Plot type is set to {plot_type}")
+    print(f"\t NOTE: Plot type is set to {plot_type}")
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
     #Set data path variables:
@@ -285,8 +289,10 @@ def global_latlon_map(adfobj):
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                             plot_name = plot_loc / "{}_{}_LatLon_Mean.{}".format(var, s, plot_type)
 
-                            #Remove old plot, if it already exists:
-                            if plot_name.is_file():
+                            # Check redo_plot. If set to True: remove old plot, if it already exists:
+                            if (not redo_plot) and plot_name.is_file():
+                                continue
+                            elif (redo_plot) and plot_name.is_file():
                                 plot_name.unlink()
 
                             #Create new plot:
@@ -375,11 +381,13 @@ def global_latlon_map(adfobj):
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                                 plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
 
-                                #Remove old plot, if it already exists:
-                                if plot_name.is_file():
+                                # Check redo_plot. If set to True: remove old plot, if it already exists:
+                                redo_plot = adfobj.get_basic_info('redo_plot')
+                                if (not redo_plot) and plot_name.is_file():
+                                    continue
+                                elif (redo_plot) and plot_name.is_file():
                                     plot_name.unlink()
-                                #End if
-
+                                    
                                 #Create new plot:
                                 # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
                                 # This relies on `plot_map_and_save` knowing how to deal with the options

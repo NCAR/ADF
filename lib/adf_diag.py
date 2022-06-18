@@ -483,7 +483,7 @@ class AdfDiag(AdfObs):
             cam_climo_dict = self.__cam_climo_info
 
         #Notify user that script has started:
-        print("  Generating CAM time series files...")
+        print("\n  Generating CAM time series files...")
 
         #Extract case name(s):
         case_names = self.read_config_var('cam_case_name',
@@ -806,7 +806,7 @@ class AdfDiag(AdfObs):
 
         else:
             #If not, then notify user that climo file generation is skipped.
-            print("  No climatology files were requested by user, so averaging will be skipped.")
+            print("\n  No climatology files were requested by user, so averaging will be skipped.")
 
     #########
 
@@ -833,7 +833,7 @@ class AdfDiag(AdfObs):
                                                       # kwargs(dict) and module(str)
 
         if not regrid_func_names or all(func_names is None for func_names in regrid_func_names):
-            print("No regridding options provided, continue.")
+            print("\n  No regridding options provided, continue.")
             return
             # NOTE: if no regridding options provided, we should skip it, but
             #       do we need to still copy (symlink?) files into the regrid directory?
@@ -863,7 +863,7 @@ class AdfDiag(AdfObs):
 
         #If no scripts are listed, then exit routine:
         if not anly_func_names:
-            print("Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
+            print("\n  Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
             return
         #End if
 
@@ -946,7 +946,7 @@ class AdfDiag(AdfObs):
 
         #If no scripts are listed, then exit routine:
         if not plot_func_names:
-            print("Nothing listed under 'plotting_scripts', so no plots will be made.")
+            print("\n  Nothing listed under 'plotting_scripts', so no plots will be made.")
             return
         #End if
 
@@ -1022,7 +1022,7 @@ class AdfDiag(AdfObs):
         #End except
 
         #Notify user that script has started:
-        print("  Generating Diagnostics webpages...")
+        print("\n  Generating Diagnostics webpages...")
 
         #Check where the relevant plots are located:
         if self.__plot_location:
@@ -1090,10 +1090,14 @@ class AdfDiag(AdfObs):
         }
 
         #Set preferred order of plot types:
-        plot_type_order = ["LatLon", "LatLon_Vector", "Zonal", "NHPolar", "SHPolar"]
+        plot_type_order = ["LatLon", 
+                           "LatLon_Vector", "Zonal", 
+                           "NHPolar", "SHPolar",
+                           "TaylorDiag"]
         plot_type_web = ["html_img/mean_diag_LatLon.html",
-                    "html_img/mean_diag_LatLon_Vector.html","html_img/mean_diag_Zonal.html",
-                            "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html"]
+                         "html_img/mean_diag_LatLon_Vector.html","html_img/mean_diag_Zonal.html",
+                         "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html",
+                         "html_img/mean_diag_TaylorDiag.html",]
         plot_type_html = dict(zip(plot_type_order, plot_type_web))
         main_title = "CAM Diagnostics"
 
@@ -1151,8 +1155,12 @@ class AdfDiag(AdfObs):
 
                 #Add pressure-level variable to variable list:
                 var_list.extend(pres_var_names)
+
             #End for
         #End if
+
+        # add fake "cam" variable to variable list in order to find Taylor diagram plots:
+        var_list.append('cam')
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
