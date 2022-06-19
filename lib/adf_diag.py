@@ -1109,10 +1109,10 @@ class AdfDiag(AdfObs):
 
         #Since polar has more than one plot type name, make a list of lists
         #that grab all the paths and names
-        ptype_html = sorted([ptype_html_dict[x] for x in plot_func_names])
-        ptype_order = sorted([ptype_order_dict[x] for x in plot_func_names])
+        ptype_html = sorted([ptype_html_dict[x] for x in plot_func_names if x in ptype_html_dict])
+        ptype_order = sorted([ptype_order_dict[x] for x in plot_func_names if x in ptype_order_dict])
 
-        #Flatten the list of lists into regular list
+        #Flatten the list of lists into a regular list
         ptype_html_list = list(itertools.chain.from_iterable(ptype_html))
         ptype_order_list = list(itertools.chain.from_iterable(ptype_order))
 
