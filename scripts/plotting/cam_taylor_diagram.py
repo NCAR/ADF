@@ -85,9 +85,23 @@ def cam_taylor_diagram(adfobj):
     plot_type = basic_info_dict.get('plot_type', 'png')
     print(f"\t NOTE: Plot type is set to {plot_type}")
 
-    # check if existing plots need to be redone
+    #Check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
+    #Check the variables needed for the Taylor diags are present,  
+    #If not then skip this script:
+    if not ('U' in adfobj.diag_var_list) or not ('PSL' in adfobj.diag_var_list) or \
+       not ('SWCF' in adfobj.diag_var_list) or not ('LWCF' in adfobj.diag_var_list) or \
+       not ('LANDFRAC' in adfobj.diag_var_list) or not ('TREFHT' in adfobj.diag_var_list) or \
+       not ('TAUX' in adfobj.diag_var_list) or not ('RELHUM' in adfobj.diag_var_list) or \
+       not ('T' in adfobj.diag_var_list) or \
+       (not ('PRECT' in adfobj.diag_var_list) and (not ('PRECL' in adfobj.diag_var_list) or not ('PRECC' in adfobj.diag_var_list))):
+        print("\tThe Taylor Diagrams requires the variables: ")
+        print("\tU, PSL, SWCF, LWCF, PRECT (or PRECL and PRECC), LANDFRAC, TREFHT, TAUX, RELHUM,T")
+        print("\tSome variables are missing so Taylor diagrams will be skipped.")
+        return
+    #End if
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
