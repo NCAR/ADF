@@ -19,6 +19,7 @@ import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from adf_diag import AdfDiag
+from adf_base import AdfError
 
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
@@ -206,7 +207,7 @@ def make_polar_plot(wks,d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr
     elif hemisphere.upper() == "SH":
         proj = ccrs.SouthPolarStereo()
     else:
-        raise IOError('[make_polar_plot] hemisphere not specified, must be NH or SH')
+        raise AdfError(f'[make_polar_plot] hemisphere not specified, must be NH or SH; hemisphere set as {hemisphere}')
 
     if domain is None:
         if hemisphere.upper() == "NH":
@@ -271,7 +272,7 @@ def make_polar_plot(wks,d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr
     #"PredicateError", but due to bugs in the stack itself
     #will also sometimes raise an AttributeError.
 
-    #To prevent this from happening, the poloar max and min values
+    #To prevent this from happening, the polar max and min values
     #are calculated, and if the default contour values are significantly
     #larger then the min-max values, then the min-max values are used instead:
     #-------------------------------
@@ -308,7 +309,7 @@ def make_polar_plot(wks,d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr
     ax3 = plt.subplot(gs[1, 1:3], projection=proj)
 
     empty_message = "No Valid\nData Points"
-    props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+    props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
     levs = np.unique(np.array(levels1))
     if len(levs) < 2:
         img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
@@ -370,8 +371,6 @@ def make_polar_plot(wks,d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr
 
     # Close figures to avoid memory issues:
     plt.close(fig)
-
-    return fig
 
 #######
 
@@ -698,7 +697,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             norm = norm1
 
         empty_message = "No Valid\nData Points"
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+        props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
         levs = np.unique(np.array(levels))
         if len(levs) < 2:
             img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
@@ -1106,7 +1105,7 @@ def plot_zonal_mean_and_save(wks, adata, bdata, has_lev, **kwargs):
         levs = np.unique(np.array(levels1))
         if len(levs) < 2:
             empty_message = "No Valid\nData Points"
-            props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+            props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
             img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0])
             ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
             img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1])
