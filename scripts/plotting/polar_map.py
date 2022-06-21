@@ -255,13 +255,7 @@ def polar_map(adfobj):
                                         hemi = "SH"
                                     #End if
                                     
-                                    fig = pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
-                                    
-                                    # Save file:
-                                    fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-                                                                        
-                                    # Close figure to avoid memory issues:
-                                    plt.close(fig)
+                                    pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
 
                     else: #mdata dimensions check
                         print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
@@ -328,14 +322,8 @@ def polar_map(adfobj):
                                             hemi = "SH"
                                         #End if
                                     
-                                        fig = pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
+                                        pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
                                     
-                                        # Save file:
-                                        fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-                                        
-                                        # Close figure to avoid memory issues:
-                                        plt.close(fig)
-
                             #End for (seasons)
                         #End for (pressure level)
                     else:
