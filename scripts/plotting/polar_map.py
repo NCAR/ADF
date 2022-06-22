@@ -1,5 +1,4 @@
 from pathlib import Path  # python standard library
-from typing import Optional  # this is just for type hints
 
 # data loading / analysis
 import xarray as xr
@@ -256,13 +255,7 @@ def polar_map(adfobj):
                                         hemi = "SH"
                                     #End if
                                     
-                                    fig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
-                                    
-                                    # Save file:
-                                    fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-                                                                        
-                                    # Close figure to avoid memory issues:
-                                    plt.close(fig)
+                                    pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
 
                     else: #mdata dimensions check
                         print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
@@ -329,14 +322,8 @@ def polar_map(adfobj):
                                             hemi = "SH"
                                         #End if
                                     
-                                        fig = make_polar_plot(mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
+                                        pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
                                     
-                                        # Save file:
-                                        fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-                                        
-                                        # Close figure to avoid memory issues:
-                                        plt.close(fig)
-
                             #End for (seasons)
                         #End for (pressure level)
                     else:
@@ -355,199 +342,6 @@ def polar_map(adfobj):
 
 ##############
 #END OF `polar_map` function
-
-def domain_stats(data, domain):
-    x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
-    x_region_mean = x_region.weighted(np.cos(x_region['lat'])).mean().item()
-    x_region_min = x_region.min().item()
-    x_region_max = x_region.max().item()
-    return x_region_mean, x_region_max, x_region_min
-
-
-
-def make_polar_plot(d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.DataArray]=None, domain:Optional[list]=None, hemisphere:Optional[str]=None, **kwargs):
-    '''
-    Make a stereographic polar plot for the given data and hemisphere.
-    - Uses contourf. No contour lines (yet).
-
-    d1, d2 -> the data to be plotted. Any tranformations/operations should be done, and dimensions should be [lat, lon]
-    difference -> optional, the difference between the data (d2 - d1). If not supplied, it will be derived as d2 - d1.
-    domain -> optional, a list of [west_lon, east_lon, south_lat, north_lat] that defines the domain to be plotted. If not provided, defaults to all longitudes, 45deg to pole of the given hemisphere
-    hemisphere -> must be provided as NH or SH to determine which hemisphere to plot
-
-    kwargs -> expected to be variable-dependent options for plots.
-    '''
-    if difference is None:
-        dif = d2 - d1
-    else:
-        dif = difference
-
-    if hemisphere.upper() == "NH":
-        proj = ccrs.NorthPolarStereo()
-    elif hemisphere.upper() == "SH":
-        proj = ccrs.SouthPolarStereo()
-    else:
-        raise IOError('[make_polar_plot] hemisphere not specified, must be NH or SH')
-
-    if domain is None:
-        if hemisphere.upper() == "NH":
-            domain = [-180, 180, 45, 90]
-        else:
-            domain = [-180, 180, -90, -45]
-
-    # statistics for annotation (these are scalars):
-    d1_region_mean, d1_region_max, d1_region_min = domain_stats(d1, domain)
-    d2_region_mean, d2_region_max, d2_region_min = domain_stats(d2, domain)
-    dif_region_mean, dif_region_max, dif_region_min = domain_stats(dif, domain)
-
-    #downsize to the specified region; makes plotting/rendering/saving much faster
-    d1 = d1.sel(lat=slice(domain[2],domain[3]))
-    d2 = d2.sel(lat=slice(domain[2],domain[3]))
-    dif = dif.sel(lat=slice(domain[2],domain[3]))
-
-    # add cyclic point to the data for better-looking plot
-    d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
-    d2_cyclic, _ = add_cyclic_point(d2, coord=d2.lon)  # since we can take difference, assume same longitude coord.
-    dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
-
-    # -- deal with optional plotting arguments that might provide variable-dependent choices
-
-    # determine levels & color normalization:
-    minval    = np.min([np.min(d1), np.min(d2)])
-    maxval    = np.max([np.max(d1), np.max(d2)])
-    absmaxdif = np.max(np.abs(dif))
-
-    if 'colormap' in kwargs:
-        cmap1 = kwargs['colormap']
-    else:
-        cmap1 = 'coolwarm'
-
-    if 'contour_levels' in kwargs:
-        levels1 = kwargs['contour_levels']
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    elif 'contour_levels_range' in kwargs:
-        assert len(kwargs['contour_levels_range']) == 3, "contour_levels_range must have exactly three entries: min, max, step"
-        levels1 = np.arange(*kwargs['contour_levels_range'])
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    else:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-
-    if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
-        norm1, cmap1 = pf.get_difference_colors(levels1)  # maybe these are better defaults if nothing else is known.
-
-    if "diff_contour_levels" in kwargs:
-        levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
-    elif "diff_contour_range" in kwargs:
-            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"
-            levelsdiff = np.arange(*kwargs['diff_contour_range'])
-    else:
-        # set levels for difference plot (with a symmetric color bar):
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-    #End if
-
-    #NOTE: Sometimes the contour levels chosen in the defaults file
-    #can result in the "contourf" software stack generating a
-    #'TypologyException', which should manifest itself as a
-    #"PredicateError", but due to bugs in the stack itself
-    #will also sometimes raise an AttributeError.
-
-    #To prevent this from happening, the poloar max and min values
-    #are calculated, and if the default contour values are significantly
-    #larger then the min-max values, then the min-max values are used instead:
-    #-------------------------------
-    if max(levels1) > 10*maxval:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-    elif minval < 0 and min(levels1) < 10*minval:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-    #End if
-
-    if max(abs(levelsdiff)) > 10*absmaxdif:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-    #End if
-    #-------------------------------
-
-    # Difference options -- Check in kwargs for colormap and levels
-    if "diff_colormap" in kwargs:
-        cmapdiff = kwargs["diff_colormap"]
-        dnorm, _ = pf.get_difference_colors(levelsdiff)  # color map output ignored
-    else:
-        dnorm, cmapdiff = pf.get_difference_colors(levelsdiff)
-    #End if
-
-    # -- end options
-
-    lons, lats = np.meshgrid(lon_cyclic, d1.lat)
-
-    fig = plt.figure(figsize=(10,10))
-    gs = gridspec.GridSpec(2, 4, wspace=0.9)
-
-    ax1 = plt.subplot(gs[0, :2], projection=proj)
-    ax2 = plt.subplot(gs[0, 2:], projection=proj)
-    ax3 = plt.subplot(gs[1, 1:3], projection=proj)
-
-    empty_message = "No Valid\nData Points"
-    props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
-    levs = np.unique(np.array(levels1))
-    if len(levs) < 2:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
-        ax1.text(0.4, 0.4, empty_message, transform=ax1.transAxes, bbox=props)
-
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
-        ax2.text(0.4, 0.4, empty_message, transform=ax2.transAxes, bbox=props)
-
-        img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
-        ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
-    else:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-        img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
-
-    ax1.text(-0.2, -0.10, f"Mean: {d1_region_mean:5.2f}\nMax: {d1_region_max:5.2f}\nMin: {d1_region_min:5.2f}", transform=ax1.transAxes)
-    ax1.set_title(f"{d1.name} [{d1.units}]")
-    ax2.text(-0.2, -0.10, f"Mean: {d2_region_mean:5.2f}\nMax: {d2_region_max:5.2f}\nMin: {d2_region_min:5.2f}", transform=ax2.transAxes)
-    ax2.set_title(f"{d2.name} [{d2.units}]")
-    ax3.text(-0.2, -0.10, f"Mean: {dif_region_mean:5.2f}\nMax: {dif_region_max:5.2f}\nMin: {dif_region_min:5.2f}", transform=ax3.transAxes)
-    ax3.set_title(f"Difference [{dif.units}]", loc='left')
-
-    [a.set_extent(domain, ccrs.PlateCarree()) for a in [ax1, ax2, ax3]]
-    [a.coastlines() for a in [ax1, ax2, ax3]]
-
-    # __Follow the cartopy gallery example to make circular__:
-    # Compute a circle in axes coordinates, which we can use as a boundary
-    # for the map. We can pan/zoom as much as we like - the boundary will be
-    # permanently circular.
-    theta = np.linspace(0, 2*np.pi, 100)
-    center, radius = [0.5, 0.5], 0.5
-    verts = np.vstack([np.sin(theta), np.cos(theta)]).T
-    circle = mpl.path.Path(verts * radius + center)
-    [a.set_boundary(circle, transform=a.transAxes) for a in [ax1, ax2, ax3]]
-
-    # __COLORBARS__
-    cb_mean_ax = inset_axes(ax2,
-                    width="5%",  # width = 5% of parent_bbox width
-                    height="90%",  # height : 50%
-                    loc='lower left',
-                    bbox_to_anchor=(1.05, 0.05, 1, 1),
-                    bbox_transform=ax2.transAxes,
-                    borderpad=0,
-                    )
-    fig.colorbar(img1, cax=cb_mean_ax)
-
-    cb_diff_ax = inset_axes(ax3,
-                    width="5%",  # width = 5% of parent_bbox width
-                    height="90%",  # height : 50%
-                    loc='lower left',
-                    bbox_to_anchor=(1.05, 0.05, 1, 1),
-                    bbox_transform=ax3.transAxes,
-                    borderpad=0,
-                    )
-    fig.colorbar(img3, cax=cb_diff_ax)
-
-    return fig
-
 
 ##############
 # END OF FILE
