@@ -481,7 +481,7 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
 
     #Set Main title for subplots:
     st = fig.suptitle(wks.stem[:-19].replace("_"," - "), fontsize=12)
-    st.set_y(0.81)    
+    st.set_y(0.81)
 
     for a in ax:
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
@@ -499,7 +499,7 @@ def plot_map_vect_and_save(wks, plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffl
                    height="100%",  # height : 50%
                    loc='lower left',
                    bbox_to_anchor=(1.05, 0, 1, 1),
-                   bbox_transform=ax1.transAxes,
+                   bbox_transform=ax2.transAxes,
                    borderpad=0,
                    )
 
