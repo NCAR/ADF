@@ -890,7 +890,7 @@ def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
     return output
 
 #
-#  -- zonal mean code --
+#  -- zonal & meridional mean code --
 #
 
 def zonal_mean_xr(fld):
@@ -1044,7 +1044,7 @@ def meridional_plot(lon, data, ax=None, **kwargs):
     if ax is None:
         ax = plt.gca()
     if 'lev' in data.dims:
-        img, ax = _meridional_plot_preslat(ax, lon, data['lev'], data, **kwargs)
+        img, ax = _meridional_plot_preslon(ax, lon, data['lev'], data, **kwargs)
         return img, ax
     else:
         ax = _meridional_plot_line(ax, lon, data, **kwargs)
@@ -1119,7 +1119,7 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
-        absmaxdif = np.max(np.abs(diff))
+        absmaxdif = np.max(np.abs(diffdata))
         # set levels for difference plot:
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
     #End if
@@ -1270,30 +1270,28 @@ def plot_meridonal_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **k
                    - if not a number and not a slice, print warning and skip plotting.
 
 
-    kwargs -> optional dictionary of plotting options
-             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
-    - colormap -> str, name of matplotlib colormap
-    - contour_levels -> list of explict values or a tuple: (min, max, step)
-    - diff_colormap
-    - diff_contour_levels
-    - tiString -> str, Title String
-    - tiFontSize -> int, Title Font Size
-    - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
-        + Organize these by the mpl function. In this function (`plot_map_and_save`)
-          we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
-          ```
-           mpl:
-             subplots:
-               figsize: (3, 9)
-             contourf:
-               levels: 15
-               cmap: Blues
-             colorbar:
-               shrink: 0.4
-          ```
-
-
-    """
+        kwargs -> optional dictionary of plotting options
+                ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
+        - colormap -> str, name of matplotlib colormap
+        - contour_levels -> list of explict values or a tuple: (min, max, step)
+        - diff_colormap
+        - diff_contour_levels
+        - tiString -> str, Title String
+        - tiFontSize -> int, Title Font Size
+        - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
+            + Organize these by the mpl function. In this function (`plot_map_and_save`)
+            we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
+            ```
+            mpl:
+                subplots:
+                figsize: (3, 9)
+                contourf:
+                levels: 15
+                cmap: Blues
+                colorbar:
+                shrink: 0.4
+            ```
+        """
     # apply averaging:
     import numbers  # built-in; just checking on the latbounds input
     if latbounds is None:
