@@ -17,6 +17,7 @@ import os.path
 import glob
 import subprocess
 import multiprocessing as mp
+import itertools
 
 import importlib
 import copy
@@ -1087,11 +1088,37 @@ class AdfDiag(AdfObs):
         }
 
         #Set preferred order of plot types:
-        plot_type_order = ["LatLon", "LatLon_Vector", "Zonal", "NHPolar", "SHPolar"]
-        plot_type_web = ["html_img/mean_diag_LatLon.html",
-                    "html_img/mean_diag_LatLon_Vector.html","html_img/mean_diag_Zonal.html",
-                            "html_img/mean_diag_NHPolar.html","html_img/mean_diag_SHPolar.html"]
-        plot_type_html = dict(zip(plot_type_order, plot_type_web))
+        #Make dictionaries for both html paths and plot type names for website
+        #NOTE there may be a better way to do this with an Ordered Dict, but the
+        #polar plot having more than one plot made it tricky.
+        ptype_html_dict = {'global_latlon_map': ['html_img/mean_diag_LatLon.html'],
+                           'zonal_mean': ['html_img/mean_diag_Zonal.html'],
+                           'global_latlon_vect_map': ['html_img/mean_diag_LatLon_Vector.html'],
+                           'polar_map': ['html_img/mean_diag_NHPolar.html',
+                                         'html_img/mean_diag_SHPolar.html'],
+                            'cam_taylor_diagram': ["html_img/mean_diag_TaylorDiag.html"]}
+
+        ptype_order_dict = {'global_latlon_map': ["LatLon"],
+                            'zonal_mean': ["Zonal"],
+                            'global_latlon_vect_map': ["LatLon_Vector"],
+                            'polar_map': ["NHPolar","SHPolar"],
+                            'cam_taylor_diagram': ["TaylorDiag"]}
+
+        #Grab the plot type functions form user
+        plot_func_names = self.__plotting_scripts
+
+        #Since polar has more than one plot type name, make a list of lists
+        #that grab all the paths and names
+        ptype_html = sorted([ptype_html_dict[x] for x in plot_func_names if x in ptype_html_dict])
+        ptype_order = sorted([ptype_order_dict[x] for x in plot_func_names if x in ptype_order_dict])
+
+        #Flatten the list of lists into a regular list
+        ptype_html_list = list(itertools.chain.from_iterable(ptype_html))
+        ptype_order_list = list(itertools.chain.from_iterable(ptype_order))
+
+        #Make dictionary for plot type names and html paths
+        plot_type_html = dict(zip(ptype_order_list, ptype_html_list))
+
         main_title = "CAM Diagnostics"
 
         #Check if any variables are associated with specific vector quantities,
@@ -1148,8 +1175,12 @@ class AdfDiag(AdfObs):
 
                 #Add pressure-level variable to variable list:
                 var_list.extend(pres_var_names)
+
             #End for
         #End if
+
+        # add fake "cam" variable to variable list in order to find Taylor diagram plots:
+        var_list.append('cam')
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
@@ -1194,7 +1225,7 @@ class AdfDiag(AdfObs):
             #End for
 
             #Loop over plot type:
-            for ptype in plot_type_order:
+            for ptype in ptype_order_list:
                 # this is going to hold the data for building the mean
                 # plots provisional structure:
                 # key = variable_name
