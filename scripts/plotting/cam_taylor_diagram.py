@@ -62,6 +62,12 @@ def cam_taylor_diagram(adfobj):
     else:
         plot_loc = Path(plot_location)
 
+    # Taylor diagrams currently don't work for model to obs comparison
+    # If compare_obs is set to True, then skip this script:
+    if adfobj.get_basic_info("compare_obs"):
+        print("\tTaylor diagrams don't work when  so Taylor diagrams will be skipped.")
+        return
+
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
