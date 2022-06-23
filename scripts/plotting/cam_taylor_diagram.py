@@ -91,9 +91,8 @@ def cam_taylor_diagram(adfobj):
 
     #Check if the variables needed for the Taylor diags are present,  
     #If not then skip this script:
-    taylor_var_set = {'U', 'PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 
-                      'RELHUM', 'T'}
-    if not taylor_var_set.issubset(adfobj.diag_var_list) or
+    taylor_var_set = {'U', 'PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 'RELHUM', 'T'}
+    if not taylor_var_set.issubset(adfobj.diag_var_list) or \
        (not ('PRECT' in adfobj.diag_var_list) and (not ('PRECL' in adfobj.diag_var_list) or not ('PRECC' in adfobj.diag_var_list))):
         print("\tThe Taylor Diagrams require the variables: ")
         print("\tU, PSL, SWCF, LWCF, PRECT (or PRECL and PRECC), LANDFRAC, TREFHT, TAUX, RELHUM,T")
