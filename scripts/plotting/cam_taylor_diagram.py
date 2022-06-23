@@ -89,15 +89,13 @@ def cam_taylor_diagram(adfobj):
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
-    #Check the variables needed for the Taylor diags are present,  
+    #Check if the variables needed for the Taylor diags are present,  
     #If not then skip this script:
-    if not ('U' in adfobj.diag_var_list) or not ('PSL' in adfobj.diag_var_list) or \
-       not ('SWCF' in adfobj.diag_var_list) or not ('LWCF' in adfobj.diag_var_list) or \
-       not ('LANDFRAC' in adfobj.diag_var_list) or not ('TREFHT' in adfobj.diag_var_list) or \
-       not ('TAUX' in adfobj.diag_var_list) or not ('RELHUM' in adfobj.diag_var_list) or \
-       not ('T' in adfobj.diag_var_list) or \
+    taylor_var_set = {'U', 'PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 
+                      'RELHUM', 'T'}
+    if not taylor_var_set.issubset(adfobj.diag_var_list) or
        (not ('PRECT' in adfobj.diag_var_list) and (not ('PRECL' in adfobj.diag_var_list) or not ('PRECC' in adfobj.diag_var_list))):
-        print("\tThe Taylor Diagrams requires the variables: ")
+        print("\tThe Taylor Diagrams require the variables: ")
         print("\tU, PSL, SWCF, LWCF, PRECT (or PRECL and PRECC), LANDFRAC, TREFHT, TAUX, RELHUM,T")
         print("\tSome variables are missing so Taylor diagrams will be skipped.")
         return
