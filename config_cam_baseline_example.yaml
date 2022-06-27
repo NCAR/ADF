@@ -330,6 +330,7 @@ plotting_scripts:
     - global_latlon_vect_map
     - zonal_mean
     - polar_map
+    - cam_taylor_diagram
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
@@ -340,12 +341,17 @@ diag_var_list:
     - PRECL
     - PSL
     - Q
+    - U
+    - T
+    - RELHUM
     - TREFHT
     - TS
     - TAUX
     - TAUY
     - FSNT
     - FLNT
+    - LANDFRAC
+
 #<Add more variables here.>
 
 #END OF FILE
