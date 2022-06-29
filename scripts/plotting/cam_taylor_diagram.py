@@ -263,7 +263,7 @@ def get_tropical_ocean_precip(adf, casename, location, **kwargs):
                          attrs=prect.attrs)
     return prect.sel(lat=slice(-30,30))
 
-def get_surface_pressure(dset, location):
+def get_surface_pressure(dset, casename, location):
 
     #Find surface pressure (PS):
     if 'PS' in dset.variables:
@@ -296,7 +296,7 @@ def get_var_at_plev(adf, casename, location, variable, plev):
     dset = _retrieve(adf, variable, casename, location, return_dataset=True)
 
     # Try and extract surface pressure:
-    ps = get_surface_pressure(dset, location)
+    ps = get_surface_pressure(dset, casename, location)
 
     vplev = gc.interp_hybrid_to_pressure(dset['U'], ps, dset['hyam'], dset['hybm'],
                                          new_levels=np.array([100. * plev]), lev_dim='lev')
@@ -319,7 +319,7 @@ def get_vertical_average(adf, casename, location, varname):
         else:
             raise NotImplementedError("Need to deal with mult-file case.")
     # Try and extract surface pressure:
-    ps = get_surface_pressure(ds, location)
+    ps = get_surface_pressure(ds, casename, location)
     # If the climo file is made by ADF, then hyam and hybm will be with VARIABLE:
     return vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'])
 
