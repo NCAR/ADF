@@ -21,6 +21,7 @@ file or pandas dataframe to the website.
 #++++++++++++++++++++++++++++++
 
 import os
+import os.path
 
 from pathlib import Path
 
@@ -31,9 +32,51 @@ from pathlib import Path
 #ADF modules:
 from adf_obs import AdfObs
 
-#+++++++++++++++++++
-#Define Obs class
-#+++++++++++++++++++
+#Try to import Pandas.  If not available
+#then simply notify website generator that
+#no pandas dataframes will be passed in.
+_PANDAS_DF = True
+try:
+    import pandas as pd
+except ImportError:
+    _PANDAS_DF = False
+#End except
+
+#++++++++++++++++++++++++++++
+#Define web data helper class
+#++++++++++++++++++++++++++++
+
+class _WebData:
+
+    """
+    Class that stores all of
+    the data and metadata from
+    the "add_website_data" method
+    needed by the website generator.
+    """
+
+    def __init__(self, web_data, web_name, case_name,
+                 category = None,
+                 season = None,
+                 plot_type = "Special",
+                 data_frame = False,
+                 html_file  = None,
+                 asset_path = None):
+
+        #Initialize relevant website variables:
+        self.name       = web_name
+        self.data       = web_data
+        self.case       = case_name
+        self.category   = category
+        self.season     = season
+        self.plot_type  = plot_type
+        self.data_frame = data_frame
+        self.html_file  = html_file
+        self.asset_path = asset_path
+
+#+++++++++++++++++++++
+#Define main web class
+#+++++++++++++++++++++
 
 class AdfWeb(AdfObs):
 
@@ -53,6 +96,47 @@ class AdfWeb(AdfObs):
         #Initialize Obs attributes:
         super().__init__(config_file, debug=debug)
 
+        #Initialize website mean plots dictionary:
+        self.__website_data = []
+
+        #Initialize website plot type order list:
+        self.__plot_type_order = []
+
+        #Set case website path dictionary:
+        #--------------------------------
+        self.__case_web_paths = {}
+
+        #Extract needed variables from yaml file:
+        case_names = self.get_cam_info('cam_case_name', required=True)
+
+
+        #Loop over model cases and generate relevant website directories:
+        for case_idx, case_name in enumerate(case_names):
+
+            #Create new path object from user-specified plot directory path:
+            plot_path = Path(self.plot_location[case_idx])
+
+            #Create directory path where the website will be built:
+            website_dir = plot_path / "website"
+
+            #Create a directory path that will hold just the html files for individual images:
+            img_pages_dir = website_dir / "html_img"
+
+            #Create a directory path that will hold copies of the actual images:
+            assets_dir = website_dir / "assets"
+
+            #Specify where CSS files will be stored:
+            css_files_dir = website_dir / "templates"
+
+            #Add all relevant paths to dictionary for specific case:
+            self.__case_web_paths[case_name] = {'website_dir': website_dir,
+                                                'img_pages_dir': img_pages_dir,
+                                                'assets_dir': assets_dir,
+                                                'css_files_dir': css_files_dir}
+        #End for
+        #--------------------------------
+
+
     #########
 
     # Create property needed to return "create_html" logical to user:
@@ -60,6 +144,108 @@ class AdfWeb(AdfObs):
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
         return self.get_basic_info('create_html')
+
+    #########
+
+    def add_website_data(self, web_data, web_name, case_name,
+                         category = None,
+                         season = None,
+                         plot_type = "Special"):
+
+        """
+        Method that provides scripts a way to add an image file or
+        Pandas dataframe to the website generator.
+
+        Required Inputs:
+
+        web_data  ->  Either a path to an image file, or a pandas dataframe.
+        web_name  ->  The name of the plot or table (usually the plotted variable or case name).
+        case_name ->  The name of the model case or dataset associated with the plot or table.
+
+        Optional Inputs:
+
+        category   -> Category for associated variable.  If not provided then generator will
+                      attempt to grab it from the variable defaults file.  If no default is present
+                      then it will default to "No category yet".
+        season     -> What the season is for the plot.  If not provided it will assume the
+                      plot does not need any seasonal seperation.
+        plot_type  -> Type of plot.  If not provided then plot type will be "Special".
+
+        """
+
+        #Do nothing if user is not requesting a website to be generated:
+        if not self.create_html:
+            return
+        #End if
+
+        #Initialize Pandas data frame logical:
+        data_frame = False
+
+        #Check that the web_data is either a path
+        #or a pandas dataframe:
+        try:
+            web_data = Path(web_data)
+
+            #Make sure the path is to an actual file:
+            if not web_data.is_file():
+                wmsg = f"The provided web data path '{web_data}'"
+                wmsg += " either doesn't exist or is not a file."
+                wmsg += "\nNot sure what to do, so will skip this"
+                wmsg += " particular web entry."
+                print(wmsg)
+                return
+            #End if
+
+        except TypeError:
+            bad_input = False
+            if _PANDAS_DF:
+                if not isinstance(web_data, pd.DataFrame):
+                    bad_input = True
+                else:
+                    data_frame = True
+                #End if
+            else:
+                bad_input = True
+            #End if
+            if bad_input:
+                wmsg = "WARNING: Inputs to 'add_website_data' can currently"
+                wmsg += " only be paths to files or Pandas Dataframes, not"
+                wmsg += f" type '{type(web_data).__name__}'"
+                wmsg += "\nSkipping this website data entry..."
+                print(wmsg)
+                return
+            #End if
+        #End except
+
+        #Create HTML file path variable,
+        #which will be used in "create_website":
+        if not data_frame:
+            html_name = f'plot_page_{web_data.stem}.html'
+        #End if
+        html_file = self.__case_web_paths[case_name]["img_pages_dir"] / html_name
+
+        #Create new variable to store path to image name in assets directory,
+        #which will be used in "create_webite":
+        if not data_frame:
+            asset_path = self.__case_web_paths[case_name]['assets_dir'] / web_data.name
+        #End if
+
+        #Initialize web data object:
+        web_data = _WebData(web_data, web_name,  case_name,
+                            category = category,
+                            season = season,
+                            plot_type = plot_type,
+                            data_frame = data_frame,
+                            html_file = html_file,
+                            asset_path = asset_path)
+
+        #Add web data object to list:
+        self.__website_data.append(web_data)
+
+        #Add plot type to plot order list:
+        if plot_type not in self.__plot_type_order:
+            self.__plot_type_order.append(plot_type)
+        #End if
 
     #########
 
@@ -86,12 +272,8 @@ class AdfWeb(AdfObs):
         #Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
 
-        #Check where the relevant plots are located:
-        if self.plot_location:
-            plot_location = self.plot_location
-        else:
-            self._append_plot_loc(self.get_basic_info('cam_diag_plot_loc', required=True))
-        #End if
+        #Extract plot_location:
+        plot_location = self.plot_location
 
         #If there is more than one plot location, then create new website directory:
         if len(plot_location) > 1:
@@ -115,9 +297,6 @@ class AdfWeb(AdfObs):
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
         #End if
-
-        #Set preferred order of seasons:
-        season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
         # Variable categories
         var_cat_dict = {
@@ -147,100 +326,18 @@ class AdfWeb(AdfObs):
             'CLUBB': {'RVMTEND_CLUBB', 'STEND_CLUBB', 'WPRTP_CLUBB', 'WPTHLP_CLUBB'}
         }
 
-        #Set preferred order of plot types:
-        #Make dictionaries for both html paths and plot type names for website
-        #NOTE there may be a better way to do this with an Ordered Dict, but the
-        #polar plot having more than one plot made it tricky.
-        ptype_html_dict = {'global_latlon_map': ['html_img/mean_diag_LatLon.html'],
-                           'zonal_mean': ['html_img/mean_diag_Zonal.html'],
-                           'global_latlon_vect_map': ['html_img/mean_diag_LatLon_Vector.html'],
-                           'polar_map': ['html_img/mean_diag_NHPolar.html',
-                                         'html_img/mean_diag_SHPolar.html'],
-                            'cam_taylor_diagram': ["html_img/mean_diag_TaylorDiag.html"]}
-
-        ptype_order_dict = {'global_latlon_map': ["LatLon"],
-                            'zonal_mean': ["Zonal"],
-                            'global_latlon_vect_map': ["LatLon_Vector"],
-                            'polar_map': ["NHPolar","SHPolar"],
-                            'cam_taylor_diagram': ["TaylorDiag"]}
-
-        #Grab the plot type functions form user
-        plot_func_names = self.read_config_var('plotting_scripts')
-
-        #Since polar has more than one plot type name, make a list of lists
-        #that grab all the paths and names
-        ptype_html = sorted([ptype_html_dict[x] for x in plot_func_names if x in ptype_html_dict])
-        ptype_order = sorted([ptype_order_dict[x] for x in plot_func_names if x in ptype_order_dict])
-
-        #Flatten the list of lists into a regular list
-        ptype_html_list = list(itertools.chain.from_iterable(ptype_html))
-        ptype_order_list = list(itertools.chain.from_iterable(ptype_order))
-
-        #Make dictionary for plot type names and html paths
-        plot_type_html = dict(zip(ptype_order_list, ptype_html_list))
-
-        main_title = "CAM Diagnostics"
-
-        #Check if any variables are associated with specific vector quantities,
-        #and if so then add the vectors to the website variable list.
-        for var in var_list:
-            if var in self.variable_defaults:
-                vect_name = self.variable_defaults[var].get("vector_name", None)
-                if vect_name and (vect_name not in var_list):
-                    var_list.append(vect_name)
-                #End if
+        #Set plot type html dictionary (for Jinja templating):
+        plot_type_html = OrderedDict()
+        for plot_type in self.__plot_type_order:
+            if plot_type == 'Tables':
+                plot_type_html[plot_type] = os.path.join("html_table", f"mean_table.html")
+            else:
+                plot_type_html[plot_type] = os.path.join("html_img", f"mean_diag_{plot_type}.html")
             #End if
         #End for
 
-        #Extract pressure levels being plotted:
-        pres_levs = self.get_basic_info("plot_press_levels")
-
-        if pres_levs:
-            #Create pressure-level variable dictionary:
-            pres_levs_var_dict = {}
-
-            #Now add variables on pressure levels, if applicable.
-            #Please note that this method is not particularly
-            #efficient as most of these variables won't actually exist:
-            for var in var_list:
-                #Find variable category:
-                category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
-
-                #Add variable with pressure levels:
-                #Please note that this method is not particularly
-                #efficient as most of these variables won't actually exist:
-                for pres in pres_levs:
-                    if category:
-                        if category in pres_levs_var_dict:
-                            pres_levs_var_dict[category].append(f"{var}_{pres}hpa")
-                        else:
-                            pres_levs_var_dict[category] = [f"{var}_{pres}hpa"]
-                        #End if
-                    else:
-                        if "none" in pres_levs_var_dict:
-                            pres_levs_var_dict["none"].append(f"{var}_{pres}hpa")
-                        else:
-                            pres_levs_var_dict["none"] = [f"{var}_{pres}hpa"]
-                        #End if
-                    #End if
-                #End for
-            #End for
-
-            #Now loop over pressure variable dictionary:
-            for category, pres_var_names in pres_levs_var_dict.items():
-                #Add pressure-level variable to category if applicable:
-                if category in var_cat_dict:
-                    var_cat_dict[category].update(pres_var_names)
-                #End if
-
-                #Add pressure-level variable to variable list:
-                var_list.extend(pres_var_names)
-
-            #End for
-        #End if
-
-        # add fake "cam" variable to variable list in order to find Taylor diagram plots:
-        var_list.append('cam')
+        #Set main title for website:
+        main_title = "CAM Diagnostics"
 
         #Determine local directory:
         adf_lib_dir = Path(__file__).parent
@@ -251,29 +348,30 @@ class AdfWeb(AdfObs):
         #Create the jinja Environment object:
         jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
 
-        #Create alphabetically-sorted variable list:
-        var_list_alpha = sorted(var_list)
+        # this is going to hold the data for building the mean
+        # plots provisional structure:
+        # key = variable_name
+        # values -> dict w/ keys being "TYPE" of plots
+        # w/ values being dict w/ keys being TEMPORAL sampling,
+        # values being the URL
+        #Note: It might be better if the "mean_html_info" dictionary was created in the "add_website_data",
+        #so that we only had to do the web_data loop once, but for now this will do. -JN
+        mean_html_info = OrderedDict()
 
-        #Loop over model cases:
-        for case_idx, case_name in enumerate(case_names):
-
-            #Create new path object from user-specified plot directory path:
-            plot_path = Path(plot_location[case_idx])
+        #Loop over all web data objects:
+        for web_data in self.__website_data:
 
             #Create the directory where the website will be built:
-            website_dir = plot_path / "website"
-            website_dir.mkdir(exist_ok=True)
+            self.__case_web_paths[web_data.case]['website_dir'].mkdir(exist_ok=True)
 
             #Create a directory that will hold just the html files for individual images:
-            img_pages_dir = website_dir / "html_img"
-            img_pages_dir.mkdir(exist_ok=True)
+            self.__case_web_paths[web_data.case]['img_pages_dir'].mkdir(exist_ok=True)
 
             #Create a directory that will hold copies of the actual images:
-            assets_dir = website_dir / "assets"
-            assets_dir.mkdir(exist_ok=True)
+            self.__case_web_paths[web_data.case]['assets_dir'].mkdir(exist_ok=True)
 
-            #Specify where CSS files will be stored:
-            css_files_dir = website_dir / "templates"
+            #Create a directory where CSS files will be stored:
+            css_files_dir = self.__case_web_paths[web_data.case]['css_files_dir']
             css_files_dir.mkdir(exist_ok=True)
 
             #Copy CSS files over to output directory:
@@ -281,122 +379,159 @@ class AdfWeb(AdfObs):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
             #End for
 
-            #Copy images into the website image dictionary:
-            for img in plot_path.glob("*.png"):
-                idest = assets_dir / img.name
-                shutil.copyfile(img, idest) # store image in assets
-            #End for
+            if not web_data.data_frame:
+                #Variable is a path to an image file, so first extract file name:
+                img_name = Path(web_data.data.name)
 
-            #Loop over plot type:
-            for ptype in ptype_order_list:
-                # this is going to hold the data for building the mean
-                # plots provisional structure:
-                # key = variable_name
-                # values -> dict w/ keys being "TYPE" of plots
-                # w/ values being dict w/ keys being TEMPORAL sampling,
-                # values being the URL
-                mean_html_info = OrderedDict()
+                #Move file to assets directory:
+                shutil.copy(web_data.data, web_data.asset_path)
 
-                for var in var_list_alpha:
-                    #Loop over seasons:
-                    for season in season_order:
+                #Check if category has been provided for this web data:
+                if web_data.category:
+                    #If so, then just use directly:
+                    category = web_data.category
+                else:
+                    # Search through all categories and see
+                    # which one the current variable is part of
+                    category = next((cat for cat, varz \
+                                     in var_cat_dict.items() if web_data.name in varz), None)
+                    if not category:
+                        category = 'No category yet'
+                    #End if
+                #End if
 
-                        #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_Mean*.png"):
+                if category not in mean_html_info:
+                    mean_html_info[category] = OrderedDict()
+                #End if
 
-                            #Create output file (don't worry about analysis type for now):
-                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+                #Extract web data name (usually the variable name):
+                name = web_data.name
 
-                            # Search through all categories and see
-                            # which one the current variable is part of
-                            category = next((cat for cat, varz \
-                                             in var_cat_dict.items() if var in varz), None)
-                            if not category:
-                                category = 'No category yet'
-                            #End if
+                #Initialize Ordered Dictionary for variable:
+                if name not in mean_html_info[category]:
+                    mean_html_info[category][name] = OrderedDict()
+                #End if
 
-                            if category not in mean_html_info:
-                                mean_html_info[category] = OrderedDict()
+                #Extract plot_type:
+                ptype = web_data.plot_type
 
-                            #Initialize Ordered Dictionary for variable:
-                            if var not in mean_html_info[category]:
-                                mean_html_info[category][var] = OrderedDict()
+                #Initialize Ordered Dictionary for plot type:
+                if ptype not in mean_html_info[category][name]:
+                    mean_html_info[category][name][ptype] = OrderedDict()
+                #End if
 
-                            #Initialize Ordered Dictionary for plot type:
-                            if ptype not in mean_html_info[category][var]:
-                                mean_html_info[category][var][ptype] = OrderedDict()
+                #Determine season value:
+                if web_data.season:
+                    season = web_data.season
+                else:
+                    season = "plot" #Just have the link be labeled "plot".
+                #End if
 
-                            #Initialize Ordered Dictionary for season:
-                            if season not in mean_html_info[category][var][ptype]:
-                                mean_html_info[category][var][ptype][season] = OrderedDict()
+                #Initialize Ordered Dictionary for season:
+                if season not in mean_html_info[category][name][ptype]:
+                    mean_html_info[category][name][ptype][season] = OrderedDict()
+                #End if
+                mean_html_info[category][name][ptype][season] = web_data.html_file.name
 
-                            mean_html_info[category][var][ptype][season] = outputfile.name
+            #End if (data-frame check)
+        #End for (web_data list loop)
 
-                #Loop over variables:
-                for var in var_list_alpha:
-                    #Loop over seasons:
-                    for season in season_order:
-                        #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_Mean*.png"):
-                            alt_text  = img.stem #Extract image file name text
+        #Loop over all web data objects:
+        for web_data in self.__website_data:
 
-                            #Create output file (don't worry about analysis type for now):
-                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
-                            # Hacky - how to get the relative path in a better way?:
-                            img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
+            if not web_data.data_frame:
 
-                            #Create titles
-                            var_title = f"Variable: {var}"
-                            season_title = f"Season: {season}"
-                            plottype_title = f"Plot: {ptype}"
-                            tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=main_title,
-                                               var_title=var_title,
-                                               season_title=season_title,
-                                               plottype_title=plottype_title,
-                                               imgs=img_data,
-                                               case1=case_name,
-                                               case2=data_name,
-                                               mydata=mean_html_info,
-                                               plot_types=plot_type_html) #The template rendered
+                #Create output HTML file path:
+                img_pages_dir = self.__case_web_paths[web_data.case]['img_pages_dir']
+                img_data = [os.path.relpath(web_data.asset_path, start=img_pages_dir),
+                            web_data.asset_path.stem]
 
-                            #Open HTML file:
-                            with open(outputfile, 'w', encoding='utf-8') as ofil:
-                                ofil.write(rndr)
-                            #End with
+                #Create titles
+                var_title = f"Variable: {web_data.name}"
+                season_title = f"Season: {web_data.season}"
+                plottype_title = f"Plot: {web_data.plot_type}"
+                tmpl = jinenv.get_template('template.html')  #Set template
+                rndr = tmpl.render(title=main_title,
+                                   var_title=var_title,
+                                   season_title=season_title,
+                                   plottype_title=plottype_title,
+                                   imgs=img_data,
+                                   case1=web_data.case,
+                                   case2=data_name,
+                                   mydata=mean_html_info,
+                                   plot_types=plot_type_html) #The template rendered
 
-                            #Construct individual plot type mean_diag html files
-                            mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
-                            mean_rndr = mean_tmpl.render(title=main_title,
-                                            case1=case_name,
-                                            case2=data_name,
-                                            mydata=mean_html_info,
-                                            plot_types=plot_type_html)
+                #Open HTML file:
+                with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
+                          ofil.write(rndr)
+                #End with
 
-                            #Write mean diagnostic plots HTML file:
-                            outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
-                            with open(outputfile,'w', encoding='utf-8') as ofil:
-                                ofil.write(mean_rndr)
-                            #End with
-                        #End for (assests loop)
-                    #End for (seasons loop)
+                #Check if the mean plot type page exists for this case:
+                mean_ptype_file = img_pages_dir / f"mean_diag_{web_data.plot_type}.html"
+                if not mean_ptype_file.exists():
 
-            #Grab AMWG Table HTML files:
-            table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
+                    #Construct individual plot type mean_diag html files, if they don't
+                    #already exist:
+                    mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+                    mean_rndr = mean_tmpl.render(title=main_title,
+                                                 case1=web_data.case,
+                                                 case2=data_name,
+                                                 mydata=mean_html_info,
+                                                 plot_types=plot_type_html)
 
-            #Grab the comparison table and move it to website dir
-            comp_table_html_file = list(plot_path.glob("*comp.html"))
+                    #Write mean diagnostic plots HTML file:
+                    with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
+                              ofil.write(mean_rndr)
+                    #End with
+                #End if (mean_ptype exists)
 
-            #Also grab baseline/obs tables, which are always stored in the first case directory:
-            if case_idx == 0:
-                data_table_html_files = list(plot_path.glob(f"amwg_table_{data_name}*.html"))
-            #End if
+                #Also check if index page exists for this case:
+                index_html_file = \
+                    self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
 
-            #Determine if any AMWG tables were generated:
-            if table_html_files:
+                if not index_html_file.exists():
 
-                #Set Table HTML generation logical to "TRUE":
-                gen_table_html = True
+                    #Construct index.html
+                    index_title = "AMP Diagnostics Prototype"
+                    index_tmpl = jinenv.get_template('template_index.html')
+                    index_rndr = index_tmpl.render(title=main_title,
+                                                   case1=web_data.case,
+                                                   case2=data_name,
+                                                   #gen_table_html=gen_table_html,
+                                                   plot_types=plot_type_html)
+
+                    #Write Mean diagnostics index HTML file:
+                    with open(index_html_file, 'w', encoding='utf-8') as ofil:
+                        ofil.write(index_rndr)
+                    #End with
+                #End if (mean_index exists)
+            #End if (data frame)
+        #End for (web data loop)
+
+        #Notify user that script has finishedd:
+        print("  ...Webpages have been generated successfully.")
+
+        #EVERYTHING BELOW HERE IS TEMPORARILY COMMENTED OUT  FOR TESTING -JN !!!!!!!!!!!!!!!!!!!
+        #UNCOMMENT ONCE CODE IS READY FOR DATA FRAMES!!!!!!!!!!!!!!!!!
+
+'''
+
+        #Grab AMWG Table HTML files:
+        table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
+
+        #Grab the comparison table and move it to website dir
+        comp_table_html_file = list(plot_path.glob("*comp.html"))
+
+        #Also grab baseline/obs tables, which are always stored in the first case directory:
+        if case_idx == 0:
+            data_table_html_files = list(plot_path.glob(f"amwg_table_{data_name}*.html"))
+        #End if
+
+        #Determine if any AMWG tables were generated:
+        if table_html_files:
+
+        #Set Table HTML generation logical to "TRUE":
+        gen_table_html = True
 
                 #Create a directory that will hold table html files:
                 table_pages_dir = website_dir / "html_table"
@@ -483,23 +618,29 @@ class AdfWeb(AdfObs):
                 gen_table_html = False
             #End if
 
-            #Construct index.html
-            #index_title = "AMP Diagnostics Prototype"
-            index_tmpl = jinenv.get_template('template_index.html')
-            index_rndr = index_tmpl.render(title=main_title,
-                             case1=case_name,
-                             case2=data_name,
-                             gen_table_html=gen_table_html,
-                             plot_types=plot_type_html,
-                             )
+'''
 
-            #Write Mean diagnostics HTML file:
-            outputfile = website_dir / "index.html"
-            with open(outputfile, 'w', encoding='utf-8') as ofil:
-                ofil.write(index_rndr)
-            #End with
+        #Construct index.html
+        #index_title = "AMP Diagnostics Prototype"
+        #index_tmpl = jinenv.get_template('template_index.html')
+        #index_rndr = index_tmpl.render(title=main_title,
+        #                 case1=case_name,
+        #                 case2=data_name,
+        #                 gen_table_html=gen_table_html,
+        #                 plot_types=plot_type_html,
+        #                 )
 
-            #If this is a multi-case instance, then copy website to "main" directory:
+        #Write Mean diagnostics HTML file:
+        #outputfile = website_dir / "index.html"
+        #with open(outputfile, 'w', encoding='utf-8') as ofil:
+        #    ofil.write(index_rndr)
+        #End with
+
+        #IGNORE MULTI-CASE INFO FOR NOW!!!!!!!!!!!!!!!!! -JN
+
+'''
+
+        #If this is a multi-case instance, then copy website to "main" directory:
             if main_site_path:
                 shutil.copytree(website_dir, main_site_path / case_name)
                 #Also add path to case_sites dictionary:
@@ -525,8 +666,7 @@ class AdfWeb(AdfObs):
             #End with
         #End if
 
-        #Notify user that script has finishedd:
-        print("  ...Webpages have been generated successfully.")
+'''
 
 #++++++++++++++++++++
 #End Class definition

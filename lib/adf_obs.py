@@ -90,7 +90,7 @@ class AdfObs(AdfInfo):
         #End if
 
         #Extract the "obs_data_loc" default observational data location:
-        obs_data_loc = self.read_config_var("obs_data_loc", conf_dict=_basic_info)
+        obs_data_loc = self.get_basic_info("obs_data_loc")
 
         #Check that a variable defaults file exists (as it is currently needed to extract obs data):
         if not self.__variable_defaults:

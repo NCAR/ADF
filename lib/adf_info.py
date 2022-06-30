@@ -110,9 +110,12 @@ class AdfInfo(AdfConfig):
         #Check if a CAM vs AMWG obs comparison is being performed:
         if self.__compare_obs:
 
-            #Finally, set the baseline info to None, to ensure any scripts
+            #If so, then set the baseline info to None, to ensure any scripts
             #that check this variable won't crash:
             self.__cam_bl_climo_info = None
+
+            #Also set data name for use below:
+            data_name = "obs"
 
         else:
             #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
@@ -121,7 +124,42 @@ class AdfInfo(AdfConfig):
 
             #Expand CAM baseline climo info variable strings:
             self.expand_references(self.__cam_bl_climo_info)
+
+            #Set data name to baseline case name:
+            data_name = self.get_baseline_info('cam_case_name', required=True)
+
         #End if
+
+        #Create plot location variable for potential use by the website generator.
+        #Please note that this is also assumed to be the output location for the analyses scripts:
+        #-------------------------------------------------------------------------
+        self.__plot_location = [] #Must be a list to manage multiple cases
+
+        #Plot directory:
+        plot_dir = self.get_basic_info('cam_diag_plot_loc', required=True)
+
+        #Case names:
+        case_names = self.get_cam_info('cam_case_name', required=True)
+
+        #Start years (not currently required):
+        syears = self.get_cam_info('start_year')
+
+        #End year (not currently rquired):
+        eyears = self.get_cam_info('end_year')
+
+        #Loop over cases:
+        for case_idx, case_name in enumerate(case_names):
+
+            #Set case name if start and end year are present:
+            if syears[case_idx] and eyears[case_idx]:
+                case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+            #End if
+
+            #Set the final directory name and save it to plot_location:
+            direc_name = f"{case_name}_vs_{data_name}"
+            self.__plot_location.append(os.path.join(plot_dir, direc_name))
+        #End for
+        #-------------------------------------------------------------------------
 
         #Initialize "num_procs" variable:
         #-----------------------------------------
@@ -180,11 +218,6 @@ class AdfInfo(AdfConfig):
         #Print number of processors being used to debug log (if requested):
         self.debug_log(f"ADF is running with {self.__num_procs} processors.")
         #-----------------------------------------
-
-        #Create plot location variable for potential use by the website generator.
-        #Please note that this variable is only set if "create_plots" or "peform_analyses"
-        #is called:
-        self.__plot_location = [] #Must be a list to manage multiple cases
 
     #########
 
@@ -297,17 +330,6 @@ class AdfInfo(AdfConfig):
         return self.read_config_var(var_str,
                                     conf_dict=self.__cam_bl_climo_info,
                                     required=required)
-
-    #########
-
-    #Function to append the plot_location list of paths:
-    def _append_plot_loc(self, path):
-        """
-        Function that allows a user to append a path to the `plot_location`
-        list internal to the ADF.
-        """
-
-        self.__plot_location.append(path)
 
 #++++++++++++++++++++
 #End Class definition

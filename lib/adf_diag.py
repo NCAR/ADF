@@ -749,36 +749,6 @@ class AdfDiag(AdfWeb):
             #End if
         #End if
 
-        #Set "plot_location" variable, if it doesn't exist already, and save value in diag object.
-        #Please note that this is also assumed to be the output location for the analyses scripts:
-        if not self.plot_location:
-
-            #Plot directory:
-            plot_dir = self.get_basic_info('cam_diag_plot_loc', required=True)
-
-            #Case names:
-            case_names = self.get_cam_info('cam_case_name', required=True)
-
-            #Start years (not currently required):
-            syears = self.get_cam_info('start_year')
-
-            #End year (not currently rquired):
-            eyears = self.get_cam_info('end_year')
-
-            #Loop over cases:
-            for case_idx, case_name in enumerate(case_names):
-
-                #Set case name if start and end year are present:
-                if syears[case_idx] and eyears[case_idx]:
-                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
-                #End if
-
-                #Set the final directory name and save it to plot_location:
-                direc_name = f"{case_name}_vs_{data_name}"
-                self._append_plot_loc(os.path.join(plot_dir, direc_name))
-            #End for
-        #End if
-
         #Run the listed scripts:
         self.__diag_scripts_caller("analysis", anly_func_names,
                                    log_section = "perform_analyses")
@@ -827,35 +797,6 @@ class AdfDiag(AdfWeb):
             if syear_baseline and eyear_baseline:
                 data_name += f"_{syear_baseline}_{eyear_baseline}"
             #End if
-        #End if
-
-        #Set "plot_location" variable, if it doesn't exist already, and save value in diag object:
-        if not self.plot_location:
-
-            #Plot directory:
-            plot_dir = self.get_basic_info('cam_diag_plot_loc', required=True)
-
-            #Case names:
-            case_names = self.get_cam_info('cam_case_name', required=True)
-
-            #Start years (not currently required):
-            syears = self.get_cam_info('start_year')
-
-            #End year (not currently rquired):
-            eyears = self.get_cam_info('end_year')
-
-            #Loop over cases:
-            for case_idx, case_name in enumerate(case_names):
-
-                #Set case name if start and end year are present:
-                if syears[case_idx] and eyears[case_idx]:
-                    case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
-                #End if
-
-                #Set the final directory name and save it to plot_location:
-                direc_name = f"{case_name}_vs_{data_name}"
-                self._append_plot_loc(os.path.join(plot_dir, direc_name))
-            #End for
         #End if
 
         #Run the listed scripts:

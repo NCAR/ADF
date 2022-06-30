@@ -291,6 +291,10 @@ def global_latlon_map(adfobj):
 
                             # Check redo_plot. If set to True: remove old plot, if it already exists:
                             if (not redo_plot) and plot_name.is_file():
+                                #Add already-existing plot to website (if enabled):
+                                adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
+
+                                #Continue to next iteration:
                                 continue
                             elif (redo_plot) and plot_name.is_file():
                                 plot_name.unlink()
@@ -304,6 +308,9 @@ def global_latlon_map(adfobj):
                             # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
 
                             pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+
+                            #Add plot to website (if enabled):
+                            adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
 
                     else: #mdata dimensions check
                         print(f"\t - skipping lat/lon map for {var} as it doesn't have only lat/lon dims.")
@@ -384,10 +391,14 @@ def global_latlon_map(adfobj):
                                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                                 redo_plot = adfobj.get_basic_info('redo_plot')
                                 if (not redo_plot) and plot_name.is_file():
+                                    #Add already-existing plot to website (if enabled):
+                                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
+
+                                    #Continue to next iteration:
                                     continue
                                 elif (redo_plot) and plot_name.is_file():
                                     plot_name.unlink()
-                                    
+
                                 #Create new plot:
                                 # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
                                 # This relies on `plot_map_and_save` knowing how to deal with the options
@@ -396,6 +407,9 @@ def global_latlon_map(adfobj):
                                 #   *Any other entries will be ignored.
                                 # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
                                 pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
+
+                                #Add plot to website (if enabled):
+                                adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
 
                             #End for (seasons)
                         #End for (pressure levels)
