@@ -1116,6 +1116,11 @@ class AdfDiag(AdfObs):
         ptype_html_list = list(itertools.chain.from_iterable(ptype_html))
         ptype_order_list = list(itertools.chain.from_iterable(ptype_order))
 
+        if self.compare_obs:
+            if ['TaylorDiag'] in ptype_order:
+                ptype_html_list.remove("html_img/mean_diag_TaylorDiag.html")
+                ptype_order_list.remove("TaylorDiag")
+
         #Make dictionary for plot type names and html paths
         plot_type_html = dict(zip(ptype_order_list, ptype_html_list))
 
