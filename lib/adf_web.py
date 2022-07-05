@@ -61,7 +61,8 @@ class _WebData:
                  plot_type = "Special",
                  data_frame = False,
                  html_file  = None,
-                 asset_path = None):
+                 asset_path = None,
+                 multi_case = False):
 
         #Initialize relevant website variables:
         self.name       = web_name
@@ -73,6 +74,7 @@ class _WebData:
         self.data_frame = data_frame
         self.html_file  = html_file
         self.asset_path = asset_path
+        self.multi_case = multi_case
 
 #+++++++++++++++++++++
 #Define main web class
@@ -150,7 +152,8 @@ class AdfWeb(AdfObs):
     def add_website_data(self, web_data, web_name, case_name,
                          category = None,
                          season = None,
-                         plot_type = "Special"):
+                         plot_type = "Special",
+                         multi_case=False):
 
         """
         Method that provides scripts a way to add an image file or
@@ -170,6 +173,9 @@ class AdfWeb(AdfObs):
         season     -> What the season is for the plot.  If not provided it will assume the
                       plot does not need any seasonal seperation.
         plot_type  -> Type of plot.  If not provided then plot type will be "Special".
+
+        multi_case -> Logical which indicates whether the image or dataframe can contain
+                      multiple cases (e.g. a line plot with one line for each case).
 
         """
 
@@ -217,6 +223,16 @@ class AdfWeb(AdfObs):
             #End if
         #End except
 
+        #If multi-case and more than one case in ADF run, then
+        #set to "multi-case".  Otherwise set to first case:
+        if multi_case and not case_name:
+            if len(self.get_cam_info("cam_case_name")) > 1:
+                case_name = "multi-case"
+            else:
+                case_name = self.get_cam_info("cam_case_name")[0]
+            #End if
+        #End if
+
         #Create HTML file path variable,
         #which will be used in "create_website":
         if not data_frame:
@@ -231,13 +247,14 @@ class AdfWeb(AdfObs):
         #End if
 
         #Initialize web data object:
-        web_data = _WebData(web_data, web_name,  case_name,
+        web_data = _WebData(web_data, web_name, case_name,
                             category = category,
                             season = season,
                             plot_type = plot_type,
                             data_frame = data_frame,
                             html_file = html_file,
-                            asset_path = asset_path)
+                            asset_path = asset_path,
+                            multi_case = multi_case)
 
         #Add web data object to list:
         self.__website_data.append(web_data)
@@ -386,6 +403,14 @@ class AdfWeb(AdfObs):
                 #Move file to assets directory:
                 shutil.copy(web_data.data, web_data.asset_path)
 
+                #Extract plot_type:
+                ptype = web_data.plot_type
+
+                #Initialize Ordered Dictionary for plot type:
+                if ptype not in mean_html_info:
+                    mean_html_info[ptype] = OrderedDict()
+                #End if
+
                 #Check if category has been provided for this web data:
                 if web_data.category:
                     #If so, then just use directly:
@@ -400,24 +425,16 @@ class AdfWeb(AdfObs):
                     #End if
                 #End if
 
-                if category not in mean_html_info:
-                    mean_html_info[category] = OrderedDict()
+                if category not in mean_html_info[ptype]:
+                    mean_html_info[ptype][category] = OrderedDict()
                 #End if
 
                 #Extract web data name (usually the variable name):
                 name = web_data.name
 
                 #Initialize Ordered Dictionary for variable:
-                if name not in mean_html_info[category]:
-                    mean_html_info[category][name] = OrderedDict()
-                #End if
-
-                #Extract plot_type:
-                ptype = web_data.plot_type
-
-                #Initialize Ordered Dictionary for plot type:
-                if ptype not in mean_html_info[category][name]:
-                    mean_html_info[category][name][ptype] = OrderedDict()
+                if name not in mean_html_info[ptype][category]:
+                    mean_html_info[ptype][category][name] = OrderedDict()
                 #End if
 
                 #Determine season value:
@@ -428,10 +445,7 @@ class AdfWeb(AdfObs):
                 #End if
 
                 #Initialize Ordered Dictionary for season:
-                if season not in mean_html_info[category][name][ptype]:
-                    mean_html_info[category][name][ptype][season] = OrderedDict()
-                #End if
-                mean_html_info[category][name][ptype][season] = web_data.html_file.name
+                mean_html_info[ptype][category][name][season] = web_data.html_file.name
 
             #End if (data-frame check)
         #End for (web_data list loop)
@@ -446,6 +460,13 @@ class AdfWeb(AdfObs):
                 img_data = [os.path.relpath(web_data.asset_path, start=img_pages_dir),
                             web_data.asset_path.stem]
 
+                #Check if plot image already handlse multiple cases:
+                if web_data.multi_case:
+                    case1 = "Listed in plots."
+                else:
+                    case1 = web_data.case
+                #End if
+
                 #Create titles
                 var_title = f"Variable: {web_data.name}"
                 season_title = f"Season: {web_data.season}"
@@ -456,32 +477,41 @@ class AdfWeb(AdfObs):
                                    season_title=season_title,
                                    plottype_title=plottype_title,
                                    imgs=img_data,
-                                   case1=web_data.case,
+                                   case1=case1,
                                    case2=data_name,
-                                   mydata=mean_html_info,
+                                   mydata=mean_html_info[web_data.plot_type],
                                    plot_types=plot_type_html) #The template rendered
 
                 #Open HTML file:
                 with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
-                          ofil.write(rndr)
+                    ofil.write(rndr)
                 #End with
 
                 #Check if the mean plot type page exists for this case:
                 mean_ptype_file = img_pages_dir / f"mean_diag_{web_data.plot_type}.html"
                 if not mean_ptype_file.exists():
 
+                    #Check if plot image already handlse multiple cases:
+                    if web_data.multi_case:
+                        case1 = "Listed in plots."
+                    else:
+                        case1 = web_data.case
+                    #End if
+
                     #Construct individual plot type mean_diag html files, if they don't
                     #already exist:
-                    mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+                    #mean_tmpl = jinenv.get_template(f'template_mean_diag_{web_data.plot_type}.html')
+                    mean_tmpl = jinenv.get_template(f'template_mean_diag.html')
                     mean_rndr = mean_tmpl.render(title=main_title,
-                                                 case1=web_data.case,
+                                                 case1=case1,
                                                  case2=data_name,
-                                                 mydata=mean_html_info,
+                                                 mydata=mean_html_info[web_data.plot_type],
+                                                 curr_type=web_data.plot_type,
                                                  plot_types=plot_type_html)
 
                     #Write mean diagnostic plots HTML file:
                     with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
-                              ofil.write(mean_rndr)
+                        ofil.write(mean_rndr)
                     #End with
                 #End if (mean_ptype exists)
 

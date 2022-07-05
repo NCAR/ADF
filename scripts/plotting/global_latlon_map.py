@@ -287,7 +287,7 @@ def global_latlon_map(adfobj):
 
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                            plot_name = plot_loc / "{}_{}_LatLon_Mean.{}".format(var, s, plot_type)
+                            plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
 
                             # Check redo_plot. If set to True: remove old plot, if it already exists:
                             if (not redo_plot) and plot_name.is_file():
@@ -392,7 +392,7 @@ def global_latlon_map(adfobj):
                                 redo_plot = adfobj.get_basic_info('redo_plot')
                                 if (not redo_plot) and plot_name.is_file():
                                     #Add already-existing plot to website (if enabled):
-                                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
+                                    adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, season=s, plot_type="LatLon")
 
                                     #Continue to next iteration:
                                     continue
@@ -409,7 +409,7 @@ def global_latlon_map(adfobj):
                                 pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
 
                                 #Add plot to website (if enabled):
-                                adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
+                                adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, season=s, plot_type="LatLon")
 
                             #End for (seasons)
                         #End for (pressure levels)

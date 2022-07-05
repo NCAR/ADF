@@ -24,8 +24,8 @@
      <h1> {{title}} </h1>
      <h2> Test Case: {{case1}}</h2>
      <h2> Control Case: {{case2}}</h2>
-     <h2>Plot Types: 
-      <a href=../html_table/mean_table.html> &nbsp; Tables</a> 
+     <h2>Plot Types:
+      <a href=../html_table/mean_table.html> &nbsp; Tables</a>
       {% for type, html_file in plot_types.items() %}
       {% if type == plottype_title[6:] %}
       <a style="color: black; font-weight: bold;"> &nbsp; {{type}}</a>
@@ -36,13 +36,12 @@
      </h2>
 
      <div style="width: 100%;"> <!-- main div-->
-      <div style="width: 50%; height: 100px; float: left;"> 
-        {% for category, var_ptype_seas in mydata.items() %}
+      <div style="width: 50%; height: 100px; float: left;">
+        {% for category, var_seas in mydata.items() %}
           <h3>{{category}}</h3>
           <table class="big-table">
-            {% for var_name, ptype_seas in var_ptype_seas.items() %}
+            {% for var_name, season in var_seas.items() %}
               <th colspan="100%"> {{var_name}} </th>
-              {% for plot_type, season in ptype_seas.items() %}
               <tr>
                 {% for season_name, seas in season.items() %}
                 <td>
@@ -54,14 +53,13 @@
                 </td>
                 {% endfor %}
               </tr>
-              {% endfor %}
             {% endfor %}
           </table>
         {% endfor %}
-        <div style="padding-bottom: 50px;"> 
+        <div style="padding-bottom: 50px;">
         </div>
       </div> <!-- end left inner div -->
-      
+
       <div id="footer">
       <div class="fixedDiv" style="width: 50%; height: 100px; float: right; padding-right: 50px; padding-bottom: 50px;">
         <a href="{{imgs[0]}}" target="_blank">

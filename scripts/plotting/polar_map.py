@@ -226,18 +226,21 @@ def polar_map(adfobj):
                             # difference: each entry should be (lat, lon)
                             dseasons[s] = mseasons[s] - oseasons[s]
 
-                            # make plots: northern and southern hemisphere separately
-                            # Follow other scripts:  [variable]_[season]_[AxesDescription]_[Operation].[plot_type]
-                            nh_plot_name = plot_loc / f"{var}_{s}_NHPolar_Mean.{plot_type}"
-                            sh_plot_name = plot_loc / f"{var}_{s}_SHPolar_Mean.{plot_type}"
-   
-                            for plot_name in [nh_plot_name, sh_plot_name]:
+                            # make plots: northern and southern hemisphere separately:
+                            for hemi_type in ["NHPolar", "SHPolar"]:
+
+                                #Create plot name and path:
+                                plot_name = plot_loc / f"{var}_{s}_{hemi_type}_Mean.{plot_type}"
 
                                 # If redo_plot set to True: remove old plot, if it already exists:
                                 if (not redo_plot) and plot_name.is_file():
+                                    #Add already-existing plot to website (if enabled):
+                                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type=hemi_type)
+
+                                    #Continue to next iteration:
                                     continue
-                                else:  
-                                    if plot_name.is_file():                                    
+                                else:
+                                    if plot_name.is_file():
                                         plot_name.unlink()
 
                                     #Create new plot:
@@ -247,18 +250,21 @@ def polar_map(adfobj):
                                     #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                                     #   *Any other entries will be ignored.
                                     # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                        
+
                                     #Determine hemisphere to plot based on plot file name:
-                                    if plot_name == nh_plot_name:
+                                    if hemi_type == "NHPolar":
                                         hemi = "NH"
                                     else:
                                         hemi = "SH"
                                     #End if
-                                    
+
                                     pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
 
+                                    #Add plot to website (if enabled):
+                                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type=hemi_type)
+
                     else: #mdata dimensions check
-                        print("\t - skipping polar map for {} as it doesn't have only lat/lon dims.".format(var))
+                        print(f"\t - skipping polar map for {var} as it doesn't have only lat/lon dims.")
                     #End if (dimensions check)
 
                 elif pres_levs: #Is the user wanting to interpolate to a specific pressure level?
@@ -293,15 +299,19 @@ def polar_map(adfobj):
                                 # difference: each entry should be (lat, lon)
                                 dseasons[s] = mseasons[s] - oseasons[s]
 
-                                # make plots: northern and southern hemisphere separately
-                                # Follow other scripts:  [variable]_[season]_[AxesDescription]_[Operation].[plot_type]
-                                nh_plot_name = plot_loc / f"{var}_{pres}hpa_{s}_NHPolar_Mean.{plot_type}"
-                                sh_plot_name = plot_loc / f"{var}_{pres}hpa_{s}_SHPolar_Mean.{plot_type}"
+                                # make plots: northern and southern hemisphere separately:
+                                for hemi_type in ["NHPolar", "SHPolar"]:
 
-                                for plot_name in [nh_plot_name, sh_plot_name]:
+                                    #Create plot name and path:
+                                    plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
 
                                     # If redo_plot set to True: remove old plot, if it already exists:
                                     if (not redo_plot) and plot_name.is_file():
+                                        #Add already-existing plot to website (if enabled):
+                                        adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",
+                                                                case_name, season=s, plot_type=hemi_type)
+
+                                        #Continue to next iteration:
                                         continue
                                     else:
                                         if plot_name.is_file():
@@ -316,14 +326,17 @@ def polar_map(adfobj):
                                         # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
 
                                         #Determine hemisphere to plot based on plot file name:
-                                        if plot_name == nh_plot_name:
+                                        if hemi_type == "NHPolar":
                                             hemi = "NH"
                                         else:
                                             hemi = "SH"
                                         #End if
-                                    
+
                                         pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
-                                    
+
+                                        #Add plot to website (if enabled):
+                                        adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, season=s, plot_type=hemi_type)
+
                             #End for (seasons)
                         #End for (pressure level)
                     else:
