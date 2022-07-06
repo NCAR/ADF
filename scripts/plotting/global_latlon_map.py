@@ -158,8 +158,12 @@ def global_latlon_map(adfobj):
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_latlon_map: Found variable defaults for {var}")
 
+            #Extract category (if available):
+            web_category = vres.get("category", None)
+
         else:
             vres = {}
+            web_category = None
         #End if
 
         # For global maps, also set the central longitude:
@@ -292,7 +296,8 @@ def global_latlon_map(adfobj):
                             # Check redo_plot. If set to True: remove old plot, if it already exists:
                             if (not redo_plot) and plot_name.is_file():
                                 #Add already-existing plot to website (if enabled):
-                                adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
+                                adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                                        season=s, plot_type="LatLon")
 
                                 #Continue to next iteration:
                                 continue
@@ -310,7 +315,8 @@ def global_latlon_map(adfobj):
                             pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
 
                             #Add plot to website (if enabled):
-                            adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="LatLon")
+                            adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                                    season=s, plot_type="LatLon")
 
                     else: #mdata dimensions check
                         print(f"\t - skipping lat/lon map for {var} as it doesn't have only lat/lon dims.")
@@ -392,7 +398,8 @@ def global_latlon_map(adfobj):
                                 redo_plot = adfobj.get_basic_info('redo_plot')
                                 if (not redo_plot) and plot_name.is_file():
                                     #Add already-existing plot to website (if enabled):
-                                    adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, season=s, plot_type="LatLon")
+                                    adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
+                                                            season=s, plot_type="LatLon")
 
                                     #Continue to next iteration:
                                     continue
@@ -409,7 +416,8 @@ def global_latlon_map(adfobj):
                                 pf.plot_map_and_save(plot_name, mseasons[s], oseasons[s], dseasons[s], **vres)
 
                                 #Add plot to website (if enabled):
-                                adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, season=s, plot_type="LatLon")
+                                adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
+                                                        season=s, plot_type="LatLon")
 
                             #End for (seasons)
                         #End for (pressure levels)

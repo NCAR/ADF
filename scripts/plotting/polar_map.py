@@ -130,8 +130,13 @@ def polar_map(adfobj):
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"polar_map: Found variable defaults for {var}")
 
+            #Extract category (if available):
+            web_category = vres.get("category", None)
+
         else:
             vres = {}
+            web_category = None
+        #End if
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
@@ -235,7 +240,8 @@ def polar_map(adfobj):
                                 # If redo_plot set to True: remove old plot, if it already exists:
                                 if (not redo_plot) and plot_name.is_file():
                                     #Add already-existing plot to website (if enabled):
-                                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type=hemi_type)
+                                    adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                                            season=s, plot_type=hemi_type)
 
                                     #Continue to next iteration:
                                     continue
@@ -261,7 +267,8 @@ def polar_map(adfobj):
                                     pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
 
                                     #Add plot to website (if enabled):
-                                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type=hemi_type)
+                                    adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                                            season=s, plot_type=hemi_type)
 
                     else: #mdata dimensions check
                         print(f"\t - skipping polar map for {var} as it doesn't have only lat/lon dims.")
@@ -309,7 +316,8 @@ def polar_map(adfobj):
                                     if (not redo_plot) and plot_name.is_file():
                                         #Add already-existing plot to website (if enabled):
                                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",
-                                                                case_name, season=s, plot_type=hemi_type)
+                                                                case_name, category=web_category,
+                                                                season=s, plot_type=hemi_type)
 
                                         #Continue to next iteration:
                                         continue
@@ -335,7 +343,9 @@ def polar_map(adfobj):
                                         pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
 
                                         #Add plot to website (if enabled):
-                                        adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, season=s, plot_type=hemi_type)
+                                        adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",
+                                                                case_name, category=web_category,
+                                                                season=s, plot_type=hemi_type)
 
                             #End for (seasons)
                         #End for (pressure level)

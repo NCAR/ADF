@@ -315,33 +315,8 @@ class AdfWeb(AdfObs):
             data_name = self.get_baseline_info('cam_case_name', required=True)
         #End if
 
-        # Variable categories
-        var_cat_dict = {
-            'Clouds': {'ACTNI', 'ACTNL', 'ACTREI', 'ACTREL', 'ADRAIN', 'ADSNOW',
-                       'AREI', 'AREL', 'CCN3', 'CDNUMC', 'CLDHGH', 'CLDICE',
-                       'CLDLIQ', 'CLDLOW', 'CLDMED', 'CLDTOT', 'CLOUD', 'CONCLD',
-                       'EVAPPREC', 'EVAPSNOW', 'FCTI', 'FCTL', 'FICE', 'FREQI',
-                       'FREQL', 'FREQR', 'FREQS', 'MPDQ', 'PRECC', 'PRECL',
-                       'PRECSC', 'PRECSL', 'PRECT', 'TGCLDIWP', 'TGCLDLWP'},
-            'Deep Convection': {'CAPE', 'CMFMC_DP', 'FREQZM', 'ZMDQ', 'ZMDT'},
-            'COSP': {'CLDTOT_ISCCP', 'CLIMODIS', 'CLTMODIS', 'CLWMODIS',
-                     'FISCCP1_COSP', 'ICE_ICLD_VISTAU', 'IWPMODIS',
-                     'LIQ_ICLD_VISTAU', 'LWPMODIS', 'MEANCLDALB_ISCCP',
-                     'MEANPTOP_ISCCP', 'MEANTAU_ISCCP', 'MEANTB_ISCCP',
-                     'MEANTBCLR_ISCCP', 'PCTMODIS', 'REFFCLIMODIS', 'REFFCLWMODIS',
-                     'SNOW_ICLD_VISTAU', 'TAUTMODIS', 'TAUWMODIS',
-                     'TOT_CLD_VISTAU', 'TOT_ICLD_VISTAU'},
-            'Budget': {'DCQ', 'DQCORE', 'DTCORE', 'MPDICE', 'MPDLIQ', 'PTEQ'},
-            'Radiation': {'FLNS', 'FLNSC', 'FLNT', 'FLNTC', 'FLUT', 'FSDS',
-                          'FSDSC', 'FSNS', 'FSNSC', 'FSNT', 'FSNTC', 'FSNTOA',
-                          'LHFLX', 'LWCF', 'QRL', 'QRS', 'SHFLX', 'SWCF'},
-            'State': {'OMEGA', 'OMEGA500', 'PINT', 'PMID', 'PS', 'PSL', 'Q',
-                      'RELHUM', 'T', 'U', 'V', 'Z3', 'Wind'},
-            'Surface': {'PBLH', 'QFLX', 'TAUX', 'TAUY', 'TREFHT', 'U10',
-                        'Surface_Wind_Stress'},
-            'GW': {'QTGW', 'UGTW_TOTAL', 'UTGWORO', 'VGTW_TOTAL', 'VTGWORO'},
-            'CLUBB': {'RVMTEND_CLUBB', 'STEND_CLUBB', 'WPRTP_CLUBB', 'WPTHLP_CLUBB'}
-        }
+        #Extract variable defaults dictionary (for categories):
+        var_defaults_dict = self.variable_defaults
 
         #Set plot type html dictionary (for Jinja templating):
         plot_type_html = OrderedDict()
@@ -416,11 +391,13 @@ class AdfWeb(AdfObs):
                     #If so, then just use directly:
                     category = web_data.category
                 else:
-                    # Search through all categories and see
-                    # which one the current variable is part of
-                    category = next((cat for cat, varz \
-                                     in var_cat_dict.items() if web_data.name in varz), None)
-                    if not category:
+
+                    #Check if variable in defaults dictionary:
+                    if web_data.name in var_defaults_dict:
+                        #If so, then extract category from dictionary:
+                        category = var_defaults_dict[web_data.name].get("category",
+                                                                        "No category yet")
+                    else:
                         category = 'No category yet'
                     #End if
                 #End if
