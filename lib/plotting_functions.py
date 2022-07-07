@@ -928,7 +928,7 @@ def lat_lon_validate_dims(fld):
     if len(fld.dims) > 3:
         return False
     validate = validate_dims(fld, ['lat','lon'])
-    has_lat, has_lon = validate['has_lat', 'has_lon']
+    has_lat, has_lon = validate['has_lat'], validate['has_lon']
     if not has_lat or not has_lon:
         return  False
     else:
@@ -944,7 +944,7 @@ def zm_validate_dims(fld):
     if len(fld.dims) > 4:
         print(f"Sorry, too many dimensions: {fld.dims}")
         return None
-    validate = validate_dims(fld, ['has_lev','has_lat'])
+    validate = validate_dims(fld, ['lev','lat'])
     has_lev, has_lat = validate['has_lev'], validate['has_lat']
     if not has_lat:
         return None
@@ -1249,7 +1249,7 @@ def plot_zonal_mean_and_save(wks, adata, bdata, has_lev, **kwargs):
 
 
 
-def plot_meridonal_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **kwargs):
+def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **kwargs):
     """This is the default meridional mean plot:
         adata: data to plot ([lev], [lat], lon).
                The vertical coordinate (lev) must be pressure levels.
@@ -1298,6 +1298,8 @@ def plot_meridonal_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **k
         latbounds = slice(-5, 5)
     elif isinstance(latbounds, numbers.Number):
         latbounds = slice(-1*np.absolute(latbounds), np.absolute(latbounds))
+    elif isinstance(latbounds, slice):
+        pass # latbounds = latbounds 
     else:
         print(f"ERROR: plot_meridonal_mean_and_save - received an invalid value for latbounds ({latbounds}). Must be a number or a slice.")
         return None
