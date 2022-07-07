@@ -1056,6 +1056,7 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
     - set colormap from kwargs or defualts to coolwarm
     - set contour levels from kwargs or 12 evenly spaced levels to span the data
     - normalize colors based on specified contour levels or data range
+    - set option for linear or log pressure when applicable
     - similar settings for difference, defaults to symmetric about zero
     - separates Matplotlib kwargs into their own dicts
 
@@ -1070,6 +1071,7 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
             'cmap1': color map for a and b panels
             'norm1': color normalization for a and b panels
             'levels1' : contour levels for a and b panels
+            'plot_log_p' : true/false whether to plot log(pressure) axis
     """
     # determine levels & color normalization:
     minval = np.min([np.min(adata), np.min(bdata)])
@@ -1124,6 +1126,12 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
     #End if
 
+    if "plot_log_pressure" in kwargs:
+        plot_log_p = kwargs["plot_log_pressure"]
+    else:
+        plot_log_p = False
+        print(kwargs)
+
     # color normalization for difference
     if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
         normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
@@ -1149,7 +1157,8 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
             'levelsdiff': levelsdiff,
             'cmap1': cmap1,
             'norm1': norm1,
-            'levels1': levels1
+            'levels1': levels1,
+            'plot_log_p': plot_log_p
             }
 
 
@@ -1198,7 +1207,7 @@ def plot_zonal_mean_and_save(wks, adata, bdata, has_lev, **kwargs):
         # calculate difference:
         diff = azm - bzm
 
-        cp_info = prep_contour_plot(azm, bzm, diff)  # dictionary
+        cp_info = prep_contour_plot(azm, bzm, diff, **kwargs)  # dictionary
 
         # Generate zonal plot:
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -1223,7 +1232,13 @@ def plot_zonal_mean_and_save(wks, adata, bdata, has_lev, **kwargs):
 
         # style the plot:
         ax[-1].set_xlabel("LATITUDE")
-        fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
+        if cp_info['plot_log_p']:
+            print("SWITCH TO LOG PRESSURE!")
+            [a.set_yscale("log") for a in ax]
+            fig.text(-0.03, 0.5, 'LOG(PRESSURE [hPa])', va='center', rotation='vertical')
+        else:
+            print(f"THE OPTION SET: {cp_info['plot_log_p']}")
+            fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
         azm = zonal_mean_xr(adata)
         bzm = zonal_mean_xr(bdata)
@@ -1330,7 +1345,7 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
     pltfunc = meridional_plot  # the plotting function ... maybe we can generalize to get zonal/meridional into one function (?)
 
     if has_lev:
-        cp_info = prep_contour_plot(adata, bdata, diff)  # dictionary
+        cp_info = prep_contour_plot(adata, bdata, diff, **kwargs)  # dictionary
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
         levs = np.unique(np.array(cp_info['levels1']))
         if len(levs) < 2:
@@ -1353,7 +1368,12 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
 
         # style the plot:
         ax[-1].set_xlabel("LONGITUDE")
-        fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
+        if cp_info['plot_log_p']:
+            [a.set_yscale("log") for a in ax]
+            fig.text(-0.03, 0.5, 'LOG(PRESSURE [hPa])', va='center', rotation='vertical')
+        else:
+            fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
+
     else:
         fig, ax = plt.subplots(nrows=2, constrained_layout=True)
         pltfunc(adata[xdim], adata, ax=ax[0])

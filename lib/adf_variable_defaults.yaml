@@ -404,5 +404,20 @@ FLDS:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_lw_down_all_mon"
 
+H2O:
+  colormap: "PuOr_r"
+  diff_colormap: "BrBG"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "mol mol$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol mol$^{-1}$" 
+  plot_log_pressure: True 
+
+OMEGAT:
+  colormap: "PuOr_r"
+  diff_colormap: "coolwarm"
+  plot_log_pressure: True 
 #-----------
 #End of File

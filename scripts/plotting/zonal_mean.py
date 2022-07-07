@@ -139,7 +139,6 @@ def zonal_mean(adfobj):
             vres = res[var]
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
-
         else:
             vres = {}
         #End if
