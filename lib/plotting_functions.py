@@ -999,7 +999,7 @@ def _zonal_plot_preslat(ax, lat, lev, data, **kwargs):
     minor_locator = mpl.ticker.FixedLocator(lev)
     ax.yaxis.set_minor_locator(minor_locator)
     ax.tick_params(which='minor', length=4, color='r')
-    ax.set_ylim([1000, 1])
+    ax.set_ylim([np.max(lev), np.min(lev)])
     return img, ax
 
 
@@ -1017,7 +1017,7 @@ def _meridional_plot_preslon(ax, lon, lev, data, **kwargs):
     minor_locator = mpl.ticker.FixedLocator(lev)
     ax.yaxis.set_minor_locator(minor_locator)
     ax.tick_params(which='minor', length=4, color='r')
-    ax.set_ylim([1000, 1])
+    ax.set_ylim([np.max(lev), np.min(lev)])
     return img, ax
 
 
