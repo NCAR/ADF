@@ -1106,11 +1106,16 @@ class AdfDiag(AdfObs):
 
         #Grab the plot type functions form user
         plot_func_names = self.__plotting_scripts
-
-        #Since polar has more than one plot type name, make a list of lists
-        #that grab all the paths and names
-        ptype_html = sorted([ptype_html_dict[x] for x in plot_func_names if x in ptype_html_dict])
-        ptype_order = sorted([ptype_order_dict[x] for x in plot_func_names if x in ptype_order_dict])
+        
+        if plot_func_names == None:
+            print("No plotting scripts declared in config file")
+            ptype_html = []
+            ptype_order = []
+        else:
+            #Since polar has more than one plot type name, make a list of lists
+            #that grab all the paths and names
+            ptype_html = sorted([ptype_html_dict[x] for x in plot_func_names if x in ptype_html_dict])
+            ptype_order = sorted([ptype_order_dict[x] for x in plot_func_names if x in ptype_order_dict])
 
         #Flatten the list of lists into a regular list
         ptype_html_list = list(itertools.chain.from_iterable(ptype_html))
