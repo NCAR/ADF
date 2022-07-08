@@ -1233,12 +1233,8 @@ def plot_zonal_mean_and_save(wks, adata, bdata, has_lev, **kwargs):
         # style the plot:
         ax[-1].set_xlabel("LATITUDE")
         if cp_info['plot_log_p']:
-            print("SWITCH TO LOG PRESSURE!")
             [a.set_yscale("log") for a in ax]
-            fig.text(-0.03, 0.5, 'LOG(PRESSURE [hPa])', va='center', rotation='vertical')
-        else:
-            print(f"THE OPTION SET: {cp_info['plot_log_p']}")
-            fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
+        fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
         azm = zonal_mean_xr(adata)
         bzm = zonal_mean_xr(bdata)
@@ -1370,9 +1366,7 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
         ax[-1].set_xlabel("LONGITUDE")
         if cp_info['plot_log_p']:
             [a.set_yscale("log") for a in ax]
-            fig.text(-0.03, 0.5, 'LOG(PRESSURE [hPa])', va='center', rotation='vertical')
-        else:
-            fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
+        fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
 
     else:
         fig, ax = plt.subplots(nrows=2, constrained_layout=True)
