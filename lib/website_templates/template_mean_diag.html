@@ -8,7 +8,7 @@
 
     <nav role="navigation" class="primary-navigation">
       <ul>
-        <li><a href=".">Home</a></li>
+        <li><a href="../index.html">Case Home</a></li>
         <li><a href="#">Links &dtrif;</a>
           <ul class="dropdown">
             <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
@@ -22,8 +22,14 @@
     </nav>
 
      <h1> {{title}} </h1>
-     <h2> Case 1: {{case1}}</h2>
-     <h2> Case 2: {{case2}}</h2>
+     <h2> Test Case: {{case1}}</h2>
+     <h2> Control Case: {{case2}}</h2>
+     <h2>Plot Types: 
+      <a href=html_table/mean_table.html> Tables</a> 
+      {% for type, html_file in plot_types.items() %}
+      <a href={{html_file}}> &nbsp; {{type}}</a>
+      {% endfor %}
+     </h2>
 
      <table class="big-table">
         {% for key, value in mydata.items() %}

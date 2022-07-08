@@ -5,7 +5,7 @@ This class inherits from the AdfBase class.
 
 Currently this class does three things:
 
-1.  Initializes and instance of AdfBase.
+1.  Initializes an instance of AdfBase.
 
 2.  Reads in a config (YAML) file.
 

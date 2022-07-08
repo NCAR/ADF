@@ -1,7 +1,7 @@
 nav.primary-navigation {
     margin: 0 auto;
     display: block;
-    padding: 120px 0 0 0;
+    padding: 10px 0 0 0;
     text-align: center;
     font-size: 16px;
   }
@@ -70,6 +70,10 @@ a:hover {
     color: #3ca0e7;
 }
 
+body {
+  padding-bottom: 50px;
+}
+
 ul li ul li a {
     transition: all 0.5s ease;
 }
@@ -81,6 +85,13 @@ h2 {
     color: gray;
     font-family: Tahoma, Geneva, Verdana, sans-serif;
 }
+
+h3 {
+  color: black;
+  font-family: Tahoma, Geneva, Verdana, sans-serif;
+  text-decoration: underline;
+}
+
 img {
     max-width:100%;
     height:auto;
@@ -108,4 +119,19 @@ table.dataframe ul,ol,dl,p,th {
 table.dataframe td {
     font-family: Tahoma, Geneva, Verdana, sans-serif;
     padding-left: 10px;
+}
+
+.fixedDiv
+{
+    position:fixed;
+    top:300px;
+    right:150px;
+}
+
+#footer {
+  width: 100%;
+  height: auto;	
+  text-align: center;
+  -webkit-flex: 0 0 64px;
+  flex: 0 0 64px;
 }

@@ -31,6 +31,16 @@ warnings.formatwarning = my_formatwarning
 # --- Main Function Shares Name with Module: cam_taylor_diagram ---
 #
 def cam_taylor_diagram(adfobj):
+
+    #Notify user that script has started:
+    print("\n  Generating Taylor Diagrams...")
+
+    # Taylor diagrams currently don't work for model to obs comparison
+    # If compare_obs is set to True, then skip this script:
+    if adfobj.compare_obs:
+        print("\tTaylor diagrams don't work when doing model vs obs, so Taylor diagrams will be skipped.")
+        return
+
     # Extract needed quantities from ADF object:
     # -----------------------------------------
     # Case names:
@@ -48,7 +58,7 @@ def cam_taylor_diagram(adfobj):
             plpth = Path(pl)
             #Check if plot output directory exists, and if not, then create it:
             if not plpth.is_dir():
-                print("    {} not found, making new directory".format(pl))
+                print(f"\t    {pl} not found, making new directory")
                 plpth.mkdir(parents=True)
         if len(plot_location) == 1:
             plot_loc = Path(plot_location[0])
@@ -79,6 +89,22 @@ def cam_taylor_diagram(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
+    print(f"\t NOTE: Plot type is set to {plot_type}")
+
+    #Check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
+    #Check if the variables needed for the Taylor diags are present,
+    #If not then skip this script:
+    taylor_var_set = {'U', 'PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 'RELHUM', 'T'}
+    if not taylor_var_set.issubset(adfobj.diag_var_list) or \
+       (not ('PRECT' in adfobj.diag_var_list) and (not ('PRECL' in adfobj.diag_var_list) or not ('PRECC' in adfobj.diag_var_list))):
+        print("\tThe Taylor Diagrams require the variables: ")
+        print("\tU, PSL, SWCF, LWCF, PRECT (or PRECL and PRECC), LANDFRAC, TREFHT, TAUX, RELHUM,T")
+        print("\tSome variables are missing so Taylor diagrams will be skipped.")
+        return
+    #End if
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
@@ -98,6 +124,16 @@ def cam_taylor_diagram(adfobj):
     # LOOP OVER SEASON
     #
     for s in seasons:
+
+        plot_name = plot_loc / f"cam_{s}_TaylorDiag_Mean.{plot_type}"
+        print(f"\t - Plotting Taylor Diagram, {s}")
+
+        # Check redo_plot. If set to True: remove old plot, if it already exists:
+        if (not redo_plot) and plot_name.is_file():
+            continue
+        elif (redo_plot) and plot_name.is_file():
+            plot_name.unlink()
+
         # hold the data in a DataFrame for each case
         # variable | correlation | stddev ratio | bias
         df_template = pd.DataFrame(index=var_list, columns=['corr', 'ratio', 'bias'])
@@ -124,9 +160,12 @@ def cam_taylor_diagram(adfobj):
         # add text with variable names:
         txtstrs = [f"{i+1} - {v}" for i, v in enumerate(var_list)]
         fig.text(0.9, 0.9, "\n".join(txtstrs), va='top')
-        out_file_name = plot_loc / f"amwg_taylor_diagram_{s}.{plot_type}"
-        fig.savefig(out_file_name, bbox_inches='tight')
-        print(f"Taylor Diagram: completed {s}. File: {out_file_name}")
+        fig.savefig(plot_name, bbox_inches='tight')
+        print(f"\t Taylor Diagram: completed {s}. \n\t File: {plot_name}")
+
+    #Notify user that script has ended:
+    print("  ...Taylor Diagrams have been generated successfully.")
+
     return
 
 #
@@ -148,7 +187,6 @@ def vertical_average(fld, ps, acoef, bcoef):
     fld_integrated = np.trapz(fld * pres, x=pres, axis=levaxis)
     return fld_integrated / dp_integrated
 
-
 def find_landmask(adf, casename, location):
     # maybe it's in the climo files, but we might need to look in the history files:
     landfrac_fils = list(Path(location).glob(f"{casename}*_LANDFRAC_*.nc"))
@@ -169,7 +207,7 @@ def find_landmask(adf, casename, location):
         for h in hfils:
             dstmp = xr.open_dataset(h)
             if 'LANDFRAC' in dstmp:
-                print(f"Good news, found LANDFRAC in history file")
+                print(f"\tGood news, found LANDFRAC in history file")
                 return dstmp['LANDFRAC']
             else:
                 k += 1
@@ -177,14 +215,13 @@ def find_landmask(adf, casename, location):
             raise IOError(f"Checked {k} files, but did not find LANDFRAC in any of them.")
     # should not reach past the `if` statement without returning landfrac or raising exception.
 
-
 def get_prect(casename, location, **kwargs):
     # look for prect first:
-    fils = sorted(list(Path(location).glob(f"{casename}*_PRECT_*.nc")))
+    fils = sorted(Path(location).glob(f"{casename}*_PRECT_*.nc"))
     if len(fils) == 0:
-        print("Need to derive PRECT = PRECC + PRECL")
-        fils1 = sorted(list(Path(location).glob(f"{casename}*_PRECC_*.nc")))
-        fils2 = sorted(list(Path(location).glob(f"{casename}*_PRECL_*.nc")))
+        print("\t Need to derive PRECT = PRECC + PRECL")
+        fils1 = sorted(Path(location).glob(f"{casename}*_PRECC_*.nc"))
+        fils2 = sorted(Path(location).glob(f"{casename}*_PRECL_*.nc"))
         if (len(fils1) == 0) or (len(fils2) == 0):
             raise IOError("Could not find PRECC or PRECL")
         else:
@@ -204,7 +241,7 @@ def get_prect(casename, location, **kwargs):
 def get_tropical_land_precip(adf, casename, location, **kwargs):
     landfrac = find_landmask(adf, casename, location)
     if landfrac is None:
-        raise ValueError("No landfrac returned")
+        raise ValueError("\t No landfrac returned")
     prect = get_prect(casename, location)
     # mask to only keep land locations
     prect = xr.DataArray(np.where(landfrac >= .95, prect, np.nan),
@@ -226,6 +263,30 @@ def get_tropical_ocean_precip(adf, casename, location, **kwargs):
                          attrs=prect.attrs)
     return prect.sel(lat=slice(-30,30))
 
+def get_surface_pressure(dset, casename, location):
+
+    #Find surface pressure (PS):
+    if 'PS' in dset.variables:
+        #Just use surface pressure in climo file:
+        ps = dset['PS']
+    else:
+        #Check if surface pressure exists as a separate climo file:
+        fils = sorted(Path(location).glob(f"{casename}*_PS_*.nc"))
+        if (len(fils) == 0):
+            emsg = f"Could not find PS. This is needed as a separate variable if"
+            emsg += " reading time series files directly."
+            raise IOError(emsg)
+        else:
+            if len(fils) == 1:
+                ps_ds = xr.open_dataset(fils[0])
+            else:
+                raise NotImplementedError("Need to deal with mult-file case.")
+        #End if
+        ps = ps_ds['PS']
+    #End if
+
+    #Return values:
+    return ps
 
 def get_var_at_plev(adf, casename, location, variable, plev):
     """
@@ -233,7 +294,12 @@ def get_var_at_plev(adf, casename, location, variable, plev):
 
     """
     dset = _retrieve(adf, variable, casename, location, return_dataset=True)
-    vplev = gc.interp_hybrid_to_pressure(dset['U'], dset['PS'], dset['hyam'], dset['hybm'], new_levels=np.array([100. * plev]), lev_dim='lev')
+
+    # Try and extract surface pressure:
+    ps = get_surface_pressure(dset, casename, location)
+
+    vplev = gc.interp_hybrid_to_pressure(dset['U'], ps, dset['hyam'], dset['hybm'],
+                                         new_levels=np.array([100. * plev]), lev_dim='lev')
     vplev = vplev.squeeze(drop=True).load()
     return vplev
 
@@ -244,7 +310,7 @@ def get_u_at_plev(adf, casename, location):
 
 def get_vertical_average(adf, casename, location, varname):
     '''Collect data from case and use `vertical_average` to get result.'''
-    fils = sorted(list(Path(location).glob(f"{casename}*_{varname}_*.nc")))
+    fils = sorted(Path(location).glob(f"{casename}*_{varname}_*.nc"))
     if (len(fils) == 0):
         raise IOError(f"Could not find {varname}")
     else:
@@ -252,8 +318,10 @@ def get_vertical_average(adf, casename, location, varname):
             ds = xr.open_dataset(fils[0])
         else:
             raise NotImplementedError("Need to deal with mult-file case.")
-    # If the climo file is made by ADF, then PS, hyam, hybm will be with VARIABLE:
-    return vertical_average(ds[varname], ds['PS'], ds['hyam'], ds['hybm'])
+    # Try and extract surface pressure:
+    ps = get_surface_pressure(ds, casename, location)
+    # If the climo file is made by ADF, then hyam and hybm will be with VARIABLE:
+    return vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'])
 
 
 def get_virh(adf, casename, location, **kwargs):
@@ -268,7 +336,7 @@ def get_vit(adf, casename, location, **kwargs):
 
 def get_landt2m(adf, casename, location):
     """Gets TREFHT (T_2m) and removes non-land points."""
-    fils = sorted(list(Path(location).glob(f"{casename}*_TREFHT_*.nc")))
+    fils = sorted(Path(location).glob(f"{casename}*_TREFHT_*.nc"))
     if len(fils) == 0:
         raise IOError(f"TREFHT could not be found in the files.")
     elif len(fils) > 1:
@@ -285,7 +353,7 @@ def get_landt2m(adf, casename, location):
 
 def get_eqpactaux(adf, casename, location):
     """Gets zonal surface wind stress 5S to 5N."""
-    fils = sorted(list(Path(location).glob(f"{casename}*_TAUX_*.nc")))
+    fils = sorted(Path(location).glob(f"{casename}*_TAUX_*.nc"))
     if len(fils) == 0:
         raise IOError(f"TAUX could not be found in the files.")
     elif len(fils) > 1:
@@ -321,7 +389,7 @@ def _retrieve(adfobj, variable, casename, location, return_dataset=False):
     v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress',
                 'U300', 'ColumnRelativeHumidity', 'ColumnTemperature', 'Land2mTemperature']
     if variable not in v_to_derive:
-        fils = sorted(list(Path(location).glob(f"{casename}*_{variable}_*.nc")))
+        fils = sorted(Path(location).glob(f"{casename}*_{variable}_*.nc"))
         if len(fils) == 0:
             raise ValueError(f"something went wrong for variable: {variable}")
         elif len(fils) > 1:

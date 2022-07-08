@@ -1,6 +1,6 @@
 # ADF diagnostics
 
-[![Framework Unit Tests](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml/badge.svg)](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml)
+[![Framework Unit Tests](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml/badge.svg)](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml) [![CC BY 4.0][cc-by-shield]][cc-by]
 
 This repository contains the Atmosphere Diagnostics Framework (ADF) diagnostics python package, which includes numerous different averaging,
 re-gridding, and plotting scripts, most of which are provided by users of CAM itself.
@@ -84,3 +84,13 @@ be posted.  However, feel free to search the forums for similar issues
 
 Good luck, and have a great day!
 
+##
+
+This work is licensed under a
+[Creative Commons Attribution 4.0 International License][cc-by].
+
+[![CC BY 4.0][cc-by-image]][cc-by]
+
+[cc-by]: http://creativecommons.org/licenses/by/4.0/
+[cc-by-image]: https://i.creativecommons.org/l/by/4.0/88x31.png
+[cc-by-shield]: https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg
