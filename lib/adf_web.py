@@ -111,6 +111,12 @@ class AdfWeb(AdfObs):
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
+        #Also extract baseline case (if applicable), and append to case_names list:
+        if not self.compare_obs:
+            baseline_name = self.get_baseline_info('cam_case_name', required=True)
+            #Append baseline to case list:
+            case_names.append(baseline_name)
+        #End if
 
         #Loop over model cases and generate relevant website directories:
         for case_idx, case_name in enumerate(case_names):
@@ -127,6 +133,9 @@ class AdfWeb(AdfObs):
             #Create a directory path that will hold copies of the actual images:
             assets_dir = website_dir / "assets"
 
+            #Create a directory that will hold table html files:
+            table_pages_dir = website_dir / "html_table"
+
             #Specify where CSS files will be stored:
             css_files_dir = website_dir / "templates"
 
@@ -134,6 +143,7 @@ class AdfWeb(AdfObs):
             self.__case_web_paths[case_name] = {'website_dir': website_dir,
                                                 'img_pages_dir': img_pages_dir,
                                                 'assets_dir': assets_dir,
+                                                'table_pages_dir': table_pages_dir,
                                                 'css_files_dir': css_files_dir}
         #End for
         #--------------------------------
@@ -235,14 +245,19 @@ class AdfWeb(AdfObs):
 
         #Create HTML file path variable,
         #which will be used in "create_website":
-        if not data_frame:
+        if data_frame:
+            if web_name == case_name:
+                #This is the case-specific table:
+                html_name = f"amwg_table_{case_name}.html"
+            else:
+                #This is a special table (e.g. case comparison), so use web data name:
+                html_name = f"amwg_table_{web_name}.html"
+            #End if
+            html_file = self.__case_web_paths[case_name]["table_pages_dir"] / html_name
+            asset_path = None
+        else:
             html_name = f'plot_page_{web_data.stem}.html'
-        #End if
-        html_file = self.__case_web_paths[case_name]["img_pages_dir"] / html_name
-
-        #Create new variable to store path to image name in assets directory,
-        #which will be used in "create_webite":
-        if not data_frame:
+            html_file = self.__case_web_paths[case_name]["img_pages_dir"] / html_name
             asset_path = self.__case_web_paths[case_name]['assets_dir'] / web_data.name
         #End if
 
@@ -322,7 +337,7 @@ class AdfWeb(AdfObs):
         plot_type_html = OrderedDict()
         for plot_type in self.__plot_type_order:
             if plot_type == 'Tables':
-                plot_type_html[plot_type] = os.path.join("html_table", f"mean_table.html")
+                plot_type_html[plot_type] = os.path.join("html_table", f"mean_tables.html")
             else:
                 plot_type_html[plot_type] = os.path.join("html_img", f"mean_diag_{plot_type}.html")
             #End if
@@ -350,17 +365,14 @@ class AdfWeb(AdfObs):
         #so that we only had to do the web_data loop once, but for now this will do. -JN
         mean_html_info = OrderedDict()
 
+        #Create another dictionary needed for HTML pages that render tables:
+        table_html_info = OrderedDict()
+
         #Loop over all web data objects:
         for web_data in self.__website_data:
 
             #Create the directory where the website will be built:
             self.__case_web_paths[web_data.case]['website_dir'].mkdir(exist_ok=True)
-
-            #Create a directory that will hold just the html files for individual images:
-            self.__case_web_paths[web_data.case]['img_pages_dir'].mkdir(exist_ok=True)
-
-            #Create a directory that will hold copies of the actual images:
-            self.__case_web_paths[web_data.case]['assets_dir'].mkdir(exist_ok=True)
 
             #Create a directory where CSS files will be stored:
             css_files_dir = self.__case_web_paths[web_data.case]['css_files_dir']
@@ -371,7 +383,23 @@ class AdfWeb(AdfObs):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
             #End for
 
+            if web_data.data_frame:
+
+                #Create a directory that will hold table html files, if a table is present:
+                self.__case_web_paths[web_data.case]['table_pages_dir'].mkdir(exist_ok=True)
+
+                #Add table HTML file to dictionary:
+                #Note:  Need to use data name instead of case name for tables.
+                table_html_info[web_data.name] = web_data.html_file.name
+
             if not web_data.data_frame:
+
+                #Create a directory that will hold just the html files for individual images:
+                self.__case_web_paths[web_data.case]['img_pages_dir'].mkdir(exist_ok=True)
+
+                #Create a directory that will hold copies of the actual images:
+                self.__case_web_paths[web_data.case]['assets_dir'].mkdir(exist_ok=True)
+
                 #Variable is a path to an image file, so first extract file name:
                 img_name = Path(web_data.data.name)
 
@@ -427,17 +455,71 @@ class AdfWeb(AdfObs):
             #End if (data-frame check)
         #End for (web_data list loop)
 
-        #Loop over all web data objects:
+        #Loop over all web data objects again:
         for web_data in self.__website_data:
 
-            if not web_data.data_frame:
+            if web_data.data_frame:
+
+                #Create output HTML file path:
+                table_pages_dir = self.__case_web_paths[web_data.case]['table_pages_dir']
+
+                #Check if plot image already handles multiple cases:
+                if web_data.multi_case:
+                    case1 = "Listed in tables"
+                else:
+                    case1 = web_data.case
+                #End if
+
+                #Write table dataframe HTML as a string:
+                #Note:  One could generate an image file here instead of raw HTML code,
+                #which might be beneficial for colored tables and other more advance
+                #formatting features.
+                table_html = web_data.data.to_html(index=False, border=1, justify='center',
+                                                   float_format='{:,.3g}'.format)
+
+                #Construct amwg_table.html
+                table_tmpl = jinenv.get_template('template_table.html')
+                table_rndr = table_tmpl.render(title=main_title,
+                                  case1=case1,
+                                  case2=data_name,
+                                  amwg_tables=table_html_info,
+                                  plot_types=plot_type_html,
+                                  table_name=web_data.name,
+                                  table_html=table_html
+                                  )
+
+                #Write mean diagnostic tables HTML file:
+                with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
+                    ofil.write(table_rndr)
+                #End with
+
+                #Check if the mean plot type page exists for this case:
+                mean_table_file = table_pages_dir / "mean_tables.html"
+                if not mean_table_file.exists():
+
+                    #Construct mean_table.html
+                    mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
+                    mean_table_rndr = mean_table_tmpl.render(title=main_title,
+                                                             case1=case1,
+                                                             case2=data_name,
+                                                             amwg_tables=table_html_info,
+                                                             plot_types=plot_type_html,
+                                                            )
+
+                    #Write mean diagnostic tables HTML file:
+                    with open(mean_table_file, 'w', encoding='utf-8') as ofil:
+                        ofil.write(mean_table_rndr)
+                    #End with
+                #End if
+
+            else: #Plot image
 
                 #Create output HTML file path:
                 img_pages_dir = self.__case_web_paths[web_data.case]['img_pages_dir']
                 img_data = [os.path.relpath(web_data.asset_path, start=img_pages_dir),
                             web_data.asset_path.stem]
 
-                #Check if plot image already handlse multiple cases:
+                #Check if plot image already handles multiple cases:
                 if web_data.multi_case:
                     case1 = "Listed in plots."
                 else:
@@ -459,7 +541,7 @@ class AdfWeb(AdfObs):
                                    mydata=mean_html_info[web_data.plot_type],
                                    plot_types=plot_type_html) #The template rendered
 
-                #Open HTML file:
+                #Write HTML file:
                 with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
                     ofil.write(rndr)
                 #End with
@@ -477,7 +559,6 @@ class AdfWeb(AdfObs):
 
                     #Construct individual plot type mean_diag html files, if they don't
                     #already exist:
-                    #mean_tmpl = jinenv.get_template(f'template_mean_diag_{web_data.plot_type}.html')
                     mean_tmpl = jinenv.get_template(f'template_mean_diag.html')
                     mean_rndr = mean_tmpl.render(title=main_title,
                                                  case1=case1,
@@ -491,28 +572,27 @@ class AdfWeb(AdfObs):
                         ofil.write(mean_rndr)
                     #End with
                 #End if (mean_ptype exists)
-
-                #Also check if index page exists for this case:
-                index_html_file = \
-                    self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
-
-                if not index_html_file.exists():
-
-                    #Construct index.html
-                    index_title = "AMP Diagnostics Prototype"
-                    index_tmpl = jinenv.get_template('template_index.html')
-                    index_rndr = index_tmpl.render(title=main_title,
-                                                   case1=web_data.case,
-                                                   case2=data_name,
-                                                   #gen_table_html=gen_table_html,
-                                                   plot_types=plot_type_html)
-
-                    #Write Mean diagnostics index HTML file:
-                    with open(index_html_file, 'w', encoding='utf-8') as ofil:
-                        ofil.write(index_rndr)
-                    #End with
-                #End if (mean_index exists)
             #End if (data frame)
+
+            #Also check if index page exists for this case:
+            index_html_file = \
+                self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
+
+            if not index_html_file.exists():
+
+                #Construct index.html
+                index_title = "AMP Diagnostics Prototype"
+                index_tmpl = jinenv.get_template('template_index.html')
+                index_rndr = index_tmpl.render(title=main_title,
+                                               case1=web_data.case,
+                                               case2=data_name,
+                                               plot_types=plot_type_html)
+
+                #Write Mean diagnostics index HTML file:
+                with open(index_html_file, 'w', encoding='utf-8') as ofil:
+                    ofil.write(index_rndr)
+                #End with
+            #End if (mean_index exists)
         #End for (web data loop)
 
         #Notify user that script has finishedd:
@@ -520,112 +600,6 @@ class AdfWeb(AdfObs):
 
         #EVERYTHING BELOW HERE IS TEMPORARILY COMMENTED OUT  FOR TESTING -JN !!!!!!!!!!!!!!!!!!!
         #UNCOMMENT ONCE CODE IS READY FOR DATA FRAMES!!!!!!!!!!!!!!!!!
-
-'''
-
-        #Grab AMWG Table HTML files:
-        table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
-
-        #Grab the comparison table and move it to website dir
-        comp_table_html_file = list(plot_path.glob("*comp.html"))
-
-        #Also grab baseline/obs tables, which are always stored in the first case directory:
-        if case_idx == 0:
-            data_table_html_files = list(plot_path.glob(f"amwg_table_{data_name}*.html"))
-        #End if
-
-        #Determine if any AMWG tables were generated:
-        if table_html_files:
-
-        #Set Table HTML generation logical to "TRUE":
-        gen_table_html = True
-
-                #Create a directory that will hold table html files:
-                table_pages_dir = website_dir / "html_table"
-                table_pages_dir.mkdir(exist_ok=True)
-
-                #Move all case table html files to new directory:
-                for table_html in table_html_files:
-                    shutil.move(table_html, table_pages_dir / table_html.name)
-                #End for
-
-                #copy all data table html files as well:
-                for data_table_html in data_table_html_files:
-                    shutil.copy2(data_table_html, table_pages_dir / data_table_html.name)
-                #End for
-
-                #Construct dictionary needed for HTML page:
-                amwg_tables = OrderedDict()
-
-                for case in [case_name, data_name]:
-
-                    #Search for case name in moved HTML files:
-                    table_htmls = sorted(table_pages_dir.glob(f"amwg_table_{case}.html"))
-
-                    #Check if file exists:
-                    if table_htmls:
-
-                        #Initialize loop counter:
-                        count = 0
-
-                        #Loop over globbed files:
-                        for table_html in table_htmls:
-
-                            #Create relative path for HTML file:
-                            amwg_tables[case] = table_html.name
-
-                            #Update counter:
-                            count += 1
-
-                            #If counter greater than one, then throw an error:
-                            if count > 1:
-                                emsg = f"More than one AMWG table is associated with case '{case}'."
-                                emsg += "\nNot sure what is going on, "
-                                emsg += "\nso website generation will end here."
-                                self.end_diag_fail(emsg)
-                            #End if
-                        #End for (table html file loop)
-                    #End if (table html file exists check)
-                #End for (case vs data)
-
-                #Check if comp table exists
-                #(if not, then obs are being compared and comp table is not created)
-                if comp_table_html_file:
-                    #Move the comparison table html file to new directory
-                    for comp_table in comp_table_html_file:
-                        shutil.move(comp_table, table_pages_dir / comp_table.name)
-                        #Add comparison table to website dictionary
-                        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-                        #This will be for single-case for now,
-                        #will need to think how to change as multi-case is introduced
-                        amwg_tables["Case Comparison"] = comp_table.name
-                        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-                    #End for
-
-                # need this to grab the locations of the amwg tables...
-                amwg_table_data = [str(table_pages_dir / table_html.name), ""]
-
-                #Construct mean_table.html
-                mean_tmpl = jinenv.get_template('template_mean_table.html')
-                mean_rndr = mean_tmpl.render(title=main_title,
-                                value=amwg_table_data,
-                                case1=case_name,
-                                case2=data_name,
-                                amwg_tables=amwg_tables,
-                                plot_types=plot_type_html,
-                                )
-
-                #Write mean diagnostic tables HTML file:
-                outputfile = table_pages_dir / "mean_table.html"
-                with open(outputfile, 'w', encoding='utf-8') as ofil:
-                    ofil.write(mean_rndr)
-                #End with
-            else:
-                #No Tables exist, so no link will be added to main page:
-                gen_table_html = False
-            #End if
-
-'''
 
         #Construct index.html
         #index_title = "AMP Diagnostics Prototype"

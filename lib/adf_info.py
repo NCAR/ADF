@@ -158,7 +158,21 @@ class AdfInfo(AdfConfig):
             #Set the final directory name and save it to plot_location:
             direc_name = f"{case_name}_vs_{data_name}"
             self.__plot_location.append(os.path.join(plot_dir, direc_name))
+
+            #If first iteration, then save directory name for use by baseline:
+            if case_idx == 0:
+                first_case_dir = direc_name
+            #End if
+
         #End for
+
+        #Finally add baseline case (if applicable) for use by the website table
+        #generator.  These files will be stored in the same location as the first
+        #listed case.
+        if not self.compare_obs:
+            self.__plot_location.append(os.path.join(plot_dir, first_case_dir))
+        #End if
+
         #-------------------------------------------------------------------------
 
         #Initialize "num_procs" variable:
