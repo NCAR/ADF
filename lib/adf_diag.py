@@ -17,6 +17,7 @@ import os.path
 import glob
 import subprocess
 import multiprocessing as mp
+import itertools
 
 import importlib
 import copy
@@ -195,7 +196,6 @@ class AdfDiag(AdfObs):
             #Set number of cases to one:
             num_cases = 1
         #End if
-
 
         #Loop over all items in config dict:
         for conf_var, conf_val in self.__cam_climo_info.items():
@@ -484,7 +484,7 @@ class AdfDiag(AdfObs):
             cam_climo_dict = self.__cam_climo_info
 
         #Notify user that script has started:
-        print("  Generating CAM time series files...")
+        print("\n  Generating CAM time series files...")
 
         #Extract case name(s):
         case_names = self.read_config_var('cam_case_name',
@@ -541,6 +541,7 @@ class AdfDiag(AdfObs):
                 emsg += f" for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 continue
+            #End if
 
             print(f"\t Processing time series for case '{case_name}' :")
 
@@ -594,7 +595,7 @@ class AdfDiag(AdfObs):
 
             # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
             if start_year == end_year == "*":
-                files_list = sorted(list(starting_location.glob('*.cam.h0.*.nc')))
+                files_list = sorted(starting_location.glob('*.cam.h0.*.nc'))
             else:
                 #Create empty list:
                 files_list = []
@@ -617,10 +618,63 @@ class AdfDiag(AdfObs):
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
+
+            #Open an xarray dataset from the first model history file:
+            hist_file_ds = xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False)
+
             #Get a list of data variables in the 1st hist file:
-            hist_file_var_list = list(xr.open_dataset(hist_files[0], decode_cf=False, decode_times=False).data_vars)
+            hist_file_var_list = list(hist_file_ds.data_vars)
             #Note: could use `open_mfdataset`, but that can become very slow;
             #      This approach effectively assumes that all files contain the same variables.
+
+            #Check what kind of vertical coordinate (if any) is being used for this model run:
+            #------------------------
+            if 'lev' in hist_file_ds:
+                #Extract vertical level attributes:
+                lev_attrs = hist_file_ds['lev'].attrs
+
+                #First check if there is a "vert_coord" attribute:
+                if 'vert_coord' in lev_attrs:
+                    vert_coord_type = lev_attrs['vert_coord']
+                else:
+                    #Next check that the "long_name" attribute exists:
+                    if 'long_name' in lev_attrs:
+                        #Extract long name:
+                        lev_long_name = lev_attrs['long_name']
+
+                        #Check for "keywords" in the long name:
+                        if 'hybrid level' in lev_long_name:
+                            #Set model to hybrid vertical levels:
+                            vert_coord_type = "hybrid"
+                        elif 'zeta level' in lev_long_name:
+                            #Set model to height (z) vertical levels:
+                            vert_coord_type = "height"
+                        else:
+                            #Print a warning, and assume that no vertical
+                            #level information is needed.
+                            wmsg = "WARNING! Unable to determine the vertical coordinate"
+                            wmsg +=f" type from the 'lev' long name, which is:\n'{lev_long_name}'."
+                            wmsg += "\nNo additional vertical coordinate information will be"
+                            wmsg += " transferred beyond the 'lev' dimension itself."
+                            print(wmsg)
+
+                            vert_coord_type = None
+                        #End if
+                    else:
+                        #Print a warning, and assume hybrid levels (for now):
+                        wmsg = "WARNING!  No long name found for the 'lev' dimension,"
+                        wmsg += " so no additional vertical coordinate information will be"
+                        wmsg += " transferred beyond the 'lev' dimension itself."
+                        print(wmsg)
+
+                        vert_coord_type = None
+                    #End if (long name)
+                #End if (vert_coord)
+            else:
+                #No level dimension found, so assume there is no vertical coordinate:
+                vert_coord_type = None
+            #End if (lev existence)
+            #------------------------
 
             #Check if time series directory exists, and if not, then create it:
             #Use pathlib to create parent directories, if necessary.
@@ -643,8 +697,17 @@ class AdfDiag(AdfObs):
             list_of_commands = []
             for var in self.diag_var_list:
                 if var not in hist_file_var_list:
-                    print(f"WARNING: {var} is not in the file {hist_files[0]}. No time series will be generated.")
+                    msg = f"WARNING: {var} is not in the file {hist_files[0]}."
+                    msg += " No time series will be generated."
+                    print(msg)
                     continue
+
+                #Check if variable has a "lev" dimension according to first file:
+                if 'lev' in hist_file_ds[var].dims:
+                    has_lev = True
+                else:
+                    has_lev = False
+                #End if
 
                 #Create full path name,  file name template:
                 #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
@@ -664,9 +727,28 @@ class AdfDiag(AdfObs):
                 #Notify user of new time series file:
                 print(f"\t - time series for {var}")
 
-                #Run "ncrcat" command to generate time series file:
-                cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},hyam,hybm,hyai,hybi,PS"] + \
-                       hist_files + ["-o", ts_outfil_str]
+                #Determine "ncrcat" command to generate time series file:
+                if has_lev and vert_coord_type:
+                    if vert_coord_type == "hybrid":
+                        cmd = ["ncrcat", "-O", "-4", "-h", "-v",
+                               f"{var},hyam,hybm,hyai,hybi,PS"] + \
+                               hist_files + ["-o", ts_outfil_str]
+                    elif vert_coord_type == "height":
+                        #Adding PMID here works, but significantly increases
+                        #the storage (disk usage) requirements of the ADF.
+                        #This can be alleviated in the future by figuring out
+                        #a way to determine all of the regridding targets at
+                        #the start of the ADF run, and then regridding a single
+                        #PMID file to each one of those targets separately. -JN
+                        cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},PMID,PS"] + \
+                                hist_files + ["-o", ts_outfil_str]
+                    #End if
+                else:
+                    #No vertical coordinate (or no coordinate meta-data),
+                    #so no additional variables needed:
+                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var}"] + \
+                           hist_files + ["-o", ts_outfil_str]
+                #End if
 
                 #Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
@@ -725,7 +807,7 @@ class AdfDiag(AdfObs):
 
         else:
             #If not, then notify user that climo file generation is skipped.
-            print("  No climatology files were requested by user, so averaging will be skipped.")
+            print("\n  No climatology files were requested by user, so averaging will be skipped.")
 
     #########
 
@@ -752,7 +834,7 @@ class AdfDiag(AdfObs):
                                                       # kwargs(dict) and module(str)
 
         if not regrid_func_names or all(func_names is None for func_names in regrid_func_names):
-            print("No regridding options provided, continue.")
+            print("\n  No regridding options provided, continue.")
             return
             # NOTE: if no regridding options provided, we should skip it, but
             #       do we need to still copy (symlink?) files into the regrid directory?
@@ -782,7 +864,7 @@ class AdfDiag(AdfObs):
 
         #If no scripts are listed, then exit routine:
         if not anly_func_names:
-            print("Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
+            print("\n  Nothing listed under 'analysis_scripts', exiting 'perform_analyses' method.")
             return
         #End if
 
@@ -862,7 +944,7 @@ class AdfDiag(AdfObs):
 
         #If no scripts are listed, then exit routine:
         if not plot_func_names:
-            print("Nothing listed under 'plotting_scripts', so no plots will be made.")
+            print("\n  Nothing listed under 'plotting_scripts', so no plots will be made.")
             return
         #End if
 
@@ -938,7 +1020,7 @@ class AdfDiag(AdfObs):
         #End except
 
         #Notify user that script has started:
-        print("  Generating Diagnostics webpages...")
+        print("\n  Generating Diagnostics webpages...")
 
         #Check where the relevant plots are located:
         if self.__plot_location:
@@ -977,18 +1059,72 @@ class AdfDiag(AdfObs):
         #Set preferred order of seasons:
         season_order = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
-        #Set preferred order of plot types:
-        plot_type_order = ["LatLon_Vector_Mean","LatLon_Mean",
-                           "Zonal_Mean", "NHPolar_Mean", "SHPolar_Mean"]
+        # Variable categories
+        var_cat_dict = {
+            'Clouds': {'ACTNI', 'ACTNL', 'ACTREI', 'ACTREL', 'ADRAIN', 'ADSNOW',
+                       'AREI', 'AREL', 'CCN3', 'CDNUMC', 'CLDHGH', 'CLDICE',
+                       'CLDLIQ', 'CLDLOW', 'CLDMED', 'CLDTOT', 'CLOUD', 'CONCLD',
+                       'EVAPPREC', 'EVAPSNOW', 'FCTI', 'FCTL', 'FICE', 'FREQI',
+                       'FREQL', 'FREQR', 'FREQS', 'MPDQ', 'PRECC', 'PRECL',
+                       'PRECSC', 'PRECSL', 'PRECT', 'TGCLDIWP', 'TGCLDLWP'},
+            'Deep Convection': {'CAPE', 'CMFMC_DP', 'FREQZM', 'ZMDQ', 'ZMDT'},
+            'COSP': {'CLDTOT_ISCCP', 'CLIMODIS', 'CLTMODIS', 'CLWMODIS',
+                     'FISCCP1_COSP', 'ICE_ICLD_VISTAU', 'IWPMODIS',
+                     'LIQ_ICLD_VISTAU', 'LWPMODIS', 'MEANCLDALB_ISCCP',
+                     'MEANPTOP_ISCCP', 'MEANTAU_ISCCP', 'MEANTB_ISCCP',
+                     'MEANTBCLR_ISCCP', 'PCTMODIS', 'REFFCLIMODIS', 'REFFCLWMODIS',
+                     'SNOW_ICLD_VISTAU', 'TAUTMODIS', 'TAUWMODIS',
+                     'TOT_CLD_VISTAU', 'TOT_ICLD_VISTAU'},
+            'Budget': {'DCQ', 'DQCORE', 'DTCORE', 'MPDICE', 'MPDLIQ', 'PTEQ'},
+            'Radiation': {'FLNS', 'FLNSC', 'FLNT', 'FLNTC', 'FLUT', 'FSDS',
+                          'FSDSC', 'FSNS', 'FSNSC', 'FSNT', 'FSNTC', 'FSNTOA',
+                          'LHFLX', 'LWCF', 'QRL', 'QRS', 'SHFLX', 'SWCF'},
+            'State': {'OMEGA', 'OMEGA500', 'PINT', 'PMID', 'PS', 'PSL', 'Q',
+                      'RELHUM', 'T', 'U', 'V', 'Z3', 'Wind'},
+            'Surface': {'PBLH', 'QFLX', 'TAUX', 'TAUY', 'TREFHT', 'U10',
+                        'Surface_Wind_Stress'},
+            'GW': {'QTGW', 'UGTW_TOTAL', 'UTGWORO', 'VGTW_TOTAL', 'VTGWORO'},
+            'CLUBB': {'RVMTEND_CLUBB', 'STEND_CLUBB', 'WPRTP_CLUBB', 'WPTHLP_CLUBB'}
+        }
 
-        #Also add pressure level Lat-Lon plots, if applicable:
-        pres_levs = self.get_basic_info("plot_press_levels")
-        if pres_levs:
-            for pres in pres_levs:
-                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Mean")
-                plot_type_order.append(f"Lev_{pres}hpa_LatLon_Vector_Mean")
-            #End for
-        #End if
+        #Set preferred order of plot types:
+        #Make dictionaries for both html paths and plot type names for website
+        #NOTE there may be a better way to do this with an Ordered Dict, but the
+        #polar plot having more than one plot made it tricky.
+        ptype_html_dict = {'global_latlon_map': ['html_img/mean_diag_LatLon.html'],
+                           'zonal_mean': ['html_img/mean_diag_Zonal.html'],
+                           'global_latlon_vect_map': ['html_img/mean_diag_LatLon_Vector.html'],
+                           'polar_map': ['html_img/mean_diag_NHPolar.html',
+                                         'html_img/mean_diag_SHPolar.html'],
+                            'cam_taylor_diagram': ["html_img/mean_diag_TaylorDiag.html"]}
+
+        ptype_order_dict = {'global_latlon_map': ["LatLon"],
+                            'zonal_mean': ["Zonal"],
+                            'global_latlon_vect_map': ["LatLon_Vector"],
+                            'polar_map': ["NHPolar","SHPolar"],
+                            'cam_taylor_diagram': ["TaylorDiag"]}
+
+        #Grab the plot type functions form user
+        plot_func_names = self.__plotting_scripts
+
+        #Since polar has more than one plot type name, make a list of lists
+        #that grab all the paths and names
+        ptype_html = sorted([ptype_html_dict[x] for x in plot_func_names if x in ptype_html_dict])
+        ptype_order = sorted([ptype_order_dict[x] for x in plot_func_names if x in ptype_order_dict])
+
+        #Flatten the list of lists into a regular list
+        ptype_html_list = list(itertools.chain.from_iterable(ptype_html))
+        ptype_order_list = list(itertools.chain.from_iterable(ptype_order))
+
+        if self.compare_obs:
+            if ['TaylorDiag'] in ptype_order:
+                ptype_html_list.remove("html_img/mean_diag_TaylorDiag.html")
+                ptype_order_list.remove("TaylorDiag")
+
+        #Make dictionary for plot type names and html paths
+        plot_type_html = dict(zip(ptype_order_list, ptype_html_list))
+
+        main_title = "CAM Diagnostics"
 
         #Check if any variables are associated with specific vector quantities,
         #and if so then add the vectors to the website variable list.
@@ -1000,6 +1136,56 @@ class AdfDiag(AdfObs):
                 #End if
             #End if
         #End for
+
+        #Extract pressure levels being plotted:
+        pres_levs = self.get_basic_info("plot_press_levels")
+
+        if pres_levs:
+            #Create pressure-level variable dictionary:
+            pres_levs_var_dict = {}
+
+            #Now add variables on pressure levels, if applicable.
+            #Please note that this method is not particularly
+            #efficient as most of these variables won't actually exist:
+            for var in var_list:
+                #Find variable category:
+                category = next((cat for cat, varz in var_cat_dict.items() if var in varz), None)
+
+                #Add variable with pressure levels:
+                #Please note that this method is not particularly
+                #efficient as most of these variables won't actually exist:
+                for pres in pres_levs:
+                    if category:
+                        if category in pres_levs_var_dict:
+                            pres_levs_var_dict[category].append(f"{var}_{pres}hpa")
+                        else:
+                            pres_levs_var_dict[category] = [f"{var}_{pres}hpa"]
+                        #End if
+                    else:
+                        if "none" in pres_levs_var_dict:
+                            pres_levs_var_dict["none"].append(f"{var}_{pres}hpa")
+                        else:
+                            pres_levs_var_dict["none"] = [f"{var}_{pres}hpa"]
+                        #End if
+                    #End if
+                #End for
+            #End for
+
+            #Now loop over pressure variable dictionary:
+            for category, pres_var_names in pres_levs_var_dict.items():
+                #Add pressure-level variable to category if applicable:
+                if category in var_cat_dict:
+                    var_cat_dict[category].update(pres_var_names)
+                #End if
+
+                #Add pressure-level variable to variable list:
+                var_list.extend(pres_var_names)
+
+            #End for
+        #End if
+
+        # add fake "cam" variable to variable list in order to find Taylor diagram plots:
+        var_list.append('cam')
 
         #Set path to Jinja2 template files:
         jinja_template_dir = Path(_LOCAL_PATH, 'website_templates')
@@ -1043,69 +1229,105 @@ class AdfDiag(AdfObs):
                 shutil.copyfile(img, idest) # store image in assets
             #End for
 
-            mean_html_info = OrderedDict()  # this is going to hold the data for building the mean
-                                            # plots provisional structure:
-                                            # key = variable_name
-                                            # values -> dict w/ keys being "TYPE" of plots
-                                            # w/ values being dict w/ keys being TEMPORAL sampling,
-                                            # values being the URL
+            #Loop over plot type:
+            for ptype in ptype_order_list:
+                # this is going to hold the data for building the mean
+                # plots provisional structure:
+                # key = variable_name
+                # values -> dict w/ keys being "TYPE" of plots
+                # w/ values being dict w/ keys being TEMPORAL sampling,
+                # values being the URL
+                mean_html_info = OrderedDict()
 
-            #Loop over variables:
-            for var in var_list_alpha:
-                #Loop over plot type:
-                for ptype in plot_type_order:
+                for var in var_list_alpha:
+                    #Loop over seasons:
+                    for season in season_order:
+
+                        #Create the data that will be fed into the template:
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_Mean*.png"):
+
+                            #Create output file (don't worry about analysis type for now):
+                            outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
+
+                            # Search through all categories and see
+                            # which one the current variable is part of
+                            category = next((cat for cat, varz \
+                                             in var_cat_dict.items() if var in varz), None)
+                            if not category:
+                                category = 'No category yet'
+                            #End if
+
+                            if category not in mean_html_info:
+                                mean_html_info[category] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for variable:
+                            if var not in mean_html_info[category]:
+                                mean_html_info[category][var] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for plot type:
+                            if ptype not in mean_html_info[category][var]:
+                                mean_html_info[category][var][ptype] = OrderedDict()
+
+                            #Initialize Ordered Dictionary for season:
+                            if season not in mean_html_info[category][var][ptype]:
+                                mean_html_info[category][var][ptype][season] = OrderedDict()
+
+                            mean_html_info[category][var][ptype][season] = outputfile.name
+
+                #Loop over variables:
+                for var in var_list_alpha:
                     #Loop over seasons:
                     for season in season_order:
                         #Create the data that will be fed into the template:
-                        for img in assets_dir.glob(f"{var}_{season}_{ptype}.png"):
+                        for img in assets_dir.glob(f"{var}_{season}_{ptype}_Mean*.png"):
                             alt_text  = img.stem #Extract image file name text
 
                             #Create output file (don't worry about analysis type for now):
                             outputfile = img_pages_dir / f'plot_page_{var}_{season}_{ptype}.html'
                             # Hacky - how to get the relative path in a better way?:
                             img_data = [os.pardir+os.sep+assets_dir.name+os.sep+img.name, alt_text]
-                            title = f"Variable: {var}"              #Create title
+
+                            #Create titles
+                            var_title = f"Variable: {var}"
+                            season_title = f"Season: {season}"
+                            plottype_title = f"Plot: {ptype}"
                             tmpl = jinenv.get_template('template.html')  #Set template
-                            rndr = tmpl.render(title=title, value=img_data, case1=case_name,
-                                               case2=data_name) #The template rendered
+                            rndr = tmpl.render(title=main_title,
+                                               var_title=var_title,
+                                               season_title=season_title,
+                                               plottype_title=plottype_title,
+                                               imgs=img_data,
+                                               case1=case_name,
+                                               case2=data_name,
+                                               mydata=mean_html_info,
+                                               plot_types=plot_type_html) #The template rendered
 
                             #Open HTML file:
                             with open(outputfile, 'w', encoding='utf-8') as ofil:
                                 ofil.write(rndr)
                             #End with
 
-                            #Initialize Ordered Dictionary for variable:
-                            if var not in mean_html_info:
-                                mean_html_info[var] = OrderedDict()
-                            #End if
+                            #Construct individual plot type mean_diag html files
+                            mean_tmpl = jinenv.get_template(f'template_mean_diag_{ptype}.html')
+                            mean_rndr = mean_tmpl.render(title=main_title,
+                                            case1=case_name,
+                                            case2=data_name,
+                                            mydata=mean_html_info,
+                                            plot_types=plot_type_html)
 
-                            #Initialize Ordered Dictionary for plot type:
-                            if ptype not in mean_html_info[var]:
-                                mean_html_info[var][ptype] = OrderedDict()
-                            #End if
-
-                            mean_html_info[var][ptype][season] = outputfile.name
+                            #Write mean diagnostic plots HTML file:
+                            outputfile = img_pages_dir / f"mean_diag_{ptype}.html"
+                            with open(outputfile,'w', encoding='utf-8') as ofil:
+                                ofil.write(mean_rndr)
+                            #End with
                         #End for (assests loop)
                     #End for (seasons loop)
-                #End for (plot type loop)
-            #End for (variable loop)
-
-            #Construct mean_diag.html
-            mean_title = "AMP Diagnostic Plots"
-            mean_tmpl = jinenv.get_template('template_mean_diag.html')
-            mean_rndr = mean_tmpl.render(title=mean_title,
-                            case1=case_name,
-                            case2=data_name,
-                            mydata=mean_html_info)
-
-            #Write mean diagnostic plots HTML file:
-            outputfile = img_pages_dir / "mean_diag.html"
-            with open(outputfile, 'w', encoding='utf-8') as ofil:
-                ofil.write(mean_rndr)
-            #End with
 
             #Grab AMWG Table HTML files:
             table_html_files = list(plot_path.glob(f"amwg_table_{case_name}*.html"))
+
+            #Grab the comparison table and move it to website dir
+            comp_table_html_file = list(plot_path.glob("*comp.html"))
 
             #Also grab baseline/obs tables, which are always stored in the first case directory:
             if case_idx == 0:
@@ -1159,37 +1381,59 @@ class AdfDiag(AdfObs):
                             if count > 1:
                                 emsg = f"More than one AMWG table is associated with case '{case}'."
                                 emsg += "\nNot sure what is going on, "
-                                emsg += "so website generation will end here."
+                                emsg += "\nso website generation will end here."
                                 self.end_diag_fail(emsg)
                             #End if
                         #End for (table html file loop)
                     #End if (table html file exists check)
                 #End for (case vs data)
 
+                #Check if comp table exists
+                #(if not, then obs are being compared and comp table is not created)
+                if comp_table_html_file:
+                    #Move the comparison table html file to new directory
+                    for comp_table in comp_table_html_file:
+                        shutil.move(comp_table, table_pages_dir / comp_table.name)
+                        #Add comparison table to website dictionary
+                        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                        #This will be for single-case for now,
+                        #will need to think how to change as multi-case is introduced
+                        amwg_tables["Case Comparison"] = comp_table.name
+                        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                    #End for
+
+                # need this to grab the locations of the amwg tables...
+                amwg_table_data = [str(table_pages_dir / table_html.name), ""]
+
                 #Construct mean_table.html
-                mean_title = "AMP Diagnostic Tables:"
                 mean_tmpl = jinenv.get_template('template_mean_table.html')
-                mean_rndr = mean_tmpl.render(title=mean_title,
-                                amwg_tables=amwg_tables)
+                mean_rndr = mean_tmpl.render(title=main_title,
+                                value=amwg_table_data,
+                                case1=case_name,
+                                case2=data_name,
+                                amwg_tables=amwg_tables,
+                                plot_types=plot_type_html,
+                                )
 
                 #Write mean diagnostic tables HTML file:
                 outputfile = table_pages_dir / "mean_table.html"
                 with open(outputfile, 'w', encoding='utf-8') as ofil:
                     ofil.write(mean_rndr)
                 #End with
-
             else:
                 #No Tables exist, so no link will be added to main page:
                 gen_table_html = False
             #End if
 
             #Construct index.html
-            index_title = "AMP Diagnostics Prototype"
+            #index_title = "AMP Diagnostics Prototype"
             index_tmpl = jinenv.get_template('template_index.html')
-            index_rndr = index_tmpl.render(title=index_title,
+            index_rndr = index_tmpl.render(title=main_title,
                              case1=case_name,
                              case2=data_name,
-                             gen_table_html=gen_table_html)
+                             gen_table_html=gen_table_html,
+                             plot_types=plot_type_html,
+                             )
 
             #Write Mean diagnostics HTML file:
             outputfile = website_dir / "index.html"
@@ -1207,7 +1451,6 @@ class AdfDiag(AdfObs):
                     shutil.copytree(css_files_dir, main_site_path / "templates")
                 #End if
             #End if
-
         #End for (model case loop)
 
         #Create multi-case site, if needed:
@@ -1215,7 +1458,8 @@ class AdfDiag(AdfObs):
             main_title = "ADF Diagnostics"
             main_tmpl = jinenv.get_template('template_multi_case_index.html')
             main_rndr = main_tmpl.render(title=main_title,
-                            case_sites=case_sites)
+                            case_sites=case_sites,
+                            )
             #Write multi-case main HTML file:
             outputfile = main_site_path / "index.html"
             with open(outputfile, 'w', encoding='utf-8') as ofil:

@@ -27,7 +27,9 @@ def qbo(adfobj):
 
     Isla Simpson (islas@ucar.edu) 22nd March 2022
 
-    """
+    """   
+ #Notify user that script has started:
+    print("\n  Generating qbo plots...")
 
     #Extract relevant info from the ADF:
     case_name = adfobj.get_cam_info('cam_case_name', required=True)
@@ -37,6 +39,11 @@ def qbo(adfobj):
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
     plot_locations = adfobj.plot_location
     plot_type = adfobj.get_basic_info('plot_type')
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
     if not plot_type:
         plot_type = 'png'
     #End if
@@ -51,6 +58,30 @@ def qbo(adfobj):
         return
     #End if
 
+    #Set path for QBO figures:
+    plot_loc_ts  = Path(plot_locations[0]) / f'QBOts.{plot_type}'
+    plot_loc_amp = Path(plot_locations[0]) / f'QBOamp.{plot_type}'
+
+    #Until a multi-case plot directory exists, let user know
+    #that the QBO plot will be kept in the first case directory:
+    print(f"\t QBO plots will be saved here: {plot_locations[0]}")
+
+    # Check redo_plot. If set to True: remove old plots, if they already exist:
+    if (not redo_plot) and plot_loc_ts.is_file() and plot_loc_amp.is_file():
+        return
+    elif (redo_plot):
+        if plot_loc_ts.is_file():
+            plot_loc_ts.unlink()
+        if plot_loc_amp.is_file():
+            plot_loc_amp.unlink()
+    #End if
+
+    #Check if model vs model run, and if so, append baseline to case lists:
+    if not adfobj.compare_obs:
+        case_loc.append(base_loc)
+        case_name.append(base_name)
+    #End if
+
     #----Read in the OBS (ERA5, 5S-5N average already
     obs = xr.open_dataset(obsdir+"/U_ERA5_5S_5N_1979_2019.nc").U_5S_5N
 
@@ -58,26 +89,27 @@ def qbo(adfobj):
     ncases = len(case_loc)
     casedat = [ _load_dataset(case_loc[i], case_name[i],'U') for i in range(0,ncases,1) ]
 
-    if not adfobj.compare_obs:
-        basedat = _load_dataset(base_loc, base_name,'U')
+    #Find indices for all case datasets that don't contain a zonal wind field (U):
+    bad_idxs = []
+    for idx, dat in enumerate(casedat):
+        if 'U' not in dat.variables:
+            warngings.warn(f"QBO: case {case_name[i]} contains no 'U' field, skipping...")
+            bad_idxs.append(idx)
+        #End if
+    #End for
+
+    #Pare list down to cases that actually contain a zonal wind field (U):
+    if bad_idxs:
+        for bad_idx in bad_idxs:
+            casedat.pop(bad_idx)
+        #End for
+    #End if
 
     #----Calculate the zonal mean
     casedatzm = [ casedat[i].U.mean("lon") for i in range(0,ncases,1) ]
 
-    if not adfobj.compare_obs:
-        basedatzm = basedat.U.mean("lon")
-
     #----Calculate the 5S-5N average
     casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]
-
-    if not adfobj.compare_obs:
-        basedat_5S_5N = cosweightlat(basedatzm,-5,5)
-
-    #----Add baseline run to list of cases if present
-    if not adfobj.compare_obs:
-        casedat_5S_5N.append(basedat_5S_5N)
-        case_name.append(base_name)
-        ncases += 1
 
     #----Find the minimum number of years across dataset for plotting the timeseries.
     nyobs = np.floor(obs.time.size/12.)
@@ -105,14 +137,6 @@ def qbo(adfobj):
 
     ax = plotcolorbar(fig, x1[0]+0.2, x2[2]-0.2,y1[casecount]-0.035,y1[casecount]-0.03)
 
-    #Set path for QBO figures:
-    plot_loc_ts  = Path(plot_locations[0]) / f'QBOts.{plot_type}'
-    plot_loc_amp = Path(plot_locations[0]) / f'QBOamp.{plot_type}'
-
-    #Until a multi-case plot directory exists, let user know
-    #that the QBO plot will be kept in the first case directory:
-    print(f"QBO plots will be saved here: {plot_locations[0]}")
-
     #Save figure to file:
     fig.savefig(plot_loc_ts, bbox_inches='tight', facecolor='white')
     #-----------------
@@ -138,7 +162,11 @@ def qbo(adfobj):
 
     ax.legend(loc='upper left')
     fig.savefig(plot_loc_amp, bbox_inches='tight', facecolor='white')
+
     #-------------------
+
+    #Notify user that script has ended:
+    print("  ...QBO plots have been generated successfully.")
 
     #End QBO plotting script:
     return
@@ -162,9 +190,9 @@ def _load_dataset(data_loc, case_name, variable, other_name=None):
     # a hack here: ADF uses different file names for "reference" case and regridded model data,
     # - try the longer name first (regridded), then try the shorter name
 
-    fils = sorted(dloc.glob(f"{case_name}.*.{variable}.nc"))
+    fils = sorted(dloc.glob(f"{case_name}.*.{variable}.*.nc"))
     if (len(fils) == 0):
-        warnings.warn("Input file list is empty.")
+        warnings.warn("QBO: Input file list is empty.")
         return None
     elif (len(fils) > 1):
         return xr.open_mfdataset(fils, combine='by_coords')
