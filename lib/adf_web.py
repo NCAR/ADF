@@ -316,8 +316,6 @@ class AdfWeb(AdfObs):
 
         #import needed standard modules:
         import shutil
-        import itertools
-        import copy
         from collections import OrderedDict
 
         #Import "special" modules:
@@ -347,9 +345,6 @@ class AdfWeb(AdfObs):
 
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
-
-        #Extract variable list:
-        var_list = self.diag_var_list
 
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
@@ -403,8 +398,10 @@ class AdfWeb(AdfObs):
         # values -> dict w/ keys being "TYPE" of plots
         # w/ values being dict w/ keys being TEMPORAL sampling,
         # values being the URL
-        #Note: It might be better if the "mean_html_info" dictionary was created in the "add_website_data",
-        #so that we only had to do the web_data loop once, but for now this will do. -JN
+        #Note: It might be better if the "mean_html_info"
+        #dictionary was created in the "add_website_data",
+        #so that we only had to do the web_data loop once,
+        #but for now this will do. -JN
         mean_html_info = OrderedDict()
 
         #Create another dictionary needed for HTML pages that render tables:
@@ -445,9 +442,6 @@ class AdfWeb(AdfObs):
 
                 #Create a directory that will hold copies of the actual images:
                 self.__case_web_paths[web_data.case]['assets_dir'].mkdir(exist_ok=True)
-
-                #Variable is a path to an image file, so first extract file name:
-                img_name = Path(web_data.data.name)
 
                 #Move file to assets directory:
                 shutil.copy(web_data.data, web_data.asset_path)
@@ -607,7 +601,7 @@ class AdfWeb(AdfObs):
 
                     #Construct individual plot type mean_diag html files, if they don't
                     #already exist:
-                    mean_tmpl = jinenv.get_template(f'template_mean_diag.html')
+                    mean_tmpl = jinenv.get_template('template_mean_diag.html')
                     mean_rndr = mean_tmpl.render(title=main_title,
                                                  case1=case1,
                                                  case2=data_name,
@@ -638,7 +632,7 @@ class AdfWeb(AdfObs):
                 #Construct index.html
                 index_title = "AMP Diagnostics Prototype"
                 index_tmpl = jinenv.get_template('template_index.html')
-                index_rndr = index_tmpl.render(title=main_title,
+                index_rndr = index_tmpl.render(title=index_title,
                                                case1=web_data.case,
                                                case2=data_name,
                                                plot_types=plot_types)
