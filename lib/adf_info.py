@@ -79,20 +79,20 @@ class AdfInfo(AdfConfig):
         if isinstance(self.get_cam_info("cam_case_name", required=True), list):
 
             #Extract total number of test cases:
-            num_cases = len(self.get_cam_info("cam_case_name"))
+            self.__num_cases = len(self.get_cam_info("cam_case_name"))
 
         else:
             #Set number of cases to one:
-            num_cases = 1
+            self.__num_cases = 1
         #End if
 
         #Loop over all items in config dict:
         for conf_var, conf_val in self.__cam_climo_info.items():
             if isinstance(conf_val, list):
                 #If a list, then make sure it is has the correct number of entries:
-                if not len(conf_val) == num_cases:
+                if not len(conf_val) == self.__num_cases:
                     emsg = f"diag_cam_climo config variable '{conf_var}' should have"
-                    emsg += f" {num_cases} entries, instead it has {len(conf_val)}"
+                    emsg += f" {self.__num_cases} entries, instead it has {len(conf_val)}"
                     self.end_diag_fail(emsg)
             else:
                 #If not a list, then convert it to one:
@@ -240,6 +240,12 @@ class AdfInfo(AdfConfig):
     def compare_obs(self):
         """Return the "compare_obs" logical to the user if requested."""
         return self.__compare_obs
+
+    # Create property needed to return the number of test cases (num_cases) to user:
+    @property
+    def num_cases(self):
+        """Return the "num_cases" integer value to the user if requested."""
+        return self.__num_cases
 
     # Create property needed to return "diag_var_list" list to user:
     @property
