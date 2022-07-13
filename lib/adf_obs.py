@@ -68,7 +68,7 @@ class AdfObs(AdfInfo):
         #-----------------------------------------
         if self.__use_defaults:
             #Determine whether to use adf defaults or custom:
-            _defaults_file = self.get_basic_info('custom_defaults')
+            _defaults_file = self.get_basic_info('defaults_file')
             if _defaults_file is None:
                 _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
 
@@ -95,7 +95,7 @@ class AdfObs(AdfInfo):
         #Check that a variable defaults file exists (as it is currently needed to extract obs data):
         if not self.__variable_defaults:
             #Determine whether to use adf defaults or custom:
-            _defaults_file = self.read_config_var('custom_defaults', conf_dict=_basic_info)
+            _defaults_file = self.get_basic_info('defaults_file')
             if _defaults_file is None:
                 _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
 
