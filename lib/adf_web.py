@@ -330,11 +330,8 @@ class AdfWeb(AdfObs):
         #Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
 
-        #Extract plot_location:
-        plot_location = self.plot_location
-
-        #If there is more than one plot location, then create new website directory:
-        if len(plot_location) > 1:
+        #If there is more than one non-baseline case, then create new website directory:
+        if self.num_cases > 1:
             main_site_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
             main_site_path = main_site_path / "main_website"
             main_site_path.mkdir(exist_ok=True)
@@ -378,6 +375,9 @@ class AdfWeb(AdfObs):
                                                                    f"mean_diag_{plot_type}.html")
                 #End if
             #End for
+        else:
+            #Set to match standard plot type dict:
+            multi_plot_type_html = plot_type_html
         #End if
 
         #Set main title for website:
