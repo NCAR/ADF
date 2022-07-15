@@ -1,5 +1,5 @@
 #==============================
-#config_cam_baseline.yaml
+#config_cam_baseline_example.yaml
 
 #This is the main CAM diagnostics config file
 #for doing comparisons of a CAM run against
@@ -50,6 +50,16 @@
 #--------------------
 #
 ##==============================
+#
+# This file doesn't (yet) read environment variables, so the user must
+# set this themselves. It is also a good idea to search the doc for 'user'
+# to see what default paths are being set for output/working files.
+#
+# Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
+# to check for a failure to customize
+#
+user: 'USER-NAME-NOT-SET'
+
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -71,7 +81,7 @@ diag_basic_info:
     obs_data_loc: /glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
-    cam_regrid_loc: /some/where/you/want/to/have/regridded_files #MUST EDIT!
+    cam_regrid_loc: /glade/scratch/${user}/ADF/regrid
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
@@ -79,7 +89,7 @@ diag_basic_info:
     cam_overwrite_regrid: false
 
     #Location where diagnostic plots are stored:
-    cam_diag_plot_loc: /some/where/you/want/to/have/diag_plots #MUST EDIT!
+    cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
 
     #Use default variable plot settings?
     #If "true", then variable-specific plotting attributes as defined in
@@ -136,10 +146,11 @@ diag_cam_climo:
     cam_case_name: b.e20.BHIST.f09_g17.20thC.297_05
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05/
+    #Example test files
+    cam_hist_loc: /glade/p/cesm/ADF/${diag_cam_climo.cam_case_name}
 
-    #Location of CAM climatologies:
-    cam_climo_loc: /some/where/you/want/to/have/climo_files/ #MUST EDIT!
+    #Location of CAM climatologies (to be created and then used by this script)
+    cam_climo_loc: /glade/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
@@ -158,7 +169,8 @@ diag_cam_climo:
     cam_ts_done: false
 
     #Save interim time series files?
-    #WARNING:  This can take up a significant amount of space:
+    #WARNING:  This can take up a significant amount of space, 
+       #          but will save processing time the next time
     cam_ts_save: true
 
     #Overwrite time series files, if found?
@@ -166,7 +178,7 @@ diag_cam_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /some/where/you/want/to/have/time_series_files/ #MUST EDIT!
+    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts 
 
     #----------------------
 
@@ -242,10 +254,11 @@ diag_cam_baseline_climo:
     cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
 
     #Location of CAM baseline history (h0) files:
-    cam_hist_loc: /glade/p/cesm/ADF/b.e20.BHIST.f09_g16.20thC.125.02/
+    #Example test files
+    cam_hist_loc: /glade/p/cesm/ADF/${diag_cam_baseline_climo.cam_case_name}
 
     #Location of baseline CAM climatologies:
-    cam_climo_loc: /some/where/you/want/to/have/baseline_climo_files/ #MUST EDIT!
+    cam_climo_loc: /glade/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/climo
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
@@ -272,7 +285,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /some/where/you/want/to/have/baseline_time_series_files/ #MUST EDIT!
+    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts 
 
 #This fourth set of variables provides settings for calling the Climate Variability
 # Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
