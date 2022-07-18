@@ -116,9 +116,13 @@ def amwg_table(adf):
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
 
-        #Append to case list:
-        case_names.append(baseline_name)
-        input_ts_locs.append(input_ts_baseline)
+        if "CMIP" in baseline_name:
+            print("CMIP files detected, skipping AMWG table (for now)...")
+
+        else:
+            #Append to case list:
+            case_names.append(baseline_name)
+            input_ts_locs.append(input_ts_baseline)
 
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
@@ -302,10 +306,14 @@ def amwg_table(adf):
 
     #Check if observations are being comapred to, if so skip table comparison...
     if not adf.get_basic_info("compare_obs"):
-        #Create comparison table for both cases
-        print("\n  Making comparison table...")
-        _df_comp_table(adf, output_location, case_names)
-        print("  ... Comparison table has been generated successfully")
+        if "CMIP" in baseline_name:
+            print("CMIP case detected, skipping comparison table...")
+        else:
+            #Create comparison table for both cases
+            print("\n  Making comparison table...")
+            _df_comp_table(adf, output_location, case_names)
+            print("  ... Comparison table has been generated successfully")
+        #End if
     else:
         print(" Comparison table currently doesn't work with obs, so skipping...")
     #End if
