@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ADF Mean Tables</title>
+    <link rel="stylesheet" href="../templates/adf_diag.css">
+  </head>
+  <body >
+
+    <nav role="navigation" class="primary-navigation">
+      <ul>
+        <li><a href="../index.html">Case Home</a></li>
+        <li><a href="#">Links &dtrif;</a>
+          <ul class="dropdown">
+            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+          </ul>
+        </li>
+        <li><a href="https://github.com/NCAR/ADF">About</a></li>
+        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+      </ul>
+    </nav>
+
+    <h1> {{title}} </h1>
+    <h2> Test Case: {{case1}}</h2>
+    <h2> Control Case: {{case2}}</h2>
+
+    <h2>Plot Types:
+      {% for type, html_file in plot_types.items() %}
+      {% if type == "Tables" %}
+      <a style="color: black; font-weight: bold;"> &nbsp; {{type}}</a>
+      {% else %}
+      <a href=../{{html_file}}> &nbsp; {{type}}</a>
+      {% endif %}
+      {% endfor %}
+    </h2>
+
+    <div style="width: 100%;">
+        <table class="big-table">
+          {% for case_name, html_file in amwg_tables.items() %}
+            <tr>
+              <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
+            </tr>
+          {% endfor %}
+        </table>
+    </div>
+
+  </body>
+</html>

@@ -331,6 +331,7 @@ plotting_scripts:
     - zonal_mean
     - polar_map
     - cam_taylor_diagram
+    - qbo
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
