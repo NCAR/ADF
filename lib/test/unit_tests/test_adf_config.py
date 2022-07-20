@@ -59,9 +59,9 @@ class AdfConfigTestRoutine(unittest.TestCase):
         check_user_expected = 'USER-NAME-NOT-SET'
         self.assertEqual(check_user, check_user_expected)
 
-#        cam_case_name_val = adf_test.read_config_var("cam_regrid_loc", conf_dict=basic_diag_dict)
+        obs_data_loc = adf_test.read_config_var("obs_data_loc", conf_dict=basic_diag_dict)
 
-#        self.assertEqual(cam_case_name_val, "/some/where/you/want/to/have/regridded_files")
+        self.assertEqual(obs_data_loc, "/glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs")
 
     #####
 
