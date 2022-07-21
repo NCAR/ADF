@@ -27,7 +27,7 @@ def qbo(adfobj):
 
     Isla Simpson (islas@ucar.edu) 22nd March 2022
 
-    """   
+    """
  #Notify user that script has started:
     print("\n  Generating qbo plots...")
 
@@ -68,6 +68,11 @@ def qbo(adfobj):
 
     # Check redo_plot. If set to True: remove old plots, if they already exist:
     if (not redo_plot) and plot_loc_ts.is_file() and plot_loc_amp.is_file():
+        #Add already-existing plot to website (if enabled):
+        adfobj.add_website_data(plot_loc_ts, "QBO", None, season="QBOts", multi_case=True)
+        adfobj.add_website_data(plot_loc_amp, "QBO", None, season="QBOamp", multi_case=True)
+
+        #Continue to next iteration:
         return
     elif (redo_plot):
         if plot_loc_ts.is_file():
@@ -139,6 +144,10 @@ def qbo(adfobj):
 
     #Save figure to file:
     fig.savefig(plot_loc_ts, bbox_inches='tight', facecolor='white')
+
+    #Add plot to website (if enabled):
+    adfobj.add_website_data(plot_loc_ts, "QBO", None, season="QBOts", multi_case=True)
+
     #-----------------
 
     #---Dunkerton and Delisi QBO amplitude
@@ -162,6 +171,9 @@ def qbo(adfobj):
 
     ax.legend(loc='upper left')
     fig.savefig(plot_loc_amp, bbox_inches='tight', facecolor='white')
+
+    #Add plot to website (if enabled):
+    adfobj.add_website_data(plot_loc_amp, "QBO", None, season="QBOamp", multi_case=True)
 
     #-------------------
 
