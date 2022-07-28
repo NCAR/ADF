@@ -130,6 +130,10 @@ def cam_taylor_diagram(adfobj):
 
         # Check redo_plot. If set to True: remove old plot, if it already exists:
         if (not redo_plot) and plot_name.is_file():
+            #Add already-existing plot to website (if enabled):
+            adfobj.add_website_data(plot_name, "Taylor Diagram", None, season=s, multi_case=True)
+
+            #Continue to next iteration:
             continue
         elif (redo_plot) and plot_name.is_file():
             plot_name.unlink()
@@ -162,6 +166,9 @@ def cam_taylor_diagram(adfobj):
         fig.text(0.9, 0.9, "\n".join(txtstrs), va='top')
         fig.savefig(plot_name, bbox_inches='tight')
         print(f"\t Taylor Diagram: completed {s}. \n\t File: {plot_name}")
+
+        #Add plot to website (if enabled):
+        adfobj.add_website_data(plot_name, "Taylor Diagram", None, season=s, multi_case=True)
 
     #Notify user that script has ended:
     print("  ...Taylor Diagrams have been generated successfully.")

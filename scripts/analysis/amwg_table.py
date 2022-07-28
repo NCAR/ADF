@@ -21,7 +21,6 @@ def amwg_table(adf):
     case_names      -> Name(s) of CAM case provided by "cam_case_name"
     input_ts_locs   -> Location(s) of CAM time series files provided by "cam_ts_loc"
     output_loc      -> Location to write AMWG table files to, provided by "cam_diag_plot_loc"
-    write_html      -> Logical for whether HTML code is generated to display the table.
     var_list        -> List of CAM output variables provided by "diag_var_list"
 
     and if doing a CAM baseline comparison:
@@ -101,7 +100,6 @@ def amwg_table(adf):
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
-    write_html = adf.get_basic_info("create_html")
     var_list   = adf.diag_var_list
 
     #Special ADF variable which contains the output paths for
@@ -118,9 +116,13 @@ def amwg_table(adf):
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
 
-        #Append to case list:
-        case_names.append(baseline_name)
-        input_ts_locs.append(input_ts_baseline)
+        if "CMIP" in baseline_name:
+            print("CMIP files detected, skipping AMWG table (for now)...")
+
+        else:
+            #Append to case list:
+            case_names.append(baseline_name)
+            input_ts_locs.append(input_ts_baseline)
 
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
@@ -153,17 +155,9 @@ def amwg_table(adf):
         #Create output file name:
         output_csv_file = output_location / f"amwg_table_{case_name}.csv"
 
-        #Create HTML output file name as well, if needed:
-        if write_html:
-            output_html_file = output_location / f"amwg_table_{case_name}.html"
-
         #Given that this is a final, user-facing analysis, go ahead and re-do it every time:
         if Path(output_csv_file).is_file():
             Path.unlink(output_csv_file)
-
-        if write_html:
-            if Path(output_html_file).is_file():
-                Path.unlink(output_html_file)
 
         #Save case name as a new key in the RESTOM dictonary:
         restom_dict[case_name] = {}
@@ -259,10 +253,6 @@ def amwg_table(adf):
             else:
                 df.to_csv(output_csv_file, header=cols, index=False)
 
-            # last step is to write the html file; overwrites previous version since we're supposed to be adding to it
-            if write_html:
-                _write_html(output_csv_file, output_html_file,case_name,case_names)
-
         #End of var_list loop
         #--------------------
 
@@ -302,13 +292,16 @@ def amwg_table(adf):
                 df.to_csv(output_csv_file, mode='a', header=False, index=False)
             else:
                 df.to_csv(output_csv_file, header=cols, index=False)
+            #End if
 
-            # last step is to write the html file; overwrites previous version since we're supposed to be adding to it
-            if write_html:
-                _write_html(output_csv_file, output_html_file,case_name,case_names)
         else:
             #Print message to debug log:
             adf.debug_log("RESTOM not calculated because FSNT and/or FLNT variables not in dataset")
+        #End if
+
+        # last step is to add table dataframe to website (if enabled):
+        table_df = pd.read_csv(output_csv_file)
+        adf.add_website_data(table_df, case_name, case_name, plot_type="Tables")
 
     #End of model case loop
     #----------------------
@@ -319,10 +312,14 @@ def amwg_table(adf):
 
     #Check if observations are being comapred to, if so skip table comparison...
     if not adf.get_basic_info("compare_obs"):
-        #Create comparison table for both cases
-        print("\n  Making comparison table...")
-        _df_comp_table(write_html,output_location,case_names)
-        print("  ... Comparison table has been generated successfully")
+        if "CMIP" in baseline_name:
+            print("CMIP case detected, skipping comparison table...")
+        else:
+            #Create comparison table for both cases
+            print("\n  Making comparison table...")
+            _df_comp_table(adf, output_location, case_names)
+            print("  ... Comparison table has been generated successfully")
+        #End if
     else:
         print(" Comparison table currently doesn't work with obs, so skipping...")
     #End if
@@ -398,6 +395,7 @@ def _write_html(f, out,case_name,case_name_list):
 
 
 def _df_comp_table(write_html,output_location,case_names):
+
     import pandas as pd
 
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
@@ -426,37 +424,8 @@ def _df_comp_table(write_html,output_location,case_names):
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
-    #Create HTML output file name as well, if needed:
-    if write_html:
-        output_html_file_comp = output_location / "amwg_table_comp.html"
-    else:
-        #No website is being generated, so exit funcion here:
-        return
-
-    html = df_comp.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
-
-    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
-    <nav role="navigation" class="primary-navigation">
-      <ul>
-        <li><a href="../index.html">Case Home</a></li>
-        <li><a href="../html_table/mean_table.html">Case Tables</a></li>
-        <li><a href="#">Links &dtrif;</a>
-          <ul class="dropdown">
-            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-          </ul>
-        </li>
-        <li><a href="https://github.com/NCAR/ADF">About</a></li>
-        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-      </ul>
-    </nav><h1>CAM Diagnostics</h1><h2>AMWG Case Comparison</h2><h2>Test Case: {case_names[0]}<br/>Control Case: {case_names[-1]}</h2>"""
-
-    ending = """</body></html>"""
-    with open(output_html_file_comp, 'w') as hfil:
-        hfil.write(preamble)
-        hfil.write(html)
-        hfil.write(ending)
+    #Add comparison table dataframe to website (if enabled):
+    adf.add_website_data(df_comp, "Case Comparison", case_names[0], plot_type="Tables")
 
 ##############
 #END OF SCRIPT

@@ -30,6 +30,7 @@
 # obs_var_name -> Variable in the observations file to compare against.  If this isn't present then the
 #                 variable name is assumed to be the same as the model variable name.
 #
+#
 # VECTORS:
 #
 # vector_pair  -> Another variable that when combined with the given variable makes up a vector pair.
@@ -37,6 +38,12 @@
 #                 component, and will thus be skipped during the vector plotting phase.
 # vector_name  -> The name of the vector the variable is associated with, which will be used to
 #                 title the respective vector plot(s).
+#
+#
+# WEBSITE:
+#
+# category  -> The website category the variable will be placed under.
+#
 #
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
 #              If you would like to modify this file for your personal ADF runs then it is recommended
@@ -56,6 +63,7 @@ PSL:
   mpl:
     colorbar:
       label : "hPa"
+  category: "State"
 
 PS:
   colormap: "Oranges"
@@ -71,6 +79,31 @@ PS:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "PS"
+  category: "State"
+
+ACTNI:
+  category: "Clouds"
+
+ACTNL:
+  category: "Clouds"
+
+ACTREI:
+  category: "Clouds"
+
+ACTREL:
+  category: "Clouds"
+
+ADRAIN:
+  category: "Clouds"
+
+ADSNOW:
+  category: "Clouds"
+
+AREI:
+  category: "Clouds"
+
+AREL:
+  category: "Clouds"
 
 PRECC:
   colormap: "Greens"
@@ -79,10 +112,20 @@ PRECC:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm/d"
+  new_unit: "mm d$^{-1}$"
   mpl:
     colorbar:
       label : "mm/d"
+  category: "Clouds"
+
+PRECL:
+  category: "Clouds"
+
+PRECSC:
+  category: "Clouds"
+
+PRECSL:
+  category: "Clouds"
 
 PRECT:
   colormap: "Blues"
@@ -98,6 +141,7 @@ PRECT:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "PRECT"
+  category: "Clouds"
 
 TGCLDLWP:
   colormap: "Blues"
@@ -110,6 +154,7 @@ TGCLDLWP:
   mpl:
     colorbar:
       label : "g m$^{-2}$"
+  category: "Clouds"
 
 TGCLDIWP:
   colormap: "Blues"
@@ -122,6 +167,22 @@ TGCLDIWP:
   mpl:
     colorbar:
       label : "g m$^{-2}$"
+  category: "Clouds"
+
+CCN3:
+  category: "Clouds"
+
+CDNUMC:
+  category: "Clouds"
+
+CLDICE:
+  category: "Clouds"
+
+CLDLIQ:
+  category: "Clouds"
+
+CONCLD:
+  category: "Clouds"
 
 CLDTOT:
   colormap: "Oranges"
@@ -134,6 +195,7 @@ CLDTOT:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "CLDTOT"
+  category: "Clouds"
 
 CLDLOW:
   colormap: "Oranges"
@@ -146,6 +208,7 @@ CLDLOW:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "CLDLOW"
+  category: "Clouds"
 
 CLDHGH:
   colormap: "Oranges"
@@ -158,6 +221,7 @@ CLDHGH:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "CLDHGH"
+  category: "Clouds"
 
 CLDMED:
   colormap: "Oranges"
@@ -170,18 +234,7 @@ CLDMED:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "CLDMED"
-
-TMQ:
-  colormap: "Oranges"
-  contour_levels_range: [0, 75.0, 5.0]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-10, 10, 0.5]
-  scale_factor: 1.
-  add_offset: 0
-  new_unit: "kg m$^{-2}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "PREH2O"
+  category: "Clouds"
 
 CLOUD:
   colormap: "Blues"
@@ -194,6 +247,50 @@ CLOUD:
   mpl:
     colorbar:
       label : "Percent"
+  category: "Clouds"
+
+EVAPPREC:
+  category: "Clouds"
+
+EVAPSNOW:
+  category: "Clouds"
+
+FCTL:
+  category: "Clouds"
+
+FCTL:
+  category: "Clouds"
+
+FICE:
+  category: "Clouds"
+
+FREQI:
+  category: "Clouds"
+
+FREQL:
+  category: "Clouds"
+
+FREQR:
+  category: "Clouds"
+
+FREQS:
+  category: "Clouds"
+
+MPDQ:
+  category: "Clouds"
+
+TMQ:
+  colormap: "Oranges"
+  contour_levels_range: [0, 75.0, 5.0]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "kg m$^{-2}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"
+  obs_var_name: "PREH2O"
+  category: "State"
 
 RELHUM:
   colormap: "Blues"
@@ -209,6 +306,7 @@ RELHUM:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "RELHUM"
+  category: "State"
 
 U:
   colormap: "Blues"
@@ -226,6 +324,7 @@ U:
   obs_var_name: "U"
   vector_pair: "V"
   vector_name: "Wind"
+  category: "State"
 
 V:
   colormap: "Blues"
@@ -243,14 +342,53 @@ V:
   obs_var_name: "V"
   vector_pair: "U"
   vector_name: "Wind"
+  category: "State"
+
+OMEGA:
+  category: "State"
+
+OMEGA500:
+  category: "State"
+
+PINT:
+  category: "State"
+
+PMID:
+  category: "State"
+
+Q:
+  category: "State"
+
+T:
+  category: "State"
+
+Z3:
+  category: "State"
+
+Wind:
+  category: "State"
+
+PBLH:
+  category: "Surface"
+
+QFLX:
+  category: "Surface"
+
+Surface_Wind_Stress:
+  category: "Surface"
 
 TAUX:
   vector_pair: "TAUY"
   vector_name: "Surface_Wind_Stress"
+  category: "Surface"
 
 TAUY:
   vector_pair: "TAUX"
   vector_name: "Surface_Wind_Stress"
+  category: "Surface"
+
+TREFHT:
+  category: "Surface"
 
 TS:
   colormap: "Blues"
@@ -266,6 +404,10 @@ TS:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "TS"
+  category: "Surface"
+
+U10:
+  category: "Surface"
 
 LHFLX:
   colormap: "Blues"
@@ -281,6 +423,7 @@ LHFLX:
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "LHFLX"
+  category: "Radiation"
 
 SWCF:
   colormap: "Blues"
@@ -298,6 +441,7 @@ SWCF:
   obs_var_name: "toa_cre_sw_mon"
   obs_scale_factor: 1
   obs_add_offset: 0
+  category: "Radiation"
 
 LWCF:
   colormap: "Oranges"
@@ -313,6 +457,7 @@ LWCF:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
+  category: "Radiation"
 
 FSUTOA:
   colormap: "Blues"
@@ -328,66 +473,7 @@ FSUTOA:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_sw_all_mon"
-
-FLNT:
-  colormap: "Oranges"
-  contour_levels_range: [120, 320, 10]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
-  obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "toa_lw_all_mon"
-
-FLNTC:
-  colormap: "Oranges"
-  contour_levels_range: [120, 320, 10]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
-  obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "toa_lw_clr_t_mon"
-
-FSNS:
-  colormap: "Blues"
-  contour_levels_range: [-10, 300, 20]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-24, 24, 2]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
-  obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "sfc_net_sw_all_mon"
-
-FSNSC:
-  colormap: "Blues"
-  contour_levels_range: [-10, 300, 20]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-24, 24, 2]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
-  obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "sfc_net_sw_clr_t_mon"
+  category: "Radiation"
 
 FLDS:
   colormap: "Oranges"
@@ -403,6 +489,227 @@ FLDS:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_lw_down_all_mon"
+  category: "Radiation"
+
+FLNS:
+  category: "Radiation"
+
+FLNSC:
+  category: "Radiation"
+
+FLNT:
+  colormap: "Oranges"
+  contour_levels_range: [120, 320, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_all_mon"
+  category: "Radiation"
+
+FLNTC:
+  colormap: "Oranges"
+  contour_levels_range: [120, 320, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_clr_t_mon"
+  category: "Radiation"
+
+FLUT:
+  category: "Radiation"
+
+FSDS:
+  category: "Radiation"
+
+FSDSC:
+  category: "Radiation"
+
+FSNS:
+  colormap: "Blues"
+  contour_levels_range: [-10, 300, 20]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-24, 24, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_sw_all_mon"
+  category: "Radiation"
+
+FSNSC:
+  colormap: "Blues"
+  contour_levels_range: [-10, 300, 20]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-24, 24, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_sw_clr_t_mon"
+  category: "Radiation"
+
+FSNT:
+  category: "Radiation"
+
+FSNTC:
+  category: "Radiation"
+
+FSNTOA:
+  category: "Radiation"
+
+QRL:
+  category: "Radiation"
+
+QRS:
+  category: "Radiation"
+
+SHFLX:
+  category: "Radiation"
+
+CAPE:
+  category: "Deep Convection"
+
+CMFMC_DP:
+  category: "Deep Convection"
+
+FREQZM:
+  category: "Deep Convection"
+
+ZMDQ:
+  category: "Deep Convection"
+
+ZMDT:
+  category: "Deep Convection"
+
+CLDTOT_ISCCP:
+  category: "COSP"
+
+CLIMODIS:
+  category: "COSP"
+
+CLWMODIS:
+  category: "COSP"
+
+FISCCP1_COSP:
+  category: "COSP"
+
+ICE_ICLD_VISTAU:
+  category: "COSP"
+
+IWPMODIS:
+  category: "COSP"
+
+LIQ_ICLD_VISTAU:
+  category: "COSP"
+
+LWPMODIS:
+  category: "COSP"
+
+MEANCLDALB_ISCCP:
+  category: "COSP"
+
+MEANPTOP_ISCCP:
+  category: "COSP"
+
+MEANTAU_ISCCP:
+  category: "COSP"
+
+MEANTB_ISCCP:
+  category: "COSP"
+
+MEANTBCLR_ISCCP:
+  category: "COSP"
+
+PCTMODIS:
+  category: "COSP"
+
+REFFCLIMODIS:
+  category: "COSP"
+
+REFFCLWMODIS:
+  category: "COSP"
+
+SNOW_ICLD_VISTAU:
+  category: "COSP"
+
+TAUTMODIS:
+  category: "COSP"
+
+TAUWMODIS:
+  category: "COSP"
+
+TOT_CLD_VISTAU:
+  category: "COSP"
+
+TOT_ICLD_VISTAU:
+  category: "COSP"
+
+DCQ:
+  category: "Budget"
+
+DQCORE:
+  category: "Budget"
+
+DTCORE:
+  category: "Budget"
+
+MPDICE:
+  category: "Budget"
+
+MPDLIQ:
+  category: "Budget"
+
+PTEQ:
+  category: "Budget"
+
+QTGW:
+  category: "GW"
+
+UGTW_TOTAL:
+  category: "GW"
+
+UTGWORO:
+  category: "GW"
+
+VGTW_TOTAL:
+  category: "GW"
+
+VTGWORO:
+  category: "GW"
+
+RVMTEND_CLUBB:
+  category: "CLUBB"
+
+STEND_CLUBB:
+  category: "CLUBB"
+
+WPRTP_CLUBB:
+  category: "CLUBB"
+
+WPTHLP_CLUBB:
+  category: "CLUBB"
 
 #-----------
 #End of File
