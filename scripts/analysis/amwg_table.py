@@ -240,11 +240,17 @@ def amwg_table(adf):
                           f'{data_trend.intercept : 0.3f} + {data_trend.slope : 0.3f} t',
                           data_trend.pvalue]
 
+            print("******")
+            print(data_mean.data.item())
+
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
+            print(dfentries) 
 
             # Add entries to Pandas structure:
             df = pd.DataFrame(dfentries)
+            print(df)
+
 
             # Check if the output CSV file exists,
             # if so, then append to it:
@@ -365,7 +371,7 @@ def _write_html(f, out,case_name,case_name_list):
         case = "Control"
     import pandas as pd
     df = pd.read_csv(f)
-    html = df.to_html(index=False, border=1, justify='center', float_format='{:,.3g}'.format)  # should return string
+    html = df.to_html(index=False, border=1, justify='center', float_format='{:,.4g}'.format)  # should return string
 
     preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
     <nav role="navigation" class="primary-navigation">
