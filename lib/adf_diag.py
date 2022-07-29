@@ -94,6 +94,8 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 #Finally, import needed ADF module:
 from adf_web import AdfWeb
 
+
+
 #################
 #Helper functions
 #################
@@ -335,6 +337,7 @@ class AdfDiag(AdfWeb):
             '''
             return subprocess.run(cmd, shell=False)
 
+
         #Check if baseline time-series files are being created:
         if baseline:
             #Then use the CAM baseline climo dictionary
@@ -449,16 +452,20 @@ class AdfDiag(AdfWeb):
                 self.end_diag_fail(emsg)
             #End if
 
+            #Read history file number from the yaml file
+            hist_num = self.get_basic_info('hist_num')
+
             #Check if history files actually exist. If not then kill script:
-            if not list(starting_location.glob('*.cam.h0.*.nc')):
-                emsg = f"No CAM history (h0) files found in '{starting_location}'."
+            hist_str = '*.cam.'+hist_num
+            if not list(starting_location.glob(hist_str+'.*.nc')):
+                emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
                 emsg += " Script is ending here."
                 self.end_diag_fail(emsg)
             #End if
 
             # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
             if start_year == end_year == "*":
-                files_list = sorted(starting_location.glob('*.cam.h0.*.nc'))
+                files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
             else:
                 #Create empty list:
                 files_list = []
@@ -473,11 +480,12 @@ class AdfDiag(AdfWeb):
                 #Loop over start and end years:
                 for year in range(start_year, end_year+1):
                     #Add files to main file list:
-                    for fname in starting_location.glob(f'*.cam.h0.*{year}-*.nc'):
+                    for fname in starting_location.glob(f'{hist_str}.*{year}-*.nc'):
                         files_list.append(fname)
                     #End for
                 #End for
             #End if
+
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
@@ -576,7 +584,7 @@ class AdfDiag(AdfWeb):
                 #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
 
                 ts_outfil_str = ts_dir[case_idx] + os.sep + \
-                ".".join([case_name, "h0", var, time_string, "nc" ])
+                ".".join([case_name, hist_num, var, time_string, "nc" ])
 
                 #Check if files already exist in time series directory:
                 ts_file_list = glob.glob(ts_outfil_str)
