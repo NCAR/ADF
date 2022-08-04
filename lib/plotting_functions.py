@@ -70,6 +70,12 @@ def get_difference_colors(values):
     return dnorm, cmap
 
 
+def mask_land_or_ocean(arr,msk):
+    arr = xr.where(msk>=0.9,arr,-999.)
+    arr.attrs["missing_value"]=-999.
+    return(arr)
+
+
 def get_central_longitude(*args):
     """Determine central longitude for maps.
        Can provide multiple arguments.

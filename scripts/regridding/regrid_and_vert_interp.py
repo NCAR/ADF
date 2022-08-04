@@ -31,6 +31,7 @@ def regrid_and_vert_interp(adf):
 
     #Import necessary modules:
     import numpy as np
+    import plotting_functions as pf
 
     from pathlib import Path
 
@@ -65,6 +66,9 @@ def regrid_and_vert_interp(adf):
         var_list.pop(pmid_idx)
         var_list.insert(0,"PMID")
     #End if
+
+    if 'TS' in var_list:
+        regrid_ofrac = True
 
     #Check if surface pressure exists in variable list:
     if "PS" in var_list:
@@ -179,7 +183,7 @@ def regrid_and_vert_interp(adf):
                         #For now, only grab one file (but convert to list for use below):
                         tclim_fils = [tclimo_loc]
                     else:
-                       tclim_fils = sorted(tclimo_loc.glob(f"{target}*_{var}_*.nc"))
+                       tclim_fils = sorted(tclimo_loc.glob(f"{target}*_{var}_climo.nc"))
                     #End if
 
                     #Write to debug log if enabled:
@@ -195,6 +199,9 @@ def regrid_and_vert_interp(adf):
                         #Open single file as new xarray dataset:
                         tclim_ds = xr.open_dataset(tclim_fils[0])
                     #End if
+
+                    if regrid_ofrac and 'OCNFRAC' in tclim_ds:
+                        regrid_ofrac = False
 
                     #Generate CAM climatology (climo) file list:
                     mclim_fils = sorted(mclimo_loc.glob(f"{case_name}_{var}_*.nc"))
@@ -221,7 +228,42 @@ def regrid_and_vert_interp(adf):
                     #Perform regridding and interpolation of variable:
                     rgdata_interp = _regrid_and_interpolate_levs(mclim_ds, var,
                                                                  regrid_dataset=tclim_ds,
-                                                                 **regrid_kwargs)
+                                                                 regrid_ofrac=regrid_ofrac, **regrid_kwargs)
+
+                    if 'TS' in mclim_ds:
+                        print("TS in climo file")
+                    if 'TS' in rgdata_interp:
+                        print("TS is regridded")
+                    if var == 'TS':
+                        if 'OCNFRAC' in rgdata_interp:
+                            ofrac = rgdata_interp['OCNFRAC']
+                            # set the bounds of regridded ocnfrac to 0 to 1
+                            ofrac = xr.where(ofrac>1,1,ofrac)
+                            ofrac = xr.where(ofrac<0,0,ofrac)
+                            # mask the land in TS for global means
+                            rgdata_interp['OCNFRAC'] = ofrac
+                            ts_tmp = rgdata_interp['TS']
+                            ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
+#                            ts_tmp = xr.where(ofrac>=0.9,ts_tmp,-999.)
+#                            ts_tmp.attrs["missing_value"]=-999.
+                            rgdata_interp['TS'] = ts_tmp
+                        else:
+                            if 'OCNFRAC' in tclim_ds:
+                                ofrac = tclim_ds['OCNFRAC']
+                                ts1_tmp = tclim_ds['TS']
+                                ts2_tmp = rgdata_interp['TS']
+                                ts1_tmp = pf.mask_land_or_ocean(ts1_tmp,ofrac)
+                                ts2_tmp = pf.mask_land_or_ocean(ts2_tmp,ofrac)
+#                                ts1_tmp.attrs["missing_value"]=-999.
+#                                ts2_tmp.attrs["missing_value"]=-999.
+                                rgdata_interp['TS'] = ts2_tmp
+                                tclim_ds['TS'] = ts1_tmp
+                                # replace old target file with new one that contains masked TS
+                                tclim_fils[0].unlink()
+                                save_to_nc(tclim_ds,tclim_fils[0])
+                            #end if
+                        #end if
+
 
                     #Finally, write re-gridded data to output file:
                     save_to_nc(rgdata_interp, regridded_file_loc)
@@ -278,7 +320,7 @@ def regrid_and_vert_interp(adf):
 #Helper functions
 #################
 
-def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, **kwargs):
+def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, regrid_ofrac=False, **kwargs):
 
     """
     Function that takes a variable from a model xarray
@@ -321,7 +363,11 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
 
     #Extract variable info from model data (and remove any degenerate dimensions):
     mdata = model_dataset[var_name].squeeze()
-
+    mdat_ofrac = None
+    if regrid_ofrac:
+        if 'OCNFRAC' in model_dataset:
+            mdat_ofrac = model_dataset['OCNFRAC'].squeeze()
+ 
     #Check if variable has a vertical component:
     if 'lev' in mdata.dims:
         has_lev = True
@@ -449,7 +495,8 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
 
         #Regrid model data to match target grid:
         rgdata = regrid_data(mdata, tgrid, method=1)
-
+        if mdat_ofrac:
+            rgofrac = regrid_data(mdat_ofrac, tgrd, method=1)
         #Regrid surface pressure if need be:
         if has_lev:
             if not regridded_ps:
@@ -505,7 +552,12 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
     #End if
 
     #Convert to xarray dataset:
-    rgdata_interp.to_dataset()
+    rgdata_interp = rgdata_interp.to_dataset()
+    if mdat_ofrac:
+        rgdata_interp['OCNFRAC'] = rgofrac
+    print(mdat_ofrac)
+    print(type(rgdata_interp))
+    print(rgdata_interp)
 
     #Add surface pressure to variable if a hybrid (just in case):
     if has_lev:

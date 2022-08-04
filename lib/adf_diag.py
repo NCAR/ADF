@@ -609,9 +609,9 @@ class AdfDiag(AdfWeb):
                 else:
                     #No vertical coordinate (or no coordinate meta-data),
                     #so no additional variables needed:
-                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var}"] + \
+                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},OCNFRAC,LANDFRAC"] + \
                            hist_files + ["-o", ts_outfil_str]
-                #End if
+                    #End if
 
                 #Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
