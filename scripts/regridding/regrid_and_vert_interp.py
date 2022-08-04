@@ -67,8 +67,12 @@ def regrid_and_vert_interp(adf):
         var_list.insert(0,"PMID")
     #End if
 
-    if 'TS' in var_list:
+    if 'SST' in var_list:
         regrid_ofrac = True
+        mask_var = 'SST'
+    elif 'TS' in var_list:
+        regrid_ofrac = True
+        mask_var = 'TS'
 
     #Check if surface pressure exists in variable list:
     if "PS" in var_list:
@@ -230,7 +234,7 @@ def regrid_and_vert_interp(adf):
                                                                  regrid_dataset=tclim_ds,
                                                                  regrid_ofrac=regrid_ofrac, **regrid_kwargs)
 
-                    if var == 'TS':
+                    if var == mask_var:
                         if 'OCNFRAC' in rgdata_interp:
                             ofrac = rgdata_interp['OCNFRAC']
                             # set the bounds of regridded ocnfrac to 0 to 1
@@ -238,18 +242,18 @@ def regrid_and_vert_interp(adf):
                             ofrac = xr.where(ofrac<0,0,ofrac)
                             # mask the land in TS for global means
                             rgdata_interp['OCNFRAC'] = ofrac
-                            ts_tmp = rgdata_interp['TS']
+                            ts_tmp = rgdata_interp[mask_var]
                             ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
-                            rgdata_interp['TS'] = ts_tmp
+                            rgdata_interp[mask_var] = ts_tmp
                         else:
                             if 'OCNFRAC' in tclim_ds:
                                 ofrac = tclim_ds['OCNFRAC']
-                                ts1_tmp = tclim_ds['TS']
-                                ts2_tmp = rgdata_interp['TS']
+                                ts1_tmp = tclim_ds[mask_var]
+                                ts2_tmp = rgdata_interp[mask_var]
                                 ts1_tmp = pf.mask_land_or_ocean(ts1_tmp,ofrac)
                                 ts2_tmp = pf.mask_land_or_ocean(ts2_tmp,ofrac)
-                                rgdata_interp['TS'] = ts2_tmp
-                                tclim_ds['TS'] = ts1_tmp
+                                rgdata_interp[mask_var] = ts2_tmp
+                                tclim_ds[mask_var] = ts1_tmp
                                 # replace old target file with new one that contains masked TS
                                 tclim_fils[0].unlink()
                                 save_to_nc(tclim_ds,tclim_fils[0])
