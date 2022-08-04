@@ -230,10 +230,6 @@ def regrid_and_vert_interp(adf):
                                                                  regrid_dataset=tclim_ds,
                                                                  regrid_ofrac=regrid_ofrac, **regrid_kwargs)
 
-                    if 'TS' in mclim_ds:
-                        print("TS in climo file")
-                    if 'TS' in rgdata_interp:
-                        print("TS is regridded")
                     if var == 'TS':
                         if 'OCNFRAC' in rgdata_interp:
                             ofrac = rgdata_interp['OCNFRAC']
@@ -244,8 +240,6 @@ def regrid_and_vert_interp(adf):
                             rgdata_interp['OCNFRAC'] = ofrac
                             ts_tmp = rgdata_interp['TS']
                             ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
-#                            ts_tmp = xr.where(ofrac>=0.9,ts_tmp,-999.)
-#                            ts_tmp.attrs["missing_value"]=-999.
                             rgdata_interp['TS'] = ts_tmp
                         else:
                             if 'OCNFRAC' in tclim_ds:
@@ -254,8 +248,6 @@ def regrid_and_vert_interp(adf):
                                 ts2_tmp = rgdata_interp['TS']
                                 ts1_tmp = pf.mask_land_or_ocean(ts1_tmp,ofrac)
                                 ts2_tmp = pf.mask_land_or_ocean(ts2_tmp,ofrac)
-#                                ts1_tmp.attrs["missing_value"]=-999.
-#                                ts2_tmp.attrs["missing_value"]=-999.
                                 rgdata_interp['TS'] = ts2_tmp
                                 tclim_ds['TS'] = ts1_tmp
                                 # replace old target file with new one that contains masked TS
@@ -555,9 +547,6 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
     rgdata_interp = rgdata_interp.to_dataset()
     if mdat_ofrac:
         rgdata_interp['OCNFRAC'] = rgofrac
-    print(mdat_ofrac)
-    print(type(rgdata_interp))
-    print(rgdata_interp)
 
     #Add surface pressure to variable if a hybrid (just in case):
     if has_lev:
