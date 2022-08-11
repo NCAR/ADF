@@ -235,7 +235,7 @@ def meridional_mean(adfobj):
     #End for (variables loop)
 
     #Notify user that script has ended:
-    print("  ...Equatorial meridional mean plots have been generated successfully.")
+    print("  ...Meridional mean plots have been generated successfully.")
 
 
 #
