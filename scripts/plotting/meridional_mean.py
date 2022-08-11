@@ -15,7 +15,7 @@ def meridional_mean(adfobj):
     """
     This script plots meridional averages.
     Follows the old AMWG convention of plotting 5S to 5N.
-    **Note:** the constraint of 5S to 5N is easily changed; 
+    **Note:** the constraint of 5S to 5N is easily changed;
     the function that calculates the average can take any range of latitudes.
 
     Compare CAM climatologies against
@@ -23,7 +23,7 @@ def meridional_mean(adfobj):
     """
 
     #Notify user that script has started:
-    print("\n  Generating equatorial mean plots...")
+    print("\n  Generating meridional mean plots...")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -49,7 +49,7 @@ def meridional_mean(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("\t No observations found to plot against, so no zonal-mean maps will be generated.")
+            print("\t No observations found to plot against, so no meridional-mean maps will be generated.")
             return
 
     else:
@@ -58,7 +58,7 @@ def meridional_mean(adfobj):
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
-    # or an empty dictionary if use_defaults was not specified in YAML.
+    # or an empty dictionary if use_defaults was not specified in the config YAML file.
 
     #Set plot file type:
     # -- this should be set in basic_info_dict, but is not required
@@ -101,7 +101,7 @@ def meridional_mean(adfobj):
                 #Extract target variable name:
                 data_var = var_obs_dict[var]["obs_var"]
             else:
-                dmsg = f"No obs found for variable `{var}`, zonal mean plotting skipped."
+                dmsg = f"No obs found for variable `{var}`, meridional mean plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
             #End if
@@ -111,13 +111,13 @@ def meridional_mean(adfobj):
         #End if
 
         #Notify user of variable being plotted:
-        print(f"\t - equatorial mean plots for {var}")
+        print(f"\t - meridional mean plots for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
             #If found then notify user, assuming debug log is enabled:
-            adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
+            adfobj.debug_log(f"meridional_mean: Found variable defaults for {var}")
 
         else:
             vres = {}
@@ -152,7 +152,7 @@ def meridional_mean(adfobj):
 
                 # stop if data is invalid:
                 if (oclim_ds is None) or (mclim_ds is None):
-                    warnings.warn(f"invalid data, skipping zonal mean plot of {var}")
+                    warnings.warn(f"invalid data, skipping meridional mean plot of {var}")
                     continue
 
                 #Extract variable of interest
@@ -173,7 +173,8 @@ def meridional_mean(adfobj):
                 # Or for observations
                 else:
                     odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
-                    # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit.
+                    # Note: we are going to assume that the specification ensures the conversion makes the units the same.
+                    #       Doesn't make sense to add a different unit.
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
@@ -204,17 +205,15 @@ def meridional_mean(adfobj):
 
                     # difference: each entry should be (lat, lon) or (plev, lat, lon)
                     # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_zonal_mean_and_save;
-                    # because we can let any pressure-level interpolation happen there
-                    # This could be re-visited for efficiency or improved code structure.
+                    # difference will be calculated in plot_meridional_mean_and_save.
 
                     # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                    # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
+                    # I'll just call this one "Meridional_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                     # NOTE: Up to this point, nothing really differs from global_latlon_map,
                     #       so we could have made one script instead of two.
                     #       Merging would make overall timing better because looping twice will double I/O steps.
                     #
-                    plot_name = plot_loc / f"{var}_{s}_EquatorialMeridional_Mean.{plot_type}"
+                    plot_name = plot_loc / f"{var}_{s}_Meridional_Mean.{plot_type}"
 
                     # Check redo_plot. If set to True: remove old plot, if it already exists:
                     if (not redo_plot) and plot_name.is_file():
@@ -225,6 +224,10 @@ def meridional_mean(adfobj):
                     #Create new plot:
                     pf.plot_meridional_mean_and_save(plot_name, mseasons[s],
                                                 oseasons[s], has_lev, latbounds=slice(-5,5), **vres)
+
+                    #Add plot to website (if enabled):
+                    adfobj.add_website_data(plot_name, var, case_name, season=s,
+                                            plot_type="Meridional")
 
                 #End for (seasons loop)
             #End for (case names loop)

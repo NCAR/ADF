@@ -590,73 +590,16 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
         tiString = kwargs.pop("tiString")
     else:
         tiString = ''
+    #End if
+
     if 'tiFontSize' in kwargs:
         tiFontSize = kwargs.pop('tiFontSize')
     else:
         tiFontSize = 8
+    #End if
 
-    # Get data limits, which might be needed:
-    minval = np.min([np.min(mdlfld), np.min(obsfld)])
-    maxval = np.max([np.max(mdlfld), np.max(obsfld)])
-
-    # determine norm to use (deprecate this once minimum MPL version is high enough)
-    normfunc, mplv = use_this_norm()
-
-    if 'colormap' in kwargs:
-        cmap1 = kwargs['colormap']
-    else:
-        cmap1 = 'coolwarm'
-
-    if 'contour_levels' in kwargs:
-        levels1 = kwargs['contour_levels']
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    elif 'contour_levels_range' in kwargs:
-        assert len(kwargs['contour_levels_range']) == 3, "contour_levels_range must have exactly three entries: min, max, step"
-        levels1 = np.arange(*kwargs['contour_levels_range'])
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    else:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-
-    if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
-        if ((minval < 0) and (0 < maxval)) and mplv > 2:
-            norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-
-    # Difference options -- Check in kwargs for colormap and levels
-    if "diff_colormap" in kwargs:
-        cmapdiff = kwargs["diff_colormap"]
-    else:
-        cmapdiff = 'coolwarm'
-
-    if "diff_contour_levels" in kwargs:
-        levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
-    elif "diff_contour_range" in kwargs:
-            assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"
-            levelsdiff = np.arange(*kwargs['diff_contour_range'])
-    else:
-        # set a symmetric color bar for diff:
-        absmaxdif = np.max(np.abs(diffld))
-        # set levels for difference plot:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-
-    # color normalization for difference
-    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
-        normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
-    else:
-        normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
-
-    # initialize plotting keyword options:
-    subplots_opt = {}
-    contourf_opt = {}
-    colorbar_opt = {}
-
-    # extract any MPL kwargs that should be passed on:
-    if 'mpl' in kwargs:
-        subplots_opt.update(kwargs['mpl'].get('subplots',{}))
-        contourf_opt.update(kwargs['mpl'].get('contourf',{}))
-        colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
+    # generate dictionary of contour plot settings:
+    cp_info = prep_contour_plot(mdlfld, obsfld, diffld, **kwargs)
 
     # specify the central longitude for the plot
     central_longitude = kwargs.get('central_longitude', 180)
@@ -668,9 +611,9 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5, hspace=0.05) # 2 rows, 4 columns, but each map will take up 2 columns
     gs.tight_layout(fig)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
-    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **subplots_opt)
-    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **subplots_opt)
-    ax3 = plt.subplot(gs[2, 1:5], projection=proj,  **subplots_opt)
+    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info['subplots_opt'])
+    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info['subplots_opt'])
+    ax3 = plt.subplot(gs[2, 1:5], projection=proj,  **cp_info['subplots_opt'])
     ax = [ax1,ax2,ax3]
 
     img = [] # contour plots
@@ -687,13 +630,14 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
     for i, a in enumerate(wrap_fields):
 
         if i == len(wrap_fields)-1:
-            levels = levelsdiff
-            cmap = cmapdiff
-            norm = normdiff
+            levels = cp_info['levelsdiff']
+            cmap = cp_info['cmapdiff']
+            norm = cp_info['normdiff']
         else:
-            levels = levels1
-            cmap = cmap1
-            norm = norm1
+            levels = cp_info['levels1']
+            cmap = cp_info['cmap1']
+            norm = cp_info['norm1']
+        #End if
 
         empty_message = "No Valid\nData Points"
         props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
@@ -702,7 +646,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
             img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
-            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **contourf_opt))
+            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **cp_info['contourf_opt']))
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
 
@@ -735,7 +679,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax2.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[1], cax=cb_mean_ax, **colorbar_opt)
+    fig.colorbar(img[1], cax=cb_mean_ax, **cp_info['colorbar_opt'])
 
     cb_diff_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
@@ -745,7 +689,7 @@ def plot_map_and_save(wks, mdlfld, obsfld, diffld, **kwargs):
                     bbox_transform=ax3.transAxes,
                     borderpad=0,
                     )
-    fig.colorbar(img[2], cax=cb_diff_ax, **colorbar_opt)
+    fig.colorbar(img[2], cax=cb_diff_ax, **cp_info['colorbar_opt'])
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
@@ -905,14 +849,14 @@ def zonal_mean_xr(fld):
 
 def validate_dims(fld, list_of_dims):
     """Generalized function to check if specified dimensions are in a DataArray.
-    
+
     input
         fld -> DataArray with named dimensions (fld.dims)
         list_of_dims -> a list of strings that specifiy the dimensions to check for
 
     return
         dict with keys that are "has_{x}" where x is the name from `list_of_dims` and values that are boolean
-    
+
     """
     if not isinstance(list_of_dims, list):
         list_of_dims = list(list_of_dims)
@@ -928,8 +872,7 @@ def lat_lon_validate_dims(fld):
     if len(fld.dims) > 3:
         return False
     validate = validate_dims(fld, ['lat','lon'])
-    has_lat, has_lon = validate['has_lat'], validate['has_lon']
-    if not has_lat or not has_lon:
+    if not all(validate.values()):
         return  False
     else:
         return True
@@ -955,14 +898,21 @@ def zm_validate_dims(fld):
 def _plot_line(axobject, xdata, ydata, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""
     axobject.plot(xdata, ydata, **kwargs)
+
+    #Set Y-axis label:
     if hasattr(ydata, "units"):
         axobject.set_ylabel("[{units}]".format(units=getattr(ydata,"units")))
     elif "units" in kwargs:
         axobject.set_ylabel("[{units}]".format(kwargs["units"]))
+    #End if
+
+    #Set plot title:
     if hasattr(ydata, "long_name"):
         axobject.set_title(getattr(ydata,"long_name"), loc="left")
     elif hasattr(ydata, "name"):
         axobject.set_title(getattr(ydata,"name"), loc="left")
+    #End if
+
     return axobject
 
 
@@ -1052,8 +1002,9 @@ def meridional_plot(lon, data, ax=None, **kwargs):
 
 def prep_contour_plot(adata, bdata, diffdata, **kwargs):
     """
-    Prepares for making contour plots of adata, bdata, and diffdata (presumably difference between adata nd bdata).
-    - set colormap from kwargs or defualts to coolwarm
+    Prepares for making contour plots of adata, bdata, and diffdata, which is
+    presumably the difference between adata and bdata.
+    - set colormap from kwargs or defaults to coolwarm
     - set contour levels from kwargs or 12 evenly spaced levels to span the data
     - normalize colors based on specified contour levels or data range
     - set option for linear or log pressure when applicable
@@ -1090,7 +1041,9 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         levels1 = kwargs['contour_levels']
         norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     elif 'contour_levels_range' in kwargs:
-        assert len(kwargs['contour_levels_range']) == 3, "contour_levels_range must have exactly three entries: min, max, step"
+        assert len(kwargs['contour_levels_range']) == 3,
+        "contour_levels_range must have exactly three entries: min, max, step"
+
         levels1 = np.arange(*kwargs['contour_levels_range'])
         norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
@@ -1098,6 +1051,13 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
     #End if
 
+    #Check if the minval and maxval are actually different.  If not,
+    #then set "levels1" to be an empty list, which will cause the
+    #plotting scripts to add a label instead of trying to plot a variable
+    #with no contours:
+    if minval == maxval:
+        levels1 = []
+    #End if
 
     if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
         if ((minval < 0) and (0 < maxval)) and mplv > 2:
@@ -1117,7 +1077,9 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
     if "diff_contour_levels" in kwargs:
         levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
     elif "diff_contour_range" in kwargs:
-        assert len(kwargs['diff_contour_range']) == 3, "diff_contour_range must have exactly three entries: min, max, step"
+        assert len(kwargs['diff_contour_range']) == 3,
+        "diff_contour_range must have exactly three entries: min, max, step"
+
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
@@ -1130,7 +1092,6 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         plot_log_p = kwargs["plot_log_pressure"]
     else:
         plot_log_p = False
-        print(kwargs)
 
     # color normalization for difference
     if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
@@ -1149,9 +1110,9 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
     #End if
-    return {'subplots_opt': subplots_opt, 
-            'contourf_opt': contourf_opt, 
-            'colorbar_opt': colorbar_opt, 
+    return {'subplots_opt': subplots_opt,
+            'contourf_opt': contourf_opt,
+            'colorbar_opt': colorbar_opt,
             'normdiff': normdiff,
             'cmapdiff': cmapdiff,
             'levelsdiff': levelsdiff,
@@ -1207,7 +1168,8 @@ def plot_zonal_mean_and_save(wks, adata, bdata, has_lev, **kwargs):
         # calculate difference:
         diff = azm - bzm
 
-        cp_info = prep_contour_plot(azm, bzm, diff, **kwargs)  # dictionary
+        # generate dictionary of contour plot settings:
+        cp_info = prep_contour_plot(azm, bzm, diff, **kwargs)
 
         # Generate zonal plot:
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -1272,7 +1234,7 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
         - For 3-D variables (reduced to (lev,lon)):
           + 3 panels: (top) meridonal mean adata, (middle) meridional mean bdata, (bottom) difference
           + pcolormesh/contour plot
-        
+
         has_lev: boolean whether 'lev' is a dimension
 
         latbounds: the latitude bounds to average, defaults to 5S to 5N;
@@ -1282,16 +1244,18 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
 
 
         kwargs -> optional dictionary of plotting options
-                ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
-        - colormap -> str, name of matplotlib colormap
-        - contour_levels -> list of explict values or a tuple: (min, max, step)
-        - diff_colormap
-        - diff_contour_levels
-        - tiString -> str, Title String
-        - tiFontSize -> int, Title Font Size
+                ** Expecting this to be variable-specific section,
+                   possibly provided by ADF Variable Defaults YAML file.**
+        - colormap             -> str, name of matplotlib colormap
+        - contour_levels       -> list of explicit values or a tuple: (min, max, step)
+        - diff_colormap        -> str, name of matplotlib colormap used for different plot
+        - diff_contour_levels  -> list of explicit values or a tuple: (min, max, step)
+        - tiString             -> str, Title String
+        - tiFontSize           -> int, Title Font Size
         - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
-            + Organize these by the mpl function. In this function (`plot_map_and_save`)
-            we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
+            + Organize these by the mpl function. In this function (`plot_meridional_mean_and_save`)
+            we will check for an entry called `subplots`, `contourf`, and `colorbar`.
+            So the YAML might looks something like:
             ```
             mpl:
                 subplots:
@@ -1309,11 +1273,11 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
         latbounds = slice(-5, 5)
     elif isinstance(latbounds, numbers.Number):
         latbounds = slice(-1*np.absolute(latbounds), np.absolute(latbounds))
-    elif isinstance(latbounds, slice):
-        pass # latbounds = latbounds 
-    else:
+    elif not isinstance(latbounds, slice):  #If not a slice object, then quit this routine.
         print(f"ERROR: plot_meridonal_mean_and_save - received an invalid value for latbounds ({latbounds}). Must be a number or a slice.")
         return None
+    #End if
+
     # possible that the data has time, but usually it won't
     if len(adata.dims) > 4:
         print(f"ERROR: plot_meridonal_mean_and_save - too many dimensions: {adata.dims}")
@@ -1333,15 +1297,18 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
     if len(adata.dims) > 2:
         print(f"ERROR: plot_meridonal_mean_and_save - AFTER averaging, there are too many dimensions: {adata.dims}")
         return None
- 
-    diff = adata - bdata 
+
+    diff = adata - bdata
 
     # plot-controlling parameters:
     xdim = 'lon' # the name used for the x-axis dimension
     pltfunc = meridional_plot  # the plotting function ... maybe we can generalize to get zonal/meridional into one function (?)
 
     if has_lev:
-        cp_info = prep_contour_plot(adata, bdata, diff, **kwargs)  # dictionary
+        # generate dictionary of contour plot settings:
+        cp_info = prep_contour_plot(adata, bdata, diff, **kwargs)
+
+        # generate plot objects:
         fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
         levs = np.unique(np.array(cp_info['levels1']))
         if len(levs) < 2:

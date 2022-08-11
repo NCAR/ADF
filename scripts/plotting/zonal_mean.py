@@ -221,9 +221,7 @@ def zonal_mean(adfobj):
 
                     # difference: each entry should be (lat, lon) or (plev, lat, lon)
                     # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_zonal_mean_and_save;
-                    # because we can let any pressure-level interpolation happen there
-                    # This could be re-visited for efficiency or improved code structure.
+                    # difference will be calculated in plot_zonal_mean_and_save.
 
                     # time to make plot; here we'd probably loop over whatever plots we want for this variable
                     # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?

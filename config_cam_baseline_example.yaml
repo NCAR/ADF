@@ -329,6 +329,7 @@ plotting_scripts:
     - global_latlon_map
     - global_latlon_vect_map
     - zonal_mean
+    - meridional_mean
     - polar_map
 
 #List of CAM variables that will be processesd:
