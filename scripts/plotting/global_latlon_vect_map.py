@@ -135,6 +135,9 @@ def global_latlon_vect_map(adfobj):
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
 
+            #Extract category (if available):
+            web_category = vres.get("category", None)
+
         else:
             adfobj.debug_log(f"global_latlon_vect_map: Skipping '{var}' as no variable defaults were found")
             continue
@@ -361,6 +364,11 @@ def global_latlon_vect_map(adfobj):
 
                                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                                 if (not redo_plot) and plot_name.is_file():
+                                    #Add already-existing plot to website (if enabled):
+                                    adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
+                                                            season=s, plot_type="LatLon_Vector")
+
+                                    #Continue to next iteration:
                                     continue
                                 elif (redo_plot) and plot_name.is_file():
                                     plot_name.unlink()
@@ -378,6 +386,11 @@ def global_latlon_vect_map(adfobj):
                                 #   *Any other entries will be ignored.
                                 # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
                                 pf.plot_map_vect_and_save(plot_name, lv, umseasons[s], vmseasons[s], uoseasons[s], voseasons[s], udseasons[s], vdseasons[s], **vres)
+
+                                #Add plot to website (if enabled):
+                                adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
+                                                        season=s, plot_type="LatLon_Vector")
+
                             #End for (seasons)
                         #End for (pressure levels)
                     else:
@@ -399,10 +412,15 @@ def global_latlon_vect_map(adfobj):
                             # Check redo_plot. If set to True: remove old plot, if it already exists:
                             redo_plot = adfobj.get_basic_info('redo_plot')
                             if (not redo_plot) and plot_name.is_file():
+                                #Add already-existing plot to website (if enabled):
+                                adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,
+                                                        season=s, plot_type="LatLon_Vector")
+
+                                #Continue to next iteration:
                                 continue
                             elif (redo_plot) and plot_name.is_file():
                                 plot_name.unlink()
-                     
+
                             # pass in casenames
                             vres["case_name"] = case_name
                             vres["baseline"] = data_src
@@ -416,6 +434,11 @@ def global_latlon_vect_map(adfobj):
                             #   *Any other entries will be ignored.
                             # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
                             pf.plot_map_vect_and_save(plot_name, None, umseasons[s], vmseasons[s], uoseasons[s], voseasons[s], udseasons[s], vdseasons[s], **vres)
+
+                            #Add plot to website (if enabled):
+                            adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,
+                                                    season=s, plot_type="LatLon_Vector")
+
                         #End for
                     #End if (has_lev)
                 #End if (has_dims)

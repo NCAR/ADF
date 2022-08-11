@@ -24,31 +24,40 @@
      <h1> {{title}} </h1>
      <h2> Test Case: {{case1}}</h2>
      <h2> Control Case: {{case2}}</h2>
-     <h2>Plot Types: 
-      <a href=html_table/mean_table.html> Tables</a> 
+     <h2>Plot Types:
       {% for type, html_file in plot_types.items() %}
-      <a href={{html_file}}> &nbsp; {{type}}</a>
+      {% if type == curr_type %}
+      <a style="color: black; font-weight: bold;"> &nbsp; {{type}}</a>
+      {% else %}
+      <a href=../{{html_file}}> &nbsp; {{type}}</a>
+      {% endif %}
       {% endfor %}
      </h2>
 
-     <table class="big-table">
-        {% for key, value in mydata.items() %}
-        <tr>
-          <th colspan="100%"> {{key}} </th>
-        </tr>
-        {% for pkey, pvalue in value.items() %}
-        <tr>
-          <td> &nbsp; </td>
-          <th>{{pkey}}</th>
-          {% for tkey, tvalue in pvalue.items() %}
-          <td>
-            <a href="{{ tvalue }}">{{ tkey }}</a>
-          </td>
-          {% endfor %}
-        </tr>
+     <div style="width: 100%;"> <!-- main div-->
+      <div style="width: 50%; height: 100px; float: left;">
+        {% for category, var_seas in mydata.items() %}
+          <h3>{{category}}</h3>
+          <table class="big-table">
+            {% for var_name, season in var_seas.items() %}
+              <th colspan="100%"> {{var_name}} </th>
+              <tr>
+                {% for season_name, seas in season.items() %}
+                <td>
+                  <a href="{{ seas }}">{{ season_name }}</a>
+                </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </table>
         {% endfor %}
-        {% endfor %}
-    </table>
+        <div style="padding-bottom: 50px;">
+        </div>
+      </div> <!-- end left inner div -->
+
+      <div style="width: 70%; height: 100px; float: right; padding-right: 100px">
+      </div> <!-- end right inner div -->
+    </div> <!-- end main div -->
 
 
   </body>

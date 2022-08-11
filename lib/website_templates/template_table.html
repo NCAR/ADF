@@ -24,13 +24,16 @@
     <h1> {{title}} </h1>
     <h2> Test Case: {{case1}}</h2>
     <h2> Control Case: {{case2}}</h2>
-    
-     <h2>Plot Types: 
-      <a style="color: black; font-weight: bold;"> &nbsp; Tables</a>
+
+    <h2>Plot Types:
       {% for type, html_file in plot_types.items() %}
-      <a href=../{{html_file}}>  &nbsp; {{type}}</a>
+      {% if type == "Tables" %}
+      <a style="color: black; font-weight: bold;"> &nbsp; {{type}}</a>
+      {% else %}
+      <a href=../{{html_file}}> &nbsp; {{type}}</a>
+      {% endif %}
       {% endfor %}
-     </h2>
+    </h2>
 
     <div style="width: 100%;">
         <table class="big-table">
@@ -40,6 +43,11 @@
             </tr>
           {% endfor %}
         </table>
-      </div>
+
+        <!-- Main Table HTML -->
+        <h3> {{table_name}} </h3>
+        {{table_html}}
+    </div>
+
   </body>
 </html>
