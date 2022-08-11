@@ -169,7 +169,7 @@ diag_cam_climo:
     cam_ts_done: false
 
     #Save interim time series files?
-    #WARNING:  This can take up a significant amount of space, 
+    #WARNING:  This can take up a significant amount of space,
        #          but will save processing time the next time
     cam_ts_save: true
 
@@ -178,7 +178,7 @@ diag_cam_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts 
+    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
 
     #----------------------
 
@@ -285,7 +285,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts 
+    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
 
 #This fourth set of variables provides settings for calling the Climate Variability
 # Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
