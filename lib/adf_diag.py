@@ -455,6 +455,11 @@ class AdfDiag(AdfWeb):
             #Read history file number from the yaml file
             hist_num = self.get_basic_info('hist_num')
 
+            #If hist_num is not present, then default to 'h0':
+            if not hist_num:
+                hist_num = 'h0'
+            #End if
+
             #Check if history files actually exist. If not then kill script:
             hist_str = '*.cam.'+hist_num
             if not list(starting_location.glob(hist_str+'.*.nc')):
