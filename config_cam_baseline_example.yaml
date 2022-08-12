@@ -91,6 +91,12 @@ diag_basic_info:
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
 
+    #CAM history file number to use (h0,h1,h2, etc)
+    #Currently only affects timeseries generation,
+    #as everything else uses the timeseries files themselves.
+    #If this variable is not present then it will default ot "h0".
+    hist_num: h0
+
     #Use default variable plot settings?
     #If "true", then variable-specific plotting attributes as defined in
     #ADF/lib/adf_variable_defaults.yaml will be used:
