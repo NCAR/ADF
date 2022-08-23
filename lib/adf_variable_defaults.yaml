@@ -258,9 +258,6 @@ EVAPSNOW:
 FCTL:
   category: "Clouds"
 
-FCTL:
-  category: "Clouds"
-
 FICE:
   category: "Clouds"
 
