@@ -16,9 +16,7 @@ def zonal_mean(adfobj):
     This script plots zonal averages.
     Compare CAM climatologies against
     other climatological data (observations or baseline runs).
-
     Description of needed inputs from ADF:
-
     case_name        -> Name of CAM case provided by "cam_case_name".
     model_rgrid_loc  -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
     data_name        -> Name of data set CAM case is being compared against,
@@ -58,6 +56,19 @@ def zonal_mean(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Attempt to grab case start_years (not currently required):
+    syear_cases = adfobj.get_cam_info('start_year')
+    eyear_cases = adfobj.get_cam_info('end_year')
+
+    if (syear_cases and eyear_cases) == None:
+        syear_cases = [None]*len(case_names)
+        eyear_cases = [None]*len(case_names)
+
+    #Grab test case nickname(s)
+    test_nicknames = adfobj.get_cam_info('case_nickname')
+    if test_nicknames == None:
+        test_nicknames = case_names
+
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
@@ -77,6 +88,25 @@ def zonal_mean(adfobj):
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
+
+        #Attempt to grab baseline start_years (not currently required):
+        syear_baseline = adfobj.get_baseline_info('start_year')
+        eyear_baseline = adfobj.get_baseline_info('end_year')
+
+        if (syear_baseline and eyear_baseline) == "None":
+            print("No given climo years for baseline, gathering from time series files.")
+            #Time series files (to be used for climo years):
+            baseline_ts_locs = adfobj.get_baseline_info('cam_ts_loc', required=True)
+            starting_location = Path(baseline_ts_locs)
+            files_list = sorted(starting_location.glob('*.nc'))
+            syear_baseline = int(files_list[0].stem[-13:-9])
+            eyear_baseline = int(files_list[0].stem[-6:-2])
+    
+
+        #Grab baseline case nickname
+        base_nickname = adfobj.get_baseline_info('case_nickname')
+        if base_nickname == None:
+            base_nickname = data_name
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -139,6 +169,7 @@ def zonal_mean(adfobj):
             vres = res[var]
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
+
         else:
             vres = {}
         #End if
@@ -157,6 +188,23 @@ def zonal_mean(adfobj):
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
+
+                if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
+                     #Time series files (to be used for climo years):
+                     cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
+                     print("No case climo years given, extracting from timeseries file...")
+                     starting_location = Path(cam_ts_locs[case_idx])
+                     files_list = sorted(starting_location.glob('*nc'))
+                     syear_case = int(files_list[0].stem[-13:-9])
+                     eyear_case = int(files_list[0].stem[-6:-2])
+
+                else:
+                    syear_case = syear_cases[case_idx]
+                    eyear_case = eyear_cases[case_idx]
+                    #syear_case = str(syear_case).zfill(4)
+
+                #Set case nickname:
+                case_nickname = test_nicknames[case_idx]
 
                 #Set output plot location:
                 plot_loc = Path(plot_locations[case_idx])
@@ -221,7 +269,9 @@ def zonal_mean(adfobj):
 
                     # difference: each entry should be (lat, lon) or (plev, lat, lon)
                     # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_zonal_mean_and_save.
+                    # difference will be calculated in plot_zonal_mean_and_save;
+                    # because we can let any pressure-level interpolation happen there
+                    # This could be re-visited for efficiency or improved code structure.
 
                     # time to make plot; here we'd probably loop over whatever plots we want for this variable
                     # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -244,8 +294,10 @@ def zonal_mean(adfobj):
                     #End if
 
                     #Create new plot:
-                    pf.plot_zonal_mean_and_save(plot_name, mseasons[s],
-                                                oseasons[s], has_lev, **vres)
+                    pf.plot_zonal_mean_and_save(plot_name, case_nickname, base_nickname, 
+                                                [syear_case,eyear_case],
+                                                [syear_baseline,eyear_baseline],
+                                                mseasons[s], oseasons[s], has_lev, **vres)
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Zonal")
