@@ -1050,14 +1050,21 @@ def _meridional_plot_line(ax, lon, data, **kwargs):
     ax.set_xlabel("LONGITUDE")
     return ax
 
-def _zonal_plot_line(ax, lat, data, **kwargs):
+def _zonal_plot_line(ax, lat, data, color, **kwargs):
     """Create line plot with latitude as the X-axis."""
-    ax = _plot_line(ax, lat, data, **kwargs)
+    if color != None:
+        ax.plot(lat, data, c=color,**kwargs)
+    else:
+        ax.plot(lat, data, **kwargs)
     ax.set_xlim([max([lat.min(), -90.]), min([lat.max(), 90.])])
     #
     # annotate
     #
     ax.set_xlabel("LATITUDE")
+    if hasattr(data, "units"):
+        ax.set_ylabel("{units}".format(units=getattr(data,"units")))
+    elif "units" in kwargs:
+        ax.set_ylabel("{units}".format(kwargs["units"]))
     return ax
 
 def _zonal_plot_preslat(ax, lat, lev, data, **kwargs):
