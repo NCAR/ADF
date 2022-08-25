@@ -130,6 +130,37 @@ class AdfInfo(AdfConfig):
 
         #End if
 
+        #Attempt to grab baseline start_years (not currently required):
+        syear_baseline = self.get_baseline_info('start_year')
+        eyear_baseline = self.get_baseline_info('end_year')
+
+        if (syear_baseline and eyear_baseline) != "None":
+            data_name += f"_{syear_baseline}_{eyear_baseline}"
+        else:
+            print("*** No baseline climo years given, so assinging None")
+            #baseline_ts_locs = self.get_baseline_info('cam_ts_loc', required=True)
+            #starting_location = Path(baseline_ts_locs)
+            #files_list = sorted(starting_location.glob('*.nc'))
+            ##Generate input file path:
+            #syear_baseline = files_list[0].stem[-13:-9]
+            #eyear_baseline = files_list[0].stem[-6:-2]
+            #data_name += f"_{syear_baseline}_{eyear_baseline}"
+
+            # ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^
+            #This is supposed to automatically grab years based off timeseries
+            #files, but only owrks if the ts files already exist
+            #Since this script seems to be called first, this approach wont work
+            #for newly created timeseries files
+            #Need to think of different way. Maybe using CAM output files in a similar way??
+
+            #Or rename the case directory at the very end of run_adf_diag ??????
+
+            #I/O on files to get time??
+
+        #Create plot location variable for potential use by the website generator.
+        #Please note that this is also assumed to be the output location for the analyses scripts:
+        #-------------------------------------------------------------------------
+
         #Create plot location variable for potential use by the website generator.
         #Please note that this is also assumed to be the output location for the analyses scripts:
         #-------------------------------------------------------------------------
@@ -147,11 +178,27 @@ class AdfInfo(AdfConfig):
         #End year (not currently rquired):
         eyears = self.get_cam_info('end_year')
 
+        #Make lists of None to be iterated over for case_names
+        if (syears and eyears) == None:
+            syears = [None]*len(case_names)
+            eyears = [None]*len(case_names)
+
         #Loop over cases:
         for case_idx, case_name in enumerate(case_names):
 
-            #Set case name if start and end year are present:
-            if syears[case_idx] and eyears[case_idx]:
+            if (syears[case_idx] and eyears[case_idx]) == None:
+                print("trying to name case years")
+                '''
+                starting_location = Path(case_ts_locs[case_idx])
+                print(starting_location)
+                files_list = sorted(starting_location.glob('*nc'))
+                print(files_list)
+                syear_case = files_list[0].stem[-13:-9]
+                eyear_case = files_list[0].stem[-6:-2]
+                case_name += f"_{syear_case}_{eyear_case}"
+                '''
+
+            else:
                 case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
             #End if
 
