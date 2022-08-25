@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ADF {{var_title}}</title>
+    <link rel="stylesheet" href="../templates/adf_diag.css">
+  </head>
+  <body>
+    <div class="header">
+      <div id="screenFiller" style="background:url(https://webext.cgd.ucar.edu/AMWG/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/images/NCAR.gif) top right no-repeat; border:5px solid #555;">
+        <div class="center"><h1> {{ title }}</h1></div>
+          <div class="center">
+            <nav role="navigation" class="primary-navigation">
+            <ul>
+              <li><a href="../">Case Home</a></li>
+              <li><a href="#">Plots &dtrif;</a>
+                <ul class="dropdown2">
+                  {% for type, html_file in plot_types.items() %}
+                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a></li>
+                  {% endfor %}
+                </ul>
+              </li>
+                  <li><a href="#">Links &dtrif;</a>
+                <ul class="dropdown2">
+                  <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+                  <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+                  <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+                </ul>
+              </li>
+              <li><a href="https://github.com/NCAR/ADF">About</a></li>
+              <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+            </ul>
+          </nav>
+        </div><!--center-->
+        <br>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case1_yr }}</h2><br>
+        <h2 style="display:inline; color:black;"> Control Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case2_yr }}</h2>
+      </div><!--screenFiller-->
+    </div><!--header-->
+
+    <div class="center">
+      <div class="float-container">
+        <div class="float-child">
+          <div><h1>{{ plottype_title }} - {{ var_title }}</h1></div>
+        </div><!--float-child-->
+        <div class="float-child">
+          <div><button><a href="mean_diag_{{ plottype_title }}.html">Back to {{ plottype_title }}</a></button><button><a href="../">Back to Plot Types</a></button></div>
+        </div><!--float-child-->
+      </div><!--float-container-->
+    </div><!--center-->
+
+    <div style="width: 100%;"> <!-- main div-->
+      <div class="grid-container3" style="border: 3px solid black">
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_ANN_{{ plottype_title }}_Mean.html"> ANN </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_DJF_{{ plottype_title }}_Mean.html"> DJF </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_MAM_{{ plottype_title }}_Mean.html"> MAM </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_JJA_{{ plottype_title }}_Mean.html"> JJA </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_SON_{{ plottype_title }}_Mean.html"> SON </a>
+        </div><!--grid-item-->
+      </div><!--grid-container-->
+    </div><!--main div-->
+
+  </body>
+</html>
