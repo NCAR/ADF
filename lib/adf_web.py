@@ -628,16 +628,12 @@ class AdfWeb(AdfObs):
                     case1 = web_data.case
                     plot_types = plot_type_html
                 #End if
-
-                #Create titles
-                var_title = f"Variable: {web_data.name}"
-                season_title = f"Season: {web_data.season}"
-                plottype_title = f"Plot: {web_data.plot_type}"
+                
                 tmpl = jinenv.get_template('template.html')  #Set template
                 rndr = tmpl.render(title=main_title,
-                                   var_title=var_title,
-                                   season_title=season_title,
-                                   plottype_title=plottype_title,
+                                   var_title=web_data.name,
+                                   season_title=web_data.season,
+                                   plottype_title=web_data.plot_type,
                                    imgs=img_data,
                                    case1=case1,
                                    case2=data_name,
