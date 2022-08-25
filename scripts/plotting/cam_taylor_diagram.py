@@ -125,7 +125,7 @@ def cam_taylor_diagram(adfobj):
     #
     for s in seasons:
 
-        plot_name = plot_loc / f"cam_{s}_TaylorDiag_Mean.{plot_type}"
+        plot_name = plot_loc / f"TaylorDiag_{s}_Special_Mean.{plot_type}"
         print(f"\t - Plotting Taylor Diagram, {s}")
 
         # Check redo_plot. If set to True: remove old plot, if it already exists:
