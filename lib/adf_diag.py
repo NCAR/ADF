@@ -485,7 +485,7 @@ class AdfDiag(AdfWeb):
                 #Loop over start and end years:
                 for year in range(start_year, end_year+1):
                     #Add files to main file list:
-                    for fname in starting_location.glob(f'{hist_str}.*{year}-*.nc'):
+                    for fname in starting_location.glob(f'*.cam.h0.*{str(year).zfill(4)}-*.nc'):
                         files_list.append(fname)
                     #End for
                 #End for

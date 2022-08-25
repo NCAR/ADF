@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ADF Mean Plots</title>
+    <title>ADF {{var_title}}</title>
     <link rel="stylesheet" href="../templates/adf_diag.css">
   </head>
-  <body >
+  <body>
     <div class="header">
       <div id="screenFiller" style="background:url(https://webext.cgd.ucar.edu/AMWG/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/images/NCAR.gif) top right no-repeat; border:5px solid #555;">
         <div class="center"><h1> {{ title }}</h1></div>
@@ -19,7 +19,7 @@
                   {% endfor %}
                 </ul>
               </li>
-              <li><a href="#">Links &dtrif;</a>
+                  <li><a href="#">Links &dtrif;</a>
                 <ul class="dropdown">
                   <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
                   <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
@@ -38,28 +38,35 @@
     </div><!--header-->
 
     <div class="center">
-      <h1>{{ curr_type }} Plots</h1>
-    </div>
+      <div class="float-container">
+        <div class="float-child">
+          <div><h1>{{ plottype_title }} - {{ var_title }}</h1></div>
+        </div><!--float-child-->
+        <div class="float-child">
+          <div><button><a href="mean_diag_{{ plottype_title }}.html">Back to {{ plottype_title }}</a></button><button><a href="../">Back to Plot Types</a></button></div>
+        </div><!--float-child-->
+      </div><!--float-container-->
+    </div><!--center-->
 
-    <div class="grid-container" ><!--style="padding-left: 150px; width: 750px;" padding: 85px;-->
-      {% for category, var_seas in mydata.items() %}
-      <div class="grid-item">
-        <div class="dropdown">
-          <h3 class="block">{{ category }}</h3>
-          <!--<div class="dropdown-content">-->
-            <div class="grid-container" style="column-gap: 5px; row-gap: 5px; padding:2px"><!--class="wrapper"-->
-              {% for var_name, ptype_seas in var_seas.items() %}
-                <div class="grid-item-diag">
-                  <a href="../html_img/plot_page_{{ var_name }}_{{ curr_type }}.html"> {{var_name}} </a><br>
-                </div><!--grid-item2-->
-              {% endfor %}
-            </div><!--grid-container-->
-            <script type="text/html"> </div><!--dropdown-content--></script>
-        </div><!--dropdown-->
-      </div><!--grid-item-->
-      {% endfor %}
-    </div><!--grid-container-ptype-->
-    
+    <div style="width: 100%;"> <!-- main div-->
+      <div class="grid-container-template" style="border: 3px solid black">
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_ANN_{{ plottype_title }}_Mean.html"> ANN </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_DJF_{{ plottype_title }}_Mean.html"> DJF </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_MAM_{{ plottype_title }}_Mean.html"> MAM </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_JJA_{{ plottype_title }}_Mean.html"> JJA </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_SON_{{ plottype_title }}_Mean.html"> SON </a>
+        </div><!--grid-item-->
+      </div><!--grid-container-->
+    </div><!--main div-->
 
   </body>
 </html>
