@@ -5,60 +5,61 @@
     <link rel="stylesheet" href="../templates/adf_diag.css">
   </head>
   <body >
+    <div class="header">
+      <div id="screenFiller" style="background:url(https://webext.cgd.ucar.edu/AMWG/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/images/NCAR.gif) top right no-repeat; border:5px solid #555;">
+        <div class="center"><h1> {{ title }}</h1></div>
+          <div class="center">
+            <nav role="navigation" class="primary-navigation">
+            <ul>
+              <li><a href="../">Case Home</a></li>
+              <li><a href="#">Plots &dtrif;</a>
+                <ul class="dropdown2">
+                  {% for type, html_file in plot_types.items() %}
+                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a></li>
+                  {% endfor %}
+                </ul>
+              </li>
+              <li><a href="#">Links &dtrif;</a>
+                <ul class="dropdown2">
+                  <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+                  <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+                  <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+                </ul>
+              </li>
+              <li><a href="https://github.com/NCAR/ADF">About</a></li>
+              <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+            </ul>
+          </nav>
+        </div><!--center-->
+        <br>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+      </div><!--screenFiller-->
+    </div><!--header-->
 
-    <nav role="navigation" class="primary-navigation">
-      <ul>
-        <li><a href="../index.html">Case Home</a></li>
-        <li><a href="#">Links &dtrif;</a>
-          <ul class="dropdown">
-            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-          </ul>
-        </li>
-        <li><a href="https://github.com/NCAR/ADF">About</a></li>
-        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-      </ul>
-    </nav>
+    <div class="center">
+      <h1>{{ curr_type }} Plots</h1>
+    </div>
 
-     <h1> {{title}} </h1>
-     <h2> Test Case: {{case1}}</h2>
-     <h2> Control Case: {{case2}}</h2>
-     <h2>Plot Types:
-      {% for type, html_file in plot_types.items() %}
-      {% if type == curr_type %}
-      <a style="color: black; font-weight: bold;"> &nbsp; {{type}}</a>
-      {% else %}
-      <a href=../{{html_file}}> &nbsp; {{type}}</a>
-      {% endif %}
+    <div class="grid-container" ><!--style="padding-left: 150px; width: 750px;" padding: 85px;-->
+      {% for category, var_seas in mydata.items() %}
+      <div class="grid-item">
+        <div class="dropdown">
+          <h3 class="block">{{ category }}</h3>
+          <!--<div class="dropdown-content">-->
+            <div class="grid-container" style="column-gap: 5px; row-gap: 5px; padding:2px"><!--class="wrapper"-->
+              {% for var_name, ptype_seas in var_seas.items() %}
+                <div class="grid-item-diag">
+                  <a href="../html_img/plot_page_{{ var_name }}_{{ curr_type }}.html"> {{var_name}} </a><br>
+                </div><!--grid-item2-->
+              {% endfor %}
+            </div><!--grid-container-->
+            <script type="text/html"> </div><!--dropdown-content--></script>
+        </div><!--dropdown-->
+      </div><!--grid-item-->
       {% endfor %}
-     </h2>
-
-     <div style="width: 100%;"> <!-- main div-->
-      <div style="width: 50%; height: 100px; float: left;">
-        {% for category, var_seas in mydata.items() %}
-          <h3>{{category}}</h3>
-          <table class="big-table">
-            {% for var_name, season in var_seas.items() %}
-              <th colspan="100%"> {{var_name}} </th>
-              <tr>
-                {% for season_name, seas in season.items() %}
-                <td>
-                  <a href="{{ seas }}">{{ season_name }}</a>
-                </td>
-                {% endfor %}
-              </tr>
-            {% endfor %}
-          </table>
-        {% endfor %}
-        <div style="padding-bottom: 50px;">
-        </div>
-      </div> <!-- end left inner div -->
-
-      <div style="width: 70%; height: 100px; float: right; padding-right: 100px">
-      </div> <!-- end right inner div -->
-    </div> <!-- end main div -->
-
+    </div><!--grid-container-ptype-->
+    
 
   </body>
 </html>

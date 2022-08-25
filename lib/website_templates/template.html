@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html>
   <head>
@@ -5,68 +7,76 @@
     <link rel="stylesheet" href="../templates/adf_diag.css">
   </head>
   <body>
+    <div class="header">
+      <div id="screenFiller" style="background:url(https://webext.cgd.ucar.edu/AMWG/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/images/NCAR.gif) top right no-repeat; border:5px solid #555;">
+        <div class="center"><h1> {{ title }}</h1></div>
+          <div class="center">
+            <nav role="navigation" class="primary-navigation">
+            <ul>
+              <li><a href="../">Case Home</a></li>
+              <li><a href="#">Plots &dtrif;</a>
+                <ul class="dropdown2">
+                  {% for type, html_file in plot_types.items() %}
+                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a>
+                  {% endfor %}
+                </ul>
+              </li>
+              <li><a href="#">Links &dtrif;</a>
+                <ul class="dropdown2">
+                  <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+                  <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+                  <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+                </ul>
+              </li>
+              <li><a href="https://github.com/NCAR/ADF">About</a></li>
+              <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+            </ul>
+          </nav>
+        </div><!--center-->
+        <br>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+      </div><!--screenFiller-->
+    </div><!--header-->
 
-    <nav role="navigation" class="primary-navigation">
-      <ul>
-        <li><a href="../index.html">Case Home</a></li>
-        <li><a href="#">Links &dtrif;</a>
-          <ul class="dropdown">
-            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-          </ul>
-        </li>
-        <li><a href="https://github.com/NCAR/ADF">About</a></li>
-        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-      </ul>
-    </nav>
+    <div class="center">
+      <div class="float-container">
+        <div class="float-child">
+          <div><h1>{{plottype_title}} - {{var_title}}</h1></div>
+        </div><!--float-child-->
+        <div class="float-child">
+          <div><button><a href="mean_diag_{{plottype_title}}.html">Back to {{plottype_title}}</a></button><button><a href="../">Back to Plot Types</a></button></div>
+        </div><!--float-child-->
+      </div><!--float-container-->
+    </div><!--center-->
 
-     <h1> {{title}} </h1>
-     <h2> Test Case: {{case1}}</h2>
-     <h2> Control Case: {{case2}}</h2>
-     <h2>Plot Types:
-      {% for type, html_file in plot_types.items() %}
-      {% if type == plottype_title[6:] %}
-      <a style="color: black; font-weight: bold;"> &nbsp; {{type}}</a>
-      {% else %}
-      <a href=../{{html_file}}> &nbsp; {{type}}</a>
-      {% endif %}
-      {% endfor %}
-     </h2>
-
-     <div style="width: 100%;"> <!-- main div-->
-      <div style="width: 50%; height: 100px; float: left;">
-        {% for category, var_seas in mydata.items() %}
-          <h3>{{category}}</h3>
-          <table class="big-table">
-            {% for var_name, season in var_seas.items() %}
-              <th colspan="100%"> {{var_name}} </th>
-              <tr>
-                {% for season_name, seas in season.items() %}
-                <td>
-                  {% if (season_name == season_title[8:]) and (var_name == var_title[10:]) %}
-                  <a style="color: black; text-decoration: underline;">{{ season_name }}</a>
-                  {% else %}
-                  <a href="{{ seas }}">{{ season_name }}</a>
-                  {% endif %}
-                </td>
-                {% endfor %}
-              </tr>
-            {% endfor %}
-          </table>
-        {% endfor %}
-        <div style="padding-bottom: 50px;">
-        </div>
-      </div> <!-- end left inner div -->
-
+    <div style="width: 100%;"> <!-- main div-->
+      <div class="grid-container-template" style="border: 3px solid black">
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_ANN_{{ plottype_title }}_Mean.html"> ANN </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_DJF_{{ plottype_title }}_Mean.html"> DJF </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_MAM_{{ plottype_title }}_Mean.html"> MAM </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_JJA_{{ plottype_title }}_Mean.html"> JJA </a>
+        </div><!--grid-item-->
+        <div class="grid-item">
+          <a href="../html_img/plot_page_{{ var_title }}_SON_{{ plottype_title }}_Mean.html"> SON </a>
+        </div><!--grid-item-->
+      </div><!--grid-container-->
+    
       <div id="footer">
-      <div class="fixedDiv" style="width: 50%; height: 100px; float: right; padding-right: 50px; padding-bottom: 50px;">
-        <a href="{{imgs[0]}}" target="_blank">
-          <img src="{{imgs[0]}}" alt="{{imgs[1]}}"></img>
-        </a>
-      </div> <!-- end right inner div -->
-      </div>
-     </div> <!-- end main div -->
+        <div class="center"><!--bottom div -->
+          <a href="{{ imgs[0] }}" target="_blank">
+            <img src="{{ imgs[0] }}" alt="{{ imgs[1] }}"></img>
+          </a>
+        </div> <!-- end bottom div -->
+      </div><!--footer-->
+    </div> <!-- end main div -->
 
   </body>
 </html>
