@@ -155,7 +155,7 @@ def cam_taylor_diagram(adfobj):
         #
         # -- PLOTTING (one per season) --
         #
-        fig, ax = taylor_plot_setup(title=f"Taylor Diagram - {s}\nbaseline: {data_name}")
+        fig, ax = taylor_plot_setup(title=f"Taylor Diagram - {s}",baseline=f"Baseline: {data_name}")
 
         for i, case in enumerate(case_names):
             ax = plot_taylor_data(ax, result_by_case[case], case_color=case_colors[i], use_bias=True)
@@ -478,7 +478,7 @@ def taylor_stats_single(casedata, refdata, w=True):
     return correlation, a_sigma/b_sigma, bias
 
 
-def taylor_plot_setup(title):
+def taylor_plot_setup(title,baseline):
     """Constructs Figure and Axes objects for basic Taylor Diagram."""
     fig, ax = plt.subplots(figsize=(8,8), subplot_kw={'projection':'polar'})
     corr_labels = np.array([0.0, .1, .2, .3, .4, .5, .6, .7, .8, .9, .95, .99, 1.])
@@ -500,7 +500,8 @@ def taylor_plot_setup(title):
     ax.text(np.radians(50), ax.get_rmax()*1.1, "Correlation", ha='center', rotation=-50, fontsize=15)
     ax.text(np.radians(95), 1.0, "REF", ha='center')
     st = fig.suptitle(title, fontsize=18)
-    st.set_y(0.95)
+    st.set_y(1.)
+    ax.set_title(baseline, fontsize=11,pad=15)
     return fig, ax
 
 
@@ -561,6 +562,8 @@ def taylor_plot_finalize(wks, casenames, casecolors, needs_bias_labels=True):
     bottom_of_text = 0.05
     number_of_lines = len(casenames)
     height_of_lines = 0.03
+    text = wks.text(0.052, 0.08, "Cases:",
+            color='k', ha='left', va='bottom', transform=wks.transAxes, fontsize=11)
     n = 0
     for s, c in zip(casenames, casecolors):
             text = wks.text(0.052, bottom_of_text + n*height_of_lines, s,
