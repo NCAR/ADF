@@ -406,6 +406,8 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
 
     # generate progjection:
     proj = ccrs.PlateCarree(central_longitude=cent_long)
+    lat = umdlfld['lat']
+    wgt = np.cos(np.radians(lat))
 
     # extract lat/lon values:
     lons, lats = np.meshgrid(umdlfld['lon'], umdlfld['lat'])
@@ -507,11 +509,11 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
 
     #Set stats: area_avg
     # mdlfld, obsfld, diffld
-    ax[0].set_title(f"Mean: \nMax: \nMin: ", loc='right',
+    ax[0].set_title(f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\nMax: {mdl_mag.values.max():5.2f}\nMin: {mdl_mag.values.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[1].set_title(f"Mean: \nMax: \nMin: ", loc='right',
+    ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.values.max():5.2f}\nMin: {mdl_mag.values.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[-1].set_title(f"Mean: \nMax: \nMin: ", loc='right',
+    ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.values.max():5.2f}\nMin: {mdl_mag.values.min():5.2f}", loc='right',
                        fontsize=8)
 
     # set rmse title:
@@ -764,11 +766,11 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     
     #Set stats: area_avg
     # mdlfld, obsfld, diffld
-    ax[0].set_title(f"Mean: {mdlfld.values.mean():5.2f}\nMax: {mdlfld.values.max():5.2f}\nMin: {mdlfld.values.min():5.2f}", loc='right',
+    ax[0].set_title(f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.values.max():5.2f}\nMin: {mdlfld.values.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[1].set_title(f"Mean: {obsfld.values.mean():5.2f}\nMax: {obsfld.values.max():5.2f}\nMin: {obsfld.values.min():5.2f}", loc='right',
+    ax[1].set_title(f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.values.max():5.2f}\nMin: {obsfld.values.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[-1].set_title(f"Mean: {diffld.values.mean():5.2f}\nMax: {diffld.values.max():5.2f}\nMin: {diffld.values.min():5.2f}", loc='right',
+    ax[-1].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.values.max():5.2f}\nMin: {diffld.values.min():5.2f}", loc='right',
                        fontsize=8)
 
     # set rmse title:
@@ -1381,7 +1383,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         #End if
 
         # Generate zonal plot:
-        fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**subplots_opt)
+        fig, ax = plt.subplots(figsize=(10,10),nrows=3, constrained_layout=True, sharex=True, sharey=True,**subplots_opt)
         levs = np.unique(np.array(levels1))
         if len(levs) < 2:
             empty_message = "No Valid\nData Points"
@@ -1417,7 +1419,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         # style the plot:
         #Set Main title for subplots:
-        st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
+        st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=15)
         st.set_y(0.85)
         ax[-1].set_xlabel("LATITUDE")
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
@@ -1431,32 +1433,33 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         azm = zonal_mean_xr(adata)
         bzm = zonal_mean_xr(bdata)
         diff = azm - bzm
-        #fig, ax = plt.subplots(nrows=2, constrained_layout=True)
-        fig = plt.figure(figsize=(14,10))
+        fig, ax = plt.subplots(nrows=2)
+        ax = [ax[0],ax[1]]
+        #fig = plt.figure(figsize=(10,8))
         # LAYOUT WITH GRIDSPEC
-        gs = mpl.gridspec.GridSpec(4, 1, wspace=0.5, hspace=0.5)
+        #gs = mpl.gridspec.GridSpec(4, 1, wspace=0.5, hspace=0.5)
 
-        ax1 = plt.subplot(gs[0:2, :])
-        ax2 = plt.subplot(gs[2:, :])
-        ax = [ax1,ax2]
+        #ax1 = plt.subplot(gs[0:2, :])
+        #ax2 = plt.subplot(gs[2:, :])
+        #ax = [ax1,ax2]
 
         #Set Main title for subplots:
-        st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
-        st.set_y(1.)
+        st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=15)
+        st.set_y(1.02)
         #Set case nickname and climo years:
-        zonal_plot(adata['lat'], azm, ax=ax1,color="#1f77b4")
+        zonal_plot(adata['lat'], azm, ax=ax[0],color="#1f77b4")
         #ax[0].set_title(f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
         #                loc='left', color="#1f77b4", fontsize=tiFontSize)
 
-        zonal_plot(bdata['lat'], bzm, ax=ax1,color="#ff7f0e")
+        zonal_plot(bdata['lat'], bzm, ax=ax[0],color="#ff7f0e")
         #ax[0].set_title(f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", 
         #                loc='right', color="#ff7f0e", fontsize=tiFontSize)        
 
-        fig.legend(handles=[line,line2],bbox_to_anchor=(-0.15, 0.86, 1.05, .102),loc="right",
-                   borderaxespad=0.0,fontsize=12)
+        fig.legend(handles=[line,line2],bbox_to_anchor=(-0.15, 0.87, 1.05, .102),loc="right",
+                   borderaxespad=0.0,fontsize=6)
 
-        zonal_plot(adata['lat'], diff, ax=ax2, color="k")
-        ax2.set_title("Test - Baseline", loc='left', fontsize=8)
+        zonal_plot(adata['lat'], diff, ax=ax[1], color="k")
+        ax[1].set_title("Test - Baseline", loc='left', fontsize=10)
 
         for a in ax:
             try:
@@ -1562,7 +1565,7 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
         cp_info = prep_contour_plot(adata, bdata, diff, **kwargs)
 
         # generate plot objects:
-        fig, ax = plt.subplots(nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
+        fig, ax = plt.subplots(figsize=(10,10),nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
         levs = np.unique(np.array(cp_info['levels1']))
         if len(levs) < 2:
             empty_message = "No Valid\nData Points"
@@ -1589,7 +1592,7 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
 
     else:
-        fig, ax = plt.subplots(nrows=2, constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(10,8),nrows=2, constrained_layout=True)
         pltfunc(adata[xdim], adata, ax=ax[0])
         pltfunc(bdata[xdim], bdata, ax=ax[0])
         pltfunc(adata[xdim], diff, ax=ax[1])
