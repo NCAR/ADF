@@ -52,128 +52,206 @@
 #
 #+++++++++++
 
-PSL:
-  colormap: "Oranges"
-  contour_levels_range: [980, 1052, 4]
-  diff_colormap: "PuOr_r"
-  diff_contour_range: [-9, 9, 0.5]
-  scale_factor: 0.01
-  add_offset: 0
-  new_unit: "hPa"
-  mpl:
-    colorbar:
-      label : "hPa"
-  category: "State"
-
-PS:
-  colormap: "Oranges"
-  contour_levels: [500,600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020,1050]
-  diff_colormap: "PuOr_r"
-  diff_contour_range: [-9, 9, 0.5]
-  scale_factor: 0.01
-  add_offset: 0
-  new_unit: "hPa"
-  mpl:
-    colorbar:
-      label : "hPa"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "PS"
-  category: "State"
+#+++++++++++++
+# Category: Microphysics
+#+++++++++++++
 
 ACTNI:
-  category: "Clouds"
+  category: "Microphysics"
 
 ACTNL:
-  category: "Clouds"
+  category: "Microphysics"
 
 ACTREI:
-  category: "Clouds"
+  category: "Microphysics"
 
 ACTREL:
-  category: "Clouds"
+  category: "Microphysics"
 
 ADRAIN:
-  category: "Clouds"
+  category: "Microphysics"
 
 ADSNOW:
-  category: "Clouds"
+  category: "Microphsyics"
 
 AREI:
-  category: "Clouds"
+  category: "Microphysics"
 
 AREL:
-  category: "Clouds"
-
-PRECC:
-  colormap: "Greens"
-  contour_levels_range: [0, 20, 1]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-10, 10, 0.5]
-  scale_factor: 86400000
-  add_offset: 0
-  new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm/d"
-  category: "Clouds"
-
-PRECL:
-  category: "Clouds"
-
-PRECSC:
-  category: "Clouds"
-
-PRECSL:
-  category: "Clouds"
-
-PRECT:
-  colormap: "Blues"
-  contour_levels_range: [0, 20, 1]
-  diff_colormap: "seismic"
-  diff_contour_range: [-10, 10, 0.5]
-  scale_factor: 86400000
-  add_offset: 0
-  new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm d$^{-1}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "PRECT"
-  category: "Clouds"
-
-TGCLDLWP:
-  colormap: "Blues"
-  contour_levels_range: [0, 400, 10]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-100, 100, 10]
-  scale_factor: 1000
-  add_offset: 0
-  new_unit: "g m$^{-2}$"
-  mpl:
-    colorbar:
-      label : "g m$^{-2}$"
-  category: "Clouds"
-
-TGCLDIWP:
-  colormap: "Blues"
-  contour_levels_range: [0, 100, 5]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-50, 50, 5]
-  scale_factor: 1000
-  add_offset: 0
-  new_unit: "g m$^{-2}$"
-  mpl:
-    colorbar:
-      label : "g m$^{-2}$"
-  category: "Clouds"
-
-CCN3:
-  category: "Clouds"
+  category: "Microphysics"
 
 CDNUMC:
-  category: "Clouds"
+  category: "Microphysics"
+
+FREQI:
+  category: "Microphysics"
+
+FREQL:
+  category: "Microphysics"
+
+FREQR:
+  category: "Microphysics"
+
+FREQS:
+  category: "Microphysics"
+
+FCTL:
+  category: "Microphysics"
+
+FCTI:
+  category: "Microphysics"
+
+FICE:
+  category: "Microphysics"
+
+#+++++++++++
+# Category: Aerosols
+#+++++++++++
+
+AODDUST:
+  category: "Aerosols"
+  colormap: "Oranges"
+  contour_levels_range: [0.01, 0.6, 0.05]
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-0.06, 0.06, 0.01]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: ""
+
+AODVIS:
+  category: "Aerosols"
+  colormap: "Oranges"
+  contour_levels_range: [0.05, 0.6, 0.05]
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-0.1, 0.1, 0.01]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: ""
+
+BURDENBC:
+  category: "Aerosols"
+
+BURDENDUST:
+  category: "Aerosols"
+
+BURDENPOM:
+  category: "Aerosols"
+
+BURDENSEASALT:
+  category: "Aerosols"
+
+BURDENSO4:
+  category: "Aerosols"
+
+BURDENSOA:
+  category: "Aerosols"
+
+DMS:
+  category: "Aerosols"
+
+SO2:
+  category: "Aerosols"
+
+SOAG:
+  category: "Aerosols"
+
+
+#+++++++++++++++++
+# Category: Budget
+#+++++++++++++++++
+
+DCQ:
+  category: "Budget"
+
+DQCORE:
+  category: "Budget"
+
+DTCORE:
+  category: "Budget"
+
+EVAPPREC:
+  category: "Budget"
+
+EVAPSNOW:
+  category: "Budget"
+
+MPDICE:
+  category: "Budget"
+
+MPDLIQ:
+  category: "Budget"
+
+MPDQ:
+  category: "Budget"
+
+PTEQ:
+  category: "Budget"
+
+ZMDQ:
+  category: "Budget"
+
+ZMDT:
+  category: "Budget"
+
+#+++++++++++++++++
+# Category: Deep Convection
+#+++++++++++++++++
+
+CAPE:
+  category: "Deep Convection"
+
+CMFMC_DP:
+  category: "Deep Convection"
+
+FREQZM:
+  category: "Deep Convection"
+
+#+++++++++++++++++
+# Category: GW
+#+++++++++++++++++
+
+QTGW:
+  category: "GW"
+
+UGTW_TOTAL:
+  category: "GW"
+
+UTGWORO:
+  category: "GW"
+
+VGTW_TOTAL:
+  category: "GW"
+
+VTGWORO:
+  category: "GW"
+
+
+#+++++++++++++++++
+# Category: Composition
+#+++++++++++++++++
+
+CFC11:
+  category: "Composition"
+
+CFC12:
+  category: "Composition"
+
+CH4:
+  category: "Composition"
+
+H2O2:
+  category: "Composition"
+
+H2SO4:
+  category: "Composition"
+
+N2O:
+  category: "Composition"
+
+
+#+++++++++++++++++
+# Category: Clouds
+#+++++++++++++++++
 
 CLDICE:
   category: "Clouds"
@@ -181,12 +259,9 @@ CLDICE:
 CLDLIQ:
   category: "Clouds"
 
-CONCLD:
-  category: "Clouds"
-
 CLDTOT:
   colormap: "Oranges"
-  contour_levels_range: [0, 1.05, 0.05]
+  contour_levels_range: [0.2, 1.1, 0.05]
   diff_colormap: "BrBG"
   diff_contour_range: [-0.4, 0.4, 0.05]
   scale_factor: 1.
@@ -249,32 +324,201 @@ CLOUD:
       label : "Percent"
   category: "Clouds"
 
-EVAPPREC:
+CONCLD:
   category: "Clouds"
 
-EVAPSNOW:
+TGCLDLWP:
+  colormap: "Blues"
+  contour_levels_range: [0, 400, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-100, 100, 10]
+  scale_factor: 1000
+  add_offset: 0
+  new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
   category: "Clouds"
 
-FCTL:
+TGCLDIWP:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-50, 50, 5]
+  scale_factor: 1000
+  add_offset: 0
+  new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
   category: "Clouds"
 
-FICE:
+CCN3:
   category: "Clouds"
 
-FREQI:
-  category: "Clouds"
+#+++++++++++++++++
+# Category: CLUBB 
+#+++++++++++++++++
 
-FREQL:
-  category: "Clouds"
+RVMTEND_CLUBB:
+  category: "CLUBB"
 
-FREQR:
-  category: "Clouds"
+STEND_CLUBB:
+  category: "CLUBB"
 
-FREQS:
-  category: "Clouds"
+WPRTP_CLUBB:
+  category: "CLUBB"
 
-MPDQ:
-  category: "Clouds"
+WPTHLP_CLUBB:
+  category: "CLUBB"
+
+#+++++++++++++++++
+# Category: hydrologic cycle 
+#+++++++++++++++++
+
+PRECC:
+  colormap: "Greens"
+  contour_levels_range: [0, 20, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 86400000
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm/d"
+  category: "Hydrologic cycle"
+
+PRECL:
+  category: "Hydrologic cycle"
+
+PRECSC:
+  category: "Hydrologic cycle"
+
+PRECSL:
+  category: "Hydrologic cycle"
+
+PRECT:
+  colormap: "Blues"
+  contour_levels_range: [0, 20, 1]
+  diff_colormap: "seismic"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 86400000
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"
+  obs_var_name: "PRECT"
+  category: "Hydrologic cycle"
+
+QFLX:
+  category: "Hydrologic cycle"
+
+#+++++++++++++++++
+# Category: Surface variables
+#+++++++++++++++++
+
+
+PBLH:
+  category: "Surface variables"
+
+PSL:
+  colormap: "Oranges"
+  contour_levels_range: [980, 1052, 4]
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-9, 9, 0.5]
+  scale_factor: 0.01
+  add_offset: 0
+  new_unit: "hPa"
+  mpl:
+    colorbar:
+      label : "hPa"
+  category: "Surface variables"
+
+PS:
+  colormap: "Oranges"
+  contour_levels: [500,600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020,1050]
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-9, 9, 0.5]
+  scale_factor: 0.01
+  add_offset: 0
+  new_unit: "hPa"
+  mpl:
+    colorbar:
+      label : "hPa"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"
+  obs_var_name: "PS"
+  category: "Surface variables"
+
+TREFHT:
+  category: "Surface variables"
+
+TS:
+  colormap: "Blues"
+  contour_levels_range: [220,320, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "K"
+  mpl:
+    colorbar:
+      label : "K"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"
+  obs_var_name: "TS"
+  category: "Surface variables"
+
+SST:
+  colormap: "Blues"
+  contour_levels_range: [220,320, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "K"
+  mpl:
+    colorbar:
+      label : "K"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"
+  obs_var_name: "TS"
+  category: "Surface variables"
+
+
+U10:
+  category: "Surface variables"
+
+Surface_Wind_Stress:
+  category: "Surface variables"
+
+TAUX:
+  vector_pair: "TAUY"
+  vector_name: "Surface_Wind_Stress"
+  category: "Surface variables"
+
+TAUY:
+  vector_pair: "TAUX"
+  vector_name: "Surface_Wind_Stress"
+  category: "Surface variables"
+
+ICEFRAC:
+  category: "Surface variables"
+
+OCNFRAC:
+  category: "Surface variables"
+
+LANDFRAC:
+  category: "Surface variables"
+
+
+#+++++++++++++++++
+# Category: State
+#+++++++++++++++++
 
 TMQ:
   colormap: "Oranges"
@@ -341,6 +585,12 @@ V:
   vector_name: "Wind"
   category: "State"
 
+Q:
+  category: "State"
+
+T:
+  category: "State"
+
 OMEGA:
   category: "State"
 
@@ -353,74 +603,25 @@ PINT:
 PMID:
   category: "State"
 
-Q:
-  category: "State"
-
-T:
-  category: "State"
-
 Z3:
   category: "State"
 
 Wind:
   category: "State"
 
-PBLH:
-  category: "Surface"
+#+++++++++++++++++
+# Category: Radiation
+#+++++++++++++++++
 
-QFLX:
-  category: "Surface"
-
-Surface_Wind_Stress:
-  category: "Surface"
-
-TAUX:
-  vector_pair: "TAUY"
-  vector_name: "Surface_Wind_Stress"
-  category: "Surface"
-
-TAUY:
-  vector_pair: "TAUX"
-  vector_name: "Surface_Wind_Stress"
-  category: "Surface"
-
-TREFHT:
-  category: "Surface"
-
-TS:
-  colormap: "Blues"
-  contour_levels_range: [220,320, 5]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-10, 10, 1]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "K"
-  mpl:
-    colorbar:
-      label : "K"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "TS"
-  category: "Surface"
-
-U10:
-  category: "Surface"
-
-LHFLX:
-  colormap: "Blues"
-  contour_levels_range: [0, 220, 10]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-45, 45, 5]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "LHFLX"
+QRL:
   category: "Radiation"
+
+QRS:
+  category: "Radiation"
+
+#+++++++++++++++++
+# Category: TOA energy flux
+#+++++++++++++++++
 
 SWCF:
   colormap: "Blues"
@@ -438,7 +639,7 @@ SWCF:
   obs_var_name: "toa_cre_sw_mon"
   obs_scale_factor: 1
   obs_add_offset: 0
-  category: "Radiation"
+  category: "TOA energy flux"
 
 LWCF:
   colormap: "Oranges"
@@ -454,7 +655,7 @@ LWCF:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
-  category: "Radiation"
+  category: "TOA energy flux"
 
 FSUTOA:
   colormap: "Blues"
@@ -470,29 +671,19 @@ FSUTOA:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_sw_all_mon"
-  category: "Radiation"
+  category: "TOA energy flux"
 
-FLDS:
-  colormap: "Oranges"
-  contour_levels_range: [100, 500, 25]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
-  obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "sfc_lw_down_all_mon"
-  category: "Radiation"
+FSNT:
+  category: "TOA energy flux"
 
-FLNS:
-  category: "Radiation"
+FSNTC:
+  category: "TOA energy flux"
 
-FLNSC:
-  category: "Radiation"
+FSNTOA:
+  category: "TOA energy flux"
+
+FLUT:
+  category: "TOA energy flux"
 
 FLNT:
   colormap: "Oranges"
@@ -508,7 +699,7 @@ FLNT:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_all_mon"
-  category: "Radiation"
+  category: "TOA energy flux"
 
 FLNTC:
   colormap: "Oranges"
@@ -524,16 +715,17 @@ FLNTC:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_clr_t_mon"
-  category: "Radiation"
+  category: "TOA energy flux"
 
-FLUT:
-  category: "Radiation"
+#+++++++++++++++++
+# Category: Surface energy flux
+#+++++++++++++++++
 
 FSDS:
-  category: "Radiation"
+  category: "Sfc energy flux"
 
 FSDSC:
-  category: "Radiation"
+  category: "Sfc energy flux"
 
 FSNS:
   colormap: "Blues"
@@ -549,7 +741,7 @@ FSNS:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_all_mon"
-  category: "Radiation"
+  category: "Sfc energy flux"
 
 FSNSC:
   colormap: "Blues"
@@ -565,40 +757,52 @@ FSNSC:
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_clr_t_mon"
-  category: "Radiation"
+  category: "Sfc energy flux"
 
-FSNT:
-  category: "Radiation"
+FLDS:
+  colormap: "Oranges"
+  contour_levels_range: [100, 500, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_lw_down_all_mon"
+  category: "Sfc energy flux"
 
-FSNTC:
-  category: "Radiation"
+FLNS:
+  category: "Sfc energy flux"
 
-FSNTOA:
-  category: "Radiation"
-
-QRL:
-  category: "Radiation"
-
-QRS:
-  category: "Radiation"
+FLNSC:
+  category: "Sfc energy flux"
 
 SHFLX:
-  category: "Radiation"
+  category: "Sfc energy flux"
 
-CAPE:
-  category: "Deep Convection"
+LHFLX:
+  colormap: "Blues"
+  contour_levels_range: [0, 220, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-45, 45, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "ERAI_all_climo.nc"
+  obs_name: "ERAI"
+  obs_var_name: "LHFLX"
+  category: "Sfc energy flux"
 
-CMFMC_DP:
-  category: "Deep Convection"
-
-FREQZM:
-  category: "Deep Convection"
-
-ZMDQ:
-  category: "Deep Convection"
-
-ZMDT:
-  category: "Deep Convection"
+#+++++++++++++++++
+# Category: COSP
+#+++++++++++++++++
 
 CLDTOT_ISCCP:
   category: "COSP"
@@ -663,50 +867,10 @@ TOT_CLD_VISTAU:
 TOT_ICLD_VISTAU:
   category: "COSP"
 
-DCQ:
-  category: "Budget"
 
-DQCORE:
-  category: "Budget"
-
-DTCORE:
-  category: "Budget"
-
-MPDICE:
-  category: "Budget"
-
-MPDLIQ:
-  category: "Budget"
-
-PTEQ:
-  category: "Budget"
-
-QTGW:
-  category: "GW"
-
-UGTW_TOTAL:
-  category: "GW"
-
-UTGWORO:
-  category: "GW"
-
-VGTW_TOTAL:
-  category: "GW"
-
-VTGWORO:
-  category: "GW"
-
-RVMTEND_CLUBB:
-  category: "CLUBB"
-
-STEND_CLUBB:
-  category: "CLUBB"
-
-WPRTP_CLUBB:
-  category: "CLUBB"
-
-WPTHLP_CLUBB:
-  category: "CLUBB"
+#+++++++++++++++++
+# Category: Other
+#+++++++++++++++++
 
 H2O:
   colormap: "PuOr_r"
@@ -723,5 +887,6 @@ OMEGAT:
   colormap: "PuOr_r"
   diff_colormap: "coolwarm"
   plot_log_pressure: True
+
 #-----------
 #End of File
