@@ -297,16 +297,16 @@ plotting_scripts:
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
-   - AODDUST                                                                                                                                                                                                                
-   - AODVIS                                                                                                                                     
-   - CLDHGH                                                                                                                                                                                                             
-   - CLDICE                                                                                                                                                                                                             
-   - CLDLIQ                                                                                                                                                                                                             
-   - CLDLOW                                                                                                                                                                                                             
-   - CLDMED                                                                                                                                                                                                             
-   - CLDTOT                                                                                                                                                                                                             
-   - CLOUD                                                                                                                                       
-   - FLNS    
+   - AODDUST
+   - AODVIS
+   - CLDHGH
+   - CLDICE
+   - CLDLIQ
+   - CLDLOW
+   - CLDMED
+   - CLDTOT
+   - CLOUD
+   - FLNS
    - FLNT
    - FLNTC
    - FSNS
