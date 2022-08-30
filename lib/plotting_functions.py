@@ -1398,24 +1398,15 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
             img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
             img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=norm1,cmap=cmap1,levels=levels1,**contourf_opt)
             img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=normdiff,cmap=cmapdiff,levels=levelsdiff,**contourf_opt)
-            cb0 = fig.colorbar(img0, ax=ax[0], location='right',**colorbar_opt)
-            cb1 = fig.colorbar(img1, ax=ax[1], location='right',**colorbar_opt)
-            cb2 = fig.colorbar(img2, ax=ax[2], location='right',**colorbar_opt)
+            fig.colorbar(img0, ax=ax[0], location='right',**colorbar_opt)
+            fig.colorbar(img1, ax=ax[1], location='right',**colorbar_opt)
+            fig.colorbar(img2, ax=ax[2], location='right',**colorbar_opt)
         #End if
 
         #Set case nickname and climo years:
         ax[0].set_title(f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", loc='left', fontsize=8) 
         ax[1].set_title(f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
         ax[2].set_title("Test - Baseline", loc='left', fontsize=8)
-        #Set stats: area_avg
-        # mdlfld, obsfld, diffld
-
-        #ax[0].set_title(f"Mean: {mdlfld.values.mean():5.2f}\nMax: {mdlfld.values.max():5.2f}\nMin: {mdlfld.values.min():5.2f}", loc='right',
-        #               fontsize=tiFontSize)
-        #ax[1].set_title(f"Mean: {obsfld.values.mean():5.2f}\nMax: {obsfld.values.max():5.2f}\nMin: {obsfld.values.min():5.2f}", loc='right',
-        #               fontsize=tiFontSize)
-        #ax[-1].set_title(f"Mean: {diffld.values.mean():5.2f}\nMax: {diffld.values.max():5.2f}\nMin: {diffld.values.min():5.2f}", loc='right',
-        #               fontsize=tiFontSize)
 
         # style the plot:
         #Set Main title for subplots:
@@ -1435,25 +1426,13 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         diff = azm - bzm
         fig, ax = plt.subplots(nrows=2)
         ax = [ax[0],ax[1]]
-        #fig = plt.figure(figsize=(10,8))
-        # LAYOUT WITH GRIDSPEC
-        #gs = mpl.gridspec.GridSpec(4, 1, wspace=0.5, hspace=0.5)
-
-        #ax1 = plt.subplot(gs[0:2, :])
-        #ax2 = plt.subplot(gs[2:, :])
-        #ax = [ax1,ax2]
 
         #Set Main title for subplots:
         st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=15)
         st.set_y(1.02)
-        #Set case nickname and climo years:
+        
         zonal_plot(adata['lat'], azm, ax=ax[0],color="#1f77b4")
-        #ax[0].set_title(f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
-        #                loc='left', color="#1f77b4", fontsize=tiFontSize)
-
-        zonal_plot(bdata['lat'], bzm, ax=ax[0],color="#ff7f0e")
-        #ax[0].set_title(f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", 
-        #                loc='right', color="#ff7f0e", fontsize=tiFontSize)        
+        zonal_plot(bdata['lat'], bzm, ax=ax[0],color="#ff7f0e")       
 
         fig.legend(handles=[line,line2],bbox_to_anchor=(-0.15, 0.87, 1.05, .102),loc="right",
                    borderaxespad=0.0,fontsize=6)
