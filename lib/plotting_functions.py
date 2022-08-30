@@ -1020,36 +1020,22 @@ def zm_validate_dims(fld):
     else:
         return has_lat, has_lev
 
-
-def _plot_line(axobject, xdata, ydata, **kwargs):
-    """Create a generic line plot and check for some ways to annotate."""
-    axobject.plot(xdata, ydata, **kwargs)
-
-    #Set Y-axis label:
-    if hasattr(ydata, "units"):
-        axobject.set_ylabel("[{units}]".format(units=getattr(ydata,"units")))
-    elif "units" in kwargs:
-        axobject.set_ylabel("[{units}]".format(kwargs["units"]))
-    #End if
-
-    #Set plot title:
-    if hasattr(ydata, "long_name"):
-        axobject.set_title(getattr(ydata,"long_name"), loc="left")
-    elif hasattr(ydata, "name"):
-        axobject.set_title(getattr(ydata,"name"), loc="left")
-    #End if
-
-    return axobject
-
-
-def _meridional_plot_line(ax, lon, data, **kwargs):
+def _meridional_plot_line(ax, lon, data, color, **kwargs):
     """Create line plot with longitude as the X-axis."""
-    ax = _plot_line(ax, lon, data, **kwargs)
+    if color != None:
+        ax.plot(lon, data, c=color,**kwargs)
+    else:
+        ax.plot(lon, data, **kwargs)
+
     ax.set_xlim([lon.min(), lon.max()])
     #
     # annotate
     #
     ax.set_xlabel("LONGITUDE")
+    if hasattr(data, "units"):
+        ax.set_ylabel("{units}".format(units=getattr(data,"units")))
+    elif "units" in kwargs:
+        ax.set_ylabel("{units}".format(kwargs["units"]))
     return ax
 
 def _zonal_plot_line(ax, lat, data, color, **kwargs):
@@ -1117,7 +1103,7 @@ def zonal_plot(lat, data, ax=None, color=None, **kwargs):
         ax = _zonal_plot_line(ax, lat, data, color, **kwargs)
         return ax
 
-def meridional_plot(lon, data, ax=None, **kwargs):
+def meridional_plot(lon, data, ax=None, color=None, **kwargs):
     """
     Determine which kind of meridional plot is needed based
     on the input variable's dimensions.
@@ -1128,7 +1114,7 @@ def meridional_plot(lon, data, ax=None, **kwargs):
         img, ax = _meridional_plot_preslon(ax, lon, data['lev'], data, **kwargs)
         return img, ax
     else:
-        ax = _meridional_plot_line(ax, lon,  data, **kwargs)
+        ax = _meridional_plot_line(ax, lon,  data, color, **kwargs)
         return ax
 
 def prep_contour_plot(adata, bdata, diffdata, **kwargs):
@@ -1457,7 +1443,9 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
 
 
-def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **kwargs):
+def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
+                             case_climo_yrs, baseline_climo_yrs,
+                             adata, bdata, has_lev, latbounds=None, **kwargs):
     """This is the default meridional mean plot:
         adata: data to plot ([lev], [lat], lon).
                The vertical coordinate (lev) must be pressure levels.
@@ -1564,17 +1552,45 @@ def plot_meridional_mean_and_save(wks, adata, bdata, has_lev, latbounds=None, **
             cb2 = fig.colorbar(img2, ax=ax[2], location='right',**cp_info['colorbar_opt'])
         #End if
 
+        #Set case nickname and climo years:
+        ax[0].set_title(f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", loc='left', fontsize=8) 
+        ax[1].set_title(f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
+        ax[2].set_title("Test - Baseline", loc='left', fontsize=8)
+
         # style the plot:
+        #Set Main title for subplots:
+        st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=15)
+        st.set_y(0.85)
         ax[-1].set_xlabel("LONGITUDE")
         if cp_info['plot_log_p']:
             [a.set_yscale("log") for a in ax]
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
 
     else:
-        fig, ax = plt.subplots(figsize=(10,8),nrows=2, constrained_layout=True)
-        pltfunc(adata[xdim], adata, ax=ax[0])
-        pltfunc(bdata[xdim], bdata, ax=ax[0])
-        pltfunc(adata[xdim], diff, ax=ax[1])
+        from matplotlib.lines import Line2D
+        line = Line2D([0], [0], label=f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
+                        color="#1f77b4")
+        line2 = Line2D([0], [0], label=f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
+                        color="#ff7f0e")
+
+        #fig, ax = plt.subplots(figsize=(10,8),nrows=2, constrained_layout=True)
+
+        fig, ax = plt.subplots(nrows=2)
+        ax = [ax[0],ax[1]]
+
+        pltfunc(adata[xdim], adata, ax=ax[0],color="#1f77b4")
+        pltfunc(bdata[xdim], bdata, ax=ax[0],color="#ff7f0e")
+        pltfunc(adata[xdim], diff, ax=ax[1], color="k")
+
+        ax[1].set_title("Test - Baseline", loc='left', fontsize=10)
+
+        #Set Main title for subplots:
+        st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=15)
+        st.set_y(1.02)
+
+        fig.legend(handles=[line,line2],bbox_to_anchor=(-0.15, 0.87, 1.05, .102),loc="right",
+                   borderaxespad=0.0,fontsize=6)
+
         for a in ax:
             try:
                 a.label_outer()
