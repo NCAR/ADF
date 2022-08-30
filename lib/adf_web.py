@@ -351,26 +351,12 @@ class AdfWeb(AdfObs):
         eyear_cases = self.get_cam_info('end_year')
 
         if (syear_cases and eyear_cases) == None:
-            print("No case climo years given, fetching from time series file.")
-            cam_ts_locs = self.get_cam_info('cam_ts_loc', required=True)
-            starting_location = Path(cam_ts_locs[0])
-            files_list = sorted(starting_location.glob('*.nc'))
-            #Generate climo years if not explicitly defined in config file
-            #NOTE this is a very lazy, possible incorrect way to get the years
-            #However, since the ADF always (for now?) produces timeseries files in the form ...YYYYMM-YYYYMM.ncc
-            #this should be sufficient to get the climo years from the file names.
-            syear_cases = int(files_list[0].stem[-13:-9])
-            eyear_cases = int(files_list[-1].stem[-6:-2])
-            print("syear_cases:",syear_cases)
+            print("*** No case climo years given, so assinging None")
 
         else:
             syear_cases = syear_cases[0]
             eyear_cases = eyear_cases[0]
 
-        #Assumption is that the adf_web gets called for each case??
-        #Therefore, the case names will be built into each of 
-        #the cases in multi-case??
-        ###########################################################
 
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
@@ -383,16 +369,7 @@ class AdfWeb(AdfObs):
             eyear_baseline = self.get_baseline_info('end_year')
 
             if (syear_baseline and eyear_baseline) == "None":
-                print("No baseline climo years given, fetching from time series file.")
-                baseline_ts_locs = self.get_baseline_info('cam_ts_loc', required=True)
-                starting_location = Path(baseline_ts_locs)
-                files_list = sorted(starting_location.glob('*.nc'))
-                #Generate climo years if not explicitly defined in config file
-                #NOTE this is a very lazy, possible incorrect way to get the years
-                #However, since the ADF always (for now?) produces timeseries files in the form ...YYYYMM-YYYYMM.ncc
-                #this should be sufficient to get the climo years from the file names.
-                syear_baseline = int(files_list[0].stem[-13:-9])
-                eyear_baseline = int(files_list[0].stem[-6:-2])
+                print("*** No baseline climo years given, so assinging None")
             #End if
         #End if
 
@@ -628,7 +605,7 @@ class AdfWeb(AdfObs):
                     case1 = web_data.case
                     plot_types = plot_type_html
                 #End if
-                
+
                 tmpl = jinenv.get_template('template.html')  #Set template
                 rndr = tmpl.render(title=main_title,
                                    var_title=web_data.name,
