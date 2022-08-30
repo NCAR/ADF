@@ -94,14 +94,7 @@ def zonal_mean(adfobj):
         eyear_baseline = adfobj.get_baseline_info('end_year')
 
         if (syear_baseline and eyear_baseline) == "None":
-            print("No given climo years for baseline, gathering from time series files.")
-            #Time series files (to be used for climo years):
-            baseline_ts_locs = adfobj.get_baseline_info('cam_ts_loc', required=True)
-            starting_location = Path(baseline_ts_locs)
-            files_list = sorted(starting_location.glob('*.nc'))
-            syear_baseline = int(files_list[0].stem[-13:-9])
-            eyear_baseline = int(files_list[0].stem[-6:-2])
-    
+            print("*** No baseline climo years given, so assinging None")
 
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
@@ -190,18 +183,11 @@ def zonal_mean(adfobj):
             for case_idx, case_name in enumerate(case_names):
 
                 if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
-                     #Time series files (to be used for climo years):
-                     cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
-                     print("No case climo years given, extracting from timeseries file...")
-                     starting_location = Path(cam_ts_locs[case_idx])
-                     files_list = sorted(starting_location.glob('*nc'))
-                     syear_case = int(files_list[0].stem[-13:-9])
-                     eyear_case = int(files_list[0].stem[-6:-2])
+                     print("*** No case climo years given, so assinging None")
 
                 else:
                     syear_case = syear_cases[case_idx]
                     eyear_case = eyear_cases[case_idx]
-                    #syear_case = str(syear_case).zfill(4)
 
                 #Set case nickname:
                 case_nickname = test_nicknames[case_idx]
