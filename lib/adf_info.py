@@ -2,23 +2,17 @@
 Information/Parameter (Info) class for
 the Atmospheric Diagnostics Framework (ADF).
 This class inherits from the AdfConfig class.
-
 Currently this class does four things:
-
 1.  Initializes an instance of AdfConfig.
-
 2.  Checks for the three, required upper-level
     dictionaries specified in the config file,
     and makes copies where the variables have
     been expanded.
-
 3.  Extract values for "compare_obs", "diag_var_list",
     and "plot_location", and provide properties to
     access these values to the rest of ADF.
-
 4.  Set "num_procs" variable, and provde num_procs
     property to the rest of ADF.
-
 This class also provide methods for extracting
 variables from the standard, expanded config
 dictionaries.
@@ -30,6 +24,8 @@ dictionaries.
 
 import copy
 import os
+import numpy as np
+from pathlib import Path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -74,7 +70,7 @@ class AdfInfo(AdfConfig):
 
         #Check if inputs are of the correct type:
         #-------------------------------------------
-
+        
         #Use "cam_case_name" as the variable that sets the total number of cases:
         if isinstance(self.get_cam_info("cam_case_name", required=True), list):
 
@@ -101,6 +97,16 @@ class AdfInfo(AdfConfig):
         #End for
         #-------------------------------------------
 
+        #Read history file number from the yaml file
+        hist_num = self.get_basic_info('hist_num')
+
+        #If hist_num is not present, then default to 'h0':
+        if not hist_num:
+            hist_num = 'h0'
+        #End if
+
+        hist_str = '*.cam.'+hist_num
+
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
 
@@ -115,8 +121,8 @@ class AdfInfo(AdfConfig):
             self.__cam_bl_climo_info = None
 
             #Also set data name for use below:
-            data_name = "obs"
-
+            data_name = "Obs"
+            
         else:
             #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
@@ -128,17 +134,26 @@ class AdfInfo(AdfConfig):
             #Set data name to baseline case name:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #if (syear_baseline and eyear_baseline) != "None":
+            #    data_name += f"_{syear_baseline}_{eyear_baseline}"
+            if (syear_baseline and eyear_baseline) == None:
+                print("No given climo years for baseline...")
+                baseline_hist_locs = self.get_baseline_info('cam_hist_loc',
+                                                    required=True)
+                starting_location = Path(baseline_hist_locs)
+                files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
+                base_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
+                syear_baseline = int(min(base_climo_yrs))
+                eyear_baseline = int(max(base_climo_yrs))
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            
+            else:
+                data_name += f"_{syear_baseline}_{eyear_baseline}"
         #End if
-
-        #Attempt to grab baseline start_years (not currently required):
-        syear_baseline = self.get_baseline_info('start_year')
-        eyear_baseline = self.get_baseline_info('end_year')
-
-        if (syear_baseline and eyear_baseline) != "None":
-            data_name += f"_{syear_baseline}_{eyear_baseline}"
-        else:
-            print("*** No baseline climo years given, so assinging None")
-
         #Create plot location variable for potential use by the website generator.
         #Please note that this is also assumed to be the output location for the analyses scripts:
         #-------------------------------------------------------------------------
@@ -162,10 +177,19 @@ class AdfInfo(AdfConfig):
             eyears = [None]*len(case_names)
 
         #Loop over cases:
+        cam_hist_locs = self.get_cam_info('cam_hist_loc',
+                                                  required=True)
+
         for case_idx, case_name in enumerate(case_names):
 
             if (syears[case_idx] and eyears[case_idx]) == None:
-                print("*** No case climo years given, so assinging None")
+                print("No given climo years for case...")
+                starting_location = Path(cam_hist_locs[case_idx])
+                files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
+                case_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
+                syear = int(min(case_climo_yrs))
+                eyear = int(max(case_climo_yrs))
+                case_name += f"_{syear}_{eyear}"
 
             else:
                 case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"

@@ -1,13 +1,10 @@
 '''
 Module: cam_taylor_diagram
-
 Provides a Taylor diagram following the AMWG package. Uses spatial information only.
-
 This module, for better or worse, provides both the computation and plotting functionality.
 It depends on an ADF instance to obtain the `climo` files.
 It is designed to have one "reference" case (could be observations) and arbitrary test cases.
 When multiple test cases are provided, they are plotted with different colors.
-
 '''
 #
 # --- imports and configuration ---
@@ -47,6 +44,22 @@ def cam_taylor_diagram(adfobj):
     # NOTE: "baseline" == "reference" == "observations" will be called `base`
     #       test case(s) == case(s) to be diagnosed  will be called `case` (assumes a list)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)  # Loop over these
+    #Attempt to grab case start_years (not currently required):
+    syear_cases = adfobj.get_cam_info('start_year')
+    eyear_cases = adfobj.get_cam_info('end_year')
+
+    #Time series files for unspecified climo years
+    cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
+
+    if (syear_cases and eyear_cases) == None:
+        syear_cases = [None]*len(case_names)
+        eyear_cases = [None]*len(case_names)
+    
+    #Grab test case nickname(s)
+    test_nicknames = adfobj.get_cam_info('case_nickname')
+    if test_nicknames == None:
+        test_nicknames = case_names
+
     case_climo_loc = adfobj.get_cam_info('cam_climo_loc', required=True)
 
     # ADF variable which contains the output path for plots and tables:
@@ -80,6 +93,18 @@ def cam_taylor_diagram(adfobj):
         data_name = adfobj.get_baseline_info('cam_case_name', required=True)
         data_list = data_name # should not be needed (?)
         data_loc = adfobj.get_baseline_info("cam_climo_loc", required=True)
+        #Attempt to grab baseline start_years (not currently required):
+        syear_baseline = adfobj.get_baseline_info('start_year')
+        eyear_baseline = adfobj.get_baseline_info('end_year')
+
+        if (syear_baseline and eyear_baseline) == None:
+            baseline_ts_locs = adfobj.get_baseline_info('cam_ts_loc', required=True)
+            syear_baseline, eyear_baseline =  _get_climo_yrs(baseline_ts_locs)
+
+        #Grab baseline case nickname
+        base_nickname = adfobj.get_baseline_info('case_nickname')
+        if base_nickname == None:
+            base_nickname = data_name
 
     res = adfobj.variable_defaults # dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -155,12 +180,13 @@ def cam_taylor_diagram(adfobj):
         #
         # -- PLOTTING (one per season) --
         #
-        fig, ax = taylor_plot_setup(title=f"Taylor Diagram - {s}",baseline=f"Baseline: {data_name}")
+        fig, ax = taylor_plot_setup(title=f"Taylor Diagram - {s}",
+                                    baseline=f"Baseline: {data_name}  yrs: {syear_baseline}-{eyear_baseline}")
 
         for i, case in enumerate(case_names):
             ax = plot_taylor_data(ax, result_by_case[case], case_color=case_colors[i], use_bias=True)
-
-        ax = taylor_plot_finalize(ax, case_names, case_colors, needs_bias_labels=True)
+        
+        ax = taylor_plot_finalize(ax, case_names, case_colors, syear_cases, eyear_cases, cam_ts_locs, needs_bias_labels=True)
         # add text with variable names:
         txtstrs = [f"{i+1} - {v}" for i, v in enumerate(var_list)]
         fig.text(0.9, 0.9, "\n".join(txtstrs), va='top')
@@ -298,7 +324,6 @@ def get_surface_pressure(dset, casename, location):
 def get_var_at_plev(adf, casename, location, variable, plev):
     """
     Get `variable` from the data and then interpolate it to isobaric level `plev` (units of hPa).
-
     """
     dset = _retrieve(adf, variable, casename, location, return_dataset=True)
 
@@ -386,7 +411,6 @@ def get_derive_func(fld):
 
 def _retrieve(adfobj, variable, casename, location, return_dataset=False):
     """Custom function that retrieves a variable. Returns the variable as a DataArray.
-
     kwarg:
     return_dataset -> if true, return the dataset object, otherwise return the DataArray
                       with `variable`
@@ -429,15 +453,11 @@ def weighted_correlation(x, y, weights):
 
 def weighted_std(x, weights):
     """Weighted standard deviation.
-
     x -> xr.DataArray
     weights -> array-like of weights, probably xr.DataArray
-
     If weights is not the same shape as x, will use `broadcast_like` to
     create weights array.
-
     Returns the weighted standard deviation of the full x array.
-
     """
     xshape = x.shape
     wshape = weights.shape
@@ -455,12 +475,10 @@ def weighted_std(x, weights):
 
 def taylor_stats_single(casedata, refdata, w=True):
     """This replicates the basic functionality of 'taylor_stats' from NCL.
-
     input:
         casedata : input data, DataArray
         refdata  : reference case data, DataArray
         w        : if true use cos(latitude) as spatial weight, if false assume uniform weight
-
     returns:
         pattern_correlation, ratio of standard deviation (case/ref), bias
     """
@@ -501,19 +519,17 @@ def taylor_plot_setup(title,baseline):
     ax.text(np.radians(95), 1.0, "REF", ha='center')
     st = fig.suptitle(title, fontsize=18)
     st.set_y(1.)
-    ax.set_title(baseline, fontsize=11,pad=15)
+    ax.set_title(baseline, fontsize=10,pad=15)
     return fig, ax
 
 
 def plot_taylor_data(wks, df, **kwargs):
     """Apply data on top of the Taylor Diagram Axes.
-
         wks -> Axes object, probably from taylor_plot_setup
         df  -> DataFrame holding the Taylor stats.
         kwargs -> optional arguments
           look for 'use_bias'
           look for 'case_color'
-
     """
     # option is whether to stylize the markers by the bias:
     use_bias = False
@@ -550,9 +566,8 @@ def plot_taylor_data(wks, df, **kwargs):
     return wks
 
 
-def taylor_plot_finalize(wks, casenames, casecolors, needs_bias_labels=True):
+def taylor_plot_finalize(wks, casenames, casecolors, syear_cases, eyear_cases, cam_ts_locs, needs_bias_labels=True):
     """Apply final formatting to a Taylor diagram.
-
         wks -> Axes object that has passed through taylor_plot_setup and plot_taylor_data
         casenames -> list of case names for the legend
         casecolors -> list of colors for the cases
@@ -565,9 +580,12 @@ def taylor_plot_finalize(wks, casenames, casecolors, needs_bias_labels=True):
     text = wks.text(0.052, 0.08, "Cases:",
             color='k', ha='left', va='bottom', transform=wks.transAxes, fontsize=11)
     n = 0
-    for s, c in zip(casenames, casecolors):
-            text = wks.text(0.052, bottom_of_text + n*height_of_lines, s,
-            color=c, ha='left', va='bottom', transform=wks.transAxes, fontsize=11)
+    for case_idx, (s, c) in enumerate(zip(casenames, casecolors)):
+            if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
+                syear_case, eyear_case =  _get_climo_yrs(cam_ts_locs[case_idx])
+
+            text = wks.text(0.052, bottom_of_text + n*height_of_lines, f"{s}  yrs: {syear_case}-{eyear_case}",
+            color=c, ha='left', va='bottom', transform=wks.transAxes, fontsize=10)
             n += 1
     # BIAS LEGEND
     if needs_bias_labels:
@@ -584,3 +602,13 @@ def taylor_plot_finalize(wks, casenames, casecolors, needs_bias_labels=True):
         wks.legend(handles=bias_legend_elements, labels=bias_legend_labels, loc='upper left', handler_map={tuple: HandlerTuple(ndivide=None, pad=2.)}, labelspacing=2, handletextpad=2, frameon=False, title=" - / + Bias",
                     title_fontsize=18)
     return wks
+
+def _get_climo_yrs(cam_ts_loc):
+    starting_location = Path(cam_ts_loc)
+    files_list = sorted(starting_location.glob('*nc'))
+    try:
+        syear = int(files_list[0].stem[-13:-9])
+        eyear = int(files_list[0].stem[-6:-2])
+    except:
+        print("Smoethign is borken...")
+    return syear, eyear

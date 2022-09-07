@@ -1,3 +1,7 @@
+#Import necessary modules:
+#------------------------
+from pathlib import Path  # python standard library
+
 def global_latlon_vect_map(adfobj):
     """
     This script/function is designed to generate global
@@ -25,7 +29,6 @@ def global_latlon_vect_map(adfobj):
 
     #Import necessary modules:
     #------------------------
-    from pathlib import Path  # python standard library
 
     # data loading / analysis
     import xarray as xr
@@ -57,6 +60,9 @@ def global_latlon_vect_map(adfobj):
     #CAM simulation variables:
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Time series files for unspecified climo years
+    cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
+
     #Attempt to grab case start_years (not currently required):
     syear_cases = adfobj.get_cam_info('start_year')
     eyear_cases = adfobj.get_cam_info('end_year')
@@ -78,6 +84,9 @@ def global_latlon_vect_map(adfobj):
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
+        syear_baseline = ""
+        eyear_baseline = ""
+        base_nickname = "Obs"
 
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
@@ -94,15 +103,9 @@ def global_latlon_vect_map(adfobj):
         syear_baseline = adfobj.get_baseline_info('start_year')
         eyear_baseline = adfobj.get_baseline_info('end_year')
 
-        if (syear_baseline and eyear_baseline) == "None":
-            print("No given climo years for baseline, gathering from time series files.")
-            #Time series files (to be used for climo years):
+        if (syear_baseline and eyear_baseline) == None:
             baseline_ts_locs = adfobj.get_baseline_info('cam_ts_loc', required=True)
-            starting_location = Path(baseline_ts_locs)
-            files_list = sorted(starting_location.glob('*.nc'))
-            syear_baseline = int(files_list[0].stem[-13:-9])
-            eyear_baseline = int(files_list[0].stem[-6:-2])
-    
+            syear_baseline, eyear_baseline =  _get_climo_yrs(baseline_ts_locs)
 
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
@@ -278,13 +281,7 @@ def global_latlon_vect_map(adfobj):
             for case_idx, case_name in enumerate(case_names):
 
                 if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
-                     #Time series files (to be used for climo years):
-                     cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
-                     print("No case climo years given, extracting from timeseries file...")
-                     starting_location = Path(cam_ts_locs[case_idx])
-                     files_list = sorted(starting_location.glob('*nc'))
-                     syear_case = int(files_list[0].stem[-13:-9])
-                     eyear_case = int(files_list[0].stem[-6:-2])
+                    syear_case, eyear_case =  _get_climo_yrs(cam_ts_locs[case_idx])
 
                 else:
                     syear_case = syear_cases[case_idx]
@@ -502,6 +499,20 @@ def global_latlon_vect_map(adfobj):
 
     #Notify user that script has ended:
     print("  ...lat/lon vector maps have been generated successfully.")
+
+#########
+# Helpers
+#########
+
+def _get_climo_yrs(cam_ts_loc):
+    starting_location = Path(cam_ts_loc)
+    files_list = sorted(starting_location.glob('*nc'))
+    try:
+        syear = int(files_list[0].stem[-13:-9])
+        eyear = int(files_list[0].stem[-6:-2])
+    except:
+        print("Smoethign is borken...")
+    return syear, eyear
 
 ##############
 #END OF SCRIPT

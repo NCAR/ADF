@@ -56,6 +56,9 @@ def zonal_mean(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Time series files for unspecified climo years
+    cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
+
     #Attempt to grab case start_years (not currently required):
     syear_cases = adfobj.get_cam_info('start_year')
     eyear_cases = adfobj.get_cam_info('end_year')
@@ -77,6 +80,9 @@ def zonal_mean(adfobj):
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
+        syear_baseline = ""
+        eyear_baseline = ""
+        base_nickname = "Obs"
 
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
@@ -93,8 +99,9 @@ def zonal_mean(adfobj):
         syear_baseline = adfobj.get_baseline_info('start_year')
         eyear_baseline = adfobj.get_baseline_info('end_year')
 
-        if (syear_baseline and eyear_baseline) == "None":
-            print("*** No baseline climo years given, so assinging None")
+        if (syear_baseline and eyear_baseline) == None:
+            baseline_ts_locs = adfobj.get_baseline_info('cam_ts_loc', required=True)
+            syear_baseline, eyear_baseline =  _get_climo_yrs(baseline_ts_locs)
 
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
@@ -183,7 +190,7 @@ def zonal_mean(adfobj):
             for case_idx, case_name in enumerate(case_names):
 
                 if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
-                     print("*** No case climo years given, so assinging None")
+                    syear_case, eyear_case =  _get_climo_yrs(cam_ts_locs[case_idx])
 
                 else:
                     syear_case = syear_cases[case_idx]
@@ -297,9 +304,10 @@ def zonal_mean(adfobj):
     print("  ...Zonal mean plots have been generated successfully.")
 
 
-#
+#########
 # Helpers
-#
+#########
+
 def _load_dataset(fils):
     if len(fils) == 0:
         warnings.warn(f"Input file list is empty.")
@@ -309,3 +317,18 @@ def _load_dataset(fils):
     else:
         sfil = str(fils[0])
         return xr.open_dataset(sfil)
+    #End if
+#End def
+
+def _get_climo_yrs(cam_ts_loc):
+    starting_location = Path(cam_ts_loc)
+    files_list = sorted(starting_location.glob('*nc'))
+    try:
+        syear = int(files_list[0].stem[-13:-9])
+        eyear = int(files_list[0].stem[-6:-2])
+    except:
+        print("Smoethign is borken...")
+    return syear, eyear
+
+##############
+#END OF SCRIPT

@@ -2,15 +2,10 @@
 Website (web) generation class for the
 Atmospheric Diagnostics Framework (ADF).
 This class inherits from the AdfObs class.
-
 Currently this class does three things:
-
 1.  Initializes an instance of AdfObs.
-
 2.  Determines if a website will be generated.
-
 3.  Sets website-related internal ADF variables.
-
 This class also provides a method for generating
 a website, as well as a method to add an image
 file or pandas dataframe to the website.
@@ -188,25 +183,19 @@ class AdfWeb(AdfObs):
         """
         Method that provides scripts a way to add an image file or
         Pandas dataframe to the website generator.
-
         Required Inputs:
-
         web_data  ->  Either a path to an image file, or a pandas dataframe.
         web_name  ->  The name of the plot or table (usually the plotted variable or case name).
         case_name ->  The name of the model case or dataset associated with the plot or table.
-
         Optional Inputs:
-
         category   -> Category for associated variable.  If not provided then generator will
                       attempt to grab it from the variable defaults file.  If no default is present
                       then it will default to "No category yet".
         season     -> What the season is for the plot.  If not provided it will assume the
                       plot does not need any seasonal seperation.
         plot_type  -> Type of plot.  If not provided then plot type will be "Special".
-
         multi_case -> Logical which indicates whether the image or dataframe can contain
                       multiple cases (e.g. a line plot with one line for each case).
-
         """
 
         #Do nothing if user is not requesting a website to be generated:
@@ -343,6 +332,9 @@ class AdfWeb(AdfObs):
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
+        #Time series files for unspecified climo years
+        cam_ts_locs = self.get_cam_info('cam_ts_loc', required=True)
+
         #Attempt to grab case start_years (not currently required):
         ###########################################################
         # This is for the header in the html files for climo yrs
@@ -351,16 +343,26 @@ class AdfWeb(AdfObs):
         eyear_cases = self.get_cam_info('end_year')
 
         if (syear_cases and eyear_cases) == None:
-            print("*** No case climo years given, so assinging None")
+            syear_cases = [None]*len(case_names)
+            eyear_cases = [None]*len(case_names)
 
-        else:
-            syear_cases = syear_cases[0]
-            eyear_cases = eyear_cases[0]
-
-
+        #Loop over model cases to catch all cases that have no climo years specified:
+        for case_idx, case_name in enumerate(case_names):
+                
+            if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
+                print(f"No given climo years for {case_name}...")
+                starting_location = Path(cam_ts_locs[case_idx])
+                files_list = sorted(starting_location.glob('*nc'))
+                #This assumes CAM file names stay with this convention
+                #Better way to do this?
+                syear_cases[case_idx] = int(files_list[0].stem[-13:-9])
+                eyear_cases[case_idx] = int(files_list[0].stem[-6:-2])
+      
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
-            data_name = "obs"
+            data_name = "Obs"
+            syear_baseline = ""
+            eyear_baseline = ""
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
@@ -368,13 +370,19 @@ class AdfWeb(AdfObs):
             syear_baseline = self.get_baseline_info('start_year')
             eyear_baseline = self.get_baseline_info('end_year')
 
-            if (syear_baseline and eyear_baseline) == "None":
-                print("*** No baseline climo years given, so assinging None")
+            if (syear_baseline and eyear_baseline) == None:
+                print(f"No given climo years for {data_name}...")
+                #Time series files (to be used for climo years):
+                baseline_ts_locs = self.get_baseline_info('cam_ts_loc', required=True)
+                starting_location = Path(baseline_ts_locs)
+                files_list = sorted(starting_location.glob('*.nc'))
+                syear_baseline = int(files_list[0].stem[-13:-9])
+                eyear_baseline = int(files_list[0].stem[-6:-2])
             #End if
         #End if
 
         #Set climo years format for html file headers
-        case_yrs=f"{syear_cases} - {eyear_cases}"
+        case_yrs=f"{syear_cases[0]} - {eyear_cases[0]}"
         baseline_yrs=f"{syear_baseline} - {eyear_baseline}"
 
         #Extract variable defaults dictionary (for categories):
@@ -747,7 +755,6 @@ class AdfWeb(AdfObs):
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
-
 #++++++++++++++++++++
 #End Class definition
 #++++++++++++++++++++
