@@ -140,7 +140,7 @@ class AdfInfo(AdfConfig):
 
             #if (syear_baseline and eyear_baseline) != "None":
             #    data_name += f"_{syear_baseline}_{eyear_baseline}"
-            if syear_baseline and eyear_baseline == None:
+            if syear_baseline and eyear_baseline is None:
                 print("No given climo years for baseline...")
                 baseline_hist_locs = self.get_baseline_info('cam_hist_loc',
                                                     required=True)
@@ -172,7 +172,7 @@ class AdfInfo(AdfConfig):
         eyears = self.get_cam_info('end_year')
 
         #Make lists of None to be iterated over for case_names
-        if syears and eyears == None:
+        if syears and eyears is None:
             syears = [None]*len(case_names)
             eyears = [None]*len(case_names)
 
@@ -182,7 +182,7 @@ class AdfInfo(AdfConfig):
 
         for case_idx, case_name in enumerate(case_names):
 
-            if syears[case_idx] and eyears[case_idx] == None:
+            if syears[case_idx] and eyears[case_idx] is None:
                 print("No given climo years for case...")
                 starting_location = Path(cam_hist_locs[case_idx])
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
