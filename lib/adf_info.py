@@ -22,10 +22,10 @@ dictionaries.
 #Import standard python modules
 #++++++++++++++++++++++++++++++
 
+from pathlib import Path
 import copy
 import os
 import numpy as np
-from pathlib import Path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -70,7 +70,7 @@ class AdfInfo(AdfConfig):
 
         #Check if inputs are of the correct type:
         #-------------------------------------------
-        
+
         #Use "cam_case_name" as the variable that sets the total number of cases:
         if isinstance(self.get_cam_info("cam_case_name", required=True), list):
 
@@ -122,7 +122,7 @@ class AdfInfo(AdfConfig):
 
             #Also set data name for use below:
             data_name = "Obs"
-            
+
         else:
             #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
@@ -140,7 +140,7 @@ class AdfInfo(AdfConfig):
 
             #if (syear_baseline and eyear_baseline) != "None":
             #    data_name += f"_{syear_baseline}_{eyear_baseline}"
-            if (syear_baseline and eyear_baseline) == None:
+            if syear_baseline and eyear_baseline == None:
                 print("No given climo years for baseline...")
                 baseline_hist_locs = self.get_baseline_info('cam_hist_loc',
                                                     required=True)
@@ -150,7 +150,7 @@ class AdfInfo(AdfConfig):
                 syear_baseline = int(min(base_climo_yrs))
                 eyear_baseline = int(max(base_climo_yrs))
                 data_name += f"_{syear_baseline}_{eyear_baseline}"
-            
+
             else:
                 data_name += f"_{syear_baseline}_{eyear_baseline}"
         #End if
@@ -172,7 +172,7 @@ class AdfInfo(AdfConfig):
         eyears = self.get_cam_info('end_year')
 
         #Make lists of None to be iterated over for case_names
-        if (syears and eyears) == None:
+        if syears and eyears == None:
             syears = [None]*len(case_names)
             eyears = [None]*len(case_names)
 
@@ -182,7 +182,7 @@ class AdfInfo(AdfConfig):
 
         for case_idx, case_name in enumerate(case_names):
 
-            if (syears[case_idx] and eyears[case_idx]) == None:
+            if syears[case_idx] and eyears[case_idx] == None:
                 print("No given climo years for case...")
                 starting_location = Path(cam_hist_locs[case_idx])
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
