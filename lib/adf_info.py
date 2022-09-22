@@ -1,18 +1,24 @@
 """
 Information/Parameter (Info) class for
 the Atmospheric Diagnostics Framework (ADF).
+
 This class inherits from the AdfConfig class.
 Currently this class does four things:
+
 1.  Initializes an instance of AdfConfig.
+
 2.  Checks for the three, required upper-level
     dictionaries specified in the config file,
     and makes copies where the variables have
     been expanded.
+
 3.  Extract values for "compare_obs", "diag_var_list",
     and "plot_location", and provide properties to
     access these values to the rest of ADF.
+
 4.  Set "num_procs" variable, and provde num_procs
     property to the rest of ADF.
+
 This class also provide methods for extracting
 variables from the standard, expanded config
 dictionaries.
@@ -138,7 +144,7 @@ class AdfInfo(AdfConfig):
             syear_baseline = self.get_baseline_info('start_year')
             eyear_baseline = self.get_baseline_info('end_year')
 
-            if (syear_baseline and eyear_baseline) == None:
+            if syear_baseline and eyear_baseline is None:
                 print("No given climo years for baseline...")
                 baseline_hist_locs = self.get_baseline_info('cam_hist_loc',
                                                     required=True)
@@ -170,7 +176,7 @@ class AdfInfo(AdfConfig):
         eyears = self.get_cam_info('end_year')
 
         #Make lists of None to be iterated over for case_names
-        if (syears and eyears) == None:
+        if syears and eyears is None:
             syears = [None]*len(case_names)
             eyears = [None]*len(case_names)
 
@@ -180,7 +186,7 @@ class AdfInfo(AdfConfig):
 
         for case_idx, case_name in enumerate(case_names):
 
-            if (syears[case_idx] and eyears[case_idx]) == None:
+            if syears[case_idx] and eyears[case_idx] is None:
                 print("No given climo years for case...")
                 starting_location = Path(cam_hist_locs[case_idx])
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))

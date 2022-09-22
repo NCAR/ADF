@@ -28,6 +28,7 @@ jobs:
         pip install PyGithub                 # Install PyGithub python package
         pip install pylint                   # Install Pylint python package
         pip install pyyaml                   # Install PyYAML python package
+        pip install numpy                    # Install NumPy python package
     # run CAM source code testing master script:
     - name: source-code testing python script
       env:
