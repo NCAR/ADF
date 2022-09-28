@@ -64,16 +64,8 @@ def global_latlon_map(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
-    #Time series files for unspecified climo years
-    cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
-
-    #Attempt to grab case start_years (not currently required):
-    syear_cases = adfobj.get_cam_info('start_year')
-    eyear_cases = adfobj.get_cam_info('end_year')
-
-    if (syear_cases and eyear_cases) == None:
-        syear_cases = [None]*len(case_names)
-        eyear_cases = [None]*len(case_names)
+    syear_cases = adfobj.climo_yrs["syears"]
+    eyear_cases = adfobj.climo_yrs["eyears"]
 
     #Grab test case nickname(s)
     test_nicknames = adfobj.get_cam_info('case_nickname')
@@ -88,8 +80,6 @@ def global_latlon_map(adfobj):
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
-        syear_baseline = ""
-        eyear_baseline = ""
         base_nickname = "Obs"
 
         #If dictionary is empty, then  there are no observations to regrid to,
@@ -103,13 +93,8 @@ def global_latlon_map(adfobj):
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
 
-        #Attempt to grab baseline start_years (not currently required):
-        syear_baseline = adfobj.get_baseline_info('start_year')
-        eyear_baseline = adfobj.get_baseline_info('end_year')
-
-        if (syear_baseline and eyear_baseline) == None:
-            baseline_ts_locs = adfobj.get_baseline_info('cam_ts_loc', required=True)
-            syear_baseline, eyear_baseline =  _get_climo_yrs(baseline_ts_locs)
+        syear_baseline = adfobj.climo_yrs["syear_baseline"]
+        eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
 
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
@@ -218,13 +203,6 @@ def global_latlon_map(adfobj):
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
-
-                if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
-                    syear_case, eyear_case =  _get_climo_yrs(cam_ts_locs[case_idx])
-                    
-                else:
-                    syear_case = syear_cases[case_idx]
-                    eyear_case = eyear_cases[case_idx]
 
                 #Set case nickname:
                 case_nickname = test_nicknames[case_idx]
@@ -351,7 +329,7 @@ def global_latlon_map(adfobj):
                             # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
 
                             pf.plot_map_and_save(plot_name, case_nickname, base_nickname,
-                                                 [syear_case,eyear_case],
+                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                  [syear_baseline,eyear_baseline],
                                                  mseasons[s], oseasons[s], dseasons[s],
                                                  **vres)
@@ -456,7 +434,7 @@ def global_latlon_map(adfobj):
                                 #   *Any other entries will be ignored.
                                 # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
                                 pf.plot_map_and_save(plot_name, case_nickname, base_nickname,
-                                                     [syear_case,eyear_case],
+                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
                                                      [syear_baseline,eyear_baseline],
                                                      mseasons[s], oseasons[s], dseasons[s],
                                                      **vres)
@@ -496,16 +474,6 @@ def _load_dataset(fils):
         return xr.open_dataset(sfil)
     #End if
 #End def
-
-def _get_climo_yrs(cam_ts_loc):
-    starting_location = Path(cam_ts_loc)
-    files_list = sorted(starting_location.glob('*nc'))
-    try:
-        syear = int(files_list[0].stem[-13:-9])
-        eyear = int(files_list[0].stem[-6:-2])
-    except:
-        print("Smoethign is borken...")
-    return syear, eyear
 
 ##############
 #END OF SCRIPT

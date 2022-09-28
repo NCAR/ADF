@@ -372,8 +372,7 @@ class AdfWeb(AdfObs):
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "Obs"
-            syear_baseline = ""
-            eyear_baseline = ""
+            baseline_yrs = ""
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
@@ -382,19 +381,15 @@ class AdfWeb(AdfObs):
             eyear_baseline = self.get_baseline_info('end_year')
 
             if (syear_baseline and eyear_baseline) == None:
-                print(f"No given climo years for {data_name}...")
-                #Time series files (to be used for climo years):
-                baseline_ts_locs = self.get_baseline_info('cam_ts_loc', required=True)
-                starting_location = Path(baseline_ts_locs)
-                files_list = sorted(starting_location.glob('*.nc'))
-                syear_baseline = int(files_list[0].stem[-13:-9])
-                eyear_baseline = int(files_list[0].stem[-6:-2])
+                syear_baseline = self.climo_yrs["syear_baseline"]
+                eyear_baseline = self.climo_yrs["eyear_baseline"]
             #End if
+            baseline_yrs=f"{syear_baseline} - {eyear_baseline}"
         #End if
 
         #Set climo years format for html file headers
         case_yrs=f"{syear_cases[0]} - {eyear_cases[0]}"
-        baseline_yrs=f"{syear_baseline} - {eyear_baseline}"
+        
 
         #Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
