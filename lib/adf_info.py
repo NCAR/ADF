@@ -151,13 +151,12 @@ class AdfInfo(AdfConfig):
                 starting_location = Path(baseline_hist_locs)
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
                 base_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
-                syear_baseline = int(min(base_climo_yrs))
-                eyear_baseline = int(max(base_climo_yrs))
-                data_name += f"_{syear_baseline}_{eyear_baseline}"
+                self.__syear_baseline = int(base_climo_yrs[0])
+                self.__eyear_baseline = int(base_climo_yrs[-1])
+            #End if
 
-            else:
-                data_name += f"_{syear_baseline}_{eyear_baseline}"
-        #End if
+            data_name += f"_{self.__syear_baseline}_{self.__eyear_baseline}"
+        
         #Create plot location variable for potential use by the website generator.
         #Please note that this is also assumed to be the output location for the analyses scripts:
         #-------------------------------------------------------------------------
@@ -191,8 +190,8 @@ class AdfInfo(AdfConfig):
                 starting_location = Path(cam_hist_locs[case_idx])
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
                 case_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
-                syear = int(min(case_climo_yrs))
-                eyear = int(max(case_climo_yrs))
+                syear = int(case_climo_yrs[0])
+                eyear = int(case_climo_yrs[-1])
                 case_name += f"_{syear}_{eyear}"
 
             else:
@@ -336,6 +335,12 @@ class AdfInfo(AdfConfig):
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable:
         return copy.copy(self.__plot_location)
+
+    # Create property needed to return the climo start (syear) and end (eyear) years to user:
+    @property
+    def climo_yrs(self):
+        """Return the "syear" and "eyear" integer values to the user if requested."""
+        return self.__syear, self.__eyear, self.__syear_baseline, self.__eyear_baseline
 
     #########
 

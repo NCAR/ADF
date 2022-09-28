@@ -1,6 +1,8 @@
 '''
 Module: cam_taylor_diagram
+
 Provides a Taylor diagram following the AMWG package. Uses spatial information only.
+
 This module, for better or worse, provides both the computation and plotting functionality.
 It depends on an ADF instance to obtain the `climo` files.
 It is designed to have one "reference" case (could be observations) and arbitrary test cases.

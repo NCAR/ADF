@@ -136,6 +136,7 @@ class AdfDiag(AdfWeb):
 
     """
     Main ADF diagnostics object.
+
     This object is initalized using
     an ADF diagnostics configure (YAML) file,
     which specifies various user inputs,
@@ -145,6 +146,7 @@ class AdfDiag(AdfWeb):
     and other post-processing options being
     used, and the type of plots that will
     be created.
+
     This object also contains various methods
     used to actually generate the plots and
     post-processed data.
@@ -206,6 +208,7 @@ class AdfDiag(AdfWeb):
         """
         Parse a list of scripts as provided by the config file,
         and call them as functions while passing in the correct inputs.
+
         scripts_dir    : string, sub-directory under "scripts" where scripts are located
         func_names     : list of function/scripts (either string or dictionary):
         default_kwargs : optional list of default keyword arguments for the scripts if
@@ -290,10 +293,12 @@ class AdfDiag(AdfWeb):
 
         """
         Call a function with given arguments.
+
         func_name : string, name of the function to call
         func_kwargs : [optional] dict, the keyword arguments to pass to the function
         module_name : [optional] string, the name of the module where func_name is defined;
                       if not provided, assume func_name.py
+
         return : the output of func_name(self, **func_kwargs)
         """
 
@@ -467,8 +472,8 @@ class AdfDiag(AdfWeb):
             if start_year == end_year == "*":
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
                 case_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
-                start_year = int(min(case_climo_yrs))
-                end_year = int(max(case_climo_yrs))
+                start_year = int(case_climo_yrs[0])
+                end_year = int(case_climo_yrs[-1])
             else:
                 #Create empty list:
                 files_list = []
@@ -483,7 +488,7 @@ class AdfDiag(AdfWeb):
                 #Loop over start and end years:
                 for year in range(start_year, end_year+1):
                     #Add files to main file list:
-                    for fname in starting_location.glob(f'*.cam.h0.*{str(year).zfill(4)}-*.nc'):
+                    for fname in starting_location.glob(f'{hist_str}.*{str(year).zfill(4)}-*.nc'):
                         files_list.append(fname)
                     #End for
                 #End for
@@ -646,6 +651,7 @@ class AdfDiag(AdfWeb):
         """
         Temporally average CAM time series data
         in order to generate CAM climatologies.
+
         The actual averaging is done using the
         scripts listed under "time_averaging_scripts"
         as specified in the config file.  This is done
@@ -690,6 +696,7 @@ class AdfDiag(AdfWeb):
         Re-grid CAM climatology files to observations
         or baseline climatologies, in order to allow
         for direct comparisons.
+
         The actual regridding is done using the
         scripts listed under "regridding_scripts"
         as specified in the config file.  This is done
@@ -722,6 +729,7 @@ class AdfDiag(AdfWeb):
         """
         Performs statistical and other analyses as specified by the
         user.  This currently only includes the AMWG table generation.
+
         This method also assumes that the analysis scripts require model
         inputs in a time series format.
         """
@@ -816,6 +824,7 @@ class AdfDiag(AdfWeb):
         """
         Create CVDP directory tree, generate namelist file and
         edit driver.ncl needed to run CVDP. Submit CVDP diagnostics.
+        
         """
 
         #import needed standard modules:

@@ -2,10 +2,15 @@
 Website (web) generation class for the
 Atmospheric Diagnostics Framework (ADF).
 This class inherits from the AdfObs class.
+
 Currently this class does three things:
+
 1.  Initializes an instance of AdfObs.
+
 2.  Determines if a website will be generated.
+
 3.  Sets website-related internal ADF variables.
+
 This class also provides a method for generating
 a website, as well as a method to add an image
 file or pandas dataframe to the website.
@@ -183,19 +188,25 @@ class AdfWeb(AdfObs):
         """
         Method that provides scripts a way to add an image file or
         Pandas dataframe to the website generator.
+
         Required Inputs:
+
         web_data  ->  Either a path to an image file, or a pandas dataframe.
         web_name  ->  The name of the plot or table (usually the plotted variable or case name).
         case_name ->  The name of the model case or dataset associated with the plot or table.
+
         Optional Inputs:
+
         category   -> Category for associated variable.  If not provided then generator will
                       attempt to grab it from the variable defaults file.  If no default is present
                       then it will default to "No category yet".
         season     -> What the season is for the plot.  If not provided it will assume the
                       plot does not need any seasonal seperation.
         plot_type  -> Type of plot.  If not provided then plot type will be "Special".
+
         multi_case -> Logical which indicates whether the image or dataframe can contain
                       multiple cases (e.g. a line plot with one line for each case).
+                      
         """
 
         #Do nothing if user is not requesting a website to be generated:
