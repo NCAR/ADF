@@ -1276,9 +1276,9 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
         from matplotlib.lines import Line2D
-        line = Line2D([0], [0], label=f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
+        line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
-        line2 = Line2D([0], [0], label=f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
+        line2 = Line2D([0], [0], label="$\mathbf{Baseline}:$"+f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
                         color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
         azm = zonal_mean_xr(adata)
@@ -1442,9 +1442,9 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
 
     else:
         from matplotlib.lines import Line2D
-        line = Line2D([0], [0], label=f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
+        line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
-        line2 = Line2D([0], [0], label=f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
+        line2 = Line2D([0], [0], label="$\mathbf{Baseline}:$"+f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
                         color="#ff7f0e") # #ff7f0e -> matplotlib standard orange 
 
         fig, ax = plt.subplots(nrows=2)
