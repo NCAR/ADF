@@ -3,7 +3,7 @@ Module: regional_map_multicase
 
 Provides a plot with regional maps of specified variables for all cases (up to 10) in a row.
 
-Since this is a specialty plot, it looks looks for several custom options to be provided in the YAML configuration file. For example, one might include this block in the YAML:
+Since this is a specialty plot, it looks for several custom options to be provided in the YAML configuration file. For example, one might include this block in the YAML:
 
 region_multicase:
     region_spec: [slat, nlat, wlon, elon]
@@ -57,7 +57,7 @@ def regional_map_multicase(adfobj):
     """
 
     # Notify user that script has started:
-    print("\n  Generating regional plots ...")
+    print("\n  Generating regional contour plots ...")
 
     # We need to know:
     # - Variable to plot
@@ -69,10 +69,10 @@ def regional_map_multicase(adfobj):
     #
     # Check if regional options were specified... can not proceed without them
     #
-    regional_opts = adfobj.read_config_var("region_multicase", required=True)
+    regional_opts = adfobj.read_config_var("region_multicase")
     if not regional_opts:
         print(
-            "Regional options were not specified, so regional_map_multicase can not run. See documentation for options to add to configuration file."
+            "Regional options were not specified, so regional_map_multicase can not run. See documentation or config_cam_baseline_example.yaml for options to add to configuration file."
         )
         return
 
@@ -85,20 +85,10 @@ def regional_map_multicase(adfobj):
     #
     # Determine input "reference case"
     #
-    # CAUTION:
-    # "data" here refers to either obs or a baseline simulation,
-    # Until those are both treated the same (via intake-esm or similar)
-    # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
-        data_name = "obs"  # does not get used, is just here as a placemarker
-        data_list = adfobj.read_config_var("obs_type_list")  # Double caution!
-        data_loc = adfobj.get_basic_info(
-            "obs_ts_loc", required=True
-        )  ## Triple caution -- we might not have time series of observations!
-    else:
-        data_name = adfobj.get_baseline_info("cam_case_name", required=True)
-        data_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
-
+        print("NotImplementedError: the regional contour plots do not have an observation option yet.")
+        return
+        # TODO: add observation (need time series), use `var_obs_dict`.
     #
     # Set plot options
     #
@@ -155,7 +145,7 @@ def regional_map_multicase(adfobj):
 
 def _retrieve(ropt, variable, casename, location, return_dataset=False):
     """Custom function that retrieves a variable. 
-       Returns the variable as a DataArray, unless keword return_dataset=True.
+       Returns the variable as a DataArray, unless keyword return_dataset=True.
 
     Applies the regional and time interval selections based in values in ropt.
 
@@ -176,7 +166,7 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False):
     if len(fils) == 0:
         raise ValueError(f"something went wrong for variable: {variable}")
     elif len(fils) > 1:
-        ds = xr.open_mfdataset(fils)  # allows climo files split into pieces
+        ds = xr.open_mfdataset(fils)  # allows multi-file datasets
     else:
         ds = xr.open_dataset(fils[0])
     
@@ -221,18 +211,18 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False):
 
     # -- select month, season, or annual average (precedence in that order)
     if "region_month" in ropt:
-        print("-->FOUND region_month in ropt")
+        # print("-->FOUND region_month in ropt")
         if ropt["region_month"] is not None:
             month_number = _get_month_number(ropt["region_month"])
-            print(f"--> Good, month_number = {month_number}")
             if month_number is not None:
                 da = da.loc[{"time": da.time.dt.month == month_number}]
+                # print(f"--> Good, month_number = {month_number}")
         else:
             month_number = None
     else:
         month_number = None
 
-    print(f"Okay second chance -> month_number = {month_number}")
+    # print(f"Okay second chance -> month_number = {month_number}")
     if (month_number is None) and ("region_season" in ropt):
         month_length = da.time.dt.days_in_month
         da = (da * month_length).resample(time="QS-DEC").sum(
@@ -277,12 +267,12 @@ def _get_month_number(m):
         else:
             print(f"ERROR: confused about what month is meant by {m}")
             n = None
+        return n
     elif isinstance(m, int):
         return m
     else:
         print(f"Error: month supplied is neither string nor integer: {m}, {type(m)}")
         return None
-    return n
 
 
 def _get_sampling_string(ropt):
@@ -324,7 +314,7 @@ def regional_map_multicase_plot(adf, datadict, opt=None):
         tiString = opt.pop("tiString", None)
         tiFontSize = opt.pop("tiFontSize", 8)
     else:
-        opt = dict()  # make an empty dict if one is not given
+        opt = {}  # make an empty dict if one is not given
 
     # an attempt to set titles to case names ... short names would be better:
     short_names = simple_case_shortener(datadict.keys())
@@ -401,7 +391,7 @@ def _construct_outfile_name(ploc, ptype, *args):
     args -> arbitrary arguments to be joined by underscores
 
     Example:
-    >>> _construct_outfile_name("/scratch/plots", "png", "cam6.120", "PRECT", "March", "LabSea")
+    _construct_outfile_name("/scratch/plots", "png", "cam6.120", "PRECT", "March", "LabSea")
     [returns] /scratch/plots/cam6.120_PRECT_March_LabSea_MultiCaseRegion_Mean.png
     """
     cat = "_".join(args)
@@ -428,11 +418,6 @@ def simple_case_shortener(case_names):
         if all(ele == chkchar[0] for ele in chkchar):
             continue
         else:
-            result = [ele[i:] for ele in case_names]
-            break
-    else:
-        result = None
-    if result is None:
-        return case_names
-    else:
-        return result
+            return [ele[i:] for ele in case_names]
+    return case_names
+    
