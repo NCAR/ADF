@@ -62,11 +62,14 @@ def _file_is_python(filename):
         if file_ext.strip() == ".py":
             #Assume file is python:
             is_python = True
+        elif file_ext.strip() == ".gif":
+            #This is an image file, so skip it:
+            is_python = False
         else:
             #If no ".py" extension exists, then
             #open the file and look for a shabang
             #that contains the word "python".
-            with open(filename, "r") as mod_file:
+            with open(filename, "r", encoding='UTF-8') as mod_file:
                 #Loop over lines in file:
                 for line in mod_file:
 

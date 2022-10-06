@@ -10,43 +10,19 @@ def my_formatwarning(msg, *args, **kwargs):
 
 warnings.formatwarning = my_formatwarning
 
-def zonal_mean(adfobj):
+def meridional_mean(adfobj):
 
     """
-    This script plots zonal averages.
+    This script plots meridional averages.
+    Follows the old AMWG convention of plotting 5S to 5N.
+    **Note:** the constraint of 5S to 5N is easily changed;
+    the function that calculates the average can take any range of latitudes.
     Compare CAM climatologies against
     other climatological data (observations or baseline runs).
-    Description of needed inputs from ADF:
-    case_name         -> Name of CAM case provided by "cam_case_name".
-    model_rgrid_loc   -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
-    data_name         -> Name of data set CAM case is being compared against,
-                         which is always either "obs" or the baseline CAM case name,
-                         depending on whether "compare_obs" is true or false.
-    data_loc          -> Location of comparison data, which is either "obs_climo_loc"
-                         or "cam_baseline_climo_loc", depending on whether
-                         "compare_obs" is true or false.
-    var_list          -> List of CAM output variables provided by "diag_var_list"
-    data_list         -> List of data sets CAM will be compared against, which
-                         is simply the baseline case name in situations when
-                         "compare_obs" is false.
-    climo_yrs         -> Dictionary containing the start and end years of the test
-                         and baseline model data (if applicable).
-    plot_location     -> Location where plot files will be written to, which is
-                         specified by "cam_diag_plot_loc".
-    variable_defaults -> optional,
-                         Dict that has keys that are variable names and values that are plotting preferences/defaults.
-    Notes:
-        The script produces plots of 2-D and 3-D variables,
-        but needs to determine which type along the way.
-        For 3-D variables, the default behavior is to interpolate
-        climo files to pressure levels, which requires the hybrid-sigma
-        coefficients and surface pressure. That ASSUMES that the climo
-        files are using native hybrid-sigma levels rather than being
-        transformed to pressure levels.
     """
 
     #Notify user that script has started:
-    print("\n  Generating zonal mean plots...")
+    print("\n  Generating meridional mean plots...")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -84,7 +60,7 @@ def zonal_mean(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("\t No observations found to plot against, so no zonal-mean maps will be generated.")
+            print("\t No observations found to plot against, so no meridional-mean maps will be generated.")
             return
 
     else:
@@ -103,7 +79,7 @@ def zonal_mean(adfobj):
     eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
-    # or an empty dictionary if use_defaults was not specified in YAML.
+    # or an empty dictionary if use_defaults was not specified in the config YAML file.
 
     #Set plot file type:
     # -- this should be set in basic_info_dict, but is not required
@@ -146,7 +122,7 @@ def zonal_mean(adfobj):
                 #Extract target variable name:
                 data_var = var_obs_dict[var]["obs_var"]
             else:
-                dmsg = f"No obs found for variable `{var}`, zonal mean plotting skipped."
+                dmsg = f"No obs found for variable `{var}`, meridional mean plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
             #End if
@@ -156,13 +132,13 @@ def zonal_mean(adfobj):
         #End if
 
         #Notify user of variable being plotted:
-        print(f"\t - zonal mean plots for {var}")
+        print(f"\t - meridional mean plots for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
             #If found then notify user, assuming debug log is enabled:
-            adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
+            adfobj.debug_log(f"meridional_mean: Found variable defaults for {var}")
 
         else:
             vres = {}
@@ -200,7 +176,7 @@ def zonal_mean(adfobj):
 
                 # stop if data is invalid:
                 if (oclim_ds is None) or (mclim_ds is None):
-                    warnings.warn(f"invalid data, skipping zonal mean plot of {var}")
+                    warnings.warn(f"invalid data, skipping meridional mean plot of {var}")
                     continue
 
                 #Extract variable of interest
@@ -221,15 +197,19 @@ def zonal_mean(adfobj):
                 # Or for observations
                 else:
                     odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
-                    # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit.
+                    # Note: we are going to assume that the specification ensures the conversion makes the units the same.
+                    #       Doesn't make sense to add a different unit.
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
-                has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
+                validate_lat_lev = pf.validate_dims(mdata, ['lat', 'lev']) # keys=> 'has_lat', 'has_lev', with T/F values
 
                 #Notify user of level dimension:
-                if has_lev:
+                if validate_lat_lev['has_lev']:
                     print(f"\t   {var} has lev dimension.")
+                    has_lev = True
+                else:
+                    has_lev = False
 
                 #
                 # Seasonal Averages
@@ -249,38 +229,31 @@ def zonal_mean(adfobj):
 
                     # difference: each entry should be (lat, lon) or (plev, lat, lon)
                     # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_zonal_mean_and_save;
-                    # because we can let any pressure-level interpolation happen there
-                    # This could be re-visited for efficiency or improved code structure.
+                    # difference will be calculated in plot_meridional_mean_and_save.
 
                     # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                    # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
+                    # I'll just call this one "Meridional_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                     # NOTE: Up to this point, nothing really differs from global_latlon_map,
                     #       so we could have made one script instead of two.
                     #       Merging would make overall timing better because looping twice will double I/O steps.
                     #
-                    plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
+                    plot_name = plot_loc / f"{var}_{s}_Meridional_Mean.{plot_type}"
 
                     # Check redo_plot. If set to True: remove old plot, if it already exists:
                     if (not redo_plot) and plot_name.is_file():
-                        #Add already-existing plot to website (if enabled):
-                        adfobj.add_website_data(plot_name, var, case_name, season=s,
-                                                plot_type="Zonal")
-
-                        #Continue to next iteration:
                         continue
                     elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()
-                    #End if
 
                     #Create new plot:
-                    pf.plot_zonal_mean_and_save(plot_name, case_nickname, base_nickname,
+                    pf.plot_meridional_mean_and_save(plot_name, case_nickname, base_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                 [syear_baseline,eyear_baseline],
-                                                mseasons[s], oseasons[s], has_lev, **vres)
+                                                mseasons[s], oseasons[s], has_lev, latbounds=slice(-5,5), **vres)
 
                     #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Zonal")
+                    adfobj.add_website_data(plot_name, var, case_name, season=s,
+                                            plot_type="Meridional")
 
                 #End for (seasons loop)
             #End for (case names loop)
@@ -288,7 +261,7 @@ def zonal_mean(adfobj):
     #End for (variables loop)
 
     #Notify user that script has ended:
-    print("  ...Zonal mean plots have been generated successfully.")
+    print("  ...Meridional mean plots have been generated successfully.")
 
 
 #########

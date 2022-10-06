@@ -2,34 +2,45 @@
 <html>
   <head>
     <title>ADF Diagnostics</title>
-    <link rel="stylesheet" href="./templates/adf_diag.css">
+    <link rel="stylesheet" href="templates/adf_diag.css">
   </head>
   <body >
+    <div class="header">
+      <div id="screenFiller" style="background:url(templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
+        <div class="center"><h1> {{ title }}</h1></div><!--center-->
+          <div class="center">
+            <nav role="navigation" class="primary-navigation">
+            <ul>
+              <li><a href="index.html">Case Home</a></li>
+              <li><a href="#">Links &dtrif;</a>
+                <ul class="dropdown">
+                  <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+                  <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+                  <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+                </ul>
+              </li>
+              <li><a href="https://github.com/NCAR/ADF">About</a></li>
+              <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+            </ul>
+          </nav>
+        </div><!--center-->
+        <br>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+      </div><!--screenFiller-->
+    </div><!--header-->
 
-    <nav role="navigation" class="primary-navigation">
-      <ul>
-        <li><a href=".">Case Home</a></li>
-        <li><a href="#">Links &dtrif;</a>
-          <ul class="dropdown">
-            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-          </ul>
-        </li>
-        <li><a href="https://github.com/NCAR/ADF">About</a></li>
-        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-      </ul>
-    </nav>
+    <div class="center">
+      <h1>Plot Types</h1>
+    </div>
 
-     <h1> {{title}}</h1>
-     <h2> Test Case: {{case1}}</h2>
-     <h2> Control Case: {{case2}}</h2>
-
-     <h2>Plot Types:
-<!--      <a href=html_table/mean_table.html> &nbsp; Tables</a>  -->
+    <div class="grid-container">
       {% for type, html_file in plot_types.items() %}
-      <a href={{html_file}}> &nbsp; {{type}} </a>
+      <div class="grid-item">
+        <a href={{ html_file }} style="font-size: 30px;"> &nbsp; {{ type }} </a>
+      </div><!--grid-item-->
       {% endfor %}
-     </h2>
+    </div><!--grid-container-ptype-->
+
   </body>
 </html>
