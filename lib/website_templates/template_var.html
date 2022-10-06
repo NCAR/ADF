@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ADF Mean Tables</title>
+    <title>ADF {{var_title}}</title>
     <link rel="stylesheet" href="../templates/adf_diag.css">
   </head>
-  <body >
+  <body>
     <div class="header">
       <div id="screenFiller" style="background:url(../templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
         <div class="center"><h1> {{ title }}</h1></div>
@@ -19,8 +19,8 @@
                   {% endfor %}
                 </ul>
               </li>
-              <li><a href="#">Links &dtrif;</a>
-                <ul class="dropdown-nav">
+                  <li><a href="#">Links &dtrif;</a>
+                <ul class="dropdown">
                   <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
                   <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
                   <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
@@ -38,18 +38,31 @@
     </div><!--header-->
 
     <div class="center">
-      <h1>AMWG Tables</h1>
-    </div>
+      <div class="float-container">
+        <div class="float-child">
+          <div><h1>{{ plottype_title }} - {{ var_title }}</h1></div>
+        </div><!--float-child-->
+        <div class="float-child">
+          <div><button><a href="mean_diag_{{ plottype_title }}.html">Back to {{ plottype_title }}</a></button><button><a href="../index.html">Back to Plot Types</a></button></div>
+        </div><!--float-child-->
+      </div><!--float-container-->
+    </div><!--center-->
 
-    <div style="width: 100%;">
-        <table class="big-table">
-          {% for case_name, html_file in amwg_tables.items() %}
-            <tr>
-              <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
-            </tr>
-          {% endfor %}
-        </table>
-    </div>
+    <div style="width: 100%;"> <!-- main div-->
+      <div class="grid-container-template" style="border: 3px solid black">
+        {% for category, var_seas in mydata.items() %}
+        {% for var_name, seas_files in var_seas.items() %}
+        {% if var_name == var_title %}
+        {% for season_name, file_name in seas_files.items() %}
+        <div class="grid-item">
+          <a href="../html_img/{{ file_name }}">{{ season_name }}</a>
+        </div><!--grid-item-->
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+      </div><!--grid-container-->
+    </div><!--main div-->
 
   </body>
 </html>

@@ -343,12 +343,53 @@ class AdfWeb(AdfObs):
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
+        #Time series files for unspecified climo years
+        cam_ts_locs = self.get_cam_info('cam_ts_loc', required=True)
+
+        #Attempt to grab case start_years (not currently required):
+        ###########################################################
+        # This is for the header in the html files for climo yrs
+        #NOTE this may break when going to multi case...
+        syear_cases = self.get_cam_info('start_year')
+        eyear_cases = self.get_cam_info('end_year')
+
+        if (syear_cases and eyear_cases) == None:
+            syear_cases = [None]*len(case_names)
+            eyear_cases = [None]*len(case_names)
+
+        #Loop over model cases to catch all cases that have no climo years specified:
+        for case_idx, case_name in enumerate(case_names):
+
+            if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
+                print(f"No given climo years for {case_name}...")
+                starting_location = Path(cam_ts_locs[case_idx])
+                files_list = sorted(starting_location.glob('*nc'))
+                #This assumes CAM file names stay with this convention
+                #Better way to do this?
+                syear_cases[case_idx] = int(files_list[0].stem[-13:-9])
+                eyear_cases[case_idx] = int(files_list[0].stem[-6:-2])
+
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
-            data_name = "obs"
+            data_name = "Obs"
+            baseline_yrs = ""
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
+
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            if (syear_baseline and eyear_baseline) == None:
+                syear_baseline = self.climo_yrs["syear_baseline"]
+                eyear_baseline = self.climo_yrs["eyear_baseline"]
+            #End if
+            baseline_yrs=f"{syear_baseline} - {eyear_baseline}"
         #End if
+
+        #Set climo years format for html file headers
+        case_yrs=f"{syear_cases[0]} - {eyear_cases[0]}"
+
 
         #Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
@@ -420,6 +461,11 @@ class AdfWeb(AdfObs):
             #Copy CSS files over to output directory:
             for css_file in jinja_template_dir.glob('*.css'):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
+            #End for
+
+            #Copy GIF files over to output directory as well:
+            for gif_file in jinja_template_dir.glob('*.gif'):
+                shutil.copyfile(gif_file, css_files_dir / gif_file.name)
             #End for
 
             if web_data.data_frame:
@@ -529,6 +575,8 @@ class AdfWeb(AdfObs):
                 table_rndr = table_tmpl.render(title=main_title,
                                   case1=case1,
                                   case2=data_name,
+                                  case_yrs=case_yrs,
+                                  baseline_yrs=baseline_yrs,
                                   amwg_tables=table_html_info,
                                   plot_types=plot_types,
                                   table_name=web_data.name,
@@ -549,6 +597,8 @@ class AdfWeb(AdfObs):
                     mean_table_rndr = mean_table_tmpl.render(title=main_title,
                                                              case1=case1,
                                                              case2=data_name,
+                                                             case_yrs=case_yrs,
+                                                             baseline_yrs=baseline_yrs,
                                                              amwg_tables=table_html_info,
                                                              plot_types=plot_types,
                                                             )
@@ -575,18 +625,16 @@ class AdfWeb(AdfObs):
                     plot_types = plot_type_html
                 #End if
 
-                #Create titles
-                var_title = f"Variable: {web_data.name}"
-                season_title = f"Season: {web_data.season}"
-                plottype_title = f"Plot: {web_data.plot_type}"
                 tmpl = jinenv.get_template('template.html')  #Set template
                 rndr = tmpl.render(title=main_title,
-                                   var_title=var_title,
-                                   season_title=season_title,
-                                   plottype_title=plottype_title,
+                                   var_title=web_data.name,
+                                   season_title=web_data.season,
+                                   plottype_title=web_data.plot_type,
                                    imgs=img_data,
                                    case1=case1,
                                    case2=data_name,
+                                   case_yrs=case_yrs,
+                                   baseline_yrs=baseline_yrs,
                                    mydata=mean_html_info[web_data.plot_type],
                                    plot_types=plot_types) #The template rendered
 
@@ -605,6 +653,8 @@ class AdfWeb(AdfObs):
                     mean_rndr = mean_tmpl.render(title=main_title,
                                                  case1=case1,
                                                  case2=data_name,
+                                                 case_yrs=case_yrs,
+                                                 baseline_yrs=baseline_yrs,
                                                  mydata=mean_html_info[web_data.plot_type],
                                                  curr_type=web_data.plot_type,
                                                  plot_types=plot_types)
@@ -614,6 +664,30 @@ class AdfWeb(AdfObs):
                         ofil.write(mean_rndr)
                     #End with
                 #End if (mean_ptype exists)
+
+                #Check if the mean plot type and var page exists for this case:
+                mean_ptype_plot_page = img_pages_dir / f"plot_page_{web_data.name}_{web_data.plot_type}.html"
+                if not mean_ptype_plot_page.exists():
+
+                    #Construct individual plot type mean_diag html files, if they don't
+                    #already exist:
+                    plot_page_tmpl = jinenv.get_template('template_var.html')
+                    plot_page_rndr = plot_page_tmpl.render(title=main_title,
+                                                 var_title=web_data.name,
+                                                 season_title=web_data.season,
+                                                 plottype_title=web_data.plot_type,
+                                                 case1=case1,
+                                                 case2=data_name,
+                                                 case_yrs=case_yrs,
+                                                 baseline_yrs=baseline_yrs,
+                                                 mydata=mean_html_info[web_data.plot_type],
+                                                 curr_type=web_data.plot_type,
+                                                 plot_types=plot_types)
+
+                    #Write mean diagnostic plots HTML file:
+                    with open(mean_ptype_plot_page,'w', encoding='utf-8') as ofil:
+                        ofil.write(plot_page_rndr)
+                    #End with
             #End if (data frame)
 
             #Also check if index page exists for this case:
@@ -635,6 +709,8 @@ class AdfWeb(AdfObs):
                 index_rndr = index_tmpl.render(title=index_title,
                                                case1=web_data.case,
                                                case2=data_name,
+                                               case_yrs=case_yrs,
+                                               baseline_yrs=baseline_yrs,
                                                plot_types=plot_types)
 
                 #Write Mean diagnostics index HTML file:
@@ -690,7 +766,6 @@ class AdfWeb(AdfObs):
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
-
 #++++++++++++++++++++
 #End Class definition
 #++++++++++++++++++++

@@ -1,8 +1,8 @@
 """
 Information/Parameter (Info) class for
 the Atmospheric Diagnostics Framework (ADF).
-This class inherits from the AdfConfig class.
 
+This class inherits from the AdfConfig class.
 Currently this class does four things:
 
 1.  Initializes an instance of AdfConfig.
@@ -28,8 +28,10 @@ dictionaries.
 #Import standard python modules
 #++++++++++++++++++++++++++++++
 
+from pathlib import Path
 import copy
 import os
+import numpy as np
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -101,6 +103,16 @@ class AdfInfo(AdfConfig):
         #End for
         #-------------------------------------------
 
+        #Read history file number from the yaml file
+        hist_num = self.get_basic_info('hist_num')
+
+        #If hist_num is not present, then default to 'h0':
+        if not hist_num:
+            hist_num = 'h0'
+        #End if
+
+        hist_str = '*.cam.'+hist_num
+
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
 
@@ -115,8 +127,11 @@ class AdfInfo(AdfConfig):
             self.__cam_bl_climo_info = None
 
             #Also set data name for use below:
-            data_name = "obs"
+            data_name = "Obs"
 
+            #Set the baseline years to empty strings:
+            syear_baseline = ""
+            eyear_baseline = ""
         else:
             #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
@@ -128,8 +143,34 @@ class AdfInfo(AdfConfig):
             #Set data name to baseline case name:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
+            #Attempt to grab baseline start_years (not currently required):
+            syear_baseline = self.get_baseline_info('start_year')
+            eyear_baseline = self.get_baseline_info('end_year')
+
+            #Check if start or end year is missing.  If so then just assume it is the
+            #start or end of the entire available model data.
+            if syear_baseline is None or eyear_baseline is None:
+                baseline_hist_locs = self.get_baseline_info('cam_hist_loc',
+                                                    required=True)
+                starting_location = Path(baseline_hist_locs)
+                files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
+                base_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
+
+                if syear_baseline is None:
+                    print(f"No given start year for {data_name}, using first found year...")
+                    syear_baseline = int(base_climo_yrs[0])
+                #End if
+                if eyear_baseline is None:
+                    print(f"No given end year for {data_name}, using last found year...")
+                    eyear_baseline = int(base_climo_yrs[-1])
+                #End if
+            #End if
+
+            data_name += f"_{syear_baseline}_{eyear_baseline}"
         #End if
 
+        self.__syear_baseline = syear_baseline
+        self.__eyear_baseline = eyear_baseline
         #Create plot location variable for potential use by the website generator.
         #Please note that this is also assumed to be the output location for the analyses scripts:
         #-------------------------------------------------------------------------
@@ -147,13 +188,36 @@ class AdfInfo(AdfConfig):
         #End year (not currently rquired):
         eyears = self.get_cam_info('end_year')
 
+        #Make lists of None to be iterated over for case_names
+        if syears is None:
+            syears = [None]*len(case_names)
+        #End if
+        if eyears is None:
+            eyears = [None]*len(case_names)
+        #End if
+
         #Loop over cases:
+        cam_hist_locs = self.get_cam_info('cam_hist_loc',
+                                                  required=True)
+
         for case_idx, case_name in enumerate(case_names):
 
-            #Set case name if start and end year are present:
-            if syears[case_idx] and eyears[case_idx]:
-                case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
+            if syears[case_idx] is None or eyears[case_idx] is None:
+                print(f"No given climo years for {case_name}...")
+                starting_location = Path(cam_hist_locs[case_idx])
+                files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
+                case_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
+                if syears[case_idx] is None:
+                    print(f"No given start year for {case_name}, using first found year...")
+                    syears[case_idx] = int(case_climo_yrs[0])
+                #End if
+                if eyears[case_idx] is None:
+                    print(f"No given end year for {case_name}, using last found year...")
+                    eyears[case_idx] = int(case_climo_yrs[-1])
+                #End if
             #End if
+
+            case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
 
             #Set the final directory name and save it to plot_location:
             direc_name = f"{case_name}_vs_{data_name}"
@@ -165,6 +229,9 @@ class AdfInfo(AdfConfig):
             #End if
 
         #End for
+
+        self.__syears = syears
+        self.__eyears = eyears
 
         #Finally add baseline case (if applicable) for use by the website table
         #generator.  These files will be stored in the same location as the first
@@ -292,6 +359,15 @@ class AdfInfo(AdfConfig):
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable:
         return copy.copy(self.__plot_location)
+
+    # Create property needed to return the climo start (syear) and end (eyear) years to user:
+    @property
+    def climo_yrs(self):
+        """Return the "syear" and "eyear" integer values to the user if requested."""
+        syears = copy.copy(self.__syears) #Send copies so a script doesn't modify the original
+        eyears = copy.copy(self.__eyears)
+        return {"syears":syears,"eyears":eyears,
+                "syear_baseline":self.__syear_baseline, "eyear_baseline":self.__eyear_baseline}
 
     #########
 
