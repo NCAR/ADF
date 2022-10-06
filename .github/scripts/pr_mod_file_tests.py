@@ -66,7 +66,8 @@ def _file_is_python(filename):
             #If no ".py" extension exists, then
             #open the file and look for a shabang
             #that contains the word "python".
-            with open(filename, "r") as mod_file:
+            print(filename)
+            with open(filename, "r", encoding='UTF-8') as mod_file:
                 #Loop over lines in file:
                 for line in mod_file:
 
