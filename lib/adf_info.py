@@ -144,18 +144,28 @@ class AdfInfo(AdfConfig):
             syear_baseline = self.get_baseline_info('start_year')
             eyear_baseline = self.get_baseline_info('end_year')
 
-            if syear_baseline and eyear_baseline is None:
-                print(f"No given climo years for {data_name}...")
+            #Check if start or end year is missing.  If so then just assume it is the
+            #start or end of the entire available model data.
+            if syear_baseline is None or eyear_baseline is None:
                 baseline_hist_locs = self.get_baseline_info('cam_hist_loc',
                                                     required=True)
                 starting_location = Path(baseline_hist_locs)
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
                 base_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
-                syear_baseline = int(base_climo_yrs[0])
-                eyear_baseline = int(base_climo_yrs[-1])
+
+                if syear_baseline is None:
+                    print(f"No given start year for {data_name}, using first found year...")
+                    syear_baseline = int(base_climo_yrs[0])
+                #End if
+                if eyear_baseline is None:
+                    print(f"No given end year for {data_name}, using last found year...")
+                    eyear_baseline = int(base_climo_yrs[-1])
+                #End if
             #End if
 
             data_name += f"_{syear_baseline}_{eyear_baseline}"
+        #End if
+
         self.__syear_baseline = syear_baseline
         self.__eyear_baseline = eyear_baseline
         #Create plot location variable for potential use by the website generator.
@@ -176,9 +186,12 @@ class AdfInfo(AdfConfig):
         eyears = self.get_cam_info('end_year')
 
         #Make lists of None to be iterated over for case_names
-        if syears and eyears is None:
+        if syears is None:
             syears = [None]*len(case_names)
+        #End if
+        if eyears is None:
             eyears = [None]*len(case_names)
+        #End if
 
         #Loop over cases:
         cam_hist_locs = self.get_cam_info('cam_hist_loc',
@@ -186,13 +199,19 @@ class AdfInfo(AdfConfig):
 
         for case_idx, case_name in enumerate(case_names):
 
-            if syears[case_idx] and eyears[case_idx] is None:
+            if syears[case_idx] is None or eyears[case_idx] is None:
                 print(f"No given climo years for {case_name}...")
                 starting_location = Path(cam_hist_locs[case_idx])
                 files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
                 case_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
-                syears[case_idx] = int(case_climo_yrs[0])
-                eyears[case_idx] = int(case_climo_yrs[-1])
+                if syears[case_idx] is None:
+                    print(f"No given start year for {case_name}, using first found year...")
+                    syears[case_idx] = int(case_climo_yrs[0])
+                #End if
+                if eyears[case_idx] is None:
+                    print(f"No given end year for {case_name}, using last found year...")
+                    eyears[case_idx] = int(case_climo_yrs[-1])
+                #End if
             #End if
 
             case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
@@ -342,7 +361,9 @@ class AdfInfo(AdfConfig):
     @property
     def climo_yrs(self):
         """Return the "syear" and "eyear" integer values to the user if requested."""
-        return {"syears":self.__syears,"eyears":self.__eyears,
+        syears = copy.copy(self.__syears) #Send copies so a script doesn't modify the original
+        eyears = copy.copy(self.__eyears)
+        return {"syears":syears,"eyears":eyears,
                 "syear_baseline":self.__syear_baseline, "eyear_baseline":self.__eyear_baseline}
 
     #########

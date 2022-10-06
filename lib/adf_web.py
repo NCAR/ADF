@@ -206,7 +206,7 @@ class AdfWeb(AdfObs):
 
         multi_case -> Logical which indicates whether the image or dataframe can contain
                       multiple cases (e.g. a line plot with one line for each case).
-                      
+
         """
 
         #Do nothing if user is not requesting a website to be generated:
@@ -359,7 +359,7 @@ class AdfWeb(AdfObs):
 
         #Loop over model cases to catch all cases that have no climo years specified:
         for case_idx, case_name in enumerate(case_names):
-                
+
             if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
                 print(f"No given climo years for {case_name}...")
                 starting_location = Path(cam_ts_locs[case_idx])
@@ -368,7 +368,7 @@ class AdfWeb(AdfObs):
                 #Better way to do this?
                 syear_cases[case_idx] = int(files_list[0].stem[-13:-9])
                 eyear_cases[case_idx] = int(files_list[0].stem[-6:-2])
-      
+
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "Obs"
@@ -389,7 +389,7 @@ class AdfWeb(AdfObs):
 
         #Set climo years format for html file headers
         case_yrs=f"{syear_cases[0]} - {eyear_cases[0]}"
-        
+
 
         #Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
@@ -461,6 +461,11 @@ class AdfWeb(AdfObs):
             #Copy CSS files over to output directory:
             for css_file in jinja_template_dir.glob('*.css'):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
+            #End for
+
+            #Copy GIF files over to output directory as well:
+            for gif_file in jinja_template_dir.glob('*.gif'):
+                shutil.copyfile(gif_file, css_files_dir / gif_file.name)
             #End for
 
             if web_data.data_frame:
@@ -682,7 +687,7 @@ class AdfWeb(AdfObs):
                     #Write mean diagnostic plots HTML file:
                     with open(mean_ptype_plot_page,'w', encoding='utf-8') as ofil:
                         ofil.write(plot_page_rndr)
-                    #End with  
+                    #End with
             #End if (data frame)
 
             #Also check if index page exists for this case:

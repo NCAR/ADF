@@ -6,12 +6,12 @@
   </head>
   <body >
     <div class="header">
-      <div id="screenFiller" style="background:url(https://webext.cgd.ucar.edu/AMWG/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/images/NCAR.gif) top right no-repeat; border:5px solid #555;">
+      <div id="screenFiller" style="background:url(../templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
         <div class="center"><h1> {{ title }}</h1></div>
           <div class="center">
             <nav role="navigation" class="primary-navigation">
             <ul>
-              <li><a href="../">Case Home</a></li>
+              <li><a href="../index.html">Case Home</a></li>
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}

@@ -6,12 +6,12 @@
   </head>
   <body>
     <div class="header">
-      <div id="screenFiller" style="background:url(https://webext.cgd.ucar.edu/AMWG/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM4p5.LongRun001-f.e21.FHIST_SSP370.f09_f09_mg17.CESM2-CLM5.LongRun001/images/NCAR.gif) top right no-repeat; border:5px solid #555;">
+      <div id="screenFiller" style="background:url(../templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
         <div class="center"><h1> {{ title }}</h1></div>
           <div class="center">
             <nav role="navigation" class="primary-navigation">
             <ul>
-              <li><a href="../">Case Home</a></li>
+              <li><a href="../index.html">Case Home</a></li>
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
@@ -43,28 +43,24 @@
           <div><h1>{{ plottype_title }} - {{ var_title }}</h1></div>
         </div><!--float-child-->
         <div class="float-child">
-          <div><button><a href="mean_diag_{{ plottype_title }}.html">Back to {{ plottype_title }}</a></button><button><a href="../">Back to Plot Types</a></button></div>
+          <div><button><a href="mean_diag_{{ plottype_title }}.html">Back to {{ plottype_title }}</a></button><button><a href="../index.html">Back to Plot Types</a></button></div>
         </div><!--float-child-->
       </div><!--float-container-->
     </div><!--center-->
 
     <div style="width: 100%;"> <!-- main div-->
       <div class="grid-container-template" style="border: 3px solid black">
+        {% for category, var_seas in mydata.items() %}
+        {% for var_name, seas_files in var_seas.items() %}
+        {% if var_name == var_title %}
+        {% for season_name, file_name in seas_files.items() %}
         <div class="grid-item">
-          <a href="../html_img/plot_page_{{ var_title }}_ANN_{{ plottype_title }}_Mean.html"> ANN </a>
+          <a href="../html_img/{{ file_name }}">{{ season_name }}</a>
         </div><!--grid-item-->
-        <div class="grid-item">
-          <a href="../html_img/plot_page_{{ var_title }}_DJF_{{ plottype_title }}_Mean.html"> DJF </a>
-        </div><!--grid-item-->
-        <div class="grid-item">
-          <a href="../html_img/plot_page_{{ var_title }}_MAM_{{ plottype_title }}_Mean.html"> MAM </a>
-        </div><!--grid-item-->
-        <div class="grid-item">
-          <a href="../html_img/plot_page_{{ var_title }}_JJA_{{ plottype_title }}_Mean.html"> JJA </a>
-        </div><!--grid-item-->
-        <div class="grid-item">
-          <a href="../html_img/plot_page_{{ var_title }}_SON_{{ plottype_title }}_Mean.html"> SON </a>
-        </div><!--grid-item-->
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
       </div><!--grid-container-->
     </div><!--main div-->
 
