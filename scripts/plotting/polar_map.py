@@ -73,13 +73,15 @@ def polar_map(adfobj):
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
 
-        syear_baseline = adfobj.climo_yrs["syear_baseline"]
-        eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
-    
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
         if base_nickname == None:
             base_nickname = data_name
+    #End if
+
+    #Extract baseline years (which may be empty strings if using Obs):
+    syear_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -363,7 +365,7 @@ def polar_map(adfobj):
                                             hemi = "SH"
                                         #End if
 
-                                        pf.make_polar_plot(plot_name, case_nickname, base_nickname, 
+                                        pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
                                                      [syear_baseline,eyear_baseline],
                                                      mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)

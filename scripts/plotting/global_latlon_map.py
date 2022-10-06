@@ -14,24 +14,25 @@ def global_latlon_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
-    Description of function inputs:
-    case_name        -> Name of CAM case provided by "cam_case_name".
-    model_rgrid_loc  -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
-    data_name        -> Name of data set CAM case is being compared against,
-                        which is always either "obs" or the baseline CAM case name,
-                        depending on whether "compare_obs" is true or false.
-    data_loc         -> Location of comparison data, which is either the location listed
-                        in each variable's ""obs_file", or the same as "model_rgrid_loc",
-                        depending on whether "compare_obs" is true or false.
-    var_list         -> List of CAM output variables provided by "diag_var_list"
-    data_list        -> List of data sets CAM will be compared against, which
-                        is simply the baseline case name in situations when
-                        "compare_obs" is false.
-    plot_location    -> Location where plot files will be written to, which is
-                        specified by "cam_diag_plot_loc".
-    opt              -> optional,
-                        if dict : that has keys that are variable names and values that are plotting preferences/defaults.
-                        if str  : path to a YAML file that conforms to the dict option.
+    Description of needed inputs:
+    case_name         -> Name of CAM case provided by "cam_case_name".
+    model_rgrid_loc   -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
+    data_name         -> Name of data set CAM case is being compared against,
+                         which is always either "obs" or the baseline CAM case name,
+                         depending on whether "compare_obs" is true or false.
+    data_loc          -> Location of comparison data, which is either the location listed
+                         in each variable's ""obs_file", or the same as "model_rgrid_loc",
+                         depending on whether "compare_obs" is true or false.
+    var_list          -> List of CAM output variables provided by "diag_var_list"
+    data_list         -> List of data sets CAM will be compared against, which
+                         is simply the baseline case name in situations when
+                         "compare_obs" is false.
+    plot_location     -> Location where plot files will be written to, which is
+                         specified by "cam_diag_plot_loc".
+    climo_yrs         -> Dictionary containing the start and end years of the test
+                        and baseline model data (if applicable).
+    variable_defaults -> optional,
+                         Dict that has keys that are variable names and values that are plotting preferences/defaults.
     """
 
     #Import necessary modules:
@@ -93,13 +94,15 @@ def global_latlon_map(adfobj):
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
 
-        syear_baseline = adfobj.climo_yrs["syear_baseline"]
-        eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
-
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
         if base_nickname == None:
             base_nickname = data_name
+    #End if
+
+    #Extract baseline years (which may be empty strings if using Obs):
+    syear_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.

@@ -49,7 +49,7 @@ def cam_taylor_diagram(adfobj):
 
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
-    
+
     #Grab test case nickname(s)
     test_nicknames = adfobj.get_cam_info('case_nickname')
     if test_nicknames == None:
@@ -88,14 +88,16 @@ def cam_taylor_diagram(adfobj):
         data_name = adfobj.get_baseline_info('cam_case_name', required=True)
         data_list = data_name # should not be needed (?)
         data_loc = adfobj.get_baseline_info("cam_climo_loc", required=True)
-    
-        syear_baseline = adfobj.climo_yrs["syear_baseline"]
-        eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
 
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
         if base_nickname == None:
             base_nickname = data_name
+    #End if
+
+    #Extract baseline years (which may be empty strings if using Obs):
+    syear_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
 
     res = adfobj.variable_defaults # dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -176,7 +178,7 @@ def cam_taylor_diagram(adfobj):
 
         for i, case in enumerate(case_names):
             ax = plot_taylor_data(ax, result_by_case[case], case_color=case_colors[i], use_bias=True)
-        
+
         ax = taylor_plot_finalize(ax, case_names, case_colors, syear_cases, eyear_cases, needs_bias_labels=True)
         # add text with variable names:
         txtstrs = [f"{i+1} - {v}" for i, v in enumerate(var_list)]
