@@ -456,6 +456,7 @@ class AdfDiag(AdfWeb):
             hist_num = self.get_basic_info('hist_num')
 
             #Check if history files actually exist. If not then kill script:
+            print(hist_num)
             hist_str = '*.cam.'+hist_num
             if not list(starting_location.glob(hist_str+'.*.nc')):
                 emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
