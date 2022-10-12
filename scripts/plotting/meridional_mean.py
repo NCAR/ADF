@@ -17,7 +17,6 @@ def meridional_mean(adfobj):
     Follows the old AMWG convention of plotting 5S to 5N.
     **Note:** the constraint of 5S to 5N is easily changed;
     the function that calculates the average can take any range of latitudes.
-
     Compare CAM climatologies against
     other climatological data (observations or baseline runs).
     """
@@ -37,6 +36,17 @@ def meridional_mean(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Time series files for unspecified climo years
+    cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
+
+    syear_cases = adfobj.climo_yrs["syears"]
+    eyear_cases = adfobj.climo_yrs["eyears"]
+
+    #Grab test case nickname(s)
+    test_nicknames = adfobj.get_cam_info('case_nickname')
+    if test_nicknames == None:
+        test_nicknames = case_names
+
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
@@ -45,6 +55,7 @@ def meridional_mean(adfobj):
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
+        base_nickname = "Obs"
 
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
@@ -56,6 +67,16 @@ def meridional_mean(adfobj):
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
+
+        #Grab baseline case nickname
+        base_nickname = adfobj.get_baseline_info('case_nickname')
+        if base_nickname == None:
+            base_nickname = data_name
+    #End if
+
+    #Extract baseline years (which may be empty strings if using Obs):
+    syear_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in the config YAML file.
@@ -137,6 +158,9 @@ def meridional_mean(adfobj):
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
+
+                #Set case nickname:
+                case_nickname = test_nicknames[case_idx]
 
                 #Set output plot location:
                 plot_loc = Path(plot_locations[case_idx])
@@ -222,8 +246,10 @@ def meridional_mean(adfobj):
                         plot_name.unlink()
 
                     #Create new plot:
-                    pf.plot_meridional_mean_and_save(plot_name, mseasons[s],
-                                                oseasons[s], has_lev, latbounds=slice(-5,5), **vres)
+                    pf.plot_meridional_mean_and_save(plot_name, case_nickname, base_nickname,
+                                                [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                [syear_baseline,eyear_baseline],
+                                                mseasons[s], oseasons[s], has_lev, latbounds=slice(-5,5), **vres)
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, season=s,
@@ -238,9 +264,10 @@ def meridional_mean(adfobj):
     print("  ...Meridional mean plots have been generated successfully.")
 
 
-#
+#########
 # Helpers
-#
+#########
+
 def _load_dataset(fils):
     if len(fils) == 0:
         warnings.warn(f"Input file list is empty.")
@@ -250,3 +277,8 @@ def _load_dataset(fils):
     else:
         sfil = str(fils[0])
         return xr.open_dataset(sfil)
+    #End if
+#End def
+
+##############
+#END OF SCRIPT
