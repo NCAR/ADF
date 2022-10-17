@@ -8,7 +8,7 @@ Since this is a specialty plot, it looks for several custom options to be provid
 region_multicase:
     region_spec: [slat, nlat, wlon, elon]
     region_time_option: <calendar | zeroanchor>  If calendar, will look for specified years. If zeroanchor will use a nyears starting from year_offset from the beginning of timeseries
-    region_start_year: 
+    region_start_year:
     region_end_year:
     region_nyear:
     region_year_offset:
@@ -89,6 +89,10 @@ def regional_map_multicase(adfobj):
         print("NotImplementedError: the regional contour plots do not have an observation option yet.")
         return
         # TODO: add observation (need time series), use `var_obs_dict`.
+    else:
+        #Extract required baseline run info:
+        data_name = adfobj.get_baseline_info("cam_case_name", required=True)
+        data_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
     #
     # Set plot options
     #
@@ -111,11 +115,44 @@ def regional_map_multicase(adfobj):
         refcasetmp = _retrieve(
             regional_opts, v, data_name, data_loc
         )  # get the baseline field
-        data_to_plot[data_name] = refcasetmp.mean(dim="time")
+
+        if refcasetmp is None:
+            wmsg = f"Variable '{v}' not found for case '{data_name}',"
+            wmsg += " so skipping that case/variable combo."
+            print(wmsg)
+        else:
+            #Add time mean values to dictionary:
+            data_to_plot[data_name] = refcasetmp.mean(dim="time")
+
+            #If the variable has a "lev" dimension, then it is likely
+            #has a vertical dimension, so go ahead and skip the variable.
+            #Note that this assume the variable has the same dimensions in
+            #both the ref case and the test case:
+            if "lev" in refcasetmp.dims:
+                print(f"Variable '{v}' has a 'lev' dimension, so no regional maps will be made.")
+                continue
+            #End if
+        #End if
+
         # each of the other cases
         for casenumber, case in enumerate(case_names):
             casetmp = _retrieve(regional_opts, v, case, case_loc[casenumber])
-            data_to_plot[case] = casetmp.mean(dim="time")
+            if casetmp is None:
+                 wmsg = f"Variable '{v}' not found for case '{case}',"
+                 wmsg += " so skipping that case/variable combo."
+                 print(wmsg)
+            else:
+                data_to_plot[case] = casetmp.mean(dim="time")
+            #End if
+        #End for
+
+        #The 'regional_map_multicase' function only works if at
+        #least two cases are available, so simply skip the variable
+        #in situations when that is not true:
+        if len(data_to_plot) < 2:
+            print(f"Less than two cases have variable `{v}', so no regional maps will be made.")
+            continue
+        #End if
         plot = regional_map_multicase_plot(
             adfobj, data_to_plot, opt=res.get(v)
         )  # res will be None if v not in the defaults
@@ -125,11 +162,15 @@ def regional_map_multicase(adfobj):
             plot_loc, plot_type, v, sampling_str
         )  # this has to be consistent with web site generator
 
-        try: 
-            adfobj.add_website_data(plot_name, "Regional Maps", None, multi_case=True)
-        except:
-            print("Something is going wrong with adding to website")
+        #Save figure (must be done before website addition):
         plot.savefig(plot_name, bbox_inches='tight')
+
+        #The website generator should be more flexible and allow
+        #for plots to be organized by season or variable.  For now,
+        #just force the page to contain the variables by overloading
+        #the "season" option, even if the resulting HTML looks funny -JN:
+        adfobj.add_website_data(plot_name, "Regional_Maps", None,
+                                season=v, multi_case=True)
 
 
 #
@@ -144,7 +185,7 @@ def regional_map_multicase(adfobj):
 # - simple_case_shortener
 
 def _retrieve(ropt, variable, casename, location, return_dataset=False):
-    """Custom function that retrieves a variable. 
+    """Custom function that retrieves a variable.
        Returns the variable as a DataArray, unless keyword return_dataset=True.
 
     Applies the regional and time interval selections based in values in ropt.
@@ -164,12 +205,14 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False):
     # note: this function assumes monthly data
     fils = sorted(Path(location).glob(f"{casename}*.{variable}.*.nc"))
     if len(fils) == 0:
-        raise ValueError(f"something went wrong for variable: {variable}")
+        #The variable doesn't appear to have been output during this
+        #particular case run, so return None:
+        return None
     elif len(fils) > 1:
         ds = xr.open_mfdataset(fils)  # allows multi-file datasets
     else:
         ds = xr.open_dataset(fils[0])
-    
+
     # resampling is easier with DataArray
     da = ds[variable]
 
@@ -184,6 +227,7 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False):
     if "region_time_option" in ropt:
         if ropt["region_time_option"] == "calendar":
             if ("region_start_year" in ropt) and ("region_end_year" in ropt):
+
                 da = da.loc[
                     {
                         "time": (da.time.dt.year >= ropt["region_start_year"])
@@ -236,7 +280,7 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False):
         ) / month_length.groupby("time.year").sum(dim="time")
         da = da.rename({"year":"time"})
     # else assume month_number is not none
-    
+
     if return_dataset:
         return xr.Dataset(da)
     else:
@@ -246,8 +290,8 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False):
 def _get_month_number(m):
     """
     Utility to get the number (1-12) from a string form.
-    
-    Input, `m`, can be string or integer. 
+
+    Input, `m`, can be string or integer.
     If it is a string, can be 3-letter abbreviation or full month name.
     If integer, needs to be 1-12.
     Emits a useful string if it looks like a season abbreviation.
@@ -299,6 +343,7 @@ def regional_map_multicase_plot(adf, datadict, opt=None):
     Make a figure with up to 10 cases in a row of maps for specified region.
     """
     ncols = len(datadict)
+
     fig, ax = plt.subplots(
         figsize=(4 * ncols, 3),
         ncols=ncols,
@@ -420,4 +465,4 @@ def simple_case_shortener(case_names):
         else:
             return [ele[i:] for ele in case_names]
     return case_names
-    
+

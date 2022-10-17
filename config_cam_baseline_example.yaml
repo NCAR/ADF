@@ -352,6 +352,8 @@ plotting_scripts:
     - polar_map
     - cam_taylor_diagram
     - qbo
+    #- regional_map_multicase #To use this please un-comment and fill-out
+                              #the "region_multicase" section below
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
@@ -379,7 +381,7 @@ diag_var_list:
 # region_multicase:
 #     region_spec: [slat, nlat, wlon, elon]
 #     region_time_option: <calendar | zeroanchor>  # If calendar, will look for specified years. If zeroanchor will use a nyears starting from year_offset from the beginning of timeseries
-#     region_start_year: 
+#     region_start_year:
 #     region_end_year:
 #     region_nyear:
 #     region_year_offset:
