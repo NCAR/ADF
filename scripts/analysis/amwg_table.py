@@ -341,7 +341,7 @@ def _spatial_average(indata):
 def _get_row_vals(data):    
     # Now that data is (time,), we can do our simple stats:
  
-    data_mean = data.mean()
+    data_mean = data.data.mean()
     #Conditional Formatting depending on type of float
     if np.abs(data_mean) < 1:
         formatter = ".3g"
