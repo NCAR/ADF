@@ -18,6 +18,8 @@ import pandas as pd
 import geocat.comp as gc  # use geocat's interpolation
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.legend_handler import HandlerTuple
 from plotting_functions import pres_from_hybrid
 import warnings  # use to warn user about missing files.
 
@@ -581,8 +583,6 @@ def taylor_plot_finalize(wks, casenames, casecolors, syear_cases, eyear_cases, n
     # BIAS LEGEND
     if needs_bias_labels:
         # produce an info-box showing the markers/sizes based on bias
-        from matplotlib.lines import Line2D
-        from matplotlib.legend_handler import HandlerTuple
         bias_legend_elements = [(Line2D([0], [0], marker="v", color='k', label="> 20%", markersize=24, fillstyle='none', linewidth=0), Line2D([0], [0], marker="^", color='k', label="> 20%", markersize=24, fillstyle='none', linewidth=0)),
                                 (Line2D([0], [0], marker="v", color='k', label="10-20%", markersize=16, linewidth=0), Line2D([0], [0], marker="^", color='k', label="10-20%", markersize=16, linewidth=0)),
                                 (Line2D([0], [0], marker="v", color='k', label="5-10%", markersize=8, linewidth=0), Line2D([0], [0], marker="^", color='k', label="5-10%", markersize=8, linewidth=0)),
