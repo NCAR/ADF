@@ -340,25 +340,19 @@ def _spatial_average(indata):
 
 def _get_row_vals(data):    
     # Now that data is (time,), we can do our simple stats:
-    data_stats = data.copy()
  
-    if data_stats.max() > 10000000:
-        data_stats = data_stats.where(data_stats < 10000000)
-    if data_stats.min() < -10000000:    
-        data_stats = data_stats.where(data_stats > -10000000)
-
-    data_mean = data_stats.mean()
+    data_mean = data.mean()
     #Conditional Formatting depending on type of float
     if np.abs(data_mean) < 1:
         formatter = ".3g"
     else:
         formatter = ".3f"
   
-    data_sample = len(data_stats)
-    data_std = data_stats.std()
+    data_sample = len(data)
+    data_std = data.std()
     data_sem = data_std / data_sample
     data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
-    data_trend = stats.linregress(data_stats.year, data_stats.values)
+    data_trend = stats.linregress(data.year, data.values)
 
     stdev = f'{data_std.data.item() : {formatter}}'
     sem = f'{data_sem.data.item() : {formatter}}'
