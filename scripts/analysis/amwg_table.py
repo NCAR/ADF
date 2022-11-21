@@ -1,15 +1,17 @@
 import numpy as np
 import xarray as xr
+import sys
 from pathlib import Path
 import warnings  # use to warn user about missing files.
 
+#Import "special" modules:
 try:
     import scipy.stats as stats # for easy linear regression and testing
 except ImportError:
     print("Scipy module does not exist in python path, but is needed for amwg_table.")
     print("Please install module, e.g. 'pip install scipy'.")
+    sys.exit(1)
 
-#Import "special" modules:
 try:
     import pandas as pd
 except ImportError:
