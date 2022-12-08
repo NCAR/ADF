@@ -98,7 +98,7 @@ def qbo(adfobj):
     bad_idxs = []
     for idx, dat in enumerate(casedat):
         if 'U' not in dat.variables:
-            warngings.warn(f"QBO: case {case_name[i]} contains no 'U' field, skipping...")
+            warnings.warn(f"QBO: case {case_name[idx]} contains no 'U' field, skipping...")
             bad_idxs.append(idx)
         #End if
     #End for
