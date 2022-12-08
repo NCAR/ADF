@@ -36,9 +36,6 @@ def meridional_mean(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
-    #Time series files for unspecified climo years
-    cam_ts_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
-
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
 
@@ -220,7 +217,6 @@ def meridional_mean(adfobj):
                 #Create new dictionaries:
                 mseasons = {}
                 oseasons = {}
-                dseasons = {} # hold the differences
 
                 #Loop over season dictionary:
                 for s in seasons:
@@ -241,6 +237,11 @@ def meridional_mean(adfobj):
 
                     # Check redo_plot. If set to True: remove old plot, if it already exists:
                     if (not redo_plot) and plot_name.is_file():
+                        #Add already-existing plot to website (if enabled):
+                        adfobj.add_website_data(plot_name, var, case_name, season=s,
+                                                plot_type="Meridional")
+
+                        #Continue to next iteration:
                         continue
                     elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()

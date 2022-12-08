@@ -20,7 +20,7 @@
                 </ul>
               </li>
               <li><a href="#">Links &dtrif;</a>
-                <ul class="dropdown-nav">
+                <ul class="dropdown">
                   <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
                   <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
                   <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
@@ -44,7 +44,7 @@
     <div class="grid-container" >
       {% for category, var_seas in mydata.items() %}
       <div class="grid-item">
-        <div class="dropdown">
+        <div class="dropdown-vars">
           <h3 class="block">{{ category }}</h3>
             <div class="grid-container" style="column-gap: 5px; row-gap: 5px; padding:2px">
               {% for var_name, ptype_seas in var_seas.items() %}
@@ -54,7 +54,7 @@
               {% endfor %}
             </div><!--grid-container-->
             <script type="text/html"> </div></script>
-        </div><!--dropdown-->
+        </div><!--dropdown-vars-->
       </div><!--grid-item-->
       {% endfor %}
     </div><!--grid-container-ptype-->

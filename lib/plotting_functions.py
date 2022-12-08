@@ -17,6 +17,7 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.lines import Line2D
 
 from adf_diag import AdfDiag
 from adf_base import AdfError
@@ -26,6 +27,9 @@ mpl.use('Agg')
 
 #Now import pyplot:
 import matplotlib.pyplot as plt
+
+empty_message = "No Valid\nData Points"
+props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
 
 #################
 #HELPER FUNCTIONS
@@ -309,8 +313,6 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
     ax3 = plt.subplot(gs[1, 1:3], projection=proj)
 
-    empty_message = "No Valid\nData Points"
-    props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
     levs = np.unique(np.array(levels1))
     if len(levs) < 2:
         img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
@@ -675,8 +677,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
             cmap = cp_info['cmap1']
             norm = cp_info['norm1']
 
-        empty_message = "No Valid\nData Points"
-        props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
         levs = np.unique(np.array(levels))
         if len(levs) < 2:
             img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
@@ -1246,8 +1246,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         fig, ax = plt.subplots(figsize=(10,10),nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
         levs = np.unique(np.array(cp_info['levels1']))
         if len(levs) < 2:
-            empty_message = "No Valid\nData Points"
-            props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
             img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0])
             ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
             img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1])
@@ -1275,7 +1273,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         ax[-1].set_xlabel("LATITUDE")
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
-        from matplotlib.lines import Line2D
         line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
         line2 = Line2D([0], [0], label="$\mathbf{Baseline}:$"+f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
@@ -1409,8 +1406,6 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         fig, ax = plt.subplots(figsize=(10,10),nrows=3, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
         levs = np.unique(np.array(cp_info['levels1']))
         if len(levs) < 2:
-            empty_message = "No Valid\nData Points"
-            props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
             img0, ax[0] = pltfunc(adata[xdim], adata, ax=ax[0])
             ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
             img1, ax[1] = pltfunc(bdata[xdim], bdata, ax=ax[1])
@@ -1441,7 +1436,6 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
 
     else:
-        from matplotlib.lines import Line2D
         line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
         line2 = Line2D([0], [0], label="$\mathbf{Baseline}:$"+f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
