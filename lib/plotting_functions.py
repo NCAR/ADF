@@ -335,10 +335,10 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
     ax1.text(-0.2, -0.10, f"Mean: {d1_region_mean:5.2f}\nMax: {d1_region_max:5.2f}\nMin: {d1_region_min:5.2f}", transform=ax1.transAxes)
     ax1.set_title("$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", fontsize=6)
-    
+
     ax2.text(-0.2, -0.10, f"Mean: {d2_region_mean:5.2f}\nMax: {d2_region_max:5.2f}\nMin: {d2_region_min:5.2f}", transform=ax2.transAxes)
     ax2.set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", fontsize=6)
-    
+
     ax3.text(-0.2, -0.10, f"Mean: {dif_region_mean:5.2f}\nMax: {dif_region_max:5.2f}\nMin: {dif_region_min:5.2f}", transform=ax3.transAxes)
     ax3.set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
 
@@ -392,9 +392,11 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
 #######
 
-def plot_map_vect_and_save(wks, case_nickname, base_nickname, 
+def plot_map_vect_and_save(wks, case_nickname, base_nickname,
                            case_climo_yrs, baseline_climo_yrs,
-                           plev, umdlfld, vmdlfld, uobsfld, vobsfld, udiffld, vdiffld, **kwargs):
+                           plev, umdlfld_nowrap, vmdlfld_nowrap,
+                           uobsfld_nowrap, vobsfld_nowrap,
+                           udiffld_nowrap, vdiffld_nowrap, **kwargs):
     """This plots a vector plot. bringing in two variables which respresent a vector pair
 
     kwargs -> optional dictionary of plotting options
@@ -407,11 +409,19 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
 
     # generate projection:
     proj = ccrs.PlateCarree(central_longitude=cent_long)
-    lat = umdlfld['lat']
+    lat = umdlfld_nowrap['lat']
     wgt = np.cos(np.radians(lat))
 
-    # extract lat/lon values:
-    lons, lats = np.meshgrid(umdlfld['lon'], umdlfld['lat'])
+    # add cyclic longitude:
+    umdlfld, lon = add_cyclic_point(umdlfld_nowrap, coord=umdlfld_nowrap['lon'])
+    vmdlfld, _   = add_cyclic_point(vmdlfld_nowrap, coord=vmdlfld_nowrap['lon'])
+    uobsfld, _   = add_cyclic_point(uobsfld_nowrap, coord=uobsfld_nowrap['lon'])
+    vobsfld, _   = add_cyclic_point(vobsfld_nowrap, coord=vobsfld_nowrap['lon'])
+    udiffld, _   = add_cyclic_point(udiffld_nowrap, coord=udiffld_nowrap['lon'])
+    vdiffld, _   = add_cyclic_point(vdiffld_nowrap, coord=vdiffld_nowrap['lon'])
+
+    # create mesh for plots:
+    lons, lats = np.meshgrid(lon, lat)
 
     # create figure:
     fig = plt.figure(figsize=(14,10))
@@ -463,8 +473,13 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     # Please note that the difference field needs
     # to be calculated from the model and obs fields
     # in order to get the correct sign:
-    mdl_mag  = np.sqrt(umdlfld**2 + vmdlfld**2)
-    obs_mag  = np.sqrt(uobsfld**2 + vobsfld**2)
+    mdl_mag_ma  = np.sqrt(umdlfld**2 + vmdlfld**2)
+    obs_mag_ma  = np.sqrt(uobsfld**2 + vobsfld**2)
+
+    #Convert vector magnitudes to xarray DataArrays:
+    mdl_mag = xr.DataArray(mdl_mag_ma)
+    obs_mag = xr.DataArray(obs_mag_ma)
+
     diff_mag = mdl_mag - obs_mag
 
     # Get difference limits, in order to plot the correct range:
@@ -521,7 +536,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     if "units" in kwargs:
         ax[1].set_ylabel(f"[{kwargs['units']}]")
         ax[-1].set_ylabel(f"[{kwargs['units']}]")
-    
+
     for a in ax:
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         a.coastlines()
@@ -571,7 +586,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
 #######
 
 def plot_map_and_save(wks, case_nickname, base_nickname,
-                      case_climo_yrs, baseline_climo_yrs, 
+                      case_climo_yrs, baseline_climo_yrs,
                       mdlfld, obsfld, diffld, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
 
@@ -695,11 +710,11 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
     st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
     st.set_y(0.85)
-    
+
     #Set case nickname and climo years:
     ax[0].set_title("$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", loc='left', fontsize=8) #fontsize=tiFontSize
     ax[1].set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
-    
+
     #Set stats: area_avg
     ax[0].set_title(f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.values.max():5.2f}\nMin: {mdlfld.values.min():5.2f}", loc='right',
                        fontsize=8)
@@ -1262,7 +1277,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         #End if
 
         #Set case nickname and climo years:
-        ax[0].set_title("$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", loc='left', fontsize=8) 
+        ax[0].set_title("$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", loc='left', fontsize=8)
         ax[1].set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
         ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
 
@@ -1287,9 +1302,9 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         #Set Main title for subplots:
         st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=15)
         st.set_y(1.02)
-        
+
         zonal_plot(adata['lat'], azm, ax=ax[0],color="#1f77b4") # #1f77b4 -> matplotlib standard blue
-        zonal_plot(bdata['lat'], bzm, ax=ax[0],color="#ff7f0e") # #ff7f0e -> matplotlib standard orange       
+        zonal_plot(bdata['lat'], bzm, ax=ax[0],color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
         fig.legend(handles=[line,line2],bbox_to_anchor=(-0.15, 0.87, 1.05, .102),loc="right",
                    borderaxespad=0.0,fontsize=6,frameon=False)
@@ -1422,7 +1437,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         #End if
 
         #Set case nickname and climo years:
-        ax[0].set_title("$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", loc='left', fontsize=8) 
+        ax[0].set_title("$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}", loc='left', fontsize=8)
         ax[1].set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
         ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
 
@@ -1439,13 +1454,13 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
         line2 = Line2D([0], [0], label="$\mathbf{Baseline}:$"+f"{base_nickname} - years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}",
-                        color="#ff7f0e") # #ff7f0e -> matplotlib standard orange 
+                        color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
         fig, ax = plt.subplots(nrows=2)
         ax = [ax[0],ax[1]]
 
         pltfunc(adata[xdim], adata, ax=ax[0],color="#1f77b4") # #1f77b4 -> matplotlib standard blue
-        pltfunc(bdata[xdim], bdata, ax=ax[0],color="#ff7f0e") # #ff7f0e -> matplotlib standard orange 
+        pltfunc(bdata[xdim], bdata, ax=ax[0],color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
         pltfunc(adata[xdim], diff, ax=ax[1], color="k")
 
         ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=10)
