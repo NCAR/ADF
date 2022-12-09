@@ -477,9 +477,8 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     obs_mag_ma  = np.sqrt(uobsfld**2 + vobsfld**2)
 
     #Convert vector magnitudes to xarray DataArrays:
-    mdl_mag = xr.DataArray(mdl_mag_ma)
-    obs_mag = xr.DataArray(obs_mag_ma)
-
+    mdl_mag  = xr.DataArray(mdl_mag_ma)
+    obs_mag  = xr.DataArray(obs_mag_ma)
     diff_mag = mdl_mag - obs_mag
 
     # Get difference limits, in order to plot the correct range:
@@ -497,10 +496,10 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     #  - contourf to show magnitude w/ colorbar
     #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
     img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree())
-    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(central_longitude=cent_long), cmap='Reds')
+    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
     img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree())
-    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(central_longitude=cent_long), cmap='Reds')
+    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
@@ -512,6 +511,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
         tiFontSize = kwargs.pop('tiFontSize')
     else:
         tiFontSize = 11
+    #End if
 
     #Set Main title for subplots:
     st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
@@ -536,7 +536,9 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     if "units" in kwargs:
         ax[1].set_ylabel(f"[{kwargs['units']}]")
         ax[-1].set_ylabel(f"[{kwargs['units']}]")
+    #End if
 
+    # Add cosmetic plot features:
     for a in ax:
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         a.coastlines()
@@ -546,8 +548,9 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
         a.tick_params('both', length=5, width=1.5, which='minor')
         a.xaxis.set_major_formatter(lon_formatter)
         a.yaxis.set_major_formatter(lat_formatter)
+    #End for
 
-    ## Add colorbar to vector plot:
+    # Add colorbar to vector plot:
     cb_c2_ax = inset_axes(ax2,
                    width="5%",  # width = 5% of parent_bbox width
                    height="100%",  # height : 100%
@@ -556,13 +559,13 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
                    bbox_transform=ax2.transAxes,
                    borderpad=0,
                    )
-
     fig.colorbar(img2, cax=cb_c2_ax)
 
     # Plot vector differences:
     img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
-    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree(central_longitude=cent_long))
+    ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
 
+    # Add color bar to difference plot:
     cb_d_ax = inset_axes(ax3,
                    width="5%",  # width = 5% of parent_bbox width
                    height="100%",  # height : 100%
@@ -574,7 +577,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     fig.colorbar(img3, cax=cb_d_ax)
 
     # Add coastlines:
-    [a.coastlines() for a in [ax1,ax2,ax3]]
+    #[a.coastlines() for a in [ax1,ax2,ax3]]
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
