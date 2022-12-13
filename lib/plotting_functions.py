@@ -576,9 +576,6 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
                    )
     fig.colorbar(img3, cax=cb_d_ax)
 
-    # Add coastlines:
-    #[a.coastlines() for a in [ax1,ax2,ax3]]
-
     # Write final figure to file
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
