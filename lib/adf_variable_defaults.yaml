@@ -357,7 +357,7 @@ CCN3:
   category: "Clouds"
 
 #+++++++++++++++++
-# Category: CLUBB 
+# Category: CLUBB
 #+++++++++++++++++
 
 RVMTEND_CLUBB:
@@ -373,7 +373,7 @@ WPTHLP_CLUBB:
   category: "CLUBB"
 
 #+++++++++++++++++
-# Category: hydrologic cycle 
+# Category: hydrologic cycle
 #+++++++++++++++++
 
 PRECC:
@@ -500,11 +500,15 @@ TAUX:
   vector_pair: "TAUY"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
+  scale_factor: -1
+  add_offset: 0
 
 TAUY:
   vector_pair: "TAUX"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
+  scale_factor: -1
+  add_offset: 0
 
 ICEFRAC:
   category: "Surface variables"
