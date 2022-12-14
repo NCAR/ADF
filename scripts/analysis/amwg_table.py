@@ -1,3 +1,25 @@
+import numpy as np
+import xarray as xr
+import sys
+from pathlib import Path
+import warnings  # use to warn user about missing files.
+
+#Import "special" modules:
+try:
+    import scipy.stats as stats # for easy linear regression and testing
+except ImportError:
+    print("Scipy module does not exist in python path, but is needed for amwg_table.")
+    print("Please install module, e.g. 'pip install scipy'.")
+    sys.exit(1)
+
+try:
+    import pandas as pd
+except ImportError:
+    print("Pandas module does not exist in python path, but is needed for amwg_table.")
+    print("Please install module, e.g. 'pip install pandas'.")
+    sys.exit(1)
+
+
 def amwg_table(adf):
 
     """
@@ -31,25 +53,8 @@ def amwg_table(adf):
     """
 
     #Import necessary modules:
-    import numpy as np
-    import xarray as xr
-    from pathlib import Path
     from adf_base import AdfError
-    import warnings  # use to warn user about missing files.
-
-    #Import "special" modules:
-    try:
-        import pandas as pd
-    except ImportError:
-        print("Pandas module does not exist in python path, but is needed for amwg_table.")
-        print("Please install module, e.g. 'pip install pandas'.")
-        sys.exit(1)
-
-    try:
-        import scipy.stats as stats # for easy linear regression and testing
-    except ImportError:
-        print("Scipy module does not exist in python path, but is needed for amwg_table.")
-        print("Please install module, e.g. 'pip install scipy'.")
+    
 
 
     #Additional information:
@@ -218,21 +223,14 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
                                                               # NOTE: data will now have a 'year' dimension instead of 'time'
-            # Now that data is (time,), we can do our simple stats:
-            data_mean = data.mean()
-            data_sample = len(data)
-            data_std = data.std()
-            data_sem = data_std / data_sample
-            data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
-            data_trend = stats.linregress(data.year, data.values)
-            # These get written to our output file:
+            
             # create a dataframe:
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                     'standard error', '95% CI', 'trend', 'trend p-value']
-            row_values = [var, unit_str, data_mean.data.item(), data_sample,
-                          data_std.data.item(), data_sem.data.item(), data_ci.data.item(),
-                          f'{data_trend.intercept : 0.3f} + {data_trend.slope : 0.3f} t',
-                          data_trend.pvalue]
+            
+            # These get written to our output file: 
+            stats_list = _get_row_vals(data)
+            row_values = [var, unit_str] + stats_list
 
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
@@ -258,21 +256,10 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
                                                                 # NOTE: data will now have a 'year' dimension instead of 'time'
-            # Now that data is (time,), we can do our simple stats:
-            data_mean = data.mean()
-            data_sample = len(data)
-            data_std = data.std()
-            data_sem = data_std / data_sample
-            data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
-            data_trend = stats.linregress(data.year, data.values)
-            # These get written to our output file:
-            # create a dataframe:
-            cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
-                        'standard error', '95% CI', 'trend', 'trend p-value']
-            row_values = [var, restom_units, data_mean.data.item(), data_sample,
-                            data_std.data.item(), data_sem.data.item(), data_ci.data.item(),
-                            f'{data_trend.intercept : 0.3f} + {data_trend.slope : 0.3f} t',
-                            data_trend.pvalue]
+            # These get written to our output file: 
+            stats_list = _get_row_vals(data) 
+            row_values = [var, restom_units] + stats_list
+            # col (column) values declared above
 
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
@@ -353,6 +340,32 @@ def _spatial_average(indata):
 
 #####
 
+def _get_row_vals(data):    
+    # Now that data is (time,), we can do our simple stats:
+ 
+    data_mean = data.data.mean()
+    #Conditional Formatting depending on type of float
+    if np.abs(data_mean) < 1:
+        formatter = ".3g"
+    else:
+        formatter = ".3f"
+  
+    data_sample = len(data)
+    data_std = data.std()
+    data_sem = data_std / data_sample
+    data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
+    data_trend = stats.linregress(data.year, data.values)
+
+    stdev = f'{data_std.data.item() : {formatter}}'
+    sem = f'{data_sem.data.item() : {formatter}}'
+    ci = f'{data_ci.data.item() : {formatter}}'
+    slope_int = f'{data_trend.intercept : {formatter}} + {data_trend.slope : {formatter}} t'
+    pval = f'{data_trend.pvalue : {formatter}}'
+
+    return [f'{data_mean:{formatter}}', data_sample, stdev, sem, ci, slope_int, pval]
+
+#####
+
 def _df_comp_table(adf, output_location, case_names):
     import pandas as pd
 
@@ -376,7 +389,9 @@ def _df_comp_table(adf, output_location, case_names):
     df_comp = pd.DataFrame(dtype=object)
     df_comp[['variable','unit','case']] = df_merge[['variable','unit_x','mean_x']]
     df_comp['baseline'] = df_merge[['mean_y']]
-    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
+    
+    diffs = df_comp['case'].values-df_comp['baseline'].values
+    df_comp['diff'] = [f'{i:.3g}' if np.abs(i) < 1 else f'{i:.3f}' for i in diffs]
 
     #Write the comparison dataframe to a new CSV file:
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']

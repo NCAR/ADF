@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # acquire github action routines
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     # acquire specific version of python
     - name: Set up Python 3.8
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: '3.8' # Use python 3.8
     # install required python packages
@@ -28,6 +28,7 @@ jobs:
         pip install PyGithub                 # Install PyGithub python package
         pip install pylint                   # Install Pylint python package
         pip install pyyaml                   # Install PyYAML python package
+        pip install numpy                    # Install NumPy python package
     # run CAM source code testing master script:
     - name: source-code testing python script
       env:
