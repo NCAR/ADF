@@ -50,29 +50,31 @@ def regrid_and_vert_interp(adf):
     #Extract needed quantities from ADF object:
     #-----------------------------------------
     overwrite_regrid = adf.get_basic_info("cam_overwrite_regrid", required=True)
-    output_loc = adf.get_basic_info("cam_regrid_loc", required=True)
-    var_list = adf.diag_var_list
+    output_loc       = adf.get_basic_info("cam_regrid_loc", required=True)
+    var_list         = adf.diag_var_list
+    var_defaults     = adf.variable_defaults
 
     #CAM simulation variables (these quantities are always lists):
     case_names = adf.get_cam_info("cam_case_name", required=True)
     input_climo_locs = adf.get_cam_info("cam_climo_loc", required=True)
 
-    #Check if mid-level pressure exists in the variable list:
-    if "PMID" in var_list:
-        #If so, then move it to front of variable list so that
-        #it can be used to vertically interpolate model variables
-        #if need be:
-        pmid_idx = var_list.index("PMID")
-        var_list.pop(pmid_idx)
-        var_list.insert(0,"PMID")
-    #End if
+    #Check if mid-level pressure, ocean fraction or land fraction exist
+    #in the variable list:
+    for var in ["PMID", "OCNFRAC", "LANDFRAC"]:
+        if var in var_list:
+            #If so, then move them to the front of variable list so
+            #that they can be used to mask or vertically interpolate
+            #other model variables if need be:
+            var_idx = var_list.index(var)
+            var_list.pop(var_idx)
+            var_list.insert(0,var)
+        #End if
+    #End for
 
-    if 'SST' in var_list:
-        regrid_ofrac = True
-        mask_var = 'SST'
-    elif 'TS' in var_list:
-        regrid_ofrac = True
-        mask_var = 'TS'
+    #Create new variables that potentially stores the re-gridded
+    #ocean/land fraction dataset:
+    ocn_frc_ds = None
+    tgt_ocn_frc_ds = None
 
     #Check if surface pressure exists in variable list:
     if "PS" in var_list:
@@ -204,8 +206,8 @@ def regrid_and_vert_interp(adf):
                         tclim_ds = xr.open_dataset(tclim_fils[0])
                     #End if
 
-                    if regrid_ofrac and 'OCNFRAC' in tclim_ds:
-                        regrid_ofrac = False
+                    #if regrid_ofrac and 'OCNFRAC' in tclim_ds:
+                    #    regrid_ofrac = False
 
                     #Generate CAM climatology (climo) file list:
                     mclim_fils = sorted(mclimo_loc.glob(f"{case_name}_{var}_*.nc"))
@@ -214,7 +216,7 @@ def regrid_and_vert_interp(adf):
                         #Combine all cam files together into a single data set:
                         mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
                     else:
-                        #Open single file as new xsarray dataset:
+                        #Open single file as new xarray dataset:
                         mclim_ds = xr.open_dataset(mclim_fils[0])
                     #End if
 
@@ -232,34 +234,36 @@ def regrid_and_vert_interp(adf):
                     #Perform regridding and interpolation of variable:
                     rgdata_interp = _regrid_and_interpolate_levs(mclim_ds, var,
                                                                  regrid_dataset=tclim_ds,
-                                                                 regrid_ofrac=regrid_ofrac, **regrid_kwargs)
+                                                                 **regrid_kwargs)
 
-                    if var == mask_var:
-                        if 'OCNFRAC' in rgdata_interp:
-                            ofrac = rgdata_interp['OCNFRAC']
-                            # set the bounds of regridded ocnfrac to 0 to 1
-                            ofrac = xr.where(ofrac>1,1,ofrac)
-                            ofrac = xr.where(ofrac<0,0,ofrac)
-                            # mask the land in TS for global means
-                            rgdata_interp['OCNFRAC'] = ofrac
-                            ts_tmp = rgdata_interp[mask_var]
-                            ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
-                            rgdata_interp[mask_var] = ts_tmp
-                        else:
-                            if 'OCNFRAC' in tclim_ds:
-                                ofrac = tclim_ds['OCNFRAC']
-                                ts1_tmp = tclim_ds[mask_var]
-                                ts2_tmp = rgdata_interp[mask_var]
-                                ts1_tmp = pf.mask_land_or_ocean(ts1_tmp,ofrac)
-                                ts2_tmp = pf.mask_land_or_ocean(ts2_tmp,ofrac)
-                                rgdata_interp[mask_var] = ts2_tmp
-                                tclim_ds[mask_var] = ts1_tmp
-                                # replace old target file with new one that contains masked TS
-                                tclim_fils[0].unlink()
-                                save_to_nc(tclim_ds,tclim_fils[0])
-                            #end if
-                        #end if
+                    #Extract defaults for variable:
+                    var_default_dict = var_defaults[var]
 
+                    if 'mask' in var_default_dict:
+                        if var_default_dict['mask'].lower() == 'ocean':
+                            #Check if the ocean fraction has already been regridded
+                            #and saved:
+                            if ocn_frc_ds:
+                                ofrac = ocn_frc_ds['OCNFRAC']
+                                # set the bounds of regridded ocnfrac to 0 to 1
+                                ofrac = xr.where(ofrac>1,1,ofrac)
+                                ofrac = xr.where(ofrac<0,0,ofrac)
+
+                                # mask the land in TS for global means
+                                rgdata_interp['OCNFRAC'] = ofrac
+                                ts_tmp = rgdata_interp[var]
+                                ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
+                                rgdata_interp[var] = ts_tmp
+                            else:
+                                print(f"OCNFRAC not found, unable to apply mask to '{var}'")
+                            #End if
+                        #End if
+                    #End if
+
+                    #If the variable is ocean fraction, then save the dataset for use later:
+                    if var == 'OCNFRAC':
+                        ocn_frc_ds = rgdata_interp
+                    #End if
 
                     #Finally, write re-gridded data to output file:
                     save_to_nc(rgdata_interp, regridded_file_loc)
@@ -297,6 +301,31 @@ def regrid_and_vert_interp(adf):
                             #Something went wrong during interpolation, so just cycle through
                             #for now:
                             continue
+                        #End if
+
+                        #If the variable is ocean fraction, then save the dataset for use later:
+                        if var == 'OCNFRAC':
+                            tgt_ocn_frc_ds = tgdata_interp
+                        #End if
+
+                        if 'mask' in var_default_dict:
+                            if var_default_dict['mask'].lower() == 'ocean':
+                                #Check if the ocean fraction has already been regridded
+                                #and saved:
+                                if tgt_ocn_frc_ds:
+                                    ofrac = tgt_ocn_frc_ds['OCNFRAC']
+                                    # set the bounds of regridded ocnfrac to 0 to 1
+                                    ofrac = xr.where(ofrac>1,1,ofrac)
+                                    ofrac = xr.where(ofrac<0,0,ofrac)
+                                    # mask the land in TS for global means
+                                    tgdata_interp['OCNFRAC'] = ofrac
+                                    ts_tmp = rgdata_interp[var]
+                                    ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
+                                    tgdata_interp[var] = ts_tmp
+                                else:
+                                    print(f"OCNFRAC not found, unable to apply mask to '{var}'")
+                                #End if
+                            #End if
                         #End if
 
                         #Write interpolated baseline climatology to file:
@@ -360,10 +389,10 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
     #Extract variable info from model data (and remove any degenerate dimensions):
     mdata = model_dataset[var_name].squeeze()
     mdat_ofrac = None
-    if regrid_ofrac:
-        if 'OCNFRAC' in model_dataset:
-            mdat_ofrac = model_dataset['OCNFRAC'].squeeze()
- 
+    #if regrid_ofrac:
+    #    if 'OCNFRAC' in model_dataset:
+    #        mdat_ofrac = model_dataset['OCNFRAC'].squeeze()
+
     #Check if variable has a vertical component:
     if 'lev' in mdata.dims:
         has_lev = True
