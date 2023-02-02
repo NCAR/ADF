@@ -23,6 +23,7 @@ def regrid_and_vert_interp(adf):
     input_climo_loc  -> Location of CAM climo files provided by "cam_climo_loc"
     output_loc       -> Location to write re-gridded CAM files, specified by "cam_regrid_loc"
     var_list         -> List of CAM output variables provided by "diag_var_list"
+    var_defaults     -> Dict that has keys that are variable names and values that are plotting preferences/defaults.
     target_list      -> List of target data sets CAM could be regridded to
     taget_loc        -> Location of target files that CAM will be regridded to
     overwrite_regrid -> Logical to determine if already existing re-gridded
@@ -237,7 +238,7 @@ def regrid_and_vert_interp(adf):
                                                                  **regrid_kwargs)
 
                     #Extract defaults for variable:
-                    var_default_dict = var_defaults[var]
+                    var_default_dict = var_defaults.get(var, {})
 
                     if 'mask' in var_default_dict:
                         if var_default_dict['mask'].lower() == 'ocean':
@@ -249,14 +250,19 @@ def regrid_and_vert_interp(adf):
                                 ofrac = xr.where(ofrac>1,1,ofrac)
                                 ofrac = xr.where(ofrac<0,0,ofrac)
 
-                                # mask the land in TS for global means
+                                # apply ocean fraction mask to variable
                                 rgdata_interp['OCNFRAC'] = ofrac
-                                ts_tmp = rgdata_interp[var]
-                                ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
-                                rgdata_interp[var] = ts_tmp
+                                var_tmp = rgdata_interp[var]
+                                var_tmp = pf.mask_land_or_ocean(var_tmp,ofrac)
+                                rgdata_interp[var] = var_tmp
                             else:
                                 print(f"OCNFRAC not found, unable to apply mask to '{var}'")
                             #End if
+                        else:
+                            #Currently only an ocean mask is supported, so print warning here:
+                            wmsg = "Currently the only variable mask option is 'ocean',"
+                            wmsg += f"not '{var_default_dict['mask'].lower()}'"
+                            print(wmsg)
                         #End if
                     #End if
 

@@ -74,9 +74,27 @@ def get_difference_colors(values):
     return dnorm, cmap
 
 
-def mask_land_or_ocean(arr,msk):
-    arr = xr.where(msk>=0.9,arr,-999.)
-    arr.attrs["missing_value"]=-999.
+def mask_land_or_ocean(arr,msk, use_nan=False):
+    """
+    Apply a land or ocean mask to provided variable.
+
+    Inputs:
+    arr -> the xarray variable to apply the mask to.
+    msk -> the xarray variable that contains the land or ocean mask,
+           assumed to be the same shape as "arr".
+
+    use_nan -> Optional argument for whether to set the missing values
+               to np.nan values instead of the defaul "-999." values.
+    """
+
+    if use_nan:
+        missing_value = np.nan
+    else:
+        missing_value = -999.
+    #End if
+
+    arr = xr.where(msk>=0.9,arr,missing_value)
+    arr.attrs["missing_value"] = missing_value
     return(arr)
 
 
