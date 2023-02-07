@@ -329,7 +329,9 @@ def regrid_and_vert_interp(adf):
                                     ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
                                     tgdata_interp[var] = ts_tmp
                                 else:
-                                    print(f"OCNFRAC not found, unable to apply mask to '{var}'")
+                                    wmsg = "OCNFRAC not found in target,"
+                                    wmsg += f" unable to apply mask to '{var}'"
+                                    print(wmsg)
                                 #End if
                             #End if
                         #End if
