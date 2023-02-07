@@ -1,5 +1,6 @@
 #Import standard modules:
 from pathlib import Path
+from collections import OrderedDict
 import numpy as np
 import xarray as xr
 import warnings  # use to warn user about missing files.
@@ -64,6 +65,13 @@ def global_latlon_map(adfobj):
 
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
+
+    if len(case_names) > 1:
+        #Check if multi-plots are desired from yaml file
+        if adfobj.read_config_var('multi_case_plots'):
+            multi_plots = True
+    else:
+        multi_plots = False
 
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
@@ -141,9 +149,16 @@ def global_latlon_map(adfobj):
                "MAM": [3, 4, 5],
                "SON": [9, 10, 11]
                }
-
+    
     # probably want to do this one variable at a time:
     for var in var_list:
+        if multi_plots:
+            multi_dict = OrderedDict()
+
+            for multi_var in adfobj.read_config_var('multi_case_plots')["global_latlon_map"]:
+                #print(multi_var)
+                multi_dict[multi_var] = OrderedDict()
+
 
         if adfobj.compare_obs:
             #Check if obs exist for the variable:
@@ -207,6 +222,11 @@ def global_latlon_map(adfobj):
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
 
+                #Grab data for desired multi-plots (from yaml file)
+                if multi_plots:
+                    if var in adfobj.get_multi_case_info("global_latlon_map"):
+                        multi_dict[var][case_name] = OrderedDict()
+
                 #Set case nickname:
                 case_nickname = test_nicknames[case_idx]
 
@@ -266,6 +286,10 @@ def global_latlon_map(adfobj):
                         oseasons = {}
                         dseasons = {} # hold the differences
 
+                        #Initialize Ordered Dictionary for variable:
+                        #if case_name not in restom_dict:
+                        #restom_dict[case_name] = OrderedDict()
+
                         #Loop over season dictionary:
                         for s in seasons:
 
@@ -308,6 +332,11 @@ def global_latlon_map(adfobj):
                                 dseasons[s] = mseasons[s] - oseasons[s]
                             #End if
 
+                            #Grab data for desired multi-plots (from yaml file)
+                            if multi_plots:
+                                if var in adfobj.get_multi_case_info("global_latlon_map"):
+                                    multi_dict[var][case_name][s] = {"diff_data":dseasons[s],"vres":vres}
+
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                             plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
@@ -315,7 +344,8 @@ def global_latlon_map(adfobj):
                             # Check redo_plot. If set to True: remove old plot, if it already exists:
                             if (not redo_plot) and plot_name.is_file():
                                 #Add already-existing plot to website (if enabled):
-                                adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                adfobj.add_website_data(plot_name, var, case_name, plot_ext="global_latlon_map",
+                                                        category=web_category,
                                                         season=s, plot_type="LatLon")
 
                                 #Continue to next iteration:
@@ -334,11 +364,11 @@ def global_latlon_map(adfobj):
                             pf.plot_map_and_save(plot_name, case_nickname, base_nickname,
                                                  [syear_cases[case_idx],eyear_cases[case_idx]],
                                                  [syear_baseline,eyear_baseline],
-                                                 mseasons[s], oseasons[s], dseasons[s],
-                                                 **vres)
+                                                 mseasons[s], oseasons[s], dseasons[s], **vres)
 
                             #Add plot to website (if enabled):
-                            adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                            adfobj.add_website_data(plot_name, var, case_name, plot_ext="global_latlon_map", 
+                                                    category=web_category,
                                                     season=s, plot_type="LatLon")
 
                     else: #mdata dimensions check
@@ -413,6 +443,10 @@ def global_latlon_map(adfobj):
                                     dseasons[s] = mseasons[s] - oseasons[s]
                                 #End if
 
+                                if multi_plots:
+                                    if var in adfobj.get_multi_case_info("global_latlon_map"):
+                                        multi_dict[var][case_name][s] = {"diff_data":dseasons[s],"vres":vres}
+
                                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                                 plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
@@ -421,8 +455,8 @@ def global_latlon_map(adfobj):
                                 redo_plot = adfobj.get_basic_info('redo_plot')
                                 if (not redo_plot) and plot_name.is_file():
                                     #Add already-existing plot to website (if enabled):
-                                    adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
-                                                            season=s, plot_type="LatLon")
+                                    adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, plot_ext="global_latlon_map",
+                                                            category=web_category, season=s, plot_type="LatLon")
 
                                     #Continue to next iteration:
                                     continue
@@ -439,12 +473,11 @@ def global_latlon_map(adfobj):
                                 pf.plot_map_and_save(plot_name, case_nickname, base_nickname,
                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
                                                      [syear_baseline,eyear_baseline],
-                                                     mseasons[s], oseasons[s], dseasons[s],
-                                                     **vres)
+                                                     mseasons[s], oseasons[s], dseasons[s], **vres)
 
                                 #Add plot to website (if enabled):
-                                adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
-                                                        season=s, plot_type="LatLon")
+                                adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, plot_ext="global_latlon_map",
+                                                        category=web_category, season=s, plot_type="LatLon")
 
                             #End for (seasons)
                         #End for (pressure levels)
@@ -453,12 +486,28 @@ def global_latlon_map(adfobj):
                         print(f"\t - variable '{var}' has no vertical dimension but is not just time/lat/lon, so skipping.")
                     #End if (has_lev)
                 else:
-                    print(f"\t - skipping polar map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
+                    print(f"\t - skipping lat/lon map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
                 #End if (dimensions check and plotting pressure levels)
             #End for (case loop)
         #End for (obs/baseline loop)
+
     #End for (variable loop)
 
+    #This will be a list of variables for multi-case plotting based off LatLon plot type
+    if multi_plots:
+        #Notify user that script has started:
+            
+        print("\n  Generating lat/lon multi-case plots...")
+
+        multi_path = Path(adfobj.get_basic_info('cam_diag_plot_loc', required=True))
+        main_site_path = multi_path / "main_website"
+        main_site_path.mkdir(exist_ok=True)
+        main_site_assets_path = main_site_path / "assets"
+        main_site_assets_path.mkdir(exist_ok=True)
+
+        pf.multi_latlon_plots(main_site_assets_path, "LatLon", case_names, [test_nicknames,base_nickname], multi_dict, adfobj)
+
+        print("  ...lat/lon multi-case plots have been generated successfully.")
     #Notify user that script has ended:
     print("  ...lat/lon maps have been generated successfully.")
 

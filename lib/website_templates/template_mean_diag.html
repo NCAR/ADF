@@ -11,11 +11,14 @@
           <div class="center">
             <nav role="navigation" class="primary-navigation">
             <ul>
-              <li><a href="../index.html">Case Home</a></li>
+              <li><a href="../">Case Home</a></li>
+              {% if multi==True %}
+              <li><a href="../../">Multi-Case Home</a></li>
+              {% endif %}
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
-                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a></li>
+                    <li><a href=../{{ html_file }}> &nbsp; {{ type }}</a></li>
                   {% endfor %}
                 </ul>
               </li>
@@ -44,7 +47,7 @@
     <div class="grid-container" >
       {% for category, var_seas in mydata.items() %}
       <div class="grid-item">
-        <div class="dropdown-vars">
+        <div class="dropdown-vars" style="position: relative; display: inline-block;">
           <h3 class="block">{{ category }}</h3>
             <div class="grid-container" style="column-gap: 5px; row-gap: 5px; padding:2px">
               {% for var_name, ptype_seas in var_seas.items() %}
@@ -58,7 +61,6 @@
       </div><!--grid-item-->
       {% endfor %}
     </div><!--grid-container-ptype-->
-
 
   </body>
 </html>

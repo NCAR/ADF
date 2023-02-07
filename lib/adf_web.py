@@ -24,6 +24,7 @@ import os
 import os.path
 
 from pathlib import Path
+from collections import OrderedDict
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -56,6 +57,7 @@ class _WebData:
     """
 
     def __init__(self, web_data, web_name, case_name,
+                 plot_ext = None,
                  category = None,
                  season = None,
                  plot_type = "Special",
@@ -71,6 +73,7 @@ class _WebData:
         self.category   = category
         self.season     = season
         self.plot_type  = plot_type
+        self.plot_ext   = plot_ext
         self.data_frame = data_frame
         self.html_file  = html_file
         self.asset_path = asset_path
@@ -179,7 +182,8 @@ class AdfWeb(AdfObs):
 
     #########
 
-    def add_website_data(self, web_data, web_name, case_name,
+    def add_website_data(self, web_data, web_name, case_name, 
+                         plot_ext = None,
                          category = None,
                          season = None,
                          plot_type = "Special",
@@ -217,6 +221,7 @@ class AdfWeb(AdfObs):
         #Initialize Pandas data frame logical:
         data_frame = False
 
+        html_file = []
         #Check that the web_data is either a path
         #or a pandas dataframe:
         try:
@@ -271,7 +276,11 @@ class AdfWeb(AdfObs):
 
             #If multi-case, then save under the "multi-case" directory:
             if self.num_cases > 1:
-                html_file = self.__case_web_paths['multi-case']["table_pages_dir"] / html_name
+                #Avoid collecting individual case comparison tables
+                #Hacky - could probably use an update eventually - JR
+                if web_name != "case_comparison":
+                    html_file.append(self.__case_web_paths['multi-case']["table_pages_dir"] / html_name)
+                html_file.append(self.__case_web_paths[case_name]["table_pages_dir"] / html_name)
             else:
                 html_file = self.__case_web_paths[case_name]["table_pages_dir"] / html_name
             #End if
@@ -283,7 +292,7 @@ class AdfWeb(AdfObs):
         #End if
 
         #Initialize web data object:
-        web_data = _WebData(web_data, web_name, case_name,
+        web_data = _WebData(web_data, web_name, case_name, plot_ext,
                             category = category,
                             season = season,
                             plot_type = plot_type,
@@ -299,6 +308,9 @@ class AdfWeb(AdfObs):
         if (multi_case or data_frame) and self.num_cases > 1: #Actual multi-case
             if plot_type not in self.__plot_type_multi:
                 self.__plot_type_multi.append(plot_type)
+            #End if
+            if plot_type not in self.__plot_type_order:
+                self.__plot_type_order.append(plot_type)
             #End if
         else: #single case plot/ADF run
             if plot_type not in self.__plot_type_order:
@@ -332,12 +344,18 @@ class AdfWeb(AdfObs):
 
         #If there is more than one non-baseline case, then create new website directory:
         if self.num_cases > 1:
-            main_site_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
-            main_site_path = main_site_path / "main_website"
+            multi_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
+            main_site_path = multi_path / "main_website"
             main_site_path.mkdir(exist_ok=True)
+            main_site_img_path = main_site_path / "html_img"
+            main_site_img_path.mkdir(exist_ok=True)
+            main_site_assets_path = main_site_path / "assets"
+            main_site_assets_path.mkdir(exist_ok=True)
             case_sites = OrderedDict()
+            multi_layout = True
         else:
             main_site_path = "" #Set main_site_path to blank value
+            multi_layout = False
         #End if
 
         #Extract needed variables from yaml file:
@@ -393,6 +411,9 @@ class AdfWeb(AdfObs):
         #Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
 
+        # Dict for multi case if specified
+        multi_case_plots = self.read_config_var('multi_case_plots')
+
         #Set plot type html dictionary (for Jinja templating):
         plot_type_html = OrderedDict()
         for plot_type in self.__plot_type_order:
@@ -443,9 +464,30 @@ class AdfWeb(AdfObs):
         #so that we only had to do the web_data loop once,
         #but for now this will do. -JN
         mean_html_info = OrderedDict()
+        multi_mean_html_info = OrderedDict()
 
         #Create another dictionary needed for HTML pages that render tables:
         table_html_info = OrderedDict()
+        multi_table_html_info = OrderedDict()
+
+        #If this is a multi-case instance, then copy website to "main" directory:
+        if main_site_path:
+            #Create CSS templates file path:
+            main_templates_path = main_site_path / "templates"
+
+            #Also add path to case_sites dictionary:
+            #loop over cases:
+            for idx, case_name in enumerate(case_names):
+                #Check if case name is present in plot
+                if case_name in self.__case_web_paths:
+                    #Add path to case_sites dictionary:
+                    case_sites[case_name] = [os.path.join(os.curdir, 
+                                             f"{case_name}_{syear_cases[idx]}_{eyear_cases[idx]}_vs_{data_name}_{syear_baseline}_{eyear_baseline}", 
+                                             "index.html"),syear_cases[idx],eyear_cases[idx]]
+
+        else:
+            #make empty list for non multi-case web generation
+            case_sites = []
 
         #Loop over all web data objects:
         for web_data in self.__website_data:
@@ -461,26 +503,64 @@ class AdfWeb(AdfObs):
             for css_file in jinja_template_dir.glob('*.css'):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
             #End for
-
+            
             #Copy GIF files over to output directory as well:
             for gif_file in jinja_template_dir.glob('*.gif'):
                 shutil.copyfile(gif_file, css_files_dir / gif_file.name)
             #End for
 
+            #Check first for AMWG tables data frame
             if web_data.data_frame:
 
                 #Create a directory that will hold table html files, if a table is present:
                 if self.num_cases > 1:
                     self.__case_web_paths['multi-case']['table_pages_dir'].mkdir(exist_ok=True)
-                else:
-                    self.__case_web_paths[web_data.case]['table_pages_dir'].mkdir(exist_ok=True)
                 #End if
+
+                self.__case_web_paths[web_data.case]['table_pages_dir'].mkdir(exist_ok=True)
 
                 #Add table HTML file to dictionary:
                 #Note:  Need to use data name instead of case name for tables.
-                table_html_info[web_data.name] = web_data.html_file.name
+                if len(case_names) > 1:
+                    if web_data.name != "case_comparison":
+                        table_html_info[web_data.name] = web_data.html_file[0].name
 
+                    multi_table_html_info[web_data.name] = str(web_data.html_file[0].name).replace("main_website",f"{web_data.name}/website")
+                else:
+                    table_html_info[web_data.name] = web_data.html_file.name
+                
+
+            #Now check all plot types
             if not web_data.data_frame:
+                #Check to see if there are multiple-cases
+                if main_site_path:
+                    #check to see if the user has multi-plots enabled
+                    if multi_case_plots:
+                        if web_data.name in [item for sublist in [multi_case_plots[x] for x in multi_case_plots] for item in sublist]:
+                            season = web_data.season
+                            category = web_data.category    
+                            ptype = web_data.plot_type
+
+                            if web_data.plot_ext in multi_case_plots.keys():
+                                for var in multi_case_plots[web_data.plot_ext]:
+                                    #Initialize Ordered Dictionary for multi case plot type:
+                                    if ptype not in multi_mean_html_info:
+                                        multi_mean_html_info[ptype] = OrderedDict()
+                                    #End if
+
+                                    if category not in multi_mean_html_info[ptype]:
+                                        multi_mean_html_info[ptype][category] = OrderedDict()
+                                    #End if
+
+                                    #Initialize Ordered Dictionary for variable:
+                                    if var not in multi_mean_html_info[ptype][category]:
+                                        multi_mean_html_info[ptype][category][var] = OrderedDict()
+                                    #End if
+                                    
+                                    if season not in multi_mean_html_info[ptype][category][var]:
+                                        multi_mean_html_info[ptype][category][var][season] = f"plot_page_multi_case_{var}_{season}_{ptype}_Mean.html"
+                                    #End if
+
 
                 #Create a directory that will hold just the html files for individual images:
                 self.__case_web_paths[web_data.case]['img_pages_dir'].mkdir(exist_ok=True)
@@ -541,17 +621,17 @@ class AdfWeb(AdfObs):
         #End for (web_data list loop)
 
         #Loop over all web data objects again:
-        for web_data in self.__website_data:
-
+        for idx,web_data in enumerate(self.__website_data):
             if web_data.data_frame:
-
                 #Create output HTML file path:
                 if self.num_cases > 1:
                     table_pages_dir = self.__case_web_paths['multi-case']['table_pages_dir']
-                    plot_types = multi_plot_type_html
+                    table_pages_dir_indv = self.__case_web_paths[web_data.case]['table_pages_dir']
+
                 else:
                     table_pages_dir = self.__case_web_paths[web_data.case]['table_pages_dir']
-                    plot_types = plot_type_html
+                
+                plot_types = plot_type_html
                 #End if
 
                 #Check if plot image already handles multiple cases,
@@ -570,23 +650,52 @@ class AdfWeb(AdfObs):
                                                    float_format='{:6g}'.format)
 
                 #Construct amwg_table.html
-                table_tmpl = jinenv.get_template('template_table.html')
-                table_rndr = table_tmpl.render(title=main_title,
-                                  case1=case1,
-                                  case2=data_name,
-                                  case_yrs=case_yrs,
-                                  baseline_yrs=baseline_yrs,
-                                  amwg_tables=table_html_info,
-                                  plot_types=plot_types,
-                                  table_name=web_data.name,
-                                  table_html=table_html
-                                  )
+                if main_site_path:
+                    if web_data.name != "case_comparison":
+                        table_tmpl = jinenv.get_template('template_table.html')
+                        table_rndr = table_tmpl.render(title=main_title,
+                                        case1=case1,
+                                        case2=data_name,
+                                        case_yrs=case_yrs,
+                                        base_name=data_name,
+                                        baseline_yrs=baseline_yrs,
+                                        amwg_tables=table_html_info,
+                                        plot_types=plot_types,
+                                        table_name=web_data.name,
+                                        table_html=table_html,
+                                        multi_head=False,
+                                        multi=multi_layout,
+                                        case_sites=case_sites,
+                                        )
 
-                #Write mean diagnostic tables HTML file:
-                with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
-                    ofil.write(table_rndr)
-                #End with
+                        #Write mean diagnostic tables HTML file:
+                        html_file = web_data.html_file[0]
+                        with open(html_file, 'w', encoding='utf-8') as ofil:
+                            ofil.write(table_rndr)
 
+                else:
+                    table_tmpl = jinenv.get_template('template_table.html')
+                    table_rndr = table_tmpl.render(title=main_title,
+                                        case1=case1,
+                                        case2=data_name,
+                                        case_yrs=case_yrs,
+                                        base_name=data_name,
+                                        baseline_yrs=baseline_yrs,
+                                        amwg_tables=table_html_info,
+                                        plot_types=plot_types,
+                                        table_name=web_data.name,
+                                        table_html=table_html,
+                                        multi_head=False,
+                                        multi=multi_layout,
+                                        case_sites=case_sites,
+                                        )
+
+                    #Write mean diagnostic tables HTML file:
+                    html_file = web_data.html_file
+                    with open(html_file, 'w', encoding='utf-8') as ofil:
+                        ofil.write(table_rndr)
+
+                        
                 #Check if the mean plot type page exists for this case (or for multi-case):
                 mean_table_file = table_pages_dir / "mean_tables.html"
                 if not mean_table_file.exists():
@@ -597,9 +706,13 @@ class AdfWeb(AdfObs):
                                                              case1=case1,
                                                              case2=data_name,
                                                              case_yrs=case_yrs,
+                                                             base_name=data_name,
                                                              baseline_yrs=baseline_yrs,
                                                              amwg_tables=table_html_info,
                                                              plot_types=plot_types,
+                                                             multi_head=False,
+                                                             multi=multi_layout,
+                                                             case_sites=case_sites,
                                                             )
 
                     #Write mean diagnostic tables HTML file:
@@ -607,7 +720,7 @@ class AdfWeb(AdfObs):
                         ofil.write(mean_table_rndr)
                     #End with
                 #End if
-
+            #End if (web_data.data_frame)
             else: #Plot image
 
                 #Create output HTML file path:
@@ -635,7 +748,8 @@ class AdfWeb(AdfObs):
                                    case_yrs=case_yrs,
                                    baseline_yrs=baseline_yrs,
                                    mydata=mean_html_info[web_data.plot_type],
-                                   plot_types=plot_types) #The template rendered
+                                   plot_types=plot_types,
+                                   multi=multi_layout,) #The template rendered
 
                 #Write HTML file:
                 with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
@@ -656,7 +770,8 @@ class AdfWeb(AdfObs):
                                                  baseline_yrs=baseline_yrs,
                                                  mydata=mean_html_info[web_data.plot_type],
                                                  curr_type=web_data.plot_type,
-                                                 plot_types=plot_types)
+                                                 plot_types=plot_types,
+                                                 multi=multi_layout,)
 
                     #Write mean diagnostic plots HTML file:
                     with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
@@ -681,7 +796,8 @@ class AdfWeb(AdfObs):
                                                  baseline_yrs=baseline_yrs,
                                                  mydata=mean_html_info[web_data.plot_type],
                                                  curr_type=web_data.plot_type,
-                                                 plot_types=plot_types)
+                                                 plot_types=plot_types,
+                                                 multi=multi_layout,)
 
                     #Write mean diagnostic plots HTML file:
                     with open(mean_ptype_plot_page,'w', encoding='utf-8') as ofil:
@@ -698,6 +814,7 @@ class AdfWeb(AdfObs):
                 plot_types = multi_plot_type_html
             else:
                 plot_types = plot_type_html
+            plot_types = plot_type_html
             #End if
 
             #Construct index.html
@@ -708,7 +825,8 @@ class AdfWeb(AdfObs):
                                             case2=data_name,
                                             case_yrs=case_yrs,
                                             baseline_yrs=baseline_yrs,
-                                            plot_types=plot_types)
+                                            plot_types=plot_types, #plot_type_html
+                                            multi=multi_layout,)
 
             #Write Mean diagnostics index HTML file:
             with open(index_html_file, 'w', encoding='utf-8') as ofil:
@@ -717,52 +835,303 @@ class AdfWeb(AdfObs):
 
         #End for (web data loop)
 
-        #If this is a multi-case instance, then copy website to "main" directory:
+        # --- Starting multi-case plots if activated ---
+        # - - - - - - - - - - - - - - - - - - - - - - - - 
         if main_site_path:
-            #Add "multi-case" to start of case_names:
-            case_names.insert(0, "multi-case")
+            #Loop over all web data objects AGAIN:
+            for web_data in self.__website_data:
 
-            #Create CSS templates file path:
-            main_templates_path = main_site_path / "templates"
+                #Create CSS templates file path:
+                main_templates_path = main_site_path / "templates"
 
-            #loop over cases:
-            for case_name in case_names:
+                #loop over cases:
+                for idx, case_name in enumerate(case_names):
+                    #Check if case name is present in plot
+                    if case_name in self.__case_web_paths:
+                        #Extract website directory:
+                        website_dir = self.__case_web_paths[case_name]['website_dir']
+                        if not website_dir.is_dir():
+                            #Copy website directory to "main site" directory:
+                            shutil.copytree(website_dir, main_site_path / case_name)
+                
 
-                #Check if case name is present in plot
-                if case_name in self.__case_web_paths:
-                    #Extract website directory:
-                    website_dir = self.__case_web_paths[case_name]['website_dir']
+                #Multi Case Plots (LatLon for now)
+                ##################################
+                if multi_case_plots:
+                    var = web_data.name
+                    if var in [item for sublist in [multi_case_plots[x] for x in multi_case_plots] for item in sublist]:
+                        #Check if the web data obj is table or not (plots)
+                        if not web_data.data_frame:
 
-                    #Copy website directory to "main site" directory:
-                    shutil.copytree(website_dir, main_site_path / case_name)
+                            season = web_data.season
+                            #Extract plot_type:
+                            ptype = web_data.plot_type
 
-                    #Also add path to case_sites dictionary:
-                    case_sites[case_name] = os.path.join(os.curdir, case_name, "index.html")
+                            #Create a directory that will hold just the html files for individual images:
+                            self.__case_web_paths[web_data.case]['img_pages_dir'].mkdir(exist_ok=True)
 
-                    #Also make sure CSS template files have been copied over:
-                    if not main_templates_path.is_dir():
-                        css_files_dir = self.__case_web_paths[case_name]['css_files_dir']
-                        shutil.copytree(css_files_dir, main_site_path / "templates")
+                            #Create a directory that will hold copies of the actual images:
+                            self.__case_web_paths[web_data.case]['assets_dir'].mkdir(exist_ok=True)
+
+                            #Move file to assets directory:
+                            shutil.copy(web_data.data, web_data.asset_path)
+                            
+                            #Check if category has been provided for this web data:
+                            if web_data.category:
+                                #If so, then just use directly:
+                                category = web_data.category
+                            else:
+
+                                #Check if variable in defaults dictionary:
+                                if web_data.name in var_defaults_dict:
+                                    #If so, then extract category from dictionary:
+                                    category = var_defaults_dict[web_data.name].get("category",
+                                                                                    "No category yet")
+                                else:
+                                    category = 'No category yet'
+                                #End if
+                            #End if
+                        
+                            #Create output HTML file path:
+                            img_pages_dir = self.__case_web_paths["multi-case"]['img_pages_dir']
+
+                            img_data = [os.path.relpath(main_site_assets_path / f"{var}_{season}_{ptype}_multi_plot.png", start=main_site_img_path),
+                                                    f"{var}_{season}_{ptype}_multi_plot.png"]
+
+                            if not (img_pages_dir / Path(f"plot_page_multi_case_{var}_{season}_{ptype}_Mean.html")).exists():
+                                tmpl = jinenv.get_template('template_multi_case.html')  #Set template
+                                rndr = tmpl.render(title=main_title,
+                                                            var_title=var,
+                                                            season_title=season,
+                                                            plottype_title=web_data.plot_type,
+                                                            imgs=img_data,
+                                                            base_name=data_name,
+                                                            case_yrs=case_yrs,
+                                                            baseline_yrs=baseline_yrs,
+                                                            mydata=multi_mean_html_info[ptype],
+                                                            plot_types=multi_plot_type_html,
+                                                            multi=multi_layout,
+                                                            case_sites=case_sites,) #The template rendered
+
+                                #Write HTML file:
+                                with open(img_pages_dir / f"plot_page_multi_case_{var}_{season}_{ptype}_Mean.html", 'w', encoding='utf-8') as ofil:
+                                            ofil.write(rndr)
+
+                        
+                            mean_ptype_file = main_site_img_path / f"multi_case_mean_diag_{web_data.plot_type}.html"    
+                            if not mean_ptype_file.exists():
+
+                                #Construct individual plot type mean_diag html files, if they don't
+                                #already exist:
+                                mean_tmpl = jinenv.get_template('template_multi_case_mean_diag.html')
+                                mean_rndr = mean_tmpl.render(title=main_title,
+                                                                            base_name=data_name,
+                                                                            case_yrs=case_yrs,
+                                                                            baseline_yrs=baseline_yrs,
+                                                                            mydata=multi_mean_html_info[ptype],
+                                                                            curr_type=web_data.plot_type,
+                                                                            plot_types=multi_plot_type_html,
+                                                                            multi=multi_layout,
+                                                                            case_sites=case_sites,)
+
+                                #Write mean diagnostic plots HTML file:
+                                with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
+                                    ofil.write(mean_rndr)
+                                #End with
+                            #End if (mean_ptype exists)
+
+                            #Check if the mean plot type and var page exists for this case:
+                            self.__case_web_paths["multi-case"]['img_pages_dir'].mkdir(exist_ok=True)
+                            img_pages_dir = self.__case_web_paths["multi-case"]['img_pages_dir']
+                            mean_ptype_plot_page = img_pages_dir / f"plot_page_multi_case_{var}_{web_data.plot_type}.html"
+
+                            if not mean_ptype_plot_page.exists():
+
+                                #Construct individual plot type mean_diag html files, if they don't
+                                #already exist:
+                                plot_page_tmpl = jinenv.get_template('template_multi_case_var.html')
+                                plot_page_rndr = plot_page_tmpl.render(title=main_title,
+                                                                            var_title=var,
+                                                                            season_title=season,
+                                                                            plottype_title=web_data.plot_type,
+                                                                            base_name=data_name,
+                                                                            case_yrs=case_yrs,
+                                                                            baseline_yrs=baseline_yrs,
+                                                                            mydata=multi_mean_html_info[ptype],
+                                                                            curr_type=web_data.plot_type,
+                                                                            plot_types=multi_plot_type_html,
+                                                                            multi=multi_layout,
+                                                                            case_sites=case_sites,
+                                                                            )
+
+                                #Write mean diagnostic plots HTML file:
+                                with open(mean_ptype_plot_page,'w', encoding='utf-8') as ofil:
+                                    ofil.write(plot_page_rndr)
+                                #End with
+                            #End if (mean_ptype_plot_page exists)
+
+                        #End if (not web_data.data_frame)
+                    #End if    
+                
+                #Create all individual tables 
+                # for the individual websites
+                #############################
+                if web_data.data_frame:
+                    table_pages_dir_indv = self.__case_web_paths[web_data.case]['table_pages_dir']
+
+                    #Check if the mean plot type page exists for this case (or for multi-case):
+                    mean_table_file = table_pages_dir_indv / "mean_tables.html"
+                    table_keys = [web_data.case,data_name,"case_comparison"]
+                    table_dict = {key: multi_table_html_info[key] for key in table_keys}
+
+                    if not mean_table_file.exists():
+                        #Construct mean_table.html
+                        mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
+                        mean_table_rndr = mean_table_tmpl.render(title=main_title,
+                                                                    case1=web_data.case,
+                                                                    case2=data_name,
+                                                                    case_yrs=case_yrs,
+                                                                    base_name=data_name,
+                                                                    baseline_yrs=baseline_yrs,
+                                                                    amwg_tables=table_dict,
+                                                                    plot_types=plot_type_html,
+                                                                    multi_head=True,
+                                                                    multi=False,
+                                                                    case_sites=case_sites,
+                                                                    )
+
+                        #Write mean diagnostic tables HTML file:
+                        with open(mean_table_file, 'w', encoding='utf-8') as ofil:
+                            ofil.write(mean_table_rndr)
+                        #End with
+
+                    #if web_data.case in case_names:
+                    if web_data.case != data_name:
+                        table_html = web_data.data.to_html(index=False, border=1, justify='center',
+                                                            float_format='{:6g}'.format)
+
+                        #Construct amwg_table.html
+                        case_table_keys = [web_data.case,data_name,"case_comparison"]
+                        case_table_dict = {key: multi_table_html_info[key] for key in case_table_keys}
+                        indv_html = table_pages_dir_indv / f"amwg_table_{web_data.name}.html"
+                            
+                        if not indv_html.exists():
+                            table_tmpl = jinenv.get_template('template_table.html')
+                            table_rndr = table_tmpl.render(title=main_title,
+                                                            case1=web_data.case,
+                                                            case2=data_name,
+                                                            case_yrs=case_yrs,
+                                                            base_name=data_name,
+                                                            baseline_yrs=baseline_yrs,
+                                                            amwg_tables=case_table_dict,
+                                                            plot_types=plot_type_html,
+                                                            table_name=web_data.name,
+                                                            table_html=table_html,
+                                                            multi_head=True,
+                                                            multi=False,
+                                                            case_sites=case_sites,
+                                                            )
+
+                            #Write mean diagnostic tables HTML file:
+                            with open(indv_html, 'w', encoding='utf-8') as ofil:
+                                ofil.write(table_rndr)
+
+                    #Baseline case added to all test case directories
+                    # - this block should only run once when web_data is the baseline case
+                    else:
+                        table_html = web_data.data.to_html(index=False, border=1, justify='center',
+                                                            float_format='{:6g}'.format)
+
+                        for case_name in case_names:
+                            table_pages_dir_sp = self.__case_web_paths[case_name]['table_pages_dir']
+                            base_table_keys = [case_name,data_name,"case_comparison"]
+                            base_table_dict = {key: multi_table_html_info[key] for key in base_table_keys}
+
+                            sp_html = table_pages_dir_sp / f"amwg_table_{data_name}.html"
+                            if not sp_html.exists():
+                                table_tmpl = jinenv.get_template('template_table.html')
+                                table_rndr = table_tmpl.render(title=main_title,
+                                                                case1=case_name,
+                                                                case2=data_name,
+                                                                case_yrs=case_yrs,
+                                                                base_name=data_name,
+                                                                baseline_yrs=baseline_yrs,
+                                                                amwg_tables=base_table_dict,
+                                                                plot_types=plot_type_html,
+                                                                table_name=web_data.name,
+                                                                table_html=table_html,
+                                                                multi_head=True,
+                                                                multi=False,
+                                                                case_sites=case_sites,
+                                                                )
+
+                                with open(sp_html, 'w', encoding='utf-8') as ofil:
+                                    ofil.write(table_rndr)
+
+                    #Check if the mean plot type page exists for this case:
+                    mean_table_file = table_pages_dir_indv / "mean_tables.html"
+                    if not mean_table_file.exists():
+                        #Construct mean_table.html
+                        mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
+                        mean_table_rndr = mean_table_tmpl.render(title=main_title,
+                                                                    case1=web_data.case,
+                                                                    case2=data_name,
+                                                                    case_yrs=case_yrs,
+                                                                    base_name=data_name,
+                                                                    baseline_yrs=baseline_yrs,
+                                                                    amwg_tables=table_dict,
+                                                                    plot_types=plot_type_html,
+                                                                    multi_head=True,
+                                                                    multi=False,
+                                                                    case_sites=case_sites,
+                                                                    )
+
+                        #Write mean diagnostic tables HTML file:
+                        with open(mean_table_file, 'w', encoding='utf-8') as ofil:
+                            ofil.write(mean_table_rndr)
+                        #End with
                     #End if
-                #End if
+                #End if (web_data.data_frame)
             #End for (model case loop)
 
+            #Also make sure CSS template files have been copied over:
+            if not main_templates_path.is_dir():
+                css_files_dir = self.__case_web_paths[case_names[-1]]['css_files_dir']
+                shutil.copytree(css_files_dir, main_templates_path)
+            #End if
+
             #Create multi-case site:
+            multi_case_dict = {"global_latlon_map":"LatLon",
+                        "zonal_mean":"Zonal",
+                        "meridional":"Meridional",
+                        "global_latlon_vect_map":"LatLon_Vector",
+                        #"polar_maps":"",
+                        }
+
+            multi_plots = {"Tables": "html_table/mean_tables.html",}
+            for key,_ in multi_case_plots.items():
+                #Update the dictionary to add any plot types specified in the yaml file
+                multi_plots[multi_case_dict[key]] = f"html_img/multi_case_mean_diag_{multi_case_dict[key]}.html"
+
             main_title = "ADF Diagnostics"
             main_tmpl = jinenv.get_template('template_multi_case_index.html')
             main_rndr = main_tmpl.render(title=main_title,
-                            case_sites=case_sites,
-                            )
+                                         case_sites=case_sites,
+                                         base_name=data_name,
+                                         baseline_yrs=baseline_yrs,
+                                         multi_plots=multi_plots,
+                                         )
 
             #Write multi-case main HTML file:
             outputfile = main_site_path / "index.html"
             with open(outputfile, 'w', encoding='utf-8') as ofil:
                 ofil.write(main_rndr)
             #End with
-        #End if
+        #End if (multi case)
 
         #Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
+
 #++++++++++++++++++++
 #End Class definition
 #++++++++++++++++++++

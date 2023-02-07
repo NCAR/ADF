@@ -1635,5 +1635,133 @@ def square_contour_difference(fld1, fld2, **kwargs):
     cb2 = fig.colorbar(img3, cax=cbax_bot, orientation='horizontal')
     return fig
 
+#####
+
+###############################
+# Multi-Case Multi-Plot Section
+###############################
+
+def multi_latlon_plots(wks, ptype, case_names, nicknames, multi_dict, adfobj):
+    """ This is a multi-case comparison of test minus baseline for each test case:
+        wks: path for saved image.
+                Should be assets directory inside of the main_website directory
+
+        ptype: ADF shortname for plot type.
+                For this plot it will be either LatLon or LatLon_Vector
+
+        case_names: list of test case names only
+
+        nicknames: list of test case nicknames
+                First entry of list will be list of test case nicknames
+                Second entry will be string object of baseline nickname
+
+        multi_dict: ordered dictionary of difference data for each var, test case, and season
+                multi_dict[var][case_name][s]
+
+        adfobj: ADF object
+                Needed to test if redo_plot is called in config yaml file
+    """
+
+    ncols = 3
+    nplots = len(nicknames[0])
+
+    #Try and format spacing based on number of cases
+    # NOTE: ** this will have to change if figsize or dpi change **
+    if nplots < 4:
+        hspace = -1.0
+    else:
+        hspace = -0.85
+
+    nrows = int(np.ceil(nplots/ncols))
+    if nrows < 2:
+        nrows = 2
+
+    # specify the central longitude for the plot
+    central_longitude = 180
+    proj = ccrs.PlateCarree(central_longitude=central_longitude)
+    # formatting for tick labels
+    lon_formatter = LongitudeFormatter(number_format='0.0f',
+                                        degree_symbol='',
+                                        dateline_direction_label=False)
+    lat_formatter = LatitudeFormatter(number_format='0.0f',
+                                        degree_symbol='')
+
+    for var in multi_dict.keys():
+        for j in multi_dict[var].keys():
+            for season in multi_dict[var][j].keys():
+                from pathlib import Path
+                # Check redo_plot. If set to True: remove old plot, if it already exists:
+                redo_plot = adfobj.get_basic_info('redo_plot')
+                if (not redo_plot) and Path(wks / f"{var}_{season}_{ptype}_multi_plot.png").is_file():
+                    #Continue to next iteration:
+                    continue
+                elif (redo_plot) or (not Path(wks / f"{var}_{season}_{ptype}_multi_plot.png").is_file()):
+                    fig_width = 15
+                    fig_height = 15+(3*nrows) #try and dynamically create size of fig based off number of cases (therefore rows)
+                    fig, axs = plt.subplots(nrows=nrows,ncols=ncols,figsize=(fig_width,fig_height), facecolor='w', edgecolor='k',
+                                            sharex=True,
+                                            sharey=True,
+                                            subplot_kw={"projection": proj})
+
+                    #Set figure title
+                    plt.suptitle(f'All Case Comparison (Test - Baseline)  {var}: {season}\n', fontsize=16,y=0.325)
+                    axs[0,1].set_title("$\mathbf{Baseline}:$"+f'{nicknames[1]}\n', fontsize=12)
+                    
+                    count = 0
+                    img = []
+                    titles = []
+                    for r in range(0,nrows):
+                        for c in range(0,ncols):
+                            if count < nplots:
+                                mdlfld = multi_dict[var][case_names[count]][season]["diff_data"]
+                                lat = mdlfld['lat']
+                                mwrap, lon = add_cyclic_point(mdlfld, coord=mdlfld['lon'])
+
+                                # mesh for plots:
+                                lons, lats = np.meshgrid(lon, lat)
+
+                                levelsdiff = multi_dict[var][case_names[count]][season]["vres"]["diff_contour_range"]
+                                levelsdiff = np.arange(levelsdiff[0],levelsdiff[1]+levelsdiff[-1],levelsdiff[-1])
+                                    
+                                normfunc, mplv = use_this_norm()
+
+                                # color normalization for difference
+                                if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
+                                    normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
+                                else:
+                                    normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
+
+                                cmap = multi_dict[var][case_names[count]][season]["vres"]['diff_colormap']
+
+                                img.append(axs[r,c].contourf(lons, lats, mwrap, levels=levelsdiff, 
+                                                cmap=cmap, norm=normdiff, 
+                                                transform=ccrs.PlateCarree()))
+
+                                #Set individual plot titles (case name/nickname)
+                                titles.append(axs[r,c].set_title("$\mathbf{Test}:$"+f" {nicknames[0][count]}",loc='left',fontsize=8))
+
+                                axs[r,c].spines['geo'].set_linewidth(1.5) #cartopy's recommended method
+                                axs[r,c].coastlines()
+                                axs[r,c].set_xticks(np.linspace(-180, 120, 6), crs=ccrs.PlateCarree())
+                                axs[r,c].set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
+                                axs[r,c].tick_params('both', length=5, width=1.5, which='major')
+                                axs[r,c].tick_params('both', length=5, width=1.5, which='minor')
+                                axs[r,c].xaxis.set_major_formatter(lon_formatter)
+                                axs[r,c].yaxis.set_major_formatter(lat_formatter)
+
+                            else:
+                                #Clear left over subplots if they don't fill the row x column matrix
+                                axs[r,c].set_visible(False)
+                            count = count + 1
+                    # __COLORBARS__
+                    fig.colorbar(img[-1],  ax=axs.ravel().tolist(), orientation='horizontal',aspect=20,shrink=.5,location="bottom",anchor=(0.5,-0.3),extend='both')
+                        
+                    plt.subplots_adjust(wspace=0.3, hspace=hspace)
+                    fig.savefig(wks / f"{var}_{season}_{ptype}_multi_plot.png", bbox_inches='tight', dpi=300)
+
+                    #Close plots:
+                    plt.close()
+
+
 #####################
 #END HELPER FUNCTIONS

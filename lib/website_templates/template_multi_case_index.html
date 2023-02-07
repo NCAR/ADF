@@ -1,35 +1,52 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ADF diagnostics</title>
+    <title>ADF Diagnostics - Multi-Case</title>
     <link rel="stylesheet" href="./templates/adf_diag.css">
   </head>
   <body >
+    <div class="header">
+      <div id="screenFiller" style="background:url(../templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
+        <div class="center"><h1> {{ title }}</h1></div><!--center-->
+          <div class="center">
+            <nav role="navigation" class="primary-navigation">
+            <ul>
+              <li><a href=".">Multi-Case Home</a></li>
+              <li><a href="#">Links &dtrif;</a>
+                <ul class="dropdown">
+                  <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
+                  <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
+                  <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+                </ul>
+              </li>
+              <li><a href="https://github.com/NCAR/ADF">About</a></li>
+              <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
+            </ul>
+          </nav>
+        </div><!--center-->
+        <div><h3> Click on case name for that ADF vs baseline page</h3></div>
+        {% for case_name, case_dtls in case_sites.items() %}
+        <h2 style="display:inline; color:black;"> Test Case {{ loop.index }}: </h2><h2 style="display:inline;">
+          <a href="{{ case_dtls[0] }}">{{ case_name }}</a></h2>
+          <h2 style="display:inline; color:black;"> - years: {{ case_dtls[1] }} - {{ case_dtls[2] }}</h2><br>
+        {% endfor %}
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">
+          {{ base_name }}</h2>
+          <h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+      </div><!--screenFiller-->
+    </div><!--header-->
 
-    <nav role="navigation" class="primary-navigation">
-      <ul>
-        <li><a href=".">Home</a></li>
-        <li><a href="#">Links &dtrif;</a>
-          <ul class="dropdown">
-            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-          </ul>
-        </li>
-        <li><a href="https://github.com/NCAR/ADF">About</a></li>
-        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-      </ul>
-    </nav>
+    <div class="center">
+      <h1>All Case Comparison Plot Types</h1>
+    </div>
 
-    <h1> {{title}} </h1>
-
-    <table class="big-table">
-      {% for case_name, case_path in case_sites.items() %}
-        <tr>
-          <td><a href="{{ case_path }}">{{ case_name }}</a></td>
-        </tr>
+    <div class="grid-container">
+      {% for type, html_file in multi_plots.items() %}
+      <div class="grid-item">
+        <a href={{ html_file }} style="font-size: 30px;"> &nbsp; {{ type }} </a>
+      </div><!--grid-item-->
       {% endfor %}
-    </table>
+    </div><!--grid-container-ptype-->
 
   </body>
 </html>
