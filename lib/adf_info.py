@@ -103,15 +103,13 @@ class AdfInfo(AdfConfig):
         #End for
         #-------------------------------------------
 
-        #Read history file number from the yaml file
-        hist_num = self.get_basic_info('hist_num')
-
-        #If hist_num is not present, then default to 'h0':
-        if not hist_num:
-            hist_num = 'h0'
+        #Read hist_str (component.hist_num) from the yaml file, or set to default
+        hist_str = self.get_basic_info('hist_str')
+        #If hist_str is not present, then default to 'cam.h0':
+        if not hist_str:
+            hist_str = 'cam.h0'
         #End if
-
-        hist_str = '*.cam.'+hist_num
+        hist_str = '*'+hist_str
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
