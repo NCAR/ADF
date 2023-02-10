@@ -116,11 +116,9 @@ def amwg_table(adf):
 
     #Grab test case nickname(s)
     test_nicknames = adf.get_cam_info('case_nickname')
-    print("test_nicknames",test_nicknames,"\n")
     for idx,nick_name in enumerate(test_nicknames):
         if nick_name == None:
             test_nicknames[idx] = case_names[idx]
-    print("test_nicknames",test_nicknames,"\n")
 
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
 
@@ -135,7 +133,6 @@ def amwg_table(adf):
         if base_nickname == None:
             base_nickname = baseline_name
         test_nicknames += [base_nickname]
-        print("test_nicknames",test_nicknames,"\n")
         if "CMIP" in baseline_name:
             print("CMIP files detected, skipping AMWG table (for now)...")
 
@@ -471,7 +468,6 @@ def _df_multi_comp_table(adf, csv_locs, case_names, test_nicknames):
 
                     df_comp.at[idx,col]= f'{df_comp[col][idx]:{formatter}}   ({(df_comp[col][idx]-df_base["mean"][idx]):{formatter}})'
         
-    print(cols_comp)
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
     #Add comparison table dataframe to website (if enabled):
