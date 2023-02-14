@@ -1,18 +1,17 @@
-name: adf_v0.07
+name: adf_v0.1
 channels:
   - conda-forge
   - defaults
-  - ncar
 dependencies:
-  - pyyaml=5.4.1
-  - scipy=1.7.1
-  - cartopy=0.20.0
-  - shapely=1.7.1 #Needed to avoid cartopy deprecation warning
-  - xarray=0.19.0
-  - dask=2021.09.1
-  - matplotlib=3.4.3
-  - pandas=1.3.3
-  - netcdf4=1.5.7
-  - geocat-comp
-  - python=3.9
-prefix: /glade/u/home/brianpm/miniconda3/envs/adf_v0.07
+  - pyyaml=6.0
+  - scipy=1.10.0
+  - cartopy=0.21.1
+  - netcdf4=1.6.2
+  - xarray=2023.1.0
+  - matplotlib
+  - pandas=1.5.3
+  - pint=0.16   #GeoCAT doesn't work with newer versions
+  - xskillscore=0.0.5
+  - geocat-comp=2022.08.0
+  - python=3.11
+prefix: /glade/u/home/brianpm/miniconda3/envs/adf_v0.1

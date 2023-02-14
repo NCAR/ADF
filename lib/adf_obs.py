@@ -1,7 +1,7 @@
 """
 Observations (obs) class for the Atmospheric
 Diagnostics Framework (ADF).
-This class inherits from the AdfConfig class.
+This class inherits from the AdfInfo class.
 
 Currently this class does three things:
 
@@ -9,7 +9,12 @@ Currently this class does three things:
 
 2.  Sets the "variable_defaults" ADF variable.
 
-3.  If a model vs obs run, then creates a
+3.  Checks whether any requested variable is supposed
+    to have a land or ocean mask, and if so then
+    adds land and ocean fractions to the variable
+    list.
+
+4.  If a model vs obs run, then creates a
     dictionary of what observational dataset
     is associated with each requested variable,
     along with any relevant observational meta-data.
@@ -78,6 +83,27 @@ class AdfObs(AdfInfo):
         else:
             #Set variable_defaults to empty dictionary:
             self.__variable_defaults = {}
+        #End if
+        #-----------------------------------------
+
+        #Check if land or ocean mask is requested, and if so then add OCNFRAC
+        #to the variable list.  Note that this setting, and the defaults_file
+        #code above, should probably be moved to AdfInfo, or somewhere else
+        #farther down in the ADF inheritance chain:
+        #----------------------------------------
+        if self.__variable_defaults:
+            #Variable defaults exist, so check if any want a land or ocean mask:
+            for var in self.diag_var_list:
+                #Check if any variable wants a land or ocean mask:
+                if var in self.__variable_defaults:
+                   if 'mask' in self.__variable_defaults[var]:
+                       #Variable needs a mask, so add "OCNFRAC" to
+                       #the variable list:
+                       self.add_diag_var('OCNFRAC')
+                       break
+                   #End if
+                #End if
+            #End for
         #End if
         #-----------------------------------------
 

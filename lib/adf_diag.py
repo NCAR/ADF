@@ -553,9 +553,9 @@ class AdfDiag(AdfWeb):
                 else:
                     #No vertical coordinate (or no coordinate meta-data),
                     #so no additional variables needed:
-                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var}"] + \
+                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},OCNFRAC,LANDFRAC"] + \
                            hist_files + ["-o", ts_outfil_str]
-                #End if
+                    #End if
 
                 #Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
@@ -588,10 +588,33 @@ class AdfDiag(AdfWeb):
         non-weighted averaging).
         """
 
-        #Check if a user wants any climatologies to be calculated:
-        if self.get_cam_info('calc_cam_climo') or \
-           self.get_baseline_info('calc_cam_climo'):
+        #Extract climatology calculation config options:
+        calc_climo = self.get_cam_info('calc_cam_climo')
 
+        #Check if climo calculation config option is a list:
+        if isinstance(calc_climo, list):
+            #If so, then check if any of the entries are "True":
+            calc_climo = any(calc_climo)
+        #End if
+
+        #Next check if a baseline simulation is being used
+        #and no other model cases need climatologies calculated:
+        if not self.compare_obs and not calc_climo:
+            calc_bl_climo = self.get_baseline_info('calc_cam_climo')
+
+            #Check if baseline climo calculation config option is a list,
+            #although it really never should be:
+            if isinstance(calc_bl_climo, list):
+                #If so, then check if any of the entries are "True":
+                calc_bl_climo = any(calc_bl_climo)
+            #End if
+        else:
+            #Just set to False:
+            calc_bl_climo = False
+        #End if
+
+        #Check if a user wants any climatologies to be calculated:
+        if calc_climo or calc_bl_climo:
 
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts  # this is a list of script names

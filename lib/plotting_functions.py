@@ -74,6 +74,30 @@ def get_difference_colors(values):
     return dnorm, cmap
 
 
+def mask_land_or_ocean(arr,msk, use_nan=False):
+    """
+    Apply a land or ocean mask to provided variable.
+
+    Inputs:
+    arr -> the xarray variable to apply the mask to.
+    msk -> the xarray variable that contains the land or ocean mask,
+           assumed to be the same shape as "arr".
+
+    use_nan -> Optional argument for whether to set the missing values
+               to np.nan values instead of the defaul "-999." values.
+    """
+
+    if use_nan:
+        missing_value = np.nan
+    else:
+        missing_value = -999.
+    #End if
+
+    arr = xr.where(msk>=0.9,arr,missing_value)
+    arr.attrs["missing_value"] = missing_value
+    return(arr)
+
+
 def get_central_longitude(*args):
     """Determine central longitude for maps.
        Can provide multiple arguments.
@@ -522,11 +546,11 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     ax[1].set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
 
     #Set stats: area_avg
-    ax[0].set_title(f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\nMax: {mdl_mag.values.max():5.2f}\nMin: {mdl_mag.values.min():5.2f}", loc='right',
+    ax[0].set_title(f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\nMax: {mdl_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.values.max():5.2f}\nMin: {mdl_mag.values.min():5.2f}", loc='right',
+    ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.values.max():5.2f}\nMin: {mdl_mag.values.min():5.2f}", loc='right',
+    ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
                        fontsize=8)
 
     # set rmse title:
@@ -716,11 +740,11 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     ax[1].set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
 
     #Set stats: area_avg
-    ax[0].set_title(f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.values.max():5.2f}\nMin: {mdlfld.values.min():5.2f}", loc='right',
+    ax[0].set_title(f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.max():5.2f}\nMin: {mdlfld.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[1].set_title(f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.values.max():5.2f}\nMin: {obsfld.values.min():5.2f}", loc='right',
+    ax[1].set_title(f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}", loc='right',
                        fontsize=8)
-    ax[-1].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.values.max():5.2f}\nMin: {diffld.values.min():5.2f}", loc='right',
+    ax[-1].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}", loc='right',
                        fontsize=8)
 
     # set rmse title:

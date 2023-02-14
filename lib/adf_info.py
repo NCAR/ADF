@@ -427,6 +427,17 @@ class AdfInfo(AdfConfig):
                                     conf_dict=self.__cam_bl_climo_info,
                                     required=required)
 
+    #########
+
+    #Utility function to add a new model variable to the ADF (diag) variable list:
+    def add_diag_var(self, var_str):
+        """
+        Adds a new variable to the ADF variable list
+        """
+        if var_str not in self.__diag_var_list:
+            self.__diag_var_list.append(var_str)
+        #End if
+
 #++++++++++++++++++++
 #End Class definition
 #++++++++++++++++++++
