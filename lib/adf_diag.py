@@ -369,7 +369,6 @@ class AdfDiag(AdfWeb):
         if not hist_str:
             hist_str = 'cam.h0'
         #End if
-        hist_str = '*'+hist_str
 
         #Loop over cases:
         for case_idx, case_name in enumerate(case_names):
@@ -405,8 +404,8 @@ class AdfDiag(AdfWeb):
             #End if
 
             #Check if history files actually exist. If not then kill script:
-            if not list(starting_location.glob(hist_str+'.*.nc')):
-                emsg = f"No history {hist_str} files found in '{starting_location}'."
+            if not list(starting_location.glob('*'+hist_str+'.*.nc')):
+                emsg = f"No history *{hist_str}.*.nc files found in '{starting_location}'."
                 emsg += " Script is ending here."
                 self.end_diag_fail(emsg)
             #End if
@@ -417,7 +416,7 @@ class AdfDiag(AdfWeb):
             #Loop over start and end years:
             for year in range(start_year, end_year+1):
                 #Add files to main file list:
-                for fname in starting_location.glob(f'{hist_str}.*{str(year).zfill(4)}*.nc'):
+                for fname in starting_location.glob(f'*{hist_str}.*{str(year).zfill(4)}*.nc'):
                     files_list.append(fname)
                 #End for
             #End for

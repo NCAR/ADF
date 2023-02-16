@@ -109,7 +109,6 @@ class AdfInfo(AdfConfig):
         if not hist_str:
             hist_str = 'cam.h0'
         #End if
-        hist_str = '*'+hist_str
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
@@ -151,7 +150,7 @@ class AdfInfo(AdfConfig):
                 baseline_hist_locs = self.get_baseline_info('cam_hist_loc',
                                                     required=True)
                 starting_location = Path(baseline_hist_locs)
-                files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
+                files_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 base_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
 
                 if syear_baseline is None:
@@ -203,7 +202,7 @@ class AdfInfo(AdfConfig):
             if syears[case_idx] is None or eyears[case_idx] is None:
                 print(f"No given climo years for {case_name}...")
                 starting_location = Path(cam_hist_locs[case_idx])
-                files_list = sorted(starting_location.glob(hist_str+'.*.nc'))
+                files_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 case_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
                 if syears[case_idx] is None:
                     print(f"No given start year for {case_name}, using first found year...")
