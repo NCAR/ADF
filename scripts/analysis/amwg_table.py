@@ -359,11 +359,6 @@ def _load_data(dataloc, varname):
 #####
 
 def _spatial_average(indata):
-    """
-    asdadfd
-    -----
-        - sdgff
-    """
 
     #Make sure there is no veritcal level dimension:
     assert 'lev' not in indata.coords
@@ -392,11 +387,7 @@ def _spatial_average(indata):
 #####
 
 def _get_row_vals(data):
-    """
-    assfd
-    -----
-        - adf
-    """
+
     # Now that data is (time,), we can do our simple stats:
 
     data_mean = data.data.mean()
@@ -423,11 +414,6 @@ def _get_row_vals(data):
 #####
 
 def _df_comp_table(adf, output_location, case_names):
-    """
-    asdfadf
-    -----
-        - dfs
-    """
 
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
 
@@ -467,11 +453,6 @@ def _df_comp_table(adf, output_location, case_names):
 
 # RESTOM
 def _derive_restom(case_name, derived_dict, output_csv_file, cols):
-    """
-    asfaf
-    ------
-        - sdfsd
-    """
     
     var = "RESTOM" #RESTOM = FSNT-FLNT
     print(f"\t - Variable '{var}' being added to table")
