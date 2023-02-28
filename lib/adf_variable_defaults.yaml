@@ -159,7 +159,6 @@ SO2:
 SOAG:
   category: "Aerosols"
 
-
 #+++++++++++++++++
 # Category: Budget
 #+++++++++++++++++
@@ -229,7 +228,6 @@ VGTW_TOTAL:
 VTGWORO:
   category: "GW"
 
-
 #+++++++++++++++++
 # Category: Composition
 #+++++++++++++++++
@@ -251,7 +249,6 @@ H2SO4:
 
 N2O:
   category: "Composition"
-
 
 #+++++++++++++++++
 # Category: Clouds
@@ -425,7 +422,6 @@ QFLX:
 # Category: Surface variables
 #+++++++++++++++++
 
-
 PBLH:
   category: "Surface variables"
 
@@ -522,7 +518,6 @@ OCNFRAC:
 
 LANDFRAC:
   category: "Surface variables"
-
 
 #+++++++++++++++++
 # Category: State
@@ -724,6 +719,15 @@ FLNTC:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_clr_t_mon"
   category: "TOA energy flux"
+
+RESTOM:
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  category: "TOA energy flux"
+  ts:
+    rolling: True
 
 #+++++++++++++++++
 # Category: Surface energy flux

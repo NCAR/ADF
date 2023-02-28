@@ -65,6 +65,10 @@ a {
   text-decoration: none;
   color: navy;
 }
+a-blocked {
+  text-decoration: none;
+  color: black;
+}
 a:visited {
   color: rgb(77, 6, 18);
 }
@@ -143,6 +147,14 @@ table.dataframe td {
 
 .grid-item {
   background-color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.8);
+  padding: 10px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.grid-item-blocked {
+  background-color: rgba(192, 192, 192, 0.6);
   border: 1px solid rgba(0, 0, 0, 0.8);
   padding: 10px;
   font-size: 16px;

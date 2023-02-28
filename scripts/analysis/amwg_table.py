@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import warnings
 import sys
 from pathlib import Path
 import warnings  # use to warn user about missing files.
@@ -130,6 +131,7 @@ def amwg_table(adf):
 
     #CAM simulation variables (these quantities are always lists):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
+    
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
 
     #Check if a baseline simulation is also being used:
@@ -149,10 +151,13 @@ def amwg_table(adf):
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
 
-    #-----------------------------------------
+    #Declare any derived quantities here:
+    derived_vars = {"RESTOM":["FSNT", "FLNT"]}
+    derived_list = [item for sublist in list(derived_vars.values()) for item in sublist]
+
     #Create (empty) dictionary to use for the
-    #residual top of model (RESTOM) radiation calculation:
-    restom_dict = {}
+    #derived calculations (inititally RESTOM radiation):
+    derived_dict = {}
 
     #Loop over CAM cases:
     for case_idx, case_name in enumerate(case_names):
@@ -183,7 +188,7 @@ def amwg_table(adf):
         #End if
 
         #Save case name as a new key in the RESTOM dictonary:
-        restom_dict[case_name] = {}
+        derived_dict[case_name] = {}
 
         #Create/reset new variable that potentially stores the re-gridded
         #ocean fraction xarray data-array:
@@ -270,13 +275,9 @@ def amwg_table(adf):
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
                 data = _spatial_average(data)  # changes data "in place"
 
-            #Add necessary data for RESTOM calcs below
-            if var == "FLNT":
-                restom_dict[case_name][var] = data
-                #Copy units for RESTOM as well:
-                restom_units = unit_str
-            if var == "FSNT":
-                restom_dict[case_name][var] = data
+            #Add necessary data for derived (RESTOM) calcs below
+            if var in derived_list:
+                derived_dict[case_name][var] = [data, unit_str]
 
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
@@ -305,46 +306,29 @@ def amwg_table(adf):
 
         #End of var_list loop
         #--------------------
-
+        
+        #Space for derived quantities (ie RESTOM, etc.)
+        #----------------------------------------------
+        
+        # RESTOM
+        #-------
         if "FSNT" and "FLNT" in var_list:
-            #RESTOM Calcs
-            var = "RESTOM" #RESTOM = FSNT-FLNT
-            print(f"\t - Variable '{var}' being added to table")
-            data = restom_dict[case_name]["FSNT"] - restom_dict[case_name]["FLNT"]
-            # In order to get correct statistics, average to annual or seasonal
-            data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
-                                                                # NOTE: data will now have a 'year' dimension instead of 'time'
-            # These get written to our output file:
-            stats_list = _get_row_vals(data)
-            row_values = [var, restom_units] + stats_list
-            # col (column) values declared above
-
-            # Format entries:
-            dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
-
-            # Add entries to Pandas structure:
-            df = pd.DataFrame(dfentries)
-
-            # Check if the output CSV file exists,
-            # if so, then append to it:
-            if output_csv_file.is_file():
-                df.to_csv(output_csv_file, mode='a', header=False, index=False)
-            else:
-                df.to_csv(output_csv_file, header=cols, index=False)
-            #End if
-
+            _derive_restom(case_name, derived_dict, output_csv_file, cols)
         else:
             #Print message to debug log:
             adf.debug_log("RESTOM not calculated because FSNT and/or FLNT variables not in dataset")
         #End if
+        #End RESTOM table addition
+
+        #Other derived quantity
+        #-------
+        #End Other table addition
 
         # last step is to add table dataframe to website (if enabled):
         table_df = pd.read_csv(output_csv_file)
         adf.add_website_data(table_df, case_name, case_name, plot_type="Tables")
-
+        #End derived quantities
     #End of model case loop
-    #----------------------
-
 
     #Notify user that script has ended:
     print("  ...AMWG variable table has been generated successfully.")
@@ -369,16 +353,17 @@ def amwg_table(adf):
 ##################
 
 def _load_data(dataloc, varname):
-    import xarray as xr
     ds = xr.open_dataset(dataloc)
     return ds[varname]
 
 #####
 
 def _spatial_average(indata):
-    import xarray as xr
-    import numpy as np
-    import warnings
+    """
+    asdadfd
+    -----
+        - sdgff
+    """
 
     #Make sure there is no veritcal level dimension:
     assert 'lev' not in indata.coords
@@ -407,6 +392,11 @@ def _spatial_average(indata):
 #####
 
 def _get_row_vals(data):
+    """
+    assfd
+    -----
+        - adf
+    """
     # Now that data is (time,), we can do our simple stats:
 
     data_mean = data.data.mean()
@@ -433,7 +423,11 @@ def _get_row_vals(data):
 #####
 
 def _df_comp_table(adf, output_location, case_names):
-    import pandas as pd
+    """
+    asdfadf
+    -----
+        - dfs
+    """
 
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
 
@@ -465,6 +459,65 @@ def _df_comp_table(adf, output_location, case_names):
 
     #Add comparison table dataframe to website (if enabled):
     adf.add_website_data(df_comp, "Case Comparison", case_names[0], plot_type="Tables")
+
+#####
+
+#Derived quantity function space
+################################
+
+# RESTOM
+def _derive_restom(case_name, derived_dict, output_csv_file, cols):
+    """
+    asfaf
+    ------
+        - sdfsd
+    """
+    
+    var = "RESTOM" #RESTOM = FSNT-FLNT
+    print(f"\t - Variable '{var}' being added to table")
+    data = derived_dict[case_name]["FSNT"] - derived_dict[case_name]["FLNT"]
+     # In order to get correct statistics, average to annual or seasonal
+    data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
+                                                                # NOTE: data will now have a 'year' dimension instead of 'time'
+    # These get written to our output file:
+    stats_list = _get_row_vals(data)
+    #Extract units string, if available:
+    if hasattr(data, 'units'):
+        unit_str = data.units
+    else:
+        unit_str = '--'
+    #End if
+    
+    row_values = [var, unit_str] + stats_list
+
+    # Format entries:
+    #NOTE: col (column) values were declared above
+    dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
+
+    # Add entries to Pandas structure:
+    df = pd.DataFrame(dfentries)
+
+    # Check if the output CSV file exists,
+    # if so, then append to it:
+    if output_csv_file.is_file():
+        df.to_csv(output_csv_file, mode='a', header=False, index=False)
+    else:
+        df.to_csv(output_csv_file, header=cols, index=False)
+    #End if
+            
+    #last step is to add table dataframe to website (if enabled):
+    table_df = pd.read_csv(output_csv_file)
+
+    #Reorder RESTOM to top of tables
+    idx = table_df.index[table_df['variable'] == 'RESTOM'].tolist()[0]
+    table_df = pd.concat([table_df[table_df['variable'] == 'RESTOM'], table_df]).reset_index(drop = True)
+    table_df = table_df.drop([idx+1]).reset_index(drop=True)
+    table_df = table_df.drop_duplicates()
+
+    #Re-save the csv file
+    table_df.to_csv(output_csv_file, header=cols, index=False)
+
+######
 
 ##############
 #END OF SCRIPT
