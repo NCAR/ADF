@@ -65,7 +65,9 @@ user: 'USER-NAME-NOT-SET'
 diag_basic_info:
 
     #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    #Default: cam.h0. Only affects timeseries as everything else uses timeseries 
+    # Only affects timeseries as everything else uses timeseries 
+    # Leave off trailing '.'
+    #Default: cam.h0
     hist_str: cam.h0           
 
     #Is this a model vs observations comparison?
