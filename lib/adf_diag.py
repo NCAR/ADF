@@ -546,22 +546,31 @@ class AdfDiag(AdfWeb):
                     #PS might be in a different history file. If so, continue without error.
                     ncrcat_var_list = ncrcat_var_list + f",hyam,hybm,hyai,hybi"
 
-                    if 'PS' in hist_file_ds[var].dims:  
-                        ncrcat_var_list = ncrcat_var_list + ",PS"
-                    else:
-                        print(f"WARNING: PS not found in history file. It might be needed at some point.")
-                    #End if
+                    if 'cam' in hist_str:
+                        if 'PS' in hist_file_var_list:
+                            ncrcat_var_list = ncrcat_var_list + ",PS"
+                            print(f"Adding PS to file")
+                        else:
+                            print(f"WARNING: PS not found in history file. It might be needed at some point.")
+                        #End if
 
-                    if vert_coord_type == "height":
-                        #Adding PMID here works, but significantly increases
-                        #the storage (disk usage) requirements of the ADF.
-                        #This can be alleviated in the future by figuring out
-                        #a way to determine all of the regridding targets at
-                        #the start of the ADF run, and then regridding a single
-                        #PMID file to each one of those targets separately. -JN
-                        ncrcat_var_list = ncrcat_var_list + ",PMID"
-                    #End if
-                #End if
+                        if vert_coord_type == "height":
+                            #Adding PMID here works, but significantly increases
+                            #the storage (disk usage) requirements of the ADF.
+                            #This can be alleviated in the future by figuring out
+                            #a way to determine all of the regridding targets at
+                            #the start of the ADF run, and then regridding a single
+                            #PMID file to each one of those targets separately. -JN
+                            if 'PMID' in hist_file_var_list:
+                                ncrcat_var_list = ncrcat_var_list + ",PMID"
+                                print(f"Adding PMID to file")
+                            else:
+                                print(f"WARNING: PMID not found in history file. It might be needed at some point.")
+                            #End if PMID
+                        #End if height
+
+                    #End if cam
+                #End if has_lev
 
                 cmd = ["ncrcat", "-O", "-4", "-h","--no_cll_mth", "-v",ncrcat_var_list] + \
                        hist_files + ["-o", ts_outfil_str]
