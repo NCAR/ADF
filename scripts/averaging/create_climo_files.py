@@ -127,7 +127,7 @@ def create_climo_files(adf, clobber=False, search=None):
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
-            errmsg = f"Time series directory '{input_ts_loc}' not found.  Script is exiting."
+            errmsg = f"Time series directory '{input_ts_locs}' not found.  Script is exiting."
             raise AdfError(errmsg)
 
         #Check if climo directory exists, and if not, then create it:
@@ -167,6 +167,8 @@ def create_climo_files(adf, clobber=False, search=None):
                 continue
 
             list_of_arguments.append((ts_files, syr, eyr, output_file))
+
+                
         #End of var_list loop
         #--------------------
 
@@ -211,6 +213,7 @@ def process_variable(ts_files, syr, eyr, output_file):
     enc_dv = {xname: {'_FillValue': None, 'zlib': True, 'complevel': 4} for xname in cam_climo_data.data_vars}
     enc_c  = {xname: {'_FillValue': None} for xname in cam_climo_data.coords}
     enc    = {**enc_c, **enc_dv}
+
     #Output variable climatology to NetCDF-4 file:
     cam_climo_data.to_netcdf(output_file, format='NETCDF4', encoding=enc)
     return 1  # All funcs return something. Could do error checking with this if needed.

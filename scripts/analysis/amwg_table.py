@@ -1,3 +1,29 @@
+import numpy as np
+import xarray as xr
+import sys
+from pathlib import Path
+import warnings  # use to warn user about missing files.
+
+#Import "special" modules:
+try:
+    import scipy.stats as stats # for easy linear regression and testing
+except ImportError:
+    print("Scipy module does not exist in python path, but is needed for amwg_table.")
+    print("Please install module, e.g. 'pip install scipy'.")
+    sys.exit(1)
+#End except
+
+try:
+    import pandas as pd
+except ImportError:
+    print("Pandas module does not exist in python path, but is needed for amwg_table.")
+    print("Please install module, e.g. 'pip install pandas'.")
+    sys.exit(1)
+#End except
+
+#Import ADF-specific modules:
+import plotting_functions as pf
+
 def amwg_table(adf):
 
     """
@@ -22,6 +48,7 @@ def amwg_table(adf):
     input_ts_locs   -> Location(s) of CAM time series files provided by "cam_ts_loc"
     output_loc      -> Location to write AMWG table files to, provided by "cam_diag_plot_loc"
     var_list        -> List of CAM output variables provided by "diag_var_list"
+    var_defaults    -> Dict that has keys that are variable names and values that are plotting preferences/defaults.
 
     and if doing a CAM baseline comparison:
 
@@ -31,26 +58,7 @@ def amwg_table(adf):
     """
 
     #Import necessary modules:
-    import numpy as np
-    import xarray as xr
-    from pathlib import Path
     from adf_base import AdfError
-    import warnings  # use to warn user about missing files.
-
-    #Import "special" modules:
-    try:
-        import pandas as pd
-    except ImportError:
-        print("Pandas module does not exist in python path, but is needed for amwg_table.")
-        print("Please install module, e.g. 'pip install pandas'.")
-        sys.exit(1)
-
-    try:
-        import scipy.stats as stats # for easy linear regression and testing
-    except ImportError:
-        print("Scipy module does not exist in python path, but is needed for amwg_table.")
-        print("Please install module, e.g. 'pip install scipy'.")
-
 
     #Additional information:
     #----------------------
@@ -100,7 +108,21 @@ def amwg_table(adf):
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
-    var_list   = adf.diag_var_list
+    var_list     = adf.diag_var_list
+    var_defaults = adf.variable_defaults
+
+    #Check if ocean or land fraction exist
+    #in the variable list:
+    for var in ["OCNFRAC", "LANDFRAC"]:
+        if var in var_list:
+            #If so, then move them to the front of variable list so
+            #that they can be used to mask or vertically interpolate
+            #other model variables if need be:
+            var_idx = var_list.index(var)
+            var_list.pop(var_idx)
+            var_list.insert(0,var)
+        #End if
+    #End if
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
@@ -158,9 +180,14 @@ def amwg_table(adf):
         #Given that this is a final, user-facing analysis, go ahead and re-do it every time:
         if Path(output_csv_file).is_file():
             Path.unlink(output_csv_file)
+        #End if
 
         #Save case name as a new key in the RESTOM dictonary:
         restom_dict[case_name] = {}
+
+        #Create/reset new variable that potentially stores the re-gridded
+        #ocean fraction xarray data-array:
+        ocn_frc_da = None
 
         #Loop over CAM output variables:
         for var in var_list:
@@ -177,12 +204,14 @@ def amwg_table(adf):
                 errmsg = f"Time series files for variable '{var}' not found.  Script will continue to next variable."
                 warnings.warn(errmsg)
                 continue
+            #End if
 
             #TEMPORARY:  For now, make sure only one file exists:
             if len(ts_files) != 1:
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for the variable '{var}'"
                 raise AdfError(errmsg)
+            #End if
 
             #Load model data from file:
             data = _load_data(ts_files[0], var)
@@ -199,6 +228,40 @@ def amwg_table(adf):
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
+            #End if
+
+            #Extract defaults for variable:
+            var_default_dict = var_defaults.get(var, {})
+
+            #Check if variable should be masked:
+            if 'mask' in var_default_dict:
+                if var_default_dict['mask'].lower() == 'ocean':
+                    #Check if the ocean fraction has already been regridded
+                    #and saved:
+                    if ocn_frc_da is not None:
+                        ofrac = ocn_frc_da
+                        # set the bounds of regridded ocnfrac to 0 to 1
+                        ofrac = xr.where(ofrac>1,1,ofrac)
+                        ofrac = xr.where(ofrac<0,0,ofrac)
+
+                        # apply ocean fraction mask to variable
+                        data = pf.mask_land_or_ocean(data, ofrac, use_nan=True)
+                        #data = var_tmp
+                    else:
+                        print(f"OCNFRAC not found, unable to apply mask to '{var}'")
+                    #End if
+                else:
+                    #Currently only an ocean mask is supported, so print warning here:
+                    wmsg = "Currently the only variable mask option is 'ocean',"
+                    wmsg += f"not '{var_default_dict['mask'].lower()}'"
+                    print(wmsg)
+                #End if
+            #End if
+
+            #If the variable is ocean fraction, then save the dataset for use later:
+            if var == 'OCNFRAC':
+                ocn_frc_da = data
+            #End if
 
             # we should check if we need to do area averaging:
             if len(data.dims) > 1:
@@ -218,21 +281,14 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
                                                               # NOTE: data will now have a 'year' dimension instead of 'time'
-            # Now that data is (time,), we can do our simple stats:
-            data_mean = data.mean()
-            data_sample = len(data)
-            data_std = data.std()
-            data_sem = data_std / data_sample
-            data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
-            data_trend = stats.linregress(data.year, data.values)
-            # These get written to our output file:
+
             # create a dataframe:
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                     'standard error', '95% CI', 'trend', 'trend p-value']
-            row_values = [var, unit_str, data_mean.data.item(), data_sample,
-                          data_std.data.item(), data_sem.data.item(), data_ci.data.item(),
-                          f'{data_trend.intercept : 0.3f} + {data_trend.slope : 0.3f} t',
-                          data_trend.pvalue]
+
+            # These get written to our output file:
+            stats_list = _get_row_vals(data)
+            row_values = [var, unit_str] + stats_list
 
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
@@ -258,21 +314,10 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
                                                                 # NOTE: data will now have a 'year' dimension instead of 'time'
-            # Now that data is (time,), we can do our simple stats:
-            data_mean = data.mean()
-            data_sample = len(data)
-            data_std = data.std()
-            data_sem = data_std / data_sample
-            data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
-            data_trend = stats.linregress(data.year, data.values)
             # These get written to our output file:
-            # create a dataframe:
-            cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
-                        'standard error', '95% CI', 'trend', 'trend p-value']
-            row_values = [var, restom_units, data_mean.data.item(), data_sample,
-                            data_std.data.item(), data_sem.data.item(), data_ci.data.item(),
-                            f'{data_trend.intercept : 0.3f} + {data_trend.slope : 0.3f} t',
-                            data_trend.pvalue]
+            stats_list = _get_row_vals(data)
+            row_values = [var, restom_units] + stats_list
+            # col (column) values declared above
 
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
@@ -334,8 +379,12 @@ def _spatial_average(indata):
     import xarray as xr
     import numpy as np
     import warnings
+
+    #Make sure there is no veritcal level dimension:
     assert 'lev' not in indata.coords
     assert 'ilev' not in indata.coords
+
+    #Calculate spatial weights:
     if 'lat' in indata.coords:
         weights = np.cos(np.deg2rad(indata.lat))
         weights.name = "weights"
@@ -346,10 +395,40 @@ def _spatial_average(indata):
     else:
         weights = xr.DataArray(1.)
         weights.name = "weights"
+    #End if
+
+    #Apply weights to input data:
     weighted = indata.weighted(weights)
+
     # we want to average over all non-time dimensions
     avgdims = [dim for dim in indata.dims if dim != 'time']
     return weighted.mean(dim=avgdims)
+
+#####
+
+def _get_row_vals(data):
+    # Now that data is (time,), we can do our simple stats:
+
+    data_mean = data.data.mean()
+    #Conditional Formatting depending on type of float
+    if np.abs(data_mean) < 1:
+        formatter = ".3g"
+    else:
+        formatter = ".3f"
+
+    data_sample = len(data)
+    data_std = data.std()
+    data_sem = data_std / data_sample
+    data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
+    data_trend = stats.linregress(data.year, data.values)
+
+    stdev = f'{data_std.data.item() : {formatter}}'
+    sem = f'{data_sem.data.item() : {formatter}}'
+    ci = f'{data_ci.data.item() : {formatter}}'
+    slope_int = f'{data_trend.intercept : {formatter}} + {data_trend.slope : {formatter}} t'
+    pval = f'{data_trend.pvalue : {formatter}}'
+
+    return [f'{data_mean:{formatter}}', data_sample, stdev, sem, ci, slope_int, pval]
 
 #####
 
@@ -376,7 +455,9 @@ def _df_comp_table(adf, output_location, case_names):
     df_comp = pd.DataFrame(dtype=object)
     df_comp[['variable','unit','case']] = df_merge[['variable','unit_x','mean_x']]
     df_comp['baseline'] = df_merge[['mean_y']]
-    df_comp['diff'] = df_comp['case'].values-df_comp['baseline'].values
+
+    diffs = df_comp['case'].values-df_comp['baseline'].values
+    df_comp['diff'] = [f'{i:.3g}' if np.abs(i) < 1 else f'{i:.3f}' for i in diffs]
 
     #Write the comparison dataframe to a new CSV file:
     cols_comp = ['variable', 'unit', 'test', 'control', 'diff']

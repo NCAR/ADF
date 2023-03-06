@@ -532,21 +532,22 @@ class AdfDiag(AdfWeb):
 
                 #Notify user of new time series file:
                 print(f"\t - time series for {var}")
-                
+
                 #Variable list starts with just the variable
                 ncrcat_var_list = f"{var}"
 
                 #Determine "ncrcat" command to generate time series file:
-                if 'date' in hist_file_ds[var].dims:  
+                if 'date' in hist_file_ds[var].dims:
                     ncrcat_var_list = ncrcat_var_list + ",date"
-                if 'datesec' in hist_file_ds[var].dims:  
+                if 'datesec' in hist_file_ds[var].dims:
                     ncrcat_var_list = ncrcat_var_list + ",datesec"
 
                 if has_lev and vert_coord_type:
-                    #PS might be in a different history file. If so, continue without error.
-                    ncrcat_var_list = ncrcat_var_list + f",hyam,hybm,hyai,hybi"
-
+                    #For now, only add these variables if using CAM:
                     if 'cam' in hist_str:
+                        #PS might be in a different history file. If so, continue without error.
+                        ncrcat_var_list = ncrcat_var_list + f",hyam,hybm,hyai,hybi"
+
                         if 'PS' in hist_file_var_list:
                             ncrcat_var_list = ncrcat_var_list + ",PS"
                             print(f"Adding PS to file")
@@ -568,7 +569,6 @@ class AdfDiag(AdfWeb):
                                 print(f"WARNING: PMID not found in history file. It might be needed at some point.")
                             #End if PMID
                         #End if height
-
                     #End if cam
                 #End if has_lev
 
@@ -606,10 +606,33 @@ class AdfDiag(AdfWeb):
         non-weighted averaging).
         """
 
-        #Check if a user wants any climatologies to be calculated:
-        if self.get_cam_info('calc_cam_climo') or \
-           self.get_baseline_info('calc_cam_climo'):
+        #Extract climatology calculation config options:
+        calc_climo = self.get_cam_info('calc_cam_climo')
 
+        #Check if climo calculation config option is a list:
+        if isinstance(calc_climo, list):
+            #If so, then check if any of the entries are "True":
+            calc_climo = any(calc_climo)
+        #End if
+
+        #Next check if a baseline simulation is being used
+        #and no other model cases need climatologies calculated:
+        if not self.compare_obs and not calc_climo:
+            calc_bl_climo = self.get_baseline_info('calc_cam_climo')
+
+            #Check if baseline climo calculation config option is a list,
+            #although it really never should be:
+            if isinstance(calc_bl_climo, list):
+                #If so, then check if any of the entries are "True":
+                calc_bl_climo = any(calc_bl_climo)
+            #End if
+        else:
+            #Just set to False:
+            calc_bl_climo = False
+        #End if
+
+        #Check if a user wants any climatologies to be calculated:
+        if calc_climo or calc_bl_climo:
 
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts  # this is a list of script names

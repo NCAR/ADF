@@ -390,7 +390,6 @@ class AdfWeb(AdfObs):
         #Set climo years format for html file headers
         case_yrs=f"{syear_cases[0]} - {eyear_cases[0]}"
 
-
         #Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
 
@@ -568,7 +567,7 @@ class AdfWeb(AdfObs):
                 #which might be beneficial for colored tables and other more advance
                 #formatting features.
                 table_html = web_data.data.to_html(index=False, border=1, justify='center',
-                                                   float_format='{:,.3g}'.format)
+                                                   float_format='{:6g}'.format)
 
                 #Construct amwg_table.html
                 table_tmpl = jinenv.get_template('template_table.html')
@@ -694,30 +693,28 @@ class AdfWeb(AdfObs):
             index_html_file = \
                 self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
 
-            if not index_html_file.exists():
+            #Re-et plot types list:
+            if web_data.case == 'multi-case':
+                plot_types = multi_plot_type_html
+            else:
+                plot_types = plot_type_html
+            #End if
 
-                #Re-et plot types list:
-                if web_data.case == 'multi-case':
-                    plot_types = multi_plot_type_html
-                else:
-                    plot_types = plot_type_html
-                #End if
+            #Construct index.html
+            index_title = "AMP Diagnostics Prototype"
+            index_tmpl = jinenv.get_template('template_index.html')
+            index_rndr = index_tmpl.render(title=index_title,
+                                            case1=web_data.case,
+                                            case2=data_name,
+                                            case_yrs=case_yrs,
+                                            baseline_yrs=baseline_yrs,
+                                            plot_types=plot_types)
 
-                #Construct index.html
-                index_title = "AMP Diagnostics Prototype"
-                index_tmpl = jinenv.get_template('template_index.html')
-                index_rndr = index_tmpl.render(title=index_title,
-                                               case1=web_data.case,
-                                               case2=data_name,
-                                               case_yrs=case_yrs,
-                                               baseline_yrs=baseline_yrs,
-                                               plot_types=plot_types)
+            #Write Mean diagnostics index HTML file:
+            with open(index_html_file, 'w', encoding='utf-8') as ofil:
+                ofil.write(index_rndr)
+            #End with
 
-                #Write Mean diagnostics index HTML file:
-                with open(index_html_file, 'w', encoding='utf-8') as ofil:
-                    ofil.write(index_rndr)
-                #End with
-            #End if (mean_index exists)
         #End for (web data loop)
 
         #If this is a multi-case instance, then copy website to "main" directory:
