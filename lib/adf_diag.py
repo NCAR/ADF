@@ -509,14 +509,10 @@ class AdfDiag(AdfWeb):
                     continue
 
                 #Check if variable has a "lev" dimension according to first file:
-                if 'lev' in hist_file_ds[var].dims:
-                    has_lev = True
-                else:
-                    has_lev = False
-                #End if
+                has_lev = bool('lev' in hist_file_ds[var].dims)
 
-                #Create full path name,  file name template:
-                #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
+                #Create full path name, file name template:
+                #$cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
 
                 ts_outfil_str = ts_dir[case_idx] + os.sep + \
                 ".".join([case_name, hist_str, var, time_string, "nc" ])
@@ -546,13 +542,15 @@ class AdfDiag(AdfWeb):
                     #For now, only add these variables if using CAM:
                     if 'cam' in hist_str:
                         #PS might be in a different history file. If so, continue without error.
-                        ncrcat_var_list = ncrcat_var_list + f",hyam,hybm,hyai,hybi"
+                        ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
 
                         if 'PS' in hist_file_var_list:
                             ncrcat_var_list = ncrcat_var_list + ",PS"
-                            print(f"Adding PS to file")
+                            print("Adding PS to file")
                         else:
-                            print(f"WARNING: PS not found in history file. It might be needed at some point.")
+                            wmsg = "WARNING: PS not found in history file."
+                            wmsg += " It might be needed at some point."
+                            print(wmsg)
                         #End if
 
                         if vert_coord_type == "height":
@@ -564,9 +562,11 @@ class AdfDiag(AdfWeb):
                             #PMID file to each one of those targets separately. -JN
                             if 'PMID' in hist_file_var_list:
                                 ncrcat_var_list = ncrcat_var_list + ",PMID"
-                                print(f"Adding PMID to file")
+                                print("Adding PMID to file")
                             else:
-                                print(f"WARNING: PMID not found in history file. It might be needed at some point.")
+                                wmsg = "WARNING: PMID not found in history file."
+                                wmsg += " It might be needed at some point."
+                                print(wmsg)
                             #End if PMID
                         #End if height
                     #End if cam
@@ -581,8 +581,8 @@ class AdfDiag(AdfWeb):
             #End variable loop
 
             #Now run the "ncrcat" subprocesses in parallel:
-            with mp.Pool(processes=self.num_procs) as p:
-                result = p.map(call_ncrcat, list_of_commands)
+            with mp.Pool(processes=self.num_procs) as mpool:
+                _ = mpool.map(call_ncrcat, list_of_commands)
             #End with
 
         #End cases loop
