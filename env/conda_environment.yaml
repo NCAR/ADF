@@ -1,4 +1,4 @@
-name: adf_v0.1
+name: adf_v0.11
 channels:
   - conda-forge
   - defaults
@@ -8,10 +8,10 @@ dependencies:
   - cartopy=0.21.1
   - netcdf4=1.6.2
   - xarray=2023.1.0
-  - matplotlib
+  - matplotlib=3.6.3
   - pandas=1.5.3
   - pint=0.16   #GeoCAT doesn't work with newer versions
   - xskillscore=0.0.5
   - geocat-comp=2022.08.0
   - python=3.11
-prefix: /glade/u/home/brianpm/miniconda3/envs/adf_v0.1
+prefix: /glade/work/$USER/conda-envs/adf_v0.11
