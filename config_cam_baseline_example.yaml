@@ -64,6 +64,12 @@ user: 'USER-NAME-NOT-SET'
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
 
+    #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
+    # Only affects timeseries as everything else uses timeseries 
+    # Leave off trailing '.'
+    #Default: cam.h0
+    hist_str: cam.h0           
+
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
     compare_obs: false
@@ -90,12 +96,6 @@ diag_basic_info:
 
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
-
-    #CAM history file number to use (h0,h1,h2, etc)
-    #Currently only affects timeseries generation,
-    #as everything else uses the timeseries files themselves.
-    #If this variable is not present then it will default ot "h0".
-    hist_num: h0
 
     #Use default variable plot settings?
     #If "true", then variable-specific plotting attributes as defined in

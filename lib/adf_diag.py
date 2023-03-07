@@ -363,12 +363,11 @@ class AdfDiag(AdfWeb):
             end_years     = self.climo_yrs["eyears"]
         #End if
 
-        #Read history file number from the yaml file
-        hist_num = self.get_basic_info('hist_num')
-
-        #If hist_num is not present, then default to 'h0':
-        if not hist_num:
-            hist_num = 'h0'
+        #Read hist_str (component.hist_num) from the yaml file, or set to default
+        hist_str = self.get_basic_info('hist_str')
+        #If hist_str is not present, then default to 'cam.h0':
+        if not hist_str:
+            hist_str = 'cam.h0'
         #End if
 
         #Loop over cases:
@@ -405,9 +404,8 @@ class AdfDiag(AdfWeb):
             #End if
 
             #Check if history files actually exist. If not then kill script:
-            hist_str = '*.cam.'+hist_num
-            if not list(starting_location.glob(hist_str+'.*.nc')):
-                emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
+            if not list(starting_location.glob('*'+hist_str+'.*.nc')):
+                emsg = f"No history *{hist_str}.*.nc files found in '{starting_location}'."
                 emsg += " Script is ending here."
                 self.end_diag_fail(emsg)
             #End if
@@ -418,10 +416,11 @@ class AdfDiag(AdfWeb):
             #Loop over start and end years:
             for year in range(start_year, end_year+1):
                 #Add files to main file list:
-                for fname in starting_location.glob(f'{hist_str}.*{str(year).zfill(4)}-*.nc'):
+                for fname in starting_location.glob(f'*{hist_str}.*{str(year).zfill(4)}*.nc'):
                     files_list.append(fname)
                 #End for
             #End for
+
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
@@ -510,17 +509,13 @@ class AdfDiag(AdfWeb):
                     continue
 
                 #Check if variable has a "lev" dimension according to first file:
-                if 'lev' in hist_file_ds[var].dims:
-                    has_lev = True
-                else:
-                    has_lev = False
-                #End if
+                has_lev = bool('lev' in hist_file_ds[var].dims)
 
-                #Create full path name,  file name template:
-                #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
+                #Create full path name, file name template:
+                #$cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
 
                 ts_outfil_str = ts_dir[case_idx] + os.sep + \
-                ".".join([case_name, hist_num, var, time_string, "nc" ])
+                ".".join([case_name, hist_str, var, time_string, "nc" ])
 
                 #Check if files already exist in time series directory:
                 ts_file_list = glob.glob(ts_outfil_str)
@@ -534,28 +529,51 @@ class AdfDiag(AdfWeb):
                 #Notify user of new time series file:
                 print(f"\t - time series for {var}")
 
+                #Variable list starts with just the variable
+                ncrcat_var_list = f"{var}"
+
                 #Determine "ncrcat" command to generate time series file:
+                if 'date' in hist_file_ds[var].dims:
+                    ncrcat_var_list = ncrcat_var_list + ",date"
+                if 'datesec' in hist_file_ds[var].dims:
+                    ncrcat_var_list = ncrcat_var_list + ",datesec"
+
                 if has_lev and vert_coord_type:
-                    if vert_coord_type == "hybrid":
-                        cmd = ["ncrcat", "-O", "-4", "-h", "-v",
-                               f"{var},hyam,hybm,hyai,hybi,PS"] + \
-                               hist_files + ["-o", ts_outfil_str]
-                    elif vert_coord_type == "height":
-                        #Adding PMID here works, but significantly increases
-                        #the storage (disk usage) requirements of the ADF.
-                        #This can be alleviated in the future by figuring out
-                        #a way to determine all of the regridding targets at
-                        #the start of the ADF run, and then regridding a single
-                        #PMID file to each one of those targets separately. -JN
-                        cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},PMID,PS"] + \
-                                hist_files + ["-o", ts_outfil_str]
-                    #End if
-                else:
-                    #No vertical coordinate (or no coordinate meta-data),
-                    #so no additional variables needed:
-                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},OCNFRAC,LANDFRAC"] + \
-                           hist_files + ["-o", ts_outfil_str]
-                    #End if
+                    #For now, only add these variables if using CAM:
+                    if 'cam' in hist_str:
+                        #PS might be in a different history file. If so, continue without error.
+                        ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
+
+                        if 'PS' in hist_file_var_list:
+                            ncrcat_var_list = ncrcat_var_list + ",PS"
+                            print("Adding PS to file")
+                        else:
+                            wmsg = "WARNING: PS not found in history file."
+                            wmsg += " It might be needed at some point."
+                            print(wmsg)
+                        #End if
+
+                        if vert_coord_type == "height":
+                            #Adding PMID here works, but significantly increases
+                            #the storage (disk usage) requirements of the ADF.
+                            #This can be alleviated in the future by figuring out
+                            #a way to determine all of the regridding targets at
+                            #the start of the ADF run, and then regridding a single
+                            #PMID file to each one of those targets separately. -JN
+                            if 'PMID' in hist_file_var_list:
+                                ncrcat_var_list = ncrcat_var_list + ",PMID"
+                                print("Adding PMID to file")
+                            else:
+                                wmsg = "WARNING: PMID not found in history file."
+                                wmsg += " It might be needed at some point."
+                                print(wmsg)
+                            #End if PMID
+                        #End if height
+                    #End if cam
+                #End if has_lev
+
+                cmd = ["ncrcat", "-O", "-4", "-h","--no_cll_mth", "-v",ncrcat_var_list] + \
+                       hist_files + ["-o", ts_outfil_str]
 
                 #Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
@@ -563,8 +581,8 @@ class AdfDiag(AdfWeb):
             #End variable loop
 
             #Now run the "ncrcat" subprocesses in parallel:
-            with mp.Pool(processes=self.num_procs) as p:
-                result = p.map(call_ncrcat, list_of_commands)
+            with mp.Pool(processes=self.num_procs) as mpool:
+                _ = mpool.map(call_ncrcat, list_of_commands)
             #End with
 
         #End cases loop
