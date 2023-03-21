@@ -269,7 +269,7 @@ diag_cam_baseline_climo:
     cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
 
     #Case nickname
-    #If left blank, it will default to baseline cam_case_name
+    #If left blank or if missing, nickname will default to baseline cam_case_name
     # ** NOTE: if nickname starts with a zero, the string must be in quotes! **
     case_nickname: ${diag_cam_baseline_climo.cam_case_name}
 

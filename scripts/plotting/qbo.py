@@ -32,13 +32,27 @@ def qbo(adfobj):
     print("\n  Generating qbo plots...")
 
     #Extract relevant info from the ADF:
-    case_name = adfobj.get_cam_info('cam_case_name', required=True)
+    case_names = adfobj.get_cam_info('cam_case_name', required=True)
     case_loc = adfobj.get_cam_info('cam_ts_loc', required=True)
     base_name = adfobj.get_baseline_info('cam_case_name')
     base_loc = adfobj.get_baseline_info('cam_ts_loc')
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
     plot_locations = adfobj.plot_location
     plot_type = adfobj.get_basic_info('plot_type')
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
+    case_nicknames = test_nicknames + [base_nickname]
+
+    if len(case_names) > 1:
+        multi_case = True
+        main_site_assets_path = adfobj.main_site_paths["main_site_assets_path"]
+    else:
+        multi_case = False
+    #End if (check for multiple cases)
+
+   
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
@@ -66,25 +80,10 @@ def qbo(adfobj):
     #that the QBO plot will be kept in the first case directory:
     print(f"\t QBO plots will be saved here: {plot_locations[0]}")
 
-    # Check redo_plot. If set to True: remove old plots, if they already exist:
-    if (not redo_plot) and plot_loc_ts.is_file() and plot_loc_amp.is_file():
-        #Add already-existing plot to website (if enabled):
-        adfobj.add_website_data(plot_loc_ts, "QBO", None, season="QBOts", multi_case=True)
-        adfobj.add_website_data(plot_loc_amp, "QBO", None, season="QBOamp", multi_case=True)
-
-        #Continue to next iteration:
-        return
-    elif (redo_plot):
-        if plot_loc_ts.is_file():
-            plot_loc_ts.unlink()
-        if plot_loc_amp.is_file():
-            plot_loc_amp.unlink()
-    #End if
-
     #Check if model vs model run, and if so, append baseline to case lists:
     if not adfobj.compare_obs:
         case_loc.append(base_loc)
-        case_name.append(base_name)
+        case_names.append(base_name)
     #End if
 
     #----Read in the OBS (ERA5, 5S-5N average already
@@ -92,13 +91,14 @@ def qbo(adfobj):
 
     #----Read in the case data and baseline
     ncases = len(case_loc)
-    casedat = [ _load_dataset(case_loc[i], case_name[i],'U') for i in range(0,ncases,1) ]
+
+    casedat = [ _load_dataset(case_loc[i], case_names[i],'U') for i in range(0,ncases,1) ]
 
     #Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []
     for idx, dat in enumerate(casedat):
         if 'U' not in dat.variables:
-            warnings.warn(f"QBO: case {case_name[idx]} contains no 'U' field, skipping...")
+            warnings.warn(f"QBO: case {case_names[idx]} contains no 'U' field, skipping...")
             bad_idxs.append(idx)
         #End if
     #End for
@@ -124,57 +124,198 @@ def qbo(adfobj):
 
     #----QBO timeseries plots
     fig = plt.figure(figsize=(16,16))
+    fig.suptitle('QBO Time Series', fontsize=14)
 
     x1, x2, y1, y2 = plotpos()
-    ax = plotqbotimeseries(fig, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')
+    #ax = plotqbotimeseries(fig, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')
 
-    casecount=0
+    if (adfobj.compare_obs) and (not multi_case):
+        xo1 = 0.18
+        xo2 = 0.45
+        xm1 = 0.55
+        xm2 = 0.82
+        ax = plotqbotimeseries(fig, obs, minny, xo1, xo2, y1[0], y2[0],'ERA5')
+    else:
+        ax = plotqbotimeseries(fig, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')
+
+    #casecount=0
     for icase in range(0,ncases,1):
         if (icase < 11 ): # only only going to work with 12 panels currently
-            ax = plotqbotimeseries(fig, casedat_5S_5N[icase],minny,
-                x1[icase+1],x2[icase+1],y1[icase+1],y2[icase+1], case_name[icase])
-            casecount=casecount+1
+            #Check if this is multi-case diagnostics
+            if multi_case:
+                if icase != ncases-1:
+                    plot_loc_ts  = Path(plot_locations[icase]) / f'QBOts.{plot_type}'
+
+                    #----QBO timeseries plots
+                    fig_m = plt.figure(figsize=(16,16))
+                    fig_m.suptitle('QBO Time Series', fontsize=14)
+
+                    """#Plot ERA5 data
+                    ax_m = plotqbotimeseries(fig_m, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')"""
+                    
+                    """#Plot individual case
+                    ax_m = plotqbotimeseries(fig_m, casedat_5S_5N[icase],minny,
+                                            x1[1],x2[1],y1[1],y2[1], 
+                                            case_nicknames[icase])"""
+
+                    #Check if compared vs baseline obs, alter x-positions
+                    if adfobj.compare_obs:
+                        """#Plot ERA5 data
+                        ax_m = plotqbotimeseries(fig_m, obs, minny, 0.18, 0.45, y1[0], y2[0],'ERA5')
+
+                        #Plot individual case
+                        ax_m = plotqbotimeseries(fig_m, casedat_5S_5N[icase],minny,
+                                                0.55, 0.82, y1[2], y2[2], 
+                                                case_nicknames[icase])"""
+
+                        xo1 = 0.18
+                        xo2 = 0.45
+                        xm1 = 0.55
+                        xm2 = 0.82
+                    #No observation baseline
+                    else:
+                        """#Plot ERA5 data
+                        ax_m = plotqbotimeseries(fig_m, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')
+
+                        #Plot individual case
+                        ax_m = plotqbotimeseries(fig_m, casedat_5S_5N[icase],minny,
+                                                x1[1],x2[1],y1[1],y2[1], 
+                                                case_nicknames[icase])"""
+
+                        xo1 = x1[0]
+                        xo2 = x2[0]
+                        xm1 = x1[1]
+                        xm2 = x2[1]
+
+                        ax_m = plotqbotimeseries(fig_m, casedat_5S_5N[-1],minny,
+                                                    x1[2],x2[2],y1[2],y2[2], 
+                                                    base_nickname)
+                    #End if (compare obs)
+
+                    #Plot ERA5 data
+                    ax_m = plotqbotimeseries(fig_m, obs, minny, xo1, xo2, y1[0], y2[0],'ERA5')
+
+                    #Plot individual case
+                    ax_m = plotqbotimeseries(fig_m, casedat_5S_5N[icase],minny,
+                                            xm1, xm2, y1[2], y2[2], 
+                                            case_nicknames[icase])
+
+                    #Plot colorbar
+                    ax_m = plotcolorbar(fig_m, x1[0]+0.2, x2[2]-0.2,y1[2]-0.035,y1[2]-0.03)
+
+                    #Save figure to file:
+                    fig_m.savefig(plot_loc_ts, bbox_inches='tight', facecolor='white')
+
+                    #Add plot to website (if enabled):
+                    adfobj.add_website_data(plot_loc_ts, "QBO", case_names[icase], category=None, season="QBOts",
+                                            multi_case=True,plot_type="Special")
+            #End if (multi-case)
+
+            #Check if compared vs baseline obs, alter x-positions
+            if (adfobj.compare_obs) and (not multi_case):
+                ax = plotqbotimeseries(fig, casedat_5S_5N[icase],minny,
+                        xm1,xm2,y1[icase+1],y2[icase+1], case_nicknames[icase])
+            else:
+                ax = plotqbotimeseries(fig, casedat_5S_5N[icase],minny,
+                        x1[icase+1],x2[icase+1],y1[icase+1],y2[icase+1], case_nicknames[icase])
+            #casecount=casecount+1
         else:
             warnings.warn("The QBO diagnostics can only manage up to twelve cases!")
             break
         #End if
     #End for
+    #ax = plotcolorbar(fig, x1[0]+0.2, x2[2]-0.2,y1[casecount]-0.035,y1[casecount]-0.03)
+    ax = plotcolorbar(fig, x1[0]+0.2, x2[2]-0.2,y1[ncases]-0.035,y1[ncases]-0.03)
+    
+    if multi_case:#Notify user that script has started:
+        print("\n  Generating qbo multi-case plots...")
+        
 
-    ax = plotcolorbar(fig, x1[0]+0.2, x2[2]-0.2,y1[casecount]-0.035,y1[casecount]-0.03)
+        plot_loc_ts_multi = main_site_assets_path / f'QBO_QBOts_Special_multi_plot.{plot_type}'
+        fig.savefig(plot_loc_ts_multi, bbox_inches='tight', facecolor='white')
+        adfobj.add_website_data(plot_loc_ts_multi, "QBO", None, category=None, season="QBOts",
+                                multi_case=True,plot_type="Special")
+    
+    else:
+        #Save figure to file:
+        fig.savefig(plot_loc_ts, bbox_inches='tight', facecolor='white')
 
-    #Save figure to file:
-    fig.savefig(plot_loc_ts, bbox_inches='tight', facecolor='white')
-
-    #Add plot to website (if enabled):
-    adfobj.add_website_data(plot_loc_ts, "QBO", None, season="QBOts", multi_case=True)
-
+        #Add plot to website (if enabled):
+        #adfobj.add_website_data(plot_loc_ts, "QBO", None, season="QBOts", multi_case=True,plot_type = "Special") #multi_case=True
+        adfobj.add_website_data(plot_loc_ts, "QBO", case_names[0], category=None, season="QBOts",
+                                multi_case=True,plot_type="Special")
     #-----------------
 
     #---Dunkerton and Delisi QBO amplitude
     obsamp = calcddamp(obs)
     modamp = [ calcddamp(casedat_5S_5N[i]) for i in range(0,ncases,1) ]
 
+    if multi_case:
+        for icase in range(0,ncases,1):
+            #Skip baseline case
+            if icase != ncases-1:
+                fig = plt.figure(figsize=(16,16))
+
+                ax = fig.add_axes([0.05,0.6,0.4,0.4])
+                ax.plot(modamp[icase], -np.log10(modamp[icase].lev), linewidth=2, label=case_nicknames[icase])
+                
+                #Check to plot baseline if not compared to obs
+                if not adfobj.compare_obs:
+                    ax.plot(modamp[-1], -np.log10(modamp[-1].lev), linewidth=2, label=base_nickname)
+
+                ax.plot(obsamp, -np.log10(obsamp.pre), color='black', linewidth=2, label='ERA5')
+
+                ax.set_ylim(-np.log10(150),-np.log10(1))
+                ax.set_yticks([-np.log10(100),-np.log10(30),-np.log10(10),-np.log10(3),-np.log10(1)])
+                ax.set_yticklabels(['100','30','10','3','1'], fontsize=12)
+                ax.set_ylabel('Pressure (hPa)', fontsize=12)
+                ax.set_xlabel('Dunkerton and Delisi QBO amplitude (ms$^{-1}$)', fontsize=12)
+                ax.set_title('Dunkerton and Delisi QBO amplitude', fontsize=14)
+
+                ax.legend(loc='upper left')
+
+                plot_loc_amp = Path(plot_locations[icase]) / f'QBOamp.{plot_type}'
+
+                fig.savefig(plot_loc_amp, bbox_inches='tight', facecolor='white')
+                plt.close()
+                #Add plot to website (if enabled):
+                adfobj.add_website_data(plot_loc_amp, "QBO", case_names[icase], category = None, season="QBOamp", multi_case=True,plot_type = "Special")
+            #End if (not baseline)
+        #End for (cases)
+    #End if (multi-case)
     fig = plt.figure(figsize=(16,16))
 
     ax = fig.add_axes([0.05,0.6,0.4,0.4])
+    
+
     ax.set_ylim(-np.log10(150),-np.log10(1))
     ax.set_yticks([-np.log10(100),-np.log10(30),-np.log10(10),-np.log10(3),-np.log10(1)])
     ax.set_yticklabels(['100','30','10','3','1'], fontsize=12)
     ax.set_ylabel('Pressure (hPa)', fontsize=12)
     ax.set_xlabel('Dunkerton and Delisi QBO amplitude (ms$^{-1}$)', fontsize=12)
     ax.set_title('Dunkerton and Delisi QBO amplitude', fontsize=14)
-
     ax.plot(obsamp, -np.log10(obsamp.pre), color='black', linewidth=2, label='ERA5')
-
     for icase in range(0,ncases,1):
-        ax.plot(modamp[icase], -np.log10(modamp[icase].lev), linewidth=2, label=case_name[icase])
+        ax.plot(modamp[icase], -np.log10(modamp[icase].lev), linewidth=2, label=case_nicknames[icase])
 
     ax.legend(loc='upper left')
-    fig.savefig(plot_loc_amp, bbox_inches='tight', facecolor='white')
 
-    #Add plot to website (if enabled):
-    adfobj.add_website_data(plot_loc_amp, "QBO", None, season="QBOamp", multi_case=True)
+    #
+    if multi_case:
+        plot_loc_amp_multi = main_site_assets_path / f'QBO_QBOamp_Special_multi_plot.{plot_type}'
+        fig.savefig(plot_loc_amp_multi, bbox_inches='tight', facecolor='white')
 
+        #Add plot to website (if enabled):
+        adfobj.add_website_data(plot_loc_amp_multi, "QBO", None, category=None, season="QBOamp",
+                                multi_case=True,plot_type = "Special")
+    else:
+        fig.savefig(plot_loc_amp, bbox_inches='tight', facecolor='white')
+        
+        #Add plot to website (if enabled):
+        adfobj.add_website_data(plot_loc_amp, "QBO", case_names[0], category = None, season="QBOamp", multi_case=True,plot_type = "Special")
+    
+    #Close main fig
+    plt.close()
     #-------------------
 
     #Notify user that script has ended:
@@ -282,8 +423,9 @@ def plotqbotimeseries(fig, dat, ny, x1, x2, y1, y2, title):
     ax.set_yticks([-np.log10(1000),-np.log10(300),-np.log10(100),-np.log10(30),-np.log10(10),
                    -np.log10(3),-np.log10(1)])
     ax.set_yticklabels(['1000','300','100','30','10','3','1'])
-    ax.set_ylabel('Pressure (hPa)')
+    ax.set_ylabel('Pressure (hPa)', fontsize=12)
     ax.set_title(title, fontsize=14)
+    #ax.set_xlabel("Years",fontsize=12,labelpad=10)
 
     return ax
 
@@ -332,5 +474,17 @@ def blue2red_cmap(n, nowhite = False):
 
     return mymap
 
+def _set_ymargin(ax, top, bottom):
+    """
+    Allow for custom padding of plot lines and axes borders
+    -----
+    """
+    ax.set_ymargin(0)
+    ax.autoscale_view()
+    lim = ax.get_ylim()
+    delta = np.diff(lim)
+    top = lim[1] + delta*top
+    bottom = lim[0] - delta*bottom
+    ax.set_ylim(bottom,top)
 
 
