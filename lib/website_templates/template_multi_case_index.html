@@ -24,14 +24,14 @@
             </ul>
           </nav>
         </div><!--center-->
-        <div><h3> Click on case name for that ADF vs baseline page</h3></div>
+        <div><h3>Click on case name for that ADF case vs baseline page</h3></div>
         {% for case_name, case_dtls in case_sites.items() %}
-        <h2 style="display:inline; color:black;"> Test Case {{ loop.index }}: </h2><h2 style="display:inline;">
-          <a href="{{ case_dtls[0] }}">{{ case_name }}</a></h2>
+        <h2 style="display:inline; color:black;"> Test Case {{ loop.index }}: </h2>
+        <h2 style="display:inline;"><a href="{{ case_dtls[0] }}">{{ case_name }}</a></h2>
           <h2 style="display:inline; color:black;"> - years: {{ case_dtls[1] }} - {{ case_dtls[2] }}</h2><br>
         {% endfor %}
-        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">
-          {{ base_name }}</h2>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2>
+        <h2 style="display:inline;">{{ base_name }}</h2>
           <h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
       </div><!--screenFiller-->
     </div><!--header-->
