@@ -395,9 +395,9 @@ class AdfWeb(AdfObs):
             #var_list should be a list of all vars for each plot map extentions
             #var is iterative for all plot map extensions
             for multi_var_list in [multi_case_plots[ext] for ext in multi_case_plots]:
-                for multi_var in multi_var_list:
-                    if ((self.compare_obs) and (multi_var in self.var_obs_dict)) or (not self.compare_obs):
-                        mvars.append(multi_var)
+                for var in multi_var_list:
+                    if (self.compare_obs and var in self.var_obs_dict) or (not self.compare_obs):
+                        mvars.append(var)
 
         #Create multi-case site:
         #Make a dictionary for plot type extensions for given plot type
@@ -672,8 +672,8 @@ class AdfWeb(AdfObs):
                                                    float_format='{:6g}'.format)
 
                 #Construct amwg_table.html
-                rend_kwarg_dict = {"title": main_title, "case_name": case1,
-                                  "base_name": data_name,
+                rend_kwarg_dict = {"title": main_title,
+                                  "case_name": case1,
                                   "case_yrs": case_yrs,
                                   "base_name": data_name,
                                   "baseline_yrs": baseline_yrs,
@@ -722,7 +722,7 @@ class AdfWeb(AdfObs):
 
                     #Reuse the rend_kwarg_dict, but ignore certain keys
                     #since all others are the same
-                    new_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'table_name', 'table_html'}}                 
+                    new_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'table_name', 'table_html'}}    
 
                     if main_site_path:
                         plot_types = multi_plot_type_html
@@ -779,9 +779,9 @@ class AdfWeb(AdfObs):
                         #Construct individual plot type mean_diag html files, if they don't
                         #already exist:
                         mean_tmpl = jinenv.get_template('template_mean_diag.html')
-                        
+
                         #Remove keys from main dictionary for this html page
-                        templ_rend_kwarg_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'imgs', 'var_title', 'season_title'}} 
+                        templ_rend_kwarg_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'imgs', 'var_title', 'season_title'}}
 
                         mean_rndr = mean_tmpl.render(templ_rend_kwarg_dict)
 
@@ -1034,7 +1034,7 @@ class AdfWeb(AdfObs):
 
                                 multimean = f"plot_page_multi_case_{var}_{season}_{ptype}_Mean.html"
                                 if not (img_pages_dir / multimean).exists():
-                                    
+
                                     tmpl = jinenv.get_template('template_multi_case.html')
 
                                     rndr = tmpl.render(rend_kwarg_dict)
