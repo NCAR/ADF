@@ -396,7 +396,7 @@ class AdfWeb(AdfObs):
             #var is iterative for all plot map extensions
             for multi_var_list in [multi_case_plots[ext] for ext in multi_case_plots]:
                 for var in multi_var_list:
-                    if (self.compare_obs and var in self.var_obs_dict) or (not self.compare_obs):
+                    if ((self.compare_obs) and (var in self.var_obs_dict)) or (not self.compare_obs):
                         mvars.append(var)
 
         #Create multi-case site:
