@@ -279,8 +279,7 @@ def amwg_table(adf):
                 restom_dict[case_name][var] = data
 
             # In order to get correct statistics, average to annual or seasonal
-            data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
-                                                              # NOTE: data will now have a 'year' dimension instead of 'time'
+            data = pf.annual_mean(data, whole_years=True, time_name='time')
 
             # create a dataframe:
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
@@ -312,8 +311,7 @@ def amwg_table(adf):
             print(f"\t - Variable '{var}' being added to table")
             data = restom_dict[case_name]["FSNT"] - restom_dict[case_name]["FLNT"]
             # In order to get correct statistics, average to annual or seasonal
-            data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
-                                                                # NOTE: data will now have a 'year' dimension instead of 'time'
+            data = pf.annual_mean(data, whole_years=True, time_name='time')
             # These get written to our output file:
             stats_list = _get_row_vals(data)
             row_values = [var, restom_units] + stats_list
@@ -376,33 +374,7 @@ def _load_data(dataloc, varname):
 #####
 
 def _spatial_average(indata):
-    import xarray as xr
-    import numpy as np
-    import warnings
-
-    #Make sure there is no veritcal level dimension:
-    assert 'lev' not in indata.coords
-    assert 'ilev' not in indata.coords
-
-    #Calculate spatial weights:
-    if 'lat' in indata.coords:
-        weights = np.cos(np.deg2rad(indata.lat))
-        weights.name = "weights"
-    elif 'ncol' in indata.coords:
-        warnings.warn("We need a way to get area variable. Using equal weights.")
-        weights = xr.DataArray(1.)
-        weights.name = "weights"
-    else:
-        weights = xr.DataArray(1.)
-        weights.name = "weights"
-    #End if
-
-    #Apply weights to input data:
-    weighted = indata.weighted(weights)
-
-    # we want to average over all non-time dimensions
-    avgdims = [dim for dim in indata.dims if dim != 'time']
-    return weighted.mean(dim=avgdims)
+    return pf.spatial_average(indata)
 
 #####
 
