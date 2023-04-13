@@ -433,6 +433,11 @@ class AdfDiag(AdfWeb):
             #Note: could use `open_mfdataset`, but that can become very slow;
             #      This approach effectively assumes that all files contain the same variables.
 
+            #Check if the files contain information for RESTOM:
+            lwnet_name = "FLNT"
+            swnet_name = "FSNT"
+            has_restom_data = (lwnet_name in hist_file_var_list) and (swnet_name in hist_file_var_list)  #RESTOM = FSNT-FLNT
+
             #Check what kind of vertical coordinate (if any) is being used for this model run:
             #------------------------
             if 'lev' in hist_file_ds:
@@ -585,6 +590,31 @@ class AdfDiag(AdfWeb):
                 _ = mpool.map(call_ncrcat, list_of_commands)
             #End with
 
+            #Make a time series file for RESTOM
+            if has_restom_data:
+                import netCDF4  # netCDF4.default_fillvals is a dict of default fill values
+                longwavenet = ts_dir[case_idx] + os.sep + \
+                ".".join([case_name, hist_str, lwnet_name, time_string, "nc" ])
+                shortwavenet = ts_dir[case_idx] + os.sep + \
+                ".".join([case_name, hist_str, swnet_name, time_string, "nc" ])
+                restom_fil = ts_dir[case_idx] + os.sep + \
+                ".".join([case_name, hist_str, "RESTOM", time_string, "nc" ])
+                # combine into a single file
+                tmp1 = xr.open_dataset(longwavenet)
+                tmp2 = xr.open_dataset(shortwavenet)
+                tmp3 = tmp2[swnet_name]-tmp1[lwnet_name]
+                tmp3.name = "RESTOM"
+                tmp3.attrs['long_name'] = "residual radiative flux at top of model"
+                enc = {}
+                if not isinstance(tmp3, xr.Dataset):
+                    tmp3 = tmp3.to_dataset()
+                for dv in tmp3.data_vars:
+                    if tmp3[dv].dtype == 'float32':
+                        enc[dv] = {"_FillValue":netCDF4.default_fillvals['f8'],
+                                "zlib": False}
+                for cv in tmp3.coords:
+                    enc[cv] = {'zlib': False, '_FillValue': None}
+                tmp3.to_netcdf(restom_fil, encoding=enc)
         #End cases loop
 
         #Notify user that script has ended:
