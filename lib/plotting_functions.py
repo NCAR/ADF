@@ -1658,7 +1658,7 @@ def multi_latlon_plots(wks, ptype, case_names, nicknames, multi_dict, web_catego
 
         multi_dict: ordered dictionary of difference data for each var, test case, and season
                 multi_dict[var][case_name][s]
-        
+
         web_category:
                 variable category
 
@@ -1666,31 +1666,38 @@ def multi_latlon_plots(wks, ptype, case_names, nicknames, multi_dict, web_catego
                 Needed to test if redo_plot is called in config yaml file
     """
 
-    
+
     nplots = len(nicknames[0])
     if nplots > 2:
         ncols = 3
     else:
         ncols = 2
+    #End if
 
-    # Check redo_plot. If set to True: remove old plot, if it already exists:
+    #Check redo_plot. If set to True: remove old plot, if it already exists:
     redo_plot = adfobj.get_basic_info('redo_plot')
+
+    #Determine needed matplotlib normalization function:
+    normfunc,_ = use_this_norm()
 
     #Try and format spacing based on number of cases
     # NOTE: ** this will have to change if figsize or dpi change **
     if nplots < 4:
         hspace = -1.0
     else:
-        hspace = -0.85    
+        hspace = -0.85
+    #End if
 
     nrows = int(np.ceil(nplots/ncols))
     if nrows == 1:
         y_title = 0.265
     else:
         y_title = 0.315
+    #End if
 
     if nrows < 2:
         nrows = 2
+    #End if
 
     # specify the central longitude for the plot
     central_longitude = get_central_longitude(adfobj)
@@ -1719,8 +1726,6 @@ def multi_latlon_plots(wks, ptype, case_names, nicknames, multi_dict, web_catego
 
                         #Set figure title
                         plt.suptitle(f'All Case Comparison (Test - Baseline)  {var}: {season}\n', fontsize=16, y=y_title)#y=0.325 y=0.225
-                        
-                        normfunc,_ = use_this_norm()
 
                         count = 0
                         img = []
@@ -1746,8 +1751,8 @@ def multi_latlon_plots(wks, ptype, case_names, nicknames, multi_dict, web_catego
 
                                     cmap = multi_dict[var][case_names[count]][season]["vres"]['diff_colormap']
 
-                                    img.append(axs[r,c].contourf(lons, lats, mwrap, levels=levelsdiff, 
-                                                    cmap=cmap, norm=normdiff, 
+                                    img.append(axs[r,c].contourf(lons, lats, mwrap, levels=levelsdiff,
+                                                    cmap=cmap, norm=normdiff,
                                                     transform=proj))
 
                                     #Set individual plot titles (case name/nickname)
@@ -1772,10 +1777,10 @@ def multi_latlon_plots(wks, ptype, case_names, nicknames, multi_dict, web_catego
                         fig.colorbar(img[-1], ax=axs.ravel().tolist(), orientation='horizontal',
                                     aspect=20, shrink=.5, location="bottom",
                                     anchor=(0.5,-0.3), extend='both')
-                            
+
                         #Clean up the spacing a bit
                         plt.subplots_adjust(wspace=0.3, hspace=hspace)
-        
+
                         fig.savefig(wks / file_name, bbox_inches='tight', dpi=300)
 
                         adfobj.add_website_data(wks / file_name, file_name, case_names[0], plot_ext="global_latlon_map",

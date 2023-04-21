@@ -123,10 +123,12 @@ class AdfInfo(AdfConfig):
         case_names = self.get_cam_info('cam_case_name', required=True)
 
         #Grab test case nickname(s)
-        test_nicknames = self.get_cam_info('case_nickname', required=True)
+        test_nicknames = self.get_cam_info('case_nickname')
         if test_nicknames is None:
             for idx,case_name in enumerate(case_names):
                 test_nicknames[idx] = case_name
+            #End for
+        #End if
 
         #Check if a CAM vs AMWG obs comparison is being performed:
         if self.__compare_obs:
@@ -180,6 +182,7 @@ class AdfInfo(AdfConfig):
             base_nickname = self.get_baseline_info('case_nickname')
             if base_nickname == None:
                 base_nickname = data_name
+            #End if
 
             data_name += f"_{syear_baseline}_{eyear_baseline}"
         #End if
@@ -233,7 +236,7 @@ class AdfInfo(AdfConfig):
                     eyears[case_idx] = int(case_climo_yrs[-1])
                 #End if
             #End if
-            
+
             #Append climo years to case directory
             case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
 
@@ -246,7 +249,7 @@ class AdfInfo(AdfConfig):
                 first_case_dir = direc_name
             #End if
         #End for
-        
+
         #Initialize case climo years:
         self.__syears = syears
         self.__eyears = eyears
@@ -407,24 +410,20 @@ class AdfInfo(AdfConfig):
     @property
     def case_nicknames(self):
         """Return the test case and baseline nicknames to the user if requested."""
-
-        #Note that copies are needed in order to avoid having a script mistakenly
-        #modify these variables, as they are mutable and thus passed by reference:
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable, as it is mutable and thus passed by reference:
         test_nicknames = copy.copy(self.__test_nicknames)
-        base_nickname = copy.copy(self.__base_nickname)
 
-        return {"test_nicknames":test_nicknames,"base_nickname":base_nickname}
+        return {"test_nicknames":test_nicknames,"base_nickname":self.__base_nickname}
 
     # Create property needed to return the multi-case directories to scripts:
     @property
     def main_site_paths(self):
         """Return the directories for multi-case diags if applicable."""
-        main_site_path = copy.copy(self.__main_site_path) #Send copies so a script doesn't modify the original
-        main_site_assets_path = copy.copy(self.__main_site_assets_path)
-        main_site_img_path = copy.copy(self.__main_site_img_path)
 
-        return {"main_site_path":main_site_path, "main_site_assets_path":main_site_assets_path,
-                "main_site_img_path":main_site_img_path}
+        return {"main_site_path":self.__main_site_path,
+                "main_site_assets_path":self.__main_site_assets_path,
+                "main_site_img_path":self.__main_site_img_path}
 
     #########
 

@@ -391,8 +391,8 @@ class AdfWeb(AdfObs):
         if multi_case_plots:
             #Grab all variables for each multi-case plot type
             mvars = []
-            #ext are plot type extentions (keys for multi-case plots)
-            #var_list should be a list of all vars for each plot map extentions
+            #ext are plot type extensions (keys for multi-case plots)
+            #var_list should be a list of all vars for each plot map extensions
             #var is iterative for all plot map extensions
             for multi_var_list in [multi_case_plots[ext] for ext in multi_case_plots]:
                 for var in multi_var_list:
@@ -722,7 +722,7 @@ class AdfWeb(AdfObs):
 
                     #Reuse the rend_kwarg_dict, but ignore certain keys
                     #since all others are the same
-                    new_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'table_name', 'table_html'}}    
+                    new_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'table_name', 'table_html'}}
 
                     if main_site_path:
                         plot_types = multi_plot_type_html
@@ -1030,7 +1030,7 @@ class AdfWeb(AdfObs):
                                                     "mydata": multi_plot_html_info[ptype],
                                                     "plot_types": multi_plot_type_html,
                                                     "multi": multi_layout,
-                                                    "case_sites": case_sites} 
+                                                    "case_sites": case_sites}
 
                                 multimean = f"plot_page_multi_case_{var}_{season}_{ptype}_Mean.html"
                                 if not (img_pages_dir / multimean).exists():
@@ -1111,7 +1111,7 @@ class AdfWeb(AdfObs):
                                             "mydata": multi_mean_html_info[ptype],
                                             "plot_types": multi_plot_type_html,
                                             "multi": multi_layout,
-                                            "case_sites": case_sites}                                    
+                                            "case_sites": case_sites}
 
                         multimean = f"plot_page_multi_case_{var}_{season}_{ptype}_Mean.html"
                         if not (img_pages_dir / multimean).exists():

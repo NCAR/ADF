@@ -54,7 +54,7 @@ def amwg_table(adf):
 
     #Import necessary modules:
     from adf_base import AdfError
-    
+
 
 
     #Additional information:
@@ -157,7 +157,7 @@ def amwg_table(adf):
 
         #Generate input file path:
         input_location = Path(input_ts_locs[case_idx])
-        
+
         #Add output paths for csv files
         csv_locs.append(output_locs[case_idx])
 
@@ -238,12 +238,12 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
                                                               # NOTE: data will now have a 'year' dimension instead of 'time'
-            
+
             # create a dataframe:
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                     'standard error', '95% CI', 'trend', 'trend p-value']
-            
-            # These get written to our output file: 
+
+            # These get written to our output file:
             stats_list = _get_row_vals(data)
             row_values = [var, unit_str] + stats_list
 
@@ -271,8 +271,8 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
                                                                 # NOTE: data will now have a 'year' dimension instead of 'time'
-            # These get written to our output file: 
-            stats_list = _get_row_vals(data) 
+            # These get written to our output file:
+            stats_list = _get_row_vals(data)
             row_values = [var, restom_units] + stats_list
             # col (column) values declared above
 
@@ -377,16 +377,16 @@ def _spatial_average(indata):
 
 #####
 
-def _get_row_vals(data):    
+def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:
- 
+
     data_mean = data.data.mean()
     #Conditional Formatting depending on type of float
     if np.abs(data_mean) < 1:
         formatter = ".3g"
     else:
         formatter = ".3f"
-  
+
     data_sample = len(data)
     data_std = data.std()
     data_sem = data_std / data_sample
@@ -407,10 +407,10 @@ def _df_comp_table(adf, output_location, base_output_location, case_names):
     """
     Function to build case vs baseline AMWG table
     -----
-        - Read in table data and create side by side comaprison table
+        - Read in table data and create side by side comparison table
         - Write output to csv file and add to website
     """
-    
+
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
 
     case = output_location/f"amwg_table_{case_names[0]}.csv"
@@ -428,7 +428,7 @@ def _df_comp_table(adf, output_location, base_output_location, case_names):
     df_comp = pd.DataFrame(dtype=object)
     df_comp[['variable','unit','case']] = df_merge[['variable','unit_x','mean_x']]
     df_comp['baseline'] = df_merge[['mean_y']]
-    
+
     diffs = df_comp['case'].values-df_comp['baseline'].values
     df_comp['diff'] = [f'{i:.3g}' if np.abs(i) < 1 else f'{i:.3f}' for i in diffs]
 
@@ -443,7 +443,7 @@ def _df_comp_table(adf, output_location, base_output_location, case_names):
 
 def _df_multi_comp_table(adf, csv_locs, case_names, test_nicknames):
     """
-    Function to build all case comparison AMWG table
+    Function to build comparison AMWG table for all cases
     ------
         - Read in each previously made table from file
           and compile full comparison.
@@ -464,10 +464,10 @@ def _df_multi_comp_table(adf, csv_locs, case_names, test_nicknames):
     df_base = pd.read_csv(baseline)
 
     #Read all test cases and add to table
-    for i,val in enumerate(csv_locs[:-1]): 
+    for i,val in enumerate(csv_locs[:-1]):
         case = str(val)+f"/amwg_table_{case_names[i]}.csv"
         df_case = pd.read_csv(case)
-        
+
         #If no custom nicknames, shorten column name to case number
         if test_nicknames[i] == case_names[i]:
             df_comp[['variable','unit',f"case {i+1}"]] = df_case[['variable','unit','mean']]
@@ -501,7 +501,7 @@ def _df_multi_comp_table(adf, csv_locs, case_names, test_nicknames):
                         formatter = ".3f"
                     #Replace value in dataframe
                     df_comp.at[idx,col]= f'{df_comp[col][idx]:{formatter}}   ({(df_comp[col][idx]-df_base["mean"][idx]):{formatter}})'
-        
+
     #Finally, write data to csv
     df_comp.to_csv(output_csv_file_comp, header=cols_comp, index=False)
 
