@@ -120,7 +120,7 @@ def qbo(adfobj):
     nyobs = np.floor(obs.time.size/12.)
     nycase = [ np.floor(casedat_5S_5N[i].time.size/12.) for i in range(0,ncases,1) ]
     nycase.append(nyobs)
-    minny = np.int(np.min(nycase))
+    minny = int(np.min(nycase))
 
     #----QBO timeseries plots
     fig = plt.figure(figsize=(16,16))

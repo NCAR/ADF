@@ -20,6 +20,10 @@
 # new_unit             -> Variable units (if not using the  "raw" model units).
 # mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
 #
+# mask                 -> Setting that specifies whether the variable should be masked.
+#                         Currently only accepts "ocean", which means the variable will be masked
+#                         everywhere that isn't open ocean.
+#
 #
 # OBSERVATIONS:
 #
@@ -488,7 +492,7 @@ SST:
   obs_name: "ERAI"
   obs_var_name: "TS"
   category: "Surface variables"
-
+  mask: "ocean"
 
 U10:
   category: "Surface variables"

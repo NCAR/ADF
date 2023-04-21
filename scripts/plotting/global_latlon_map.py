@@ -296,6 +296,10 @@ def global_latlon_map(adfobj):
                                 mdata['time']=timefix
                                 odata['time']=timefix
 
+                                #Create array to avoid weighting missing values:
+                                md_ones = xr.where(mdata.isnull(), 0.0, 1.0)
+                                od_ones = xr.where(odata.isnull(), 0.0, 1.0)
+
                                 #Calculate monthly weights based on number of days:
                                 month_length = mdata.time.dt.days_in_month
                                 weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
@@ -307,13 +311,22 @@ def global_latlon_map(adfobj):
                                     weights_ann = month_length / month_length.sum()
 
                                     mseasons[s] = (mdata * weights_ann).sum(dim='time')
+                                    mseasons[s] = mseasons[s] / (md_ones*weights_ann).sum(dim='time')
+
                                     oseasons[s] = (odata * weights_ann).sum(dim='time')
+                                    oseasons[s] = oseasons[s] / (od_ones*weights_ann).sum(dim='time')
                                     # difference: each entry should be (lat, lon)
                                     dseasons[s] = mseasons[s] - oseasons[s]
                                 else:
                                     #this is inefficient because we do same calc over and over
-                                    mseasons[s] =(mdata * weights).groupby("time.season").sum(dim="time").sel(season=s)
-                                    oseasons[s] =(odata * weights).groupby("time.season").sum(dim="time").sel(season=s)
+                                    mseasons[s] = (mdata * weights).groupby("time.season").sum(dim="time").sel(season=s)
+                                    wgt_denom = (md_ones*weights).groupby("time.season").sum(dim="time").sel(season=s)
+                                    mseasons[s] = mseasons[s] / wgt_denom
+
+                                    oseasons[s] = (odata * weights).groupby("time.season").sum(dim="time").sel(season=s)
+                                    wgt_denom = (od_ones*weights).groupby("time.season").sum(dim="time").sel(season=s)
+                                    oseasons[s] = oseasons[s] / wgt_denom
+
                                     # difference: each entry should be (lat, lon)
                                     dseasons[s] = mseasons[s] - oseasons[s]
                                 #End if
