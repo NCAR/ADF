@@ -65,10 +65,10 @@ user: 'USER-NAME-NOT-SET'
 diag_basic_info:
 
     #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries 
+    # Only affects timeseries as everything else uses timeseries
     # Leave off trailing '.'
     #Default: cam.h0
-    hist_str: cam.h0           
+    hist_str: cam.h0
 
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
@@ -151,6 +151,11 @@ diag_cam_climo:
     #Name of CAM case (or CAM run name):
     cam_case_name: b.e20.BHIST.f09_g17.20thC.297_05
 
+    #Case nickname
+    #If left blank, it will default to cam_case_name
+    # ** NOTE: if nickname starts with a zero, the string must be in quotes! **
+    case_nickname: ${diag_cam_climo.cam_case_name}
+
     #Location of CAM history (h0) files:
     #Example test files
     cam_hist_loc: /glade/p/cesm/ADF/${diag_cam_climo.cam_case_name}
@@ -200,6 +205,10 @@ diag_cam_climo:
     #cam_case_name:
     #    - b.e20.BHIST.f09_g17.20thC.297_05
     #    - b1850.f19_g17.validation_mct.004
+
+    #case_nickname:
+    #    - nickname 1
+    #    - "026c"
 
     #calc_cam_climo:
     #    - true
@@ -258,6 +267,11 @@ diag_cam_baseline_climo:
 
     #Name of CAM baseline case:
     cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
+
+    #Case nickname
+    #If left blank or if missing, nickname will default to baseline cam_case_name
+    # ** NOTE: if nickname starts with a zero, the string must be in quotes! **
+    case_nickname: ${diag_cam_baseline_climo.cam_case_name}
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -376,6 +390,15 @@ diag_var_list:
     - LANDFRAC
 
 #<Add more variables here.>
+
+# Make mulit-plot comparison image for specified plots types
+# This will only run if there are more than one specified test cases declared above
+# NOTE: These plot types also need to be present above in the plotting_scripts section (for now) and variables in the diag_var_list
+# NOTE: Only global LatLon multi-case plots are available at this time - more are coming. JR
+multi_case_plots:
+    global_latlon_map:
+        - SST
+        - PSL
 
 # Options for multi-case regional contour plots (./plotting/regional_map_multicase.py)
 # region_multicase:

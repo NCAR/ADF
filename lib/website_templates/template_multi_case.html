@@ -1,32 +1,25 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ADF Mean Tables</title>
+    <title>ADF {{ var_title }}</title>
     <link rel="stylesheet" href="../templates/adf_diag.css">
   </head>
-  <body >
+  <body>
     <div class="header">
-      <div id="screenFiller" style="background:url(../templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
-          <div class="center"><h1> {{ title }}</h1></div>
+        <div id="screenFiller" style="background:url(../templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
+            <div class="center"><h1> {{ title }}</h1></div>
           <div class="center">
             <nav role="navigation" class="primary-navigation">
             <ul>
-              {% if multi_head==True %}
-              <li><a href="../index.html">Case Home</a></li>
-              <li><a href="../../index.html">Multi-Case Home</a></li>
-              {% elif multi_head=="Table" %}
               <li><a href="../index.html">Multi-Case Home</a></li>
-              {% else %}
-              <li><a href="../index.html">Case Home</a></li>
-              {% endif %}
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
-                    <li><a href=../{{ html_file }}> &nbsp; {{ type }}</a></li>
+                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a>
                   {% endfor %}
                 </ul>
               </li>
-                  <li><a href="#">Links &dtrif;</a>
+              <li><a href="#">Links &dtrif;</a>
                 <ul class="dropdown">
                   <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
                   <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
@@ -38,7 +31,6 @@
             </ul>
           </nav>
         </div><!--center-->
-        {% if multi==True %}
         <div><h3>Click on case name for that ADF case vs baseline page</h3></div>
         {% for case_name, case_dtls in case_sites.items() %}
         <h2 style="display:inline; color:black;"> Test Case {{ loop.index }}: </h2>
@@ -46,33 +38,44 @@
           <h2 style="display:inline; color:black;"> - years: {{ case_dtls[1] }} - {{ case_dtls[2] }}</h2><br>
         {% endfor %}
         <h2 style="display:inline; color:black;"> Baseline Case: </h2>
-          <h2 style="display:inline;">{{ base_name }}</h2>
+        <h2 style="display:inline;">{{ base_name }}</h2>
           <h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
-        {% else %}
-        <br>
-        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
-        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ base_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
-        {% endif %}
-      </div><!--screenFiller-->
     </div><!--header-->
 
     <div class="center">
-      <h1>AMWG Tables</h1>
-    </div>
+      <div class="float-container">
+        <div class="float-child">
+          <div><h1>{{ plottype_title }} - {{ var_title }}</h1></div>
+        </div><!--float-child-->
+        <div class="float-child">
+          <div><button><a href="multi_case_mean_diag_{{ plottype_title }}.html">Back to {{ plottype_title }}</a></button><button><a href="../index.html">Back to Plot Types</a></button></div>
+        </div><!--float-child-->
+      </div><!--float-container-->
+    </div><!--center-->
 
-    <div style="width: 100%;">
-      <table class="big-table">
-        {% for case_name, html_file in amwg_tables.items() %}
-          <tr>
-            <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
-          </tr>
+    <div style="width: 100%;"> <!-- main div-->
+      <div class="grid-container-template" style="border: 3px solid black">
+        {% for category, var_seas in mydata.items() %}
+        {% for var_name, seas_files in var_seas.items() %}
+        {% if var_name == var_title %}
+        {% for season_name, file_name in seas_files.items() %}
+        <div class="grid-item">
+          <a href="../html_img/{{ file_name }}">{{ season_name }}</a>
+        </div><!--grid-item-->
         {% endfor %}
-      </table>
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+      </div><!--grid-container-->
 
-        <!-- Main Table HTML -->
-        <h3> {{ table_name }} </h3>
-        {{ table_html }}
-    </div>
+      <div id="footer">
+        <div class="center"><!--bottom div -->
+          <a href="{{ imgs[0] }}" target="_blank">
+            <img src="{{ imgs[0] }}" alt="{{ imgs[1] }}"></img>
+          </a>
+        </div> <!-- end bottom div -->
+      </div><!--footer-->
+    </div> <!-- end main div -->
 
   </body>
 </html>

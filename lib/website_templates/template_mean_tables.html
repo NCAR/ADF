@@ -11,11 +11,18 @@
           <div class="center">
             <nav role="navigation" class="primary-navigation">
             <ul>
+              {% if multi_head==True %}
               <li><a href="../index.html">Case Home</a></li>
+              <li><a href="../../index.html">Multi-Case Home</a></li>
+              {% elif multi_head=="Table" %}
+              <li><a href="../index.html">Multi-Case Home</a></li>
+              {% else %}
+              <li><a href="../index.html">Case Home</a></li>
+              {% endif %}
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
-                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a></li>
+                    <li><a href=../{{ html_file }}> &nbsp; {{ type }}</a></li>
                   {% endfor %}
                 </ul>
               </li>
@@ -31,9 +38,21 @@
             </ul>
           </nav>
         </div><!--center-->
+        {% if multi==True %}
+        <div><h3>Click on case name for that ADF case vs baseline page</h3></div>
+        {% for case_name, case_dtls in case_sites.items() %}
+        <h2 style="display:inline; color:black;"> Test Case {{ loop.index }}: </h2>
+          <h2 style="display:inline;"><a href="../{{ case_dtls[0] }}">{{ case_name }}</a></h2>
+          <h2 style="display:inline; color:black;"> - years: {{ case_dtls[1] }} - {{ case_dtls[2] }}</h2><br>
+        {% endfor %}
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2>
+        <h2 style="display:inline;">{{ base_name }}</h2>
+          <h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+        {% else %}
         <br>
-        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
-        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ base_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+        {% endif %}
       </div><!--screenFiller-->
     </div><!--header-->
 
@@ -42,13 +61,13 @@
     </div>
 
     <div style="width: 100%;">
-        <table class="big-table">
-          {% for case_name, html_file in amwg_tables.items() %}
-            <tr>
-              <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
-            </tr>
-          {% endfor %}
-        </table>
+      <table class="big-table">
+        {% for case_name, html_file in amwg_tables.items() %}
+          <tr>
+            <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
+          </tr>
+        {% endfor %}
+      </table>
     </div>
 
   </body>

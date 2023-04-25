@@ -11,7 +11,10 @@
           <div class="center">
             <nav role="navigation" class="primary-navigation">
             <ul>
-              <li><a href="index.html">Case Home</a></li>
+              <li><a href="./index.html">Case Home</a></li>
+              {% if multi==True %}
+              <li><a href="../index.html">Multi-Case Home</a></li>
+              {% endif %}
               <li><a href="#">Links &dtrif;</a>
                 <ul class="dropdown">
                   <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
@@ -25,8 +28,8 @@
           </nav>
         </div><!--center-->
         <br>
-        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
-        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ base_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
       </div><!--screenFiller-->
     </div><!--header-->
 

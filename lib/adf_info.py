@@ -116,6 +116,16 @@ class AdfInfo(AdfConfig):
         #Initialize "compare_obs" variable:
         self.__compare_obs = self.get_basic_info('compare_obs')
 
+        #Case names:
+        case_names = self.get_cam_info('cam_case_name', required=True)
+
+        #Grab test case nickname(s)
+        test_nicknames = self.get_cam_info('case_nickname')
+        if test_nicknames is None:
+            #If no nicknames exist, then just set to case names
+            test_nicknames = case_names
+        #End if
+
         #Check if a CAM vs AMWG obs comparison is being performed:
         if self.__compare_obs:
 
@@ -125,6 +135,7 @@ class AdfInfo(AdfConfig):
 
             #Also set data name for use below:
             data_name = "Obs"
+            base_nickname = "Obs"
 
             #Set the baseline years to empty strings:
             syear_baseline = ""
@@ -154,20 +165,32 @@ class AdfInfo(AdfConfig):
                 base_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
 
                 if syear_baseline is None:
-                    print(f"No given start year for {data_name}, using first found year...")
+                    print(f"\nNo given start year for {data_name}, using first found year...")
                     syear_baseline = int(base_climo_yrs[0])
                 #End if
                 if eyear_baseline is None:
-                    print(f"No given end year for {data_name}, using last found year...")
+                    print(f"No given end year for {data_name}, using last found year...\n")
                     eyear_baseline = int(base_climo_yrs[-1])
                 #End if
+            #End if
+
+            #Grab baseline nickname
+            base_nickname = self.get_baseline_info('case_nickname')
+            if base_nickname == None:
+                base_nickname = data_name
             #End if
 
             data_name += f"_{syear_baseline}_{eyear_baseline}"
         #End if
 
+        #Initialize case nicknames:
+        self.__test_nicknames = test_nicknames
+        self.__base_nickname = base_nickname
+
+        #Initialize baseline climo years:
         self.__syear_baseline = syear_baseline
         self.__eyear_baseline = eyear_baseline
+
         #Create plot location variable for potential use by the website generator.
         #Please note that this is also assumed to be the output location for the analyses scripts:
         #-------------------------------------------------------------------------
@@ -175,9 +198,6 @@ class AdfInfo(AdfConfig):
 
         #Plot directory:
         plot_dir = self.get_basic_info('cam_diag_plot_loc', required=True)
-
-        #Case names:
-        case_names = self.get_cam_info('cam_case_name', required=True)
 
         #Start years (not currently required):
         syears = self.get_cam_info('start_year')
@@ -200,7 +220,6 @@ class AdfInfo(AdfConfig):
         for case_idx, case_name in enumerate(case_names):
 
             if syears[case_idx] is None or eyears[case_idx] is None:
-                print(f"No given climo years for {case_name}...")
                 starting_location = Path(cam_hist_locs[case_idx])
                 files_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 case_climo_yrs = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
@@ -214,6 +233,7 @@ class AdfInfo(AdfConfig):
                 #End if
             #End if
 
+            #Append climo years to case directory
             case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
 
             #Set the final directory name and save it to plot_location:
@@ -224,11 +244,27 @@ class AdfInfo(AdfConfig):
             if case_idx == 0:
                 first_case_dir = direc_name
             #End if
-
         #End for
 
+        #Initialize case climo years:
         self.__syears = syears
         self.__eyears = eyears
+
+        #Make directoriess for multi-case diagnostics if applicable
+        if len(case_names) > 1:
+            multi_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
+            multi_path.mkdir(parents=True, exist_ok=True)
+            main_site_path = multi_path / "main_website"
+            main_site_path.mkdir(exist_ok=True)
+            main_site_assets_path = main_site_path / "assets"
+            main_site_assets_path.mkdir(exist_ok=True)
+            main_site_img_path = main_site_path / "html_img"
+            main_site_img_path.mkdir(exist_ok=True)
+
+            #Initialize multi-case directories:
+            self.__main_site_path = main_site_path
+            self.__main_site_assets_path = main_site_assets_path
+            self.__main_site_img_path = main_site_img_path
 
         #Finally add baseline case (if applicable) for use by the website table
         #generator.  These files will be stored in the same location as the first
@@ -365,6 +401,25 @@ class AdfInfo(AdfConfig):
         eyears = copy.copy(self.__eyears)
         return {"syears":syears,"eyears":eyears,
                 "syear_baseline":self.__syear_baseline, "eyear_baseline":self.__eyear_baseline}
+
+    # Create property needed to return the climo start (syear) and end (eyear) years to user:
+    @property
+    def case_nicknames(self):
+        """Return the test case and baseline nicknames to the user if requested."""
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable, as it is mutable and thus passed by reference:
+        test_nicknames = copy.copy(self.__test_nicknames)
+
+        return {"test_nicknames":test_nicknames,"base_nickname":self.__base_nickname}
+
+    # Create property needed to return the multi-case directories to scripts:
+    @property
+    def main_site_paths(self):
+        """Return the directories for multi-case diags if applicable."""
+
+        return {"main_site_path":self.__main_site_path,
+                "main_site_assets_path":self.__main_site_assets_path,
+                "main_site_img_path":self.__main_site_img_path}
 
     #########
 
