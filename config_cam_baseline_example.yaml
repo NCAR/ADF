@@ -65,10 +65,10 @@ user: 'USER-NAME-NOT-SET'
 diag_basic_info:
 
     #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries 
+    # Only affects timeseries as everything else uses timeseries
     # Leave off trailing '.'
     #Default: cam.h0
-    hist_str: cam.h0           
+    hist_str: cam.h0
 
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
@@ -206,7 +206,7 @@ diag_cam_climo:
     #    - b.e20.BHIST.f09_g17.20thC.297_05
     #    - b1850.f19_g17.validation_mct.004
 
-    #case_nickname: 
+    #case_nickname:
     #    - nickname 1
     #    - "026c"
 
