@@ -474,9 +474,6 @@ PS:
   mpl:
     colorbar:
       label : "hPa"
-  # obs_file: "ERAI_all_climo.nc"
-  # obs_name: "ERAI"
-  obs_var_name: "PS"
   category: "Surface variables"
   obs_file: "PS_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
@@ -595,9 +592,6 @@ U:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
-  # obs_file: "ERAI_all_climo.nc"
-  # obs_name: "ERAI"
-  # obs_var_name: "U"
   obs_file: "U_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "U"
@@ -616,9 +610,6 @@ V:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
-  # obs_file: "ERAI_all_climo.nc"
-  # obs_name: "ERAI"
-  # obs_var_name: "V"
   obs_file: "V_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "V"
