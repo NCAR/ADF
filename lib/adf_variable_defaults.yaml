@@ -203,6 +203,9 @@ ZMDT:
 
 CAPE:
   category: "Deep Convection"
+  obs_file: "CAPE_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "CAPE"
 
 CMFMC_DP:
   category: "Deep Convection"
@@ -259,9 +262,15 @@ N2O:
 
 CLDICE:
   category: "Clouds"
+  obs_file: "CLDICE_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "CLDICE"
 
 CLDLIQ:
   category: "Clouds"
+  obs_file: "CLDLIQ_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "CLDLIQ"
 
 CLDTOT:
   colormap: "Oranges"
@@ -343,6 +352,9 @@ TGCLDLWP:
     colorbar:
       label : "g m$^{-2}$"
   category: "Clouds"
+  obs_file: "TGCLDLWP_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TGCLDLWP"
 
 TGCLDIWP:
   colormap: "Blues"
@@ -356,6 +368,9 @@ TGCLDIWP:
     colorbar:
       label : "g m$^{-2}$"
   category: "Clouds"
+  obs_file: "TGCLDIWP_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TGCLDIWP"
 
 CCN3:
   category: "Clouds"
@@ -428,6 +443,9 @@ QFLX:
 
 PBLH:
   category: "Surface variables"
+  obs_file: "PBLH_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "PBLH"
 
 PSL:
   colormap: "Oranges"
@@ -441,6 +459,9 @@ PSL:
     colorbar:
       label : "hPa"
   category: "Surface variables"
+  obs_file: "PSL_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "PSL"
 
 PS:
   colormap: "Oranges"
@@ -453,13 +474,16 @@ PS:
   mpl:
     colorbar:
       label : "hPa"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "PS"
   category: "Surface variables"
+  obs_file: "PS_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "PS"
 
 TREFHT:
   category: "Surface variables"
+  obs_file: "TREFHT_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TREFHT"
 
 TS:
   colormap: "Blues"
@@ -568,8 +592,8 @@ U:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
+  obs_file: "U_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
   obs_var_name: "U"
   vector_pair: "V"
   vector_name: "Wind"
@@ -586,8 +610,8 @@ V:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
+  obs_file: "V_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
   obs_var_name: "V"
   vector_pair: "U"
   vector_name: "Wind"
@@ -595,12 +619,21 @@ V:
 
 Q:
   category: "State"
+  obs_file: "Q_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "Q"
 
 T:
   category: "State"
+  obs_file: "T_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "T"
 
 OMEGA:
   category: "State"
+  obs_file: "OMEGA_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "OMEGA"
 
 OMEGA500:
   category: "State"
