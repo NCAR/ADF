@@ -222,12 +222,13 @@ def zonal_mean(adfobj):
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
-                has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
-
+                vdims = pf.get_vert_dims(mdata)                
                 #Notify user of level dimension:
-                if has_lev:
-                    print(f"\t   {var} has lev dimension.")
-
+                if vdims:
+                    print(f"\t   {var} has vertical dimension named {vdims}.")
+                    has_lev = True
+                else:
+                    has_lev = False
                 #
                 # Seasonal Averages
                 #

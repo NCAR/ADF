@@ -1067,8 +1067,13 @@ def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
 def zonal_mean_xr(fld):
     """Average over all dimensions except `lev` and `lat`."""
     if isinstance(fld, xr.DataArray):
+        vdims = get_vert_dims(fld)
+        if len(vdims) > 1:
+            print(f"WARNING: zonal_mean_xr identified {len(vdims)} vertical dimensions: {vdims}")
         d = fld.dims
-        davgovr = [dim for dim in d if dim not in ('lev','lat')]
+        keepdims = vdims
+        keepdims.append('lat')
+        davgovr = [dim for dim in d if dim not in keepdims]
     else:
         raise IOError("zonal_mean_xr requires Xarray DataArray input.")
     return fld.mean(dim=davgovr)
@@ -1192,8 +1197,8 @@ def _zonal_plot_preslat(ax, lat, lev, data, **kwargs):
         cmap = kwargs.pop('cmap')
     else:
         cmap = 'Spectral_r'
-
-    img = ax.contourf(mlat, mlev, data.transpose('lat', 'lev'), cmap=cmap, **kwargs)
+    vdims = get_vert_dims(data)
+    img = ax.contourf(mlat, mlev, data.transpose('lat', vdims[0]), cmap=cmap, **kwargs)
 
     minor_locator = mpl.ticker.FixedLocator(lev)
     ax.yaxis.set_minor_locator(minor_locator)
@@ -1229,8 +1234,9 @@ def zonal_plot(lat, data, ax=None, color=None, **kwargs):
     """
     if ax is None:
         ax = plt.gca()
-    if 'lev' in data.dims:
-        img, ax = _zonal_plot_preslat(ax, lat, data['lev'], data, **kwargs)
+    vdims = get_vert_dims(data)
+    if vdims:
+        img, ax = _zonal_plot_preslat(ax, lat, data[vdims[0]], data, **kwargs)
         return img, ax
     else:
         ax = _zonal_plot_line(ax, lat, data, color, **kwargs)
