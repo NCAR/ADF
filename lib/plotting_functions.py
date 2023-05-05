@@ -41,6 +41,9 @@ seasons = {"ANN": np.arange(1,13,1),
             "SON": [9, 10, 11]
             }
 
+#Lists of known vertical & horizontal dimension names
+vertical_dims = ['lev', 'ilev', 'cosp_ht']
+horizontal_dims = ['lat', 'lon', 'ncol'] # include ncol even though we mostly can't deal with it yet
             
 #################
 #HELPER FUNCTIONS
@@ -1071,6 +1074,24 @@ def zonal_mean_xr(fld):
     return fld.mean(dim=davgovr)
 
 
+def get_vert_dims(fld):
+    """Return list of dimensions in fld that are in list of known vertical dimensions.
+
+    input
+        fld -> DataArray with named dimensions (fld.dims)
+    """
+    return [d for d in fld.dims if d in vertical_dims]
+
+
+def get_horiz_dims(fld):
+    """Return list of dimensions in fld that are in list of known horizontal dimensions.
+
+    input
+        fld -> DataArray with named dimensions (fld.dims)
+    """
+    return [d for d in fld.dims if d in horizontal_dims]
+
+
 def validate_dims(fld, list_of_dims):
     """Generalized function to check if specified dimensions are in a DataArray.
 
@@ -1183,6 +1204,9 @@ def _zonal_plot_preslat(ax, lat, lev, data, **kwargs):
 
 def _meridional_plot_preslon(ax, lon, lev, data, **kwargs):
     """Create plot with longitude as the X-axis, and pressure as the Y-axis."""
+    vdims = get_vert_dims(data)
+    if len(vdims) > 1:
+        print(f"WARNING: data has more than one identified vertical dimension: {vdims} -> only first one is used.")
 
     mlev, mlon = np.meshgrid(lev, lon)
     if 'cmap' in kwargs:
@@ -1190,7 +1214,7 @@ def _meridional_plot_preslon(ax, lon, lev, data, **kwargs):
     else:
         cmap = 'Spectral_r'
 
-    img = ax.contourf(mlon, mlev, data.transpose('lon', 'lev'), cmap=cmap, **kwargs)
+    img = ax.contourf(mlon, mlev, data.transpose('lon', vdims[0]), cmap=cmap, **kwargs)
 
     minor_locator = mpl.ticker.FixedLocator(lev)
     ax.yaxis.set_minor_locator(minor_locator)
@@ -1217,10 +1241,13 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
     Determine which kind of meridional plot is needed based
     on the input variable's dimensions.
     """
+    vdims = get_vert_dims(data)
+    if len(vdims) > 1:
+        print(f"WARNING: data has more than one identified vertical dimension: {vdims} -> only first one is used.")
     if ax is None:
         ax = plt.gca()
-    if 'lev' in data.dims:
-        img, ax = _meridional_plot_preslon(ax, lon, data['lev'], data, **kwargs)
+    if vdims:
+        img, ax = _meridional_plot_preslon(ax, lon, data[vdims[0]], data, **kwargs)
         return img, ax
     else:
         ax = _meridional_plot_line(ax, lon,  data, color, **kwargs)
@@ -1598,7 +1625,15 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         ax[-1].set_xlabel("LONGITUDE")
         if cp_info['plot_log_p']:
             [a.set_yscale("log") for a in ax]
-        fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
+        
+        #Label as pressure when lev or ilev are the vertical dimension
+        vdims = get_vert_dims(adata)
+        if len(vdims) > 1:
+            print(f"WARNING: data has more than one identified vertical dimension: {vdims} -> only first one is used.")
+        elif len(vdims) == 0:
+            print(f"WARNING: data has no identified vertical levels. plot_meridional_mean_and_save is confused.")
+        if vdims[0] in ['lev','ilev']:
+            fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
 
     else:
         line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",

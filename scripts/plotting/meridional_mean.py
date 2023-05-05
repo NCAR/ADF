@@ -199,7 +199,9 @@ def meridional_mean(adfobj):
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
-                validate_lat_lev = pf.validate_dims(mdata, ['lat', 'lev']) # keys=> 'has_lat', 'has_lev', with T/F values
+                vdims = pf.get_vert_dims(mdata)
+                validate_lat_lev = pf.validate_dims(mdata, vdim) # keys=> 'has_lat', 'has_lev', with T/F values
+                
 
                 #Notify user of level dimension:
                 if validate_lat_lev['has_lev']:
