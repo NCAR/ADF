@@ -213,7 +213,7 @@ def spatial_average(indata, weights=None, spatial_dims=None):
         if 'ncol' in indata.dims:
             spatial_dims = ['ncol']
         else:
-            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or ('lon' in dimname.lower))]
+            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or ('lon' in dimname.lower()))]
 
     if not spatial_dims:
         warnings.warn("No spatial dimensions were identified, so can not perform average.")
