@@ -223,8 +223,9 @@ def amwg_table(adf):
                 unit_str = '--'
 
             #Check if variable has a vertical coordinate:
-            if np.any([d in ['ilev','lev','cosp_ht'] for d in data.dims]):
-                print(f"\t   Variable '{var}' has a vertical dimension, "+\
+            vdims = pf.get_vert_dims(mdata)   
+            if vdims:
+                print(f"\t   Variable '{var}' has a vertical dimension(s): {vdims}, "+\
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
