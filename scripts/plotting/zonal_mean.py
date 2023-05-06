@@ -64,7 +64,7 @@ def zonal_mean(adfobj):
     eyear_cases = adfobj.climo_yrs["eyears"]
 
     #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
+    test_nicknames = adfobj.get_cam_info('case_nickname')  # RECOMMEND get_cam_info('case_nickname') should default to case_names
     if test_nicknames == None:
         test_nicknames = case_names
 
@@ -81,7 +81,7 @@ def zonal_mean(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("\t No observations found to plot against, so no zonal-mean maps will be generated.")
+            print("\t No observations found to plot against, so no zonal-mean plots will be generated.")
             return
 
     else:
