@@ -157,25 +157,19 @@ class AdfInfo(AdfConfig):
 
                 #Check if start or end year is missing.  If so then just assume it is the
                 #start or end of the entire available model data.
-                if syear_baseline is None or eyear_baseline is None:
-                    if syear_baseline is None:
-                        print(f"No given start year for {data_name}, using first found year...")
-                        syear_baseline = int(base_climo_yrs[0])
-                    #End if
-                    if eyear_baseline is None:
-                        print(f"No given end year for {data_name}, using last found year...")
-                        eyear_baseline = int(base_climo_yrs[-1])
-                    #End if
-                else:
-                    if str(syear_baseline) not in base_climo_yrs:
-                        print(f"Given start year '{syear_baseline}' is not in current dataset {data_name}, using first found year:",base_climo_yrs[0],"\n")
-                        syear_baseline = int(base_climo_yrs[0])
-                    #End if
-
-                    if str(eyear_baseline) not in base_climo_yrs:
-                        print(f"Given end year '{eyear_baseline}' is not in current dataset {data_name}, using last found year:",base_climo_yrs[-1],"\n")
-                        eyear_baseline = int(base_climo_yrs[-1])
-                    #End if
+                if syear_baseline is None:
+                    print(f"No given start year for {data_name}, using first found year...")
+                    syear_baseline = int(base_climo_yrs[0])
+                elif str(syear_baseline) not in base_climo_yrs:
+                    print(f"Given start year '{syear_baseline}' is not in current dataset {data_name}, using first found year:",base_climo_yrs[0],"\n")
+                    syear_baseline = int(base_climo_yrs[0])
+                #End if
+                if eyear_baseline is None:
+                    print(f"No given end year for {data_name}, using last found year...")
+                    eyear_baseline = int(base_climo_yrs[-1])
+                elif str(eyear_baseline) not in base_climo_yrs:
+                    print(f"Given end year '{eyear_baseline}' is not in current dataset {data_name}, using last found year:",base_climo_yrs[-1],"\n")
+                    eyear_baseline = int(base_climo_yrs[-1])
                 #End if
             else:
                 #History file path isn't needed if user is running ADF directly on time series.
@@ -188,10 +182,10 @@ class AdfInfo(AdfConfig):
                     raise AdfError(emsg)
                 #End if
             #End if
-        #End if
 
-        #Update baseline case name:
-        data_name += f"_{syear_baseline}_{eyear_baseline}"
+            #Update baseline case name:
+            data_name += f"_{syear_baseline}_{eyear_baseline}"
+        #End if (compare_obs)
 
         #Save starting and ending years as object variables:
         self.__syear_baseline = syear_baseline
@@ -237,25 +231,19 @@ class AdfInfo(AdfConfig):
 
                 #Check if start or end year is missing.  If so then just assume it is the
                 #start or end of the entire available model data.
-                if syears[case_idx] is None or eyears[case_idx] is None:
-                    if syears[case_idx] is None:
-                        print(f"No given start year for {case_name}, using first found year...")
-                        syears[case_idx] = int(case_climo_yrs[0])
-                    #End if
-                    if eyears[case_idx] is None:
-                        print(f"No given end year for {case_name}, using last found year...")
-                        eyears[case_idx] = int(case_climo_yrs[-1])
-                    #End if
-                else:
-                    if str(syears[case_idx]) not in case_climo_yrs:
-                        print(f"Given start year '{syears[case_idx]}' is not in current dataset {case_name}, using first found year:",case_climo_yrs[0],"\n")
-                        syears[case_idx] = int(case_climo_yrs[0])
-                    #End if
-
-                    if str(eyears[case_idx]) not in case_climo_yrs:
-                        print(f"Given end year '{eyears[case_idx]}' is not in current dataset {case_name}, using last found year:",case_climo_yrs[-1],"\n")
-                        eyears[case_idx] = int(case_climo_yrs[-1])
-                    #End if
+                if syears[case_idx] is None:
+                    print(f"No given start year for {case_name}, using first found year...")
+                    syears[case_idx] = int(case_climo_yrs[0])
+                elif str(syears[case_idx]) not in case_climo_yrs:
+                    print(f"Given start year '{syears[case_idx]}' is not in current dataset {case_name}, using first found year:",case_climo_yrs[0],"\n")
+                    syears[case_idx] = int(case_climo_yrs[0])
+                #End if
+                if eyears[case_idx] is None:
+                    print(f"No given end year for {case_name}, using last found year...")
+                    eyears[case_idx] = int(case_climo_yrs[-1])
+                elif str(eyears[case_idx]) not in case_climo_yrs:
+                    print(f"Given end year '{eyears[case_idx]}' is not in current dataset {case_name}, using last found year:",case_climo_yrs[-1],"\n")
+                    eyears[case_idx] = int(case_climo_yrs[-1])
                 #End if
             else:
                 #History file path isn't needed if user is running ADF directly on time series.
@@ -269,6 +257,7 @@ class AdfInfo(AdfConfig):
                 #End if
             #End if
 
+            #Update case name with provided/found years:
             case_name += f"_{syears[case_idx]}_{eyears[case_idx]}"
 
             #Set the final directory name and save it to plot_location:
