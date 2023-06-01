@@ -245,8 +245,8 @@ def polar_map(adfobj):
 
                         #Loop over season dictionary:
                         for s in seasons:
-                            mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                            oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
+                            mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True) 
+                            oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True) 
                             # difference: each entry should be (lat, lon)
                             dseasons[s] = mseasons[s] - oseasons[s]
 
@@ -323,8 +323,8 @@ def polar_map(adfobj):
 
                             #Loop over season dictionary:
                             for s in seasons:
-                                mseasons[s] = mdata.sel(time=seasons[s], lev=pres).mean(dim='time')
-                                oseasons[s] = odata.sel(time=seasons[s], lev=pres).mean(dim='time')
+                                mseasons[s] = (pf.seasonal_mean(mdata, seasons=s, is_climo=True)).sel(lev=pres)
+                                oseasons[s] = (pf.seasonal_mean(odata, seasons=s, is_climo=True)).sel(lev=pres)
                                 # difference: each entry should be (lat, lon)
                                 dseasons[s] = mseasons[s] - oseasons[s]
 

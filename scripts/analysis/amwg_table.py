@@ -268,7 +268,7 @@ def amwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = _spatial_average(data)  # changes data "in place"
+                data = pf.spatial_average(data)  # changes data "in place"
 
             #Add necessary data for RESTOM calcs below
             if var == "FLNT":
@@ -370,11 +370,6 @@ def _load_data(dataloc, varname):
     import xarray as xr
     ds = xr.open_dataset(dataloc)
     return ds[varname]
-
-#####
-
-def _spatial_average(indata):
-    return pf.spatial_average(indata)
 
 #####
 

@@ -286,7 +286,7 @@ def global_latlon_map(adfobj):
 
                             if weight_season:
                                 mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
-                                oseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                                oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
                             else:
                                 #Just average months as-is:
                                 mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
@@ -377,15 +377,16 @@ def global_latlon_map(adfobj):
 
                                 #If requested, then calculate the monthly-weighted seasonal averages:
                                 if weight_season:
-                                    mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
-                                    oseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                                    mseasons[s] = (pf.seasonal_mean(mdata, season=s, is_climo=True)).sel(lev=pres)
+                                    oseasons[s] = (pf.seasonal_mean(odata, season=s, is_climo=True)).sel(lev=pres)
                                 else:
                                     #Just average months as-is:
                                     mseasons[s] = mdata.sel(time=seasons[s], lev=pres).mean(dim='time')
                                     oseasons[s] = odata.sel(time=seasons[s], lev=pres).mean(dim='time')
-                                    # difference: each entry should be (lat, lon)
-                                    dseasons[s] = mseasons[s] - oseasons[s]
                                 #End if
+
+                                # difference: each entry should be (lat, lon)
+                                dseasons[s] = mseasons[s] - oseasons[s]
 
                                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
