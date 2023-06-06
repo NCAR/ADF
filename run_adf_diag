@@ -51,7 +51,7 @@ else:
 #Import ADF diagnostics object:
 from adf_diag import AdfDiag
 
-#Import ADF diagnostics error classt:
+#Import ADF diagnostics error class:
 from adf_base import AdfError
 
 #################

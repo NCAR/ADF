@@ -65,8 +65,10 @@ def create_climo_files(adf, clobber=False, search=None):
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
-    start_year    = adf.get_cam_info("start_year")
-    end_year      = adf.get_cam_info("end_year")
+
+    #Extract simulation years:
+    start_year = adf.climo_yrs["syears"]
+    end_year   = adf.climo_yrs["eyears"]
 
     #If variables weren't provided in config file, then make them a list
     #containing only None-type entries:
@@ -74,10 +76,6 @@ def create_climo_files(adf, clobber=False, search=None):
         calc_climos = [None]*len(case_names)
     if not overwrite:
         overwrite = [None]*len(case_names)
-    if not start_year:
-        start_year = [None]*len(case_names)
-    if not end_year:
-        end_year = [None]*len(case_names)
     #End if
 
     #Check if a baseline simulation is also being used:
@@ -88,8 +86,10 @@ def create_climo_files(adf, clobber=False, search=None):
         output_bl_loc     = adf.get_baseline_info("cam_climo_loc", required=True)
         calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
         ovr_bl            = adf.get_baseline_info("cam_overwrite_climo")
-        bl_syr            = adf.get_baseline_info("start_year")
-        bl_eyr            = adf.get_baseline_info("end_year")
+
+        #Extract baseline years:
+        bl_syr = adf.climo_yrs["syear_baseline"]
+        bl_eyr = adf.climo_yrs["eyear_baseline"]
 
         #Append to case lists:
         case_names.append(baseline_name)
@@ -139,6 +139,7 @@ def create_climo_files(adf, clobber=False, search=None):
         if search is None:
             search = "{CASE}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
 
+        #Check model year bounds:
         syr, eyr = check_averaging_interval(start_year[case_idx], end_year[case_idx])
 
         #Loop over CAM output variables:
@@ -168,7 +169,7 @@ def create_climo_files(adf, clobber=False, search=None):
 
             list_of_arguments.append((ts_files, syr, eyr, output_file))
 
-                
+
         #End of var_list loop
         #--------------------
 

@@ -272,6 +272,7 @@ class AdfConfig(AdfBase):
             emsg = "Supplied 'conf_dict' variable should be a dictionary,"
             emsg += f" not type '{type(conf_dict)}'"
             raise TypeError(emsg)
+        #End if
 
         #Check that variable name exists in dictionary:
         if varname not in var_dict.keys():
@@ -280,9 +281,11 @@ class AdfConfig(AdfBase):
                 emsg = f"Required variable '{varname}' not found in config file."
                 emsg +=" Please see 'config_cam_baseline_example.yaml'."
                 raise KeyError(emsg)
+            #End if
 
             #If not, then just return None:
             return None
+        #End if
 
         #Extract variable from dictionary:
         var = var_dict[varname]
@@ -293,6 +296,7 @@ class AdfConfig(AdfBase):
             emsg = f"Required variable '{varname}' has not been set to a value."
             emsg += " Please see 'config_cam_baseline_example.yaml'."
             raise ValueError(emsg)
+        #End if
 
         #return a copy of the variable/list/dictionary,
         #this is done so that scripts can modify the copy
