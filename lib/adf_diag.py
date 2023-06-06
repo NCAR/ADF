@@ -724,8 +724,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
             #Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.get_baseline_info('start_year')
-            eyear_baseline = self.get_baseline_info('end_year')
+            syear_baseline = self.climo_yrs["syear_baseline"]
+            eyear_baseline = self.climo_yrs["eyear_baseline"]
 
             #If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -773,8 +773,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
             #Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.get_baseline_info('start_year')
-            eyear_baseline = self.get_baseline_info('end_year')
+            syear_baseline = self.climo_yrs["syear_baseline"]
+            eyear_baseline = self.climo_yrs["eyear_baseline"]
 
             #If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:

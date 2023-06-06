@@ -36,44 +36,40 @@ def meridional_mean(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Grab case years
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
-
-    #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
-    if test_nicknames == None:
-        test_nicknames = case_names
 
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
+        #Set obs call for observation details for plot titles
+        obs = True
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
-        base_nickname = "Obs"
 
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
             print("\t No observations found to plot against, so no meridional-mean maps will be generated.")
             return
-
     else:
+        obs = False
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
-
-        #Grab baseline case nickname
-        base_nickname = adfobj.get_baseline_info('case_nickname')
-        if base_nickname == None:
-            base_nickname = data_name
     #End if
 
-    #Extract baseline years (which may be empty strings if using Obs):
+    #Grab baseline years (which may be empty strings if using Obs):
     syear_baseline = adfobj.climo_yrs["syear_baseline"]
     eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in the config YAML file.
@@ -250,7 +246,7 @@ def meridional_mean(adfobj):
                     pf.plot_meridional_mean_and_save(plot_name, case_nickname, base_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                 [syear_baseline,eyear_baseline],
-                                                mseasons[s], oseasons[s], has_lev, latbounds=slice(-5,5), **vres)
+                                                mseasons[s], oseasons[s], has_lev, latbounds=slice(-5,5), obs=obs, **vres)
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, season=s,
