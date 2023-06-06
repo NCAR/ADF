@@ -233,7 +233,7 @@ def meridional_mean(adfobj):
                         plot_name.unlink()
 
                     mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
-                    oseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                    oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
 
 
                     #Create new plot:

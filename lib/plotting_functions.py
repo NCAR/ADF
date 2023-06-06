@@ -205,6 +205,7 @@ def spatial_average(indata, weights=None, spatial_dims=None):
         else:
             weights = xr.DataArray(1.)
             weights.name = "weights"
+            warnings.warn("Un-recognized spatial dimensions: using equal weights for all grid points.")
         #End if
     #End if
 
@@ -258,9 +259,9 @@ def wgt_rmse(fld1, fld2, wgt):
 ####### 
 # Time-weighted averaging
 
-def annual_mean(data, whole_years=None, time_name='time'):
+def annual_mean(data, whole_years=False, time_name='time'):
     """Calculate annual averages from time series data."""
-    assert time_name in data.coords, f"Did not find the expected time coordinate {time_name} in the data"
+    assert time_name in data.coords, f"Did not find the expected time coordinate '{time_name}' in the data"
     if whole_years:
         first_january = np.argwhere((data.time.dt.month == 1).values)[0].item()
         last_december = np.argwhere((data.time.dt.month == 12).values)[-1].item()
@@ -295,13 +296,13 @@ def seasonal_mean(data, season=None, is_climo=None):
 
     """
     if season is not None:
-        assert season in ["ANN", "DJF", "JJA", "MAM", "SON"], f"Unrecognized season string provided: {season}"
+        assert season in ["ANN", "DJF", "JJA", "MAM", "SON"], f"Unrecognized season string provided: '{season}'"
     elif season is None:
         season = "ANN"
 
     try:
         month_length = data.time.dt.days_in_month
-    except:
+    except AttributeError:
         # do our best to determine the temporal dimension and assign weights
         if not is_climo:
             raise ValueError("Non-climo file provided, but without a decoded time dimension.")
@@ -314,6 +315,10 @@ def seasonal_mean(data, season=None, is_climo=None):
                 if "month" in data.dims:
                     data = data.rename({"month":"time"})
                     has_time = True
+                if not has_time:
+                    if "month" in data.dims:
+                        data = data.rename({"month":"time"})
+                        has_time = True
             if not has_time:
                 # this might happen if a pure numpy array gets passed in
                 # --> assumes ordered January to December. 
