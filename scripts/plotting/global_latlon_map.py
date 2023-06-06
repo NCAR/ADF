@@ -130,9 +130,8 @@ def global_latlon_map(adfobj):
     #pressure levels:
     pres_levs = adfobj.get_basic_info("plot_press_levels")
 
-    #Determine if user wants monthly weights to be applied
-    #to the seasonal averages:
-    weight_season = adfobj.get_basic_info("weight_season")
+    #For now, let's always do seasonal weighting:
+    weight_season = True
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
