@@ -202,6 +202,7 @@ def global_latlon_map(adfobj):
                 print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
                 print(f"INFO: The glob is: {data_src}_{var}_*.nc")
                 continue
+            #End if
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
@@ -217,9 +218,17 @@ def global_latlon_map(adfobj):
                     print("    {} not found, making new directory".format(plot_loc))
                     plot_loc.mkdir(parents=True)
 
-                # load re-gridded model files:
+                #Load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
                 mclim_ds = _load_dataset(mclim_fils)
+
+                #Skip this variable/case if the regridded climo file doesn't exist:
+                if mclim_ds is None:
+                    print("WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    continue
+                #End if
 
                 #Extract variable of interest
                 odata = oclim_ds[data_var].squeeze()  # squeeze in case of degenerate dimensions

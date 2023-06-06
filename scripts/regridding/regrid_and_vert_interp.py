@@ -207,15 +207,17 @@ def regrid_and_vert_interp(adf):
                         tclim_ds = xr.open_dataset(tclim_fils[0])
                     #End if
 
-                    #if regrid_ofrac and 'OCNFRAC' in tclim_ds:
-                    #    regrid_ofrac = False
-
                     #Generate CAM climatology (climo) file list:
                     mclim_fils = sorted(mclimo_loc.glob(f"{case_name}_{var}_*.nc"))
 
                     if len(mclim_fils) > 1:
                         #Combine all cam files together into a single data set:
                         mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
+                    elif len(mclim_fils) == 0:
+                        wmsg = f"\t - Unable to find climo file for '{var}'."
+                        wmsg += " Continuing to next variable."
+                        print(wmsg)
+                        continue
                     else:
                         #Open single file as new xarray dataset:
                         mclim_ds = xr.open_dataset(mclim_fils[0])

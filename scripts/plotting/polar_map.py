@@ -196,8 +196,14 @@ def polar_map(adfobj):
 
                 if len(mclim_fils) > 1:
                     mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-                else:
+                elif len(mclim_fils) == 1:
                     mclim_ds = xr.open_dataset(mclim_fils[0])
+                else:
+                    print("WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    continue
+                #End if
 
                 #Extract variable of interest
                 odata = oclim_ds[data_var].squeeze()  # squeeze in case of degenerate dimensions

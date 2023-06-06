@@ -361,7 +361,6 @@ class AdfWeb(AdfObs):
         for case_idx, case_name in enumerate(case_names):
 
             if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
-                print(f"No given climo years for {case_name}...")
                 starting_location = Path(cam_ts_locs[case_idx])
                 files_list = sorted(starting_location.glob('*nc'))
                 #This assumes CAM file names stay with this convention
