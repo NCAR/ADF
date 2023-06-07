@@ -262,6 +262,9 @@ def wgt_rmse(fld1, fld2, wgt):
 def annual_mean(data, whole_years=False, time_name='time'):
     """Calculate annual averages from time series data."""
     assert time_name in data.coords, f"Did not find the expected time coordinate '{time_name}' in the data"
+    if not isinstance(data, xr.DataArray):
+        errmsg = "input data to annual_mean should be a DataArray"
+        AdfError(errmsg)
     if whole_years:
         first_january = np.argwhere((data.time.dt.month == 1).values)[0].item()
         last_december = np.argwhere((data.time.dt.month == 12).values)[-1].item()
@@ -295,6 +298,10 @@ def seasonal_mean(data, season=None, is_climo=None):
     it will assume that dimension is time running from January to December. 
 
     """
+    if not isinstance(data, xr.DataArray):
+        errmsg = f"data input in seasonal_mean should be a DataArray, got {type(data)}"
+        AdfError(errmsg)
+
     if season is not None:
         assert season in ["ANN", "DJF", "JJA", "MAM", "SON"], f"Unrecognized season string provided: '{season}'"
     elif season is None:
@@ -302,15 +309,13 @@ def seasonal_mean(data, season=None, is_climo=None):
 
     try:
         month_length = data.time.dt.days_in_month
-    except AttributeError:
+    except (AttributeError, TypeError) as error:
         # do our best to determine the temporal dimension and assign weights
         if not is_climo:
             raise ValueError("Non-climo file provided, but without a decoded time dimension.")
         else:
             # CLIMO file: try to determine which dimension is month
-            has_time = False
-            if isinstance(data, xr.DataArray):
-                has_time = 'time' in data.dims
+            has_time = 'time' in data.dims
             if not has_time:
                 if "month" in data.dims:
                     data = data.rename({"month":"time"})
@@ -330,7 +335,7 @@ def seasonal_mean(data, season=None, is_climo=None):
             timefix = pd.date_range(start='1/1/1999', end='12/1/1999', freq='MS') # generic time coordinate from a non-leap-year
             data = data.assign_coords({"time":timefix})
         month_length = data.time.dt.days_in_month
-
+    
     data = data.sel(time=data.time.dt.month.isin(seasons[season])) # directly take the months we want based on season kwarg
     return data.weighted(data.time.dt.daysinmonth).mean(dim='time')    
         

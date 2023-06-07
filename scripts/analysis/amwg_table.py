@@ -210,6 +210,9 @@ def amwg_table(adf):
             if len(ts_files) != 1:
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for the variable '{var}'"
+                errmsg += f"Files identified: "
+                for f in ts_files:
+                    errmsg += f"\t {str(f)}\n"
                 raise AdfError(errmsg)
             #End if
 
@@ -223,7 +226,7 @@ def amwg_table(adf):
                 unit_str = '--'
 
             #Check if variable has a vertical coordinate:
-            vdims = pf.get_vert_dims(mdata)   
+            vdims = pf.get_vert_dims(data)   
             if vdims:
                 print(f"\t   Variable '{var}' has a vertical dimension(s): {vdims}, "+\
                       "which is currently not supported for the AMWG Table. Skipping...")
