@@ -162,6 +162,41 @@ def get_central_longitude(*args):
         return 180
     #End if
 
+
+def to_scalar(x):
+    """Force input to be a scalar:
+    
+    input should a DataArray or ndarray with one elment
+
+    If x is a DataArray, calls the compute method (in case it's a dask object),
+    and then use the item method.
+
+    If x is a ndarray, just uses the item method, but should be equivalent to x[0].
+    """
+    try: 
+        if isinstance(x, xr.DataArray):
+            return x.compute().item()
+        elif isinstance(x, np.ndarray):
+            return x.item()
+        else:
+            errmsg = f"to_scalar expects a DataArray or ndarray, got {type(x)}"
+            AdfError(errmsg)
+    except ValueError:
+        errmsg = "to_scalar is hitting a ValueError. It might be trying to convert an array to a scalar."
+        AdfError(errmsg)
+
+
+def is_constant(x):
+    """Checks if an array is constant"""
+    if isinstance(x, xr.DataArray):
+        return np.all(np.isclose(x, x.values.ravel()[0]))
+    elif isinstance(x, np.ndarray):
+        return np.all(np.isclose(x, x.ravel()[0]))
+    else:
+        errmsg = f"is_constant expects DataArray or ndarray, got {type(x)}"
+        AdfError(errmsg)
+
+
 #######
 
 def global_average(fld, wgt, verbose=False):
@@ -243,7 +278,7 @@ def wgt_rmse(fld1, fld2, wgt):
     if hasattr(fld2, "compute"):
         fld2 = fld2.compute()
     if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
-        return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
+        return to_scalar(np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())) #.values.item()
     else:
         check = [len(wgt) == s for s in fld1.shape]
         if ~np.any(check):
@@ -253,7 +288,7 @@ def wgt_rmse(fld1, fld2, wgt):
         warray = np.tile(wgt, (dimsize, 1)).transpose()   # May need more logic to ensure shape is correct.
         warray = warray / np.sum(warray) # normalize
         wmse = np.sum(warray * (fld1 - fld2)**2)
-        return np.sqrt( wmse ).item()
+        return to_scalar(np.sqrt( wmse )) # .item()
 
 
 ####### 
@@ -266,8 +301,8 @@ def annual_mean(data, whole_years=False, time_name='time'):
         errmsg = "input data to annual_mean should be a DataArray"
         AdfError(errmsg)
     if whole_years:
-        first_january = np.argwhere((data.time.dt.month == 1).values)[0].item()
-        last_december = np.argwhere((data.time.dt.month == 12).values)[-1].item()
+        first_january = to_scalar(np.argwhere((data.time.dt.month == 1).values)[0]) #.item()
+        last_december = to_scalar(np.argwhere((data.time.dt.month == 12).values)[-1]) # .item()
         data_to_avg = data.isel(time=slice(first_january,last_december+1)) # PLUS 1 BECAUSE SLICE DOES NOT INCLUDE END POINT
     else:
         data_to_avg = data
@@ -347,9 +382,9 @@ def seasonal_mean(data, season=None, is_climo=None):
 
 def domain_stats(data, domain):
     x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
-    x_region_mean = x_region.weighted(np.cos(x_region['lat'])).mean().item()
-    x_region_min = x_region.min().item()
-    x_region_max = x_region.max().item()
+    x_region_mean = to_scalar(x_region.weighted(np.cos(x_region['lat'])).mean()) # .item()
+    x_region_min = to_scalar(x_region.min())
+    x_region_max = to_scalar(x_region.max())
     return x_region_mean, x_region_max, x_region_min
 
 def make_polar_plot(wks, case_nickname, base_nickname,
@@ -369,6 +404,10 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         dif = d2 - d1
     else:
         dif = difference
+
+    d1_const = is_constant(d1)
+    d2_const = is_constant(d2)
+    dif_const = is_constant(dif)
 
     if hemisphere.upper() == "NH":
         proj = ccrs.NorthPolarStereo()
@@ -478,18 +517,44 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
     levs = np.unique(np.array(levels1))
     if len(levs) < 2:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
-        ax1.text(0.4, 0.4, empty_message, transform=ax1.transAxes, bbox=props)
-
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
-        ax2.text(0.4, 0.4, empty_message, transform=ax2.transAxes, bbox=props)
-
-        img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
-        ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
+        if not d1_const:
+            img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+            msg = empty_message
+        else:
+            msg = f"Constant Value: {to_scalar(d1.values.ravel()[0])}"
+        ax1.text(0.4, 0.4, msg, transform=ax1.transAxes, bbox=props)
+        if not d2_const:
+            img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+            msg = empty_message
+        else:
+            msg = f"Constant Value: {to_scalar(d2.values.ravel()[0])}"
+        ax2.text(0.4, 0.4, msg, transform=ax2.transAxes, bbox=props)
     else:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-        img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
+        if not d1_const:
+            img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
+        else:
+            msg = f"Constant Value: {to_scalar(d1.values.ravel()[0])}"
+            ax1.text(0.4, 0.4, msg, transform=ax1.transAxes, bbox=props)
+        if not d2_const:
+            img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
+        else:
+            f"Constant Value: {to_scalar(d2.values.ravel()[0])}"
+            ax2.text(0.4, 0.4, msg, transform=ax2.transAxes, bbox=props)
+
+    levs = np.unique(np.array(levelsdiff))
+    if len(levs) < 2:                
+        if not dif_const:
+            img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
+            msg = empty_message
+        else:
+            msg = f"Constant Value: {to_scalar(dif.values.ravel()[0])}"
+        ax3.text(0.4, 0.4, msg, transform=ax3.transAxes, bbox=props)
+    else:
+        if not dif_const:
+            img3 = ax3.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
+        else:
+            msg = f"Constant Value: {to_scalar(dif.values.ravel()[0])}"
+            ax3.text(0.4, 0.4, msg, transform=ax3.transAxes, bbox=props)
 
     #Set Main title for subplots:
 
@@ -685,11 +750,11 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     ax[1].set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
 
     #Set stats: area_avg
-    ax[0].set_title(f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\nMax: {mdl_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
+    ax[0].set_title(f"Mean: {to_scalar(mdl_mag.weighted(wgt).mean()):5.2f}\nMax: {to_scalar(mdl_mag.max()):5.2f}\nMin: {to_scalar(mdl_mag.min()):5.2f}", loc='right',
                        fontsize=8)
-    ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
+    ax[1].set_title(f"Mean: {to_scalar(obs_mag.weighted(wgt).mean()):5.2f}\nMax: {to_scalar(obs_mag.max()):5.2f}\nMin: {to_scalar(mdl_mag.min()):5.2f}", loc='right',
                        fontsize=8)
-    ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
+    ax[-1].set_title(f"Mean: {to_scalar(diff_mag.weighted(wgt).mean()):5.2f}\nMax: {to_scalar(diff_mag.max()):5.2f}\nMin: {to_scalar(mdl_mag.min()):5.2f}", loc='right',
                        fontsize=8)
 
     # set rmse title:
@@ -879,11 +944,11 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     ax[1].set_title("$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}", loc='left', fontsize=8)
 
     #Set stats: area_avg
-    ax[0].set_title(f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.max():5.2f}\nMin: {mdlfld.min():5.2f}", loc='right',
+    ax[0].set_title(f"Mean: {to_scalar(mdlfld.weighted(wgt).mean()):5.2f}\nMax: {to_scalar(mdlfld.max()):5.2f}\nMin: {to_scalar(mdlfld.min()):5.2f}", loc='right',
                        fontsize=8)
-    ax[1].set_title(f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}", loc='right',
+    ax[1].set_title(f"Mean: {to_scalar(obsfld.weighted(wgt).mean()):5.2f}\nMax: {to_scalar(obsfld.max()):5.2f}\nMin: {to_scalar(obsfld.min()):5.2f}", loc='right',
                        fontsize=8)
-    ax[-1].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}", loc='right',
+    ax[-1].set_title(f"Mean: {to_scalar(diffld.weighted(wgt).mean()):5.2f}\nMax: {to_scalar(diffld.max()):5.2f}\nMin: {to_scalar(diffld.min()):5.2f}", loc='right',
                        fontsize=8)
 
     # set rmse title:
