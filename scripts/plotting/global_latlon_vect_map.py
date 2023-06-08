@@ -375,10 +375,10 @@ def global_latlon_vect_map(adfobj):
 
                             #Loop over season dictionary:
                             for s in seasons:
-                                umseasons[s] = umdata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                vmseasons[s] = vmdata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                uoseasons[s] = uodata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                voseasons[s] = vodata.sel(time=seasons[s],lev=lv).mean(dim='time')
+                                umseasons[s] = (pf.seasonal_mean(umdata, season=s, is_climo=True)).sel(lev=lv)
+                                vmseasons[s] = (pf.seasonal_mean(vmdata, season=s, is_climo=True)).sel(lev=lv)
+                                uoseasons[s] = (pf.seasonal_mean(uodata, season=s, is_climo=True)).sel(lev=lv)
+                                voseasons[s] = (pf.seasonal_mean(vodata, season=s, is_climo=True)).sel(lev=lv)
                                 # difference: each entry should be (lat, lon)
                                 udseasons[s] = umseasons[s] - uoseasons[s]
                                 vdseasons[s] = vmseasons[s] - voseasons[s]
@@ -428,10 +428,10 @@ def global_latlon_vect_map(adfobj):
 
                         #Loop over season dictionary:
                         for s in seasons:
-                            umseasons[s] = umdata.sel(time=seasons[s]).mean(dim='time')
-                            vmseasons[s] = vmdata.sel(time=seasons[s]).mean(dim='time')
-                            uoseasons[s] = uodata.sel(time=seasons[s]).mean(dim='time')
-                            voseasons[s] = vodata.sel(time=seasons[s]).mean(dim='time')
+                            umseasons[s] = pf.seasonal_mean(umdata, season=s, is_climo=True)
+                            vmseasons[s] = pf.seasonal_mean(vmdata, season=s, is_climo=True)
+                            uoseasons[s] = pf.seasonal_mean(uodata, season=s, is_climo=True)
+                            voseasons[s] = pf.seasonal_mean(vodata, season=s, is_climo=True)
                             # difference: each entry should be (lat, lon)
                             udseasons[s] = umseasons[s] - uoseasons[s]
                             vdseasons[s] = vmseasons[s] - voseasons[s]

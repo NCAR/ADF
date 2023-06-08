@@ -230,8 +230,6 @@ def zonal_mean(adfobj):
 
                 #
                 # Seasonal Averages
-                # Note: xarray can do seasonal averaging, but depends on having time accessor,
-                # which these prototype climo files don't.
                 #
 
                 #Create new dictionaries:
@@ -240,21 +238,6 @@ def zonal_mean(adfobj):
 
                 #Loop over season dictionary:
                 for s in seasons:
-                    mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                    oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
-
-                    # difference: each entry should be (lat, lon) or (plev, lat, lon)
-                    # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_zonal_mean_and_save;
-                    # because we can let any pressure-level interpolation happen there
-                    # This could be re-visited for efficiency or improved code structure.
-
-                    # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                    # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                    # NOTE: Up to this point, nothing really differs from global_latlon_map,
-                    #       so we could have made one script instead of two.
-                    #       Merging would make overall timing better because looping twice will double I/O steps.
-                    #
                     plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
 
                     # Check redo_plot. If set to True: remove old plot, if it already exists:
@@ -268,6 +251,16 @@ def zonal_mean(adfobj):
                     elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()
                     #End if
+
+                    #Seasonal Averages
+                    mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                    oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+
+                    # difference: each entry should be (lat, lon) or (plev, lat, lon)
+                    # dseasons[s] = mseasons[s] - oseasons[s]
+                    # difference will be calculated in plot_zonal_mean_and_save;
+                    # because we can let any pressure-level interpolation happen there
+                    # This could be re-visited for efficiency or improved code structure.
 
                     #Create new plot:
                     pf.plot_zonal_mean_and_save(plot_name, case_nickname, base_nickname,
