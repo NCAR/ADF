@@ -64,7 +64,7 @@ def zonal_mean(adfobj):
     eyear_cases = adfobj.climo_yrs["eyears"]
 
     #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
+    test_nicknames = adfobj.get_cam_info('case_nickname')  # RECOMMEND get_cam_info('case_nickname') should default to case_names
     if test_nicknames == None:
         test_nicknames = case_names
 
@@ -81,7 +81,7 @@ def zonal_mean(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("\t No observations found to plot against, so no zonal-mean maps will be generated.")
+            print("\t No observations found to plot against, so no zonal-mean plots will be generated.")
             return
 
     else:
@@ -222,16 +222,15 @@ def zonal_mean(adfobj):
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
-                has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
-
+                vdims = pf.get_vert_dims(mdata)                
                 #Notify user of level dimension:
-                if has_lev:
-                    print(f"\t   {var} has lev dimension.")
-
+                if vdims:
+                    print(f"\t   {var} has vertical dimension named {vdims}.")
+                    has_lev = True
+                else:
+                    has_lev = False
                 #
                 # Seasonal Averages
-                # Note: xarray can do seasonal averaging, but depends on having time accessor,
-                # which these prototype climo files don't.
                 #
 
                 #Create new dictionaries:
@@ -240,21 +239,6 @@ def zonal_mean(adfobj):
 
                 #Loop over season dictionary:
                 for s in seasons:
-                    mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                    oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
-
-                    # difference: each entry should be (lat, lon) or (plev, lat, lon)
-                    # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_zonal_mean_and_save;
-                    # because we can let any pressure-level interpolation happen there
-                    # This could be re-visited for efficiency or improved code structure.
-
-                    # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                    # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                    # NOTE: Up to this point, nothing really differs from global_latlon_map,
-                    #       so we could have made one script instead of two.
-                    #       Merging would make overall timing better because looping twice will double I/O steps.
-                    #
                     plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
 
                     # Check redo_plot. If set to True: remove old plot, if it already exists:
@@ -268,6 +252,16 @@ def zonal_mean(adfobj):
                     elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()
                     #End if
+
+                    #Seasonal Averages
+                    mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True) #mdata.sel(time=seasons[s]).mean(dim='time')
+                    oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True) #odata.sel(time=seasons[s]).mean(dim='time')
+
+                    # difference: each entry should be (lat, lon) or (plev, lat, lon)
+                    # dseasons[s] = mseasons[s] - oseasons[s]
+                    # difference will be calculated in plot_zonal_mean_and_save;
+                    # because we can let any pressure-level interpolation happen there
+                    # This could be re-visited for efficiency or improved code structure.
 
                     #Create new plot:
                     pf.plot_zonal_mean_and_save(plot_name, case_nickname, base_nickname,

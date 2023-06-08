@@ -210,6 +210,9 @@ def amwg_table(adf):
             if len(ts_files) != 1:
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for the variable '{var}'"
+                errmsg += f"Files identified: "
+                for f in ts_files:
+                    errmsg += f"\t {str(f)}\n"
                 raise AdfError(errmsg)
             #End if
 
@@ -223,12 +226,14 @@ def amwg_table(adf):
                 unit_str = '--'
 
             #Check if variable has a vertical coordinate:
-            if 'lev' in data.coords or 'ilev' in data.coords:
-                print(f"\t   Variable '{var}' has a vertical dimension, "+\
+            vdims = pf.get_vert_dims(data)   
+            if vdims:
+                print(f"\t   Variable '{var}' has a vertical dimension(s): {vdims}, "+\
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
             #End if
+
 
             #Extract defaults for variable:
             var_default_dict = var_defaults.get(var, {})
@@ -268,7 +273,7 @@ def amwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = _spatial_average(data)  # changes data "in place"
+                data = pf.spatial_average(data)  # changes data "in place"
 
             #Add necessary data for RESTOM calcs below
             if var == "FLNT":
@@ -279,8 +284,7 @@ def amwg_table(adf):
                 restom_dict[case_name][var] = data
 
             # In order to get correct statistics, average to annual or seasonal
-            data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
-                                                              # NOTE: data will now have a 'year' dimension instead of 'time'
+            data = pf.annual_mean(data, whole_years=True, time_name='time')
 
             # create a dataframe:
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
@@ -312,8 +316,7 @@ def amwg_table(adf):
             print(f"\t - Variable '{var}' being added to table")
             data = restom_dict[case_name]["FSNT"] - restom_dict[case_name]["FLNT"]
             # In order to get correct statistics, average to annual or seasonal
-            data = data.groupby('time.year').mean(dim='time') # this should be fast b/c time series should be in memory
-                                                                # NOTE: data will now have a 'year' dimension instead of 'time'
+            data = pf.annual_mean(data, whole_years=True, time_name='time')
             # These get written to our output file:
             stats_list = _get_row_vals(data)
             row_values = [var, restom_units] + stats_list
@@ -372,37 +375,6 @@ def _load_data(dataloc, varname):
     import xarray as xr
     ds = xr.open_dataset(dataloc)
     return ds[varname]
-
-#####
-
-def _spatial_average(indata):
-    import xarray as xr
-    import numpy as np
-    import warnings
-
-    #Make sure there is no veritcal level dimension:
-    assert 'lev' not in indata.coords
-    assert 'ilev' not in indata.coords
-
-    #Calculate spatial weights:
-    if 'lat' in indata.coords:
-        weights = np.cos(np.deg2rad(indata.lat))
-        weights.name = "weights"
-    elif 'ncol' in indata.coords:
-        warnings.warn("We need a way to get area variable. Using equal weights.")
-        weights = xr.DataArray(1.)
-        weights.name = "weights"
-    else:
-        weights = xr.DataArray(1.)
-        weights.name = "weights"
-    #End if
-
-    #Apply weights to input data:
-    weighted = indata.weighted(weights)
-
-    # we want to average over all non-time dimensions
-    avgdims = [dim for dim in indata.dims if dim != 'time']
-    return weighted.mean(dim=avgdims)
 
 #####
 
