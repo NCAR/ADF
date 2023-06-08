@@ -305,7 +305,7 @@ def seasonal_mean(data, season=None, is_climo=None):
 
     try:
         month_length = data.time.dt.days_in_month
-    except AttributeError:
+    except (AttributeError, TypeError):
         # do our best to determine the temporal dimension and assign weights
         if not is_climo:
             raise ValueError("Non-climo file provided, but without a decoded time dimension.")
@@ -329,6 +329,7 @@ def seasonal_mean(data, season=None, is_climo=None):
             timefix = pd.date_range(start='1/1/1999', end='12/1/1999', freq='MS') # generic time coordinate from a non-leap-year
             data = data.assign_coords({"time":timefix})
         month_length = data.time.dt.days_in_month
+    #End try/except
 
     data = data.sel(time=data.time.dt.month.isin(seasons[season])) # directly take the months we want based on season kwarg
     return data.weighted(data.time.dt.daysinmonth).mean(dim='time')
@@ -341,7 +342,7 @@ def seasonal_mean(data, season=None, is_climo=None):
 
 def domain_stats(data, domain):
     x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
-    x_region_mean = x_region.weighted(np.cos(x_region['lat'])).mean().item()
+    x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region['lat']))).mean().item()
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
