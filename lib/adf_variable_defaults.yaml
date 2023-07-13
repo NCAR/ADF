@@ -933,7 +933,6 @@ OMEGAT:
 # Category: TEM
 #++++++++++++++
 uzm:
-  axs: [0,0]
   ylim: [1e3,1]
   units: m s-1
   long_name: Zonal-Mean zonal wind
@@ -942,7 +941,6 @@ uzm:
   obs_var_name: "uzm"
 
 vzm:
-  axs: [0,1]
   ylim: [1e3,1]
   units: m s-1
   long_name: Zonal-Mean meridional wind
@@ -951,8 +949,6 @@ vzm:
   obs_var_name: "vzm"
 
 epfy:
-  axs: [1,0]
-  vmax: 1e6
   ylim: [1e2,1]
   units: m3 s−2
   long_name: northward component of the Eliassen–Palm flux
@@ -961,8 +957,6 @@ epfy:
   obs_var_name: "epfy"
 
 epfz:
-  axs: [1,1]
-  vmax: 1e6
   ylim: [1e2,1]
   units: m3 s−2
   long_name: upward component of the Eliassen–Palm flux
@@ -971,11 +965,7 @@ epfz:
   obs_var_name: "epfz"
 
 vtem:
-  axs: [2,0]
-  vmax: 1e6
   ylim: [1e2,1]
-  vmax: 3
-  vmin: -3
   units: m/s
   long_name: Transformed Eulerian mean northward wind
   obs_file: "/glade/work/richling/ERA5.nc"
@@ -983,11 +973,7 @@ vtem:
   obs_var_name: "vtem"
 
 wtem:
-  axs: [2,1]
-  vmax: 1e6
   ylim: [1e2,1]
-  vmax: 0.005
-  vmin: -0.005
   units: m/s
   long_name: Transformed Eulerian mean upward wind
   obs_file: "/glade/work/richling/ERA5.nc"
@@ -995,8 +981,6 @@ wtem:
   obs_var_name: "wtem"
 
 psitem:
-  axs: [3,0]
-  vmax: 1e6
   ylim: [1e2,1]
   units: m3 s−2
   long_name: Transformed Eulerian mean mass stream function
@@ -1005,8 +989,6 @@ psitem:
   obs_var_name: ""
 
 utendepfd:
-  axs: [3,1]
-  vmax: 1e6
   ylim: [1e2,1]
   units: m3 s−2
   long_name: tendency of eastward wind due to Eliassen-Palm flux divergence
@@ -1015,8 +997,6 @@ utendepfd:
   obs_var_name: "psitem"
 
 utendvtem:
-  axs: [1,1]
-  vmax: 1e6
   ylim: [1e2,1]
   units: m3 s−2
   long_name: tendency of eastward wind due to TEM northward wind advection and the coriolis term
@@ -1025,8 +1005,6 @@ utendvtem:
   obs_var_name: "utendvtem"
 
 utendwtem:
-  axs: [1,1]
-  vmax: 1e6
   ylim: [1e2,1]
   units: m3 s−2
   long_name: tendency of eastward wind due to TEM upward wind advection
