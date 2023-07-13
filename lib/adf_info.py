@@ -117,6 +117,15 @@ class AdfInfo(AdfConfig):
         #Initialize "compare_obs" variable:
         self.__compare_obs = self.get_basic_info('compare_obs')
 
+        #Case names:
+        case_names = self.get_cam_info('cam_case_name', required=True)
+
+        #Grab test case nickname(s)
+        test_nicknames = self.get_cam_info('case_nickname', required=True)
+        if test_nicknames is None:
+            for idx,case_name in enumerate(case_names):
+                test_nicknames[idx] = case_name
+
         #Check if a CAM vs AMWG obs comparison is being performed:
         if self.__compare_obs:
 
@@ -126,6 +135,7 @@ class AdfInfo(AdfConfig):
 
             #Also set data name for use below:
             data_name = "Obs"
+            base_nickname = "Obs"
 
             #Set the baseline years to empty strings:
             syear_baseline = ""
@@ -183,9 +193,18 @@ class AdfInfo(AdfConfig):
                 #End if
             #End if
 
+            #Grab baseline nickname
+            base_nickname = self.get_baseline_info('case_nickname')
+            if base_nickname == None:
+                base_nickname = data_name
+
             #Update baseline case name:
             data_name += f"_{syear_baseline}_{eyear_baseline}"
         #End if (compare_obs)
+
+        #Initialize case nicknames:
+        self.__test_nicknames = test_nicknames
+        self.__base_nickname = base_nickname
 
         #Save starting and ending years as object variables:
         self.__syear_baseline = syear_baseline
@@ -271,6 +290,7 @@ class AdfInfo(AdfConfig):
 
         #End for
 
+        #Save starting and ending years as object variables:
         self.__syears = syears
         self.__eyears = eyears
 
@@ -409,6 +429,18 @@ class AdfInfo(AdfConfig):
         eyears = copy.copy(self.__eyears)
         return {"syears":syears,"eyears":eyears,
                 "syear_baseline":self.__syear_baseline, "eyear_baseline":self.__eyear_baseline}
+
+    # Create property needed to return the case nicknames to user:
+    @property
+    def case_nicknames(self):
+        """Return the test case and baseline nicknames to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        test_nicknames = copy.copy(self.__test_nicknames)
+        base_nickname = copy.copy(self.__base_nickname)
+
+        return {"test_nicknames":test_nicknames,"base_nickname":base_nickname}
 
     #########
 
