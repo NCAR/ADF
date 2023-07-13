@@ -131,6 +131,11 @@ diag_basic_info:
     #If set to false, then if a plot is found it will be skipped:
     redo_plot: false
 
+    #Location where TEM files are stored:
+    #If path not specified or commented out, skip TEM calculation
+    #If no path, diagnostics wont run even if declared in averaging/plotting scripts below
+    tem_loc: /glade/scratch/${user}/ADF/tem
+
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
@@ -326,6 +331,7 @@ diag_cvdp_info:
 #These scripts must be located in "scripts/averaging":
 time_averaging_scripts:
     - create_climo_files
+    #- create_TEM_files
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
@@ -347,6 +353,7 @@ plotting_scripts:
     - polar_map
     - cam_taylor_diagram
     - qbo
+    #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
                               #the "region_multicase" section below
 
