@@ -894,7 +894,6 @@ def cloud_regime_analysis(adf, wasserstein_or_euclidean = "euclidean", data_prod
         # variable that gets set to true if var is missing in the data file, and is used to skip that dataset
         missing_var = False
 
-        t = time.time()
         # Trying to open time series files from cam)ts_loc
         try: ds = xr.open_mfdataset(adf.get_cam_info("cam_ts_loc", required=True)[0] + f"/*{var}*")
 
@@ -993,6 +992,7 @@ def cloud_regime_analysis(adf, wasserstein_or_euclidean = "euclidean", data_prod
             else: ht_selection = {ht_var_name:slice(0,9999999999999)}
             ds = ds.sel(tau_selection)
             ds = ds.sel(ht_selection)
+            
 
             # Opening cluster centers
             # Using premade clusters if they have been provided
@@ -1010,12 +1010,14 @@ def cloud_regime_analysis(adf, wasserstein_or_euclidean = "euclidean", data_prod
             
             # If custom CRs havent been passed, use either the emd or euclidean premade ones
             elif wasserstein_or_euclidean == "wasserstein":
+                obs_data_loc = adf.get_basic_info('obs_data_loc') + '/'
                 cluster_centers_path = adf.variable_defaults[f"{data}_emd_centers"]['obs_file']
-                cl = np.load(cluster_centers_path)
+                cl = np.load(obs_data_loc + cluster_centers_path)
 
             elif wasserstein_or_euclidean == "euclidean":
+                obs_data_loc = adf.get_basic_info('obs_data_loc') + '/'
                 cluster_centers_path = adf.variable_defaults[f"{data}_euclidean_centers"]['obs_file']
-                cl = np.load(cluster_centers_path)
+                cl = np.load(obs_data_loc + cluster_centers_path)
 
             # Defining k, the number of clusters
             k = len(cl)
@@ -1061,8 +1063,6 @@ def cloud_regime_analysis(adf, wasserstein_or_euclidean = "euclidean", data_prod
             cluster_labels[valid_indicies]=cluster_labels_temp
             cluster_labels = xr.DataArray(data=cluster_labels, coords={"spacetime":histograms.spacetime},dims=("spacetime") )
             cluster_labels = cluster_labels.unstack()
-
-            print('      -Plotting') 
 
             # Comparing to observation 
             if adf.compare_obs == True:
@@ -1311,16 +1311,6 @@ def cloud_regime_analysis(adf, wasserstein_or_euclidean = "euclidean", data_prod
                     else: ht_selection = {ht_var_name:slice(0,9999999999999)}
                     ds_b = ds_b.sel(tau_selection)
                     ds_b = ds_b.sel(ht_selection)
-
-                    # Opening cluster centers
-                    # Using premade clusters if they have been provided
-                    if type(premade_cloud_regimes) == str:
-                        cl = np.load(premade_cloud_regimes)
-                        # Checking if the shape is what we'd expect
-                        if premade_cloud_regimes.shape[1] != len(ds_b[tau_var_name]) * len(ds_b[ht_var_name]):
-                            raise Exception (f'premade_cloud_regimes is the wrong shape. premade_cloud_regimes.shape = {premade_cloud_regimes.shape}, but must be shpae (k, {len(ds_b.tau_var_name) * len(ds_b.ht_var_name)}) to fit the loaded data')
-                        print('      -Using premade cloud regimes:')
-                    
 
                     print(f'      -Preprocessing data') 
 
