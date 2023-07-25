@@ -1,4 +1,3 @@
-
 #This file lists out variable-specific defaults
 #for plotting and observations.  These defaults
 #are:
@@ -854,11 +853,31 @@ CLIMODIS:
 CLWMODIS:
   category: "COSP"
 
+CLD_MISR:
+  category: "Clouds"
+  obs_file: 'MISR_obs_data.nc'
+  obs_name: "MISR"
+
+CLMODIS:
+  category: "Clouds"
+  obs_file: 'MODIS_obs_data.nc'
+  obs_name: "MODIS"
+
 FISCCP1_COSP:
-  category: "COSP"
+  category: "Clouds"
+  obs_file: 'ISCCP_obs_data.nc'
+  obs_name: "ISCCP"
 
 ICE_ICLD_VISTAU:
   category: "COSP"
+
+ISCCP_emd_centers:
+  category: "Clouds"
+  obs_file: 'ISCCP_emd-means_n_init5_centers_1.npy'
+
+ISCCP_euclidean_centers:
+  category: "Clouds"
+  obs_file: 'CS_qualitative_clusters.npy'
 
 IWPMODIS:
   category: "COSP"
@@ -883,6 +902,22 @@ MEANTB_ISCCP:
 
 MEANTBCLR_ISCCP:
   category: "COSP"
+
+MISR_euclidean_centers:
+  category: "Clouds"
+  obs_file: 'MISR_6C_weather_state_centers.npy'
+
+MISR_emd_centers:
+  category: "Clouds"
+  obs_file: 'MISR_emd-means_n_init5_centers_1.npy'
+
+MODIS_euclidean_centers:
+  category: "Clouds"
+  obs_file: 'MODIS_6C_weather_state_centers.npy'
+
+MODIS_emd_centers:
+  category: "Clouds"
+  obs_file: 'MODIS_emd-means_n_init5_centers_1.np'
 
 PCTMODIS:
   category: "COSP"
