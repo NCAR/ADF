@@ -300,9 +300,9 @@ def zonal_mean(adfobj):
 
                     if plot_name not in zonal_skip:
 
-                        #Grab seasonally weighted means
-                        mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                        oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
+                        #Seasonal Averages
+                    mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                    oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
                         
                         # difference: each entry should be (lat, lon) or (plev, lat, lon)
                         # dseasons[s] = mseasons[s] - oseasons[s]
