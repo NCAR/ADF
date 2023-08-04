@@ -118,7 +118,7 @@ class AdfInfo(AdfConfig):
         case_names = self.get_cam_info('cam_case_name', required=True)
 
         #Grab test case nickname(s)
-        test_nicknames = self.get_cam_info('case_nickname', required=True)
+        test_nicknames = self.get_cam_info('case_nickname')
         if test_nicknames is None:
             for idx,case_name in enumerate(case_names):
                 test_nicknames[idx] = case_name
@@ -246,9 +246,9 @@ class AdfInfo(AdfConfig):
         eyears_fixed = []
         for case_idx, case_name in enumerate(case_names):
 
-            syear = f"{str(syears[case_idx]).zfill(4)}"
+            syear = int(f"{str(syears[case_idx]).zfill(4)}")
             syears_fixed.append(syear)
-            eyear = f"{str(eyears[case_idx]).zfill(4)}"
+            eyear = int(f"{str(eyears[case_idx]).zfill(4)}")
             eyears_fixed.append(eyear)
 
             #Check if history file path exists:
@@ -447,7 +447,7 @@ class AdfInfo(AdfConfig):
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
         test_nicknames = copy.copy(self.__test_nicknames)
-        base_nickname = copy.copy(self.__base_nickname)
+        base_nickname = self.__base_nickname
 
         return {"test_nicknames":test_nicknames,"base_nickname":base_nickname}
 

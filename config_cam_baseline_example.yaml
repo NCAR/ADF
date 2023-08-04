@@ -207,6 +207,14 @@ diag_cam_climo:
     #    - b.e20.BHIST.f09_g17.20thC.297_05
     #    - b1850.f19_g17.validation_mct.004
 
+    #Case nickname
+    #NOTE: if nickname starts with '0' - nickname must be in quotes!
+    # ie '026a' as opposed to 026a
+    #If missing or left blank, will default to cam_case_name
+    #case_nickname:
+    #    - cool nickname
+    #    - cool nickname 2
+
     #calc_cam_climo:
     #    - true
     #    - true

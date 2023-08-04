@@ -548,7 +548,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     if 'tiFontSize' in kwargs:
         tiFontSize = kwargs.pop('tiFontSize')
     else:
-        tiFontSize = 11
+        tiFontSize = 8
     #End if
 
     #Set Main title for subplots:
@@ -557,28 +557,28 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
 
     #Set plot titles
     case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
-    ax[0].set_title(case_title, loc='left', fontsize=8) #fontsize=tiFontSize
+    ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
 
     if obs:
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
         base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
-        ax[1].set_title(base_title, loc='left', fontsize=8) #fontsize=tiFontSize
+        ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
     else:
         base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
-        ax[1].set_title(base_title, loc='left', fontsize=8)
+        ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
 
     #Set stats: area_avg
     ax[0].set_title(f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\nMax: {mdl_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
-                       fontsize=8)
+                       fontsize=tiFontSize)
     ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
-                       fontsize=8)
+                       fontsize=tiFontSize)
     ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
-                       fontsize=8)
+                       fontsize=tiFontSize)
 
     # set rmse title:
-    ax[-1].set_title(f"RMSE: ", fontsize=8)
-    ax[-1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
+    ax[-1].set_title(f"RMSE: ", fontsize=tiFontSize)
+    ax[-1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
 
     if "units" in kwargs:
         ax[1].set_ylabel(f"[{kwargs['units']}]")
@@ -696,7 +696,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     if 'tiFontSize' in kwargs:
         tiFontSize = kwargs.pop('tiFontSize')
     else:
-        tiFontSize = 11
+        tiFontSize = 8
     #End if
 
     # generate dictionary of contour plot settings:
@@ -746,7 +746,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
         else:
             img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **cp_info['contourf_opt']))
         #End if
-        ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=tiFontSize)
+        ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
 
         # add contour lines <- Unused for now -JN
         # TODO: add an option to turn this on -BM
@@ -760,28 +760,28 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
     #Set plot titles
     case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
-    ax[0].set_title(case_title, loc='left', fontsize=8) #fontsize=tiFontSize
+    ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
 
     if obs:
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
         base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
-        ax[1].set_title(base_title, loc='left', fontsize=8) #fontsize=tiFontSize
+        ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
     else:
         base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
-        ax[1].set_title(base_title, loc='left', fontsize=8)
+        ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
 
     #Set stats: area_avg
     ax[0].set_title(f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.max():5.2f}\nMin: {mdlfld.min():5.2f}", loc='right',
-                       fontsize=8)
+                       fontsize=tiFontSize)
     ax[1].set_title(f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}", loc='right',
-                       fontsize=8)
+                       fontsize=tiFontSize)
     ax[-1].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}", loc='right',
-                       fontsize=8)
+                       fontsize=tiFontSize)
 
     # set rmse title:
-    ax[-1].set_title(f"RMSE: {d_rmse:.3f}", fontsize=8)
-    ax[-1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
+    ax[-1].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
+    ax[-1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
 
     if "units" in kwargs:
         ax[1].set_ylabel(f"[{kwargs['units']}]")
@@ -1298,7 +1298,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
     if 'tiFontSize' in kwargs:
         tiFontSize = kwargs.pop('tiFontSize')
     else:
-        tiFontSize = 11
+        tiFontSize = 8
     #End if
 
     #Set plot titles
@@ -1337,7 +1337,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         else:
             img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
             img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
-            #img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],levels=cp_info['levelsdiff'],**cp_info['contourf_opt'])
             fig.colorbar(img0, ax=ax[0], location='right',**cp_info['colorbar_opt'])
             fig.colorbar(img1, ax=ax[1], location='right',**cp_info['colorbar_opt'])
         #End if
@@ -1349,9 +1348,9 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
             img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],levels=cp_info['levelsdiff'],**cp_info['contourf_opt'])
             fig.colorbar(img2, ax=ax[2], location='right',**cp_info['colorbar_opt'])
 
-        ax[0].set_title(case_title, loc='left', fontsize=8) #fontsize=tiFontSize
-        ax[1].set_title(base_title, loc='left', fontsize=8)
-        ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
+        ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
+        ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
+        ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
         
 
         # style the plot:
@@ -1465,6 +1464,15 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         return None
     #End if
 
+    # style the plot:
+    # We should think about how to do plot customization and defaults.
+    # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
+    if 'tiFontSize' in kwargs:
+        tiFontSize = kwargs.pop('tiFontSize')
+    else:
+        tiFontSize = 8
+    #End if
+
     # possible that the data has time, but usually it won't
     if len(adata.dims) > 4:
         print(f"ERROR: plot_meridonal_mean_and_save - too many dimensions: {adata.dims}")
@@ -1530,9 +1538,9 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
             cb2 = fig.colorbar(img2, ax=ax[2], location='right',**cp_info['colorbar_opt'])
 
         #Set plot titles
-        ax[0].set_title(case_title, loc='left', fontsize=8) #fontsize=tiFontSize
-        ax[1].set_title(base_title, loc='left', fontsize=8)
-        ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
+        ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
+        ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
+        ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
 
         # style the plot:
         #Set Main title for subplots:
