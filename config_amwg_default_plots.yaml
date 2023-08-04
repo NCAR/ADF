@@ -269,6 +269,7 @@ diag_cvdp_info:
 #These scripts must be located in "scripts/averaging":
 time_averaging_scripts:
     - create_climo_files
+    #- create_TEM_files #To generate TEM files, please un-comment
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
@@ -288,6 +289,9 @@ plotting_scripts:
     - zonal_mean
     - polar_map
     - cam_taylor_diagram
+    #- tem #To plot TEM, please un-comment
+    #- regional_map_multicase #To use this please un-comment and fill-out
+                              #the "region_multicase" section below
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
@@ -334,5 +338,27 @@ diag_var_list:
    - LANDFRAC
 
 #<Add more variables here.>
+
+# Options for multi-case regional contour plots (./plotting/regional_map_multicase.py)
+# region_multicase:
+#     region_spec: [slat, nlat, wlon, elon]
+#     region_time_option: <calendar | zeroanchor>  # If calendar, will look for specified years. If zeroanchor will use a nyears starting from year_offset from the beginning of timeseries
+#     region_start_year:
+#     region_end_year:
+#     region_nyear:
+#     region_year_offset:
+#     region_month: <NULL means look for season>
+#     region_season: <NULL means use annual mean>
+#     region_variables: <list of variables to try to use; allows for a subset of the total diag variables>
+
+# Options for TEM diagnostics (./averaging/create_TEM_files.py and ./plotting/temp.py)
+#tem_info:
+    #Location where TEM files are stored:
+    #If path not specified or commented out, skip TEM calculation
+    #If no path, diagnostics wont run even if declared in averaging/plotting scripts below
+    #tem_loc: /glade/scratch/richling/adf-output/tem/fixes/cam_vs_cam/TEM/
+
+    #TEM history file number
+    #hist_num: h4
 
 #END OF FILE

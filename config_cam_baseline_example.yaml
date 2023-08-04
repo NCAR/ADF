@@ -131,12 +131,6 @@ diag_basic_info:
     #If set to false, then if a plot is found it will be skipped:
     redo_plot: false
 
-    #Location where TEM files are stored:
-    #If path not specified or commented out, skip TEM calculation
-    #If no path, diagnostics wont run even if declared in averaging/plotting scripts below
-    tem_loc: /glade/scratch/${user}/ADF/tem
-
-
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
 
@@ -214,8 +208,8 @@ diag_cam_climo:
     #    - /glade/p/cesm/ADF/b1850.f19_g17.validation_mct.004
 
     #cam_climo_loc:
-    #    -/some/where/you/want/to/have/climo_files/ #MUST EDIT!
-    #    -/the/same/or/some/other/climo/files/location
+    #    - /some/where/you/want/to/have/climo_files/ #MUST EDIT!
+    #    - /the/same/or/some/other/climo/files/location
 
     #start_year:
     #    - 1990
@@ -238,7 +232,7 @@ diag_cam_climo:
     #    - false
 
     #cam_ts_loc:
-    #    - /some/where/you/want/to/have/time_series_files/
+    #    - /some/where/you/want/to/have/time_series_files
     #    - /same/or/different/place/you/want/files
 
     #----------------------
@@ -331,7 +325,7 @@ diag_cvdp_info:
 #These scripts must be located in "scripts/averaging":
 time_averaging_scripts:
     - create_climo_files
-    #- create_TEM_files
+    #- create_TEM_files #To generate TEM files, please un-comment
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
@@ -353,7 +347,7 @@ plotting_scripts:
     - polar_map
     - cam_taylor_diagram
     - qbo
-    #- tem
+    #- tem #To plot TEM, please un-comment
     #- regional_map_multicase #To use this please un-comment and fill-out
                               #the "region_multicase" section below
 
@@ -391,5 +385,14 @@ diag_var_list:
 #     region_season: <NULL means use annual mean>
 #     region_variables: <list of variables to try to use; allows for a subset of the total diag variables>
 
+# Options for TEM diagnostics (./averaging/create_TEM_files.py and ./plotting/temp.py)
+#tem_info:
+    #Location where TEM files are stored:
+    #If path not specified or commented out, skip TEM calculation
+    #If no path, diagnostics wont run even if declared in averaging/plotting scripts below
+    #tem_loc: /glade/scratch/richling/adf-output/tem/fixes/cam_vs_cam/TEM/
+
+    #TEM history file number
+    #hist_num: h4
 
 #END OF FILE

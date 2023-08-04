@@ -5,11 +5,12 @@ from numpy import ma
 from datetime import date
 from pathlib import Path
 from glob import glob
+from itertools import chain
 
 
 def create_TEM_files(adf):
     """
-    Calculate the the TEM variables and create new netCDF files
+    Calculate the TEM variables and create new netCDF files
     
     """
 
@@ -24,24 +25,34 @@ def create_TEM_files(adf):
     start_years   = adf.climo_yrs["syears"]
     end_years     = adf.climo_yrs["eyears"]
 
-    #Extract baseline years (which may be empty strings if using Obs):
-    syear_baseline = adf.climo_yrs["syear_baseline"]
-    eyear_baseline = adf.climo_yrs["eyear_baseline"]
-
     #Check if comparing to observations
     if adf.get_basic_info("compare_obs"):
         base_name = "Obs"
     else:
-        base_name = adf.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
+        base_name = adf.get_baseline_info("cam_case_name", required=True)
         cam_hist_locs.append(adf.get_baseline_info("cam_hist_loc", required=True))
+
+        #Extract baseline years (which may be empty strings if using Obs):
+        syear_baseline = adf.climo_yrs["syear_baseline"]
+        eyear_baseline = adf.climo_yrs["eyear_baseline"]
 
         case_names.append(base_name)
         start_years.append(syear_baseline)
         end_years.append(eyear_baseline)
     #End if
 
-    #New TEM netCDF file save location
-    output_loc = adf.get_basic_info("tem_loc")
+    #Grab TEM diagnostics options
+    tem_opts = adf.read_config_var("tem_info")
+    
+    #Set default to h4
+    #TODO: Read this history file number from the yaml file?
+    hist_num = tem_opts["hist_num"]
+    print("tem hist_num",hist_num)
+    if hist_num is None:
+        hist_num = "h4"
+
+    #Extract TEM file save location
+    output_loc = tem_opts["tem_loc"]
     
     #If path not specified, skip TEM calculation?
     if output_loc is None:
@@ -50,14 +61,10 @@ def create_TEM_files(adf):
         #Notify user that script has started:
         print("\n  Generating CAM TEM diagnostics files...")
 
-    #Set default to h4
-    #TODO: Read this history file number from the yaml file?
-    hist_num = "h4"
-
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
 
-    if "qbo" in adf._AdfDiag__plotting_scripts:
+    if "qbo" in adf.plotting_scripts:
         var_list = ['uzm','epfy','epfz','vtem','wtem',
                     'psitem','utendepfd','utendvtem','utendwtem']
     else:
@@ -67,25 +74,23 @@ def create_TEM_files(adf):
     if adf.get_basic_info("compare_obs"):
         print(f"\t Processing TEM diagnostics for observations :")
 
-        obs_loc = adf.get_basic_info("obs_data_loc")
-        
         #Group all TEM observation files together
-        tem_base = []
+        tem_obs_fils = []
         for var in var_list:
             if var in res:
                 #Gather from variable defaults file
                 obs_file = res[var]["obs_file"]
-                tem_base.append(Path(obs_loc) / obs_file)
 
-        tem_base = np.array(tem_base)
-        tem_base = np.unique(tem_base)
+                #It's likely multiple TEM vars will come from one file, so check
+                #to see if it already exists from other vars.
+                if obs_file not in tem_obs_fils:
+                    tem_obs_fils.append(obs_file)
+                else:
+                    print(f"{Path(obs_file).stem} is already in list")
 
-        ds = xr.open_mfdataset(tem_base)
+        ds = xr.open_mfdataset(tem_obs_fils)
         start_year = str(ds.time[0].values)[0:4]
         end_year = str(ds.time[-1].values)[0:4]
-
-        print("obs start year:",start_year)
-        print("obs end year:",end_year,"\n")
 
         #Update the attributes
         ds.attrs['created'] = str(date.today())
@@ -93,11 +98,6 @@ def create_TEM_files(adf):
         ds['zalat']=ds['lat']
 
         output_loc_idx = Path(output_loc) / base_name
-        #Check if TEM directory exists, and if not, then create it:
-        if not output_loc_idx.is_dir():
-            print(f"    {output_loc_idx} not found, making new directory")
-            output_loc_idx.mkdir(parents=True)
-        #End if
 
         #Make a copy of obs data so we don't do anything bad
         ds_obs = ds.copy()
@@ -116,7 +116,7 @@ def create_TEM_files(adf):
                 })
 
         # write output to a netcdf file
-        ds_base.to_netcdf(output_loc_idx / f'{base_name}.TEMdiag.nc', 
+        ds_base.to_netcdf(output_loc / f'{base_name}.TEMdiag.nc', 
                             unlimited_dims='time', 
                             mode = 'w' )
 
@@ -136,7 +136,7 @@ def create_TEM_files(adf):
         if not starting_location.is_dir():
             emsg = f"Provided 'cam_hist_loc' directory '{starting_location}' not found."
             emsg += " Script is ending here."
-            adf.end_diag_fail(emsg)
+            return
         #End if
 
         #Check if history files actually exist. If not then kill script:
@@ -144,13 +144,17 @@ def create_TEM_files(adf):
         if not list(starting_location.glob(hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
             emsg += " Script is ending here."
-            adf.end_diag_fail(emsg)
+            return
         #End if
 
-        # open input files
-        shist = glob(f"{starting_location}/*{hist_num}.{start_year}*.nc")
-        ehist = glob(f"{starting_location}/*{hist_num}.{end_year}*.nc")
-        hist_files = sorted(shist + ehist)
+        #Glob each set of years
+        #NOTE: This will make a nested list
+        hist_files = []
+        for yr in np.arange(start_year,end_year+1):
+            hist_files.append(glob(f"{starting_location}/{hist_str}.{yr}*.nc"))    
+
+        #Flatten list of lists to 1d list
+        hist_files = sorted(list(chain.from_iterable(hist_files)))
 
         ds = xr.open_mfdataset(hist_files)
 
@@ -192,7 +196,7 @@ def calc_tem(ds):
     # calc_tem() function to calculate TEM diagnostics on CAM/WACCM output
     # This assumes the data have already been organized into zonal mean fluxes
     # Uzm, THzm, VTHzm, Vzm, UVzm, UWzm, Wzm
-    # note that caculations are performed on model interface levels, which is ok
+    # note that calculations are performed on model interface levels, which is ok
     # in the stratosphere but not in the troposphere.  If interested in tropospheric
     # TEM diagnostics, make sure input fields have been interpolated to true pressure levels.
 
@@ -223,8 +227,7 @@ def calc_tem(ds):
     # initial coding of stand alone function by Dan Marsh 16 Dec 2022
 
     # NOTE: function expects an xarray dataset with dataarrays of dimension (nlev,nlat)
-    # to process more than one timestep interate over time. See calcTEM.ipynb notebook
-    # for an example of processed a file or files with more than one timestep.
+    # to process more than one timestep iterate over time.
     """
 
     # constants for TEM calculations

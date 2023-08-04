@@ -986,7 +986,7 @@ psitem:
   long_name: Transformed Eulerian mean mass stream function
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
-  obs_var_name: ""
+  obs_var_name: "psitem"
 
 utendepfd:
   ylim: [1e2,1]
@@ -994,7 +994,7 @@ utendepfd:
   long_name: tendency of eastward wind due to Eliassen-Palm flux divergence
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
-  obs_var_name: "psitem"
+  obs_var_name: "utendepfd"
 
 utendvtem:
   ylim: [1e2,1]

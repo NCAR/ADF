@@ -30,7 +30,7 @@ def tem(adf):
 
     #Check if plot output directory exists, and if not, then create it:
     if not plot_location.is_dir():
-        print("    {} not found, making new directory".format(plot_location))
+        print(f"    {plot_location} not found, making new directory")
         plot_location.mkdir(parents=True)
 
     #CAM simulation variables (this is always assumed to be a list):
@@ -40,7 +40,7 @@ def tem(adf):
     # or an empty dictionary if use_defaults was not specified in YAML.
 
     #Check if comparing against observations
-    if adf.get_basic_info("compare_obs"):
+    if adf.compare_obs:
         obs = True
         base_name = "Obs"
 
@@ -74,11 +74,15 @@ def tem(adf):
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
-    #Location to saved TEM netCDF files
-    tem_loc = adf.get_basic_info("tem_loc")
+    #Grab TEM diagnostics options
+    tem_opts = adf.read_config_var("tem_info")
+
+    #Location of saved TEM netCDF files
+    tem_loc = tem_opts["tem_loc"]
 
     #If path not specified, skip TEM calculation
     if tem_loc is None:
+        print("'tem_loc' not found in config file, so TEM plots will be skipped.")
         return
     else:
         #Notify user that script has started:
@@ -93,7 +97,7 @@ def tem(adf):
                }
 
     #Suggestion from Rolando, if QBO is being produced, add utendvtem and utendwtem?
-    if "qbo" in adf._AdfDiag__plotting_scripts:
+    if "qbo" in adf.plotting_scripts:
         var_list = ['uzm','epfy','epfz','vtem','wtem',
                     'psitem','utendepfd','utendvtem','utendwtem']
     #Otherwise keep it simple
@@ -102,7 +106,7 @@ def tem(adf):
 
     #Check if comparing against obs
     #If so, create the obs TEM netCDF file
-    if adf.get_basic_info("compare_obs"):
+    if obs:
 
         #Create TEM file for observations
         input_loc_idx = Path(tem_loc) / base_name
@@ -133,6 +137,16 @@ def tem(adf):
 
         #Loop over model cases:
         for idx,case_name in enumerate(case_names):
+
+            # Check redo_plot. If set to True: remove old plot, if it already exists:
+            if (not redo_plot) and plot_name.is_file():
+                #Add already-existing plot to website (if enabled):
+                adf.add_website_data(plot_name, "TEM", case_name, season=s)
+
+                #Continue to next iteration:
+                continue
+            elif (redo_plot) and plot_name.is_file():
+                plot_name.unlink()
 
             #Extract start and end year values:
             start_year = syear_cases[idx]
