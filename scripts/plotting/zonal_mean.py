@@ -279,8 +279,6 @@ def zonal_mean(adfobj):
 
                 #
                 # Seasonal Averages
-                # Note: xarray can do seasonal averaging, but depends on having time accessor,
-                # which these prototype climo files don't.
                 #
 
                 #Create new dictionaries:

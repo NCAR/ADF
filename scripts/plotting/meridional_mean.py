@@ -216,19 +216,6 @@ def meridional_mean(adfobj):
 
                 #Loop over season dictionary:
                 for s in seasons:
-                    mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                    oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
-
-                    # difference: each entry should be (lat, lon) or (plev, lat, lon)
-                    # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_meridional_mean_and_save.
-
-                    # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                    # I'll just call this one "Meridional_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                    # NOTE: Up to this point, nothing really differs from global_latlon_map,
-                    #       so we could have made one script instead of two.
-                    #       Merging would make overall timing better because looping twice will double I/O steps.
-                    #
                     plot_name = plot_loc / f"{var}_{s}_Meridional_Mean.{plot_type}"
 
                     # Check redo_plot. If set to True: remove old plot, if it already exists:
@@ -236,11 +223,14 @@ def meridional_mean(adfobj):
                         #Add already-existing plot to website (if enabled):
                         adfobj.add_website_data(plot_name, var, case_name, season=s,
                                                 plot_type="Meridional")
-
                         #Continue to next iteration:
                         continue
                     elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()
+
+                    mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                    oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+
 
                     #Create new plot:
                     pf.plot_meridional_mean_and_save(plot_name, case_nickname, base_nickname,

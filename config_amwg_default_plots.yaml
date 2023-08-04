@@ -118,11 +118,6 @@ diag_basic_info:
     #longitude will default to 180 degrees E.
     central_longitude: 180
 
-    #Apply monthly weights to seasonal averages.
-    #If False or missing, then all months are
-    #given the same weight:
-    weight_season: True
-
     #Number of processors on which to run the ADF.
     #If this config variable isn't present then
     #the ADF defaults to one processor.  Also, if
