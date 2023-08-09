@@ -63,6 +63,12 @@ user: 'USER-NAME-NOT-SET'
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
 
+    #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
+    # Only affects timeseries as everything else uses timeseries 
+    # Leave off trailing '.'
+    #Default: cam.h0
+    hist_str: cam.h0           
+
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
     compare_obs: false
@@ -90,12 +96,6 @@ diag_basic_info:
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
 
-    #CAM history file number to use (h0,h1,h2, etc)
-    #Currently only affects timeseries generation,
-    #as everything else uses the timeseries files themselves.
-    #If this variable is not present then it will default ot "h0".
-    hist_num: h0
-
     #Use default variable plot settings?
     #If "true", then variable-specific plotting attributes as defined in
     #ADF/lib/adf_variable_defaults.yaml will be used:
@@ -103,7 +103,7 @@ diag_basic_info:
 
     #Location of ADF variable plotting defaults YAML file
     #if not using the one in ADF/lib:
-    #defaults_file: /some/path/to/defaults/file
+  #  defaults_file: /some/path/to/defaults/file
 
     #Vertical pressure levels (in hPa) on which to plot 3-D variables
     #when using horizontal (e.g. lat/lon) map projections.
@@ -111,7 +111,7 @@ diag_basic_info:
     #horizontal maps.  Please note too that pressure levels must currently match
     #what is available in the observations file in order to be plotted in a
     #model vs obs run:
-    plot_press_levels: [ ]
+    plot_press_levels: [200,850]
 
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
@@ -135,7 +135,7 @@ diag_basic_info:
 diag_cam_climo:
 
     #Calculate climatologies?
-    #If false, neither the climatology or time-series files will be created:
+    #If false, the climatology files will not be created:
     calc_cam_climo: true
 
     #Overwrite CAM climatology files?
@@ -144,6 +144,12 @@ diag_cam_climo:
 
     #Name of CAM case (or CAM run name):
     cam_case_name: b.e20.BHIST.f09_g17.20thC.297_05
+
+    #Case nickname
+    #NOTE: if nickname starts with '0' - nickname must be in quotes!
+    # ie '026a' as opposed to 026a
+    #If missing or left blank, will default to cam_case_name
+    case_nickname: #cool nickname
 
     #Location of CAM history (h0) files:
     #Example test files
@@ -162,7 +168,7 @@ diag_cam_climo:
     #       end at latest available year.
     end_year: 1999
 
-    #Do time series files need to be generated?
+    #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
     #If False, or if simply not present, then diagnostics will attempt to create
     #time series files from history (time-slice) files:
@@ -187,7 +193,7 @@ diag_cam_climo:
 diag_cam_baseline_climo:
 
     #Calculate cam baseline climatologies?
-    #If false, neither the climatology or time-series files will be created:
+    #If false, the climatology files will not be created:
     calc_cam_climo: true
 
     #Overwrite CAM climatology files?
@@ -196,6 +202,12 @@ diag_cam_baseline_climo:
 
     #Name of CAM baseline case:
     cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
+
+    #Baseline case nickname
+    #NOTE: if nickname starts with '0' - nickname must be in quotes!
+    # ie '026a' as opposed to 026a
+    #If missing or left blank, will default to cam_case_name
+    case_nickname: #cool nickname
 
     #Location of CAM baseline history (h0) files:
     #Example test files

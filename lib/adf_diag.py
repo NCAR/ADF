@@ -387,6 +387,9 @@ class AdfDiag(AdfWeb):
             start_year = start_years[case_idx]
             end_year   = end_years[case_idx]
 
+            print(type(start_year))
+            print(type(end_year))
+
             #Create path object for the CAM history file(s) location:
             starting_location = Path(cam_hist_locs[case_idx])
 
@@ -724,8 +727,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
             #Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.get_baseline_info('start_year')
-            eyear_baseline = self.get_baseline_info('end_year')
+            syear_baseline = self.climo_yrs["syear_baseline"]
+            eyear_baseline = self.climo_yrs["eyear_baseline"]
 
             #If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -773,8 +776,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
             #Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.get_baseline_info('start_year')
-            eyear_baseline = self.get_baseline_info('end_year')
+            syear_baseline = self.climo_yrs["syear_baseline"]
+            eyear_baseline = self.climo_yrs["eyear_baseline"]
 
             #If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
