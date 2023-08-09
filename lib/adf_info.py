@@ -117,11 +117,16 @@ class AdfInfo(AdfConfig):
         #Case names:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
+        print(case_names)
+
         #Grab test case nickname(s)
         test_nicknames = self.get_cam_info('case_nickname')
         if test_nicknames is None:
-            for idx,case_name in enumerate(case_names):
-                test_nicknames[idx] = case_name
+            test_nicknames = [] #Re-set to be an empty list
+            for case_name in case_names:
+                test_nicknames.append(case_name)
+            #End for
+        #End if
 
         #Initialize "compare_obs" variable:
         self.__compare_obs = self.get_basic_info('compare_obs')
@@ -153,9 +158,9 @@ class AdfInfo(AdfConfig):
 
             #Attempt to grab baseline start_years (not currently required):
             syear_baseline = self.get_baseline_info('start_year')
-            syear_baseline = f"{str(syear_baseline).zfill(4)}"
+            syear_baseline = int(f"{str(syear_baseline).zfill(4)}")
             eyear_baseline = self.get_baseline_info('end_year')
-            eyear_baseline = f"{str(eyear_baseline).zfill(4)}"
+            eyear_baseline = int(f"{str(eyear_baseline).zfill(4)}")
 
             #Get climo years for verification or assignment if missing
             baseline_hist_locs = self.get_baseline_info('cam_hist_loc')
