@@ -16,23 +16,25 @@ def zonal_mean(adfobj):
     This script plots zonal averages.
     Compare CAM climatologies against
     other climatological data (observations or baseline runs).
-
     Description of needed inputs from ADF:
-
-    case_name        -> Name of CAM case provided by "cam_case_name".
-    model_rgrid_loc  -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
-    data_name        -> Name of data set CAM case is being compared against,
-                        which is always either "obs" or the baseline CAM case name,
-                        depending on whether "compare_obs" is true or false.
-    data_loc         -> Location of comparison data, which is either "obs_climo_loc"
-                        or "cam_baseline_climo_loc", depending on whether
-                        "compare_obs" is true or false.
-    var_list         -> List of CAM output variables provided by "diag_var_list"
-    data_list        -> List of data sets CAM will be compared against, which
-                        is simply the baseline case name in situations when
-                        "compare_obs" is false.
-    plot_location    -> Location where plot files will be written to, which is
-                        specified by "cam_diag_plot_loc".
+    case_name         -> Name of CAM case provided by "cam_case_name".
+    model_rgrid_loc   -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
+    data_name         -> Name of data set CAM case is being compared against,
+                         which is always either "obs" or the baseline CAM case name,
+                         depending on whether "compare_obs" is true or false.
+    data_loc          -> Location of comparison data, which is either "obs_climo_loc"
+                         or "cam_baseline_climo_loc", depending on whether
+                         "compare_obs" is true or false.
+    var_list          -> List of CAM output variables provided by "diag_var_list"
+    data_list         -> List of data sets CAM will be compared against, which
+                         is simply the baseline case name in situations when
+                         "compare_obs" is false.
+    climo_yrs         -> Dictionary containing the start and end years of the test
+                         and baseline model data (if applicable).
+    plot_location     -> Location where plot files will be written to, which is
+                         specified by "cam_diag_plot_loc".
+    variable_defaults -> optional,
+                         Dict that has keys that are variable names and values that are plotting preferences/defaults.
     Notes:
         The script produces plots of 2-D and 3-D variables,
         but needs to determine which type along the way.
@@ -58,11 +60,17 @@ def zonal_mean(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Grab case years
+    syear_cases = adfobj.climo_yrs["syears"]
+    eyear_cases = adfobj.climo_yrs["eyears"]
+
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
+        #Set obs call for observation details for plot titles
+        obs = True
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
@@ -72,11 +80,20 @@ def zonal_mean(adfobj):
         if not var_obs_dict:
             print("\t No observations found to plot against, so no zonal-mean maps will be generated.")
             return
-
     else:
+        obs = False
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
+    #End if
+
+    #Grab baseline years (which may be empty strings if using Obs):
+    syear_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -107,6 +124,64 @@ def zonal_mean(adfobj):
                "MAM": [3, 4, 5],
                "SON": [9, 10, 11]}
 
+    #Check if plots already exist and redo_plot boolean
+    #If redo_plot is false and file exists, keep track and attempt to skip calcs to
+    #speed up preformance a bit if re-running the ADF
+    zonal_skip = []
+    logp_zonal_skip = []
+
+    #Loop over model cases:
+    for case_idx, case_name in enumerate(case_names):
+        #Set output plot location:
+        plot_loc = Path(plot_locations[case_idx])
+
+        #Check if plot output directory exists, and if not, then create it:
+        if not plot_loc.is_dir():
+            print(f"    {plot_loc} not found, making new directory")
+            plot_loc.mkdir(parents=True)
+        #End if
+
+        #Loop over the variables for each season
+        for var in var_list:
+            for s in seasons:
+                #Check zonal log-p:
+                plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
+
+                # Check redo_plot. If set to True: remove old plot, if it already exists:
+                if (not redo_plot) and plot_name_log.is_file():
+                    logp_zonal_skip.append(plot_name_log)
+                    #Continue to next iteration:
+                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s,
+                                            plot_type="Zonal", category="Log-P")
+                    pass
+
+                elif (redo_plot) and plot_name_log.is_file():
+                    plot_name_log.unlink()
+                #End if
+                
+                #Check regular zonal
+                plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
+                # Check redo_plot. If set to True: remove old plot, if it already exists:
+                if (not redo_plot) and plot_name.is_file():
+                    zonal_skip.append(plot_name)
+                    #Add already-existing plot to website (if enabled):
+                    adfobj.add_website_data(plot_name, var, case_name, season=s,
+                                                        plot_type="Zonal")
+
+                    continue
+                elif (redo_plot) and plot_name.is_file():
+                    plot_name.unlink()
+                #End if
+            #End for (seasons)
+        #End for (variables)
+    #End for (cases)
+    #
+    # End redo plots check
+    #
+
+    #
+    # Setup Plotting
+    #
     #Loop over variables:
     for var in var_list:
 
@@ -159,13 +234,11 @@ def zonal_mean(adfobj):
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
 
+                #Set case nickname:
+                case_nickname = test_nicknames[case_idx]
+
                 #Set output plot location:
                 plot_loc = Path(plot_locations[case_idx])
-
-                #Check if plot output directory exists, and if not, then create it:
-                if not plot_loc.is_dir():
-                    print(f"    {plot_loc} not found, making new directory")
-                    plot_loc.mkdir(parents=True)
 
                 # load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
@@ -206,26 +279,15 @@ def zonal_mean(adfobj):
 
                 #
                 # Seasonal Averages
-                # Note: xarray can do seasonal averaging, but depends on having time accessor,
-                # which these prototype climo files don't.
                 #
 
                 #Create new dictionaries:
                 mseasons = {}
                 oseasons = {}
-                dseasons = {} # hold the differences
 
                 #Loop over season dictionary:
                 for s in seasons:
-                    mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                    oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
-
-                    # difference: each entry should be (lat, lon) or (plev, lat, lon)
-                    # dseasons[s] = mseasons[s] - oseasons[s]
-                    # difference will be calculated in plot_zonal_mean_and_save;
-                    # because we can let any pressure-level interpolation happen there
-                    # This could be re-visited for efficiency or improved code structure.
-
+                    
                     # time to make plot; here we'd probably loop over whatever plots we want for this variable
                     # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                     # NOTE: Up to this point, nothing really differs from global_latlon_map,
@@ -234,24 +296,39 @@ def zonal_mean(adfobj):
                     #
                     plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
 
-                    # Check redo_plot. If set to True: remove old plot, if it already exists:
-                    if (not redo_plot) and plot_name.is_file():
-                        #Add already-existing plot to website (if enabled):
-                        adfobj.add_website_data(plot_name, var, case_name, season=s,
-                                                plot_type="Zonal")
+                    if plot_name not in zonal_skip:
 
-                        #Continue to next iteration:
-                        continue
-                    elif (redo_plot) and plot_name.is_file():
-                        plot_name.unlink()
-                    #End if
+                        #Seasonal Averages
+                        mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                        oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+                        
+                        # difference: each entry should be (lat, lon) or (plev, lat, lon)
+                        # dseasons[s] = mseasons[s] - oseasons[s]
+                        # difference will be calculated in plot_zonal_mean_and_save;
+                        # because we can let any pressure-level interpolation happen there
+                        # This could be re-visited for efficiency or improved code structure.
 
-                    #Create new plot:
-                    pf.plot_zonal_mean_and_save(plot_name, mseasons[s],
-                                                oseasons[s], has_lev, **vres)
+                        #Create new plot:
+                        pf.plot_zonal_mean_and_save(plot_name, case_nickname, base_nickname,
+                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                    [syear_baseline,eyear_baseline],
+                                                    mseasons[s], oseasons[s], has_lev, log_p=False, obs=obs, **vres)
 
-                    #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Zonal")
+                        #Add plot to website (if enabled):
+                        adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Zonal")
+
+                    #Create new plot with log-p:
+                    if has_lev:
+                        plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
+
+                        if plot_name_log not in logp_zonal_skip:
+                            pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, base_nickname,
+                                                            [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                            [syear_baseline,eyear_baseline],
+                                                            mseasons[s], oseasons[s], has_lev, log_p=True, obs=obs, **vres)
+
+                            #Add plot to website (if enabled):
+                            adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category="Log-P")
 
                 #End for (seasons loop)
             #End for (case names loop)
@@ -262,9 +339,10 @@ def zonal_mean(adfobj):
     print("  ...Zonal mean plots have been generated successfully.")
 
 
-#
+#########
 # Helpers
-#
+#########
+
 def _load_dataset(fils):
     if len(fils) == 0:
         warnings.warn(f"Input file list is empty.")
@@ -274,3 +352,9 @@ def _load_dataset(fils):
     else:
         sfil = str(fils[0])
         return xr.open_dataset(sfil)
+    #End if
+#End def
+
+##############
+#END OF SCRIPT
+

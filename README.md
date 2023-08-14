@@ -1,8 +1,8 @@
 # ADF diagnostics
 
-[![Framework Unit Tests](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml/badge.svg)](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml) [![CC BY 4.0][cc-by-shield]][cc-by]
+[![Framework Unit Tests](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml/badge.svg)](https://github.com/NCAR/ADF/actions/workflows/ADF_unit_tests.yaml) [![pre-commit](https://github.com/NCAR/ADF/actions/workflows/ADF_pre-commit.yaml/badge.svg)](https://github.com/NCAR/ADF/actions/workflows/ADF_pre-commit.yaml) [![CC BY 4.0][cc-by-shield]][cc-by]
 
-This repository contains the Atmosphere Diagnostics Framework (ADF) diagnostics python package, which includes numerous different averaging,
+This repository contains the Atmosphere Model Working Group (AMWG) Diagnostics Framework (ADF) diagnostics python package, which includes numerous different averaging,
 re-gridding, and plotting scripts, most of which are provided by users of CAM itself.
 
 Specifically, this package is currently designed to generate standard climatological comparisons between either two
@@ -17,7 +17,7 @@ Finally, if you are interested in general (but non-supported) tools used by AMP 
 
 ## Required software environment
 
-These diagnostics currently require Python version 3.6 or highter.  They also require the following non-standard python libraries/modules:
+These diagnostics currently require Python version 3.6 or higher.  They also require the following non-standard python libraries/modules:
 
 - PyYAML
 - Numpy
@@ -40,7 +40,7 @@ If you are using conda on a non-CISL machine, then you can create and activate t
 
 ```
 conda env create -f env/conda_environment.yaml
-conda activate adf_v0.07
+conda activate adf_v0.11
 ```
 
 Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running:

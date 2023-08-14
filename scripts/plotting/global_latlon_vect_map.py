@@ -1,34 +1,35 @@
+#Import necessary modules:
+#------------------------
+from pathlib import Path  # python standard library
+
 def global_latlon_vect_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model vector fields with continental
     overlays.
-
-    Description of function inputs:
-
-    case_name        -> Name of CAM case provided by "cam_case_name".
-    model_rgrid_loc  -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
-    data_name        -> Name of data set CAM case is being compared against,
-                        which is always either "obs" or the baseline CAM case name,
-                        depending on whether "compare_obs" is true or false.
-    data_loc         -> Location of comparison data, which is either "obs_data_loc"
-                        or "cam_baseline_climo_loc", depending on whether
-                        "compare_obs" is true or false.
-    var_list         -> List of CAM output variables provided by "diag_var_list"
-    data_list        -> List of data sets CAM will be compared against, which
-                        is simply the baseline case name in situations when
-                        "compare_obs" is false.
-    plot_location    -> Location where plot files will be written to, which is
-                        specified by "cam_diag_plot_loc".
-
-    opt              -> optional,
-                        if dict : that has keys that are variable names and values that are plotting preferences/defaults.
-                        if str  : path to a YAML file that conforms to the dict option.
+    Description of needed inputs from ADF:
+    case_name         -> Name of CAM case provided by "cam_case_name".
+    model_rgrid_loc   -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
+    data_name         -> Name of data set CAM case is being compared against,
+                         which is always either "obs" or the baseline CAM case name,
+                         depending on whether "compare_obs" is true or false.
+    data_loc          -> Location of comparison data, which is either "obs_data_loc"
+                         or "cam_baseline_climo_loc", depending on whether
+                         "compare_obs" is true or false.
+    var_list          -> List of CAM output variables provided by "diag_var_list"
+    data_list         -> List of data sets CAM will be compared against, which
+                         is simply the baseline case name in situations when
+                         "compare_obs" is false.
+    plot_location     -> Location where plot files will be written to, which is
+                         specified by "cam_diag_plot_loc".
+    climo_yrs         -> Dictionary containing the start and end years of the test
+                         and baseline model data (if applicable).
+    variable_defaults -> optional,
+                        Dict that has keys that are variable names and values that are plotting preferences/defaults.
     """
 
     #Import necessary modules:
     #------------------------
-    from pathlib import Path  # python standard library
 
     # data loading / analysis
     import xarray as xr
@@ -60,11 +61,17 @@ def global_latlon_vect_map(adfobj):
     #CAM simulation variables:
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Grab case years
+    syear_cases = adfobj.climo_yrs["syears"]
+    eyear_cases = adfobj.climo_yrs["eyears"]
+
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
+        #Set obs call for observation details for plot titles
+        obs = True
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
@@ -74,13 +81,20 @@ def global_latlon_vect_map(adfobj):
         if not var_obs_dict:
             print("\t No observations found to plot against, so no vector maps will be generated.")
             return
-
     else:
+        obs = False
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
     #End if
 
+    #Grab baseline years (which may be empty strings if using Obs):
+    syear_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -248,6 +262,9 @@ def global_latlon_vect_map(adfobj):
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
 
+                #Set case nickname:
+                case_nickname = test_nicknames[case_idx]
+
                 #Set plot location:
                 plot_loc = Path(plot_locations[case_idx])
 
@@ -263,8 +280,13 @@ def global_latlon_vect_map(adfobj):
 
                 if len(umclim_fils) > 1:
                     umclim_ds = xr.open_mfdataset(umclim_fils, combine='by_coords')
-                else:
+                elif len(umclim_fils) == 1:
                     umclim_ds = xr.open_dataset(umclim_fils[0])
+                else:
+                    print("WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    continue
                 #End if
 
                 if len(vmclim_fils) > 1:
@@ -349,10 +371,10 @@ def global_latlon_vect_map(adfobj):
 
                             #Loop over season dictionary:
                             for s in seasons:
-                                umseasons[s] = umdata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                vmseasons[s] = vmdata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                uoseasons[s] = uodata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                voseasons[s] = vodata.sel(time=seasons[s],lev=lv).mean(dim='time')
+                                umseasons[s] = (pf.seasonal_mean(umdata, season=s, is_climo=True)).sel(lev=lv)
+                                vmseasons[s] = (pf.seasonal_mean(vmdata, season=s, is_climo=True)).sel(lev=lv)
+                                uoseasons[s] = (pf.seasonal_mean(uodata, season=s, is_climo=True)).sel(lev=lv)
+                                voseasons[s] = (pf.seasonal_mean(vodata, season=s, is_climo=True)).sel(lev=lv)
                                 # difference: each entry should be (lat, lon)
                                 udseasons[s] = umseasons[s] - uoseasons[s]
                                 vdseasons[s] = vmseasons[s] - voseasons[s]
@@ -385,7 +407,12 @@ def global_latlon_vect_map(adfobj):
                                 #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                                 #   *Any other entries will be ignored.
                                 # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                pf.plot_map_vect_and_save(plot_name, lv, umseasons[s], vmseasons[s], uoseasons[s], voseasons[s], udseasons[s], vdseasons[s], **vres)
+                                pf.plot_map_vect_and_save(plot_name, case_nickname, base_nickname,
+                                                        [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                        [syear_baseline,eyear_baseline],lv,
+                                                        umseasons[s], vmseasons[s],
+                                                        uoseasons[s], voseasons[s],
+                                                        udseasons[s], vdseasons[s], obs, **vres)
 
                                 #Add plot to website (if enabled):
                                 adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
@@ -397,10 +424,10 @@ def global_latlon_vect_map(adfobj):
 
                         #Loop over season dictionary:
                         for s in seasons:
-                            umseasons[s] = umdata.sel(time=seasons[s]).mean(dim='time')
-                            vmseasons[s] = vmdata.sel(time=seasons[s]).mean(dim='time')
-                            uoseasons[s] = uodata.sel(time=seasons[s]).mean(dim='time')
-                            voseasons[s] = vodata.sel(time=seasons[s]).mean(dim='time')
+                            umseasons[s] = pf.seasonal_mean(umdata, season=s, is_climo=True)
+                            vmseasons[s] = pf.seasonal_mean(vmdata, season=s, is_climo=True)
+                            uoseasons[s] = pf.seasonal_mean(uodata, season=s, is_climo=True)
+                            voseasons[s] = pf.seasonal_mean(vodata, season=s, is_climo=True)
                             # difference: each entry should be (lat, lon)
                             udseasons[s] = umseasons[s] - uoseasons[s]
                             vdseasons[s] = vmseasons[s] - voseasons[s]
@@ -433,7 +460,12 @@ def global_latlon_vect_map(adfobj):
                             #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                             #   *Any other entries will be ignored.
                             # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                            pf.plot_map_vect_and_save(plot_name, None, umseasons[s], vmseasons[s], uoseasons[s], voseasons[s], udseasons[s], vdseasons[s], **vres)
+                            pf.plot_map_vect_and_save(plot_name, case_nickname, base_nickname,
+                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                      [syear_baseline,eyear_baseline], None,
+                                                      umseasons[s], vmseasons[s],
+                                                      uoseasons[s], voseasons[s],
+                                                      udseasons[s], vdseasons[s], obs, **vres)
 
                             #Add plot to website (if enabled):
                             adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,

@@ -19,14 +19,11 @@ import plotting_functions as pf
 def polar_map(adfobj):
     """
     This script/function generates polar maps of model fields with continental overlays.
-
     Plots style follows old AMWG diagnostics:
       - plots for ANN, DJF, MAM, JJA, SON
       - separate files for each hemisphere, denoted `_nh` and `_sh` in file names.
       - mean files shown on top row, difference on bottom row (centered)
-
     [based on global_latlon_map.py]
-
     """
     #Notify user that script has started:
     print("\n  Generating polar maps...")
@@ -44,11 +41,17 @@ def polar_map(adfobj):
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Grab case years
+    syear_cases = adfobj.climo_yrs["syears"]
+    eyear_cases = adfobj.climo_yrs["eyears"]
+
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
+        #Set obs call for observation details for plot titles
+        obs = True
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
@@ -56,13 +59,22 @@ def polar_map(adfobj):
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
-            print("No observations found to plot against, so no polar maps will be generated..")
+            print("\t No observations found to plot against, so no polar maps will be generated.")
             return
-
     else:
+        obs = False
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
+    #End if
+
+    #Grab baseline years (which may be empty strings if using Obs):
+    syear_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -164,6 +176,9 @@ def polar_map(adfobj):
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
 
+                #Set case nickname:
+                case_nickname = test_nicknames[case_idx]
+
                 #Set output plot location:
                 plot_loc = Path(plot_locations[case_idx])
 
@@ -177,8 +192,14 @@ def polar_map(adfobj):
 
                 if len(mclim_fils) > 1:
                     mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-                else:
+                elif len(mclim_fils) == 1:
                     mclim_ds = xr.open_dataset(mclim_fils[0])
+                else:
+                    print("WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    continue
+                #End if
 
                 #Extract variable of interest
                 odata = oclim_ds[data_var].squeeze()  # squeeze in case of degenerate dimensions
@@ -226,8 +247,8 @@ def polar_map(adfobj):
 
                         #Loop over season dictionary:
                         for s in seasons:
-                            mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                            oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
+                            mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                            oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
                             # difference: each entry should be (lat, lon)
                             dseasons[s] = mseasons[s] - oseasons[s]
 
@@ -264,7 +285,10 @@ def polar_map(adfobj):
                                         hemi = "SH"
                                     #End if
 
-                                    pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
+                                    pf.make_polar_plot(plot_name, case_nickname, base_nickname,
+                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                     [syear_baseline,eyear_baseline],
+                                                     mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, obs=obs, **vres)
 
                                     #Add plot to website (if enabled):
                                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
@@ -301,8 +325,8 @@ def polar_map(adfobj):
 
                             #Loop over season dictionary:
                             for s in seasons:
-                                mseasons[s] = mdata.sel(time=seasons[s], lev=pres).mean(dim='time')
-                                oseasons[s] = odata.sel(time=seasons[s], lev=pres).mean(dim='time')
+                                mseasons[s] = (pf.seasonal_mean(mdata, season=s, is_climo=True)).sel(lev=pres)
+                                oseasons[s] = (pf.seasonal_mean(odata, season=s, is_climo=True)).sel(lev=pres)
                                 # difference: each entry should be (lat, lon)
                                 dseasons[s] = mseasons[s] - oseasons[s]
 
@@ -340,7 +364,10 @@ def polar_map(adfobj):
                                             hemi = "SH"
                                         #End if
 
-                                        pf.make_polar_plot(plot_name, mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, **vres)
+                                        pf.make_polar_plot(plot_name, case_nickname, base_nickname,
+                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                     [syear_baseline,eyear_baseline],
+                                                     mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, obs=obs, **vres)
 
                                         #Add plot to website (if enabled):
                                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",

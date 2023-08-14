@@ -1,9 +1,8 @@
 #==============================
-#config_cam_baseline_example.yaml
+# config_amwg_default_plots.yaml
 
-#This is the main CAM diagnostics config file
-#for doing comparisons of a CAM run against
-#another CAM run, or a CAM baseline simulation.
+# This config file contains the standard set of variables and plots used for
+# evaluating CAM simulations in the AMWG working group.
 
 #Currently, if one is on NCAR's Casper or
 #Cheyenne machine, then only the diagnostic output
@@ -65,10 +64,10 @@ user: 'USER-NAME-NOT-SET'
 diag_basic_info:
 
     #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries
+    # Only affects timeseries as everything else uses timeseries 
     # Leave off trailing '.'
     #Default: cam.h0
-    hist_str: cam.h0
+    hist_str: cam.h0           
 
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
@@ -189,70 +188,6 @@ diag_cam_climo:
 
     #----------------------
 
-    #You can alternatively provide a list of cases, which will make the ADF
-    #apply the same diagnostics to each case separately in a single ADF session.
-    #All of the config variables below show how it is done, and are the only ones
-    #that need to be lists.  This also automatically enables the generation of
-    #a "main_website" in "cam_diag_plot_loc" that brings all of the different cases
-    #together under a single website.
-
-    #Also please note that config keywords cannot currently be used in list mode.
-
-    #cam_case_name:
-    #    - b.e20.BHIST.f09_g17.20thC.297_05
-    #    - b1850.f19_g17.validation_mct.004
-
-    #Case nickname
-    #NOTE: if nickname starts with '0' - nickname must be in quotes!
-    # ie '026a' as opposed to 026a
-    #If missing or left blank, will default to cam_case_name
-    #case_nickname:
-    #    - cool nickname
-    #    - cool nickname 2
-
-    #calc_cam_climo:
-    #    - true
-    #    - true
-
-    #cam_overwrite_climo:
-    #    - false
-    #    - false
-
-    #cam_hist_loc:
-    #    - /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05
-    #    - /glade/p/cesm/ADF/b1850.f19_g17.validation_mct.004
-
-    #cam_climo_loc:
-    #    -/some/where/you/want/to/have/climo_files/ #MUST EDIT!
-    #    -/the/same/or/some/other/climo/files/location
-
-    #start_year:
-    #    - 1990
-    #    - 90
-
-    #end_year:
-    #    - 1999
-    #    - 99
-
-    #cam_ts_done:
-    #    - false
-    #    - false
-
-    #cam_ts_save:
-    #    - true
-    #    - true
-
-    #cam_overwrite_ts:
-    #    - false
-    #    - false
-
-    #cam_ts_loc:
-    #    - /some/where/you/want/to/have/time_series_files/
-    #    - /same/or/different/place/you/want/files
-
-    #----------------------
-
-
 #This third set of variables provide info for the CAM baseline climatologies.
 #This only matters if "compare_obs" is false:
 diag_cam_baseline_climo:
@@ -363,46 +298,53 @@ plotting_scripts:
     - global_latlon_map
     - global_latlon_vect_map
     - zonal_mean
-    - meridional_mean
     - polar_map
     - cam_taylor_diagram
-    - qbo
-    #- regional_map_multicase #To use this please un-comment and fill-out
-                              #the "region_multicase" section below
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
-    - SWCF
-    - LWCF
-    - PRECC
-    - PRECL
-    - PSL
-    - Q
-    - U
-    - T
-    - RELHUM
-    - TREFHT
-    - TS
-    - TAUX
-    - TAUY
-    - FSNT
-    - FLNT
-    - LANDFRAC
+   - AODDUST
+   - AODVIS
+   - CLDHGH
+   - CLDICE
+   - CLDLIQ
+   - CLDLOW
+   - CLDMED
+   - CLDTOT
+   - CLOUD
+   - FLNS
+   - FLNT
+   - FLNTC
+   - FSNS
+   - FSNT
+   - FSNTC
+   - LHFLX
+   - LWCF
+   - OMEGA500
+   - PBLH
+   - PRECT
+   - PS
+   - PSL
+   - QFLX
+   - RELHUM
+   - SHFLX
+   - SST
+   - SWCF
+   - T
+   - TAUX
+   - TAUY
+   - TGCLDIWP
+   - TGCLDLWP
+   - TMQ
+   - TREFHT
+   - TS
+   - U
+   - U10
+   - ICEFRAC
+   - OCNFRAC
+   - LANDFRAC
 
 #<Add more variables here.>
-
-# Options for multi-case regional contour plots (./plotting/regional_map_multicase.py)
-# region_multicase:
-#     region_spec: [slat, nlat, wlon, elon]
-#     region_time_option: <calendar | zeroanchor>  # If calendar, will look for specified years. If zeroanchor will use a nyears starting from year_offset from the beginning of timeseries
-#     region_start_year:
-#     region_end_year:
-#     region_nyear:
-#     region_year_offset:
-#     region_month: <NULL means look for season>
-#     region_season: <NULL means use annual mean>
-#     region_variables: <list of variables to try to use; allows for a subset of the total diag variables>
-
 
 #END OF FILE

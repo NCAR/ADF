@@ -94,6 +94,8 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 #Finally, import needed ADF module:
 from adf_web import AdfWeb
 
+
+
 #################
 #Helper functions
 #################
@@ -334,69 +336,42 @@ class AdfDiag(AdfWeb):
             It is declared as global to avoid AttributeError.
             '''
             return subprocess.run(cmd, shell=False)
-
-        #Check if baseline time-series files are being created:
-        if baseline:
-            #Then use the CAM baseline climo dictionary
-            #and case name:
-            cam_climo_dict = self.baseline_climo_dict
-        else:
-            #If not, then just extract the standard CAM climo dictionary
-            #and case name::
-            cam_climo_dict = self.cam_climo_dict
-        #End if
+        #End def
 
         #Notify user that script has started:
         print("\n  Generating CAM time series files...")
 
-        #Extract case name(s):
-        case_names = self.read_config_var('cam_case_name',
-                                         conf_dict=cam_climo_dict,
-                                         required=True)
-
-        #Check if case_name is actually a list of cases:
-        if isinstance(case_names, list):
-            #If so, then read in needed variables directly:
-            cam_ts_done   = self.read_config_var('cam_ts_done', conf_dict=cam_climo_dict)
-            start_years   = self.read_config_var('start_year', conf_dict=cam_climo_dict)
-            end_years     = self.read_config_var('end_year', conf_dict=cam_climo_dict)
-            cam_hist_locs = self.read_config_var('cam_hist_loc', conf_dict=cam_climo_dict,
-                                                  required=True)
-            ts_dir        = self.read_config_var('cam_ts_loc', conf_dict=cam_climo_dict,
-                                                  required=True)
-            overwrite_ts  = self.read_config_var('cam_overwrite_ts', conf_dict=cam_climo_dict)
-
-            #If variables weren't provided in config file, then make them a list
-            #containing only None-type entries:
-            if not cam_ts_done:
-                cam_ts_done = [None]*len(case_names)
-            if not overwrite_ts:
-                overwrite_ts = [None]*len(case_names)
-            if not start_years:
-                start_years = [None]*len(case_names)
-            if not end_years:
-                end_years = [None]*len(case_names)
-            #End if
-
-            #Also rename case name list:
-            case_name_list = case_names
+        #Check if baseline time-series files are being created:
+        if baseline:
+            #Use baseline settings, while converting them all
+            #to lists:
+            case_names    = [self.get_baseline_info("cam_case_name", required=True)]
+            cam_ts_done   = [self.get_baseline_info("cam_ts_done")]
+            cam_hist_locs = [self.get_baseline_info("cam_hist_loc", required=True)]
+            ts_dir        = [self.get_baseline_info("cam_ts_loc", required=True)]
+            overwrite_ts  = [self.get_baseline_info("cam_overwrite_ts")]
+            start_years   = [self.climo_yrs["syear_baseline"]]
+            end_years     = [self.climo_yrs["eyear_baseline"]]
         else:
-            #If not, then read in variables and convert to lists:
-            cam_ts_done   = [self.read_config_var('cam_ts_done', conf_dict=cam_climo_dict)]
-            start_years   = [self.read_config_var('start_year', conf_dict=cam_climo_dict)]
-            end_years     = [self.read_config_var('end_year', conf_dict=cam_climo_dict)]
-            cam_hist_locs = [self.read_config_var('cam_hist_loc', conf_dict=cam_climo_dict,
-                                                  required=True)]
-            ts_dir        = [self.read_config_var('cam_ts_loc', conf_dict=cam_climo_dict,
-                                                   required=True)]
-            overwrite_ts  = [self.read_config_var('cam_overwrite_ts', conf_dict=cam_climo_dict)]
+            #Use test case settings, which are already lists:
+            case_names    = self.get_cam_info("cam_case_name", required=True)
+            cam_ts_done   = self.get_cam_info("cam_ts_done")
+            cam_hist_locs = self.get_cam_info("cam_hist_loc", required=True)
+            ts_dir        = self.get_cam_info("cam_ts_loc", required=True)
+            overwrite_ts  = self.get_cam_info("cam_overwrite_ts")
+            start_years   = self.climo_yrs["syears"]
+            end_years     = self.climo_yrs["eyears"]
+        #End if
 
-            #Also convert  case_names to list:
-            case_name_list = [case_names]
+        #Read hist_str (component.hist_num) from the yaml file, or set to default
+        hist_str = self.get_basic_info('hist_str')
+        #If hist_str is not present, then default to 'cam.h0':
+        if not hist_str:
+            hist_str = 'cam.h0'
         #End if
 
         #Loop over cases:
-        for case_idx, case_name in enumerate(case_name_list):
+        for case_idx, case_name in enumerate(case_names):
 
             #Check if particular case should be processed:
             if cam_ts_done[case_idx]:
@@ -409,29 +384,11 @@ class AdfDiag(AdfWeb):
             print(f"\t Processing time series for case '{case_name}' :")
 
             #Extract start and end year values:
-            try:
-                start_year = int(start_years[case_idx])
-            except TypeError:
-                if start_years[case_idx] is None:
-                    start_year = "*"
-                else:
-                    emsg = "start_year needs to be a year-like value or None, "
-                    emsg += f"got '{start_years[case_idx]}'"
-                    self.end_diag_fail(emsg)
-                #End if
-            #End try
+            start_year = start_years[case_idx]
+            end_year   = end_years[case_idx]
 
-            try:
-                end_year   = int(end_years[case_idx])
-            except TypeError:
-                if end_years[case_idx] is None:
-                    end_year = "*"
-                else:
-                    emsg = "end_year needs to be a year-like value or None, "
-                    emsg += f"got '{end_years[case_idx]}'"
-                    self.end_diag_fail(emsg)
-                #End if
-            #End try
+            print(type(start_year))
+            print(type(end_year))
 
             #Create path object for the CAM history file(s) location:
             starting_location = Path(cam_hist_locs[case_idx])
@@ -450,34 +407,23 @@ class AdfDiag(AdfWeb):
             #End if
 
             #Check if history files actually exist. If not then kill script:
-            if not list(starting_location.glob('*.cam.h0.*.nc')):
-                emsg = f"No CAM history (h0) files found in '{starting_location}'."
+            if not list(starting_location.glob('*'+hist_str+'.*.nc')):
+                emsg = f"No history *{hist_str}.*.nc files found in '{starting_location}'."
                 emsg += " Script is ending here."
                 self.end_diag_fail(emsg)
             #End if
 
-            # NOTE: We need to have the half-empty cases covered, too. (*, end) & (start, *)
-            if start_year == end_year == "*":
-                files_list = sorted(starting_location.glob('*.cam.h0.*.nc'))
-            else:
-                #Create empty list:
-                files_list = []
+            #Create empty list:
+            files_list = []
 
-                #For now make sure both year values are present:
-                if start_year == "*" or end_year == "*":
-                    emsg = "Must set both start_year and end_year, "
-                    emsg = "or remove them both from the config file."
-                    self.end_diag_fail(emsg)
-                #End if
-
-                #Loop over start and end years:
-                for year in range(start_year, end_year+1):
-                    #Add files to main file list:
-                    for fname in starting_location.glob(f'*.cam.h0.*{year}-*.nc'):
-                        files_list.append(fname)
-                    #End for
+            #Loop over start and end years:
+            for year in range(start_year, end_year+1):
+                #Add files to main file list:
+                for fname in starting_location.glob(f'*{hist_str}.*{str(year).zfill(4)}*.nc'):
+                    files_list.append(fname)
                 #End for
-            #End if
+            #End for
+
 
             #Create ordered list of CAM history files:
             hist_files = sorted(files_list)
@@ -566,17 +512,13 @@ class AdfDiag(AdfWeb):
                     continue
 
                 #Check if variable has a "lev" dimension according to first file:
-                if 'lev' in hist_file_ds[var].dims:
-                    has_lev = True
-                else:
-                    has_lev = False
-                #End if
+                has_lev = bool('lev' in hist_file_ds[var].dims)
 
-                #Create full path name,  file name template:
-                #$cam_case_name.h0.$variable.YYYYMM-YYYYMM.nc
+                #Create full path name, file name template:
+                #$cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
 
                 ts_outfil_str = ts_dir[case_idx] + os.sep + \
-                ".".join([case_name, "h0", var, time_string, "nc" ])
+                ".".join([case_name, hist_str, var, time_string, "nc" ])
 
                 #Check if files already exist in time series directory:
                 ts_file_list = glob.glob(ts_outfil_str)
@@ -590,28 +532,51 @@ class AdfDiag(AdfWeb):
                 #Notify user of new time series file:
                 print(f"\t - time series for {var}")
 
+                #Variable list starts with just the variable
+                ncrcat_var_list = f"{var}"
+
                 #Determine "ncrcat" command to generate time series file:
+                if 'date' in hist_file_ds[var].dims:
+                    ncrcat_var_list = ncrcat_var_list + ",date"
+                if 'datesec' in hist_file_ds[var].dims:
+                    ncrcat_var_list = ncrcat_var_list + ",datesec"
+
                 if has_lev and vert_coord_type:
-                    if vert_coord_type == "hybrid":
-                        cmd = ["ncrcat", "-O", "-4", "-h", "-v",
-                               f"{var},hyam,hybm,hyai,hybi,PS"] + \
-                               hist_files + ["-o", ts_outfil_str]
-                    elif vert_coord_type == "height":
-                        #Adding PMID here works, but significantly increases
-                        #the storage (disk usage) requirements of the ADF.
-                        #This can be alleviated in the future by figuring out
-                        #a way to determine all of the regridding targets at
-                        #the start of the ADF run, and then regridding a single
-                        #PMID file to each one of those targets separately. -JN
-                        cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var},PMID,PS"] + \
-                                hist_files + ["-o", ts_outfil_str]
-                    #End if
-                else:
-                    #No vertical coordinate (or no coordinate meta-data),
-                    #so no additional variables needed:
-                    cmd = ["ncrcat", "-O", "-4", "-h", "-v", f"{var}"] + \
-                           hist_files + ["-o", ts_outfil_str]
-                #End if
+                    #For now, only add these variables if using CAM:
+                    if 'cam' in hist_str:
+                        #PS might be in a different history file. If so, continue without error.
+                        ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
+
+                        if 'PS' in hist_file_var_list:
+                            ncrcat_var_list = ncrcat_var_list + ",PS"
+                            print("Adding PS to file")
+                        else:
+                            wmsg = "WARNING: PS not found in history file."
+                            wmsg += " It might be needed at some point."
+                            print(wmsg)
+                        #End if
+
+                        if vert_coord_type == "height":
+                            #Adding PMID here works, but significantly increases
+                            #the storage (disk usage) requirements of the ADF.
+                            #This can be alleviated in the future by figuring out
+                            #a way to determine all of the regridding targets at
+                            #the start of the ADF run, and then regridding a single
+                            #PMID file to each one of those targets separately. -JN
+                            if 'PMID' in hist_file_var_list:
+                                ncrcat_var_list = ncrcat_var_list + ",PMID"
+                                print("Adding PMID to file")
+                            else:
+                                wmsg = "WARNING: PMID not found in history file."
+                                wmsg += " It might be needed at some point."
+                                print(wmsg)
+                            #End if PMID
+                        #End if height
+                    #End if cam
+                #End if has_lev
+
+                cmd = ["ncrcat", "-O", "-4", "-h","--no_cll_mth", "-v",ncrcat_var_list] + \
+                       hist_files + ["-o", ts_outfil_str]
 
                 #Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
@@ -619,8 +584,8 @@ class AdfDiag(AdfWeb):
             #End variable loop
 
             #Now run the "ncrcat" subprocesses in parallel:
-            with mp.Pool(processes=self.num_procs) as p:
-                result = p.map(call_ncrcat, list_of_commands)
+            with mp.Pool(processes=self.num_procs) as mpool:
+                _ = mpool.map(call_ncrcat, list_of_commands)
             #End with
 
         #End cases loop
@@ -644,10 +609,33 @@ class AdfDiag(AdfWeb):
         non-weighted averaging).
         """
 
-        #Check if a user wants any climatologies to be calculated:
-        if self.get_cam_info('calc_cam_climo') or \
-           self.get_baseline_info('calc_cam_climo'):
+        #Extract climatology calculation config options:
+        calc_climo = self.get_cam_info('calc_cam_climo')
 
+        #Check if climo calculation config option is a list:
+        if isinstance(calc_climo, list):
+            #If so, then check if any of the entries are "True":
+            calc_climo = any(calc_climo)
+        #End if
+
+        #Next check if a baseline simulation is being used
+        #and no other model cases need climatologies calculated:
+        if not self.compare_obs and not calc_climo:
+            calc_bl_climo = self.get_baseline_info('calc_cam_climo')
+
+            #Check if baseline climo calculation config option is a list,
+            #although it really never should be:
+            if isinstance(calc_bl_climo, list):
+                #If so, then check if any of the entries are "True":
+                calc_bl_climo = any(calc_bl_climo)
+            #End if
+        else:
+            #Just set to False:
+            calc_bl_climo = False
+        #End if
+
+        #Check if a user wants any climatologies to be calculated:
+        if calc_climo or calc_bl_climo:
 
             #If so, then extract names of time-averaging scripts:
             avg_func_names = self.__time_averaging_scripts  # this is a list of script names
@@ -739,8 +727,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
             #Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.get_baseline_info('start_year')
-            eyear_baseline = self.get_baseline_info('end_year')
+            syear_baseline = self.climo_yrs["syear_baseline"]
+            eyear_baseline = self.climo_yrs["eyear_baseline"]
 
             #If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -758,7 +746,6 @@ class AdfDiag(AdfWeb):
 
         """
         Generate ADF diagnostic plots.
-
         The actual plotting is done using the
         scripts listed under "plotting_scripts"
         as specified in the config file.  This is done
@@ -789,8 +776,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
             #Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.get_baseline_info('start_year')
-            eyear_baseline = self.get_baseline_info('end_year')
+            syear_baseline = self.climo_yrs["syear_baseline"]
+            eyear_baseline = self.climo_yrs["eyear_baseline"]
 
             #If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -819,10 +806,10 @@ class AdfDiag(AdfWeb):
         case_names = self.get_cam_info('cam_case_name', required=True)
 
         #Start years (not currently required):
-        syears = self.get_cam_info('start_year')
+        syears = self.climo_yrs['syears']
 
         #End year (not currently rquired):
-        eyears = self.get_cam_info('end_year')
+        eyears = self.climo_yrs['eyears']
 
         #Timeseries locations:
         cam_ts_loc = self.get_cam_info('cam_ts_loc')
@@ -840,8 +827,8 @@ class AdfDiag(AdfWeb):
         #check to see if there is a CAM baseline case. If there is, read in relevant information.
         if not self.get_basic_info('compare_obs'):
             case_name_baseline = self.get_baseline_info('cam_case_name')
-            syears_baseline = self.get_baseline_info('start_year')
-            eyears_baseline = self.get_baseline_info('end_year')
+            syears_baseline = self.climo_yrs['syear_baseline']
+            eyears_baseline = self.climo_yrs['eyear_baseline']
             baseline_ts_loc = self.get_baseline_info('cam_ts_loc')
         #End if
 
