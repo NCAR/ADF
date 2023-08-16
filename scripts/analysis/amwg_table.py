@@ -289,17 +289,11 @@ def amwg_table(adf):
             stats_list = _get_row_vals(data)
             row_values = [var, unit_str] + stats_list
 
-            print("******")
-            print(data_mean.data.item())
-
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
-            print(dfentries) 
 
             # Add entries to Pandas structure:
             df = pd.DataFrame(dfentries)
-            print(df)
-
 
             # Check if the output CSV file exists,
             # if so, then append to it:
@@ -405,43 +399,7 @@ def _get_row_vals(data):
 
 #####
 
-def _write_html(f, out,case_name,case_name_list):
-    if case_name != case_name_list[-1]:
-        # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-        # This will need to change when applying multi-case runs; ie Test 1, Test 2, etc.
-        case = "Test"
-    else:
-        case = "Control"
-    import pandas as pd
-    df = pd.read_csv(f)
-    html = df.to_html(index=False, border=1, justify='center', float_format='{:,.4g}'.format)  # should return string
-
-    preamble = f"""<html><head><title>ADF Mean Tables</title><link rel="stylesheet" href="../templates/adf_diag.css"></head><body >
-    <nav role="navigation" class="primary-navigation">
-      <ul>
-        <li><a href="../index.html">Case Home</a></li>
-        <li><a href="../html_table/mean_table.html">Case Tables</a></li>
-        <li><a href="#">Links &dtrif;</a>
-          <ul class="dropdown">
-            <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
-          </ul>
-        </li>
-        <li><a href="https://github.com/NCAR/ADF">About</a></li>
-        <li><a href="https://github.com/NCAR/ADF/discussions">Contact</a></li>
-      </ul>
-    </nav><h1>CAM Diagnostics</h1><h2>{case} Case: {f.stem}<h2>"""
-
-    ending = """</body></html>"""
-    with open(out, 'w') as hfil:
-        hfil.write(preamble)
-        hfil.write(html)
-        hfil.write(ending)
-
-
-def _df_comp_table(write_html,output_location,case_names):
-
+def _df_comp_table(adf, output_location, case_names):
     import pandas as pd
 
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
