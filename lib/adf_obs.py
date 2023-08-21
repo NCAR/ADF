@@ -66,24 +66,21 @@ class AdfObs(AdfInfo):
         #Determine local directory:
         _adf_lib_dir = Path(__file__).parent
 
-        #Determine if variable defaults will be used:
-        self.__use_defaults = self.get_basic_info('use_defaults')
-
         # Check whether user wants to use defaults:
         #-----------------------------------------
-        if self.__use_defaults:
-            #Determine whether to use adf defaults or custom:
-            _defaults_file = self.get_basic_info('defaults_file')
-            if _defaults_file is None:
-                _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
-
-            #Open YAML file:
-            with open(_defaults_file, encoding='UTF-8') as dfil:
-                self.__variable_defaults = yaml.load(dfil, Loader=yaml.SafeLoader)
+        #Determine whether to use adf defaults or custom:
+        _defaults_file = self.get_basic_info('defaults_file')
+        if _defaults_file is None:
+            _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
         else:
-            #Set variable_defaults to empty dictionary:
-            self.__variable_defaults = {}
+            print(f"\n\t Not using ADF default variables yaml file, instead using {_defaults_file}\n")
         #End if
+
+        #Open YAML file:
+        with open(_defaults_file, encoding='UTF-8') as dfil:
+            self.__variable_defaults = yaml.load(dfil, Loader=yaml.SafeLoader)
+
+        _variable_defaults = self.__variable_defaults
         #-----------------------------------------
 
         #Check if land or ocean mask is requested, and if so then add OCNFRAC
@@ -117,21 +114,6 @@ class AdfObs(AdfInfo):
 
         #Extract the "obs_data_loc" default observational data location:
         obs_data_loc = self.get_basic_info("obs_data_loc")
-
-        #Check that a variable defaults file exists (as it is currently needed to extract obs data):
-        if not self.__variable_defaults:
-            #Determine whether to use adf defaults or custom:
-            _defaults_file = self.get_basic_info('defaults_file')
-            if _defaults_file is None:
-                _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
-
-            #Open YAML file (but don't assign to object):
-            with open(_defaults_file, encoding='UTF-8') as nfil:
-                _variable_defaults = yaml.load(nfil, Loader=yaml.SafeLoader)
-        else:
-            #Set local variable to stored variable defaults dictionary:
-            _variable_defaults = self.__variable_defaults
-        #End if
 
         #Loop over variable list:
         for var in self.diag_var_list:
@@ -228,12 +210,6 @@ class AdfObs(AdfInfo):
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__variable_defaults)
-
-    # Create property needed to return "use_defaults" variable to user:
-    @property
-    def use_defaults(self):
-        """Return the '__use_defaults' logical to the user if requested."""
-        return self.__use_defaults
 
     # Create property needed to return "var_obs_dict" dictionary to user:
     @property
