@@ -25,6 +25,13 @@ def create_TEM_files(adf):
     start_years   = adf.climo_yrs["syears"]
     end_years     = adf.climo_yrs["eyears"]
 
+    #Grab TEM diagnostics options
+    tem_opts = adf.read_config_var("tem_info")
+
+    #Get test case(s) tem over-write boolean and force to list if not by default
+    overwrite_tem_cases = tem_opts["overwrite_tem_case"]
+    if not isinstance(overwrite_tem_cases, list): overwrite_tem_cases = [overwrite_tem_cases]
+
     #Check if comparing to observations
     if adf.get_basic_info("compare_obs"):
         var_obs_dict = adf.var_obs_dict
@@ -45,14 +52,8 @@ def create_TEM_files(adf):
         case_names.append(base_name)
         start_years.append(syear_baseline)
         end_years.append(eyear_baseline)
+        overwrite_tem_cases.append(tem_opts["overwrite_tem_base"])
     #End if
-
-    #Grab TEM diagnostics options
-    tem_opts = adf.read_config_var("tem_info")
-
-    #Get test case(s) tem over-write boolean and force to list if not by default
-    overwrite_tem_cases = tem_opts["overwrite_tem_case"]
-    if not isinstance(overwrite_tem_cases, list): overwrite_tem_cases = [overwrite_tem_cases]
     
     #Set default to h4
     #TODO: Read this history file number from the yaml file?
