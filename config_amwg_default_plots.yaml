@@ -63,6 +63,12 @@ user: 'USER-NAME-NOT-SET'
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
 
+    #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
+    # Only affects timeseries as everything else uses timeseries
+    # Leave off trailing '.'
+    #Default: cam.h0
+    hist_str: cam.h0
+
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
     compare_obs: false
@@ -90,20 +96,10 @@ diag_basic_info:
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
 
-    #CAM history file number to use (h0,h1,h2, etc)
-    #Currently only affects timeseries generation,
-    #as everything else uses the timeseries files themselves.
-    #If this variable is not present then it will default ot "h0".
-    hist_num: h0
-
-    #Use default variable plot settings?
-    #If "true", then variable-specific plotting attributes as defined in
-    #ADF/lib/adf_variable_defaults.yaml will be used:
-    use_defaults: true
-
-    #Location of ADF variable plotting defaults YAML file
-    #if not using the one in ADF/lib:
-    #defaults_file: /some/path/to/defaults/file
+    #Location of ADF variable plotting defaults YAML file:
+    #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
+    #Uncomment and change path for custom variable defaults file 
+    #defaults_file: /some/path/to/defaults/file.yaml
 
     #Vertical pressure levels (in hPa) on which to plot 3-D variables
     #when using horizontal (e.g. lat/lon) map projections.
@@ -111,7 +107,7 @@ diag_basic_info:
     #horizontal maps.  Please note too that pressure levels must currently match
     #what is available in the observations file in order to be plotted in a
     #model vs obs run:
-    plot_press_levels: [ ]
+    plot_press_levels: [200,850]
 
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
@@ -354,11 +350,23 @@ diag_var_list:
 # Options for TEM diagnostics (./averaging/create_TEM_files.py and ./plotting/temp.py)
 #tem_info:
     #Location where TEM files are stored:
-    #If path not specified or commented out, skip TEM calculation
-    #If no path, diagnostics wont run even if declared in averaging/plotting scripts below
-    #tem_loc: /glade/scratch/richling/adf-output/tem/fixes/cam_vs_cam/TEM/
+    #If path not specified or commented out, TEM calculation will be skipped
+    #If no path, TEM diagnostics wont run even if declared in averaging/plotting scripts
+#    tem_loc: /glade/scratch/richling/adf-output/ADF-data/TEM/
 
     #TEM history file number
-    #hist_num: h4
+    #If missing or blank, ADF will default to h4
+#    hist_num: h4
+    
+    #Overwrite TEMs files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+#    overwrite_tem_case: false
+
+    #For multi-case?
+    #overwrite_tem_case
+    #    - false
+    #    - true
+
+#    overwrite_tem_base: false
 
 #END OF FILE
