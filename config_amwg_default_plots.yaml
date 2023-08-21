@@ -64,7 +64,7 @@ user: 'USER-NAME-NOT-SET'
 diag_basic_info:
 
     #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries
+    # Only affects timeseries as everything else uses timeseries 
     # Leave off trailing '.'
     #Default: cam.h0
     hist_str: cam.h0
@@ -131,7 +131,7 @@ diag_basic_info:
 diag_cam_climo:
 
     #Calculate climatologies?
-    #If false, neither the climatology or time-series files will be created:
+    #If false, the climatology files will not be created:
     calc_cam_climo: true
 
     #Overwrite CAM climatology files?
@@ -140,6 +140,12 @@ diag_cam_climo:
 
     #Name of CAM case (or CAM run name):
     cam_case_name: b.e20.BHIST.f09_g17.20thC.297_05
+
+    #Case nickname
+    #NOTE: if nickname starts with '0' - nickname must be in quotes!
+    # ie '026a' as opposed to 026a
+    #If missing or left blank, will default to cam_case_name
+    case_nickname: #cool nickname
 
     #Location of CAM history (h0) files:
     #Example test files
@@ -158,7 +164,7 @@ diag_cam_climo:
     #       end at latest available year.
     end_year: 1999
 
-    #Do time series files need to be generated?
+    #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
     #If False, or if simply not present, then diagnostics will attempt to create
     #time series files from history (time-slice) files:
@@ -183,7 +189,7 @@ diag_cam_climo:
 diag_cam_baseline_climo:
 
     #Calculate cam baseline climatologies?
-    #If false, neither the climatology or time-series files will be created:
+    #If false, the climatology files will not be created:
     calc_cam_climo: true
 
     #Overwrite CAM climatology files?
@@ -192,6 +198,12 @@ diag_cam_baseline_climo:
 
     #Name of CAM baseline case:
     cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
+
+    #Baseline case nickname
+    #NOTE: if nickname starts with '0' - nickname must be in quotes!
+    # ie '026a' as opposed to 026a
+    #If missing or left blank, will default to cam_case_name
+    case_nickname: #cool nickname
 
     #Location of CAM baseline history (h0) files:
     #Example test files
