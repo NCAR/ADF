@@ -93,11 +93,11 @@ class AdfObs(AdfInfo):
             for var in self.diag_var_list:
                 #Check if any variable wants a land or ocean mask:
                 if var in self.__variable_defaults:
-                   if 'mask' in self.__variable_defaults[var]:
-                       #Variable needs a mask, so add "OCNFRAC" to
-                       #the variable list:
-                       self.add_diag_var('OCNFRAC')
-                       break
+                    if 'mask' in self.__variable_defaults[var]:
+                        #Variable needs a mask, so add "OCNFRAC" to
+                        #the variable list:
+                        self.add_diag_var('OCNFRAC')
+                        break
                    #End if
                 #End if
             #End for
