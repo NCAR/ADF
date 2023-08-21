@@ -27,6 +27,12 @@ def create_TEM_files(adf):
 
     #Check if comparing to observations
     if adf.get_basic_info("compare_obs"):
+        var_obs_dict = adf.var_obs_dict
+        #If dictionary is empty, then there are no observations, so quit here:
+        if not var_obs_dict:
+            print("No observations found to plot against, so no TEM will be generated.")
+            return
+
         base_name = "Obs"
     else:
         base_name = adf.get_baseline_info("cam_case_name", required=True)
@@ -43,11 +49,14 @@ def create_TEM_files(adf):
 
     #Grab TEM diagnostics options
     tem_opts = adf.read_config_var("tem_info")
+
+    #Get test case(s) tem over-write boolean and force to list if not by default
+    overwrite_tem_cases = tem_opts["overwrite_tem_case"]
+    if not isinstance(overwrite_tem_cases, list): overwrite_tem_cases = [overwrite_tem_cases]
     
     #Set default to h4
     #TODO: Read this history file number from the yaml file?
     hist_num = tem_opts["hist_num"]
-    print("tem hist_num",hist_num)
     if hist_num is None:
         hist_num = "h4"
 
@@ -56,13 +65,20 @@ def create_TEM_files(adf):
     
     #If path not specified, skip TEM calculation?
     if output_loc is None:
+        print("\t 'tem_loc' not found in config file, so no TEM files will be generated.")
         return
     else:
         #Notify user that script has started:
         print("\n  Generating CAM TEM diagnostics files...")
 
+        output_loc = Path(output_loc)
+        #Check if re-gridded directory exists, and if not, then create it:
+        if not output_loc.is_dir():
+            print(f"    {output_loc} not found, making new directory")
+            output_loc.mkdir(parents=True)
+        #End if
+
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
-    # or an empty dictionary if use_defaults was not specified in YAML.
 
     if "qbo" in adf.plotting_scripts:
         var_list = ['uzm','epfy','epfz','vtem','wtem',
@@ -74,51 +90,70 @@ def create_TEM_files(adf):
     if adf.get_basic_info("compare_obs"):
         print(f"\t Processing TEM diagnostics for observations :")
 
-        #Group all TEM observation files together
-        tem_obs_fils = []
-        for var in var_list:
-            if var in res:
-                #Gather from variable defaults file
-                obs_file = res[var]["obs_file"]
+        output_loc_idx = output_loc / base_name
+        #Check if re-gridded directory exists, and if not, then create it:
+        if not output_loc_idx.is_dir():
+            print(f"    {output_loc_idx} not found, making new directory")
+            output_loc_idx.mkdir(parents=True)
+        #End if
 
-                #It's likely multiple TEM vars will come from one file, so check
-                #to see if it already exists from other vars.
-                if obs_file not in tem_obs_fils:
-                    tem_obs_fils.append(obs_file)
-                else:
-                    print(f"{Path(obs_file).stem} is already in list")
+        #Set baseline file name as full path
+        tem_fil = output_loc_idx / f'{base_name}.TEMdiag.nc'
 
-        ds = xr.open_mfdataset(tem_obs_fils)
-        start_year = str(ds.time[0].values)[0:4]
-        end_year = str(ds.time[-1].values)[0:4]
+        #Get baseline case tem over-write boolean
+        overwrite_tem = tem_opts.get("overwrite_tem_base")
 
-        #Update the attributes
-        ds.attrs['created'] = str(date.today())
-        ds['lev']=ds['level']
-        ds['zalat']=ds['lat']
+        #If files exist, then check if over-writing is allowed:
+        if tem_fil and not overwrite_tem:
+            #If not (overwrite_tem is False), then simply skip this file:
+            print(f"'{tem_fil}' already exists and wont be over-written, moving on")
+            pass
+        else:
+            #Group all TEM observation files together
+            tem_obs_fils = []
+            for var in var_list:
+                if var in res:
+                    #Gather from variable defaults file
+                    obs_file_path = Path(res[var]["obs_file"])
+                    if not obs_file_path.is_file():
+                        obs_data_loc = adf.get_basic_info("obs_data_loc")
+                        obs_file_path = Path(obs_data_loc)/obs_file_path
 
-        output_loc_idx = Path(output_loc) / base_name
+                    #It's likely multiple TEM vars will come from one file, so check
+                    #to see if it already exists from other vars.
+                    if obs_file_path not in tem_obs_fils:
+                        tem_obs_fils.append(obs_file_path)
 
-        #Make a copy of obs data so we don't do anything bad
-        ds_obs = ds.copy()
-        ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', 'zalat'), ds_obs.uzm.data),
-                              'epfy': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfy.data),
-                              'epfz': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfz.data),
-                              'vtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.vtem.data),
-                              'wtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.wtem.data),
-                              'psitem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.psitem.data),
-                              'utendepfd': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendepfd.data),
-                              'utendvtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendvtem.data),
-                              'utendwtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendwtem.data),
-                              'lev': xr.Variable('lev', ds_obs.level.values),
-                              'zalat': xr.Variable('zalat', ds_obs.lat.values),
-                              'time': xr.Variable('time', ds_obs.time.values)
-                })
+            ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
+            start_year = str(ds.time[0].values)[0:4]
+            end_year = str(ds.time[-1].values)[0:4]
 
-        # write output to a netcdf file
-        ds_base.to_netcdf(output_loc / f'{base_name}.TEMdiag.nc', 
-                            unlimited_dims='time', 
-                            mode = 'w' )
+            #Update the attributes
+            ds.attrs['created'] = str(date.today())
+            ds['lev']=ds['level']
+            ds['zalat']=ds['lat']
+
+            #Make a copy of obs data so we don't do anything bad
+            ds_obs = ds.copy()
+            ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', 'zalat'), ds_obs.uzm.data),
+                                'epfy': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfy.data),
+                                'epfz': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfz.data),
+                                'vtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.vtem.data),
+                                'wtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.wtem.data),
+                                'psitem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.psitem.data),
+                                'utendepfd': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendepfd.data),
+                                'utendvtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendvtem.data),
+                                'utendwtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendwtem.data),
+                                'lev': xr.Variable('lev', ds_obs.level.values),
+                                'zalat': xr.Variable('zalat', ds_obs.lat.values),
+                                'time': xr.Variable('time', ds_obs.time.values)
+                    })
+
+            # write output to a netcdf file
+            ds_base.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
+
+        #End if over-write file
+    #End if baseline case
 
     #Loop over cases:
     for case_idx, case_name in enumerate(case_names):
@@ -147,44 +182,60 @@ def create_TEM_files(adf):
             return
         #End if
 
-        #Glob each set of years
-        #NOTE: This will make a nested list
-        hist_files = []
-        for yr in np.arange(start_year,end_year+1):
-            hist_files.append(glob(f"{starting_location}/{hist_str}.{yr}*.nc"))    
+        #Get full path and file for file name
+        output_loc_idx = output_loc / case_name
 
-        #Flatten list of lists to 1d list
-        hist_files = sorted(list(chain.from_iterable(hist_files)))
-
-        ds = xr.open_mfdataset(hist_files)
-
-        #iterate over the times in a dataset
-        for idx,_ in enumerate(ds.time.values):
-            if idx == 0:
-                dstem0 = calc_tem(ds.squeeze().isel(time=idx))
-            else:
-                dstem = calc_tem(ds.squeeze().isel(time=idx))
-                dstem0 = xr.concat([dstem0, dstem],'time')
-            #End if
-        #End if
-
-        #Update the attributes
-        dstem0.attrs = ds.attrs
-        dstem0.attrs['created'] = str(date.today())
-        dstem0['lev']=ds['lev']
-
-        output_loc_idx = Path(output_loc) / case_name
         #Check if re-gridded directory exists, and if not, then create it:
         if not output_loc_idx.is_dir():
             print(f"    {output_loc_idx} not found, making new directory")
             output_loc_idx.mkdir(parents=True)
         #End if
 
-        # write output to a netcdf file
-        dstem0.to_netcdf(output_loc_idx / f'{case_name}.TEMdiag_{start_year}-{end_year}.nc', 
-                            unlimited_dims='time', 
-                            mode = 'w' )
+        #Set baseline file name
+        tem_fil = output_loc_idx / f'{case_name}.TEMdiag_{start_year}-{end_year}.nc'
 
+        #Get current case tem over-write boolean
+        overwrite_tem = overwrite_tem_cases[case_idx]
+
+        #If files exist, then check if over-writing is allowed:
+        if tem_fil and not overwrite_tem:
+            #If not (overwrite_tem is False), then simply skip this file:
+            print(f"'{tem_fil}' already exists and wont be over-written, moving on")
+            pass
+        else:
+            #Glob each set of years
+            #NOTE: This will make a nested list
+            hist_files = []
+            for yr in np.arange(int(start_year),int(end_year)+1):
+
+                #Grab all leading zeros for climo year just in case
+                yr = f"{str(yr).zfill(4)}"
+                hist_files.append(glob(f"{starting_location}/{hist_str}.{yr}*.nc"))    
+
+            #Flatten list of lists to 1d list
+            hist_files = sorted(list(chain.from_iterable(hist_files)))
+
+            ds = xr.open_mfdataset(hist_files)
+
+            #iterate over the times in a dataset
+            for idx,_ in enumerate(ds.time.values):
+                if idx == 0:
+                    dstem0 = calc_tem(ds.squeeze().isel(time=idx))
+                else:
+                    dstem = calc_tem(ds.squeeze().isel(time=idx))
+                    dstem0 = xr.concat([dstem0, dstem],'time')
+                #End if
+            #End if
+
+            #Update the attributes
+            dstem0.attrs = ds.attrs
+            dstem0.attrs['created'] = str(date.today())
+            dstem0['lev']=ds['lev']
+
+            # write output to a netcdf file
+            dstem0.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
+
+        #End if over-write file
     #Notify user that script has ended:
     print("  ...TEM diagnostics have been calculated successfully.")
 
