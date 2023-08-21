@@ -37,16 +37,14 @@ def tem(adf):
     case_names = adf.get_cam_info("cam_case_name", required=True)
 
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
-    # or an empty dictionary if use_defaults was not specified in YAML.
 
     #Check if comparing against observations
     if adf.compare_obs:
         obs = True
         base_name = "Obs"
-
     else:
         obs = False
-        base_name = adf.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
+        base_name = adf.get_baseline_info("cam_case_name", required=True)
     #End if
 
     #Extract test case years
@@ -107,7 +105,6 @@ def tem(adf):
     #Check if comparing against obs
     #If so, create the obs TEM netCDF file
     if obs:
-
         #Create TEM file for observations
         input_loc_idx = Path(tem_loc) / base_name
         tem_base = input_loc_idx / f'{base_name}.TEMdiag.nc'
@@ -159,14 +156,14 @@ def tem(adf):
             #Grab the data for the TEM netCDF files
             ds = xr.open_dataset(tem)
 
+            climo_yrs = {"test":[syear_cases[idx], eyear_cases[idx]],
+                         "base":[syear_baseline, eyear_baseline]}
+
             #Setup and plot the sub-plots
-            tem_plot(ds, ds_base, case_nicknames, axs, s, var_list, res, obs)
+            tem_plot(ds, ds_base, case_nicknames, axs, s, var_list, res, obs, climo_yrs)
 
         #Set figure title
-        yrs = f"{syear_cases[idx]} - {eyear_cases[idx]}"
-
         plt.suptitle(f'TEM Diagnostics: {s}', fontsize=20, y=.928)
-        plt.text(x=0.5, y=0.915, s= f"yrs: {yrs}", fontsize=16, ha="center", transform=fig.transFigure)
 
         #Write the figure to provided workspace/file:
         fig.savefig(plot_name, bbox_inches='tight', dpi=300)
@@ -177,7 +174,7 @@ def tem(adf):
 # Helper functions
 ##################
 
-def tem_plot(ds, ds_base, case_names, axs, s, var_list, res, obs):
+def tem_plot(ds, ds_base, case_names, axs, s, var_list, res, obs, climo_yrs):
     """
     TEM subplots
     
@@ -220,8 +217,10 @@ def tem_plot(ds, ds_base, case_names, axs, s, var_list, res, obs):
                 oseasons = (odata * weights_ann_obs).sum(dim='time')
                 oseasons = oseasons / (od_ones*weights_ann_obs).sum(dim='time')
             else:
-                oseasons = (odata * weights_ann).sum(dim='time')
-                oseasons = oseasons / (od_ones*weights_ann).sum(dim='time')
+                month_length_base = odata.time.dt.days_in_month
+                weights_ann_base = month_length_base / month_length_base.sum()
+                oseasons = (odata * weights_ann_base).sum(dim='time')
+                oseasons = oseasons / (od_ones*weights_ann_base).sum(dim='time')
 
         else:
             #this is inefficient because we do same calc over and over
@@ -236,9 +235,11 @@ def tem_plot(ds, ds_base, case_names, axs, s, var_list, res, obs):
                 wgt_denom = (od_ones*weights_obs).groupby("time.season").sum(dim="time").sel(season=s)
                 oseasons = oseasons / wgt_denom
             else:
-                oseasons = (odata * weights).groupby("time.season").sum(dim="time").sel(season=s)
-                wgt_denom = (od_ones*weights).groupby("time.season").sum(dim="time").sel(season=s)
-                oseasons = oseasons / wgt_denom
+                month_length_base = odata.time.dt.days_in_month
+                weights_base = (month_length_base.groupby("time.season") / month_length_base.groupby("time.season").sum())
+                oseasons = (odata * weights_base).groupby("time.season").sum(dim="time").sel(season=s)
+                wgt_denom_base = (od_ones*weights_base).groupby("time.season").sum(dim="time").sel(season=s)
+                oseasons = oseasons / wgt_denom_base
 
         #difference: each entry should be (lat, lon)
         dseasons = mseasons-oseasons
@@ -425,14 +426,17 @@ def tem_plot(ds, ds_base, case_names, axs, s, var_list, res, obs):
     #Set titles of subplots
     #Set case names in first subplot only
     uzm = ds["uzm"].long_name.replace(" ", "\ ")
-    axs[0,0].set_title(f"\n\n"+"$\mathbf{Test}$\n"+f"{case_names[0]}\n\n\n",fontsize=14)
+
+    test_yrs = f"{climo_yrs['test'][0]}-{climo_yrs['test'][1]}"
+    axs[0,0].set_title(f"\n\n"+"$\mathbf{Test}$"+f"  yrs: {test_yrs}\n"+f"{case_names[0]}\n\n\n",fontsize=14)
 
     if obs:
         obs_title = Path(vres["obs_name"]).stem
         axs[0,1].set_title(f"\n\n"+"$\mathbf{Baseline}$\n"+f"{obs_title}\n\n"+"$\mathbf{"+uzm+"}$"+"\n",fontsize=14)
 
     else:
-        axs[0,1].set_title(f"\n\n"+"$\mathbf{Baseline}$\n"+f"{case_names[1]}\n\n"+"$\mathbf{"+uzm+"}$"+"\n",fontsize=14)
+        base_yrs = f"{climo_yrs['base'][0]}-{climo_yrs['base'][1]}"
+        axs[0,1].set_title(f"\n\n"+"$\mathbf{Baseline}$"+f"  yrs: {base_yrs}\n"+f"{case_names[1]}\n\n"+"$\mathbf{"+uzm+"}$"+"\n",fontsize=14)
     
     #Set main title for difference plots column
     axs[0,2].set_title("$\mathbf{Test} - \mathbf{Baseline}$"+"\n\n\n",fontsize=14)
