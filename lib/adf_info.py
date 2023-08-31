@@ -120,15 +120,14 @@ class AdfInfo(AdfConfig):
         #Grab test case nickname(s)
         test_nickname_list = self.get_cam_info('case_nickname')
 
-        test_nicknames = [] #Re-set to be an empty list
+        test_nicknames = [] #set to be an empty list
         for i,nickname in enumerate(test_nickname_list):
             if nickname is None:
-                #test_nicknames = [] #Re-set to be an empty list
-                #for case_name in case_names:
                 test_nicknames.append(case_names[i])
-                #End for
+            else:
+                test_nicknames.append(test_nickname_list[i])
             #End if
-        #End if
+        #End for
 
         #Initialize "compare_obs" variable:
         self.__compare_obs = self.get_basic_info('compare_obs')
