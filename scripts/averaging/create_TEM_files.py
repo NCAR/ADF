@@ -89,7 +89,7 @@ def create_TEM_files(adf):
 
     #Check if comparing against observations
     if adf.get_basic_info("compare_obs"):
-        print(f"\t Processing TEM diagnostics for observations :")
+        print(f"\t Processing TEM for observations :")
 
         output_loc_idx = output_loc / base_name
         #Check if re-gridded directory exists, and if not, then create it:
@@ -105,11 +105,13 @@ def create_TEM_files(adf):
         overwrite_tem = tem_opts.get("overwrite_tem_base")
 
         #If files exist, then check if over-writing is allowed:
-        if tem_fil and not overwrite_tem:
-            #If not (overwrite_tem is False), then simply skip this file:
-            print(f"'{tem_fil}' already exists and wont be over-written, moving on")
+        if (tem_fil.is_file()) and (not overwrite_tem):
+            print(f"\t    INFO: Found TEM file and clobber is False, so moving to next case.")
             pass
         else:
+            if tem_fil.is_file():
+                print(f"\t    INFO: Found TEM file but clobber is True, so over-writing file.")
+
             #Group all TEM observation files together
             tem_obs_fils = []
             for var in var_list:
@@ -153,13 +155,13 @@ def create_TEM_files(adf):
             # write output to a netcdf file
             ds_base.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
 
-        #End if over-write file
+        #End if (file creation or over-write file)
     #End if baseline case
 
     #Loop over cases:
     for case_idx, case_name in enumerate(case_names):
 
-        print(f"\t Processing TEM diagnostics for case '{case_name}' :")
+        print(f"\t Processing TEM for case '{case_name}' :")
 
         #Extract start and end year values:
         start_year = start_years[case_idx]
@@ -199,11 +201,13 @@ def create_TEM_files(adf):
         overwrite_tem = overwrite_tem_cases[case_idx]
 
         #If files exist, then check if over-writing is allowed:
-        if tem_fil and not overwrite_tem:
-            #If not (overwrite_tem is False), then simply skip this file:
-            print(f"'{tem_fil}' already exists and wont be over-written, moving on")
+        if (tem_fil.is_file()) and (not overwrite_tem):
+            print(f"\t    INFO: Found TEM file and clobber is False, so moving to next case.")
             pass
         else:
+            if tem_fil.is_file():
+                print(f"\t    INFO: Found TEM file but clobber is True, so over-writing file.")
+
             #Glob each set of years
             #NOTE: This will make a nested list
             hist_files = []
@@ -236,9 +240,9 @@ def create_TEM_files(adf):
             # write output to a netcdf file
             dstem0.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
 
-        #End if over-write file
+        #End if (file creation or over-write file)
     #Notify user that script has ended:
-    print("  ...TEM diagnostics have been calculated successfully.")
+    print("  ...TEM variables have been calculated successfully.")
 
 
 
