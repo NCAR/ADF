@@ -20,7 +20,7 @@ import warnings  # use to warn user about missing files.
 
 #Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
+    """Issue `msg` as warning."""
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
 
@@ -31,7 +31,8 @@ def global_latlon_map(adfobj):
 
     Parameters
     ----------
-    adfobj : AdfDiag object
+    adfobj : AdfDiag
+        The diagnostics object that contains all the configuration information
 
     Returns
     -------
@@ -486,6 +487,22 @@ def global_latlon_map(adfobj):
 #########
 
 def _load_dataset(fils):
+    """
+    loads datasets from input file information
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
     if len(fils) == 0:
         warnings.warn(f"Input file list is empty.")
         return None
