@@ -1,3 +1,17 @@
+"""
+Generate global maps of 2-D fields
+
+Functions
+---------
+global_latlon_map(adfobj)
+    use ADF object to make maps
+my_formatwarning(msg, *args, **kwargs)
+    format warning messages
+    (private method)
+_load_dataset(fils)
+    load files into dataset
+    (private methd) 
+"""
 #Import standard modules:
 from pathlib import Path
 import numpy as np
@@ -14,25 +28,60 @@ def global_latlon_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
-    Description of needed inputs:
-    case_name         -> Name of CAM case provided by "cam_case_name".
-    model_rgrid_loc   -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
-    data_name         -> Name of data set CAM case is being compared against,
-                         which is always either "obs" or the baseline CAM case name,
-                         depending on whether "compare_obs" is true or false.
-    data_loc          -> Location of comparison data, which is either the location listed
-                         in each variable's ""obs_file", or the same as "model_rgrid_loc",
-                         depending on whether "compare_obs" is true or false.
-    var_list          -> List of CAM output variables provided by "diag_var_list"
-    data_list         -> List of data sets CAM will be compared against, which
-                         is simply the baseline case name in situations when
-                         "compare_obs" is false.
-    plot_location     -> Location where plot files will be written to, which is
-                         specified by "cam_diag_plot_loc".
-    climo_yrs         -> Dictionary containing the start and end years of the test
-                        and baseline model data (if applicable).
-    variable_defaults -> optional,
-                         Dict that has keys that are variable names and values that are plotting preferences/defaults.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag object
+
+    Returns
+    -------
+    Does not return a value; produces plots and saves files.
+
+    Notes
+    -----
+    This function imports `pandas` and `plotting_functions`
+
+    It uses the AdfDiag object's methods to get necessary information.
+    Specificially:
+    adfobj.diag_var_list
+        List of variables
+    adfobj.get_basic_info
+        Regrid data path, checks `compare_obs`, checks `redo_plot`, checks `plot_press_levels`
+    adfobj.plot_location
+        output plot path
+    adfobj.get_cam_info
+        Get `cam_case_name` and `case_nickname`
+    adfobj.climo_yrs
+        start and end climo years of the case(s), `syears` & `eyears`
+        start and end climo years of the reference, `syear_baseline` & `eyear_baseline`
+    adfobj.var_obs_dict
+        reference data (conditional)
+    adfobj.get_baseline_info
+        get reference case, `cam_case_name`
+    adfobj.variable_defaults 
+        dict of variable-specific plot preferences
+    adfobj.read_config_var
+        dict of basic info, `diag_basic_info`
+        Then use to check `plot_type`
+    adfobj.compare_obs
+        Used to set data path
+    adfobj.debug_log
+        Issues debug message
+    adfobj.add_website_data
+        Communicates information to the website generator
+
+        
+    The `plotting_functions` module is needed for:
+    pf.get_central_longitude()
+        determine central longitude for global plots
+    pf.lat_lon_validate_dims()
+        makes sure latitude and longitude are valid
+    pf.seasonal_mean()
+        calculate seasonal mean
+    pf.plot_map_and_save()
+        send information to make the plot and save the file
+    pf.zm_validate_dims()
+        Checks on pressure level dimension
     """
 
     #Import necessary modules:
