@@ -275,6 +275,7 @@ def regrid_and_vert_interp(adf):
 
                     #Finally, write re-gridded data to output file:
                     save_to_nc(rgdata_interp, regridded_file_loc)
+                    rgdata_interp.close()  # bpm: we are completely done with this data
 
                     #Now vertically interpolate baseline (target) climatology,
                     #if applicable:
@@ -327,7 +328,7 @@ def regrid_and_vert_interp(adf):
                                     ofrac = xr.where(ofrac<0,0,ofrac)
                                     # mask the land in TS for global means
                                     tgdata_interp['OCNFRAC'] = ofrac
-                                    ts_tmp = rgdata_interp[var]
+                                    ts_tmp = tgdata_interp[var]
                                     ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
                                     tgdata_interp[var] = ts_tmp
                                 else:
