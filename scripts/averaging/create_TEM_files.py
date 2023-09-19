@@ -28,8 +28,13 @@ def create_TEM_files(adf):
     #Grab TEM diagnostics options
     tem_opts = adf.read_config_var("tem_info")
 
+    if not tem_opts:
+        print("\n  No TEM options provided, skipping TEM file creation." \
+        "\nSee documentation or config_cam_baseline_example.yaml for options to add to configuration file.")
+        return
+
     #Get test case(s) tem over-write boolean and force to list if not by default
-    overwrite_tem_cases = tem_opts["overwrite_tem_case"]
+    overwrite_tem_cases = tem_opts.get("overwrite_tem_case")
     if not isinstance(overwrite_tem_cases, list): overwrite_tem_cases = [overwrite_tem_cases]
 
     #Check if comparing to observations
@@ -52,12 +57,11 @@ def create_TEM_files(adf):
         case_names.append(base_name)
         start_years.append(syear_baseline)
         end_years.append(eyear_baseline)
-        overwrite_tem_cases.append(tem_opts["overwrite_tem_base"])
+        overwrite_tem_cases.append(tem_opts.get("overwrite_tem_base", False))
     #End if
     
     #Set default to h4
-    #TODO: Read this history file number from the yaml file?
-    hist_num = tem_opts["hist_num"]
+    hist_num = tem_opts.get("hist_num")
     if hist_num is None:
         hist_num = "h4"
 
@@ -182,7 +186,7 @@ def create_TEM_files(adf):
         if not list(starting_location.glob(hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
             emsg += " Script is ending here."
-            return
+            adf.end_diag_fail(emsg)
         #End if
 
         #Get full path and file for file name
@@ -194,7 +198,7 @@ def create_TEM_files(adf):
             output_loc_idx.mkdir(parents=True)
         #End if
 
-        #Set baseline file name
+        #Set case file name
         tem_fil = output_loc_idx / f'{case_name}.TEMdiag_{start_year}-{end_year}.nc'
 
         #Get current case tem over-write boolean
