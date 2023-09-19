@@ -75,8 +75,13 @@ def tem(adf):
     #Grab TEM diagnostics options
     tem_opts = adf.read_config_var("tem_info")
 
+    if not tem_opts:
+        print("\n  No TEM options provided, skipping TEM plots." \
+        "\nSee documentation or config_cam_baseline_example.yaml for options to add to configuration file.")
+        return
+
     #Location of saved TEM netCDF files
-    tem_loc = tem_opts["tem_loc"]
+    tem_loc = tem_opts.get("tem_loc")
 
     #If path not specified, skip TEM calculation
     if tem_loc is None:
