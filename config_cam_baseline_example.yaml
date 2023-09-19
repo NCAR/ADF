@@ -404,8 +404,7 @@ diag_var_list:
 # Options for TEM diagnostics (./averaging/create_TEM_files.py and ./plotting/temp.py)
 #tem_info:
     #Location where TEM files are stored:
-    #If path not specified or commented out, TEM calculation will be skipped
-    #If no path, TEM diagnostics wont run even if declared in averaging/plotting scripts
+    #If path not specified or commented out, TEM calculation/plots will be skipped
 #    tem_loc: /glade/scratch/richling/adf-output/ADF-data/TEM/
 
     #TEM history file number
