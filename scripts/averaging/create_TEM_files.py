@@ -330,7 +330,7 @@ def calc_tem(ds):
     uwzm = -1.*uwzm*pre/H
 
     # compute the latitudinal gradient of U
-    dudphi = (1./a)*np.gradient(uzm*coslat2d, 
+    dudphi = (1./(a*coslat2d))*np.gradient(uzm*coslat2d, 
                                 latrad, 
                                 axis=1)
     
