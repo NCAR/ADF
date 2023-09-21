@@ -369,11 +369,11 @@ diag_var_list:
     #If missing or blank, ADF will default to h4
 #    hist_num: h4
     
-    #Overwrite TEMs files, if found?
+    #Overwrite TEM files, if found?
     #If set to false, then TEM creation will be skipped if files are found:
 #    overwrite_tem_case: false
 
-    #For multi-case?
+    #For multi-case:
     #overwrite_tem_case
     #    - false
     #    - true
