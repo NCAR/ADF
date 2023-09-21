@@ -64,7 +64,7 @@ user: 'USER-NAME-NOT-SET'
 diag_basic_info:
 
     #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries 
+    # Only affects timeseries as everything else uses timeseries
     # Leave off trailing '.'
     #Default: cam.h0
     hist_str: cam.h0
@@ -98,7 +98,7 @@ diag_basic_info:
 
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
-    #Uncomment and change path for custom variable defaults file 
+    #Uncomment and change path for custom variable defaults file
     #defaults_file: /some/path/to/defaults/file.yaml
 
     #Vertical pressure levels (in hPa) on which to plot 3-D variables
@@ -368,13 +368,13 @@ diag_var_list:
     #TEM history file number
     #If missing or blank, ADF will default to h4
 #    hist_num: h4
-    
+
     #Overwrite TEM files, if found?
     #If set to false, then TEM creation will be skipped if files are found:
 #    overwrite_tem_case: false
 
-    #For multi-case:
-    #overwrite_tem_case
+    #For multi-case
+    #overwrite_tem_case:
     #    - false
     #    - true
 
