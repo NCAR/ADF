@@ -17,6 +17,7 @@ import os.path
 import glob
 import subprocess
 import multiprocessing as mp
+import copy
 
 import importlib
 
@@ -180,6 +181,14 @@ class AdfDiag(AdfWeb):
 
         #Add plotting script names:
         self.__plotting_scripts = self.read_config_var('plotting_scripts')
+
+    # Create property needed to return "plotting_scripts" variable to user:
+    @property
+    def plotting_scripts(self):
+        """Return a copy of the '__plotting_scripts' string list to user if requested."""
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable:
+        return copy.copy(self.__plotting_scripts)
 
     #########
     #Variable extraction functions
@@ -386,9 +395,6 @@ class AdfDiag(AdfWeb):
             #Extract start and end year values:
             start_year = start_years[case_idx]
             end_year   = end_years[case_idx]
-
-            print(type(start_year))
-            print(type(end_year))
 
             #Create path object for the CAM history file(s) location:
             starting_location = Path(cam_hist_locs[case_idx])

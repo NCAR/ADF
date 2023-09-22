@@ -117,8 +117,6 @@ class AdfInfo(AdfConfig):
         #Case names:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
-        print(case_names)
-
         #Grab test case nickname(s)
         test_nicknames = self.get_cam_info('case_nickname')
         if test_nicknames is None:
@@ -208,6 +206,11 @@ class AdfInfo(AdfConfig):
                     raise AdfError(emsg)
                 #End if
             #End if
+
+            #Grab baseline nickname
+            base_nickname = self.get_baseline_info('case_nickname')
+            if base_nickname == None:
+                base_nickname = data_name
 
             #Update baseline case name:
             data_name += f"_{syear_baseline}_{eyear_baseline}"
@@ -451,7 +454,8 @@ class AdfInfo(AdfConfig):
         return {"syears":syears,"eyears":eyears,
                 "syear_baseline":self.__syear_baseline, "eyear_baseline":self.__eyear_baseline}
 
-    # Create property needed to return the climo start (syear) and end (eyear) years to user:
+
+    # Create property needed to return the case nicknames to user:
     @property
     def case_nicknames(self):
         """Return the test case and baseline nicknames to the user if requested."""
