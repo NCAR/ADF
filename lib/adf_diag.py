@@ -379,6 +379,9 @@ class AdfDiag(AdfWeb):
             hist_str = 'cam.h0'
         #End if
 
+        # get info about variables defaults
+        res = self.variable_defaults
+
         #Loop over cases:
         for case_idx, case_name in enumerate(case_names):
 
@@ -510,12 +513,24 @@ class AdfDiag(AdfWeb):
 
             #Loop over CAM history variables:
             list_of_commands = []
-            for var in self.diag_var_list:
+            vars_to_derive = []
+            #create copy of var list that can be modified for derivable variables
+            diag_var_list = self.diag_var_list
+            for var_index,var in enumerate(diag_var_list):
                 if var not in hist_file_var_list:
-                    msg = f"WARNING: {var} is not in the file {hist_files[0]}."
-                    msg += " No time series will be generated."
-                    print(msg)
-                    continue
+                    vres = res[var]
+                    if "derivable_from" in vres:
+                        constit_list = vres['derivable_from']
+                        for constit in constit_list:
+                            if constit not in diag_var_list:
+                                diag_var_list.append(constit)
+                        vars_to_derive.append(var)
+                        continue
+                    else:
+                        msg = f"WARNING: {var} is not in the file {hist_files[0]}."
+                        msg += " No time series will be generated."
+                        print(msg)
+                        continue
 
                 #Check if variable has a "lev" dimension according to first file:
                 has_lev = bool('lev' in hist_file_ds[var].dims)
@@ -592,6 +607,9 @@ class AdfDiag(AdfWeb):
             #Now run the "ncrcat" subprocesses in parallel:
             with mp.Pool(processes=self.num_procs) as mpool:
                 _ = mpool.map(call_ncrcat, list_of_commands)
+
+            if vars_to_derive:
+                self.derive_variables(vars_to_derive=vars_to_derive,directory=ts_dir[case_idx])
             #End with
 
         #End cases loop
@@ -914,5 +932,26 @@ class AdfDiag(AdfWeb):
         #End if
         print('For CVDP information visit: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/')
         print('   ')
+
+    #########
+
+    def derive_variables(self,vars_to_derive=None,directory=None):
+
+        """
+        Derive variables acccording to steps given here.  Since derivations will depend on the 
+        variable, each variable to derive will need its own set of steps below.
+        """
+
+        for var in vars_to_derive:
+            if var == "PRECT":
+                 # PRECT can be found by simply adding PRECL and PRECC
+                 # grab file names for the PRECL and PRECC files from the case ts directory
+                 constit_files = sorted(glob.glob(directory+"/*PREC*"))
+                 # create new file name for PRECT
+                 prect_file = constit_files[0].replace('PRECC','PRECT')
+                 # append PRECC to the file containing PRECL
+                 os.system(f"ncks -A -v PRECC {constit_files[0]} {constit_files[1]}")
+                 # create new file with the sum of PRECC and PRECL
+                 os.system(f"ncap2 -s 'PRECT=(PRECC+PRECL)' {constit_files[1]} {prect_file}")
 
 ###############
