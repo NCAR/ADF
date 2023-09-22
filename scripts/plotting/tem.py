@@ -107,19 +107,26 @@ def tem(adf):
     else:
         var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
 
-    #Check if comparing against obs
-    #If so, create the obs TEM netCDF file
-    if obs:
-        #Create TEM file for observations
-        input_loc_idx = Path(tem_loc) / base_name
-        tem_base = input_loc_idx / f'{base_name}.TEMdiag.nc'
-        ds_base = xr.open_dataset(tem_base)
+    #Baseline TEM location
+    input_loc_idx = Path(tem_loc) / base_name
 
+    #Check if comparing against obs
+    if obs:
+        #Set TEM file for observations
+        base_file_name = f'{base_name}.TEMdiag.nc'
     else:
-        #Open the baseline TEM file, if it exists
-        input_loc_idx = Path(tem_loc) / base_name
-        tem_base = input_loc_idx / f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
+        #Set TEM file for baseline
+        base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
+    
+    #Set full path for baseline/obs file
+    tem_base = input_loc_idx / base_file_name
+
+    #Check to see if baseline/obs TEM file exists    
+    if tem_base.is_file():
         ds_base = xr.open_dataset(tem_base)
+    else:
+        print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
+        return
 
     #Setup TEM plots
     nrows = len(var_list)
@@ -156,10 +163,15 @@ def tem(adf):
 
             #Open the TEM file
             output_loc_idx = Path(tem_loc) / case_name
-            tem = output_loc_idx / f'{case_name}.TEMdiag_{start_year}-{end_year}.nc'
+            case_file_name = f'{case_name}.TEMdiag_{start_year}-{end_year}.nc'
+            tem = output_loc_idx / case_file_name
 
             #Grab the data for the TEM netCDF files
-            ds = xr.open_dataset(tem)
+            if tem.is_file():
+                ds = xr.open_dataset(tem)
+            else:
+                print(f"\t'{case_file_name}' does not exist. TEM plots will be skipped.")
+                return
 
             climo_yrs = {"test":[syear_cases[idx], eyear_cases[idx]],
                          "base":[syear_baseline, eyear_baseline]}
