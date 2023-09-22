@@ -516,7 +516,7 @@ class AdfDiag(AdfWeb):
             vars_to_derive = []
             #create copy of var list that can be modified for derivable variables
             diag_var_list = self.diag_var_list
-            for var_index,var in enumerate(diag_var_list):
+            for var in diag_var_list:
                 if var not in hist_file_var_list:
                     vres = res[var]
                     if "derivable_from" in vres:
