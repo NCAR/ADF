@@ -946,7 +946,7 @@ class AdfDiag(AdfWeb):
             if var == "PRECT":
                  # PRECT can be found by simply adding PRECL and PRECC
                  # grab file names for the PRECL and PRECC files from the case ts directory
-                 constit_files = sorted(glob.glob(directory+"/*PREC*"))
+                 constit_files = sorted(glob.glob(ts_dir+"/*PREC*"))
                  # create new file name for PRECT
                  prect_file = constit_files[0].replace('PRECC','PRECT')
                  # append PRECC to the file containing PRECL
