@@ -132,6 +132,19 @@ AODVIS:
   add_offset: 0
   new_unit: ""
 
+AODVISdn:
+  category: "Aerosols"
+  colormap: "jet"
+  contour_levels_range: [0.01, 1.01, 0.05]
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-0.4, 0.401, 0.05]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: ""
+  obs_file: "MOD08_M3_192x288_AOD_2001-2020_climo.nc"
+  obs_name: "MODIS"
+  obs_var_name: "AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean"
+
 BURDENBC:
   category: "Aerosols"
 
@@ -203,6 +216,9 @@ ZMDT:
 
 CAPE:
   category: "Deep Convection"
+  obs_file: "CAPE_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "CAPE"
 
 CMFMC_DP:
   category: "Deep Convection"
@@ -259,9 +275,15 @@ N2O:
 
 CLDICE:
   category: "Clouds"
+  obs_file: "CLDICE_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "CLDICE"
 
 CLDLIQ:
   category: "Clouds"
+  obs_file: "CLDLIQ_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "CLDLIQ"
 
 CLDTOT:
   colormap: "Oranges"
@@ -343,6 +365,9 @@ TGCLDLWP:
     colorbar:
       label : "g m$^{-2}$"
   category: "Clouds"
+  obs_file: "TGCLDLWP_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TGCLDLWP"
 
 TGCLDIWP:
   colormap: "Blues"
@@ -356,6 +381,9 @@ TGCLDIWP:
     colorbar:
       label : "g m$^{-2}$"
   category: "Clouds"
+  obs_file: "TGCLDIWP_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TGCLDIWP"
 
 CCN3:
   category: "Clouds"
@@ -428,6 +456,9 @@ QFLX:
 
 PBLH:
   category: "Surface variables"
+  obs_file: "PBLH_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "PBLH"
 
 PSL:
   colormap: "Oranges"
@@ -441,6 +472,9 @@ PSL:
     colorbar:
       label : "hPa"
   category: "Surface variables"
+  obs_file: "PSL_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "PSL"
 
 PS:
   colormap: "Oranges"
@@ -453,13 +487,16 @@ PS:
   mpl:
     colorbar:
       label : "hPa"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "PS"
   category: "Surface variables"
+  obs_file: "PS_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "PS"
 
 TREFHT:
   category: "Surface variables"
+  obs_file: "TREFHT_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TREFHT"
 
 TS:
   colormap: "Blues"
@@ -568,8 +605,8 @@ U:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
+  obs_file: "U_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
   obs_var_name: "U"
   vector_pair: "V"
   vector_name: "Wind"
@@ -586,8 +623,8 @@ V:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
+  obs_file: "V_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
   obs_var_name: "V"
   vector_pair: "U"
   vector_name: "Wind"
@@ -595,12 +632,21 @@ V:
 
 Q:
   category: "State"
+  obs_file: "Q_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "Q"
 
 T:
   category: "State"
+  obs_file: "T_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "T"
 
 OMEGA:
   category: "State"
+  obs_file: "OMEGA_ERA5_monthly_climo_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "OMEGA"
 
 OMEGA500:
   category: "State"
@@ -895,6 +941,89 @@ OMEGAT:
   colormap: "PuOr_r"
   diff_colormap: "coolwarm"
   plot_log_pressure: True
+
+#++++++++++++++
+# Category: TEM
+#++++++++++++++
+uzm:
+  ylim: [1e3,1]
+  units: m s-1
+  long_name: Zonal-Mean zonal wind
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "uzm"
+
+vzm:
+  ylim: [1e3,1]
+  units: m s-1
+  long_name: Zonal-Mean meridional wind
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "vzm"
+
+epfy:
+  ylim: [1e2,1]
+  units: m3 s−2
+  long_name: northward component of the Eliassen–Palm flux
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "epfy"
+
+epfz:
+  ylim: [1e2,1]
+  units: m3 s−2
+  long_name: upward component of the Eliassen–Palm flux
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "epfz"
+
+vtem:
+  ylim: [1e2,1]
+  units: m/s
+  long_name: Transformed Eulerian mean northward wind
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "vtem"
+
+wtem:
+  ylim: [1e2,1]
+  units: m/s
+  long_name: Transformed Eulerian mean upward wind
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "wtem"
+
+psitem:
+  ylim: [1e2,1]
+  units: m3 s−2
+  long_name: Transformed Eulerian mean mass stream function
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "psitem"
+
+utendepfd:
+  ylim: [1e2,1]
+  units: m3 s−2
+  long_name: tendency of eastward wind due to Eliassen-Palm flux divergence
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "utendepfd"
+
+utendvtem:
+  ylim: [1e2,1]
+  units: m3 s−2
+  long_name: tendency of eastward wind due to TEM northward wind advection and the coriolis term
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "utendvtem"
+
+utendwtem:
+  ylim: [1e2,1]
+  units: m3 s−2
+  long_name: tendency of eastward wind due to TEM upward wind advection
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "utendwtem"
 
 #-----------
 #End of File

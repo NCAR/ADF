@@ -207,15 +207,17 @@ def regrid_and_vert_interp(adf):
                         tclim_ds = xr.open_dataset(tclim_fils[0])
                     #End if
 
-                    #if regrid_ofrac and 'OCNFRAC' in tclim_ds:
-                    #    regrid_ofrac = False
-
                     #Generate CAM climatology (climo) file list:
                     mclim_fils = sorted(mclimo_loc.glob(f"{case_name}_{var}_*.nc"))
 
                     if len(mclim_fils) > 1:
                         #Combine all cam files together into a single data set:
                         mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
+                    elif len(mclim_fils) == 0:
+                        wmsg = f"\t - Unable to find climo file for '{var}'."
+                        wmsg += " Continuing to next variable."
+                        print(wmsg)
+                        continue
                     else:
                         #Open single file as new xarray dataset:
                         mclim_ds = xr.open_dataset(mclim_fils[0])
@@ -273,6 +275,7 @@ def regrid_and_vert_interp(adf):
 
                     #Finally, write re-gridded data to output file:
                     save_to_nc(rgdata_interp, regridded_file_loc)
+                    rgdata_interp.close()  # bpm: we are completely done with this data
 
                     #Now vertically interpolate baseline (target) climatology,
                     #if applicable:
@@ -325,7 +328,7 @@ def regrid_and_vert_interp(adf):
                                     ofrac = xr.where(ofrac<0,0,ofrac)
                                     # mask the land in TS for global means
                                     tgdata_interp['OCNFRAC'] = ofrac
-                                    ts_tmp = rgdata_interp[var]
+                                    ts_tmp = tgdata_interp[var]
                                     ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
                                     tgdata_interp[var] = ts_tmp
                                 else:

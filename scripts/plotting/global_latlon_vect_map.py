@@ -61,44 +61,40 @@ def global_latlon_vect_map(adfobj):
     #CAM simulation variables:
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Grab case years
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
-
-    #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
-    if test_nicknames == None:
-        test_nicknames = case_names
 
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
+        #Set obs call for observation details for plot titles
+        obs = True
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
-        base_nickname = "Obs"
 
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
             print("\t No observations found to plot against, so no vector maps will be generated.")
             return
-
     else:
+        obs = False
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
-
-        #Grab baseline case nickname
-        base_nickname = adfobj.get_baseline_info('case_nickname')
-        if base_nickname == None:
-            base_nickname = data_name
     #End if
 
-    #Extract baseline years (which may be empty strings if using Obs):
+    #Grab baseline years (which may be empty strings if using Obs):
     syear_baseline = adfobj.climo_yrs["syear_baseline"]
     eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -284,8 +280,13 @@ def global_latlon_vect_map(adfobj):
 
                 if len(umclim_fils) > 1:
                     umclim_ds = xr.open_mfdataset(umclim_fils, combine='by_coords')
-                else:
+                elif len(umclim_fils) == 1:
                     umclim_ds = xr.open_dataset(umclim_fils[0])
+                else:
+                    print("WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    continue
                 #End if
 
                 if len(vmclim_fils) > 1:
@@ -370,10 +371,10 @@ def global_latlon_vect_map(adfobj):
 
                             #Loop over season dictionary:
                             for s in seasons:
-                                umseasons[s] = umdata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                vmseasons[s] = vmdata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                uoseasons[s] = uodata.sel(time=seasons[s],lev=lv).mean(dim='time')
-                                voseasons[s] = vodata.sel(time=seasons[s],lev=lv).mean(dim='time')
+                                umseasons[s] = (pf.seasonal_mean(umdata, season=s, is_climo=True)).sel(lev=lv)
+                                vmseasons[s] = (pf.seasonal_mean(vmdata, season=s, is_climo=True)).sel(lev=lv)
+                                uoseasons[s] = (pf.seasonal_mean(uodata, season=s, is_climo=True)).sel(lev=lv)
+                                voseasons[s] = (pf.seasonal_mean(vodata, season=s, is_climo=True)).sel(lev=lv)
                                 # difference: each entry should be (lat, lon)
                                 udseasons[s] = umseasons[s] - uoseasons[s]
                                 vdseasons[s] = vmseasons[s] - voseasons[s]
@@ -411,7 +412,7 @@ def global_latlon_vect_map(adfobj):
                                                         [syear_baseline,eyear_baseline],lv,
                                                         umseasons[s], vmseasons[s],
                                                         uoseasons[s], voseasons[s],
-                                                        udseasons[s], vdseasons[s], **vres)
+                                                        udseasons[s], vdseasons[s], obs, **vres)
 
                                 #Add plot to website (if enabled):
                                 adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
@@ -423,10 +424,10 @@ def global_latlon_vect_map(adfobj):
 
                         #Loop over season dictionary:
                         for s in seasons:
-                            umseasons[s] = umdata.sel(time=seasons[s]).mean(dim='time')
-                            vmseasons[s] = vmdata.sel(time=seasons[s]).mean(dim='time')
-                            uoseasons[s] = uodata.sel(time=seasons[s]).mean(dim='time')
-                            voseasons[s] = vodata.sel(time=seasons[s]).mean(dim='time')
+                            umseasons[s] = pf.seasonal_mean(umdata, season=s, is_climo=True)
+                            vmseasons[s] = pf.seasonal_mean(vmdata, season=s, is_climo=True)
+                            uoseasons[s] = pf.seasonal_mean(uodata, season=s, is_climo=True)
+                            voseasons[s] = pf.seasonal_mean(vodata, season=s, is_climo=True)
                             # difference: each entry should be (lat, lon)
                             udseasons[s] = umseasons[s] - uoseasons[s]
                             vdseasons[s] = vmseasons[s] - voseasons[s]
@@ -464,7 +465,7 @@ def global_latlon_vect_map(adfobj):
                                                       [syear_baseline,eyear_baseline], None,
                                                       umseasons[s], vmseasons[s],
                                                       uoseasons[s], voseasons[s],
-                                                      udseasons[s], vdseasons[s], **vres)
+                                                      udseasons[s], vdseasons[s], obs, **vres)
 
                             #Add plot to website (if enabled):
                             adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,
