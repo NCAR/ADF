@@ -244,7 +244,8 @@ class AdfInfo(AdfConfig):
         #End if
 
         #Extract cam history files location:
-        cam_hist_locs = self.get_cam_info('cam_hist_loc')
+        cam_hist_locs = self.get_cam_info('cam_hist_loc',required=False)
+
 
         #Loop over cases:
         syears_fixed = []
@@ -257,7 +258,8 @@ class AdfInfo(AdfConfig):
             eyears_fixed.append(eyear)
 
             #Check if history file path exists:
-            if cam_hist_locs:
+
+            if any(cam_hist_locs):
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
                 files_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
@@ -477,7 +479,7 @@ class AdfInfo(AdfConfig):
         """
         Return the config variable from 'diag_cam_climo' as requested by
         the user.  This function assumes that if the user is requesting it,
-        then it must be required.
+        then it must be required. (DRB: This statement contradicts the default value of required=False)
         """
 
         return self.read_config_var(var_str,
