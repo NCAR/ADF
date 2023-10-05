@@ -16,7 +16,7 @@ global_average(fld, wgt, verbose=False)
 spatial_average(indata, weights=None, spatial_dims=None)
     Compute spatial average
 wgt_rmse(fld1, fld2, wgt):
-    Calculated the area-weighted RMSE.
+    Calculate the area-weighted RMSE.
 annual_mean(data, whole_years=False, time_name='time'):
     Calculate annual averages from time series data.
 seasonal_mean(data, season=None, is_climo=None):
@@ -45,7 +45,7 @@ vert_remap(x_mdl, p_mdl, plev)
 lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None, convert_to_mb=False)
     Interpolate model hybrid levels to specified pressure levels.
 pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False)
-    Interpolate `data` from hybrid-sigma levels to isobaric levels.
+    Interpolate `data` from hybrid-sigma levels to isobaric levels using provided mid-level pressures.
 zonal_mean_xr(fld)
     Average over all dimensions except `lev` and `lat`.
 validate_dims(fld, list_of_dims)
@@ -208,7 +208,7 @@ def mask_land_or_ocean(arr, msk, use_nan=False):
 def get_central_longitude(*args):
     """Determine central longitude for maps.
 
-    Can provide multiple arguments.
+    Allows an arbitrary number of arguments.
     If any of the arguments is an instance of `AdfDiag`, then check 
     whether it has a `central_longitude` in `diag_basic_info`.
     _This case takes precedence._
@@ -325,7 +325,7 @@ def spatial_average(indata, weights=None, spatial_dims=None):
 
     Makes an attempt to identify the spatial variables when `spatial_dims` is None.
     Will average over `ncol` if present, and then will check for `lat` and `lon`.
-    When none of those three are found, raise and AdfError.
+    When none of those three are found, raise an AdfError.
     """
     import warnings
 
@@ -815,9 +815,9 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     base_nickname : str
         short name for base case
     case_climo_yrs : list
-        list of years in case climatology
+        list of years in case climatology, used for annotation
     baseline_climo_yrs : list
-        list of years in base case climatology
+        list of years in base case climatology, used for annotation
     plev : str or float or None
         if not None, label denoting the pressure level
     umdlfld_nowrap, vmdlfld_nowrap : xarray.DataArray
@@ -833,7 +833,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     -----
     kwargs expected to be a variable-specific section,
     possibly provided by an ADF Variable Defaults YAML file.
-    Currently it is inspecte for:
+    Currently it is inspected for:
     - `central_longitude`
     - `var_name`
     - `case_name`
@@ -1040,11 +1040,11 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     base_nickname : str
         short name for base case
     case_climo_yrs : list
-        list of years in case climatology
+        list of years in case climatology, used for annotation
     baseline_climo_yrs : list
-        list of years in base case climatology
+        list of years in base case climatology, used for annotation
     mdlfld : xarray.DataArray
-        input data for case,
+        input data for case
     obsfld : xarray.DataArray
         input data for base case
     diffld : xarray.DataArray
@@ -1056,7 +1056,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     -----
     kwargs expected to be a variable-specific section,
     possibly provided by an ADF Variable Defaults YAML file.
-    Currently it is inspecte for:
+    Currently it is inspected for:
     - colormap -> str, name of matplotlib colormap
     - contour_levels -> list of explict values or a tuple: (min, max, step)
     - diff_colormap
@@ -1242,7 +1242,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 def pres_from_hybrid(psfc, hya, hyb, p0=100000.):
     """Calculates pressure field
 
-    pressure derived with the forumla:
+    pressure derived with the formula:
     ```p = a(k)*p0 + b(k)*ps```
 
     Parameters
@@ -1611,8 +1611,8 @@ def zonal_plot(lat, data, ax=None, color=None, **kwargs):
 
     Notes
     -----
-    Checks if there is a `lev` dimesion to determine if
-    it is a lat-pres plot or  a line plot.
+    Checks if there is a `lev` dimension to determine if
+    it is a lat-pres plot or a line plot.
     """
     if ax is None:
         ax = plt.gca()
@@ -1645,8 +1645,8 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
 
     Notes
     -----
-    Checks if there is a `lev` dimesion to determine if
-    it is a lon-pres plot or  a line plot.
+    Checks if there is a `lev` dimension to determine if
+    it is a lon-pres plot or a line plot.
     """
     if ax is None:
         ax = plt.gca()
@@ -1943,7 +1943,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
     adata : xarray.DataArray
         data to plot ([lev], [lat], lon).
         The vertical coordinate (lev) must be pressure levels.
-    bdata : xarray:DataArray
+    bdata : xarray.DataArray
         baseline or observations to plot adata against.
         It must have the same dimensions and vertical levels as adata.
     has_lev : bool
