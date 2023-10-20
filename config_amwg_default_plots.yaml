@@ -297,7 +297,8 @@ plotting_scripts:
     - zonal_mean
     - polar_map
     - cam_taylor_diagram
-    #- tem #To plot TEM, please un-comment
+    #- tem #To plot TEM, please un-comment fill-out
+                              #the "tem_info" section below
     #- regional_map_multicase #To use this please un-comment and fill-out
                               #the "region_multicase" section below
 
