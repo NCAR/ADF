@@ -379,7 +379,7 @@ class AdfDiag(AdfWeb):
             hist_str = 'cam.h0'
         #End if
 
-        # get info about variables defaults
+        # get info about variable defaults
         res = self.variable_defaults
 
         #Loop over cases:
@@ -518,7 +518,7 @@ class AdfDiag(AdfWeb):
             diag_var_list = self.diag_var_list
             for var in diag_var_list:
                 if var not in hist_file_var_list:
-                    vres = res[var]
+                    vres = res.get(var, {})
                     if "derivable_from" in vres:
                         constit_list = vres['derivable_from']
                         for constit in constit_list:
@@ -946,7 +946,11 @@ class AdfDiag(AdfWeb):
             if var == "PRECT":
                  # PRECT can be found by simply adding PRECL and PRECC
                  # grab file names for the PRECL and PRECC files from the case ts directory
-                 constit_files = sorted(glob.glob(ts_dir+"/*PREC*"))
+                 if len(glob.glob(os.path.join(ts_dir,"*PRECC*"))) and len(glob.glob(os.path.join(ts_dir,"*PRECL*"))):
+                     constit_files=sorted(glob.glob(os.path.join(ts_dir,"*PREC*")))
+                 else:
+                     ermsg = "PRECC and PRECL were not both present; PRECT cannot be calculated."
+                     raise FileNotFoundError(ermsg)
                  # create new file name for PRECT
                  prect_file = constit_files[0].replace('PRECC','PRECT')
                  # append PRECC to the file containing PRECL
