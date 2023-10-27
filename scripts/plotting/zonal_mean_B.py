@@ -10,7 +10,7 @@ def my_formatwarning(msg, *args, **kwargs):
 
 warnings.formatwarning = my_formatwarning
 
-def zonal_mean(adfobj):
+def zonal_mean_B(adfobj):
 
     """
     This script plots zonal averages.
