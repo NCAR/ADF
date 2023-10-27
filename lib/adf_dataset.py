@@ -57,9 +57,11 @@ class AdfData:
         self.case_names = adfobj.get_cam_info("cam_case_name", required=True)
         self.test_nicknames = adfobj.case_nicknames["test_nicknames"]
         self.base_nickname = adfobj.case_nicknames["base_nickname"]
+        self.ref_nickname = self.base_nickname
+
+        # define reference data
         self.reference_is_obs = adfobj.get_basic_info("compare_obs")
         self.set_reference() # specify "ref_labels" -> called "data_list" in zonal_mean (name of data source)
-        self.ref_nickname = self.base_nickname
 
     def set_reference(self):
         """Set attributes for reference (aka baseline) data location, names, and variables."""
@@ -73,6 +75,8 @@ class AdfData:
             self.ref_var_loc = {}
             self.ref_var_nam = {}
             self.ref_labels = {}
+            # when using a reference simulation, allow a "special" attribute with the case name:
+            self.ref_case_label = self.adf.get_baseline_info("cam_case_name", required=True)
             for v in self.var_list:
                 f = self.get_reference_climo_file(v)
                 if f is None:
@@ -88,7 +92,7 @@ class AdfData:
             return [self.ref_var_loc[var]]
         else:
             self.ref_loc = self.adf.get_baseline_info("cam_climo_loc")
-            fils = sorted(Path(self.ref_loc).glob(f"{self.ref_label}_{var}_baseline.nc"))
+            fils = sorted(Path(self.ref_loc).glob(f"{self.ref_case_label}_{var}_baseline.nc"))
             if fils:
                 return fils
             else:
