@@ -87,6 +87,7 @@ class AdfData:
         if self.reference_is_obs:
             return [self.ref_var_loc[var]]
         else:
+            self.ref_loc = self.adf.get_baseline_info("cam_climo_loc")
             fils = sorted(Path(self.ref_loc).glob(f"{self.ref_label}_{var}_baseline.nc"))
             if fils:
                 return fils
