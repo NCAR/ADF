@@ -28,7 +28,7 @@ def qbo(adfobj):
     Isla Simpson (islas@ucar.edu) 22nd March 2022
 
     """
- #Notify user that script has started:
+    #Notify user that script has started:
     print("\n  Generating qbo plots...")
 
     #Extract relevant info from the ADF:
