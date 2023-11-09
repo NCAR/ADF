@@ -522,10 +522,10 @@ def plot_pre_mon(fig, data, pre, ci, cmin, cmax, expname, x1=None, x2=None, y1=N
             ax = fig.add_axes([x1, y1, x2-x1, y2-y1])
         else:
             ax = fig.add_axes()
+    ax.xaxis.set_label_position('top')
     if climo_yrs:
-        ax.set_title(f"\n{climo_yrs}", loc='right',
-                       fontsize=8)
-
+        ax.set_xlabel(f"{climo_yrs}", loc='center',
+                           fontsize=8)
     ax.contourf(monticks2, -np.log10(data[paxis]), dataplot, levels=clevs, cmap=mymap, extend='max')
     ax.set_ylim(-np.log10(100),-np.log10(3))
     ax.set_yticks([-np.log10(100),-np.log10(30),-np.log10(10),-np.log10(3)])
