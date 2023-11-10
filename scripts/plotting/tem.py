@@ -188,6 +188,8 @@ def tem(adf):
         #Add plot to website (if enabled):
         adf.add_website_data(plot_name, "TEM", case_name, season=s)
 
+    print("  ...TEM plots have been generated successfully.")
+
 # Helper functions
 ##################
 
