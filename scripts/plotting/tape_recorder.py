@@ -25,15 +25,15 @@ import dask
 
 def tape_recorder(adfobj):
     """
-    Plot the values of Q against two sets of obseravations, MLS and ERA5, for the tropics
+    Calculate the weighted latitude average for the simulations and 
+    plot the values of Q against two sets of obseravations, MLS and ERA5, for the tropics
     between 10S and 10N.
 
     MLS h2o data is for 04/2009-11/2021
     ERA5 Q data is for 01/1980-12/2020
 
-    This will calculate the weighted latitude average for the simulations/baseline observations in the tropics.
-    NOTE: If the baseline case are observations and ERA5 is set for Q in the obs location, it will be ignored
-        since ERA5 is used as a defualt obs in the tape recorder.
+    NOTE: If the baseline case are observations, it will be ignored
+        since a defualt set of obs are already being compared against in the tape recorder.
     
     
     
@@ -83,8 +83,8 @@ def tape_recorder(adfobj):
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if not adfobj.get_basic_info("compare_obs"):
-        data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
-        data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
+        data_name = adfobj.get_baseline_info("cam_case_name", required=True)
+        case_names = case_names + [data_name]
 
         #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
@@ -149,14 +149,13 @@ def tape_recorder(adfobj):
     plot_min = 1.5e-6
     plot_max = 3e-6
 
-    #1e-7,1.5e-6,3e-6
     ax = plot_pre_mon(fig, mls, mls.lev, plot_step,plot_min,plot_max,'MLS',
                       x1[0],x2[0],y1[0],y2[0],cmap=cmap, paxis='lev',
-                      taxis='month')
+                      taxis='month',climo_yrs="2009-2021")
 
     ax = plot_pre_mon(fig, era5.Q, era5.pre, plot_step,plot_min,plot_max,
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
-                      taxis='month')
+                      taxis='month',climo_yrs="1980-2020")
 
     #Start count at 2 to account for MLS and ERA5 plots above
     count=2
@@ -191,7 +190,7 @@ def tape_recorder(adfobj):
                       x1_loc, x2_loc, y1_loc, y2_loc,
                       cmap=cmap)
 
-    plot_name = plot_loc / f"TapeRecorder_ANN_Special_Mean.{plot_type}"
+    plot_name = plot_loc / f"Q_ANN_TapeRecorder_Mean.{plot_type}"
     print(f"\t - Plotting annual tape recorder for Q")
 
     # Check redo_plot. If set to True: remove old plot, if it already exists:
@@ -396,7 +395,7 @@ def plotcolorbar(fig, ci, cmin, cmax, titlestr, x1, x2, y1, y2,
            orient = the orientation (horizontal or vertical)
            posneg = if "both", both positive and negative sides are plotted
                     if "pos", only the positive side is plotted
-                    if "net", only the negative side is plotted
+                    if "neg", only the negative side is plotted
            ticks = user specified ticklabels
            fsize = user specified font size
            contourlines = used to overplot contour lines
