@@ -210,7 +210,7 @@ def tape_recorder(adfobj):
     #Notify user that script has ended:
     print("  ...Tape recorder plots have been generated successfully.")
 
-    #End QBO plotting script:
+    #End tape recorder plotting script:
     return
 
 
@@ -438,7 +438,6 @@ def plotcolorbar(fig, ci, cmin, cmax, titlestr, x1, x2, y1, y2,
     clb.set_label(titlestr, fontsize=fsize+2)
 
     if (contourlines):
-        #clevlines = (clevs-ci/2.)*contourlinescale
         clevlines = clevs*contourlinescale
         clevlines = clevlines[np.abs(clevlines) > ci/2.]
         if (orient=='horizontal'):
@@ -521,6 +520,8 @@ def plot_pre_mon(fig, data, pre, ci, cmin, cmax, expname, x1=None, x2=None, y1=N
             ax = fig.add_axes([x1, y1, x2-x1, y2-y1])
         else:
             ax = fig.add_axes()
+
+    #Set up axis
     ax.xaxis.set_label_position('top')
     if climo_yrs:
         ax.set_xlabel(f"{climo_yrs}", loc='center',
