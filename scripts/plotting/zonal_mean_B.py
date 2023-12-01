@@ -171,7 +171,7 @@ def zonal_mean_B(adfobj):
 
         # load reference data (observational or baseline)
         odata = data.load_reference_da(var)
-        has_lat_ref, has_lev_ref = pf.zm_validate_dims(mdata)
+        has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(data.case_names):
