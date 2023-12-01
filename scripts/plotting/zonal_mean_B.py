@@ -183,6 +183,8 @@ def zonal_mean_B(adfobj):
 
             # load re-gridded model files:
             mdata = data.load_regrid_da(case_name, var)
+            if mdata is None:
+                print(f"MAJOR PROBLEM -- mdata is none -- {case_name = }, {var = }")
 
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
