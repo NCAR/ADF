@@ -2,6 +2,8 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+from adf_dataset import AdfData
+
 import warnings  # use to warn user about missing files.
 
 def my_formatwarning(msg, *args, **kwargs):
@@ -13,45 +15,38 @@ warnings.formatwarning = my_formatwarning
 def zonal_mean_B(adfobj):
 
     """
-    This script plots zonal averages.
+    Plots zonal average from climatological files (annual and seasonal).
     Compare CAM climatologies against
     other climatological data (observations or baseline runs).
-    Description of needed inputs from ADF:
-    case_name         -> Name of CAM case provided by "cam_case_name".
-    model_rgrid_loc   -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
-    data_name         -> Name of data set CAM case is being compared against,
-                         which is always either "obs" or the baseline CAM case name,
-                         depending on whether "compare_obs" is true or false.
-    data_loc          -> Location of comparison data, which is either "obs_climo_loc"
-                         or "cam_baseline_climo_loc", depending on whether
-                         "compare_obs" is true or false.
-    var_list          -> List of CAM output variables provided by "diag_var_list"
-    data_list         -> List of data sets CAM will be compared against, which
-                         is simply the baseline case name in situations when
-                         "compare_obs" is false.
-    climo_yrs         -> Dictionary containing the start and end years of the test
-                         and baseline model data (if applicable).
-    plot_location     -> Location where plot files will be written to, which is
-                         specified by "cam_diag_plot_loc".
-    variable_defaults -> optional,
-                         Dict that has keys that are variable names and values that are plotting preferences/defaults.
-    Notes:
-        The script produces plots of 2-D and 3-D variables,
-        but needs to determine which type along the way.
-        For 3-D variables, the default behavior is to interpolate
-        climo files to pressure levels, which requires the hybrid-sigma
-        coefficients and surface pressure. That ASSUMES that the climo
-        files are using native hybrid-sigma levels rather than being
-        transformed to pressure levels.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object that contains all the configuration information
+
+    Returns
+    -------
+    None
+        Does not return value, produces files.
+
+    Notes
+    -----
+    Uses AdfData for loading data described by adfobj. 
+
+    Directly uses adfobj for the following:
+    diag_var_list, climo_yrs, variable_defaults, read_config_var, 
+    get_basic_info, add_website_data, debug_log
+
+    Determines whether `lev` dimension is present. If not, makes
+    a line plot, but if so it makes a contour plot.
+    TODO: There's a flag to plot linear vs log pressure, but no
+          method to infer what the user wants. 
     """
 
-    #Notify user that script has started:
     print("\n  Generating zonal mean plots...")
 
     # Start by instantiating the AdfData object
     # and Extract needed quantities from ADF object:
-
-    from adf_dataset import AdfData
     data = AdfData(adfobj)
 
     var_list = adfobj.diag_var_list

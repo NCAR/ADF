@@ -8,9 +8,8 @@ global_latlon_map(adfobj)
 my_formatwarning(msg, *args, **kwargs)
     format warning messages
     (private method)
-_load_dataset(fils)
-    load files into dataset
-    (private methd) 
+plot_file_op
+    Check on status of output plot file.
 """
 #Import standard modules:
 from pathlib import Path
@@ -43,32 +42,22 @@ def global_latlon_map_B(adfobj):
 
     Notes
     -----
-    This function imports `pandas` and `plotting_functions`
 
     It uses the AdfDiag object's methods to get necessary information.
-    Specificially:
+    This version passes the AdfDiag object to instatiate an AdfData object.
+    Explicitly accesses:
     adfobj.diag_var_list
         List of variables
-    adfobj.get_basic_info
-        Regrid data path, checks `compare_obs`, checks `redo_plot`, checks `plot_press_levels`
     adfobj.plot_location
         output plot path
-    adfobj.get_cam_info
-        Get `cam_case_name` and `case_nickname`
     adfobj.climo_yrs
         start and end climo years of the case(s), `syears` & `eyears`
         start and end climo years of the reference, `syear_baseline` & `eyear_baseline`
-    adfobj.var_obs_dict
-        reference data (conditional)
-    adfobj.get_baseline_info
-        get reference case, `cam_case_name`
     adfobj.variable_defaults 
         dict of variable-specific plot preferences
     adfobj.read_config_var
         dict of basic info, `diag_basic_info`
         Then use to check `plot_type`
-    adfobj.compare_obs
-        Used to set data path
     adfobj.debug_log
         Issues debug message
     adfobj.add_website_data
@@ -96,7 +85,6 @@ def global_latlon_map_B(adfobj):
     #
     data = AdfData(adfobj)
     var_list = adfobj.diag_var_list
-    print(f"DEBUG: var_list = {var_list}")
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
     plot_locations = adfobj.plot_location
@@ -140,13 +128,9 @@ def global_latlon_map_B(adfobj):
     
     # probably want to do this one variable at a time:
     for var in var_list:
-        print(f"DEBUG -- {var = }")
         if var not in data.ref_var_nam:
             dmsg = f"No reference data found for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
-            print(dmsg)
-            print(f"DEBUG: {data.ref_var_nam = } [check if obs: {data.reference_is_obs}]")
-            print(f"DEBUG2: Label: {data.ref_case_label}")
             continue        
 
         #Notify user of variable being plotted:
@@ -301,7 +285,46 @@ def global_latlon_map_B(adfobj):
 
 
 def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_plot, plot_type):
-    """Check if output plot needs to be made or remade."""
+    """Check if output plot needs to be made or remade.
+    
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object that contains all the configuration information
+
+    plot_name : Path
+        path of the output plot
+
+    var : str
+        name of variable
+
+    case_name : str
+        case name
+    
+    season : str
+        season being plotted
+
+    web_category : str
+        the category for this variable
+
+    redo_plot : bool
+        whether to overwrite existing plot with this file name
+
+    plot_type : str
+        the file type for the output plot
+
+    Returns
+    -------
+    int, None
+        Returns 1 if file is removed
+        Returns None if file exists by redo_plot is False
+
+    Notes
+    -----
+    The long list of parameters is because add_website_data is called
+    when the file exists and will not be overwritten.
+    
+    """
     # Check redo_plot. If set to True: remove old plot, if it already exists:
     if (not redo_plot) and plot_name.is_file():
         #Add already-existing plot to website (if enabled):

@@ -1784,12 +1784,7 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
-        print(f"[pre] {type(diffdata)}, {diffdata.shape = }, {diffdata}")
-        print(f"[pre] WHAT IS GOING ON: {np.max(diffdata) = }, {np.min(diffdata) = }")
-        try:
-            absmaxdif = np.max(np.abs(diffdata))
-        except:
-            print(f"WHAT IS GOING ON: {np.max(diffdata) = }, {np.min(diffdata) = }")
+        absmaxdif = np.max(np.abs(diffdata))
         # set levels for difference plot:
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
     #End if
@@ -1895,7 +1890,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         # calculate difference:
         diff = azm - bzm
-        print(f"[ZONAL] {azm.shape = }, {bzm.shape = }, {diff.shape = }")
 
         # generate dictionary of contour plot settings:
         cp_info = prep_contour_plot(azm, bzm, diff, **kwargs)
@@ -2271,9 +2265,9 @@ def square_contour_difference(fld1, fld2, **kwargs):
     mnorm = mpl.colors.Normalize(mn, mx)
 
     coord1, coord2 = fld1.coords  # ASSUMES xarray WITH coords AND 2-dimensions
-    print(f"{coord1}, {coord2}")
+    # print(f"{coord1}, {coord2}")
     xx, yy = np.meshgrid(fld1[coord2], fld1[coord1])
-    print(f"shape of meshgrid: {xx.shape}")
+    # print(f"shape of meshgrid: {xx.shape}")
 
     img1 = ax1.contourf(xx, yy, fld1.transpose())
     if (coord1 == 'month') and (fld1.shape[0] ==12):
