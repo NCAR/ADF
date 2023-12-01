@@ -316,8 +316,8 @@ def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_p
     Returns
     -------
     int, None
-        Returns 1 if file is removed
-        Returns None if file exists by redo_plot is False
+        Returns 1 if existing file is removed or no existing file.
+        Returns None if file exists and redo_plot is False
 
     Notes
     -----
@@ -326,13 +326,16 @@ def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_p
     
     """
     # Check redo_plot. If set to True: remove old plot, if it already exists:
-    if (not redo_plot) and plot_name.is_file():
-        #Add already-existing plot to website (if enabled):
-        adfobj.add_website_data(plot_name, var, case_name, category=web_category,
-                                season=season, plot_type=plot_type)
-        return None  # None tells caller that file exists and not to overwrite
-    elif (redo_plot) and plot_name.is_file():
-        plot_name.unlink()
+    if plot_name.is_file():
+        if redo_plot:
+            plot_name.unlink()
+            return 1
+        else:
+            #Add already-existing plot to website (if enabled):
+            adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                    season=season, plot_type=plot_type)
+            return None  # None tells caller that file exists and not to overwrite
+    else:
         return 1
 
 ##############
