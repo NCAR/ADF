@@ -236,7 +236,7 @@ def zonal_mean_B(adfobj):
                         print(f"Error: expecting lev for both case: {has_lev} and  ref: {has_lev_ref}")
                         continue
                     if len(mdata['lev']) != len(odata['lev']):
-                        print(f"Error: zonal mean contour expects `lev` dim to have same size, got {len(mdata['lev'])} and {odata['lev']}")
+                        print(f"Error: zonal mean contour expects `lev` dim to have same size, got {len(mdata['lev'])} and {len(odata['lev'])}")
                         continue
                     plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
                     if plot_name_log not in logp_zonal_skip:
