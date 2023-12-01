@@ -219,15 +219,6 @@ def global_latlon_map_B(adfobj):
             oseasons = {}
             dseasons = {} # hold the differences
 
-            if weight_season:
-                mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
-                oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
-            else:
-                #Just average months as-is:
-                mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
-                oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
-            #End if
-
             # difference: each entry should be (lat, lon)
             dseasons[s] = mseasons[s] - oseasons[s]
 
@@ -238,6 +229,16 @@ def global_latlon_map_B(adfobj):
                     plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
                     if doplot[plot_name] is None:
                         continue
+
+                    if weight_season:
+                        mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                        oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+                    else:
+                        #Just average months as-is:
+                        mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
+                        oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
+                    #End if
+
                     pf.plot_map_and_save(plot_name, case_nickname, data.ref_nickname,
                                             [syear_cases[case_idx],eyear_cases[case_idx]],
                                             [syear_baseline,eyear_baseline],
@@ -265,6 +266,16 @@ def global_latlon_map_B(adfobj):
                         plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
                         if doplot[plot_name] is None:
                             continue
+
+                        if weight_season:
+                            mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                            oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+                        else:
+                            #Just average months as-is:
+                            mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
+                            oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
+                        #End if
+
                         pf.plot_map_and_save(plot_name, case_nickname, data.ref_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                 [syear_baseline,eyear_baseline],
