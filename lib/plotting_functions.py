@@ -1895,6 +1895,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         # calculate difference:
         diff = azm - bzm
+        print(f"[ZONAL] {azm.shape = }, {bzm.shape = }, {diff.shape = }")
 
         # generate dictionary of contour plot settings:
         cp_info = prep_contour_plot(azm, bzm, diff, **kwargs)
