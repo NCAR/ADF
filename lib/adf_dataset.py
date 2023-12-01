@@ -11,7 +11,7 @@ warnings.formatwarning = my_formatwarning
 # "reference data"
 # It is often just a "baseline case", 
 # but could be some totally external data (reanalysis or observation or other model)
-# When it is another simulation, we treat it basically like another "case"
+# When it is another simulation, it gets treated like another "case"
 # When it is external data expect:
 # - "climo" files (12 monthly climos in the file)
 # - one variable per "climo"
@@ -21,17 +21,17 @@ warnings.formatwarning = my_formatwarning
 # - there could be multiple instances of a variable from different sources (e.g. different observations)
 
 # NOTE: the last item (multiple instances of a variable) is not allowed in AdfObs.var_obs_dict
-#       Since we are not able to handle this case, for now we exclude it from the AdfData class.
+#       Since ADF is not able to handle this case, for now it is excluded the AdfData class.
 
 # NOTE: To make the "baseline case" vs "external data" cases as similar as possible,
-#       below construct the "baseline case" version to be similar to "external data"
-#       To do that, need to provide a dictionary of variables as keys with paths to the
-#       file(s) as values. For external data, we get that from AdfObs.var_obs_dict,
-#       which provides a dict of all the available variables. 
-#       When we have a reference simulation, we just need to look for
-#       files that match the diag_var_list
+#       below construct the "baseline case" version to be similar to "external data".
+#       - provide a dictionary of (variable: file-path)
+#         + For external data, that dictionay is from AdfObs.var_obs_dict,
+#           which provides a dict of all the available variables. 
+#         + For reference simulation, look for files that match the diag_var_list
 
-# NOTE: There is currently a "base_nickname" allowed from AdfInfo. I will set AdfData.ref_nickname to that.
+# NOTE: There is currently a "base_nickname" allowed from AdfInfo. 
+#       Set AdfData.ref_nickname to that.
 #       Could be altered from "Obs" to be the data source label.
 
 class AdfData:
@@ -40,7 +40,7 @@ class AdfData:
        This class does not interact with plotting, 
        just provides access to data locations and loading data.
 
-       We will probably need to add some kind of frequency/sampling
+       A future need is to add some kind of frequency/sampling
        parameters to allow for non-h0 files. 
 
     """
@@ -121,8 +121,23 @@ class AdfData:
     def get_climo_file(self, variablename):
         pass
 
-    def get_timeseries_file(self, variablename):
-        pass
+    def get_timeseries_file(self, case, field):
+        ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True)
+        ts_loc = Path(ts_locs[case])
+        ts_filenames = f'{case}.*.{field}.*nc'
+        ts_files = sorted(ts_loc.glob(ts_filenames))
+        return ts_files
+
+    def get_ref_timeseries_file(self, field):
+        if self.reference_is_obs:
+            print("Where do we get observation time series?")
+            return None
+        else:
+            ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
+            ts_filenames = f'{self.ref_case_label}.*.{field}.*nc'
+            ts_files = sorted(ts_loc.glob(ts_filenames))
+            return ts_files
+
 
     def get_regrid_file(self, case, field):
         model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
