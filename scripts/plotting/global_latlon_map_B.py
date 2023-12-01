@@ -96,7 +96,7 @@ def global_latlon_map_B(adfobj):
     #
     data = AdfData(adfobj)
     var_list = adfobj.diag_var_list
-
+    print(f"DEBUG: var_list = {var_list}")
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
     plot_locations = adfobj.plot_location
