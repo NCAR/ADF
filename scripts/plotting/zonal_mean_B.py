@@ -216,10 +216,7 @@ def zonal_mean_B(adfobj):
                     #Seasonal Averages
                     mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
                     oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
-                    print("CHECK mseasons[s]")
-                    print(mseasons[s])
-                    print("CHECK oseasons[s]")
-                    print(oseasons[s])
+
                     # difference: each entry should be (lat, lon) or (plev, lat, lon)
                     # dseasons[s] = mseasons[s] - oseasons[s]
                     # difference will be calculated in plot_zonal_mean_and_save;
