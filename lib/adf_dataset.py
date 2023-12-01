@@ -80,7 +80,7 @@ class AdfData:
             for v in self.var_list:
                 f = self.get_reference_climo_file(v)
                 if f is None:
-                    print(f"DEBUG ADFDATA -- no ref climo file for {v}")
+                    print(f"\t WARNING: ADFData found no reference climo file for {v}")
                     continue
                 else:
                     self.ref_var_loc[v] = f
@@ -93,7 +93,6 @@ class AdfData:
             return [self.ref_var_loc[var]]
         else:
             self.ref_loc = self.adf.get_baseline_info("cam_climo_loc")
-            print(f"DEBGUG/get_reference_climo_file: {self.ref_loc}")
             # NOTE: originally had this looking for *_baseline.nc 
             fils = sorted(Path(self.ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
             if fils:
@@ -104,7 +103,7 @@ class AdfData:
     def load_reference_dataset(self, var):
         fils = self.get_reference_climo_file(var)
         if not fils:
-            print(f"WARNING: Did not find any reference files for variable: {var}. Will try to skip.")
+            print(f"ERROR: Did not find any reference files for variable: {var}. Will try to skip.")
             return None
         return self.load_dataset(fils)
 
@@ -134,7 +133,6 @@ class AdfData:
 
     def get_ref_timeseries_file(self, field):
         if self.reference_is_obs:
-            print("Where do we get observation time series?")
             return None
         else:
             ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
@@ -160,8 +158,6 @@ class AdfData:
         if not fils:
             print(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
-        else:
-            print(f"DEBUG/load_regrid_da: {fils}")
         return self.load_da(fils, field)
 
     def get_file_list():
