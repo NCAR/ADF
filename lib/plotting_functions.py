@@ -1784,6 +1784,7 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
+        print(f"[pre] {type(diffdata)}, {diffdata.shape = }, {diffdata}")
         print(f"[pre] WHAT IS GOING ON: {np.max(diffdata) = }, {np.min(diffdata) = }")
         try:
             absmaxdif = np.max(np.abs(diffdata))
