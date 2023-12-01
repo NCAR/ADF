@@ -185,3 +185,4 @@ class AdfData:
             vres = self.res[variablename]
             da = da * vres.get("scale_factor",1) + vres.get("add_offset", 0)
             da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
+        return da
