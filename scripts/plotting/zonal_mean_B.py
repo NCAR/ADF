@@ -171,6 +171,7 @@ def zonal_mean_B(adfobj):
 
         # load reference data (observational or baseline)
         odata = data.load_reference_da(var)
+        has_lat_ref, has_lev_ref = pf.zm_validate_dims(mdata)
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(data.case_names):
@@ -236,6 +237,12 @@ def zonal_mean_B(adfobj):
                 #Create new plot with log-p:
                 # NOTE: The log-p should be an option here.
                 else:
+                    if (not has_lev_ref) or (not has_lev):
+                        print(f"Error: expecting lev for both case: {has_lev} and  ref: {has_lev_ref}")
+                        continue
+                    if len(mdata['lev']) != len(odata['lev']):
+                        print(f"Error: zonal mean contour expects `lev` dim to have same size, got {len(mdata['lev'])} and {odata['lev']}")
+                        continue
                     plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
                     if plot_name_log not in logp_zonal_skip:
                         #Seasonal Averages
