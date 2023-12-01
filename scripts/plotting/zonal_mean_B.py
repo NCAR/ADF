@@ -171,7 +171,6 @@ def zonal_mean_B(adfobj):
 
         # load reference data (observational or baseline)
         odata = data.load_reference_da(var)
-        print(f"DEBUGGING ODATA: {odata}")
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(data.case_names):
@@ -184,8 +183,6 @@ def zonal_mean_B(adfobj):
 
             # load re-gridded model files:
             mdata = data.load_regrid_da(case_name, var)
-            if mdata is None:
-                print(f"MAJOR PROBLEM -- mdata is none -- {case_name = }, {var = }")
 
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
@@ -219,7 +216,10 @@ def zonal_mean_B(adfobj):
                     #Seasonal Averages
                     mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
                     oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
-                    
+                    print("CHECK mseasons[s]")
+                    print(mseasons[s])
+                    print("CHECK oseasons[s]")
+                    print(oseasons[s])
                     # difference: each entry should be (lat, lon) or (plev, lat, lon)
                     # dseasons[s] = mseasons[s] - oseasons[s]
                     # difference will be calculated in plot_zonal_mean_and_save;
