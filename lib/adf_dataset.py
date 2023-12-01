@@ -120,6 +120,7 @@ class AdfData:
                 add_offset = vres.get("add_offset", 0)
             da = da * scale_factor + add_offset
             da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
+        return da
 
     def get_climo_file(self, variablename):
         pass
