@@ -171,6 +171,7 @@ def zonal_mean_B(adfobj):
 
         # load reference data (observational or baseline)
         odata = data.load_reference_da(var)
+        print(f"DEBUGGING ODATA: {odata}")
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(data.case_names):
