@@ -219,9 +219,6 @@ def global_latlon_map_B(adfobj):
             oseasons = {}
             dseasons = {} # hold the differences
 
-            # difference: each entry should be (lat, lon)
-            dseasons[s] = mseasons[s] - oseasons[s]
-
             if not pres_levs:            
 
                 #Loop over season dictionary:
@@ -238,6 +235,9 @@ def global_latlon_map_B(adfobj):
                         mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
                         oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
                     #End if
+
+                    # difference: each entry should be (lat, lon)
+                    dseasons[s] = mseasons[s] - oseasons[s]
 
                     pf.plot_map_and_save(plot_name, case_nickname, data.ref_nickname,
                                             [syear_cases[case_idx],eyear_cases[case_idx]],
@@ -275,6 +275,9 @@ def global_latlon_map_B(adfobj):
                             mseasons[s] = mdata.sel(time=seasons[s]).mean(dim='time')
                             oseasons[s] = odata.sel(time=seasons[s]).mean(dim='time')
                         #End if
+
+                        # difference: each entry should be (lat, lon)
+                        dseasons[s] = mseasons[s] - oseasons[s]
 
                         pf.plot_map_and_save(plot_name, case_nickname, data.ref_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
