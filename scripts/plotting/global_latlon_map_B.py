@@ -146,7 +146,7 @@ def global_latlon_map_B(adfobj):
             adfobj.debug_log(dmsg)
             print(dmsg)
             print(f"DEBUG: {data.ref_var_nam = } [check if obs: {data.reference_is_obs}]")
-            print(f"DEBUG2: {data.ref_var_loc}")
+            print(f"DEBUG2: Label: {data.ref_case_label}")
             continue        
 
         #Notify user of variable being plotted:

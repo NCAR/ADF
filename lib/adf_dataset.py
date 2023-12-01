@@ -93,6 +93,7 @@ class AdfData:
             return [self.ref_var_loc[var]]
         else:
             self.ref_loc = self.adf.get_baseline_info("cam_climo_loc")
+            print(f"DEBGUG/get_reference_climo_file: {self.ref_loc}")
             fils = sorted(Path(self.ref_loc).glob(f"{self.ref_case_label}_{var}_baseline.nc"))
             if fils:
                 return fils
