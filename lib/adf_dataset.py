@@ -80,6 +80,7 @@ class AdfData:
             for v in self.var_list:
                 f = self.get_reference_climo_file(v)
                 if f is None:
+                    print(f"DEBUG ADFDATA -- no ref climo file for {v}")
                     continue
                 else:
                     self.ref_var_loc[v] = f
