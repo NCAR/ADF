@@ -159,6 +159,8 @@ class AdfData:
         if not fils:
             print(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
+        else:
+            print(f"DEBUG/load_regrid_da: {fils}")
         return self.load_da(fils, field)
 
     def get_file_list():
