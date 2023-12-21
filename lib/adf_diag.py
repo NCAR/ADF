@@ -1071,7 +1071,7 @@ class AdfDiag(AdfWeb):
                         Path(derived_file).unlink()
                     else:
                         print(
-                            f"[{__name__}] Warning: PRECT file was found and overwrite is False. Will use existing file."
+                            f"[{__name__}] Warning: RESTOM file was found and overwrite is False. Will use existing file."
                         )
                         return None
                 # append FSNT to the file containing FLNT
