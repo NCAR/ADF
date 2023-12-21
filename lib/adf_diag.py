@@ -1075,7 +1075,7 @@ class AdfDiag(AdfWeb):
                         )
                         return None
                 # append FSNT to the file containing FLNT
-                os.system(f"ncks -A -v FSNT {constit_files[0]} {constit_files[1]}")
+                os.system(f"ncks -A -v FLNT {constit_files[0]} {constit_files[1]}")
                 # create new file with the sum of FLNT and FSNT
                 os.system(
                     f"ncap2 -s 'RESTOM=(FSNT-FLNT)' {constit_files[1]} {derived_file}"
