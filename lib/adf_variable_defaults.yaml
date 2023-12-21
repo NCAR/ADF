@@ -49,6 +49,12 @@
 # category  -> The website category the variable will be placed under.
 #
 #
+# DERIVING:
+#
+# derivable_from -> If not present in the available output files, the variable can be derived from
+#                   other variables that are present (e.g. PRECT can be derived from PRECC and PRECL),
+#                   which are specified in this list
+#
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
 #              If you would like to modify this file for your personal ADF runs then it is recommended
 #              to make a copy of this file, make modifications in that copy, and then point the ADF to
@@ -445,6 +451,7 @@ PRECT:
   obs_name: "ERAI"
   obs_var_name: "PRECT"
   category: "Hydrologic cycle"
+  derivable_from: ['PRECL','PRECC']
 
 QFLX:
   category: "Hydrologic cycle"
