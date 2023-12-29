@@ -110,7 +110,7 @@ def tape_recorder(adfobj):
     mls['time'] = time
     mls = cosweightlat(mls.H2O,-10,10)
     mls = mls.groupby('time.month').mean('time')
-    # Convert values from < > to < >
+    # Convert mixing ratio values from ppmv to kg/kg
     mls = mls*18.015280/(1e6*28.964)
 
     # ERA5 data
