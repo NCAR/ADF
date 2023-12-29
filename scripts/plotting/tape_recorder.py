@@ -1,27 +1,14 @@
-import os.path
-import sys
-import glob
-from pathlib import Path
-
 # Import necessary packages for the new script
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
-from matplotlib.lines import Line2D
-
+import matplotlib.colors as mcolors
+import matplotlib as mpl
 import xarray as xr
-
-#
-# load libraries: ncar_pylib
-#
-import xarray as xr
-import numpy as np
-import matplotlib.pyplot as plt
-from math import nan
 import pandas as pd
-import sys
 
-import dask
+from dateutil.relativedelta import relativedelta
+import glob
+from pathlib import Path
 
 def tape_recorder(adfobj):
     """
@@ -29,14 +16,11 @@ def tape_recorder(adfobj):
     plot the values of Q against two sets of obseravations, MLS and ERA5, for the tropics
     between 10S and 10N.
 
-    MLS h2o data is for 04/2009-11/2021
+    MLS h2o data is for 09/2004-11/2021
     ERA5 Q data is for 01/1980-12/2020
 
-    NOTE: If the baseline case are observations, it will be ignored
+    NOTE: If the baseline case is observations, it will be ignored
         since a defualt set of obs are already being compared against in the tape recorder.
-    
-    
-    
     """
     #Notify user that script has started:
     print("\n  Generating tape recorder plots...")
@@ -44,34 +28,14 @@ def tape_recorder(adfobj):
     #Special ADF variable which contains the output paths for
     # ADF variable which contains the output path for plots and tables:
     plot_location = adfobj.plot_location
-    if not plot_location:
-        plot_location = adfobj.get_basic_info("cam_diag_plot_loc")
-    if isinstance(plot_location, list):
-        for pl in plot_location:
-            plpth = Path(pl)
-            #Check if plot output directory exists, and if not, then create it:
-            if not plpth.is_dir():
-                print(f"\t    {pl} not found, making new directory")
-                plpth.mkdir(parents=True)
-        if len(plot_location) == 1:
-            plot_loc = Path(plot_location[0])
-        else:
-            print(f"Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}")
-            plot_loc = Path(plot_location[0])
-    else:
-        plot_loc = Path(plot_location)
+    plot_loc = Path(plot_location[0])
 
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
-    data_name = adfobj.get_baseline_info('cam_case_name', required=False)
 
     case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
-    data_ts_loc = adfobj.get_baseline_info("cam_ts_loc", required=False)
 
     start_years = adfobj.climo_yrs["syears"]
     end_years = adfobj.climo_yrs["eyears"]
-
-    data_start_year = adfobj.climo_yrs["syear_baseline"]
-    data_end_year = adfobj.climo_yrs["eyear_baseline"]
 
     #Grab test case nickname(s)
     test_nicknames = adfobj.get_cam_info('case_nickname')
@@ -83,21 +47,32 @@ def tape_recorder(adfobj):
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if not adfobj.get_basic_info("compare_obs"):
+        #Append all baseline objects to test case lists
         data_name = adfobj.get_baseline_info("cam_case_name", required=True)
         case_names = case_names + [data_name]
+        
+        data_ts_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
+        case_ts_locs = case_ts_locs+[data_ts_loc]
 
-        #Grab baseline case nickname
         base_nickname = adfobj.get_baseline_info('case_nickname')
         if base_nickname == None:
             base_nickname = data_name
-        case_ts_locs = case_ts_locs+[data_ts_loc]
         test_nicknames = test_nicknames+[base_nickname]
+
+        data_start_year = adfobj.climo_yrs["syear_baseline"]
+        data_end_year = adfobj.climo_yrs["eyear_baseline"]
         start_years = start_years+[data_start_year]
         end_years = end_years+[data_end_year]
     #End if
-    
+
     # Default colormap
     cmap='precip_nowhite'
+
+    #Availaible cmaps are:
+    "blue2red"
+    "precip"
+    "precip_nowhite"
+    'red2blue'
 
     #Set plot file type:
     # -- this should be set in basic_info_dict, but is not required
@@ -110,6 +85,19 @@ def tape_recorder(adfobj):
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
+
+    #This may have to change if other variables are desired in this plot type?
+    plot_name = plot_loc / f"Q_ANN_TapeRecorder_Mean.{plot_type}"
+    print(f"\t - Plotting annual tape recorder for Q")
+
+    # Check redo_plot. If set to True: remove old plot, if it already exists:
+    if (not redo_plot) and plot_name.is_file():
+        #Add already-existing plot to website (if enabled):
+        adfobj.add_website_data(plot_name, "tape_recorder", None, season="ANN", multi_case=True)
+        return
+
+    elif (redo_plot) and plot_name.is_file():
+        plot_name.unlink()
     
     runs_LT2={}
     for i,val in enumerate(test_nicknames):
@@ -122,6 +110,7 @@ def tape_recorder(adfobj):
     mls['time'] = time
     mls = cosweightlat(mls.H2O,-10,10)
     mls = mls.groupby('time.month').mean('time')
+    # Convert values from < > to < >
     mls = mls*18.015280/(1e6*28.964)
 
     # ERA5 data
@@ -130,9 +119,9 @@ def tape_recorder(adfobj):
 
     alldat=[]
     runname_LT=[]
-    for key in runs_LT2:
+    for idx,key in enumerate(runs_LT2):
         dat = xr.open_dataset(glob.glob(runs_LT2[key]+'/*h0.Q.*.nc')[0])
-        dat = fixcesmtime(dat)
+        dat = fixcesmtime(dat,start_years[idx],end_years[idx])
         datzm = dat.mean('lon')
         dat_tropics = cosweightlat(datzm.Q, -10, 10)
         dat_mon = dat_tropics.groupby('time.month').mean('time').load()
@@ -149,11 +138,11 @@ def tape_recorder(adfobj):
     plot_min = 1.5e-6
     plot_max = 3e-6
 
-    ax = plot_pre_mon(fig, mls, mls.lev, plot_step,plot_min,plot_max,'MLS',
+    ax = plot_pre_mon(fig, mls, plot_step,plot_min,plot_max,'MLS',
                       x1[0],x2[0],y1[0],y2[0],cmap=cmap, paxis='lev',
-                      taxis='month',climo_yrs="2009-2021")
+                      taxis='month',climo_yrs="2004-2021")
 
-    ax = plot_pre_mon(fig, era5.Q, era5.pre, plot_step,plot_min,plot_max,
+    ax = plot_pre_mon(fig, era5.Q, plot_step,plot_min,plot_max,
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
                       taxis='month',climo_yrs="1980-2020")
 
@@ -161,8 +150,7 @@ def tape_recorder(adfobj):
     count=2
     for irun in np.arange(0,alldat_concat_LT.run.size,1):
         title = f"{alldat_concat_LT.run.isel(run=irun).values}"
-        ax = plot_pre_mon(fig, alldat_concat_LT.isel(run=irun), 
-                          alldat_concat_LT.isel(run=irun).lev,
+        ax = plot_pre_mon(fig, alldat_concat_LT.isel(run=irun),
                           plot_step, plot_min, plot_max, title,
                           x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
                           taxis='month',climo_yrs=f"{start_years[irun]}-{end_years[irun]}")
@@ -190,17 +178,6 @@ def tape_recorder(adfobj):
                       x1_loc, x2_loc, y1_loc, y2_loc,
                       cmap=cmap)
 
-    plot_name = plot_loc / f"Q_ANN_TapeRecorder_Mean.{plot_type}"
-    print(f"\t - Plotting annual tape recorder for Q")
-
-    # Check redo_plot. If set to True: remove old plot, if it already exists:
-    if (not redo_plot) and plot_name.is_file():
-        #Add already-existing plot to website (if enabled):
-        adfobj.add_website_data(plot_name, "tape_recorder", None, season="ANN", multi_case=True)
-
-    elif (redo_plot) and plot_name.is_file():
-        plot_name.unlink()
-
     #Save image
     fig.savefig(plot_name, bbox_inches='tight', facecolor='white')
 
@@ -215,14 +192,13 @@ def tape_recorder(adfobj):
 
 
 # Helper Functions
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap ## used to create custom colormaps
-import matplotlib.colors as mcolors
-import numpy as np
+###################
 
 def blue2red_cmap(n, nowhite = False):
-    """ combine two existing color maps to create a diverging color map with white in the middle
+    """
+    combine two existing color maps to create a diverging color map with white in the middle
     n = the number of contour intervals
+    nowhite = choice of white separating the diverging colors or not
     """
 
     if (int(n/2) == n/2):
@@ -247,9 +223,14 @@ def blue2red_cmap(n, nowhite = False):
 
     return mymap 
 
+#########
+
 def red2blue_cmap(n, nowhite = False):
-    """ combine two existing color maps to create a diverging color map with white in the middle
-    n = the number of contour intervals """
+    """ 
+    combine two existing color maps to create a diverging color map with white in the middle
+    n = the number of contour intervals
+    nowhite = choice of white separating the diverging colors or not
+    """
 
     if (int(n/2) == n/2):
         #even number of contours
@@ -276,12 +257,14 @@ def red2blue_cmap(n, nowhite = False):
   
     return mymap
 
-
+#########
 
 def precip_cmap(n, nowhite=False):
-    """ combine two existing color maps to create a diverging color map with white in the middle.
+    """
+    combine two existing color maps to create a diverging color map with white in the middle.
     browns for negative, blues for positive
     n = the number of contour intervals
+    nowhite = choice of white separating the diverging colors or not
     """
     if (int(n/2) == n/2):
         # even number of contours
@@ -293,58 +276,37 @@ def precip_cmap(n, nowhite=False):
         nneg = (n-1)/2
         npos = (n-1)/2
 
-    if (nowhite):
-        nwhite=0
-
-    colors1 = plt.cm.YlOrBr_r(np.linspace(0,1, int(nneg)))
-    colors2 = plt.cm.GnBu(np.linspace(0,1, int(npos)))
-    colorsw = np.ones((nwhite,4))
-
-    colors = np.vstack((colors1, colorsw, colors2))
-    mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
-
-    return mymap
-
-def precip_cmap_nowhite(n):
-    """ combine two existing color maps to create a diverging color map with white in the middle.
-    browns for negative, blues for positive
-    n = the number of contour intervals
-    """
-    if (int(n/2) == n/2):
-        # even number of contours
-        nneg=n/2
-        npos=n/2
+    if nowhite:
+        colors1 = plt.cm.YlOrBr_r(np.linspace(0,0.8, int(nneg)))
+        colors2 = plt.cm.GnBu(np.linspace(0.2,1, int(npos)))
+        colors = np.vstack((colors1, colors2))
     else:
-        nneg = (n-1)/2
-        npos = (n-1)/2
+        colors1 = plt.cm.YlOrBr_r(np.linspace(0,1, int(nneg)))
+        colors2 = plt.cm.GnBu(np.linspace(0,1, int(npos)))
+        colorsw = np.ones((nwhite,4))
+        colors = np.vstack((colors1, colorsw, colors2))
 
-    colors1 = plt.cm.YlOrBr_r(np.linspace(0,0.8, int(nneg)))
-    colors2 = plt.cm.GnBu(np.linspace(0.2,1, int(npos)))
-
-    colors = np.vstack((colors1, colors2))
     mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
 
     return mymap
 
+#########
 
-
-def fixcesmtime(dat,timebndsvar='time_bnds'):
-    """ Fix the CESM timestamp using the average of time_bnds"""
-
-    try:
-        timebndavg = np.array(dat.isel(M=0)[timebndsvar],
-                  dtype='datetime64[s]').view('i8').mean(axis=1).astype('datetime64[s]')
-        dat['time'] = timebndavg
-    except:
-        timebndavg = np.array(dat[timebndsvar],
-                  dtype='datetime64[s]').view('i8').mean(axis=1).astype('datetime64[s]')
-        dat['time'] = timebndavg
+def fixcesmtime(dat,syear,eyear):
+    """
+    Fix the CESM timestamp with a simple set of dates
+    """
+    timefix = pd.date_range(start=f'1/1/{syear}', end=f'12/1/{eyear}', freq='MS') # generic time coordinate from a non-leap-year
+    dat = dat.assign_coords({"time":timefix})
 
     return dat
 
+#########
 
 def get5by5coords_zmplots():
-    """ positioning for 5x5 plots """
+    """
+    positioning for 5x5 plots
+    """
     x1 = [0.02,0.225,0.43,0.635,0.84,
           0.02,0.225,0.43,0.635,0.84,
           0.02,0.225,0.43,0.635,0.84,
@@ -368,19 +330,13 @@ def get5by5coords_zmplots():
     
     return x1, x2, y1, y2
 
-
-
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-
-import importlib
-
-import numpy as np
+#########
 
 def plotcolorbar(fig, ci, cmin, cmax, titlestr, x1, x2, y1, y2, 
    cmap='blue2red', orient='horizontal', posneg='both', ticks=None, fsize=14, nowhite=False,
    contourlines=False, contourlinescale=1):
-    """plot a color bar
+    """
+    plot a color bar
        Input:
            fig = the figure identified
            ci = the contour interval for the color map
@@ -400,6 +356,7 @@ def plotcolorbar(fig, ci, cmin, cmax, titlestr, x1, x2, y1, y2,
            fsize = user specified font size
            contourlines = used to overplot contour lines
            contourlinescale = scale factor for contour lines to be overplotted
+           nowhite = choice of white separating the diverging colors or not
     """
 
     # set up contour levels and color map
@@ -413,7 +370,7 @@ def plotcolorbar(fig, ci, cmin, cmax, titlestr, x1, x2, y1, y2,
         mymap = precip_cmap(nlevs, nowhite)
 
     if (cmap == "precip_nowhite"):
-        mymap = precip_cmap_nowhite(nlevs)
+        mymap = precip_cmap(nlevs, nowhite=True)
 
     if (cmap == 'red2blue'):
         mymap = red2blue_cmap(nlevs, nowhite)
@@ -425,7 +382,7 @@ def plotcolorbar(fig, ci, cmin, cmax, titlestr, x1, x2, y1, y2,
         clevplot = clevs[clevs <= 0]
 
     ax = fig.add_axes([x1, y1, x2-x1, y2-y1])
-    norm = mpl.colors.Normalize(vmin=cmin, vmax=cmax)
+    norm = mcolors.Normalize(vmin=cmin, vmax=cmax)
     
     if (ticks):
         clb = mpl.colorbar.ColorbarBase(ax, cmap=mymap,
@@ -449,9 +406,11 @@ def plotcolorbar(fig, ci, cmin, cmax, titlestr, x1, x2, y1, y2,
 
     return ax
 
+#########
 
 def cosweightlat(darray, lat1, lat2):
-    """Calculate the weighted average for an [:,lat] array over the region
+    """
+    Calculate the weighted average for an [:,lat] array over the region
     lat1 to lat2
     """
 
@@ -467,12 +426,9 @@ def cosweightlat(darray, lat1, lat2):
 
     return regionm
 
+#########
 
-import matplotlib.pyplot as plt
-import numpy as np
-import sys
-
-def plot_pre_mon(fig, data, pre, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, y2=None, 
+def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, y2=None, 
                  oplot=False, ax=None, cmap='precip', taxis='time', paxis='lev', climo_yrs=None):
     """
     Plot seasonal cycle, pressure versus time.
@@ -492,12 +448,12 @@ def plot_pre_mon(fig, data, pre, ci, cmin, cmax, expname, x1=None, x2=None, y1=N
         mymap = precip_cmap(nlevs)
 
     if (cmap == "precip_nowhite"):
-        mymap = precip_cmap_nowhite(nlevs)
+        mymap = precip_cmap(nlevs, nowhite=True)
 
     # if overplotting, check for axis input
     if (oplot and (not ax)):
         print("This isn't going to work.  If overplotting, specify axis")
-        sys.exit()
+        return
 
     plt.rcParams['font.size'] = '14'
 
@@ -540,4 +496,6 @@ def plot_pre_mon(fig, data, pre, ci, cmin, cmax, expname, x1=None, x2=None, y1=N
 
     return ax
 
+#########
 
+###############
