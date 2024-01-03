@@ -67,15 +67,10 @@ def qbo(adfobj):
     print(f"\t QBO plots will be saved here: {plot_locations[0]}")
 
     # Check redo_plot. If set to True: remove old plots, if they already exist:
-    if (not redo_plot) and plot_loc_ts.is_file():
+    if (not redo_plot) and plot_loc_ts.is_file() and plot_loc_amp.is_file():
         #Add already-existing plot to website (if enabled):
-        adfobj.debug_log(f"'{plot_loc_ts}' exists and clobber is false.")
+        adfobj.debug_log(f"'{plot_loc_ts}' and '{plot_loc_amp}' exist and clobber is false.")
         adfobj.add_website_data(plot_loc_ts, "QBO", None, season="QBOts", multi_case=True)
-        #Continue to next iteration:
-        return
-    if (not redo_plot) and plot_loc_amp.is_file():   
-        #Add already-existing plot to website (if enabled):
-        adfobj.debug_log(f"'{plot_loc_amp}' exists and clobber is false.")
         adfobj.add_website_data(plot_loc_amp, "QBO", None, season="QBOamp", multi_case=True)
         #Continue to next iteration:
         return
