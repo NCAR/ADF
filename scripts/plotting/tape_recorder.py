@@ -19,21 +19,29 @@ def tape_recorder(adfobj):
     MLS h2o data is for 09/2004-11/2021
     ERA5 Q data is for 01/1980-12/2020
 
+    Optional built-in colormaps:
+      - blue2red
+      - precip
+      - precip_nowhite -> default cmap
+      - red2blue
+
     NOTE: If the baseline case is observations, it will be ignored
         since a defualt set of obs are already being compared against in the tape recorder.
     """
     #Notify user that script has started:
     print("\n  Generating tape recorder plots...")
 
-    #Special ADF variable which contains the output paths for
-    # ADF variable which contains the output path for plots and tables:
+    #Special ADF variable which contains the output paths for plots:
     plot_location = adfobj.plot_location
     plot_loc = Path(plot_location[0])
 
+    #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
+    #Grab test case time series locs(s)
     case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
 
+    #Grab test case climo years
     start_years = adfobj.climo_yrs["syears"]
     end_years = adfobj.climo_yrs["eyears"]
 
@@ -47,6 +55,7 @@ def tape_recorder(adfobj):
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if not adfobj.get_basic_info("compare_obs"):
+
         #Append all baseline objects to test case lists
         data_name = adfobj.get_baseline_info("cam_case_name", required=True)
         case_names = case_names + [data_name]
@@ -68,12 +77,6 @@ def tape_recorder(adfobj):
     # Default colormap
     cmap='precip_nowhite'
 
-    #Availaible cmaps are:
-    "blue2red"
-    "precip"
-    "precip_nowhite"
-    'red2blue'
-
     #Set plot file type:
     # -- this should be set in basic_info_dict, but is not required
     # -- So check for it, and default to png
@@ -93,12 +96,14 @@ def tape_recorder(adfobj):
     # Check redo_plot. If set to True: remove old plot, if it already exists:
     if (not redo_plot) and plot_name.is_file():
         #Add already-existing plot to website (if enabled):
+        adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
         adfobj.add_website_data(plot_name, "tape_recorder", None, season="ANN", multi_case=True)
         return
 
     elif (redo_plot) and plot_name.is_file():
         plot_name.unlink()
     
+    #Make dictionary for case names and associated timeseries file locations
     runs_LT2={}
     for i,val in enumerate(test_nicknames):
         runs_LT2[val] = case_ts_locs[i]

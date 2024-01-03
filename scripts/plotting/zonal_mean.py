@@ -165,6 +165,7 @@ def zonal_mean(adfobj):
                 if (not redo_plot) and plot_name.is_file():
                     zonal_skip.append(plot_name)
                     #Add already-existing plot to website (if enabled):
+                    adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                     adfobj.add_website_data(plot_name, var, case_name, season=s,
                                                         plot_type="Zonal")
 

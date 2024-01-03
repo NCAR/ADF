@@ -150,6 +150,7 @@ def tem(adf):
             # Check redo_plot. If set to True: remove old plot, if it already exists:
             if (not redo_plot) and plot_name.is_file():
                 #Add already-existing plot to website (if enabled):
+                adf.debug_log(f"'{plot_name}' exists and clobber is false.")
                 adf.add_website_data(plot_name, "TEM", case_name, season=s)
 
                 #Continue to next iteration:
