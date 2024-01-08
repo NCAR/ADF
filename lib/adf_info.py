@@ -177,13 +177,16 @@ class AdfInfo(AdfConfig):
             if baseline_hist_locs:
 
                 starting_location = Path(baseline_hist_locs)
-                files_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
-                # so there will always be three parts: before sub-string, sub-string, and after sub-string
+                # so there will always be three parts: 
+                # before sub-string, sub-string, and after sub-string
                 #Since the last part always includes the time range, grab that with last index (2)
-                #NOTE: this is based off the current CAM file name structure in the form $CASE.cam.h#.YYYY<other date info>.nc
-                base_climo_yrs = sorted(np.unique([int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in files_list]))
+                #NOTE: this is based off the current CAM file name structure in the form:
+                #  $CASE.cam.h#.YYYY<other date info>.nc
+                base_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
+                base_climo_yrs = sorted(np.unique(base_climo_yrs))
 
                 #Check if start or end year is missing.  If so then just assume it is the
                 #start or end of the entire available model data.
@@ -191,20 +194,24 @@ class AdfInfo(AdfConfig):
                     print(f"No given start year for {data_name}, using first found year...")
                     syear_baseline = int(base_climo_yrs[0])
                 elif (syear_baseline) not in base_climo_yrs:
-                    print(f"Given start year '{syear_baseline}' is not in current dataset {data_name}, using first found year:",base_climo_yrs[0],"\n")
+                    msg = f"Given start year '{syear_baseline}' is not in current dataset "
+                    msg += f"{data_name}, using first found year: {base_climo_yrs[0]}\n"
+                    print(msg)
                     syear_baseline = int(base_climo_yrs[0])
                 #End if
                 if eyear_baseline is None:
                     print(f"No given end year for {data_name}, using last found year...")
                     eyear_baseline = int(base_climo_yrs[-1])
                 elif (eyear_baseline) not in base_climo_yrs:
-                    print(f"Given end year '{eyear_baseline}' is not in current dataset {data_name}, using last found year:",base_climo_yrs[-1],"\n")
+                    msg = f"Given end year '{eyear_baseline}' is not in current dataset "
+                    msg += f"{data_name}, using last found year: {base_climo_yrs[-1]}\n"
+                    print(msg)
                     eyear_baseline = int(base_climo_yrs[-1])
                 #End if
 
                 #Grab baseline nickname
                 base_nickname = self.get_baseline_info('case_nickname')
-                if base_nickname == None:
+                if base_nickname is None:
                     base_nickname = data_name
 
             else:
@@ -221,7 +228,7 @@ class AdfInfo(AdfConfig):
 
             #Grab baseline nickname
             base_nickname = self.get_baseline_info('case_nickname')
-            if base_nickname == None:
+            if base_nickname is None:
                 base_nickname = data_name
 
             #Update baseline case name:
@@ -276,13 +283,16 @@ class AdfInfo(AdfConfig):
             if cam_hist_locs:
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
-                files_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
-                # so there will always be three parts: before sub-string, sub-string, and after sub-string
+                # so there will always be three parts: 
+                # before sub-string, sub-string, and after sub-string
                 #Since the last part always includes the time range, grab that with last index (2)
-                #NOTE: this is based off the current CAM file name structure in the form $CASE.cam.h#.YYYY<other date info>.nc
-                case_climo_yrs = sorted(np.unique([int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in files_list]))
+                #NOTE: this is based off the current CAM file name structure in the form:
+                #  $CASE.cam.h#.YYYY<other date info>.nc
+                case_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
+                case_climo_yrs = sorted(np.unique(case_climo_yrs))
 
 
                 #Check if start or end year is missing.  If so then just assume it is the
@@ -291,14 +301,18 @@ class AdfInfo(AdfConfig):
                     print(f"No given start year for {case_name}, using first found year...")
                     syear = int(case_climo_yrs[0])
                 elif (syear) not in case_climo_yrs:
-                    print(f"Given start year '{syear}' is not in current dataset {case_name}, using first found year:",case_climo_yrs[0],"\n")
+                    msg = f"Given start year '{syear}' is not in current dataset "
+                    msg += f"{case_name}, using first found year: {case_climo_yrs[0]}\n"
+                    print(msg)
                     syear = int(case_climo_yrs[0])
                 #End if
                 if eyear is None:
                     print(f"No given end year for {case_name}, using last found year...")
                     eyear = int(case_climo_yrs[-1])
                 elif (eyear) not in case_climo_yrs:
-                    print(f"Given end year '{eyear}' is not in current dataset {case_name}, using last found year:",case_climo_yrs[-1],"\n")
+                    msg = f"Given end year '{eyear}' is not in current dataset "
+                    msg += f"{case_name}, using last found year: {case_climo_yrs[-1]}\n"
+                    print(msg)
                     eyear = int(case_climo_yrs[-1])
                 #End if
 
