@@ -184,9 +184,6 @@ class AdfInfo(AdfConfig):
                 #Since the last part always includes the time range, grab that with last index (2)
                 #NOTE: this is based off the current CAM file name structure in the form $CASE.cam.h#.YYYY<other date info>.nc
                 base_climo_yrs = sorted(np.unique([int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in files_list]))
-                base_climo_yrs = []
-                for year in base_climo_yrs:
-                    base_climo_yrs.append(int(year))
 
                 #Check if start or end year is missing.  If so then just assume it is the
                 #start or end of the entire available model data.
