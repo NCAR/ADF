@@ -86,7 +86,6 @@ nav.primary-navigation ul li ul li a:hover {
 
 a {
   text-decoration: none;
-  /* color: navy; */
 }
 a:visited {
   color: #1A658F;
@@ -138,7 +137,6 @@ table.big-table ul,ol,dl,p,th {
 }
 table.big-table td {
   font-family: Tahoma, Geneva, Verdana, sans-serif;
-  /* background-color: #012169; */
   color: #D9D9D6;
   font-weight: bold;
   padding: 10px;
