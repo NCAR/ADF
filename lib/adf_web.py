@@ -535,7 +535,7 @@ class AdfWeb(AdfObs):
                 if web_data.multi_case:
                     case1 = "Listed in tables"
                 else:
-                    case1 = web_data.case
+                    case1 = case_names[0]
                 #End if
 
                 #Write table dataframe HTML as a string:
