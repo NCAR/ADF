@@ -178,11 +178,16 @@ class AdfInfo(AdfConfig):
 
                 starting_location = Path(baseline_hist_locs)
                 files_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
-                base_climo_yrs_str = sorted(np.unique([i.stem[-7:-3] for i in files_list]))
+                #Partition string to find exactly where h-number is
+                #This cuts the string before and after the `{hist_str}.` sub-string
+                # so there will always be three parts: before sub-string, sub-string, and after sub-string
+                #Since the last part always includes the time range, grab that with last index (2)
+                #NOTE: this is based off the current CAM file name structure in the form $CASE.cam.h#.YYYY<other date info>.nc
+                base_climo_yrs = sorted(np.unique([int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in files_list]))
                 base_climo_yrs = []
-                for year in base_climo_yrs_str:
-                   base_climo_yrs.append(int(year))
-                
+                for year in base_climo_yrs:
+                    base_climo_yrs.append(int(year))
+
                 #Check if start or end year is missing.  If so then just assume it is the
                 #start or end of the entire available model data.
                 if syear_baseline is None:
@@ -199,7 +204,7 @@ class AdfInfo(AdfConfig):
                     print(f"Given end year '{eyear_baseline}' is not in current dataset {data_name}, using last found year:",base_climo_yrs[-1],"\n")
                     eyear_baseline = int(base_climo_yrs[-1])
                 #End if
-      
+
                 #Grab baseline nickname
                 base_nickname = self.get_baseline_info('case_nickname')
                 if base_nickname == None:
@@ -278,7 +283,7 @@ class AdfInfo(AdfConfig):
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
                 # so there will always be three parts: before sub-string, sub-string, and after sub-string
-                #Since the last part always(?) includes the time range, grab that with last index (2)
+                #Since the last part always includes the time range, grab that with last index (2)
                 #NOTE: this is based off the current CAM file name structure in the form $CASE.cam.h#.YYYY<other date info>.nc
                 case_climo_yrs = sorted(np.unique([int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in files_list]))
 
