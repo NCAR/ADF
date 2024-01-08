@@ -1040,7 +1040,7 @@ class AdfDiag(AdfWeb):
                         print(
                             f"[{__name__}] Warning: PRECT file was found and overwrite is False. Will use existing file."
                         )
-                        return None
+                        continue
                 # append PRECC to the file containing PRECL
                 os.system(f"ncks -A -v PRECC {constit_files[0]} {constit_files[1]}")
                 # create new file with the sum of PRECC and PRECL
@@ -1073,10 +1073,10 @@ class AdfDiag(AdfWeb):
                         print(
                             f"[{__name__}] Warning: RESTOM file was found and overwrite is False. Will use existing file."
                         )
-                        return None
+                        continue
                 # append FSNT to the file containing FLNT
                 os.system(f"ncks -A -v FLNT {constit_files[0]} {constit_files[1]}")
-                # create new file with the sum of FLNT and FSNT
+                # create new file with the difference of FLNT and FSNT
                 os.system(
                     f"ncap2 -s 'RESTOM=(FSNT-FLNT)' {constit_files[1]} {derived_file}"
                 )

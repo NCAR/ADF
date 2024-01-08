@@ -685,7 +685,7 @@ QRS:
 #+++++++++++++++++
 RESTOM:
   colormap: "RdBu_r"
-  contour_levels_range: [-10, 10, 0.5]
+  contour_levels_range: [-100, 100, 5]
   diff_colormap: "seismic"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 1

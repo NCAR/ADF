@@ -295,9 +295,7 @@ def amwg_table(adf):
         #----------------------------
         if 'RESTOM' in var_list:
             table_df = pd.read_csv(output_csv_file)
-            idx = table_df.index[table_df['variable'] == 'RESTOM'].tolist()[0]
             table_df = pd.concat([table_df[table_df['variable'] == 'RESTOM'], table_df]).reset_index(drop = True)
-            table_df = table_df.drop([idx+1]).reset_index(drop=True)
             table_df = table_df.drop_duplicates()
             table_df.to_csv(output_csv_file, header=cols, index=False)
         #End if
