@@ -221,6 +221,7 @@ def meridional_mean(adfobj):
                     # Check redo_plot. If set to True: remove old plot, if it already exists:
                     if (not redo_plot) and plot_name.is_file():
                         #Add already-existing plot to website (if enabled):
+                        adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                         adfobj.add_website_data(plot_name, var, case_name, season=s,
                                                 plot_type="Meridional")
                         #Continue to next iteration:

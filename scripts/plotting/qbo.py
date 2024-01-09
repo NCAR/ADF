@@ -28,7 +28,7 @@ def qbo(adfobj):
     Isla Simpson (islas@ucar.edu) 22nd March 2022
 
     """
- #Notify user that script has started:
+    #Notify user that script has started:
     print("\n  Generating qbo plots...")
 
     #Extract relevant info from the ADF:
@@ -69,9 +69,9 @@ def qbo(adfobj):
     # Check redo_plot. If set to True: remove old plots, if they already exist:
     if (not redo_plot) and plot_loc_ts.is_file() and plot_loc_amp.is_file():
         #Add already-existing plot to website (if enabled):
+        adfobj.debug_log(f"'{plot_loc_ts}' and '{plot_loc_amp}' exist and clobber is false.")
         adfobj.add_website_data(plot_loc_ts, "QBO", None, season="QBOts", multi_case=True)
         adfobj.add_website_data(plot_loc_amp, "QBO", None, season="QBOamp", multi_case=True)
-
         #Continue to next iteration:
         return
     elif (redo_plot):

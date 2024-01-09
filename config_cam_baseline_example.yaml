@@ -363,6 +363,7 @@ plotting_scripts:
     - polar_map
     - cam_taylor_diagram
     - qbo
+    #- tape_recorder
     #- tem #To plot TEM, please un-comment fill-out
                               #the "tem_info" section below
     #- regional_map_multicase #To use this please un-comment and fill-out
