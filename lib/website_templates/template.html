@@ -34,8 +34,8 @@
           </nav>
         </div><!--center-->
         <br>
-        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
-        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ base_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
       </div><!--screenFiller-->
     </div><!--header-->
 
@@ -53,16 +53,30 @@
     <div style="width: 100%;"> <!-- main div-->
       <div class="grid-container-template" style="border: 3px solid black">
         {% for category, var_seas in mydata.items() %}
-        {% for var_name, seas_files in var_seas.items() %}
-        {% if var_name == var_title %}
-        {% for season_name, file_name in seas_files.items() %}
-        <div class="grid-item">
-          <a href="../html_img/{{ file_name }}">{{ season_name }}</a>
-        </div><!--grid-item-->
-        {% endfor %}
-        {% endif %}
-        {% endfor %}
-        {% endfor %}
+          {% for var_name, ptype_seas in var_seas.items() %}
+            {% if var_name == var_title %}
+              {% if non_seasons[category][var_name]["non_season"] == False %}
+                {% for season in seasons %}
+                  {% if season in ptype_seas.keys() %}            
+                      <div class="grid-item">
+                        <a href="../html_img/{{ ptype_seas[season] }}">{{ season }}</a>
+                      </div><!--grid-item-->
+                  {% else %}
+                    <div class="grid-item-blocked">
+                      <a-blocked>{{ season }}</a-blocked>
+                    </div><!--grid-item-blocked-->                  
+                  {% endif %}<!-- ptype_seas.keys() -->
+                {% endfor %}<!-- season in seasons -->
+              {% else %}
+                {% for season in ptype_seas.keys() %}
+                  <div class="grid-item">
+                    <a href="../html_img/{{ ptype_seas[season] }}">{{ season }}</a>
+                  </div><!--grid-item-->
+                  {% endfor %}<!-- ptype_seas.keys() -->
+              {% endif %}<!-- non_season -->
+            {% endif %}<!-- var_name == var_title -->
+          {% endfor %}<!-- var_seas.items() -->
+        {% endfor %}<!-- mydata.items() -->
       </div><!--grid-container-->
 
       <div id="footer">
