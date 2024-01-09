@@ -150,9 +150,6 @@ def amwg_table(adf):
         output_locs.append(output_locs[0])
 
     #-----------------------------------------
-    #Create (empty) dictionary to use for the
-    #residual top of model (RESTOM) radiation calculation:
-    restom_dict = {}
 
     #Loop over CAM cases:
     for case_idx, case_name in enumerate(case_names):
@@ -181,9 +178,6 @@ def amwg_table(adf):
         if Path(output_csv_file).is_file():
             Path.unlink(output_csv_file)
         #End if
-
-        #Save case name as a new key in the RESTOM dictonary:
-        restom_dict[case_name] = {}
 
         #Create/reset new variable that potentially stores the re-gridded
         #ocean fraction xarray data-array:
@@ -270,14 +264,6 @@ def amwg_table(adf):
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
                 data = pf.spatial_average(data)  # changes data "in place"
 
-            #Add necessary data for RESTOM calcs below
-            if var == "FLNT":
-                restom_dict[case_name][var] = data
-                #Copy units for RESTOM as well:
-                restom_units = unit_str
-            if var == "FSNT":
-                restom_dict[case_name][var] = data
-
             # In order to get correct statistics, average to annual or seasonal
             data = pf.annual_mean(data, whole_years=True, time_name='time')
 
@@ -305,35 +291,13 @@ def amwg_table(adf):
         #End of var_list loop
         #--------------------
 
-        if "FSNT" and "FLNT" in var_list:
-            #RESTOM Calcs
-            var = "RESTOM" #RESTOM = FSNT-FLNT
-            print(f"\t - Variable '{var}' being added to table")
-            data = restom_dict[case_name]["FSNT"] - restom_dict[case_name]["FLNT"]
-            # In order to get correct statistics, average to annual or seasonal
-            data = pf.annual_mean(data, whole_years=True, time_name='time')
-            # These get written to our output file:
-            stats_list = _get_row_vals(data)
-            row_values = [var, restom_units] + stats_list
-            # col (column) values declared above
-
-            # Format entries:
-            dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
-
-            # Add entries to Pandas structure:
-            df = pd.DataFrame(dfentries)
-
-            # Check if the output CSV file exists,
-            # if so, then append to it:
-            if output_csv_file.is_file():
-                df.to_csv(output_csv_file, mode='a', header=False, index=False)
-            else:
-                df.to_csv(output_csv_file, header=cols, index=False)
-            #End if
-
-        else:
-            #Print message to debug log:
-            adf.debug_log("RESTOM not calculated because FSNT and/or FLNT variables not in dataset")
+        # Move RESTOM to top of table
+        #----------------------------
+        if 'RESTOM' in var_list:
+            table_df = pd.read_csv(output_csv_file)
+            table_df = pd.concat([table_df[table_df['variable'] == 'RESTOM'], table_df]).reset_index(drop = True)
+            table_df = table_df.drop_duplicates()
+            table_df.to_csv(output_csv_file, header=cols, index=False)
         #End if
 
         # last step is to add table dataframe to website (if enabled):
@@ -342,7 +306,6 @@ def amwg_table(adf):
 
     #End of model case loop
     #----------------------
-
 
     #Notify user that script has ended:
     print("  ...AMWG variable table has been generated successfully.")
