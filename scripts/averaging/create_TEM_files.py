@@ -14,9 +14,13 @@ def create_TEM_files(adf):
 
     """
 
+    #Notify user that script has started:
+    print("\n  Generating CAM TEM diagnostics files...")
+
     #Special ADF variables
     #CAM simulation variables (these quantities are always lists):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
+    base_name     = adf.get_baseline_info("cam_case_name")
 
     #Grab h4 history files locations
     cam_hist_locs = adf.get_cam_info("cam_hist_loc", required=True)
@@ -25,16 +29,37 @@ def create_TEM_files(adf):
     start_years   = adf.climo_yrs["syears"]
     end_years     = adf.climo_yrs["eyears"]
 
-    #Grab TEM diagnostics options
-    tem_opts = adf.read_config_var("tem_info")
 
-    if not tem_opts:
-        print("\n  No TEM options provided, skipping TEM file creation." \
-        "\nSee documentation or config_cam_baseline_example.yaml for options to add to configuration file.")
-        return
+    tem_locs = []
+    
+    #Grab TEM diagnostics options
+    #----------------------------
+    #Extract TEM file save locations
+    tem_base_loc = adf.get_baseline_info("cam_tem_loc")
+    tem_case_locs = adf.get_cam_info("cam_tem_loc", required=True)
+
+    #If path not specified, skip TEM calculation?
+    if tem_case_locs is None:
+        print("\t 'cam_tem_loc' not found in 'diag_cam_climo', so no TEM files/diagnostics will be generated.")
+        pass
+    else:
+        for tem_case_loc in tem_case_locs:
+            tem_case_loc = Path(tem_case_loc)
+            #Check if TEM directory exists, and if not, then create it:
+            if not tem_case_loc.is_dir():
+                print(f"    {tem_case_loc} not found, making new directory")
+                tem_case_loc.mkdir(parents=True)
+            #End if
+            tem_locs.append(tem_case_loc)
+        #End for
+
+    #Set default to h4
+    hist_nums = adf.get_cam_info("tem_hist_str")
+    if hist_nums is None:
+        hist_nums = ["h4"]*len(case_names)
 
     #Get test case(s) tem over-write boolean and force to list if not by default
-    overwrite_tem_cases = tem_opts.get("overwrite_tem_case")
+    overwrite_tem_cases = adf.get_cam_info("overwrite_tem")
 
     #If overwrite argument is missing, then default to False:
     if overwrite_tem_cases is None:
@@ -50,45 +75,60 @@ def create_TEM_files(adf):
         #If dictionary is empty, then there are no observations, so quit here:
         if not var_obs_dict:
             print("No observations found to plot against, so no TEM will be generated.")
-            return
+            pass
 
         base_name = "Obs"
+
+        tem_base_loc = adf.get_basic_info('obs_tem_loc')
+        
+        #If path not specified, skip TEM calculation?
+        if tem_base_loc is None:
+            print("\t 'obs_tem_loc' not found in config file, so no TEM files/diagnostics will be generated.")
+            return
+        else:
+            tem_base_loc = Path(tem_base_loc)
+            #Check if TEM directory exists, and if not, then create it:
+            if not tem_base_loc.is_dir():
+                print(f"    {tem_base_loc} not found, making new directory")
+                tem_base_loc.mkdir(parents=True)
+            #End if
+
     else:
-        base_name = adf.get_baseline_info("cam_case_name", required=True)
-        cam_hist_locs.append(adf.get_baseline_info("cam_hist_loc", required=True))
+        if tem_base_loc:
+            cam_hist_locs.append(adf.get_baseline_info("cam_hist_loc", required=True))
 
-        #Extract baseline years (which may be empty strings if using Obs):
-        syear_baseline = adf.climo_yrs["syear_baseline"]
-        eyear_baseline = adf.climo_yrs["eyear_baseline"]
+            #Set default to h4
+            hist_num = adf.get_baseline_info("tem_hist_str")
+            if hist_num is None:
+                hist_num = "h4"
 
-        case_names.append(base_name)
-        start_years.append(syear_baseline)
-        end_years.append(eyear_baseline)
-        overwrite_tem_cases.append(tem_opts.get("overwrite_tem_base", False))
+            #Extract baseline years (which may be empty strings if using Obs):
+            syear_baseline = adf.climo_yrs["syear_baseline"]
+            eyear_baseline = adf.climo_yrs["eyear_baseline"]
+
+            case_names.append(base_name)
+            start_years.append(syear_baseline)
+            end_years.append(eyear_baseline)
+           
+            tem_base_loc = Path(tem_base_loc)
+            #Check if TEM directory exists, and if not, then create it:
+            if not tem_base_loc.is_dir():
+                print(f"    {tem_base_loc} not found, making new directory")
+                tem_base_loc.mkdir(parents=True)
+            #End if
+
+            tem_locs.append(tem_base_loc)
+            overwrite_tem_cases.append(adf.get_baseline_info("overwrite_tem", False))
+
+            #Set default to h4
+            hist_num = adf.get_baseline_info("hist_num")
+            if hist_num is None:
+                hist_num = "h4"
+            hist_nums.append(hist_num)
+        else:
+            print("\t 'cam_tem_loc' not found in 'diag_cam_baseline_climo', so no TEM files/diagnostics will be generated.")
+
     #End if
-
-    #Set default to h4
-    hist_num = tem_opts.get("hist_num")
-    if hist_num is None:
-        hist_num = "h4"
-
-    #Extract TEM file save location
-    output_loc = tem_opts["tem_loc"]
-
-    #If path not specified, skip TEM calculation?
-    if output_loc is None:
-        print("\t 'tem_loc' not found in config file, so no TEM files will be generated.")
-        return
-    else:
-        #Notify user that script has started:
-        print("\n  Generating CAM TEM diagnostics files...")
-
-        output_loc = Path(output_loc)
-        #Check if re-gridded directory exists, and if not, then create it:
-        if not output_loc.is_dir():
-            print(f"    {output_loc} not found, making new directory")
-            output_loc.mkdir(parents=True)
-        #End if
 
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
 
@@ -102,18 +142,13 @@ def create_TEM_files(adf):
     if adf.get_basic_info("compare_obs"):
         print(f"\t Processing TEM for observations :")
 
-        output_loc_idx = output_loc / base_name
-        #Check if re-gridded directory exists, and if not, then create it:
-        if not output_loc_idx.is_dir():
-            print(f"    {output_loc_idx} not found, making new directory")
-            output_loc_idx.mkdir(parents=True)
-        #End if
-
         #Set baseline file name as full path
-        tem_fil = output_loc_idx / f'{base_name}.TEMdiag.nc'
+        tem_fil = tem_base_loc / f'{base_name}.TEMdiag.nc'
 
-        #Get baseline case tem over-write boolean
-        overwrite_tem = tem_opts.get("overwrite_tem_base")
+        #Get obs case tem over-write boolean
+        #QUESTION: should we make these and put in ADF obs location so we don't have to 
+        #worry about making these??
+        overwrite_tem = False
 
         #If files exist, then check if over-writing is allowed:
         if (tem_fil.is_file()) and (not overwrite_tem):
@@ -189,7 +224,8 @@ def create_TEM_files(adf):
         #End if
 
         #Check if history files actually exist. If not then kill script:
-        hist_str = '*.cam.'+hist_num
+        #hist_str = '*.cam.'+hist_nums[case_idx]
+        hist_str = f"*{hist_nums[case_idx]}"
         if not list(starting_location.glob(hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
             emsg += " Script is ending here."
@@ -197,7 +233,7 @@ def create_TEM_files(adf):
         #End if
 
         #Get full path and file for file name
-        output_loc_idx = output_loc / case_name
+        output_loc_idx = tem_locs[case_idx]
 
         #Check if re-gridded directory exists, and if not, then create it:
         if not output_loc_idx.is_dir():

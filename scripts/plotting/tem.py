@@ -19,10 +19,16 @@ def tem(adf):
     Steps:
      - loop through TEM variables
      - calculate all-time fields (from individual months)
-     - Take difference, calculate statistics
-     - make plot
+     - take difference, calculate statistics
+     - make plots
+
+    Notes:
+     - If any of the TEM cases are missing, the ADF skips this plotting script and moves on.
 
     """
+
+    #Notify user that script has started:
+    print("\n  Generating TEM plots...")
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
@@ -37,15 +43,6 @@ def tem(adf):
     case_names = adf.get_cam_info("cam_case_name", required=True)
 
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
-
-    #Check if comparing against observations
-    if adf.compare_obs:
-        obs = True
-        base_name = "Obs"
-    else:
-        obs = False
-        base_name = adf.get_baseline_info("cam_case_name", required=True)
-    #End if
 
     #Extract test case years
     syear_cases = adf.climo_yrs["syears"]
@@ -71,26 +68,34 @@ def tem(adf):
     redo_plot = adf.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
+    
+    #Initialize list of input TEM file locations
+    tem_locs = []
 
-    #Grab TEM diagnostics options
-    tem_opts = adf.read_config_var("tem_info")
+    #Extract TEM file save locations
+    tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
+    tem_base_loc = adf.get_baseline_info("cam_tem_loc")
 
-    if not tem_opts:
-        print("\n  No TEM options provided, skipping TEM plots." \
-        "\nSee documentation or config_cam_baseline_example.yaml for options to add to configuration file.")
-        return
+    #THSI IS IF IT IS MISSING!
+    #if tem_case_locs is not None:
+    #    if (len(tem_case_locs) == 1) and (any(tem_case_locs) is None):
+    #        tem_case_locs = None
 
-    #Location of saved TEM netCDF files
-    tem_loc = tem_opts.get("tem_loc")
-
-    #If path not specified, skip TEM calculation
-    if tem_loc is None:
-        print("'tem_loc' not found in config file, so TEM plots will be skipped.")
+    #If path not specified, skip TEM calculation?
+    if tem_case_locs is None:
+        print("\t 'cam_tem_loc' not found for test case(s) in config file, so no TEM plots will be generated.")
         return
     else:
-        #Notify user that script has started:
-        print("\n  Generating TEM plots...")
-    
+        for tem_case_loc in tem_case_locs:
+            tem_case_loc = Path(tem_case_loc)
+            #Check if TEM directory exists, and if not, then create it:
+            if not tem_case_loc.is_dir():
+                print(f"    {tem_case_loc} not found, making new directory")
+                tem_case_loc.mkdir(parents=True)
+            #End if
+            tem_locs.append(tem_case_loc)
+        #End for
+
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
                "DJF": [12, 1, 2],
@@ -107,20 +112,27 @@ def tem(adf):
     else:
         var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
 
-    #Baseline TEM location
-    input_loc_idx = Path(tem_loc) / base_name
-
     #Check if comparing against obs
-    if obs:
+    if adf.compare_obs:
+        obs = True
         #Set TEM file for observations
-        base_file_name = f'{base_name}.TEMdiag.nc'
+        base_file_name = 'Obs.TEMdiag.nc'
     else:
-        #Set TEM file for baseline
-        base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
+        obs = False
+        base_name = adf.get_baseline_info("cam_case_name", required=True)
+        
+        #If path not specified, skip TEM calculation?
+        if tem_base_loc is None:
+            print(f"\t 'cam_tem_loc' not found for '{base_name}' in config file, so no TEM plots will be generated.")
+            return
+        else:
+            input_loc_idx = Path(tem_base_loc)
+            #Set TEM file for baseline
+            base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
     
     #Set full path for baseline/obs file
     tem_base = input_loc_idx / base_file_name
-
+    
     #Check to see if baseline/obs TEM file exists    
     if tem_base.is_file():
         ds_base = xr.open_dataset(tem_base)
@@ -150,7 +162,6 @@ def tem(adf):
             # Check redo_plot. If set to True: remove old plot, if it already exists:
             if (not redo_plot) and plot_name.is_file():
                 #Add already-existing plot to website (if enabled):
-                adf.debug_log(f"'{plot_name}' exists and clobber is false.")
                 adf.add_website_data(plot_name, "TEM", case_name, season=s)
 
                 #Continue to next iteration:
@@ -163,7 +174,7 @@ def tem(adf):
             end_year   = eyear_cases[idx]
 
             #Open the TEM file
-            output_loc_idx = Path(tem_loc) / case_name
+            output_loc_idx = tem_locs[idx]
             case_file_name = f'{case_name}.TEMdiag_{start_year}-{end_year}.nc'
             tem = output_loc_idx / case_file_name
 
@@ -188,8 +199,6 @@ def tem(adf):
 
         #Add plot to website (if enabled):
         adf.add_website_data(plot_name, "TEM", case_name, season=s)
-
-    print("  ...TEM plots have been generated successfully.")
 
 # Helper functions
 ##################
