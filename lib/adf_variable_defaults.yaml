@@ -775,7 +775,7 @@ FSUTOA:
   category: "TOA energy flux"
 
 FSNT:
-  colormap: "Oranges"
+  colormap: "Blues"
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
