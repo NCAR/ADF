@@ -343,30 +343,13 @@ class AdfWeb(AdfObs):
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
-        #Time series files for unspecified climo years
-        cam_ts_locs = self.get_cam_info('cam_ts_loc', required=True)
+        #Grab case climo years
+        syear_cases = self.climo_yrs["syears"]
+        eyear_cases = self.climo_yrs["eyears"]
 
-        #Attempt to grab case start_years (not currently required):
-        ###########################################################
-        # This is for the header in the html files for climo yrs
-        #NOTE this may break when going to multi case...
-        syear_cases = self.get_cam_info('start_year')
-        eyear_cases = self.get_cam_info('end_year')
-
-        if (syear_cases and eyear_cases) == None:
-            syear_cases = [None]*len(case_names)
-            eyear_cases = [None]*len(case_names)
-
-        #Loop over model cases to catch all cases that have no climo years specified:
-        for case_idx, case_name in enumerate(case_names):
-
-            if (syear_cases[case_idx] and eyear_cases[case_idx]) == None:
-                starting_location = Path(cam_ts_locs[case_idx])
-                files_list = sorted(starting_location.glob('*nc'))
-                #This assumes CAM file names stay with this convention
-                #Better way to do this?
-                syear_cases[case_idx] = int(files_list[0].stem[-13:-9])
-                eyear_cases[case_idx] = int(files_list[0].stem[-6:-2])
+        #Grab baseline years (which may be empty strings if using Obs):
+        syear_baseline = self.climo_yrs["syear_baseline"]
+        eyear_baseline = self.climo_yrs["eyear_baseline"]
 
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
@@ -375,14 +358,6 @@ class AdfWeb(AdfObs):
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
-            #Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.get_baseline_info('start_year')
-            eyear_baseline = self.get_baseline_info('end_year')
-
-            if (syear_baseline and eyear_baseline) == None:
-                syear_baseline = self.climo_yrs["syear_baseline"]
-                eyear_baseline = self.climo_yrs["eyear_baseline"]
-            #End if
             baseline_yrs=f"{syear_baseline} - {eyear_baseline}"
         #End if
 
@@ -561,7 +536,7 @@ class AdfWeb(AdfObs):
                 if web_data.multi_case:
                     case1 = "Listed in tables"
                 else:
-                    case1 = web_data.case
+                    case1 = case_names[0]
                 #End if
 
                 #Write table dataframe HTML as a string:
