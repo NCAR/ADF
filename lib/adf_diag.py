@@ -1036,23 +1036,11 @@ class AdfDiag(AdfWeb):
                 print("WARNING: No derived equation in defaults config file, moving on")
                 pass
 
-            #    continue
-            #else:
-            #    msg = f"WARNING: {var} is not in the file {hist_files[0]}."
-            #    msg += " No time series will be generated."
-            #    print(msg)
-            #    continue
-
             constit_files = []
             for constit in constit_list:
                 if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
                     constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
 
-
-            #Check if all the constituent files were found
-            #if len(constit_files) == len(constit_list):
-
-            print("constit_files:",constit_files)
             #Check if all the constituent files were found
             if len(constit_files) != len(constit_list):
                 ermsg = f"Not all constituent files present; {var} cannot be calculated."
