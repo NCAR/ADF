@@ -544,9 +544,6 @@ class AdfWeb(AdfObs):
                 #End if
                 if var not in non_seasons[ptype][category]:
                     non_seasons[ptype][category][var] = non_season
-                
-                #Finalize non_seasons dictionary
-                #non_seasons[ptype][category][var]["non_season"] = non_season
                 #End if
 
             #End if (data-frame check)
