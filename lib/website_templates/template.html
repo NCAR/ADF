@@ -55,7 +55,7 @@
         {% for category, var_seas in mydata.items() %}
           {% for var_name, ptype_seas in var_seas.items() %}
             {% if var_name == var_title %}
-              {% if non_seasons[category][var_name]["non_season"] == False %}
+              {% if non_seasons[category][var_name] == False %}
                 {% for season in seasons %}
                   {% if season in ptype_seas.keys() %}            
                       <div class="grid-item">

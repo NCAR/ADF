@@ -335,6 +335,8 @@ class AdfWeb(AdfObs):
             self.end_diag_fail(emsg)
         #End except
 
+        #Make a jinja function that mimics python list object. This will allow for 
+        # the use of 'list' in the html rendering.
         def jinja_list(seas_list):
             return list(seas_list)
 
@@ -366,8 +368,7 @@ class AdfWeb(AdfObs):
         if self.compare_obs:
             data_name = "Obs"
             baseline_yrs = ""
-            syear_baseline = ""
-            eyear_baseline = ""
+
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
@@ -542,10 +543,10 @@ class AdfWeb(AdfObs):
                     non_seasons[ptype][category] = OrderedDict()
                 #End if
                 if var not in non_seasons[ptype][category]:
-                    non_seasons[ptype][category][var] = OrderedDict()
+                    non_seasons[ptype][category][var] = non_season
                 
                 #Finalize non_seasons dictionary
-                non_seasons[ptype][category][var]["non_season"] = non_season
+                #non_seasons[ptype][category][var]["non_season"] = non_season
                 #End if
 
             #End if (data-frame check)

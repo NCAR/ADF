@@ -48,23 +48,25 @@
           <h3 class="block">{{ category }}</h3>
             <div class="grid-container" style="column-gap: 5px; row-gap: 5px; padding:2px">
               {% for var_name, ptype_seas in var_seas.items() %}
-                {% for season in ptype_seas.keys() %}
-                  {% if non_seasons[category][var_name]["non_season"] == False %}
-                    {% if season in seasons %}
-                      {% if season=="ANN"%}
+                {% if non_seasons[category][var_name] == False %}
+                  {% for season in ptype_seas.keys() %}
+                    {% if season=="ANN"%}
                       <div class="grid-item-diag">
                         <a href="../html_img/plot_page_{{ var_name }}_ANN_{{ plottype_title }}_Mean.html"> {{var_name}} </a><br>
                       </div><!--grid-item2-->
-                      {% endif %}
                     {% endif %}
-                  {% else %}
+                  {% endfor %}<!-- ptype_seas.keys() -->
+
+                {% else %}
+                  {% for season in ptype_seas.keys() %}
                     {% if season == list(ptype_seas.keys())[0] %}
-                    <div class="grid-item-diag">
-                      <a href="../html_img/plot_page_{{ var_name }}_{{ season }}_{{ plottype_title }}_Mean.html"> {{var_name}} </a><br>
-                    </div><!--grid-item2-->
+                      <div class="grid-item-diag">
+                        <a href="../html_img/plot_page_{{ var_name }}_{{ season }}_{{ plottype_title }}_Mean.html"> {{var_name}} </a><br>
+                      </div><!--grid-item2-->
                     {% endif %}
-                  {% endif %}<!--if non_season == False-->
-                {% endfor %}<!-- ptype_seas.keys() -->
+                  {% endfor %}<!-- ptype_seas.keys() -->
+
+                {% endif %}<!--if non_season == False-->
               {% endfor %}<!-- var_seas.items() -->
             </div><!--grid-container-->
             <script type="text/html"> </div></script>
