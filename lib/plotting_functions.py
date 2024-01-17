@@ -513,14 +513,14 @@ def seasonal_mean(data, season=None, is_climo=None):
                 time_dim_num = data.shape.index(12)
                 fakedims = [f"dim{n}" for n in range(len(data.shape))]
                 fakedims[time_dim_num] = "time"
-                data = xr.DataArray(data, dims=fakedims)
+                data = xr.DataArray(data, dims=fakedims, attrs=data.attrs)
             timefix = pd.date_range(start='1/1/1999', end='12/1/1999', freq='MS') # generic time coordinate from a non-leap-year
             data = data.assign_coords({"time":timefix})
         month_length = data.time.dt.days_in_month
     #End try/except
 
     data = data.sel(time=data.time.dt.month.isin(seasons[season])) # directly take the months we want based on season kwarg
-    return data.weighted(data.time.dt.daysinmonth).mean(dim='time')
+    return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
 
 
 

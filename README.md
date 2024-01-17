@@ -74,6 +74,11 @@ To run an example of the ADF diagnostics, simply download this repo, setup your 
 
 This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example ADF diagnostic figures, all in their respective directories.
 
+### ADF Tutorial/Demo
+
+Jupyter Book detailing the ADF including ADF basics, guided examples, quick runs, and references
+  - https://justin-richling.github.io/ADF-Tutorial/README.html
+
 ## Troubleshooting
 
 Any problems or issues with this software should be posted on the ADF discussions page located online [here](https://github.com/NCAR/ADF/discussions).
