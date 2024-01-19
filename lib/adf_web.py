@@ -205,7 +205,7 @@ class AdfWeb(AdfObs):
                       then it will default to "No category yet".
         season     -> What the season is for the plot.  If not provided it will assume the
                       plot does not need any seasonal seperation.
-        
+
         non_season -> Are the plots NOT divided up by seaons, ANN, DJF, MAM, JJA, or SON?
                       - QBO is displayed as QBOts and QBOamp in the season argument above
 
@@ -335,7 +335,7 @@ class AdfWeb(AdfObs):
             self.end_diag_fail(emsg)
         #End except
 
-        #Make a jinja function that mimics python list object. This will allow for 
+        #Make a jinja function that mimics python list object. This will allow for
         # the use of 'list' in the html rendering.
         def jinja_list(seas_list):
             return list(seas_list)
@@ -533,7 +533,7 @@ class AdfWeb(AdfObs):
 
                 #Initialize Ordered Dictionary for season:
                 mean_html_info[ptype][category][var][season] = web_data.html_file.name
-                
+
 
                 #Initialize Ordered Dictionary for non season kwarg:
                 if ptype not in non_seasons:
@@ -568,7 +568,7 @@ class AdfWeb(AdfObs):
                 if web_data.multi_case:
                     case1 = "Listed in tables"
                 else:
-                    case1 = web_data.case
+                    case1 = case_names[0]
                 #End if
 
                 #Write table dataframe HTML as a string:
@@ -600,7 +600,6 @@ class AdfWeb(AdfObs):
                 #Check if the mean plot type page exists for this case (or for multi-case):
                 mean_table_file = table_pages_dir / "mean_tables.html"
                 if not mean_table_file.exists():
-
                     #Construct mean_table.html
                     mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
                     #Reuse the rend_kwarg_dict, but ignore certain keys
@@ -621,7 +620,6 @@ class AdfWeb(AdfObs):
                 img_pages_dir = self.__case_web_paths[web_data.case]['img_pages_dir']
                 img_data = [os.path.relpath(web_data.asset_path, start=img_pages_dir),
                             web_data.asset_path.stem]
-
                 #Check if plot image already handles multiple cases:
                 if web_data.multi_case:
                     case1 = "Listed in plots."
@@ -630,6 +628,7 @@ class AdfWeb(AdfObs):
                     case1 = web_data.case
                     plot_types = plot_type_html
                 #End if
+
                 rend_kwarg_dict = {"title": main_title,
                                        "var_title": web_data.name,
                                        "season_title": web_data.season,
@@ -654,16 +653,15 @@ class AdfWeb(AdfObs):
                 #Check if the mean plot type page exists for this case:
                 mean_ptype_file = img_pages_dir / f"mean_diag_{web_data.plot_type}.html"
                 if not mean_ptype_file.exists():
-
                     #Construct individual plot type mean_diag html files, if they don't
                     #already exist:
                     mean_tmpl = jinenv.get_template('template_mean_diag.html')
-                    
+
                     #Remove keys from main dictionary for this html page
                     templ_rend_kwarg_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'imgs', 'var_title', 'season_title'}}
                     templ_rend_kwarg_dict["list"] = jinja_list
                     mean_rndr = mean_tmpl.render(templ_rend_kwarg_dict)
-    
+
                     #Write mean diagnostic plots HTML file:
                     with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
                         ofil.write(mean_rndr)

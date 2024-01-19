@@ -261,6 +261,7 @@ def polar_map(adfobj):
                                 # If redo_plot set to True: remove old plot, if it already exists:
                                 if (not redo_plot) and plot_name.is_file():
                                     #Add already-existing plot to website (if enabled):
+                                    adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
                                                             season=s, plot_type=hemi_type)
 
@@ -339,6 +340,7 @@ def polar_map(adfobj):
                                     # If redo_plot set to True: remove old plot, if it already exists:
                                     if (not redo_plot) and plot_name.is_file():
                                         #Add already-existing plot to website (if enabled):
+                                        adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",
                                                                 case_name, category=web_category,
                                                                 season=s, plot_type=hemi_type)
