@@ -49,13 +49,11 @@ def cam_taylor_diagram(adfobj):
     #       test case(s) == case(s) to be diagnosed  will be called `case` (assumes a list)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)  # Loop over these
 
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
-
-    #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
-    if test_nicknames == None:
-        test_nicknames = case_names
 
     case_climo_loc = adfobj.get_cam_info('cam_climo_loc', required=True)
 
@@ -92,9 +90,7 @@ def cam_taylor_diagram(adfobj):
         data_loc = adfobj.get_baseline_info("cam_climo_loc", required=True)
 
         #Grab baseline case nickname
-        base_nickname = adfobj.get_baseline_info('case_nickname')
-        if base_nickname == None:
-            base_nickname = data_name
+        base_nickname = adfobj.case_nicknames["base_nickname"]
     #End if
 
     #Extract baseline years (which may be empty strings if using Obs):
@@ -177,17 +173,17 @@ def cam_taylor_diagram(adfobj):
         # -- PLOTTING (one per season) --
         #
         fig, ax = taylor_plot_setup(title=f"Taylor Diagram - {s}",
-                                    baseline=f"Baseline: {data_name}  yrs: {syear_baseline}-{eyear_baseline}")
+                                    baseline=f"Baseline: {base_nickname}  yrs: {syear_baseline}-{eyear_baseline}")
 
         for i, case in enumerate(case_names):
             ax = plot_taylor_data(ax, result_by_case[case], case_color=case_colors[i], use_bias=True)
 
-        ax = taylor_plot_finalize(ax, case_names, case_colors, syear_cases, eyear_cases, needs_bias_labels=True)
+        ax = taylor_plot_finalize(ax, test_nicknames, case_colors, syear_cases, eyear_cases, needs_bias_labels=True)
         # add text with variable names:
         txtstrs = [f"{i+1} - {v}" for i, v in enumerate(var_list)]
         fig.text(0.9, 0.9, "\n".join(txtstrs), va='top')
         fig.savefig(plot_name, bbox_inches='tight')
-        print(f"\t Taylor Diagram: completed {s}. \n\t File: {plot_name}")
+        adfobj.debug_log(f"\t Taylor Diagram: completed {s}. \n\t File: {plot_name}")
 
         #Add plot to website (if enabled):
         adfobj.add_website_data(plot_name, "TaylorDiag", None, season=s, multi_case=True)
@@ -562,7 +558,7 @@ def plot_taylor_data(wks, df, **kwargs):
     return wks
 
 
-def taylor_plot_finalize(wks, casenames, casecolors, syear_cases, eyear_cases, needs_bias_labels=True):
+def taylor_plot_finalize(wks, test_nicknames, casecolors, syear_cases, eyear_cases, needs_bias_labels=True):
     """Apply final formatting to a Taylor diagram.
         wks -> Axes object that has passed through taylor_plot_setup and plot_taylor_data
         casenames -> list of case names for the legend
@@ -571,14 +567,14 @@ def taylor_plot_finalize(wks, casenames, casecolors, syear_cases, eyear_cases, n
     """
     # CASE LEGEND -- Color-coded
     bottom_of_text = 0.05
-    number_of_lines = len(casenames)
+
     height_of_lines = 0.03
-    text = wks.text(0.052, 0.08, "Cases:",
+    wks.text(0.052, 0.08, "Cases:",
             color='k', ha='left', va='bottom', transform=wks.transAxes, fontsize=11)
     n = 0
-    for case_idx, (s, c) in enumerate(zip(casenames, casecolors)):
+    for case_idx, (s, c) in enumerate(zip(test_nicknames, casecolors)):
 
-            text = wks.text(0.052, bottom_of_text + n*height_of_lines, f"{s}  yrs: {syear_cases[case_idx]}-{eyear_cases[case_idx]}",
+            wks.text(0.052, bottom_of_text + n*height_of_lines, f"{s}  yrs: {syear_cases[case_idx]}-{eyear_cases[case_idx]}",
             color=c, ha='left', va='bottom', transform=wks.transAxes, fontsize=10)
             n += 1
     # BIAS LEGEND
