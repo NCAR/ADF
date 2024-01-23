@@ -1186,7 +1186,11 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
             img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
-            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **cp_info['contourf_opt']))
+            try:
+                img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **cp_info['contourf_opt']))
+            except:
+                print("Something went wrong with plotting, this plot will be skipped.")
+                return
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
 
