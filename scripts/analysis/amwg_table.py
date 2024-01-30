@@ -138,13 +138,8 @@ def amwg_table(adf):
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
 
-        if "CMIP" in baseline_name:
-            print("CMIP files detected, skipping AMWG table (for now)...")
-
-        else:
-            #Append to case list:
-            case_names.append(baseline_name)
-            input_ts_locs.append(input_ts_baseline)
+        case_names.append(baseline_name)
+        input_ts_locs.append(input_ts_baseline)
 
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
@@ -204,7 +199,8 @@ def amwg_table(adf):
             if len(ts_files) != 1:
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for the variable '{var}'"
-                raise AdfError(errmsg)
+                print(errmsg)
+                return
             #End if
 
             #Load model data from file:
