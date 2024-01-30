@@ -36,7 +36,7 @@ def create_TEM_files(adf):
     #----------------------------
     #Extract TEM file save locations
     tem_base_loc = adf.get_baseline_info("cam_tem_loc")
-    tem_case_locs = adf.get_cam_info("cam_tem_loc", required=True)
+    tem_case_locs = adf.get_cam_info("cam_tem_loc")
 
     #If path not specified, skip TEM calculation?
     if tem_case_locs is None:
@@ -74,25 +74,10 @@ def create_TEM_files(adf):
         var_obs_dict = adf.var_obs_dict
         #If dictionary is empty, then there are no observations, so quit here:
         if not var_obs_dict:
-            print("No observations found to plot against, so no TEM will be generated.")
+            print("No observations found to plot against, so no obs-based TEM plot will be generated.")
             pass
 
         base_name = "Obs"
-
-        tem_base_loc = adf.get_basic_info('obs_tem_loc')
-        
-        #If path not specified, skip TEM calculation?
-        if tem_base_loc is None:
-            print("\t 'obs_tem_loc' not found in config file, so no TEM files/diagnostics will be generated.")
-            return
-        else:
-            tem_base_loc = Path(tem_base_loc)
-            #Check if TEM directory exists, and if not, then create it:
-            if not tem_base_loc.is_dir():
-                print(f"    {tem_base_loc} not found, making new directory")
-                tem_base_loc.mkdir(parents=True)
-            #End if
-
     else:
         if tem_base_loc:
             cam_hist_locs.append(adf.get_baseline_info("cam_hist_loc", required=True))
@@ -120,13 +105,9 @@ def create_TEM_files(adf):
             tem_locs.append(tem_base_loc)
             overwrite_tem_cases.append(adf.get_baseline_info("overwrite_tem", False))
 
-            #Set default to h4
-            hist_num = adf.get_baseline_info("hist_num")
-            if hist_num is None:
-                hist_num = "h4"
             hist_nums.append(hist_num)
         else:
-            print("\t 'cam_tem_loc' not found in 'diag_cam_baseline_climo', so no TEM files/diagnostics will be generated.")
+            print("\t 'cam_tem_loc' not found in 'diag_cam_baseline_climo', so no baseline files/diagnostics will be generated.")
 
     #End if
 
@@ -146,8 +127,6 @@ def create_TEM_files(adf):
         tem_fil = tem_base_loc / f'{base_name}.TEMdiag.nc'
 
         #Get obs case tem over-write boolean
-        #QUESTION: should we make these and put in ADF obs location so we don't have to 
-        #worry about making these??
         overwrite_tem = False
 
         #If files exist, then check if over-writing is allowed:
@@ -224,7 +203,6 @@ def create_TEM_files(adf):
         #End if
 
         #Check if history files actually exist. If not then kill script:
-        #hist_str = '*.cam.'+hist_nums[case_idx]
         hist_str = f"*{hist_nums[case_idx]}"
         if not list(starting_location.glob(hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."

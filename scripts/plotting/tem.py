@@ -76,11 +76,6 @@ def tem(adf):
     tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
     tem_base_loc = adf.get_baseline_info("cam_tem_loc")
 
-    #THSI IS IF IT IS MISSING!
-    #if tem_case_locs is not None:
-    #    if (len(tem_case_locs) == 1) and (any(tem_case_locs) is None):
-    #        tem_case_locs = None
-
     #If path not specified, skip TEM calculation?
     if tem_case_locs is None:
         print("\t 'cam_tem_loc' not found for test case(s) in config file, so no TEM plots will be generated.")
@@ -118,7 +113,6 @@ def tem(adf):
         #Set TEM file for observations
         base_file_name = 'Obs.TEMdiag.nc'
     else:
-        obs = False
         base_name = adf.get_baseline_info("cam_case_name", required=True)
         
         #If path not specified, skip TEM calculation?
@@ -126,6 +120,7 @@ def tem(adf):
             print(f"\t 'cam_tem_loc' not found for '{base_name}' in config file, so no TEM plots will be generated.")
             return
         else:
+            obs = False
             input_loc_idx = Path(tem_base_loc)
             #Set TEM file for baseline
             base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
@@ -162,6 +157,7 @@ def tem(adf):
             # Check redo_plot. If set to True: remove old plot, if it already exists:
             if (not redo_plot) and plot_name.is_file():
                 #Add already-existing plot to website (if enabled):
+                adf.debug_log(f"'{plot_name}' exists and clobber is false.")
                 adf.add_website_data(plot_name, "TEM", case_name, season=s)
 
                 #Continue to next iteration:
@@ -199,6 +195,8 @@ def tem(adf):
 
         #Add plot to website (if enabled):
         adf.add_website_data(plot_name, "TEM", case_name, season=s)
+
+    print("  ...TEM plots have been generated successfully.")
 
 # Helper functions
 ##################
