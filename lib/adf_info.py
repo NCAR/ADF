@@ -32,6 +32,7 @@ from pathlib import Path
 import copy
 import os
 import numpy as np
+import xarray as xr
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -167,14 +168,15 @@ class AdfInfo(AdfConfig):
             #Attempt to grab baseline start_years (not currently required):
             syear_baseline = self.get_baseline_info('start_year')
             eyear_baseline = self.get_baseline_info('end_year')
-            
+
             #Get climo years for verification or assignment if missing
             baseline_hist_locs = self.get_baseline_info('cam_hist_loc')
 
             #Check if any time series files are pre-made
             baseline_ts_done   = self.get_baseline_info("cam_ts_done")
 
-            #Check if time series files already exist, if so don't rely on climo years from history location
+            #Check if time series files already exist,
+            #if so don't rely on climo years from history location
             if baseline_ts_done:
                 baseline_hist_locs = None
 
@@ -204,7 +206,7 @@ class AdfInfo(AdfConfig):
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
-                # so there will always be three parts: 
+                # so there will always be three parts:
                 # before sub-string, sub-string, and after sub-string
                 #Since the last part always includes the time range, grab that with last index (2)
                 #NOTE: this is based off the current CAM file name structure in the form:
@@ -334,7 +336,7 @@ class AdfInfo(AdfConfig):
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
-                # so there will always be three parts: 
+                # so there will always be three parts:
                 # before sub-string, sub-string, and after sub-string
                 #Since the last part always includes the time range, grab that with last index (2)
                 #NOTE: this is based off the current CAM file name structure in the form:
@@ -613,7 +615,7 @@ class AdfInfo(AdfConfig):
         if var_str not in self.__diag_var_list:
             self.__diag_var_list.append(var_str)
         #End if
-    
+
     #########
 
     #Utility function to grab climo years from pre-made time series files:
@@ -627,7 +629,6 @@ class AdfInfo(AdfConfig):
           - start year
           - end year
         """
-        import xarray as xr
 
         #Grab variable list
         var_list = self.__diag_var_list.copy()
@@ -653,7 +654,8 @@ class AdfInfo(AdfConfig):
         #Average time dimension over time bounds, if bounds exist:
         if 'time_bnds' in cam_ts_data:
             time = cam_ts_data['time']
-            # NOTE: force `load` here b/c if dask & time is cftime, throws a NotImplementedError:
+            #NOTE: force `load` here b/c if dask & time is cftime, 
+            #throws a NotImplementedError:
             time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
             cam_ts_data.assign_coords(time=time)
