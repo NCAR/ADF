@@ -341,12 +341,12 @@ class AdfInfo(AdfConfig):
                     msg = f"No given start year for {case_name}, "
                     msg += f"using first found year: {found_syear}"
                     print(msg)
-                    syear_baseline = found_syear
+                    syear = found_syear
                 if syear not in found_yr_range:
                     msg = f"Given start year '{syear}' is not in current dataset "
                     msg += f"{case_name}, using first found year: {found_syear}\n"
                     print(msg)
-                    syear_baseline = found_syear
+                    syear = found_syear
                 #End if
                 if eyear is None:
                     msg = f"No given end year for {case_name}, "
@@ -355,7 +355,7 @@ class AdfInfo(AdfConfig):
                     eyear = found_eyear
                 if eyear not in found_yr_range:
                     msg = f"Given end year '{eyear}' is not in current dataset "
-                    msg += f"{case_name}, using first found year: {found_eyear}\n"
+                    msg += f"{case_name}, using last found year: {found_eyear}\n"
                     print(msg)
                     eyear = found_eyear
                 #End if
@@ -391,7 +391,6 @@ class AdfInfo(AdfConfig):
                     msg += f"{case_name}, using first found year: {case_climo_yrs[0]}\n"
                     print(msg)
                     syear = case_found_syr
-
                 #End if
                 if eyear is None:
                     msg = f"No given end year for {case_name}, "
@@ -403,8 +402,6 @@ class AdfInfo(AdfConfig):
                     msg += f"{case_name}, using last found year: {case_climo_yrs[-1]}\n"
                     print(msg)
                     eyear = case_found_eyr
-                #else:
-                #    eyear = int(eyear)
                 #End if
             #End if
 
