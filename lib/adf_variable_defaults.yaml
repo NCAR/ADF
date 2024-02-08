@@ -374,6 +374,8 @@ TGCLDLWP:
   obs_file: "TGCLDLWP_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "TGCLDLWP"
+  obs_scale_factor: 1000
+  obs_add_offset: 0
 
 TGCLDIWP:
   colormap: "Blues"
