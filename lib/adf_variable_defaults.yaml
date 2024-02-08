@@ -392,6 +392,8 @@ TGCLDIWP:
   obs_file: "TGCLDIWP_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "TGCLDIWP"
+  obs_scale_factor: 1000
+  obs_add_offset: 0
 
 CCN3:
   category: "Clouds"
