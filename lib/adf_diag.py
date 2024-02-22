@@ -637,7 +637,7 @@ class AdfDiag(AdfWeb):
             """
             #call_ncrcat(list_of_commands)
             list_of_commands =["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", "SNOWDP"]# "-o", "go_to_hell.nc"]
-            list_of_commands.append(hist_files)
+            list_of_commands.extend(hist_files)
             list_of_commands.append("-o")
             list_of_commands.append(ts_outfil_str)
             subprocess.run(list_of_commands, shell=False)
