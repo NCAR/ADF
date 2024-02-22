@@ -635,7 +635,8 @@ class AdfDiag(AdfWeb):
             with mp.Pool(processes=self.num_procs) as mpool:
                 _ = mpool.map(call_ncrcat, list_of_commands)
             """
-            call_ncrcat(list_of_commands)
+            #call_ncrcat(list_of_commands)
+            subprocess.run(list_of_commands, shell=False)
 
             if vars_to_derive:
                 self.derive_variables(
