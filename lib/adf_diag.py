@@ -637,8 +637,7 @@ class AdfDiag(AdfWeb):
             """
             #call_ncrcat(list_of_commands)
             list_of_commands =["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", "SNOWDP",
-            "/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU.clm2.h0.0001-01.nc",
-            "/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU.clm2.h0.0001-02.nc"]# "-o", "go_to_hell.nc"]
+            "/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU.clm2.h0.0001-01.nc /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU.clm2.h0.0001-02.nc"]# "-o", "go_to_hell.nc"]
             #print(list_of_commands)
             #hist_files2 = []
             #for i in hist_files:
