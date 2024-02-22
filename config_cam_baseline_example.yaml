@@ -363,6 +363,7 @@ plotting_scripts:
     - polar_map
     - cam_taylor_diagram
     - qbo
+    - ozone_diagnostics
     #- tape_recorder
     #- tem #To plot TEM, please un-comment fill-out
                               #the "tem_info" section below
@@ -388,6 +389,7 @@ diag_var_list:
     - FSNT
     - FLNT
     - LANDFRAC
+    - O3
 
 #<Add more variables here.>
 
