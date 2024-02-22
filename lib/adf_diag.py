@@ -629,7 +629,7 @@ class AdfDiag(AdfWeb):
                 list_of_commands.append(cmd)
 
             # End variable loop
-
+            print("here?")
             # Now run the "ncrcat" subprocesses in parallel:
             with mp.Pool(processes=self.num_procs) as mpool:
                 _ = mpool.map(call_ncrcat, list_of_commands)
