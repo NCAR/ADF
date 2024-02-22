@@ -637,7 +637,7 @@ class AdfDiag(AdfWeb):
                 _ = mpool.map(call_ncrcat, list_of_commands)
             """
             #call_ncrcat(list_of_commands)
-            list_of_commands =["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", "SNOWDP", "/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pAD/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pAD.clm2.h0.0001-01.nc", "/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pAD/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pAD.clm2.h0.0001-02.nc", "-o", ts_outfil_str]
+            #list_of_commands =["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", "SNOWDP", "/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pAD/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pAD.clm2.h0.0001-01.nc", "/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pAD/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pAD.clm2.h0.0001-02.nc", "-o", ts_outfil_str]
             
             #list_of_commands =["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", "SNOWDP",
             #"/glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU.clm2.h0.0001-01.nc /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU/lnd/hist/ctsm51d159_f45_GSWP3_bgccrop_1850pSASU.clm2.h0.0001-02.nc"]# "-o", "go_to_hell.nc"]
