@@ -138,16 +138,14 @@ def amwg_table(adf):
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
 
-        if "CMIP" in baseline_name:
-            print("CMIP files detected, skipping AMWG table (for now)...")
-
-        else:
-            #Append to case list:
-            case_names.append(baseline_name)
-            input_ts_locs.append(input_ts_baseline)
+        case_names.append(baseline_name)
+        input_ts_locs.append(input_ts_baseline)
 
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
+    else:
+        print("AMWG table doesn't currently work with obs, so obs table won't be created.")
+    #End if
 
     #-----------------------------------------
 
@@ -203,8 +201,9 @@ def amwg_table(adf):
             #TEMPORARY:  For now, make sure only one file exists:
             if len(ts_files) != 1:
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
-                errmsg += f" Multiple files were found for the variable '{var}'"
-                raise AdfError(errmsg)
+                errmsg += f" Multiple files were found for the variable '{var}', so it will be skipped."
+                print(errmsg)
+                continue
             #End if
 
             #Load model data from file:
@@ -291,29 +290,31 @@ def amwg_table(adf):
         #End of var_list loop
         #--------------------
 
-        # Move RESTOM to top of table
-        #----------------------------
-        if 'RESTOM' in var_list:
+        # Move RESTOM to top of table (if applicable)
+        #--------------------------------------------
+        try:
             table_df = pd.read_csv(output_csv_file)
-            table_df = pd.concat([table_df[table_df['variable'] == 'RESTOM'], table_df]).reset_index(drop = True)
-            table_df = table_df.drop_duplicates()
-            table_df.to_csv(output_csv_file, header=cols, index=False)
-        #End if
+            if 'RESTOM' in table_df['variable'].values:
+                table_df = pd.concat([table_df[table_df['variable'] == 'RESTOM'], table_df]).reset_index(drop = True)
+                table_df = table_df.drop_duplicates()
+                table_df.to_csv(output_csv_file, header=cols, index=False)
 
-        # last step is to add table dataframe to website (if enabled):
-        table_df = pd.read_csv(output_csv_file)
-        adf.add_website_data(table_df, case_name, case_name, plot_type="Tables")
+            # last step is to add table dataframe to website (if enabled):
+            adf.add_website_data(table_df, case_name, case_name, plot_type="Tables")
+        except FileNotFoundError:
+            print(f"\n\tAMWG table for '{case_name}' not created.\n")
+        #End try/except
 
     #End of model case loop
     #----------------------
 
-    #Notify user that script has ended:
-    print("  ...AMWG variable table has been generated successfully.")
-
-    #Check if observations are being comapred to, if so skip table comparison...
+    #Start case comparison tables
+    #----------------------------
+    #Check if observations are being compared to, if so skip table comparison...
     if not adf.get_basic_info("compare_obs"):
-        if "CMIP" in baseline_name:
-            print("CMIP case detected, skipping comparison table...")
+        #Check if all tables were created to compare against, if not, skip table comparison...
+        if len(sorted(output_location.glob("*.csv"))) != len(case_names):
+            print("\tNot enough cases to compare, skipping comparison table...")
         else:
             #Create comparison table for both cases
             print("\n  Making comparison table...")
@@ -321,8 +322,11 @@ def amwg_table(adf):
             print("  ... Comparison table has been generated successfully")
         #End if
     else:
-        print(" Comparison table currently doesn't work with obs, so skipping...")
+        print(" No comparison table will be generated due to running against obs.")
     #End if
+
+    #Notify user that script has ended:
+    print("  ...AMWG variable table(s) have been generated successfully.")
 
 
 ##################

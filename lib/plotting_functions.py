@@ -1152,7 +1152,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
     # LAYOUT WITH GRIDSPEC
     gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5,hspace=0.0) # 2 rows, 4 columns, but each map will take up 2 columns
-    #gs.tight_layout(fig)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
     ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info['subplots_opt'])
     ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info['subplots_opt'])
