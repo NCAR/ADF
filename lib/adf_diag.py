@@ -627,7 +627,7 @@ class AdfDiag(AdfWeb):
 
                 # Add to command list for use in multi-processing pool:
                 list_of_commands.append(cmd)
-
+            print(list_of_commands)
             # End variable loop
             print("here?")
             # Now run the "ncrcat" subprocesses in parallel:
