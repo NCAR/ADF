@@ -616,6 +616,8 @@ class AdfDiag(AdfWeb):
                         # End if height
                     # End if cam
                 # End if has_lev
+                print(ncrcat_var_list)
+                print(hist_files)
 
                 cmd = (
                     ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
