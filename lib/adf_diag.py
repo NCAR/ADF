@@ -616,8 +616,8 @@ class AdfDiag(AdfWeb):
                         # End if height
                     # End if cam
                 # End if has_lev
-                print(ncrcat_var_list)
-                print(hist_files)
+                #print(ncrcat_var_list)
+                #print(hist_files)
 
                 cmd = (
                     ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
@@ -637,7 +637,12 @@ class AdfDiag(AdfWeb):
             """
             #call_ncrcat(list_of_commands)
             list_of_commands =["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", "SNOWDP"]# "-o", "go_to_hell.nc"]
-            list_of_commands.extend(hist_files)
+            print(list_of_commands)
+            hist_files2 = []
+            for i in hist_files:
+                hist_files2.append(str(i))
+            list_of_commands.extend(hist_files2)
+            print(list_of_commands)
             list_of_commands.append("-o")
             list_of_commands.append(ts_outfil_str)
             subprocess.run(list_of_commands, shell=False)
