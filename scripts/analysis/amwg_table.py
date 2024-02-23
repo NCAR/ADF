@@ -206,8 +206,9 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #Load model data from file:
-            data = _load_data(ts_files[0], var)
+            #Load model variable data from file:
+            ds = pf.load_dataset(ts_files)
+            data = ds[var]
 
             #Extract units string, if available:
             if hasattr(data, 'units'):

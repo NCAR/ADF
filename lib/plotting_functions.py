@@ -3,6 +3,8 @@ Generic computation and plotting helper functions
 
 Functions
 ---------
+load_dataset()
+    generalized load dataset method used for plotting/analysis functions
 use_this_norm()
     switches matplotlib color normalization method
 get_difference_colors(values)
@@ -100,6 +102,14 @@ from matplotlib.lines import Line2D
 from adf_diag import AdfDiag
 from adf_base import AdfError
 
+import warnings  # use to warn user about missing files.
+
+#Format warning messages:
+def my_formatwarning(msg, *args, **kwargs):
+    """Issue `msg` as warning."""
+    return str(msg) + '\n'
+warnings.formatwarning = my_formatwarning
+
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
 
@@ -122,6 +132,34 @@ seasons = {"ANN": np.arange(1,13,1),
 #################
 #HELPER FUNCTIONS
 #################
+
+def load_dataset(fils):
+    """
+    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        sfil = str(fils[0])
+        return xr.open_dataset(sfil)
+    #End if
+#End def
 
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""

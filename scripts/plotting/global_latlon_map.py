@@ -8,9 +8,6 @@ global_latlon_map(adfobj)
 my_formatwarning(msg, *args, **kwargs)
     format warning messages
     (private method)
-_load_dataset(fils)
-    load files into dataset
-    (private methd) 
 """
 #Import standard modules:
 from pathlib import Path
@@ -242,7 +239,7 @@ def global_latlon_map(adfobj):
             else:
                 oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
 
-            oclim_ds = _load_dataset(oclim_fils)
+            oclim_ds = pf.load_dataset(oclim_fils)
             if oclim_ds is None:
                 print("WARNING: Did not find any oclim_fils. Will try to skip.")
                 print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
@@ -266,7 +263,7 @@ def global_latlon_map(adfobj):
 
                 #Load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
-                mclim_ds = _load_dataset(mclim_fils)
+                mclim_ds = pf.load_dataset(mclim_fils)
 
                 #Skip this variable/case if the regridded climo file doesn't exist:
                 if mclim_ds is None:
@@ -484,33 +481,6 @@ def global_latlon_map(adfobj):
 # Helpers
 #########
 
-def _load_dataset(fils):
-    """
-    loads datasets from input file information
-
-    Parameters
-    ----------
-    fils : list
-        strings or paths to input file(s)
-
-    Returns
-    -------
-    xr.Dataset
-
-    Notes
-    -----
-    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
-    """
-    if len(fils) == 0:
-        warnings.warn(f"Input file list is empty.")
-        return None
-    elif len(fils) > 1:
-        return xr.open_mfdataset(fils, combine='by_coords')
-    else:
-        sfil = str(fils[0])
-        return xr.open_dataset(sfil)
-    #End if
-#End def
 
 ##############
 #END OF SCRIPT

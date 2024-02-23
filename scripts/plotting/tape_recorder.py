@@ -9,6 +9,7 @@ import pandas as pd
 from dateutil.relativedelta import relativedelta
 import glob
 from pathlib import Path
+import plotting_functions as pf
 
 def tape_recorder(adfobj):
     """
@@ -90,14 +91,14 @@ def tape_recorder(adfobj):
     #-----------------------------------------
 
     #This may have to change if other variables are desired in this plot type?
-    plot_name = plot_loc / f"Q_ANN_TapeRecorder_Mean.{plot_type}"
+    plot_name = plot_loc / f"Q_TapeRecorder_ANN_Special_Mean.{plot_type}"
     print(f"\t - Plotting annual tape recorder for Q")
 
     # Check redo_plot. If set to True: remove old plot, if it already exists:
     if (not redo_plot) and plot_name.is_file():
         #Add already-existing plot to website (if enabled):
         adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-        adfobj.add_website_data(plot_name, "tape_recorder", None, season="ANN", multi_case=True)
+        adfobj.add_website_data(plot_name, "Q_TapeRecorder", None, season="ANN", multi_case=True)
         return
 
     elif (redo_plot) and plot_name.is_file():
@@ -125,7 +126,8 @@ def tape_recorder(adfobj):
     alldat=[]
     runname_LT=[]
     for idx,key in enumerate(runs_LT2):
-        dat = xr.open_dataset(glob.glob(runs_LT2[key]+'/*h0.Q.*.nc')[0])
+        fils= sorted(Path(runs_LT2[key]).glob('*h0.Q.*.nc'))
+        dat = pf.load_dataset(fils)
         dat = fixcesmtime(dat,start_years[idx],end_years[idx])
         datzm = dat.mean('lon')
         dat_tropics = cosweightlat(datzm.Q, -10, 10)
@@ -187,7 +189,7 @@ def tape_recorder(adfobj):
     fig.savefig(plot_name, bbox_inches='tight', facecolor='white')
 
     #Add plot to website (if enabled):
-    adfobj.add_website_data(plot_name, "tape_recorder", None, season="ANN", multi_case=True)
+    adfobj.add_website_data(plot_name, "Q_TapeRecorder", None, season="ANN", multi_case=True)
 
     #Notify user that script has ended:
     print("  ...Tape recorder plots have been generated successfully.")
