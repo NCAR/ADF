@@ -234,9 +234,7 @@ table.dataframe thead th{
   background-color: rgba(192, 192, 192, 0.6);
   font-family: Tahoma, Geneva, Verdana, sans-serif;
   border-collapse: collapse;
-  /*border: 1px solid rgba(0, 0, 0, 0.8);*/
   border-radius: 15px;  padding: 10px;
-  /*padding: 10px;*/
   font-size: 16px;
   text-align: center;
 }
