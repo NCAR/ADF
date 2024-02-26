@@ -156,8 +156,7 @@ def load_dataset(fils):
     elif len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
     else:
-        sfil = str(fils[0])
-        return xr.open_dataset(sfil)
+        return xr.open_dataset(fils[0])
     #End if
 #End def
 

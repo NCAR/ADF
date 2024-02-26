@@ -334,13 +334,6 @@ def amwg_table(adf):
 # Helper functions
 ##################
 
-def _load_data(dataloc, varname):
-    import xarray as xr
-    ds = xr.open_dataset(dataloc)
-    return ds[varname]
-
-#####
-
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:
 

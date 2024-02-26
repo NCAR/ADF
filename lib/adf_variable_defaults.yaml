@@ -63,6 +63,13 @@
 #+++++++++++
 
 #+++++++++++++
+# Available ADF Default Plot Types
+#+++++++++++++
+
+default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridonal",
+                  "NHPolar","SHPolar","Special"]
+
+#+++++++++++++
 # Category: Microphysics
 #+++++++++++++
 

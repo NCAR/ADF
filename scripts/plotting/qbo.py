@@ -191,35 +191,6 @@ def qbo(adfobj):
     #End QBO plotting script:
     return
 
-#-------------------For Reading Data------------------------
-
-def _load_dataset(data_loc, case_name, variable, other_name=None):
-    """
-    This method exists to get an xarray Dataset that can be passed into the plotting methods.
-
-    This could (should) be changed to use an intake-esm catalog if (when) that is available.
-    * At some point, we hope ADF will provide functions that can be used directly to replace this step,
-      so the user will not need to know how the data gets saved.
-
-    In this example, assume timeseries files are available via the ADF api.
-
-    """
-
-    dloc    = Path(data_loc)
-
-    # a hack here: ADF uses different file names for "reference" case and regridded model data,
-    # - try the longer name first (regridded), then try the shorter name
-
-    fils = sorted(dloc.glob(f"{case_name}.*.{variable}.*.nc"))
-    if (len(fils) == 0):
-        warnings.warn("QBO: Input file list is empty.")
-        return None
-    elif (len(fils) > 1):
-        return xr.open_mfdataset(fils, combine='by_coords')
-    else:
-        sfil = str(fils[0])
-        return xr.open_dataset(sfil)
-
 #-----------------For Calculating-----------------------------
 
 def cosweightlat(darray, lat1, lat2):

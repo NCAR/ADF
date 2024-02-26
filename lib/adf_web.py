@@ -353,6 +353,9 @@ class AdfWeb(AdfObs):
             main_site_path = "" #Set main_site_path to blank value
         #End if
 
+        #Access variable defaults yaml file
+        res = self.variable_defaults
+
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
@@ -653,8 +656,7 @@ class AdfWeb(AdfObs):
                 #Check if the mean plot type page exists for this case:
                 mean_ptype_file = img_pages_dir / f"mean_diag_{web_data.plot_type}.html"
 
-                #Construct individual plot type mean_diag html files, if they don't
-                #already exist:
+                #Construct individual plot type mean_diag html files
                 mean_tmpl = jinenv.get_template('template_mean_diag.html')
 
                 #Remove keys from main dictionary for this html page
@@ -681,8 +683,7 @@ class AdfWeb(AdfObs):
             #End if
 
             #List of ADF default plot types
-            avail_plot_types = ["Tables","LatLon","LatLon_Vector","Zonal","Meridonal",
-                                "NHPolar","SHPolar","Special"]
+            avail_plot_types = res["default_ptypes"]
             
             #Check if current plot type is in ADF default.
             #If not, add it so the index.html file can include it
