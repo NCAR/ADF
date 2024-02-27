@@ -112,6 +112,7 @@ def tem(adf):
         obs = True
         #Set TEM file for observations
         base_file_name = 'Obs.TEMdiag.nc'
+        input_loc_idx = Path(tem_locs[0])
     else:
         base_name = adf.get_baseline_info("cam_case_name", required=True)
         
