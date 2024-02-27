@@ -72,12 +72,73 @@ def create_TEM_files(adf):
     #Check if comparing to observations
     if adf.get_basic_info("compare_obs"):
         var_obs_dict = adf.var_obs_dict
+
         #If dictionary is empty, then there are no observations, so quit here:
         if not var_obs_dict:
             print("No observations found to plot against, so no obs-based TEM plot will be generated.")
             pass
+        
+        print(f"\t Processing TEM for observations :")
 
         base_name = "Obs"
+
+        #Save Obs TEM file to first test case location
+        output_loc_idx = tem_locs[0]
+
+        #Check if re-gridded directory exists, and if not, then create it:
+        if not output_loc_idx.is_dir():
+            print(f"    {output_loc_idx} not found, making new directory")
+            output_loc_idx.mkdir(parents=True)
+        #End if
+
+        print(f"\t NOTE: Observation TEM file being saved to '{output_loc_idx}'")
+
+        #Set baseline file name as full path
+        tem_fil = output_loc_idx / f'{base_name}.TEMdiag.nc'
+
+        #Group all TEM observation files together
+        tem_obs_fils = []
+        for var in var_list:
+            if var in res:
+                #Gather from variable defaults file
+                obs_file_path = Path(res[var]["obs_file"])
+                if not obs_file_path.is_file():
+                    obs_data_loc = adf.get_basic_info("obs_data_loc")
+                    obs_file_path = Path(obs_data_loc)/obs_file_path
+
+                #It's likely multiple TEM vars will come from one file, so check
+                #to see if it already exists from other vars.
+                if obs_file_path not in tem_obs_fils:
+                    tem_obs_fils.append(obs_file_path)
+
+        ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
+        start_year = str(ds.time[0].values)[0:4]
+        end_year = str(ds.time[-1].values)[0:4]
+
+        #Update the attributes
+        ds.attrs['created'] = str(date.today())
+        ds['lev']=ds['level']
+        ds['zalat']=ds['lat']
+
+        #Make a copy of obs data so we don't do anything bad
+        ds_obs = ds.copy()
+        ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', 'zalat'), ds_obs.uzm.data),
+                                'epfy': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfy.data),
+                                'epfz': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfz.data),
+                                'vtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.vtem.data),
+                                'wtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.wtem.data),
+                                'psitem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.psitem.data),
+                                'utendepfd': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendepfd.data),
+                                'utendvtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendvtem.data),
+                                'utendwtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendwtem.data),
+                                'lev': xr.Variable('lev', ds_obs.level.values),
+                                'zalat': xr.Variable('zalat', ds_obs.lat.values),
+                                'time': xr.Variable('time', ds_obs.time.values)
+                    })
+
+        # write output to a netcdf file
+        ds_base.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
+
     else:
         if tem_base_loc:
             cam_hist_locs.append(adf.get_baseline_info("cam_hist_loc", required=True))
@@ -109,7 +170,7 @@ def create_TEM_files(adf):
         else:
             print("\t 'cam_tem_loc' not found in 'diag_cam_baseline_climo', so no baseline files/diagnostics will be generated.")
 
-    #End if
+    #End if (check for obs)
 
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
 
@@ -118,70 +179,6 @@ def create_TEM_files(adf):
                     'psitem','utendepfd','utendvtem','utendwtem']
     else:
         var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
-
-    #Check if comparing against observations
-    if adf.get_basic_info("compare_obs"):
-        print(f"\t Processing TEM for observations :")
-
-        #Set baseline file name as full path
-        tem_fil = tem_base_loc / f'{base_name}.TEMdiag.nc'
-
-        #Get obs case tem over-write boolean
-        overwrite_tem = False
-
-        #If files exist, then check if over-writing is allowed:
-        if (tem_fil.is_file()) and (not overwrite_tem):
-            print(f"\t    INFO: Found TEM file and clobber is False, so moving to next case.")
-            pass
-        else:
-            if tem_fil.is_file():
-                print(f"\t    INFO: Found TEM file but clobber is True, so over-writing file.")
-
-            #Group all TEM observation files together
-            tem_obs_fils = []
-            for var in var_list:
-                if var in res:
-                    #Gather from variable defaults file
-                    obs_file_path = Path(res[var]["obs_file"])
-                    if not obs_file_path.is_file():
-                        obs_data_loc = adf.get_basic_info("obs_data_loc")
-                        obs_file_path = Path(obs_data_loc)/obs_file_path
-
-                    #It's likely multiple TEM vars will come from one file, so check
-                    #to see if it already exists from other vars.
-                    if obs_file_path not in tem_obs_fils:
-                        tem_obs_fils.append(obs_file_path)
-
-            ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
-            start_year = str(ds.time[0].values)[0:4]
-            end_year = str(ds.time[-1].values)[0:4]
-
-            #Update the attributes
-            ds.attrs['created'] = str(date.today())
-            ds['lev']=ds['level']
-            ds['zalat']=ds['lat']
-
-            #Make a copy of obs data so we don't do anything bad
-            ds_obs = ds.copy()
-            ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', 'zalat'), ds_obs.uzm.data),
-                                'epfy': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfy.data),
-                                'epfz': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfz.data),
-                                'vtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.vtem.data),
-                                'wtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.wtem.data),
-                                'psitem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.psitem.data),
-                                'utendepfd': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendepfd.data),
-                                'utendvtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendvtem.data),
-                                'utendwtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendwtem.data),
-                                'lev': xr.Variable('lev', ds_obs.level.values),
-                                'zalat': xr.Variable('zalat', ds_obs.lat.values),
-                                'time': xr.Variable('time', ds_obs.time.values)
-                    })
-
-            # write output to a netcdf file
-            ds_base.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
-
-        #End if (file creation or over-write file)
-    #End if baseline case
 
     #Loop over cases:
     for case_idx, case_name in enumerate(case_names):
