@@ -66,7 +66,7 @@
 # Available ADF Default Plot Types
 #+++++++++++++
 
-default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridonal",
+default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
                   "NHPolar","SHPolar","Special"]
 
 #+++++++++++++
