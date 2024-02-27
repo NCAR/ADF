@@ -29,6 +29,13 @@ def create_TEM_files(adf):
     start_years   = adf.climo_yrs["syears"]
     end_years     = adf.climo_yrs["eyears"]
 
+    res = adf.variable_defaults # will be dict of variable-specific plot preferences
+
+    if "qbo" in adf.plotting_scripts:
+        var_list = ['uzm','epfy','epfz','vtem','wtem',
+                    'psitem','utendepfd','utendvtem','utendwtem']
+    else:
+        var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
 
     tem_locs = []
     
@@ -171,14 +178,6 @@ def create_TEM_files(adf):
             print("\t 'cam_tem_loc' not found in 'diag_cam_baseline_climo', so no baseline files/diagnostics will be generated.")
 
     #End if (check for obs)
-
-    res = adf.variable_defaults # will be dict of variable-specific plot preferences
-
-    if "qbo" in adf.plotting_scripts:
-        var_list = ['uzm','epfy','epfz','vtem','wtem',
-                    'psitem','utendepfd','utendvtem','utendwtem']
-    else:
-        var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
 
     #Loop over cases:
     for case_idx, case_name in enumerate(case_names):
