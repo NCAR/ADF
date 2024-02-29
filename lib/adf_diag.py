@@ -170,6 +170,13 @@ class AdfDiag(AdfWeb):
             self.expand_references(self.__cvdp_info)
         # End if
 
+        # Add MDTF info to object:
+        self.__mdtf_info = self.read_config_var("diag_mdtf_info")
+
+        if self.__mdtf_info is not None:
+            self.expand_references(self.__mdtf_info)
+        #End if
+
         # Add averaging script names:
         self.__time_averaging_scripts = self.read_config_var("time_averaging_scripts")
 
@@ -205,6 +212,25 @@ class AdfDiag(AdfWeb):
         return self.read_config_var(
             var_str, conf_dict=self.__cvdp_info, required=required
         )
+
+
+    #########
+    #Variable extraction functions
+    #########
+
+
+    def get_mdtf_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_mdtf_info' as requested by
+        the user. If 'diag_mdtf_info' is not found then try grabbing the
+        variable from the top level of the YAML config file dictionary
+        instead.
+        """
+
+        return self.read_config_var(var_str,
+                                    conf_dict=self.__mdtf_info,
+                                    required=required)
+
 
     #########
     # Script-running functions
@@ -1080,3 +1106,67 @@ class AdfDiag(AdfWeb):
                 os.system(
                     f"ncap2 -s 'RESTOM=(FSNT-FLNT)' {constit_files[1]} {derived_file}"
                 )
+
+    #########
+
+    def setup_run_mdtf(self):
+
+        import json
+        """
+        Create MDTF directory tree, generate input setttings jsonc file 
+        Submit MDTF diagnostics.
+
+        """
+
+        #import needed standard modules:
+        import shutil
+
+        print("Setting up MDTF")
+        #We want access to the entire dict of mdtf_info
+        mdtf_info = self.__mdtf_info
+        
+       
+        cam_ts_loc   =  self.get_cam_info('cam_ts_loc', required=True)
+        print(f'**here Reading CAM timeseries files from {cam_ts_loc}') 
+        cam_ts_loc = self.get_cam_info('cam_ts_loc')
+        self.expand_references({"cam_ts_loc" : cam_ts_loc})
+        print(f'**here Expanded {cam_ts_loc}') 
+
+        #
+        # Create a dict with all the case info needed for MDTF case_list
+        #     Note that model and convention are hard-coded to CESM because that's all we expect here
+        #     This could be changed by inputing them into ADF with other MDTF-specific variables
+        #
+        case_list_keys = ['CASENAME','FIRSTYR','LASTYR','model','convention']
+
+        # Casenames, paths and start/end years come through the ADF        
+        case_names    = self.get_cam_info("cam_case_name", required=True)
+        start_years   = self.climo_yrs["syears"]
+        end_years     = self.climo_yrs["eyears"]
+
+        case_list_all  = list(())
+        for icase, case in enumerate(case_names):
+            case_list_values = [case,start_years[icase],end_years[icase],"CESM","CESM"]
+            case_list_all.append(dict(zip(case_list_keys,case_list_values)))
+
+        mdtf_info["case_list"] = case_list_all  #this list of dicts is the format wanted by MDTF
+
+        #
+        # Write the input settings json file
+        # 
+        mdtf_input_settings_filename = self.get_mdtf_info('mdtf_input_settings_filename', required=True)
+        with open(mdtf_input_settings_filename, 'w') as out_file:
+            json.dump(mdtf_info, out_file, sort_keys = True, indent = 4,
+               ensure_ascii = False)
+        mdtf_codebase = self.get_mdtf_info('mdtf_codebase_loc')
+        print(f'got code base {mdtf_codebase}')
+
+        #
+        # Submit the MDTF script in background mode, send output to mdtf.out file       
+        #
+        mdtf_log = os.path.join('./mdtf.out') # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+        mdtf_exe = mdtf_codebase+'/mdtf -f '+mdtf_input_settings_filename  
+        print(f'Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}')
+        with open(mdtf_log, 'w', encoding='utf-8') as subout:
+            _ = subprocess.Popen([mdtf_exe], shell=True, stdout=subout, stderr=subout, close_fds=True)
+

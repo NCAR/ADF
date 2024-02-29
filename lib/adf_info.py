@@ -362,7 +362,7 @@ class AdfInfo(AdfConfig):
             #End if
 
             #Check if history file path exists:
-            if cam_hist_locs[case_idx]:
+            if any(cam_hist_locs):
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
@@ -598,7 +598,7 @@ class AdfInfo(AdfConfig):
         """
         Return the config variable from 'diag_cam_climo' as requested by
         the user.  This function assumes that if the user is requesting it,
-        then it must be required.
+        then it must be required. (DRB: This statement contradicts the default value of required=False)
         """
 
         return self.read_config_var(var_str,
