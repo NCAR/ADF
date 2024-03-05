@@ -206,8 +206,9 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #Load model data from file:
-            data = _load_data(ts_files[0], var)
+            #Load model variable data from file:
+            ds = pf.load_dataset(ts_files)
+            data = ds[var]
 
             #Extract units string, if available:
             if hasattr(data, 'units'):
@@ -332,13 +333,6 @@ def amwg_table(adf):
 ##################
 # Helper functions
 ##################
-
-def _load_data(dataloc, varname):
-    import xarray as xr
-    ds = xr.open_dataset(dataloc)
-    return ds[varname]
-
-#####
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:
