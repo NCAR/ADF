@@ -493,6 +493,7 @@ PRECT:
   obs_var_name: "PRECT"
   category: "Hydrologic cycle"
   derivable_from: ['PRECL','PRECC']
+  derived_eq: "PRECL+PRECC"
 
 QFLX:
   category: "Hydrologic cycle"
@@ -737,6 +738,7 @@ RESTOM:
       label : "W m$^{-2}$"
   category: "TOA energy flux"
   derivable_from: ['FLNT','FSNT']
+  derived_eq: "FSNT-FLNT"
 
 SWCF:
   colormap: "Blues"
@@ -1095,6 +1097,20 @@ utendwtem:
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "utendwtem"
+
+
+#-----------
+
+MADEUPVAR:
+  colormap: "Blues"
+  diff_colormap: "seismic"
+  new_unit: "unit"
+  mpl:
+    colorbar:
+      label : "unit"
+  category: "Super Duper"
+  derivable_from: ['PRECL','PRECC',"PRECSC"]
+  derived_eq: "PRECC-(0.5*PRECL)+PRECSC"
 
 #-----------
 #End of File

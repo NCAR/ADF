@@ -634,7 +634,7 @@ class AdfDiag(AdfWeb):
 
             if vars_to_derive:
                 self.derive_variables(
-                    vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
+                    res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
                 )
             # End with
 
@@ -1008,75 +1008,95 @@ class AdfDiag(AdfWeb):
 
     #########
 
-    def derive_variables(self, vars_to_derive=None, ts_dir=None, overwrite=None):
+    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None, overwrite=None):
         """
         Derive variables acccording to steps given here.  Since derivations will depend on the
         variable, each variable to derive will need its own set of steps below.
-
         Caution: this method assumes that there will be one time series file per variable
-
         If the file for the derived variable exists, the kwarg `overwrite` determines
         whether to overwrite the file (true) or exit with a warning message.
+        NOTE: This is not usable for variables with vertical levels yet - JR
         """
 
+        import sympy as sp
         for var in vars_to_derive:
-            if var == "PRECT":
-                # PRECT can be found by simply adding PRECL and PRECC
-                # grab file names for the PRECL and PRECC files from the case ts directory
-                if glob.glob(os.path.join(ts_dir, "*PRECC*")) and glob.glob(
-                    os.path.join(ts_dir, "*PRECL*")
-                ):
-                    constit_files = sorted(glob.glob(os.path.join(ts_dir, "*PREC*")))
+            print(f"\t - derived time series for {var}")
+
+            #Check whether there are parts to derive from and if there is an associated equation
+            vres = res.get(var, {})
+            if "derivable_from" in vres:
+                constit_list = vres['derivable_from']
+            else:
+                print("WARNING: No constituents listed in defaults config file, moving on")
+                pass
+            #Define the string equation involving the constituent variables
+            if "derived_eq" in vres:
+                der_eq = vres['derived_eq']
+            else:
+                print("WARNING: No derived equation in defaults config file, moving on")
+                pass
+
+            constit_files = []
+            for constit in constit_list:
+                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
+                    constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
+
+            #Check if all the constituent files were found
+            if len(constit_files) != len(constit_list):
+                ermsg = f"Not all constituent files present; {var} cannot be calculated."
+                ermsg += f" Please remove {var} from diag_var_list or find the relevant CAM files."
+                raise FileNotFoundError(ermsg)
+
+            #Open a new dataset with all the constituent files/variables
+            ds = xr.open_mfdataset(constit_files)
+
+            # create new file name for derived variable
+            derived_file = constit_files[0].replace(constit_list[0], var)
+            if Path(derived_file).is_file():
+                if overwrite:
+                    Path(derived_file).unlink()
                 else:
-                    ermsg = "PRECC and PRECL were not both present; PRECT cannot be calculated."
-                    ermsg += " Please remove PRECT from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(ermsg)
-                # create new file name for PRECT
-                prect_file = constit_files[0].replace("PRECC", "PRECT")
-                if Path(prect_file).is_file():
-                    if overwrite:
-                        Path(prect_file).unlink()
-                    else:
-                        print(
-                            f"[{__name__}] Warning: PRECT file was found and overwrite is False. Will use existing file."
-                        )
-                        continue
-                # append PRECC to the file containing PRECL
-                os.system(f"ncks -A -v PRECC {constit_files[0]} {constit_files[1]}")
-                # create new file with the sum of PRECC and PRECL
-                os.system(
-                    f"ncap2 -s 'PRECT=(PRECC+PRECL)' {constit_files[1]} {prect_file}"
-                )
-            if var == "RESTOM":
-                # RESTOM = FSNT-FLNT
-                # Have to be more precise than with PRECT because FSNTOA, FSTNC, etc are valid variables
-                if glob.glob(os.path.join(ts_dir, "*.FSNT.*")) and glob.glob(
-                    os.path.join(ts_dir, "*.FLNT.*")
-                ):
-                    input_files = [
-                        sorted(glob.glob(os.path.join(ts_dir, f"*.{v}.*")))
-                        for v in ["FLNT", "FSNT"]
-                    ]
-                    constit_files = []
-                    for elem in input_files:
-                        constit_files += elem
-                else:
-                    ermsg = "FSNT and FLNT were not both present; RESTOM cannot be calculated."
-                    ermsg += " Please remove RESTOM from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(ermsg)
-                # create new file name for RESTOM
-                derived_file = constit_files[0].replace("FLNT", "RESTOM")
-                if Path(derived_file).is_file():
-                    if overwrite:
-                        Path(derived_file).unlink()
-                    else:
-                        print(
-                            f"[{__name__}] Warning: RESTOM file was found and overwrite is False. Will use existing file."
-                        )
-                        continue
-                # append FSNT to the file containing FLNT
-                os.system(f"ncks -A -v FLNT {constit_files[0]} {constit_files[1]}")
-                # create new file with the difference of FLNT and FSNT
-                os.system(
-                    f"ncap2 -s 'RESTOM=(FSNT-FLNT)' {constit_files[1]} {derived_file}"
-                )
+                    print(
+                        f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
+                    )
+                    return None
+
+            variables = {}
+            for i in constit_list:
+                variables[i] = ds[constit_list[0]].dims
+
+            #Get coordinate values from the first constituent file
+            coords={'lat': ds[constit_list[0]].lat.values, 'lon': ds[constit_list[0]].lon.values, 
+                                      "time": ds[constit_list[0]].time.values}
+
+            #Create data arrays from each constituent
+            #These variables will all be added to one file that will eventually contain the
+            #derived variable as well
+            #NOTE: This has to be done via xarray dataArrays
+            #      - There might be a way with xarray dataSets but none that have worked thus far
+            data_arrays = []
+            for var_const, dims in variables.items():
+                values = ds[var_const].values            
+                da = xr.DataArray(values, coords=coords, dims=dims)
+                data_arrays.append(da)
+
+            # Convert the string equation to a SymPy expression
+            symbolic_expression = sp.sympify(der_eq)
+
+            # Create a list of SymPy symbols based on the variable names
+            symbolic_vars = [sp.symbols(var_const) for var_const in variables]
+
+            # Use lambdify to create a function that can handle symbolic and numeric evaluations
+            numeric_function = sp.lambdify(symbolic_vars, symbolic_expression, 'numpy')
+
+            # Define a function to convert SymPy expressions to NumPy functions
+            def sympy_function(*args):
+                return numeric_function(*args)
+
+            # Apply the symbolic function to the list of xarray arrays
+            result_da = xr.apply_ufunc(sympy_function, *data_arrays,
+                                       dask='parallelized', output_dtypes=[float])
+
+            # Add new derived vairable to the dataset and save file
+            ds[var] = result_da
+            ds.to_netcdf(derived_file, unlimited_dims='time', mode='w')
