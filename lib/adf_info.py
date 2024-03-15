@@ -92,7 +92,10 @@ class AdfInfo(AdfConfig):
 
         #Loop over all items in config dict:
         for conf_var, conf_val in self.__cam_climo_info.items():
-            if isinstance(conf_val, list):
+            #Hist_str can be a list for each case, so set it as a nested list here
+            if ('hist_str' in conf_var):   
+                self.hist_str_to_list(conf_var, conf_val)
+            elif isinstance(conf_val, list):
                 #If a list, then make sure it is has the correct number of entries:
                 if not len(conf_val) == self.__num_cases:
                     emsg = f"diag_cam_climo config variable '{conf_var}' should have"
@@ -105,13 +108,7 @@ class AdfInfo(AdfConfig):
         #End for
         #-------------------------------------------
 
-        #Read hist_str (component.hist_num) from the yaml file, or set to default
-        hist_str = self.get_basic_info('hist_str')
-        #If hist_str is not present, then default to 'cam.h0':
-        if not hist_str:
-            hist_str = 'cam.h0'
-        #End if
-
+        
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
 
@@ -172,6 +169,12 @@ class AdfInfo(AdfConfig):
             #Get climo years for verification or assignment if missing
             baseline_hist_locs = self.get_baseline_info('cam_hist_loc')
 
+            baseline_hist_str_raw = self.get_baseline_info("hist_str")
+            if(isinstance(baseline_hist_str_raw,list)):
+                baseline_hist_str = baseline_hist_str_raw
+            else:   
+                baseline_hist_str = [baseline_hist_str_raw]
+
             #Check if any time series files are pre-made
             baseline_ts_done   = self.get_baseline_info("cam_ts_done")
 
@@ -214,52 +217,50 @@ class AdfInfo(AdfConfig):
             #End if
 
             #Check if history file path exists:
-            if baseline_hist_locs:
+            if any(baseline_hist_locs):
+                for hist_idx, hist_str in enumerate(baseline_hist_str):
+                    starting_location = Path(baseline_hist_locs)
+                    file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+                    #Partition string to find exactly where h-number is
+                    #This cuts the string before and after the `{hist_str}.` sub-string
+                    # so there will always be three parts:
+                    # before sub-string, sub-string, and after sub-string
+                    #Since the last part always includes the time range, grab that with last index (2)
+                    #NOTE: this is based off the current CAM file name structure in the form:
+                    #  $CASE.cam.h#.YYYY<other date info>.nc
+                    base_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
+                    base_climo_yrs = sorted(np.unique(base_climo_yrs))
 
-                starting_location = Path(baseline_hist_locs)
-                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
-                #Partition string to find exactly where h-number is
-                #This cuts the string before and after the `{hist_str}.` sub-string
-                # so there will always be three parts:
-                # before sub-string, sub-string, and after sub-string
-                #Since the last part always includes the time range, grab that with last index (2)
-                #NOTE: this is based off the current CAM file name structure in the form:
-                #  $CASE.cam.h#.YYYY<other date info>.nc
-                base_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
-                base_climo_yrs = sorted(np.unique(base_climo_yrs))
+                    base_found_syr = int(base_climo_yrs[0])
+                    base_found_eyr = int(base_climo_yrs[-1])
 
-                base_found_syr = int(base_climo_yrs[0])
-                base_found_eyr = int(base_climo_yrs[-1])
+                    #Check if start or end year is missing. If so then just assume it is the
+                    #start or end of the entire available model data.
+                    if syear_baseline is None:
+                        msg = f"No given start year for {data_name}, "
+                        msg += f"using first found year: {base_found_syr}"
+                        print(msg)
+                        syear_baseline = base_found_syr
+                    if syear_baseline not in base_climo_yrs:
+                        msg = f"Given start year '{syear_baseline}' is not in current dataset "
+                        msg += f"{data_name}, using first found year: {base_climo_yrs[0]}\n"
+                        print(msg)
+                        syear_baseline = base_found_syr
 
-                #Check if start or end year is missing. If so then just assume it is the
-                #start or end of the entire available model data.
-                if syear_baseline is None:
-                    msg = f"No given start year for {data_name}, "
-                    msg += f"using first found year: {base_found_syr}"
-                    print(msg)
-                    syear_baseline = base_found_syr
-                if syear_baseline not in base_climo_yrs:
-                    msg = f"Given start year '{syear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {base_climo_yrs[0]}\n"
-                    print(msg)
-                    syear_baseline = base_found_syr
+                    if eyear_baseline is None:
+                        msg = f"No given end year for {data_name}, "
+                        msg += f"using last found year: {base_found_eyr}"
+                        print(msg)
+                        eyear_baseline = base_found_eyr
+                    if eyear_baseline not in base_climo_yrs:
+                        msg = f"Given end year '{eyear_baseline}' is not in current dataset "
+                        msg += f"{data_name}, using last found year: {base_climo_yrs[-1]}\n"
+                        print(msg)
+                        eyear_baseline = base_found_eyr
 
-                if eyear_baseline is None:
-                    msg = f"No given end year for {data_name}, "
-                    msg += f"using last found year: {base_found_eyr}"
-                    print(msg)
-                    eyear_baseline = base_found_eyr
-                if eyear_baseline not in base_climo_yrs:
-                    msg = f"Given end year '{eyear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using last found year: {base_climo_yrs[-1]}\n"
-                    print(msg)
-                    eyear_baseline = base_found_eyr
+                #end for hist_idx
+            #End if any(baseline_hist_locs)
 
-                #Grab baseline nickname
-                base_nickname = self.get_baseline_info('case_nickname')
-                if base_nickname is None:
-                    base_nickname = data_name
-            #End if
 
             #Grab baseline nickname
             base_nickname = self.get_baseline_info('case_nickname')
@@ -309,6 +310,9 @@ class AdfInfo(AdfConfig):
 
         #Extract cam history files location:
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
+
+        #Read hist_str (component.hist_num, eg cam.h0) from the yaml file
+        cam_hist_str = self.get_cam_info("hist_str")
         
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
@@ -362,47 +366,51 @@ class AdfInfo(AdfConfig):
             #End if
 
             #Check if history file path exists:
+            hist_str_case = cam_hist_str[case_idx]
             if any(cam_hist_locs):
-                #Get climo years for verification or assignment if missing
-                starting_location = Path(cam_hist_locs[case_idx])
-                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
-                #Partition string to find exactly where h-number is
-                #This cuts the string before and after the `{hist_str}.` sub-string
-                # so there will always be three parts:
-                # before sub-string, sub-string, and after sub-string
-                #Since the last part always includes the time range, grab that with last index (2)
-                #NOTE: this is based off the current CAM file name structure in the form:
-                #  $CASE.cam.h#.YYYY<other date info>.nc
-                case_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
-                case_climo_yrs = sorted(np.unique(case_climo_yrs))
+                for hist_idx, hist_str in enumerate(hist_str_case): 
 
-                case_found_syr = int(case_climo_yrs[0])
-                case_found_eyr = int(case_climo_yrs[-1])
+                    #Get climo years for verification or assignment if missing
+                    starting_location = Path(cam_hist_locs[case_idx])
+                    file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+                    #Partition string to find exactly where h-number is
+                    #This cuts the string before and after the `{hist_str}.` sub-string
+                    # so there will always be three parts:
+                    # before sub-string, sub-string, and after sub-string
+                    #Since the last part always includes the time range, grab that with last index (2)
+                    #NOTE: this is based off the current CAM file name structure in the form:
+                    #  $CASE.cam.h#.YYYY<other date info>.nc
+                    case_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
+                    case_climo_yrs = sorted(np.unique(case_climo_yrs))
 
-                #Check if start or end year is missing.  If so then just assume it is the
-                #start or end of the entire available model data.
-                if syear is None:
-                    msg = f"No given start year for {case_name}, "
-                    msg += f"using first found year: {case_found_syr}"
-                    print(msg)
-                    syear = case_found_syr
-                if syear not in case_climo_yrs:
-                    msg = f"Given start year '{syear}' is not in current dataset "
-                    msg += f"{case_name}, using first found year: {case_climo_yrs[0]}\n"
-                    print(msg)
-                    syear = case_found_syr
-                #End if
-                if eyear is None:
-                    msg = f"No given end year for {case_name}, "
-                    msg += f"using last found year: {case_found_eyr}"
-                    print(msg)
-                    eyear = case_found_eyr
-                if eyear not in case_climo_yrs:
-                    msg = f"Given end year '{eyear}' is not in current dataset "
-                    msg += f"{case_name}, using last found year: {case_climo_yrs[-1]}\n"
-                    print(msg)
-                    eyear = case_found_eyr
-                #End if
+                    case_found_syr = int(case_climo_yrs[0])
+                    case_found_eyr = int(case_climo_yrs[-1])
+
+                    #Check if start or end year is missing.  If so then just assume it is the
+                    #start or end of the entire available model data.
+                    if syear is None:
+                        msg = f"No given start year for {case_name}, "
+                        msg += f"using first found year: {case_found_syr}"
+                        print(msg)
+                        syear = case_found_syr
+                    if syear not in case_climo_yrs:
+                        msg = f"Given start year '{syear}' is not in current dataset "
+                        msg += f"{case_name}, using first found year: {case_climo_yrs[0]}\n"
+                        print(msg)
+                        syear = case_found_syr
+                    #End if
+                    if eyear is None:
+                        msg = f"No given end year for {case_name}, "
+                        msg += f"using last found year: {case_found_eyr}"
+                        print(msg)
+                        eyear = case_found_eyr
+                    if eyear not in case_climo_yrs:
+                        msg = f"Given end year '{eyear}' is not in current dataset "
+                        msg += f"{case_name}, using last found year: {case_climo_yrs[-1]}\n"
+                        print(msg)
+                        eyear = case_found_eyr
+                    #End if
+                #end for hist_idx, hist_str_file in enumerate(hist_str):
             #End if
 
             #Update climo year lists in case anything changed
@@ -493,6 +501,18 @@ class AdfInfo(AdfConfig):
         #End if
         #Print number of processors being used to debug log (if requested):
         self.debug_log(f"ADF is running with {self.__num_procs} processors.")
+        #-----------------------------------------
+
+    #########
+    def hist_str_to_list(self, conf_var, conf_val):
+        if ( isinstance(self.get_cam_info("hist_str",required=True), list)):
+            dim1 = len(conf_val)
+            if ( isinstance(conf_val[0], list)):
+                dim2 = len(conf_val[0])
+            hist_str = conf_val
+        else:  # one case, one hist str
+            hist_str = [conf_val]  # make a nested list [ncases,nfiles] of the given value
+        self.__cam_climo_info[conf_var] = [hist_str]
         #-----------------------------------------
 
     #########
