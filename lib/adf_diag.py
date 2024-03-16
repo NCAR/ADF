@@ -1107,74 +1107,19 @@ class AdfDiag(AdfWeb):
                     f"ncap2 -s 'RESTOM=(FSNT-FLNT)' {constit_files[1]} {derived_file}"
                 )
 
-    #########
-
-    def setup_run_mdtf(self):
-        """
-        Create MDTF directory tree, generate input setttings jsonc file 
-        Submit MDTF diagnostics.
-
-        """
-
-        #import needed standard modules:
-        import shutil
-        import json
-
-        test = False  #True (copy files but don't run), False (copy files and run MDTF).  Could make this a yaml variable
-        verbose = 1  # 0 errors and major sections, 1 warnings, 2 detailed, 3 excessive 
-                
-        print("\n  Setting up MDTF...")
-        #We want access to the entire dict of mdtf_info
-        mdtf_info = self.__mdtf_info
-        var_list = self.diag_var_list
-               
-        #
-        # Create a dict with all the case info needed for MDTF case_list
-        #     Note that model and convention are hard-coded to CESM because that's all we expect here
-        #     This could be changed by inputing them into ADF with other MDTF-specific variables
-        #
-        case_list_keys = ['CASENAME','FIRSTYR','LASTYR','model','convention']
-
-        # Casenames, paths and start/end years come through the ADF        
-        case_names    = self.get_cam_info("cam_case_name", required=True)
-        start_years   = self.climo_yrs["syears"]
-        end_years     = self.climo_yrs["eyears"]
-
-        case_list_all  = list(())
-        for icase, case in enumerate(case_names):
-            case_list_values = [case,start_years[icase],end_years[icase],"CESM","CESM"]
-            case_list_all.append(dict(zip(case_list_keys,case_list_values)))
-
-        mdtf_info["case_list"] = case_list_all  #this list of dicts is the format wanted by MDTF
-
-        #
-        # Write the input settings json file
-        # 
-        mdtf_input_settings_filename = self.get_mdtf_info('mdtf_input_settings_filename', required=True)
-        with open(
-                mdtf_input_settings_filename, 'w'
-        ) as out_file:
-            json.dump(
-                mdtf_info,
-                out_file,
-                sort_keys = True,
-                indent = 4,
-                ensure_ascii = False
-            )
-        mdtf_codebase = self.get_mdtf_info('mdtf_codebase_loc')
-        print(f'\t Using MDTF code base {mdtf_codebase}')
-
-        #
-        # Move the data to the dir structure and file names expected by the MDTF
-        #    model_input_data/case/freq/case.VAR.freq.nc
-        # Note: just working out the function here, will move eventually!
+    ######### MDTF functions #########
+    def move_tsfiles_for_mdtf(self,verbose,test): 
+        '''
+        Move ts files to the directory structure and names required by MDTF
+        Should change with data catalogues 
+        '''
 
         cam_ts_loc   = self.get_cam_info('cam_ts_loc', required=True)
         self.expand_references({"cam_ts_loc" : cam_ts_loc})
         if verbose>0: print(f'\t Using timeseries files for from {cam_ts_loc[0]}')
         
         mdtf_model_data_root = self.get_mdtf_info('MODEL_DATA_ROOT')
-
+        
         # These MDTF words for day & month .But CESM will have hour_6 and hour_3, etc.
         # Going to need a dict to translate.
         # Use cesm_freq_strings = freq_string_options.keys
@@ -1182,6 +1127,9 @@ class AdfDiag(AdfWeb):
         freq_string_options = [ "month","day","6hr","3hr","1hr"]  
 
         hist_str_list = self.get_cam_info('hist_str')
+        case_names    = self.get_cam_info("cam_case_name", required=True)
+        var_list      = self.diag_var_list
+
         for case_idx, case_name in enumerate(case_names):
 
             hist_str_case = hist_str_list[case_idx]
@@ -1194,12 +1142,13 @@ class AdfDiag(AdfWeb):
                     #
                     adf_file_str = cam_ts_loc[case_idx] + os.sep + ".".join([case_name, hist_str, var,"*" ])  # * to match timestamp: could be multiples
                     adf_file_list = glob.glob(adf_file_str)
+
                     if len(adf_file_list) == 1:
                         if (verbose > 1 ): print(f'Copying ts file: {adf_file_list} to MDTF dir')
                     elif len(adf_file_list) >1:
-                        if (verbose > 0 ):print(f'WARNING: found multiple timeseries files {adf_file_list}. Running but suggest cleaning up ts dir')
+                        if (verbose > 0 ):print(f'WARNING: found multiple timeseries files {adf_file_list}. Continuing with best guess; suggest cleaning up multiple dates in ts dir')
                     else:
-                        if (verbose > 0 ):print(f'WARNING: No files matching {case}.{hist_str}.{var} found in {adf_file_str}. Skipping')
+                        if (verbose > 0 ):print(f'WARNING: No files matching {case_name}.{hist_str}.{var} found in {adf_file_str}. Skipping')
                         continue            #skip this case/hist_str/var file
                     adf_file = adf_file_list[0] 
 
@@ -1233,8 +1182,8 @@ class AdfDiag(AdfWeb):
 
                     os.makedirs(mdtf_dir, exist_ok=True)
                     mdtf_file = mdtf_dir + os.sep+ ".".join([case_name,var,freq,"nc"])
-                    mdtf_file_list = glob.glob(mdtf_file)               #Check if files already exist in MDTF directory
-                    if mdtf_file_list:                                  #If files exist, then check if over-writing is allowed:
+                    mdtf_file_list = glob.glob(mdtf_file)     #Check if files already exist in MDTF directory
+                    if mdtf_file_list:                        #If files exist, then should check if over-writing is allowed:
                         if (verbose > 0 ): print(f'\t   INFO: not clobbering existing mdtf file {mdtf_file_list}')
                                         #logic to allow override#  if not overwrite_mdtf[case_idx]: 
                         continue    #simply skip file copy for this variable:
@@ -1244,6 +1193,77 @@ class AdfDiag(AdfWeb):
                 # end for hist_str
             # end for var
         # end for case
+
+
+    def setup_run_mdtf(self):
+        """
+        Create MDTF directory tree, generate input setttings jsonc file 
+        Submit MDTF diagnostics.
+
+        """
+
+        #import needed standard modules:
+        import shutil
+        import json
+
+        test = True  #True (copy files but don't run), False (copy files and run MDTF).  Could make this a yaml variable
+        verbose = 3  # 0 errors and major sections, 1 warnings, 2 detailed, 3 excessive 
+                
+        print("\n  Setting up MDTF...")
+        #We want access to the entire dict of mdtf_info
+        mdtf_info = self.__mdtf_info
+               
+        #
+        # Create a dict with all the case info needed for MDTF case_list
+        #     Note that model and convention are hard-coded to CESM because that's all we expect here
+        #     This could be changed by inputing them into ADF with other MDTF-specific variables
+        #
+        case_list_keys = ['CASENAME','FIRSTYR','LASTYR','model','convention']
+
+        # Casenames, paths and start/end years come through the ADF        
+        case_names    = self.get_cam_info("cam_case_name", required=True)
+        start_years   = self.climo_yrs["syears"]
+        end_years     = self.climo_yrs["eyears"]
+
+        case_list_all  = list(())
+        for icase, case in enumerate(case_names):
+            case_list_values = [case,start_years[icase],end_years[icase],"CESM","CESM"]
+            case_list_all.append(dict(zip(case_list_keys,case_list_values)))            
+        mdtf_info["case_list"] = case_list_all  #this list of dicts is the format wanted by MDTF
+
+        # The plot_path is given by case in ADF but MDTF needs one top dir, so use case 0
+        # Working dir and output dir can be different. These could be set in config.yaml
+        # but then we don't get the nicely formated plot_location
+        case_idx = 0
+        plot_path = self.plot_location[case_idx]+"/mdtf"
+        for var_idx, var in enumerate(["WORKING_DIR","OUTPUT_DIR"]):
+            if (mdtf_info[var] =='default'):
+                mdtf_info[var]  = plot_path
+            
+        #
+        # Write the input settings json file
+        # 
+        mdtf_input_settings_filename = self.get_mdtf_info('mdtf_input_settings_filename', required=True)
+
+
+        with open(
+                mdtf_input_settings_filename, 'w'
+        ) as out_file:
+            json.dump(
+                mdtf_info,
+                out_file,
+                sort_keys = True,
+                indent = 4,
+                ensure_ascii = False
+            )
+        mdtf_codebase = self.get_mdtf_info('mdtf_codebase_loc')
+        print(f'\t Using MDTF code base {mdtf_codebase}')
+
+        #
+        # Move the data to the dir structure and file names expected by the MDTF
+        #    model_input_data/case/freq/case.VAR.freq.nc
+        
+        self.move_tsfiles_for_mdtf(verbose, test)
             
         #
         # Submit the MDTF script in background mode, send output to mdtf.out file       
