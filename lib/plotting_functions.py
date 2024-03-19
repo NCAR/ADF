@@ -1916,7 +1916,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                shrink: 0.4
           ```
     """
-    from matplotlib.colors import LogNorm
 
     # style the plot:
     # We should think about how to do plot customization and defaults.
