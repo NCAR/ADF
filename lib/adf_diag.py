@@ -1040,7 +1040,7 @@ class AdfDiag(AdfWeb):
                 constit_list = vres['derivable_from']
             else:
                 print("WARNING: No constituents listed in defaults config file, moving on")
-                pass
+                continue
 
             constit_files = []
             for constit in constit_list:
@@ -1055,7 +1055,7 @@ class AdfDiag(AdfWeb):
             else:
                 #Open a new dataset with all the constituent files/variables
                 ds = xr.open_mfdataset(constit_files)
-    
+
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
                 print(derived_file,"\n")
@@ -1067,26 +1067,27 @@ class AdfDiag(AdfWeb):
                             f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
                         )
                         return None
-    
+
                 variables = {}
                 for i in constit_list:
                     variables[i] = ds[constit_list[0]].dims
-    
+
                 #Get coordinate values from the first constituent file
-                coords={'lat': ds[constit_list[0]].lat.values, 'lon': ds[constit_list[0]].lon.values, 
-                                          "time": ds[constit_list[0]].time.values}
+                coords={'lat': ds[constit_list[0]].lat.values,
+                        'lon': ds[constit_list[0]].lon.values,
+                        "time": ds[constit_list[0]].time.values}
 
                 #Create data arrays from each constituent
                 #These variables will all be added to one file that will eventually contain the
                 #derived variable as well
                 #NOTE: This has to be done via xarray dataArrays
-                #      - There might be a way with xarray dataSets but none that have worked thus far
+                #    - There might be a way with xarray dataSets but none that have worked thus far
                 data_arrays = []
                 for var_const, dims in variables.items():
                     values = ds[var_const].values
                     da = xr.DataArray(values, coords=coords, dims=dims)
                     data_arrays.append(da)
-                
+
                 #NOTE: this will need to be changed when derived equations are more than sums! - JR
                 ds[var] = sum(data_arrays)
 
@@ -1095,13 +1096,13 @@ class AdfDiag(AdfWeb):
                 ds_pmid_done = False
                 ds_t_done = False
                 if var in res["aerosol_zonal_list"]:
-                    
+
                     #Only calculate once for all aerosol vars
                     if not ds_pmid_done:
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
                         ds_pmid_done = True
                         if not ds_pmid:
-                            errmsg = f"Missing necessary files for rho calculation.\n"
+                            errmsg = "Missing necessary files for rho calculation.\n"
                             errmsg += "Please make sure 'PMID' is in the CAM run for aerosol calculations"
                             print(errmsg)
                             continue
@@ -1109,7 +1110,7 @@ class AdfDiag(AdfWeb):
                         ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
                         ds_t_done = True
                         if not ds_t:
-                            errmsg = f"Missing necessary files for rho calculation.\n"
+                            errmsg = "Missing necessary files for rho calculation.\n"
                             errmsg += "Please make sure 'T' is in the CAM run for aerosol calculations"
                             print(errmsg)
                             continue
@@ -1119,7 +1120,7 @@ class AdfDiag(AdfWeb):
                     #Sulfate conversion factor
                     if var == "SO4":
                         ds[var] = ds[var]*(96/115)
-                
+
                 ds.to_netcdf(derived_file, unlimited_dims='time', mode='w')
 ########
 
@@ -1150,7 +1151,7 @@ def _load_dataset(fils):
     warnings.formatwarning = my_formatwarning
 
     if len(fils) == 0:
-        warnings.warn(f"Input file list is empty.")
+        warnings.warn("Input file list is empty.")
         return None
     elif len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
