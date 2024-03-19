@@ -416,7 +416,7 @@ class AdfDiag(AdfWeb):
                     emsg = f"Provided baseline 'cam_hist_loc' directory '{starting_location}' "
                     emsg += "not found.  Script is ending here."
                 else:
-                    emsg = "Provided 'cam_hist_loc' directory '{starting_location}' not found."
+                    emsg = f"Provided 'cam_hist_loc' directory '{starting_location}' not found."
                     emsg += " Script is ending here."
                 # End if
 
@@ -534,6 +534,17 @@ class AdfDiag(AdfWeb):
             vars_to_derive = []
             # create copy of var list that can be modified for derivable variables
             diag_var_list = self.diag_var_list
+
+            # Aerosol Requirements
+            #---------------------
+            #Always make sure PMID and T are made if aerosols are desired in config file
+            if any(diag_var in res["aerosol_zonal_list"] for diag_var in diag_var_list):
+                if "PMID" not in diag_var_list:
+                    diag_var_list += ["PMID"]
+                if "T" not in diag_var_list:
+                    diag_var_list += ["T"]
+            #End aerosol
+
             for var in diag_var_list:
                 if var not in hist_file_var_list:
                     vres = res.get(var, {})
@@ -632,9 +643,9 @@ class AdfDiag(AdfWeb):
             with mp.Pool(processes=self.num_procs) as mpool:
                 _ = mpool.map(call_ncrcat, list_of_commands)
 
-            if vars_to_derive:
+            if vars_to_derive:                
                 self.derive_variables(
-                    vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
+                    res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
                 )
             # End with
 
@@ -1008,7 +1019,7 @@ class AdfDiag(AdfWeb):
 
     #########
 
-    def derive_variables(self, vars_to_derive=None, ts_dir=None, overwrite=None):
+    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None, overwrite=None):
         """
         Derive variables acccording to steps given here.  Since derivations will depend on the
         variable, each variable to derive will need its own set of steps below.
@@ -1017,66 +1028,134 @@ class AdfDiag(AdfWeb):
 
         If the file for the derived variable exists, the kwarg `overwrite` determines
         whether to overwrite the file (true) or exit with a warning message.
+
         """
 
         for var in vars_to_derive:
-            if var == "PRECT":
-                # PRECT can be found by simply adding PRECL and PRECC
-                # grab file names for the PRECL and PRECC files from the case ts directory
-                if glob.glob(os.path.join(ts_dir, "*PRECC*")) and glob.glob(
-                    os.path.join(ts_dir, "*PRECL*")
-                ):
-                    constit_files = sorted(glob.glob(os.path.join(ts_dir, "*PREC*")))
-                else:
-                    ermsg = "PRECC and PRECL were not both present; PRECT cannot be calculated."
-                    ermsg += " Please remove PRECT from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(ermsg)
-                # create new file name for PRECT
-                prect_file = constit_files[0].replace("PRECC", "PRECT")
-                if Path(prect_file).is_file():
-                    if overwrite:
-                        Path(prect_file).unlink()
-                    else:
-                        print(
-                            f"[{__name__}] Warning: PRECT file was found and overwrite is False. Will use existing file."
-                        )
-                        continue
-                # append PRECC to the file containing PRECL
-                os.system(f"ncks -A -v PRECC {constit_files[0]} {constit_files[1]}")
-                # create new file with the sum of PRECC and PRECL
-                os.system(
-                    f"ncap2 -s 'PRECT=(PRECC+PRECL)' {constit_files[1]} {prect_file}"
-                )
-            if var == "RESTOM":
-                # RESTOM = FSNT-FLNT
-                # Have to be more precise than with PRECT because FSNTOA, FSTNC, etc are valid variables
-                if glob.glob(os.path.join(ts_dir, "*.FSNT.*")) and glob.glob(
-                    os.path.join(ts_dir, "*.FLNT.*")
-                ):
-                    input_files = [
-                        sorted(glob.glob(os.path.join(ts_dir, f"*.{v}.*")))
-                        for v in ["FLNT", "FSNT"]
-                    ]
-                    constit_files = []
-                    for elem in input_files:
-                        constit_files += elem
-                else:
-                    ermsg = "FSNT and FLNT were not both present; RESTOM cannot be calculated."
-                    ermsg += " Please remove RESTOM from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(ermsg)
-                # create new file name for RESTOM
-                derived_file = constit_files[0].replace("FLNT", "RESTOM")
+            print(f"\t - deriving time series for {var}")
+
+            #Check whether there are parts to derive from and if there is an associated equation
+            vres = res.get(var, {})
+            if "derivable_from" in vres:
+                constit_list = vres['derivable_from']
+            else:
+                print("WARNING: No constituents listed in defaults config file, moving on")
+                pass
+
+            constit_files = []
+            for constit in constit_list:
+                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
+                    constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
+
+            #Check if all the constituent files were found
+            if len(constit_files) != len(constit_list):
+                ermsg = f"Not all constituent files present; {var} cannot be calculated."
+                ermsg += f" Please remove {var} from diag_var_list or find the relevant CAM files."
+                print(ermsg)
+            else:
+                #Open a new dataset with all the constituent files/variables
+                ds = xr.open_mfdataset(constit_files)
+    
+                # create new file name for derived variable
+                derived_file = constit_files[0].replace(constit_list[0], var)
+                print(derived_file,"\n")
                 if Path(derived_file).is_file():
                     if overwrite:
                         Path(derived_file).unlink()
                     else:
                         print(
-                            f"[{__name__}] Warning: RESTOM file was found and overwrite is False. Will use existing file."
+                            f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
                         )
-                        continue
-                # append FSNT to the file containing FLNT
-                os.system(f"ncks -A -v FLNT {constit_files[0]} {constit_files[1]}")
-                # create new file with the difference of FLNT and FSNT
-                os.system(
-                    f"ncap2 -s 'RESTOM=(FSNT-FLNT)' {constit_files[1]} {derived_file}"
-                )
+                        return None
+    
+                variables = {}
+                for i in constit_list:
+                    variables[i] = ds[constit_list[0]].dims
+    
+                #Get coordinate values from the first constituent file
+                coords={'lat': ds[constit_list[0]].lat.values, 'lon': ds[constit_list[0]].lon.values, 
+                                          "time": ds[constit_list[0]].time.values}
+
+                #Create data arrays from each constituent
+                #These variables will all be added to one file that will eventually contain the
+                #derived variable as well
+                #NOTE: This has to be done via xarray dataArrays
+                #      - There might be a way with xarray dataSets but none that have worked thus far
+                data_arrays = []
+                for var_const, dims in variables.items():
+                    values = ds[var_const].values
+                    da = xr.DataArray(values, coords=coords, dims=dims)
+                    data_arrays.append(da)
+                
+                #NOTE: this will need to be changed when derived equations are more than sums! - JR
+                ds[var] = sum(data_arrays)
+
+                #Aerosol Calculations - used for zonal plots
+                #These will be multiplied by rho (density of dry air)
+                ds_pmid_done = False
+                ds_t_done = False
+                if var in res["aerosol_zonal_list"]:
+                    
+                    #Only calculate once for all aerosol vars
+                    if not ds_pmid_done:
+                        ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
+                        ds_pmid_done = True
+                        if not ds_pmid:
+                            errmsg = f"Missing necessary files for rho calculation.\n"
+                            errmsg += "Please make sure 'PMID' is in the CAM run for aerosol calculations"
+                            print(errmsg)
+                            continue
+                    if not ds_t_done:
+                        ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
+                        ds_t_done = True
+                        if not ds_t:
+                            errmsg = f"Missing necessary files for rho calculation.\n"
+                            errmsg += "Please make sure 'T' is in the CAM run for aerosol calculations"
+                            print(errmsg)
+                            continue
+
+                    #Multiply aerosol by rho
+                    ds[var] = ds[var]*(ds_pmid["PMID"]/(res["Rgas"]*ds_t["T"]))
+                    #Sulfate conversion factor
+                    if var == "SO4":
+                        ds[var] = ds[var]*(96/115)
+                
+                ds.to_netcdf(derived_file, unlimited_dims='time', mode='w')
+########
+
+#Helper Function(s)
+def _load_dataset(fils):
+    """
+    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    import warnings  # use to warn user about missing files.
+
+    #Format warning messages:
+    def my_formatwarning(msg, *args, **kwargs):
+        """Issue `msg` as warning."""
+        return str(msg) + '\n'
+    warnings.formatwarning = my_formatwarning
+
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        return xr.open_dataset(fils[0])
+    #End if
+#End def
+########
