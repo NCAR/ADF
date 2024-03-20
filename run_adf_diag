@@ -157,6 +157,10 @@ if __name__ == "__main__":
     if diag.get_cvdp_info('cvdp_run'):
        diag.setup_run_cvdp()
 
+    #Call the MDTF:
+    if diag.get_mdtf_info('mdtf_run'):
+       diag.setup_run_mdtf()
+
     #Create model climatology (climo) files.
     #This call uses the "time_averaging_scripts" specified
     #in the config file:
