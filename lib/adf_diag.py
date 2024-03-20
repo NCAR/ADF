@@ -1113,6 +1113,7 @@ class AdfDiag(AdfWeb):
         Move ts files to the directory structure and names required by MDTF
         Should change with data catalogues 
         '''
+        import shutil
 
         cam_ts_loc   = self.get_cam_info('cam_ts_loc', required=True)
         self.expand_references({"cam_ts_loc" : cam_ts_loc})
@@ -1203,11 +1204,10 @@ class AdfDiag(AdfWeb):
         """
 
         #import needed standard modules:
-        import shutil
         import json
 
-        test = True  #True (copy files but don't run), False (copy files and run MDTF).  Could make this a yaml variable
-        verbose = 3  # 0 errors and major sections, 1 warnings, 2 detailed, 3 excessive 
+        test = False  #True (copy files but don't run), False (copy files and run MDTF).  Could make this a yaml variable
+        verbose = 2  # 0 errors and major sections, 1 warnings, 2 detailed, 3 excessive 
                 
         print("\n  Setting up MDTF...")
         #We want access to the entire dict of mdtf_info

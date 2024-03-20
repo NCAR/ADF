@@ -302,12 +302,12 @@ diag_mdtf_info:
     conda_env_root     : /glade/work/bundy/miniconda2/envs.MDTFv3.1.20230412/
     OBS_DATA_ROOT      : /glade/work/bundy/mdtf/inputdata/obs_data
 
-    # These MAY CHANGE if you want the output somewhere other than your ADF figures
-    OUTPUT_DIR         : ${diag_basic_info.cam_diag_plot_loc}/mdtf  
-    WORKING_DIR        : ${diag_basic_info.cam_diag_plot_loc}/mdtf
+    # Set to default for same as the ADF plot_location. Anything else here overrides that
+    OUTPUT_DIR         : default
+    WORKING_DIR        : default
 
-    # SET this to a writable dir. The ADF will place ts files here for the MDTF to read.
-    MODEL_DATA_ROOT     : ${diag_cam_climo.cam_ts_loc}/mdtf/inputdata/model
+    # SET this to a writable dir. The ADF will place ts files here for the MDTF to read (adds the casename)
+    MODEL_DATA_ROOT     : ${diag_cam_climo.dir_out}/mdtf/inputdata/model
 
     # Choose diagnostics (PODs). Full list of available PODs: https://github.com/NOAA-GFDL/MDTF-diagnostics
     pod_list      :  [ "MJO_suite" ]
