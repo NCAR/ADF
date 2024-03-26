@@ -145,7 +145,7 @@ def zonal_mean(adfobj):
         for var in var_list:
             for s in seasons:
                 #Check zonal log-p:
-                plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
+                plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
 
                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                 if (not redo_plot) and plot_name_log.is_file():
@@ -320,7 +320,7 @@ def zonal_mean(adfobj):
 
                     #Create new plot with log-p:
                     if has_lev:
-                        plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
+                        plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
 
                         if plot_name_log not in logp_zonal_skip:
                             pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, base_nickname,
