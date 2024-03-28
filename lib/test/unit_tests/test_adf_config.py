@@ -61,7 +61,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
         obs_data_loc = adf_test.read_config_var("obs_data_loc", conf_dict=basic_diag_dict)
 
-        self.assertEqual(obs_data_loc, "/glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs")
+        self.assertEqual(obs_data_loc, "/glade/campaign/cgd/amp/amwg/ADF_obs")
 
     #####
 
