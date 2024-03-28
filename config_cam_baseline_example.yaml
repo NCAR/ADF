@@ -84,7 +84,7 @@ diag_basic_info:
     #Location of observational datasets:
     #Note: this only matters if "compare_obs" is true and the path
     #isn't specified in the variable defaults file.
-    obs_data_loc: /glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_regrid_loc: /glade/scratch/${user}/ADF/regrid
