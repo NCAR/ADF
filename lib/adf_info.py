@@ -32,8 +32,9 @@ from pathlib import Path
 import copy
 import os
 import numpy as np
+# pylint: disable=import-error
 import xarray as xr
-
+# pylint: enable=import-error
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
 #+++++++++++++++++++++++++++++++++++++++++++++++++
