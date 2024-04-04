@@ -17,10 +17,10 @@ jobs:
     # acquire github action routines
     - uses: actions/checkout@v3
     # acquire specific version of python
-    - name: Set up Python 3.8
+    - name: Set up Python 3.11
       uses: actions/setup-python@v4
       with:
-        python-version: '3.8' # Use python 3.8
+        python-version: '3.11' # Use python 3.11
     # install required python packages
     - name: Install dependencies
       run: |
