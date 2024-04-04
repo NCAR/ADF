@@ -81,8 +81,8 @@ _DIAG_SCRIPTS_PATH = os.path.join(_LOCAL_PATH, os.pardir, "scripts")
 # Check that "scripts" directory actually exists:
 if not os.path.isdir(_DIAG_SCRIPTS_PATH):
     # If not, then raise error:
-    err_msg = f"'{_DIAG_SCRIPTS_PATH}' directory not found. Has 'AdfDiag.py' been moved?"
-    raise FileNotFoundError(err_msg)
+    error_message = f"'{_DIAG_SCRIPTS_PATH}' directory not found. Has 'AdfDiag.py' been moved?"
+    raise FileNotFoundError(error_message)
 
 # Walk through all sub-directories in "scripts" directory:
 for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
@@ -1053,9 +1053,9 @@ class AdfDiag(AdfWeb):
                 ):
                     constit_files = sorted(glob.glob(os.path.join(ts_dir, "*PREC*")))
                 else:
-                    err_msg = "PRECC and PRECL were not both present; PRECT cannot be calculated."
-                    err_msg += " Please remove PRECT from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(err_msg)
+                    error_message = "PRECC and PRECL were not both present; PRECT cannot be calculated."
+                    error_message += " Please remove PRECT from diag_var_list or find the relevant CAM files."
+                    raise FileNotFoundError(error_message)
                 # create new file name for PRECT
                 prect_file = constit_files[0].replace("PRECC", "PRECT")
                 if Path(prect_file).is_file():
@@ -1086,9 +1086,9 @@ class AdfDiag(AdfWeb):
                     for elem in input_files:
                         constit_files += elem
                 else:
-                    err_msg = "FSNT and FLNT were not both present; RESTOM cannot be calculated."
-                    err_msg += " Please remove RESTOM from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(err_msg)
+                    error_message = "FSNT and FLNT were not both present; RESTOM cannot be calculated."
+                    error_message += " Please remove RESTOM from diag_var_list or find the relevant CAM files."
+                    raise FileNotFoundError(error_message)
                 # create new file name for RESTOM
                 derived_file = constit_files[0].replace("FLNT", "RESTOM")
                 if Path(derived_file).is_file():
