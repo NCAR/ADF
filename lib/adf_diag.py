@@ -448,7 +448,7 @@ class AdfDiag(AdfWeb):
 
             # Check if history files actually exist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]                                                                                   
-            for hist_idx, hist_str in enumerate(hist_str_case):
+            for hist_str in hist_str_case:
                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
                     emsg = (
                         f"No history *{hist_str}.*.nc files found in '{starting_location}'."
@@ -568,7 +568,6 @@ class AdfDiag(AdfWeb):
                                 if constit not in diag_var_list:
                                     diag_var_list.append(constit)
                             vars_to_derive.append(var)
-                            continue
                         else:
                             msg = f"WARNING: {var} is not in the file {hist_files[0]}."
                             msg += " No time series will be generated."
@@ -662,7 +661,7 @@ class AdfDiag(AdfWeb):
                         vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
                     )
                 # End with
-            # End for hist_idx
+            # End for hist_str
 
         # End cases loop
 
@@ -1108,7 +1107,7 @@ class AdfDiag(AdfWeb):
                 )
 
     ######### MDTF functions #########
-    def move_tsfiles_for_mdtf(self,verbose,test): 
+    def move_tsfiles_for_mdtf(self,verbose): 
         '''
         Move ts files to the directory structure and names required by MDTF
         Should change with data catalogues 
@@ -1134,7 +1133,7 @@ class AdfDiag(AdfWeb):
         for case_idx, case_name in enumerate(case_names):
 
             hist_str_case = hist_str_list[case_idx]
-            for hist_idx, hist_str in enumerate(hist_str_case):
+            for hist_str in hist_str_case:
                 if verbose>0: print(f'\t looking for {hist_str} in {cam_ts_loc[0]}')
                 for var in var_list:
 
@@ -1236,7 +1235,7 @@ class AdfDiag(AdfWeb):
         # but then we don't get the nicely formated plot_location
         case_idx = 0
         plot_path = self.plot_location[case_idx]+"/mdtf"
-        for var_idx, var in enumerate(["WORKING_DIR","OUTPUT_DIR"]):
+        for var in ["WORKING_DIR","OUTPUT_DIR"]:
             if (mdtf_info[var] =='default'):
                 mdtf_info[var]  = plot_path
             
@@ -1247,7 +1246,7 @@ class AdfDiag(AdfWeb):
 
 
         with open(
-                mdtf_input_settings_filename, 'w'
+                mdtf_input_settings_filename, 'w', encoding="utf-8",
         ) as out_file:
             json.dump(
                 mdtf_info,
@@ -1263,7 +1262,7 @@ class AdfDiag(AdfWeb):
         # Move the data to the dir structure and file names expected by the MDTF
         #    model_input_data/case/freq/case.VAR.freq.nc
         
-        self.move_tsfiles_for_mdtf(verbose, test)
+        self.move_tsfiles_for_mdtf(verbose)
             
         #
         # Submit the MDTF script in background mode, send output to mdtf.out file       
@@ -1271,7 +1270,7 @@ class AdfDiag(AdfWeb):
         mdtf_log = os.path.join('./mdtf.out') # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
         mdtf_exe = mdtf_codebase+'/mdtf -f '+mdtf_input_settings_filename  
         if test:
-            print(f'\t ...Test only. NOT Running MDTF')
+            print('\t ...Test only. NOT Running MDTF')
             print(f'\t    Command: {mdtf_exe} Log: {mdtf_log}')
         else:
             print(f'\t ...Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}')

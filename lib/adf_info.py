@@ -218,7 +218,7 @@ class AdfInfo(AdfConfig):
 
             #Check if history file path exists:
             if any(baseline_hist_locs):
-                for hist_idx, hist_str in enumerate(baseline_hist_str):
+                for hist_str in baseline_hist_str:
                     starting_location = Path(baseline_hist_locs)
                     file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                     #Partition string to find exactly where h-number is
@@ -228,9 +228,9 @@ class AdfInfo(AdfConfig):
                     #Since the last part always includes the time range, grab that with last index (2)
                     #NOTE: this is based off the current CAM file name structure in the form:
                     #  $CASE.cam.h#.YYYY<other date info>.nc
+
                     base_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
                     base_climo_yrs = sorted(np.unique(base_climo_yrs))
-
                     base_found_syr = int(base_climo_yrs[0])
                     base_found_eyr = int(base_climo_yrs[-1])
 
@@ -258,7 +258,7 @@ class AdfInfo(AdfConfig):
                         print(msg)
                         eyear_baseline = base_found_eyr
 
-                #end for hist_idx
+                #end for hist_str
             #End if any(baseline_hist_locs)
 
 
@@ -368,7 +368,7 @@ class AdfInfo(AdfConfig):
             #Check if history file path exists:
             hist_str_case = cam_hist_str[case_idx]
             if any(cam_hist_locs):
-                for hist_idx, hist_str in enumerate(hist_str_case): 
+                for hist_str in hist_str_case: 
 
                     #Get climo years for verification or assignment if missing
                     starting_location = Path(cam_hist_locs[case_idx])
@@ -410,7 +410,7 @@ class AdfInfo(AdfConfig):
                         print(msg)
                         eyear = case_found_eyr
                     #End if
-                #end for hist_idx, hist_str_file in enumerate(hist_str):
+                #end for hist_str_file in enumerate(hist_str):
             #End if
 
             #Update climo year lists in case anything changed
@@ -506,9 +506,6 @@ class AdfInfo(AdfConfig):
     #########
     def hist_str_to_list(self, conf_var, conf_val):
         if ( isinstance(self.get_cam_info("hist_str",required=True), list)):
-            dim1 = len(conf_val)
-            if ( isinstance(conf_val[0], list)):
-                dim2 = len(conf_val[0])
             hist_str = conf_val
         else:  # one case, one hist str
             hist_str = [conf_val]  # make a nested list [ncases,nfiles] of the given value
@@ -618,7 +615,7 @@ class AdfInfo(AdfConfig):
         """
         Return the config variable from 'diag_cam_climo' as requested by
         the user.  This function assumes that if the user is requesting it,
-        then it must be required. (DRB: This statement contradicts the default value of required=False)
+        then it must be required. (Note: This statement contradicts the default value of required=False)
         """
 
         return self.read_config_var(var_str,
