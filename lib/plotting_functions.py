@@ -3,6 +3,8 @@ Generic computation and plotting helper functions
 
 Functions
 ---------
+load_dataset()
+    generalized load dataset method used for plotting/analysis functions
 use_this_norm()
     switches matplotlib color normalization method
 get_difference_colors(values)
@@ -100,6 +102,14 @@ from matplotlib.lines import Line2D
 from adf_diag import AdfDiag
 from adf_base import AdfError
 
+import warnings  # use to warn user about missing files.
+
+#Format warning messages:
+def my_formatwarning(msg, *args, **kwargs):
+    """Issue `msg` as warning."""
+    return str(msg) + '\n'
+warnings.formatwarning = my_formatwarning
+
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
 
@@ -122,6 +132,33 @@ seasons = {"ANN": np.arange(1,13,1),
 #################
 #HELPER FUNCTIONS
 #################
+
+def load_dataset(fils):
+    """
+    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        return xr.open_dataset(fils[0])
+    #End if
+#End def
 
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""
@@ -513,14 +550,14 @@ def seasonal_mean(data, season=None, is_climo=None):
                 time_dim_num = data.shape.index(12)
                 fakedims = [f"dim{n}" for n in range(len(data.shape))]
                 fakedims[time_dim_num] = "time"
-                data = xr.DataArray(data, dims=fakedims)
+                data = xr.DataArray(data, dims=fakedims, attrs=data.attrs)
             timefix = pd.date_range(start='1/1/1999', end='12/1/1999', freq='MS') # generic time coordinate from a non-leap-year
             data = data.assign_coords({"time":timefix})
         month_length = data.time.dt.days_in_month
     #End try/except
 
     data = data.sel(time=data.time.dt.month.isin(seasons[season])) # directly take the months we want based on season kwarg
-    return data.weighted(data.time.dt.daysinmonth).mean(dim='time')
+    return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
 
 
 
@@ -952,10 +989,10 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     # Generate vector plot:
     #  - contourf to show magnitude w/ colorbar
     #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
-    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree(), transform_first=True,)
     ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
-    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree(), transform_first=True)
     ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
     # We should think about how to do plot customization and defaults.
@@ -1028,7 +1065,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     fig.colorbar(img2, cax=cb_c2_ax)
 
     # Plot vector differences:
-    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
+    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), transform_first=True, norm=normdiff, cmap='PuOr', alpha=0.5)
     ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
 
     # Add color bar to difference plot:
@@ -1152,7 +1189,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
     # LAYOUT WITH GRIDSPEC
     gs = mpl.gridspec.GridSpec(3, 6, wspace=0.5,hspace=0.0) # 2 rows, 4 columns, but each map will take up 2 columns
-    #gs.tight_layout(fig)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
     ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info['subplots_opt'])
     ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info['subplots_opt'])
@@ -1183,10 +1219,10 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
         levs = np.unique(np.array(levels))
         if len(levs) < 2:
-            img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
+            img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
-            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **cp_info['contourf_opt']))
+            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
 

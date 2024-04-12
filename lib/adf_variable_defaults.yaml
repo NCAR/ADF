@@ -49,12 +49,25 @@
 # category  -> The website category the variable will be placed under.
 #
 #
+# DERIVING:
+#
+# derivable_from -> If not present in the available output files, the variable can be derived from
+#                   other variables that are present (e.g. PRECT can be derived from PRECC and PRECL),
+#                   which are specified in this list
+#
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
 #              If you would like to modify this file for your personal ADF runs then it is recommended
 #              to make a copy of this file, make modifications in that copy, and then point the ADF to
 #              it using the "defaults_file" config variable.
 #
 #+++++++++++
+
+#+++++++++++++
+# Available ADF Default Plot Types
+#+++++++++++++
+
+default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
+                  "NHPolar","SHPolar","Special"]
 
 #+++++++++++++
 # Category: Microphysics
@@ -368,6 +381,8 @@ TGCLDLWP:
   obs_file: "TGCLDLWP_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "TGCLDLWP"
+  obs_scale_factor: 1000
+  obs_add_offset: 0
 
 TGCLDIWP:
   colormap: "Blues"
@@ -384,6 +399,8 @@ TGCLDIWP:
   obs_file: "TGCLDIWP_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "TGCLDIWP"
+  obs_scale_factor: 1000
+  obs_add_offset: 0
 
 CCN3:
   category: "Clouds"
@@ -422,12 +439,42 @@ PRECC:
   category: "Hydrologic cycle"
 
 PRECL:
+  colormap: "Greens"
+  contour_levels_range: [0, 20, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 86400000
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECSC:
+  colormap: "Greens"
+  contour_levels_range: [0, 20, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 86400000
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECSL:
+  colormap: "Greens"
+  contour_levels_range: [0, 20, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 86400000
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECT:
@@ -445,6 +492,7 @@ PRECT:
   obs_name: "ERAI"
   obs_var_name: "PRECT"
   category: "Hydrologic cycle"
+  derivable_from: ['PRECL','PRECC']
 
 QFLX:
   category: "Hydrologic cycle"
@@ -676,6 +724,19 @@ QRS:
 #+++++++++++++++++
 # Category: TOA energy flux
 #+++++++++++++++++
+RESTOM:
+  colormap: "RdBu_r"
+  contour_levels_range: [-100, 100, 5]
+  diff_colormap: "seismic"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+  category: "TOA energy flux"
+  derivable_from: ['FLNT','FSNT']
 
 SWCF:
   colormap: "Blues"
@@ -722,12 +783,22 @@ FSUTOA:
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
-  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
-  obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "toa_sw_all_mon"
   category: "TOA energy flux"
 
 FSNT:
+  colormap: "Blues"
+  contour_levels_range: [120, 320, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_sw_all_mon"
   category: "TOA energy flux"
 
 FSNTC:

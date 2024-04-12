@@ -138,21 +138,16 @@ def amwg_table(adf):
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
         input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
 
-        if "CMIP" in baseline_name:
-            print("CMIP files detected, skipping AMWG table (for now)...")
-
-        else:
-            #Append to case list:
-            case_names.append(baseline_name)
-            input_ts_locs.append(input_ts_baseline)
+        case_names.append(baseline_name)
+        input_ts_locs.append(input_ts_baseline)
 
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
+    else:
+        print("AMWG table doesn't currently work with obs, so obs table won't be created.")
+    #End if
 
     #-----------------------------------------
-    #Create (empty) dictionary to use for the
-    #residual top of model (RESTOM) radiation calculation:
-    restom_dict = {}
 
     #Loop over CAM cases:
     for case_idx, case_name in enumerate(case_names):
@@ -182,9 +177,6 @@ def amwg_table(adf):
             Path.unlink(output_csv_file)
         #End if
 
-        #Save case name as a new key in the RESTOM dictonary:
-        restom_dict[case_name] = {}
-
         #Create/reset new variable that potentially stores the re-gridded
         #ocean fraction xarray data-array:
         ocn_frc_da = None
@@ -209,12 +201,14 @@ def amwg_table(adf):
             #TEMPORARY:  For now, make sure only one file exists:
             if len(ts_files) != 1:
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
-                errmsg += f" Multiple files were found for the variable '{var}'"
-                raise AdfError(errmsg)
+                errmsg += f" Multiple files were found for the variable '{var}', so it will be skipped."
+                print(errmsg)
+                continue
             #End if
 
-            #Load model data from file:
-            data = _load_data(ts_files[0], var)
+            #Load model variable data from file:
+            ds = pf.load_dataset(ts_files)
+            data = ds[var]
 
             #Extract units string, if available:
             if hasattr(data, 'units'):
@@ -270,14 +264,6 @@ def amwg_table(adf):
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
                 data = pf.spatial_average(data)  # changes data "in place"
 
-            #Add necessary data for RESTOM calcs below
-            if var == "FLNT":
-                restom_dict[case_name][var] = data
-                #Copy units for RESTOM as well:
-                restom_units = unit_str
-            if var == "FSNT":
-                restom_dict[case_name][var] = data
-
             # In order to get correct statistics, average to annual or seasonal
             data = pf.annual_mean(data, whole_years=True, time_name='time')
 
@@ -305,52 +291,31 @@ def amwg_table(adf):
         #End of var_list loop
         #--------------------
 
-        if "FSNT" and "FLNT" in var_list:
-            #RESTOM Calcs
-            var = "RESTOM" #RESTOM = FSNT-FLNT
-            print(f"\t - Variable '{var}' being added to table")
-            data = restom_dict[case_name]["FSNT"] - restom_dict[case_name]["FLNT"]
-            # In order to get correct statistics, average to annual or seasonal
-            data = pf.annual_mean(data, whole_years=True, time_name='time')
-            # These get written to our output file:
-            stats_list = _get_row_vals(data)
-            row_values = [var, restom_units] + stats_list
-            # col (column) values declared above
+        # Move RESTOM to top of table (if applicable)
+        #--------------------------------------------
+        try:
+            table_df = pd.read_csv(output_csv_file)
+            if 'RESTOM' in table_df['variable'].values:
+                table_df = pd.concat([table_df[table_df['variable'] == 'RESTOM'], table_df]).reset_index(drop = True)
+                table_df = table_df.drop_duplicates()
+                table_df.to_csv(output_csv_file, header=cols, index=False)
 
-            # Format entries:
-            dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
-
-            # Add entries to Pandas structure:
-            df = pd.DataFrame(dfentries)
-
-            # Check if the output CSV file exists,
-            # if so, then append to it:
-            if output_csv_file.is_file():
-                df.to_csv(output_csv_file, mode='a', header=False, index=False)
-            else:
-                df.to_csv(output_csv_file, header=cols, index=False)
-            #End if
-
-        else:
-            #Print message to debug log:
-            adf.debug_log("RESTOM not calculated because FSNT and/or FLNT variables not in dataset")
-        #End if
-
-        # last step is to add table dataframe to website (if enabled):
-        table_df = pd.read_csv(output_csv_file)
-        adf.add_website_data(table_df, case_name, case_name, plot_type="Tables")
+            # last step is to add table dataframe to website (if enabled):
+            adf.add_website_data(table_df, case_name, case_name, plot_type="Tables")
+        except FileNotFoundError:
+            print(f"\n\tAMWG table for '{case_name}' not created.\n")
+        #End try/except
 
     #End of model case loop
     #----------------------
 
-
-    #Notify user that script has ended:
-    print("  ...AMWG variable table has been generated successfully.")
-
-    #Check if observations are being comapred to, if so skip table comparison...
+    #Start case comparison tables
+    #----------------------------
+    #Check if observations are being compared to, if so skip table comparison...
     if not adf.get_basic_info("compare_obs"):
-        if "CMIP" in baseline_name:
-            print("CMIP case detected, skipping comparison table...")
+        #Check if all tables were created to compare against, if not, skip table comparison...
+        if len(sorted(output_location.glob("*.csv"))) != len(case_names):
+            print("\tNot enough cases to compare, skipping comparison table...")
         else:
             #Create comparison table for both cases
             print("\n  Making comparison table...")
@@ -358,20 +323,16 @@ def amwg_table(adf):
             print("  ... Comparison table has been generated successfully")
         #End if
     else:
-        print(" Comparison table currently doesn't work with obs, so skipping...")
+        print(" No comparison table will be generated due to running against obs.")
     #End if
+
+    #Notify user that script has ended:
+    print("  ...AMWG variable table(s) have been generated successfully.")
 
 
 ##################
 # Helper functions
 ##################
-
-def _load_data(dataloc, varname):
-    import xarray as xr
-    ds = xr.open_dataset(dataloc)
-    return ds[varname]
-
-#####
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:

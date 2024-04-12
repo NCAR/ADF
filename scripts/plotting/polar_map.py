@@ -161,13 +161,9 @@ def polar_map(adfobj):
                 data_name = data_src
             else:
                 oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
-
-            if len(oclim_fils) > 1:
-                oclim_ds = xr.open_mfdataset(oclim_fils, combine='by_coords')
-            elif len(oclim_fils) == 1:
-                sfil = str(oclim_fils[0])
-                oclim_ds = xr.open_dataset(sfil)
-            else:
+           
+            oclim_ds = pf.load_dataset(oclim_fils)
+            if oclim_ds is None:
                 print("WARNING: Did not find any oclim_fils. Will try to skip.")
                 print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
                 print(f"INFO: The glob is: {data_src}_{var}_*.nc")
@@ -190,11 +186,8 @@ def polar_map(adfobj):
                 # load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
 
-                if len(mclim_fils) > 1:
-                    mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-                elif len(mclim_fils) == 1:
-                    mclim_ds = xr.open_dataset(mclim_fils[0])
-                else:
+                mclim_ds = pf.load_dataset(mclim_fils)
+                if mclim_ds is None:
                     print("WARNING: Did not find any regridded climo files. Will try to skip.")
                     print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
                     print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
@@ -261,6 +254,7 @@ def polar_map(adfobj):
                                 # If redo_plot set to True: remove old plot, if it already exists:
                                 if (not redo_plot) and plot_name.is_file():
                                     #Add already-existing plot to website (if enabled):
+                                    adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
                                                             season=s, plot_type=hemi_type)
 
@@ -339,6 +333,7 @@ def polar_map(adfobj):
                                     # If redo_plot set to True: remove old plot, if it already exists:
                                     if (not redo_plot) and plot_name.is_file():
                                         #Add already-existing plot to website (if enabled):
+                                        adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",
                                                                 case_name, category=web_category,
                                                                 season=s, plot_type=hemi_type)
