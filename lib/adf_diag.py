@@ -535,15 +535,16 @@ class AdfDiag(AdfWeb):
             # create copy of var list that can be modified for derivable variables
             diag_var_list = self.diag_var_list
 
-            # Aerosol Requirements
-            #---------------------
-            #Always make sure PMID and T are made if aerosols are desired in config file
-            if any(diag_var in res["aerosol_zonal_list"] for diag_var in diag_var_list):
-                if "PMID" not in diag_var_list:
+            # Aerosol Calcs
+            #--------------
+            #Always make sure PMID is made if aerosols are desired in config file
+            if "PMID" not in diag_var_list:
+                if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
                     diag_var_list += ["PMID"]
-                if "T" not in diag_var_list:
+            if "T" not in diag_var_list:
+                if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
                     diag_var_list += ["T"]
-            #End aerosol
+            #End aerosol calcs
 
             for var in diag_var_list:
                 if var not in hist_file_var_list:
@@ -1042,6 +1043,7 @@ class AdfDiag(AdfWeb):
                 print("WARNING: No constituents listed in defaults config file, moving on")
                 continue
 
+            #Grab all required time series files for derived var
             constit_files = []
             for constit in constit_list:
                 if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
@@ -1055,10 +1057,11 @@ class AdfDiag(AdfWeb):
             else:
                 #Open a new dataset with all the constituent files/variables
                 ds = xr.open_mfdataset(constit_files)
-
+    
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
-                print(derived_file,"\n")
+
+                #Check if clobber is true for file
                 if Path(derived_file).is_file():
                     if overwrite:
                         Path(derived_file).unlink()
@@ -1066,43 +1069,33 @@ class AdfDiag(AdfWeb):
                         print(
                             f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
                         )
-                        return None
+                        continue
 
-                variables = {}
-                for i in constit_list:
-                    variables[i] = ds[constit_list[0]].dims
-
-                #Get coordinate values from the first constituent file
-                coords={'lat': ds[constit_list[0]].lat.values,
-                        'lon': ds[constit_list[0]].lon.values,
-                        "time": ds[constit_list[0]].time.values}
-
-                #Create data arrays from each constituent
-                #These variables will all be added to one file that will eventually contain the
-                #derived variable as well
-                #NOTE: This has to be done via xarray dataArrays
-                #    - There might be a way with xarray dataSets but none that have worked thus far
-                data_arrays = []
-                for var_const, dims in variables.items():
-                    values = ds[var_const].values
-                    da = xr.DataArray(values, coords=coords, dims=dims)
-                    data_arrays.append(da)
-
-                #NOTE: this will need to be changed when derived equations are more than sums! - JR
-                ds[var] = sum(data_arrays)
+                #NOTE: this will need to be changed when derived equations are more complex! - JR
+                if var == "RESTOM":
+                    der_val = ds["FSNT"]-ds["FLNT"]
+                else:
+                    #Loop through all constituents and sum
+                    der_val = 0
+                    for v in constit_list:
+                        der_val += ds[v]
+                
+                #Set derived variable name and add to dataset
+                der_val.name = var
+                ds[var] = der_val
 
                 #Aerosol Calculations - used for zonal plots
                 #These will be multiplied by rho (density of dry air)
                 ds_pmid_done = False
                 ds_t_done = False
                 if var in res["aerosol_zonal_list"]:
-
+                    
                     #Only calculate once for all aerosol vars
                     if not ds_pmid_done:
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
                         ds_pmid_done = True
                         if not ds_pmid:
-                            errmsg = "Missing necessary files for rho calculation.\n"
+                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
                             errmsg += "Please make sure 'PMID' is in the CAM run for aerosol calculations"
                             print(errmsg)
                             continue
@@ -1110,18 +1103,23 @@ class AdfDiag(AdfWeb):
                         ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
                         ds_t_done = True
                         if not ds_t:
-                            errmsg = "Missing necessary files for rho calculation.\n"
+                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
                             errmsg += "Please make sure 'T' is in the CAM run for aerosol calculations"
                             print(errmsg)
                             continue
 
-                    #Multiply aerosol by rho
+                    #Multiply aerosol by dry air density (rho): (P/Rd*T)
                     ds[var] = ds[var]*(ds_pmid["PMID"]/(res["Rgas"]*ds_t["T"]))
+
                     #Sulfate conversion factor
                     if var == "SO4":
-                        ds[var] = ds[var]*(96/115)
+                        ds[var] = ds[var]*(96./115.)
 
-                ds.to_netcdf(derived_file, unlimited_dims='time', mode='w')
+                #Drop all constituents from final saved dataset
+                #These are not necessary because they have their own time series files
+                ds_final = ds.drop_vars(constit_list)
+                ds_final.to_netcdf(derived_file, unlimited_dims='time', mode='w')
+
 ########
 
 #Helper Function(s)
