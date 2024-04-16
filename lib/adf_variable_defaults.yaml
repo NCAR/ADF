@@ -71,6 +71,8 @@ default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
 #+++++++++++++
 # Constants
 #+++++++++++++
+
+#Dry Air Gas Constant:
 Rgas: 287.04 #[J/K/Kg]=8.314/0.028965
 
 #+++++++++++++
@@ -197,10 +199,10 @@ BC:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: "ug/m3"
+  new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
-      label : "ug/m3"
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["bc_a1", "bc_a4"]
 
@@ -209,10 +211,10 @@ POM:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: "ug/m3"
+  new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
-      label : "ug/m3"
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["pom_a1", "pom_a4"]
 
@@ -221,10 +223,10 @@ SO4:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: "ug/m3"
+  new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
-      label : "ug/m3"
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
 
@@ -233,10 +235,10 @@ SOA:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: "ug/m3"
+  new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
-      label : "ug/m3"
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["soa_a1", "soa_a2"]
 
@@ -247,10 +249,10 @@ DUST:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: "ug/m3"
+  new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
-      label : "ug/m3"
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["dst_a1", "dst_a2", "dst_a3"]
 
@@ -261,13 +263,13 @@ SeaSalt:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: "ug/m3"
+  new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
-      label : "ug/m3"
+      label : '$\mu$g/m3'
       ticks: [0.05,0.2,0.4,1,2,6,24,90]
     diff_colorbar:
-      label : "ug/m3"
+      label : '$\mu$g/m3'
       ticks: [-10,8,6,4,2,0,-2,-4,-6,-8,-10]
   category: "Aerosols"
   derivable_from: ["ncl_a1", "ncl_a2", "ncl_a3"]
