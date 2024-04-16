@@ -54,6 +54,9 @@
 # derivable_from -> If not present in the available output files, the variable can be derived from
 #                   other variables that are present (e.g. PRECT can be derived from PRECC and PRECL),
 #                   which are specified in this list
+#                   NOTE: this is not very flexible at the moment! It can only handle variables that
+#                         are sums of the constituents. Futher flexibility is being explored.
+#
 #
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
 #              If you would like to modify this file for your personal ADF runs then it is recommended
