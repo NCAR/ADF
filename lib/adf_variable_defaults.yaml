@@ -54,6 +54,9 @@
 # derivable_from -> If not present in the available output files, the variable can be derived from
 #                   other variables that are present (e.g. PRECT can be derived from PRECC and PRECL),
 #                   which are specified in this list
+#                   NOTE: this is not very flexible at the moment! It can only handle variables that
+#                         are sums of the constituents. Futher flexibility is being explored.
+#
 #
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
 #              If you would like to modify this file for your personal ADF runs then it is recommended
@@ -65,9 +68,15 @@
 #+++++++++++++
 # Available ADF Default Plot Types
 #+++++++++++++
-
 default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
                   "NHPolar","SHPolar","Special"]
+
+#+++++++++++++
+# Constants
+#+++++++++++++
+
+#Dry Air Gas Constant:
+Rgas: 287.04 #[J/K/Kg]=8.314/0.028965
 
 #+++++++++++++
 # Category: Microphysics
@@ -124,6 +133,9 @@ FICE:
 #+++++++++++
 # Category: Aerosols
 #+++++++++++
+
+#List of zonal areosols
+aerosol_zonal_list: ["BC","POM","SO4","SOA","NH4HSO4","DUST","SeaSalt"]
 
 AODDUST:
   category: "Aerosols"
@@ -184,6 +196,87 @@ SO2:
 
 SOAG:
   category: "Aerosols"
+
+BC:
+  colormap: "RdBu_r"
+  diff_colormap: "BrBG"
+  scale_factor: 1000000000
+  add_offset: 0
+  new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
+  category: "Aerosols"
+  derivable_from: ["bc_a1", "bc_a4"]
+
+POM:
+  colormap: "RdBu_r"
+  diff_colormap: "BrBG"
+  scale_factor: 1000000000
+  add_offset: 0
+  new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
+  category: "Aerosols"
+  derivable_from: ["pom_a1", "pom_a4"]
+
+SO4:
+  colormap: "RdBu_r"
+  diff_colormap: "BrBG"
+  scale_factor: 1000000000
+  add_offset: 0
+  new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
+  category: "Aerosols"
+  derivable_from: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
+
+SOA:
+  colormap: "RdBu_r"
+  diff_colormap: "BrBG"
+  scale_factor: 1000000000
+  add_offset: 0
+  new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
+  category: "Aerosols"
+  derivable_from: ["soa_a1", "soa_a2"]
+
+DUST:
+  colormap: "RdBu_r"
+  contour_levels: [0,0.1,0.25,0.4,0.6,0.8,1.4,2,3,4,8,12,30,48,114,180]
+  non_linear: True
+  diff_colormap: "BrBG"
+  scale_factor: 1000000000
+  add_offset: 0
+  new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
+  category: "Aerosols"
+  derivable_from: ["dst_a1", "dst_a2", "dst_a3"]
+
+SeaSalt:
+  colormap: "RdBu_r"
+  contour_levels: [0,0.05,0.075,0.2,0.3,0.4,0.7,1,1.5,2,4,6,15,24,57,90]
+  non_linear: True
+  diff_colormap: "BrBG"
+  scale_factor: 1000000000
+  add_offset: 0
+  new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
+      ticks: [0.05,0.2,0.4,1,2,6,24,90]
+    diff_colorbar:
+      label : '$\mu$g/m3'
+      ticks: [-10,8,6,4,2,0,-2,-4,-6,-8,-10]
+  category: "Aerosols"
+  derivable_from: ["ncl_a1", "ncl_a2", "ncl_a3"]
+
 
 
 #+++++++++++++++++
@@ -500,7 +593,6 @@ QFLX:
 #+++++++++++++++++
 # Category: Surface variables
 #+++++++++++++++++
-
 
 PBLH:
   category: "Surface variables"
