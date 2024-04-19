@@ -90,15 +90,14 @@ class AdfData:
     def get_reference_climo_file(self, var):
         """Return a list of files to be used as reference (aka baseline) for variable var."""
         if self.reference_is_obs:
-            return [self.ref_var_loc[var]]
-        else:
-            self.ref_loc = self.adf.get_baseline_info("cam_climo_loc")
-            # NOTE: originally had this looking for *_baseline.nc 
-            fils = sorted(Path(self.ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
-            if fils:
-                return fils
-            else:
-                return None
+            fils = self.ref_var_loc.get(var, None)
+            return [fils] if fils is not None else None
+        self.ref_loc = self.adf.get_baseline_info("cam_climo_loc")
+        # NOTE: originally had this looking for *_baseline.nc
+        fils = sorted(Path(self.ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
+        if fils:
+            return fils
+        return None
 
     def load_reference_dataset(self, var):
         fils = self.get_reference_climo_file(var)
@@ -121,8 +120,29 @@ class AdfData:
             da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
         return da
 
-    def get_climo_file(self, variablename):
-        pass
+
+    def load_climo_da(self, case, variablename):
+        """Return DataArray from climo file"""
+        fils = self.get_climo_file(case, variablename)
+        return self.load_da(fils, variablename)
+
+
+    def load_climo_file(self, case, variablename):
+        """Return Dataset for climo of variablename"""
+        fils = self.get_climo_file(case, variablename)
+        if not fils:
+            print(f"ERROR: Did not find climo file for variable: {variablename}. Will try to skip.")
+            return None
+        return self.load_dataset(fils)
+    
+
+    def get_climo_file(self, case, variablename):
+        """Retrieve the climo file path(s) for variablename for a specific case."""
+        a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
+        caseindex = (self.case_names).index(case) # the entry for specified case
+        # print(f"Checking if case name is in the climo loc entry: {case in a[caseindex]}")
+        model_cl_loc = Path(a[caseindex])
+        return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
 
     def get_timeseries_file(self, case, field):
         ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True)
@@ -171,13 +191,18 @@ class AdfData:
             ds = xr.open_mfdataset(fils, combine='by_coords')
         else:
             sfil = str(fils[0])
+            assert Path(sfil).is_file(), f"Needs to be a file: {sfil}"
             ds = xr.open_dataset(sfil)
         if ds is None:
             warnings.warn(f"invalid data on load_dataset")
         return ds
 
     def load_da(self, fils, variablename):
-        da = (self.load_dataset(fils)[variablename]).squeeze()
+        ds = self.load_dataset(fils)
+        if ds is None:
+            print(f"ERROR: Load failed for {variablename}")
+            return None
+        da = (ds[variablename]).squeeze()
         if variablename in self.res:
             vres = self.res[variablename]
             da = da * vres.get("scale_factor",1) + vres.get("add_offset", 0)
