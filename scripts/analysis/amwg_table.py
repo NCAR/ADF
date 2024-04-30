@@ -309,7 +309,7 @@ def amwg_table(adf):
         #End try/except
 
         #Keep track of case csv files for comparison table check later
-        csv_list.append(sorted(output_location.glob(f"amwg_table_{case_name}.csv")))
+        csv_list.extend(sorted(output_location.glob(f"amwg_table_{case_name}.csv")))
 
     #End of model case loop
     #----------------------
