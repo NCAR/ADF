@@ -1,3 +1,4 @@
+
 """
 Location of the "AdfDiag" object, which
 is used to store all relevant data and
@@ -546,21 +547,75 @@ class AdfDiag(AdfWeb):
                     diag_var_list += ["T"]
             #End aerosol calcs
 
+            #Initialize dictionary for derived var with needed list of constituents
+            constit_dict = {}
             for var in diag_var_list:
+                #Check if current variable is a derived quantity
                 if var not in hist_file_var_list:
                     vres = res.get(var, {})
+
+                    #Initialiaze list for constituents
+                    #NOTE: This is if the variable is NOT derivable but need
+                    # an empty list as a check later 
+                    constit_list = []
+                    
+                    #intialize boolean to check if variable is derivable
+                    derive = False # assume it can't be derived and update if it can
+
+                    #Try and build variable from 'derivable_from'
                     if "derivable_from" in vres:
+                        derive = True
                         constit_list = vres["derivable_from"]
-                        for constit in constit_list:
-                            if constit not in diag_var_list:
-                                diag_var_list.append(constit)
-                        vars_to_derive.append(var)
-                        continue
+                        #Check if variable is potentially part of a CAM-CHEM run
+                        if (any(item not in hist_file_ds.data_vars for item in constit_list)) and (var in res["cam_chem_list"]):
+                            #Set check to look for CAM-CHEM constituents list in variable defaults
+                            get_cam_chem_constits = True
+                        else:
+                            get_cam_chem_constits = False
+                        #End if
+
+                        #If this is a CAM-CHEM run, update constit_list
+                        if get_cam_chem_constits:
+                            print(f"Looks like this a CAM-CHEM run, checking constits for '{var}'")
+                            if "derivable_from_cam_chem" in vres:
+                                constit_list = vres['derivable_from_cam_chem']
+                            else:
+                                derive = False
+                                errmsg = f"\n Missing 'derivable_from_cam_chem' config argument for {var}."
+                                errmsg += "\n\tPlease remove variable from ADF run or set appropriate"
+                                errmsg += " argument in variable defaults yaml file."
+                                print(errmsg)
+                            #End if
+                        #End if
+
+                        #Now check if this variable can be derived
+                        if derive:
+                            for constit in constit_list:
+                                if constit not in diag_var_list:
+                                    diag_var_list.append(constit)
+                            #Add variable to list to derive
+                            vars_to_derive.append(var)
+                            #Add constituent list to variable key in dictionary
+                            constit_dict[var] = constit_list
+                            continue
+                        #End if
+
                     else:
+                        errmsg = f"\n Missing 'derivable_from' config argument for {var}."
+                        errmsg += "\n\tPlease remove variable from ADF run or set appropriate"
+                        errmsg += " argument in variable defaults yaml file."
+                        print(errmsg)
+                        #continue
+                    #End if 'derivable_from'
+
+                    #Lastly, raise error if the variable is not a derived quanitity but is also not
+                    #in the history file(s)
+                    if (not derive) and (not constit_list):
                         msg = f"WARNING: {var} is not in the file {hist_files[0]}."
                         msg += " No time series will be generated."
                         print(msg)
                         continue
+                #End if
 
                 # Check if variable has a "lev" dimension according to first file:
                 has_lev = bool("lev" in hist_file_ds[var].dims)
@@ -646,7 +701,8 @@ class AdfDiag(AdfWeb):
 
             if vars_to_derive:
                 self.derive_variables(
-                    res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
+                    res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx],
+                    constit_dict=constit_dict
                 )
             # End with
 
@@ -1020,7 +1076,7 @@ class AdfDiag(AdfWeb):
 
     #########
 
-    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None, overwrite=None):
+    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None, constit_dict=None, overwrite=None):
         """
         Derive variables acccording to steps given here.  Since derivations will depend on the
         variable, each variable to derive will need its own set of steps below.
@@ -1032,28 +1088,32 @@ class AdfDiag(AdfWeb):
 
         """
 
+        #Loop through derived variables
         for var in vars_to_derive:
             print(f"\t - deriving time series for {var}")
 
-            #Check whether there are parts to derive from and if there is an associated equation
-            vres = res.get(var, {})
-            if "derivable_from" in vres:
-                constit_list = vres['derivable_from']
-            else:
-                print("WARNING: No constituents listed in defaults config file, moving on")
-                continue
+            #Grab list of constituents for this variable
+            constit_list = constit_dict[var]
 
-            #Grab all required time series files for derived var
+            #Grab all required time series files for derived variable
             constit_files = []
             for constit in constit_list:
-                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
+                #Check if the constituent file is present, if so add it to list
+                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):                    
                     constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
 
-            #Check if all the constituent files were found
+            #Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
                 ermsg = f"Not all constituent files present; {var} cannot be calculated."
                 ermsg += f" Please remove {var} from diag_var_list or find the relevant CAM files."
                 print(ermsg)
+                #Add what's missing to debug log
+                dmsg = "create time series:"
+                dmsg += f"\n \t needed constituents for derivation of {var}:\n\t\t- {constit_list}\n"
+                dmsg += f" \t found constituent file(s) in {Path(constit_files[0]).parent}:\n"
+                dmsg += f"\t\t- {[Path(file).parts[-1] for file in constit_files if Path(file).is_file()]}"
+                self.debug_log(dmsg)
+
             else:
                 #Open a new dataset with all the constituent files/variables
                 ds = xr.open_mfdataset(constit_files)
@@ -1084,7 +1144,8 @@ class AdfDiag(AdfWeb):
                 der_val.name = var
                 ds[var] = der_val
 
-                #Aerosol Calculations - used for zonal plots
+                #Aerosol Calculations
+                #----------------------------------------------------------------------------------
                 #These will be multiplied by rho (density of dry air)
                 ds_pmid_done = False
                 ds_t_done = False
@@ -1114,6 +1175,7 @@ class AdfDiag(AdfWeb):
                     #Sulfate conversion factor
                     if var == "SO4":
                         ds[var] = ds[var]*(96./115.)
+                #----------------------------------------------------------------------------------
 
                 #Drop all constituents from final saved dataset
                 #These are not necessary because they have their own time series files
