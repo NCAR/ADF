@@ -576,7 +576,7 @@ class AdfDiag(AdfWeb):
 
                         #If this is a CAM-CHEM run, update constit_list
                         if get_cam_chem_constits:
-                            print(f"Looks like this a CAM-CHEM run, checking constits for '{var}'")
+                            print(f"Looks like this a CAM-CHEM run, checking constituents for '{var}'")
                             if "derivable_from_cam_chem" in vres:
                                 constit_list = vres['derivable_from_cam_chem']
                             else:
@@ -605,7 +605,6 @@ class AdfDiag(AdfWeb):
                         errmsg += "\n\tPlease remove variable from ADF run or set appropriate"
                         errmsg += " argument in variable defaults yaml file."
                         print(errmsg)
-                        #continue
                     #End if 'derivable_from'
 
                     #Lastly, raise error if the variable is not a derived quanitity but is also not
