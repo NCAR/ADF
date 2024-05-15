@@ -556,9 +556,9 @@ class AdfDiag(AdfWeb):
 
                     #Initialiaze list for constituents
                     #NOTE: This is if the variable is NOT derivable but need
-                    # an empty list as a check later 
+                    # an empty list as a check later
                     constit_list = []
-                    
+
                     #intialize boolean to check if variable is derivable
                     derive = False # assume it can't be derived and update if it can
 
@@ -576,14 +576,16 @@ class AdfDiag(AdfWeb):
 
                         #If this is a CAM-CHEM run, update constit_list
                         if get_cam_chem_constits:
-                            print(f"Looks like this a CAM-CHEM run, checking constituents for '{var}'")
+                            print(f"Looks like this a CAM-CHEM run,")
+                            print(f" checking constituents for '{var}'")
                             if "derivable_from_cam_chem" in vres:
                                 constit_list = vres['derivable_from_cam_chem']
                             else:
                                 derive = False
-                                errmsg = f"\n Missing 'derivable_from_cam_chem' config argument for {var}."
-                                errmsg += "\n\tPlease remove variable from ADF run or set appropriate"
-                                errmsg += " argument in variable defaults yaml file."
+                                errmsg = f"\n Missing 'derivable_from_cam_chem' "
+                                errmsg += f"config argument for {var}."
+                                errmsg += "\n\tPlease remove variable from ADF run or set"
+                                errmsg += " appropriate argument in variable defaults yaml file."
                                 print(errmsg)
                             #End if
                         #End if
@@ -1075,7 +1077,8 @@ class AdfDiag(AdfWeb):
 
     #########
 
-    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None, constit_dict=None, overwrite=None):
+    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None,
+                         constit_dict=None, overwrite=None):
         """
         Derive variables acccording to steps given here.  Since derivations will depend on the
         variable, each variable to derive will need its own set of steps below.
@@ -1098,7 +1101,7 @@ class AdfDiag(AdfWeb):
             constit_files = []
             for constit in constit_list:
                 #Check if the constituent file is present, if so add it to list
-                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):                    
+                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):                 
                     constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
 
             #Check if all the necessary constituent files were found
@@ -1110,13 +1113,13 @@ class AdfDiag(AdfWeb):
                 dmsg = "create time series:"
                 dmsg += f"\n \t needed constituents for derivation of {var}:\n\t\t- {constit_list}\n"
                 dmsg += f" \t found constituent file(s) in {Path(constit_files[0]).parent}:\n"
-                dmsg += f"\t\t- {[Path(file).parts[-1] for file in constit_files if Path(file).is_file()]}"
+                dmsg += f"\t\t- {[Path(f).parts[-1] for f in constit_files if Path(f).is_file()]}"
                 self.debug_log(dmsg)
 
             else:
                 #Open a new dataset with all the constituent files/variables
                 ds = xr.open_mfdataset(constit_files)
-    
+
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
 
@@ -1186,7 +1189,8 @@ class AdfDiag(AdfWeb):
 #Helper Function(s)
 def _load_dataset(fils):
     """
-    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+    This method exists to get an xarray Dataset from input file information that
+    can be passed into the plotting methods.
 
     Parameters
     ----------
