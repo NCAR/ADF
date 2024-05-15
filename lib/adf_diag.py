@@ -567,16 +567,17 @@ class AdfDiag(AdfWeb):
                         derive = True
                         constit_list = vres["derivable_from"]
                         #Check if variable is potentially part of a CAM-CHEM run
-                        if (any(item not in hist_file_ds.data_vars for item in constit_list)) and (var in res["cam_chem_list"]):
-                            #Set check to look for CAM-CHEM constituents list in variable defaults
-                            get_cam_chem_constits = True
+                        if any(item not in hist_file_ds.data_vars for item in constit_list):
+                            if var in res["cam_chem_list"]:
+                                #Set check to look for CAM-CHEM constituents in variable defaults
+                                get_cam_chem_constits = True
                         else:
                             get_cam_chem_constits = False
                         #End if
 
                         #If this is a CAM-CHEM run, update constit_list
                         if get_cam_chem_constits:
-                            print(f"Looks like this a CAM-CHEM run,")
+                            print("Looks like this a CAM-CHEM run,")
                             print(f" checking constituents for '{var}'")
                             if "derivable_from_cam_chem" in vres:
                                 constit_list = vres['derivable_from_cam_chem']
@@ -1101,7 +1102,7 @@ class AdfDiag(AdfWeb):
             constit_files = []
             for constit in constit_list:
                 #Check if the constituent file is present, if so add it to list
-                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):                 
+                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
                     constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
 
             #Check if all the necessary constituent files were found
@@ -1111,8 +1112,8 @@ class AdfDiag(AdfWeb):
                 print(ermsg)
                 #Add what's missing to debug log
                 dmsg = "create time series:"
-                dmsg += f"\n \t needed constituents for derivation of {var}:\n\t\t- {constit_list}\n"
-                dmsg += f" \t found constituent file(s) in {Path(constit_files[0]).parent}:\n"
+                dmsg += f"\n\tneeded constituents for derivation of {var}:\n\t\t- {constit_list}\n"
+                dmsg += f"\tfound constituent file(s) in {Path(constit_files[0]).parent}:\n"
                 dmsg += f"\t\t- {[Path(f).parts[-1] for f in constit_files if Path(f).is_file()]}"
                 self.debug_log(dmsg)
 
@@ -1158,16 +1159,18 @@ class AdfDiag(AdfWeb):
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
                         ds_pmid_done = True
                         if not ds_pmid:
-                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
-                            errmsg += "Please make sure 'PMID' is in the CAM run for aerosol calculations"
+                            errmsg = "Missing necessary files for dry air density (rho) "
+                            errmsg += "calculation.\nPlease make sure 'PMID' is in the CAM "
+                            errmsg += "run for aerosol calculations"
                             print(errmsg)
                             continue
                     if not ds_t_done:
                         ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
                         ds_t_done = True
                         if not ds_t:
-                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
-                            errmsg += "Please make sure 'T' is in the CAM run for aerosol calculations"
+                            errmsg = "Missing necessary files for dry air density (rho) "
+                            errmsg += "calculation.\nPlease make sure 'T' is in the CAM "
+                            errmsg += "run for aerosol calculations"
                             print(errmsg)
                             continue
 
@@ -1216,7 +1219,7 @@ def _load_dataset(fils):
     if len(fils) == 0:
         warnings.warn("Input file list is empty.")
         return None
-    elif len(fils) > 1:
+    if len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
     else:
         return xr.open_dataset(fils[0])
