@@ -561,6 +561,8 @@ class AdfDiag(AdfWeb):
 
                     #intialize boolean to check if variable is derivable
                     derive = False # assume it can't be derived and update if it can
+                    #intialize boolean for CAM-CHEM variable
+                    get_cam_chem_constits = False
 
                     #Try and build variable from 'derivable_from'
                     if "derivable_from" in vres:
@@ -571,8 +573,6 @@ class AdfDiag(AdfWeb):
                             if var in res["cam_chem_list"]:
                                 #Set check to look for CAM-CHEM constituents in variable defaults
                                 get_cam_chem_constits = True
-                        else:
-                            get_cam_chem_constits = False
                         #End if
 
                         #If this is a CAM-CHEM run, update constit_list
@@ -583,7 +583,7 @@ class AdfDiag(AdfWeb):
                                 constit_list = vres['derivable_from_cam_chem']
                             else:
                                 derive = False
-                                errmsg = f"\n Missing 'derivable_from_cam_chem' "
+                                errmsg = "\n Missing 'derivable_from_cam_chem' "
                                 errmsg += f"config argument for {var}."
                                 errmsg += "\n\tPlease remove variable from ADF run or set"
                                 errmsg += " appropriate argument in variable defaults yaml file."
@@ -957,6 +957,12 @@ class AdfDiag(AdfWeb):
             )
         # End if
 
+        #intialize objects that might not be declared later
+        case_name_baseline = None
+        baseline_ts_loc = None
+        syears_baseline = None
+        eyears_baseline = None
+
         # check to see if there is a CAM baseline case. If there is, read in relevant information.
         if not self.get_basic_info("compare_obs"):
             case_name_baseline = self.get_baseline_info("cam_case_name")
@@ -1129,9 +1135,9 @@ class AdfDiag(AdfWeb):
                     if overwrite:
                         Path(derived_file).unlink()
                     else:
-                        print(
-                            f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
-                        )
+                        msg = f"[{__name__}] Warning: '{var}' file was found "
+                        msg += "and overwrite is False. Will use existing file."
+                        print(msg)
                         continue
 
                 #NOTE: this will need to be changed when derived equations are more complex! - JR
@@ -1142,7 +1148,7 @@ class AdfDiag(AdfWeb):
                     der_val = 0
                     for v in constit_list:
                         der_val += ds[v]
-                
+
                 #Set derived variable name and add to dataset
                 der_val.name = var
                 ds[var] = der_val
@@ -1153,7 +1159,7 @@ class AdfDiag(AdfWeb):
                 ds_pmid_done = False
                 ds_t_done = False
                 if var in res["aerosol_zonal_list"]:
-                    
+
                     #Only calculate once for all aerosol vars
                     if not ds_pmid_done:
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
