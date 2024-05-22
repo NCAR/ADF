@@ -296,7 +296,7 @@ diag_mdtf_info:
     mdtf_input_settings_filename : mdtf_input.json   
 
     ## MDTF code path, sets the location of the MDTF codebase and pre-compiled conda envs
-    #  DO NOT CHANGE unless you have your own MDTF code,installed CONDA envs and obs_data
+    #  DO NOT CHANGE unless you have your own MDTF code,installed conda envs and obs_data
     mdtf_codebase_loc  : /glade/u/home/bundy/diag/mdtf/MDTF_3_main/MDTF-diagnostics.v3.1.20230817.ADF
     conda_root         : /glade/u/home/bundy/miniconda2
     conda_env_root     : /glade/work/bundy/miniconda2/envs.MDTFv3.1.20230412/
