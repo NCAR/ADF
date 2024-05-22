@@ -1282,7 +1282,7 @@ class AdfDiag(AdfWeb):
         # Working dir and output dir can be different. These could be set in config.yaml
         # but then we don't get the nicely formated plot_location
         case_idx = 0
-        plot_path = self.plot_location[case_idx] + "/mdtf"
+        plot_path = os.path.join(self.plot_location[case_idx], "mdtf")
         for var in ["WORKING_DIR", "OUTPUT_DIR"]:
             if mdtf_info[var] == "default":
                 mdtf_info[var] = plot_path
