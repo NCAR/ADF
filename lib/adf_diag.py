@@ -1312,9 +1312,7 @@ class AdfDiag(AdfWeb):
         #
         # Submit the MDTF script in background mode, send output to mdtf.out file
         #
-        mdtf_log = os.path.join(
-            "./mdtf.out"
-        )  # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+        mdtf_log = "mdtf.out" # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
         mdtf_exe = mdtf_codebase + os.sep + "mdtf -f " + mdtf_input_settings_filename
         if test:
             print("\t ...Test only. NOT Running MDTF")
