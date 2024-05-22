@@ -293,7 +293,7 @@ diag_mdtf_info:
     mdtf_run: false
 
     # The file that will be written by ADF to input to MDTF. Call this whatever you want.
-    mdtf_input_settings_filename : "mdtf_input.json"   
+    mdtf_input_settings_filename : mdtf_input.json   
 
     ## MDTF code path, sets the location of the MDTF codebase and pre-compiled conda envs
     #  DO NOT CHANGE unless you have your own MDTF code,installed CONDA envs and obs_data
