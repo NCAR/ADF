@@ -1315,7 +1315,7 @@ class AdfDiag(AdfWeb):
         mdtf_log = os.path.join(
             "./mdtf.out"
         )  # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
-        mdtf_exe = mdtf_codebase + "/mdtf -f " + mdtf_input_settings_filename
+        mdtf_exe = mdtf_codebase + os.sep + "mdtf -f " + mdtf_input_settings_filename
         if test:
             print("\t ...Test only. NOT Running MDTF")
             print(f"\t    Command: {mdtf_exe} Log: {mdtf_log}")
