@@ -1201,7 +1201,7 @@ class AdfDiag(AdfWeb):
                             print(
                                 f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {time_perido_freq}"
                             )
-                            print("Skipping {adf_file}")
+                            print(f"Skipping {adf_file}")
                             freq = "frequency_missing"
                         continue
                     freq = found_strings[0]
