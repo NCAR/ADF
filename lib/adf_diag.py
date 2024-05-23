@@ -1179,7 +1179,7 @@ class AdfDiag(AdfWeb):
                     else:
                         if verbose > 0:
                             print(
-                                f"ERROR: Necessary 'time_period_freq' attribute missing from {adf_file}"
+                                f"WARNING: Necessary 'time_period_freq' attribute missing from {adf_file}. Skipping file."
                             )
                         continue
 
