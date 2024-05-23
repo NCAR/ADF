@@ -1209,7 +1209,7 @@ class AdfDiag(AdfWeb):
                     #
                     # Destination file is MDTF directory and name structure
                     #
-                    mdtf_dir = os.sep.join([mdtf_model_data_root, case_name, freq])
+                    mdtf_dir = os.path.join(mdtf_model_data_root, case_name, freq)
 
                     os.makedirs(mdtf_dir, exist_ok=True)
                     mdtf_file = (
@@ -1264,7 +1264,7 @@ class AdfDiag(AdfWeb):
         start_years = self.climo_yrs["syears"]
         end_years = self.climo_yrs["eyears"]
 
-        case_list_all = list(())
+        case_list_all = []
         for icase, case in enumerate(case_names):
             case_list_values = [
                 case,
