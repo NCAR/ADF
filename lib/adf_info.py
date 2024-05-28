@@ -310,10 +310,10 @@ class AdfInfo(AdfConfig):
 
         #Extract cam history files location:
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
-        
+
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
-        
+
         #Grab case time series file location(s)
         input_ts_locs = self.get_cam_info("cam_ts_loc", required=True)
 
@@ -587,7 +587,6 @@ class AdfInfo(AdfConfig):
     def hist_string(self):
         """ Return the history string name to the user if requested."""
         return self.__hist_str
-        
 
     #########
 
@@ -696,9 +695,10 @@ class AdfInfo(AdfConfig):
         #Average time dimension over time bounds, if bounds exist:
         if 'time_bnds' in cam_ts_data:
             time = cam_ts_data['time']
-            #NOTE: force `load` here b/c if dask & time is cftime, 
+            #NOTE: force `load` here b/c if dask & time is cftime,
             #throws a NotImplementedError:
-            time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
+            time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, 
+                                dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
             cam_ts_data.assign_coords(time=time)
             cam_ts_data = xr.decode_cf(cam_ts_data)
