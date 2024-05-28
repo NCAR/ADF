@@ -135,6 +135,10 @@ def tape_recorder(adfobj):
     for idx,key in enumerate(runs_LT2):
         fils= sorted(Path(runs_LT2[key]).glob(f'*{hist_str}.{var}.*.nc'))
         dat = pf.load_dataset(fils)
+        if not dat:
+            dmsg = f"No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            print(dmsg)
+            continue
         dat = fixcesmtime(dat,start_years[idx],end_years[idx])
         datzm = dat.mean('lon')
         datzm = datzm[var]
