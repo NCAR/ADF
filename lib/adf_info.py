@@ -111,6 +111,7 @@ class AdfInfo(AdfConfig):
         if not hist_str:
             hist_str = 'cam.h0'
         #End if
+        self.__hist_str = hist_str
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
@@ -435,6 +436,11 @@ class AdfInfo(AdfConfig):
             self.__plot_location.append(os.path.join(plot_dir, first_case_dir))
         #End if
 
+        #Go ahead and make the diag plot location if it doesn't exist already
+        diag_location = Path(self.__plot_location[0])
+        if not diag_location.is_dir():
+            print(f"\t    {diag_location} not found, making new directory")
+            diag_location.mkdir(parents=True)
         #-------------------------------------------------------------------------
 
         #Initialize "num_procs" variable:
@@ -576,6 +582,12 @@ class AdfInfo(AdfConfig):
         base_nickname = self.__base_nickname
 
         return {"test_nicknames":test_nicknames,"base_nickname":base_nickname}
+
+    @property
+    def hist_string(self):
+        """ Return the history string name to the user if requested."""
+        return self.__hist_str
+        
 
     #########
 
