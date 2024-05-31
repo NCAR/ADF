@@ -137,7 +137,7 @@ def create_climo_files(adf, clobber=False, search=None):
 
         #Time series file search
         if search is None:
-            search = "{CASE}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
+            search = "{CASE}*{HIST_STR}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
 
         #Check model year bounds:
         syr, eyr = check_averaging_interval(start_year[case_idx], end_year[case_idx])
@@ -156,7 +156,7 @@ def create_climo_files(adf, clobber=False, search=None):
                 print(f"\t    INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
 
             #Create list of time series files present for variable:
-            ts_filenames = search.format(CASE=case_name, VARIABLE=var)
+            ts_filenames = search.format(CASE=case_name, HIST_STR="h0", VARIABLE=var)
             ts_files = sorted(list(input_location.glob(ts_filenames)))
 
             #If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
@@ -191,6 +191,7 @@ def process_variable(ts_files, syr, eyr, output_file):
     '''
     Compute and save the climatology file.
     '''
+    print(f'DRBDBG climo:process_variable L198 {ts_files=}')
     #Read in files via xarray (xr):
     if len(ts_files) == 1:
         cam_ts_data = xr.open_dataset(ts_files[0], decode_times=True)
