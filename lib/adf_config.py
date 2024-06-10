@@ -274,6 +274,9 @@ class AdfConfig(AdfBase):
             raise TypeError(emsg)
         #End if
 
+        if varname == "ALL":
+            return var_dict
+        
         #Check that variable name exists in dictionary:
         if varname not in var_dict.keys():
             #If variable is required, then throw an error:

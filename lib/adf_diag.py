@@ -20,6 +20,11 @@ import multiprocessing as mp
 import copy
 
 import importlib
+import shutil
+import json
+
+
+
 
 from pathlib import Path
 from typing import Optional
@@ -163,21 +168,6 @@ class AdfDiag(AdfWeb):
         # Initialize Config/Base attributes:
         super().__init__(config_file, debug=debug)
 
-        # Add CVDP info to object:
-        self.__cvdp_info = self.read_config_var("diag_cvdp_info")
-
-        # Expand CVDP climo info variable strings:
-        if self.__cvdp_info is not None:
-            self.expand_references(self.__cvdp_info)
-        # End if
-
-        # Add MDTF info to object:
-        self.__mdtf_info = self.read_config_var("diag_mdtf_info")
-
-        if self.__mdtf_info is not None:
-            self.expand_references(self.__mdtf_info)
-        # End if
-
         # Add averaging script names:
         self.__time_averaging_scripts = self.read_config_var("time_averaging_scripts")
 
@@ -198,37 +188,7 @@ class AdfDiag(AdfWeb):
         # modify this variable:
         return copy.copy(self.__plotting_scripts)
 
-    #########
-    # Variable extraction functions
-    #########
 
-    def get_cvdp_info(self, var_str, required=False):
-        """
-        Return the config variable from 'diag_cvdp_info' as requested by
-        the user. If 'diag_cvdp_info' is not found then try grabbing the
-        variable from the top level of the YAML config file dictionary
-        instead.
-        """
-
-        return self.read_config_var(
-            var_str, conf_dict=self.__cvdp_info, required=required
-        )
-
-    #########
-    # Variable extraction functions
-    #########
-
-    def get_mdtf_info(self, var_str, required=False):
-        """
-        Return the config variable from 'diag_mdtf_info' as requested by
-        the user. If 'diag_mdtf_info' is not found then try grabbing the
-        variable from the top level of the YAML config file dictionary
-        instead.
-        """
-
-        return self.read_config_var(
-            var_str, conf_dict=self.__mdtf_info, required=required
-        )
 
     #########
     # Script-running functions
@@ -395,7 +355,7 @@ class AdfDiag(AdfWeb):
             start_years = [self.climo_yrs["syear_baseline"]]
             end_years = [self.climo_yrs["eyear_baseline"]]
         else:
-            # Use test case settings, which are already lists:
+            # Use case settings, which are already lists:
             case_names = self.get_cam_info("cam_case_name", required=True)
             cam_ts_done = self.get_cam_info("cam_ts_done")
             cam_hist_locs = self.get_cam_info("cam_hist_loc")
@@ -407,8 +367,9 @@ class AdfDiag(AdfWeb):
 
         # Read hist_str (component.hist_num) from the yaml file, or set to default
         hist_str_list = self.get_cam_info("hist_str")
-        print(f"reading from {hist_str_list} files")
-        print(f"\n writing to {ts_dir}")
+        dmsg = f"reading from {hist_str_list} files"
+        self.debug_log(dmsg)
+    
         # get info about variable defaults
         res = self.variable_defaults
 
@@ -421,8 +382,6 @@ class AdfDiag(AdfWeb):
                 print(emsg)
                 continue
             # End if
-
-            print(f"\t Processing time series for case '{case_name}' :")
 
             # Extract start and end year values:
             start_year = start_years[case_idx]
@@ -447,7 +406,9 @@ class AdfDiag(AdfWeb):
             # Check if history files actually exist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
-                if not list(starting_location.glob("*" + hist_str + ".*.nc")):
+
+                print(f"\t Processing time series for case {case_name=}, {hist_str=} files:")
+                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
                     emsg = f"No history *{hist_str}.*.nc files found in '{starting_location}'."
                     emsg += " Script is ending here."
                     self.end_diag_fail(emsg)
@@ -884,9 +845,6 @@ class AdfDiag(AdfWeb):
 
         """
 
-        # import needed standard modules:
-        import shutil
-
         # Case names:
         case_names = self.get_cam_info("cam_case_name", required=True)
 
@@ -1115,8 +1073,6 @@ class AdfDiag(AdfWeb):
         Move ts files to the directory structure and names required by MDTF
         Should change with data catalogues
         """
-        import shutil
-
         cam_ts_loc = self.get_cam_info("cam_ts_loc", required=True)
         self.expand_references({"cam_ts_loc": cam_ts_loc})
         if verbose > 0:
@@ -1217,15 +1173,15 @@ class AdfDiag(AdfWeb):
                     )
                     mdtf_file_list = glob.glob(
                         mdtf_file
-                    )  # Check if files already exist in MDTF directory
+                    )  # Check if file already exists in MDTF directory
                     if (
                         mdtf_file_list
-                    ):  # If files exist, then should check if over-writing is allowed:
-                        if verbose > 0:
+                    ):  # If file exists, don't overwrite:
+                        # To do in the future: add logic that says to over-write or not  
+                        if verbose > 1:
                             print(
                                 f"\t   INFO: not clobbering existing mdtf file {mdtf_file_list}"
                             )
-                        # logic to allow override#  if not overwrite_mdtf[case_idx]:
                         continue  # simply skip file copy for this variable:
 
                     if verbose > 1:
@@ -1242,15 +1198,15 @@ class AdfDiag(AdfWeb):
 
         """
 
-        # import needed standard modules:
-        import json
-
-        test = False  # True (copy files but don't run), False (copy files and run MDTF).  Could make this a yaml variable
-        verbose = 2  # 0 errors and major sections, 1 warnings, 2 detailed, 3 excessive
+       
+        copy_files_only = False  # True (copy files but don't run), False (copy files and run MDTF)
+        # Note that the MDTF variable test_mode (set in the mdtf_info of the yaml file) 
+        # has a different meaning: Data is fetched but PODs are not run.
 
         print("\n  Setting up MDTF...")
         # We want access to the entire dict of mdtf_info
-        mdtf_info = self.__mdtf_info
+        mdtf_info = self.get_mdtf_info("ALL")  
+        verbose = mdtf_info["verbose"]
 
         #
         # Create a dict with all the case info needed for MDTF case_list
@@ -1284,7 +1240,7 @@ class AdfDiag(AdfWeb):
         case_idx = 0
         plot_path = os.path.join(self.plot_location[case_idx], "mdtf")
         for var in ["WORKING_DIR", "OUTPUT_DIR"]:
-            if mdtf_info[var] == "default":
+            if [var] == "default":
                 mdtf_info[var] = plot_path
 
         #
@@ -1314,8 +1270,8 @@ class AdfDiag(AdfWeb):
         #
         mdtf_log = "mdtf.out" # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
         mdtf_exe = mdtf_codebase + os.sep + "mdtf -f " + mdtf_input_settings_filename
-        if test:
-            print("\t ...Test only. NOT Running MDTF")
+        if copy_files_only:
+            print("\t ...Copy files only. NOT Running MDTF")
             print(f"\t    Command: {mdtf_exe} Log: {mdtf_log}")
         else:
             print(
