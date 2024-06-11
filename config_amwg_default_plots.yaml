@@ -296,18 +296,22 @@ diag_mdtf_info:
     mdtf_input_settings_filename : mdtf_input.json   
 
     ## MDTF code path, sets the location of the MDTF codebase and pre-compiled conda envs
-    #  DO NOT CHANGE unless you have your own MDTF code,installed conda envs and obs_data
-    mdtf_codebase_loc  : /glade/u/home/bundy/diag/mdtf/MDTF_3_main/MDTF-diagnostics.v3.1.20230817.ADF
-    conda_root         : /glade/u/home/bundy/miniconda2
-    conda_env_root     : /glade/work/bundy/miniconda2/envs.MDTFv3.1.20230412/
-    OBS_DATA_ROOT      : /glade/work/bundy/mdtf/inputdata/obs_data
+    #  CHANGE if you have any: your own MDTF code, installed conda envs and/or obs_data
+
+    mdtf_codebase_path : /glade/campaign/cgd/amp/amwg/mdtf                                                                                                                                 
+    mdtf_codebase_loc  : ${mdtf_codebase_path}/MDTF-diagnostics.v3.1.20230817.ADF
+    conda_root         : ${mdtf_codebase_path}/miniconda2
+    conda_env_root     : ${mdtf_codebase_path}/miniconda2/envs.MDTFv3.1.20230412/
+    OBS_DATA_ROOT      : ${mdtf_codebase_path}/obs_data
+
+
 
     # Set to default for same as the ADF plot_location. Anything else here overrides that
     OUTPUT_DIR         : default
     WORKING_DIR        : default
 
     # SET this to a writable dir. The ADF will place ts files here for the MDTF to read (adds the casename)
-    MODEL_DATA_ROOT     : ${diag_cam_climo.dir_out}/mdtf/inputdata/model
+    MODEL_DATA_ROOT     : ${diag_cam_climo.cam_ts_loc}/mdtf/inputdata/model     
 
     # Choose diagnostics (PODs). Full list of available PODs: https://github.com/NOAA-GFDL/MDTF-diagnostics
     pod_list      :  [ "MJO_suite" ]
@@ -362,11 +366,11 @@ plotting_scripts:
     - global_latlon_map
     - global_latlon_vect_map
     - zonal_mean
-    - meridional_mean
     - polar_map
     - cam_taylor_diagram
-    - qbo
-    #- tape_recorder
+#    - qbo
+#    - meridional_mean
+#    - tape_recorder
     #- tem #To plot TEM, please un-comment fill-out
                               #the "tem_info" section below
     #- regional_map_multicase #To use this please un-comment and fill-out

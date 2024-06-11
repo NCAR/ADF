@@ -27,6 +27,7 @@ import json
 
 
 from pathlib import Path
+from tabnanny import verbose
 from typing import Optional
 
 # Check if "PyYAML" is present in python path:
@@ -340,9 +341,6 @@ class AdfDiag(AdfWeb):
 
         # End def
 
-        # Notify user that script has started:
-        print("\n  Generating CAM time series files...")
-
         # Check if baseline time-series files are being created:
         if baseline:
             # Use baseline settings, while converting them all
@@ -354,6 +352,8 @@ class AdfDiag(AdfWeb):
             overwrite_ts = [self.get_baseline_info("cam_overwrite_ts")]
             start_years = [self.climo_yrs["syear_baseline"]]
             end_years = [self.climo_yrs["eyear_baseline"]]
+            case_type_string = "baseline"
+
         else:
             # Use case settings, which are already lists:
             case_names = self.get_cam_info("cam_case_name", required=True)
@@ -363,6 +363,11 @@ class AdfDiag(AdfWeb):
             overwrite_ts = self.get_cam_info("cam_overwrite_ts")
             start_years = self.climo_yrs["syears"]
             end_years = self.climo_yrs["eyears"]
+            case_type_string="case"
+
+        # Notify user that script has started:
+        print("\n  Generating CAM time series files for {case_type_string}...")
+
         # End if
 
         # Read hist_str (component.hist_num) from the yaml file, or set to default
@@ -392,24 +397,18 @@ class AdfDiag(AdfWeb):
 
             # Check that path actually exists:
             if not starting_location.is_dir():
-                if baseline:
-                    emsg = f"Provided baseline 'cam_hist_loc' directory '{starting_location}' "
-                    emsg += "not found.  Script is ending here."
-                else:
-                    emsg = "Provided 'cam_hist_loc' directory '{starting_location}' not found."
-                    emsg += " Script is ending here."
-                # End if
-
+                emsg = f"Provided {case_type_string} 'cam_hist_loc' directory '{starting_location}' "
+                emsg += "not found.  Script is ending here."
                 self.end_diag_fail(emsg)
             # End if
 
-            # Check if history files actually exist. If not then kill script:
+            # Check if history files actually exqist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
 
-                print(f"\t Processing time series for case {case_name=}, {hist_str=} files:")
-                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
-                    emsg = f"No history *{hist_str}.*.nc files found in '{starting_location}'."
+                print(f"\t Processing time series for {case_type_string} {case_name=}, {hist_str=} files:")
+                if not list(starting_location.glob("*" + hist_str + ".*.nc")):
+                    emsg = f"No history *{hist_str}.*.nc files found in {case_type_string} '{starting_location}'."
                     emsg += " Script is ending here."
                     self.end_diag_fail(emsg)
                 # End if
@@ -1075,8 +1074,8 @@ class AdfDiag(AdfWeb):
         """
         cam_ts_loc = self.get_cam_info("cam_ts_loc", required=True)
         self.expand_references({"cam_ts_loc": cam_ts_loc})
-        if verbose > 0:
-            print(f"\t Using timeseries files for from {cam_ts_loc[0]}")
+        if verbose > 1:
+            print(f"\t Using timeseries files from {cam_ts_loc[0]}")
 
         mdtf_model_data_root = self.get_mdtf_info("MODEL_DATA_ROOT")
 
@@ -1094,7 +1093,7 @@ class AdfDiag(AdfWeb):
 
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
-                if verbose > 0:
+                if verbose > 1:
                     print(f"\t looking for {hist_str} in {cam_ts_loc[0]}")
                 for var in var_list:
 
@@ -1109,7 +1108,7 @@ class AdfDiag(AdfWeb):
                     adf_file_list = glob.glob(adf_file_str)
 
                     if len(adf_file_list) == 1:
-                        if verbose > 1:
+                        if verbose > 2:
                             print(f"Copying ts file: {adf_file_list} to MDTF dir")
                     elif len(adf_file_list) > 1:
                         if verbose > 0:
@@ -1240,8 +1239,9 @@ class AdfDiag(AdfWeb):
         case_idx = 0
         plot_path = os.path.join(self.plot_location[case_idx], "mdtf")
         for var in ["WORKING_DIR", "OUTPUT_DIR"]:
-            if [var] == "default":
+            if mdtf_info[var] == "default":
                 mdtf_info[var] = plot_path
+
 
         #
         # Write the input settings json file
