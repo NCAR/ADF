@@ -27,7 +27,6 @@ import json
 
 
 from pathlib import Path
-from tabnanny import verbose
 from typing import Optional
 
 # Check if "PyYAML" is present in python path:
@@ -87,10 +86,8 @@ _DIAG_SCRIPTS_PATH = os.path.join(_LOCAL_PATH, os.pardir, "scripts")
 # Check that "scripts" directory actually exists:
 if not os.path.isdir(_DIAG_SCRIPTS_PATH):
     # If not, then raise error:
-    error_message = (
-        f"'{_DIAG_SCRIPTS_PATH}' directory not found. Has 'AdfDiag.py' been moved?"
-    )
-    raise FileNotFoundError(error_message)
+    ermsg = f"'{_DIAG_SCRIPTS_PATH}' directory not found. Has 'AdfDiag.py' been moved?"
+    raise FileNotFoundError(ermsg)
 
 # Walk through all sub-directories in "scripts" directory:
 for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
@@ -143,6 +140,7 @@ def construct_index_info(page_dict, fnam, opf):
 
 
 class AdfDiag(AdfWeb):
+
     """
     Main ADF diagnostics object.
 
@@ -355,7 +353,7 @@ class AdfDiag(AdfWeb):
             case_type_string = "baseline"
 
         else:
-            # Use case settings, which are already lists:
+            # Use test case settings, which are already lists:
             case_names = self.get_cam_info("cam_case_name", required=True)
             cam_ts_done = self.get_cam_info("cam_ts_done")
             cam_hist_locs = self.get_cam_info("cam_hist_loc")
@@ -408,7 +406,9 @@ class AdfDiag(AdfWeb):
 
                 print(f"\t Processing time series for {case_type_string} {case_name=}, {hist_str=} files:")
                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
-                    emsg = f"No history *{hist_str}.*.nc files found in {case_type_string} '{starting_location}'."
+                    emsg = (
+                        f"No history *{hist_str}.*.nc files found in '{starting_location}'."
+                    )
                     emsg += " Script is ending here."
                     self.end_diag_fail(emsg)
                 # End if
@@ -439,6 +439,7 @@ class AdfDiag(AdfWeb):
                 # Note: could use `open_mfdataset`, but that can become very slow;
                 #      This approach effectively assumes that all files contain the same variables.
 
+
                 # Check what kind of vertical coordinate (if any) is being used for this model run:
                 # ------------------------
                 if "lev" in hist_file_ds:
@@ -464,22 +465,22 @@ class AdfDiag(AdfWeb):
                             else:
                                 # Print a warning, and assume that no vertical
                                 # level information is needed.
-                                wmsg = "WARNING! Unable to determine the vertical coordinate"
+                                wmsg = (
+                                    "WARNING! Unable to determine the vertical coordinate"
+                                )
                                 wmsg += f" type from the 'lev' long name, which is:\n'{lev_long_name}'."
                                 wmsg += "\nNo additional vertical coordinate information will be"
-                                wmsg += (
-                                    " transferred beyond the 'lev' dimension itself."
-                                )
+                                wmsg += " transferred beyond the 'lev' dimension itself."
                                 print(wmsg)
 
                                 vert_coord_type = None
                             # End if
                         else:
                             # Print a warning, and assume hybrid levels (for now):
-                            wmsg = (
-                                "WARNING!  No long name found for the 'lev' dimension,"
+                            wmsg = "WARNING!  No long name found for the 'lev' dimension,"
+                            wmsg += (
+                                " so no additional vertical coordinate information will be"
                             )
-                            wmsg += " so no additional vertical coordinate information will be"
                             wmsg += " transferred beyond the 'lev' dimension itself."
                             print(wmsg)
 
@@ -523,6 +524,47 @@ class AdfDiag(AdfWeb):
                                 if constit not in diag_var_list:
                                     diag_var_list.append(constit)
                             vars_to_derive.append(var)
+                            continue
+                # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
+                first_file_split = str(hist_files[0]).split(".")
+                if first_file_split[-1] == "nc":
+                    time_string_start = first_file_split[-2].replace("-", "")
+                else:
+                    time_string_start = first_file_split[-1].replace("-", "")
+                last_file_split = str(hist_files[-1]).split(".")
+                if last_file_split[-1] == "nc":
+                    time_string_finish = last_file_split[-2].replace("-", "")
+                else:
+                    time_string_finish = last_file_split[-1].replace("-", "")
+                time_string = "-".join([time_string_start, time_string_finish])
+
+                # Loop over CAM history variables:
+                list_of_commands = []
+                vars_to_derive = []
+                # create copy of var list that can be modified for derivable variables
+                diag_var_list = self.diag_var_list
+
+                # Aerosol Calcs
+                #--------------
+                #Always make sure PMID is made if aerosols are desired in config file
+                if "PMID" not in diag_var_list:
+                    if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
+                        diag_var_list += ["PMID"]
+                if "T" not in diag_var_list:
+                    if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
+                        diag_var_list += ["T"]
+                #End aerosol calcs
+
+                for var in diag_var_list:
+                    if var not in hist_file_var_list:
+                        vres = res.get(var, {})
+                        if "derivable_from" in vres:
+                            constit_list = vres["derivable_from"]
+                            for constit in constit_list:
+                                if constit not in diag_var_list:
+                                    diag_var_list.append(constit)
+                            vars_to_derive.append(var)
+                            continue
                         else:
                             msg = f"WARNING: {var} is not in the file {hist_files[0]}."
                             msg += " No time series will be generated."
@@ -597,15 +639,7 @@ class AdfDiag(AdfWeb):
                     # End if has_lev
 
                     cmd = (
-                        [
-                            "ncrcat",
-                            "-O",
-                            "-4",
-                            "-h",
-                            "--no_cll_mth",
-                            "-v",
-                            ncrcat_var_list,
-                        ]
+                        ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
                         + hist_files
                         + ["-o", ts_outfil_str]
                     )
@@ -621,7 +655,7 @@ class AdfDiag(AdfWeb):
 
                 if vars_to_derive:
                     self.derive_variables(
-                        vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
+                        res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
                     )
                 # End with
             # End for hist_str
@@ -993,7 +1027,7 @@ class AdfDiag(AdfWeb):
 
     #########
 
-    def derive_variables(self, vars_to_derive=None, ts_dir=None, overwrite=None):
+    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None, overwrite=None):
         """
         Derive variables acccording to steps given here.  Since derivations will depend on the
         variable, each variable to derive will need its own set of steps below.
@@ -1002,287 +1036,354 @@ class AdfDiag(AdfWeb):
 
         If the file for the derived variable exists, the kwarg `overwrite` determines
         whether to overwrite the file (true) or exit with a warning message.
+
         """
 
         for var in vars_to_derive:
-            if var == "PRECT":
-                # PRECT can be found by simply adding PRECL and PRECC
-                # grab file names for the PRECL and PRECC files from the case ts directory
-                if glob.glob(os.path.join(ts_dir, "*PRECC*")) and glob.glob(
-                    os.path.join(ts_dir, "*PRECL*")
-                ):
-                    constit_files = sorted(glob.glob(os.path.join(ts_dir, "*PREC*")))
-                else:
-                    error_message = "PRECC and PRECL were not both present; PRECT cannot be calculated."
-                    error_message += " Please remove PRECT from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(error_message)
-                # create new file name for PRECT
-                prect_file = constit_files[0].replace("PRECC", "PRECT")
-                if Path(prect_file).is_file():
-                    if overwrite:
-                        Path(prect_file).unlink()
-                    else:
-                        print(
-                            f"[{__name__}] Warning: PRECT file was found and overwrite is False. Will use existing file."
-                        )
-                        continue
-                # append PRECC to the file containing PRECL
-                os.system(f"ncks -A -v PRECC {constit_files[0]} {constit_files[1]}")
-                # create new file with the sum of PRECC and PRECL
-                os.system(
-                    f"ncap2 -s 'PRECT=(PRECC+PRECL)' {constit_files[1]} {prect_file}"
-                )
-            if var == "RESTOM":
-                # RESTOM = FSNT-FLNT
-                # Have to be more precise than with PRECT because FSNTOA, FSTNC, etc are valid variables
-                if glob.glob(os.path.join(ts_dir, "*.FSNT.*")) and glob.glob(
-                    os.path.join(ts_dir, "*.FLNT.*")
-                ):
-                    input_files = [
-                        sorted(glob.glob(os.path.join(ts_dir, f"*.{v}.*")))
-                        for v in ["FLNT", "FSNT"]
-                    ]
-                    constit_files = []
-                    for elem in input_files:
-                        constit_files += elem
-                else:
-                    error_message = "FSNT and FLNT were not both present; RESTOM cannot be calculated."
-                    error_message += " Please remove RESTOM from diag_var_list or find the relevant CAM files."
-                    raise FileNotFoundError(error_message)
-                # create new file name for RESTOM
-                derived_file = constit_files[0].replace("FLNT", "RESTOM")
+            print(f"\t - deriving time series for {var}")
+
+            #Check whether there are parts to derive from and if there is an associated equation
+            vres = res.get(var, {})
+            if "derivable_from" in vres:
+                constit_list = vres['derivable_from']
+            else:
+                print("WARNING: No constituents listed in defaults config file, moving on")
+                continue
+
+            #Grab all required time series files for derived var
+            constit_files = []
+            for constit in constit_list:
+                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
+                    constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
+
+            #Check if all the constituent files were found
+            if len(constit_files) != len(constit_list):
+                ermsg = f"Not all constituent files present; {var} cannot be calculated."
+                ermsg += f" Please remove {var} from diag_var_list or find the relevant CAM files."
+                print(ermsg)
+            else:
+                #Open a new dataset with all the constituent files/variables
+                ds = xr.open_mfdataset(constit_files)
+    
+                # create new file name for derived variable
+                derived_file = constit_files[0].replace(constit_list[0], var)
+
+                #Check if clobber is true for file
                 if Path(derived_file).is_file():
                     if overwrite:
                         Path(derived_file).unlink()
                     else:
                         print(
-                            f"[{__name__}] Warning: RESTOM file was found and overwrite is False. Will use existing file."
+                            f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
                         )
                         continue
-                # append FSNT to the file containing FLNT
-                os.system(f"ncks -A -v FLNT {constit_files[0]} {constit_files[1]}")
-                # create new file with the difference of FLNT and FSNT
-                os.system(
-                    f"ncap2 -s 'RESTOM=(FSNT-FLNT)' {constit_files[1]} {derived_file}"
+
+                #NOTE: this will need to be changed when derived equations are more complex! - JR
+                if var == "RESTOM":
+                    der_val = ds["FSNT"]-ds["FLNT"]
+                else:
+                    #Loop through all constituents and sum
+                    der_val = 0
+                    for v in constit_list:
+                        der_val += ds[v]
+                
+                #Set derived variable name and add to dataset
+                der_val.name = var
+                ds[var] = der_val
+
+                #Aerosol Calculations - used for zonal plots
+                #These will be multiplied by rho (density of dry air)
+                ds_pmid_done = False
+                ds_t_done = False
+                if var in res["aerosol_zonal_list"]:
+                    
+                    #Only calculate once for all aerosol vars
+                    if not ds_pmid_done:
+                        ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
+                        ds_pmid_done = True
+                        if not ds_pmid:
+                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
+                            errmsg += "Please make sure 'PMID' is in the CAM run for aerosol calculations"
+                            print(errmsg)
+                            continue
+                    if not ds_t_done:
+                        ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
+                        ds_t_done = True
+                        if not ds_t:
+                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
+                            errmsg += "Please make sure 'T' is in the CAM run for aerosol calculations"
+                            print(errmsg)
+                            continue
+
+                    #Multiply aerosol by dry air density (rho): (P/Rd*T)
+                    ds[var] = ds[var]*(ds_pmid["PMID"]/(res["Rgas"]*ds_t["T"]))
+
+                    #Sulfate conversion factor
+                    if var == "SO4":
+                        ds[var] = ds[var]*(96./115.)
+
+                #Drop all constituents from final saved dataset
+                #These are not necessary because they have their own time series files
+                ds_final = ds.drop_vars(constit_list)
+                ds_final.to_netcdf(derived_file, unlimited_dims='time', mode='w')
+
+########
+
+#Helper Function(s)
+def _load_dataset(fils):
+    """
+    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    import warnings  # use to warn user about missing files.
+
+    #Format warning messages:
+    def my_formatwarning(msg, *args, **kwargs):
+        """Issue `msg` as warning."""
+        return str(msg) + '\n'
+    warnings.formatwarning = my_formatwarning
+
+    if len(fils) == 0:
+        warnings.warn("Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        return xr.open_dataset(fils[0])
+    #End if
+#End def
+########
+
+                    
+######### MDTF functions #########
+def move_tsfiles_for_mdtf(self, verbose):
+    """
+    Move ts files to the directory structure and names required by MDTF
+    Should change with data catalogues
+    """
+    cam_ts_loc = self.get_cam_info("cam_ts_loc", required=True)
+    self.expand_references({"cam_ts_loc": cam_ts_loc})
+    if verbose > 1:
+        print(f"\t Using timeseries files from {cam_ts_loc[0]}")
+
+    mdtf_model_data_root = self.get_mdtf_info("MODEL_DATA_ROOT")
+
+    # These MDTF words for day & month .But CESM will have hour_6 and hour_3, etc.
+    # Going to need a dict to translate.
+    # Use cesm_freq_strings = freq_string_options.keys
+    # and then freq = freq_string_option(freq_string_found)
+    freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]
+
+    hist_str_list = self.get_cam_info("hist_str")
+    case_names = self.get_cam_info("cam_case_name", required=True)
+    var_list = self.diag_var_list
+
+    for case_idx, case_name in enumerate(case_names):
+
+        hist_str_case = hist_str_list[case_idx]
+        for hist_str in hist_str_case:
+            if verbose > 1:
+                print(f"\t looking for {hist_str} in {cam_ts_loc[0]}")
+            for var in var_list:
+
+                #
+                # Source file is ADF time series file
+                #
+                adf_file_str = (
+                    cam_ts_loc[case_idx]
+                    + os.sep
+                    + ".".join([case_name, hist_str, var, "*"])
+                )  # * to match timestamp: could be multiples
+                adf_file_list = glob.glob(adf_file_str)
+
+                if len(adf_file_list) == 1:
+                    if verbose > 2:
+                        print(f"Copying ts file: {adf_file_list} to MDTF dir")
+                elif len(adf_file_list) > 1:
+                    if verbose > 0:
+                        print(
+                            f"WARNING: found multiple timeseries files {adf_file_list}. Continuing with best guess; suggest cleaning up multiple dates in ts dir"
+                        )
+                else:
+                    if verbose > 0:
+                        print(
+                            f"WARNING: No files matching {case_name}.{hist_str}.{var} found in {adf_file_str}. Skipping"
+                        )
+                    continue  # skip this case/hist_str/var file
+                adf_file = adf_file_list[0]
+
+                # If freq is not set, it means we just started this hist_str. So check the first ADF file to find it
+                hist_file_ds = xr.open_dataset(
+                    adf_file, decode_cf=False, decode_times=False
                 )
+                if "time_period_freq" in hist_file_ds.attrs:
+                    dataset_freq = hist_file_ds.attrs["time_period_freq"]
+                    if verbose > 2:
+                        print(f"time_period_freq attribute found: {dataset_freq}")
+                else:
+                    if verbose > 0:
+                        print(
+                            f"WARNING: Necessary 'time_period_freq' attribute missing from {adf_file}. Skipping file."
+                        )
+                    continue
 
-    ######### MDTF functions #########
-    def move_tsfiles_for_mdtf(self, verbose):
-        """
-        Move ts files to the directory structure and names required by MDTF
-        Should change with data catalogues
-        """
-        cam_ts_loc = self.get_cam_info("cam_ts_loc", required=True)
-        self.expand_references({"cam_ts_loc": cam_ts_loc})
-        if verbose > 1:
-            print(f"\t Using timeseries files from {cam_ts_loc[0]}")
+                found_strings = [
+                    word for word in freq_string_options if word in dataset_freq
+                ]
+                if len(found_strings) == 1:
+                    if verbose > 2:
+                        print(
+                            f"Found dataset_freq {dataset_freq} matches {found_strings}"
+                        )
+                elif len(found_strings) > 1:
+                    if verbose > 0:
+                        print(
+                            f"WARNING: Found dataset_freq {dataset_freq} matches multiple string possibilities:{', '.join(found_strings)}"
+                        )
+                else:
+                    if verbose > 0:
+                        print(
+                            f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {time_perido_freq}"
+                        )
+                        print(f"Skipping {adf_file}")
+                        freq = "frequency_missing"
+                    continue
+                freq = found_strings[0]
 
-        mdtf_model_data_root = self.get_mdtf_info("MODEL_DATA_ROOT")
+                #
+                # Destination file is MDTF directory and name structure
+                #
+                mdtf_dir = os.path.join(mdtf_model_data_root, case_name, freq)
 
-        # These MDTF words for day & month .But CESM will have hour_6 and hour_3, etc.
-        # Going to need a dict to translate.
-        # Use cesm_freq_strings = freq_string_options.keys
-        # and then freq = freq_string_option(freq_string_found)
-        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]
-
-        hist_str_list = self.get_cam_info("hist_str")
-        case_names = self.get_cam_info("cam_case_name", required=True)
-        var_list = self.diag_var_list
-
-        for case_idx, case_name in enumerate(case_names):
-
-            hist_str_case = hist_str_list[case_idx]
-            for hist_str in hist_str_case:
-                if verbose > 1:
-                    print(f"\t looking for {hist_str} in {cam_ts_loc[0]}")
-                for var in var_list:
-
-                    #
-                    # Source file is ADF time series file
-                    #
-                    adf_file_str = (
-                        cam_ts_loc[case_idx]
-                        + os.sep
-                        + ".".join([case_name, hist_str, var, "*"])
-                    )  # * to match timestamp: could be multiples
-                    adf_file_list = glob.glob(adf_file_str)
-
-                    if len(adf_file_list) == 1:
-                        if verbose > 2:
-                            print(f"Copying ts file: {adf_file_list} to MDTF dir")
-                    elif len(adf_file_list) > 1:
-                        if verbose > 0:
-                            print(
-                                f"WARNING: found multiple timeseries files {adf_file_list}. Continuing with best guess; suggest cleaning up multiple dates in ts dir"
-                            )
-                    else:
-                        if verbose > 0:
-                            print(
-                                f"WARNING: No files matching {case_name}.{hist_str}.{var} found in {adf_file_str}. Skipping"
-                            )
-                        continue  # skip this case/hist_str/var file
-                    adf_file = adf_file_list[0]
-
-                    # If freq is not set, it means we just started this hist_str. So check the first ADF file to find it
-                    hist_file_ds = xr.open_dataset(
-                        adf_file, decode_cf=False, decode_times=False
-                    )
-                    if "time_period_freq" in hist_file_ds.attrs:
-                        dataset_freq = hist_file_ds.attrs["time_period_freq"]
-                        if verbose > 2:
-                            print(f"time_period_freq attribute found: {dataset_freq}")
-                    else:
-                        if verbose > 0:
-                            print(
-                                f"WARNING: Necessary 'time_period_freq' attribute missing from {adf_file}. Skipping file."
-                            )
-                        continue
-
-                    found_strings = [
-                        word for word in freq_string_options if word in dataset_freq
-                    ]
-                    if len(found_strings) == 1:
-                        if verbose > 2:
-                            print(
-                                f"Found dataset_freq {dataset_freq} matches {found_strings}"
-                            )
-                    elif len(found_strings) > 1:
-                        if verbose > 0:
-                            print(
-                                f"WARNING: Found dataset_freq {dataset_freq} matches multiple string possibilities:{', '.join(found_strings)}"
-                            )
-                    else:
-                        if verbose > 0:
-                            print(
-                                f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {time_perido_freq}"
-                            )
-                            print(f"Skipping {adf_file}")
-                            freq = "frequency_missing"
-                        continue
-                    freq = found_strings[0]
-
-                    #
-                    # Destination file is MDTF directory and name structure
-                    #
-                    mdtf_dir = os.path.join(mdtf_model_data_root, case_name, freq)
-
-                    os.makedirs(mdtf_dir, exist_ok=True)
-                    mdtf_file = (
-                        mdtf_dir + os.sep + ".".join([case_name, var, freq, "nc"])
-                    )
-                    mdtf_file_list = glob.glob(
-                        mdtf_file
-                    )  # Check if file already exists in MDTF directory
-                    if (
-                        mdtf_file_list
-                    ):  # If file exists, don't overwrite:
-                        # To do in the future: add logic that says to over-write or not  
-                        if verbose > 1:
-                            print(
-                                f"\t   INFO: not clobbering existing mdtf file {mdtf_file_list}"
-                            )
-                        continue  # simply skip file copy for this variable:
-
+                os.makedirs(mdtf_dir, exist_ok=True)
+                mdtf_file = (
+                    mdtf_dir + os.sep + ".".join([case_name, var, freq, "nc"])
+                )
+                mdtf_file_list = glob.glob(
+                    mdtf_file
+                )  # Check if file already exists in MDTF directory
+                if (
+                    mdtf_file_list
+                ):  # If file exists, don't overwrite:
+                    # To do in the future: add logic that says to over-write or not  
                     if verbose > 1:
-                        print(f"copying {adf_file} to {mdtf_file}")
-                    shutil.copyfile(adf_file, mdtf_file)
-                # end for hist_str
-            # end for var
-        # end for case
+                        print(
+                            f"\t   INFO: not clobbering existing mdtf file {mdtf_file_list}"
+                        )
+                    continue  # simply skip file copy for this variable:
 
-    def setup_run_mdtf(self):
-        """
-        Create MDTF directory tree, generate input setttings jsonc file
-        Submit MDTF diagnostics.
+                if verbose > 1:
+                    print(f"copying {adf_file} to {mdtf_file}")
+                shutil.copyfile(adf_file, mdtf_file)
+            # end for hist_str
+        # end for var
+    # end for case
 
-        """
+def setup_run_mdtf(self):
+    """
+    Create MDTF directory tree, generate input setttings jsonc file
+    Submit MDTF diagnostics.
 
-       
-        copy_files_only = False  # True (copy files but don't run), False (copy files and run MDTF)
-        # Note that the MDTF variable test_mode (set in the mdtf_info of the yaml file) 
-        # has a different meaning: Data is fetched but PODs are not run.
+    """
 
-        print("\n  Setting up MDTF...")
-        # We want access to the entire dict of mdtf_info
-        mdtf_info = self.get_mdtf_info("ALL")  
-        verbose = mdtf_info["verbose"]
+    
+    copy_files_only = False  # True (copy files but don't run), False (copy files and run MDTF)
+    # Note that the MDTF variable test_mode (set in the mdtf_info of the yaml file) 
+    # has a different meaning: Data is fetched but PODs are not run.
 
-        #
-        # Create a dict with all the case info needed for MDTF case_list
-        #     Note that model and convention are hard-coded to CESM because that's all we expect here
-        #     This could be changed by inputing them into ADF with other MDTF-specific variables
-        #
-        case_list_keys = ["CASENAME", "FIRSTYR", "LASTYR", "model", "convention"]
+    print("\n  Setting up MDTF...")
+    # We want access to the entire dict of mdtf_info
+    mdtf_info = self.get_mdtf_info("ALL")  
+    verbose = mdtf_info["verbose"]
 
-        # Casenames, paths and start/end years come through the ADF
-        case_names = self.get_cam_info("cam_case_name", required=True)
-        start_years = self.climo_yrs["syears"]
-        end_years = self.climo_yrs["eyears"]
+    #
+    # Create a dict with all the case info needed for MDTF case_list
+    #     Note that model and convention are hard-coded to CESM because that's all we expect here
+    #     This could be changed by inputing them into ADF with other MDTF-specific variables
+    #
+    case_list_keys = ["CASENAME", "FIRSTYR", "LASTYR", "model", "convention"]
 
-        case_list_all = []
-        for icase, case in enumerate(case_names):
-            case_list_values = [
-                case,
-                start_years[icase],
-                end_years[icase],
-                "CESM",
-                "CESM",
-            ]
-            case_list_all.append(dict(zip(case_list_keys, case_list_values)))
-        mdtf_info["case_list"] = (
-            case_list_all  # this list of dicts is the format wanted by MDTF
+    # Casenames, paths and start/end years come through the ADF
+    case_names = self.get_cam_info("cam_case_name", required=True)
+    start_years = self.climo_yrs["syears"]
+    end_years = self.climo_yrs["eyears"]
+
+    case_list_all = []
+    for icase, case in enumerate(case_names):
+        case_list_values = [
+            case,
+            start_years[icase],
+            end_years[icase],
+            "CESM",
+            "CESM",
+        ]
+        case_list_all.append(dict(zip(case_list_keys, case_list_values)))
+    mdtf_info["case_list"] = (
+        case_list_all  # this list of dicts is the format wanted by MDTF
+    )
+
+    # The plot_path is given by case in ADF but MDTF needs one top dir, so use case 0
+    # Working dir and output dir can be different. These could be set in config.yaml
+    # but then we don't get the nicely formated plot_location
+    case_idx = 0
+    plot_path = os.path.join(self.plot_location[case_idx], "mdtf")
+    for var in ["WORKING_DIR", "OUTPUT_DIR"]:
+        if mdtf_info[var] == "default":
+            mdtf_info[var] = plot_path
+
+
+    #
+    # Write the input settings json file
+    #
+    mdtf_input_settings_filename = self.get_mdtf_info(
+        "mdtf_input_settings_filename", required=True
+    )
+
+    with open(
+        mdtf_input_settings_filename,
+        "w",
+        encoding="utf-8",
+    ) as out_file:
+        json.dump(mdtf_info, out_file, sort_keys=True, indent=4, ensure_ascii=False)
+    mdtf_codebase = self.get_mdtf_info("mdtf_codebase_loc")
+    print(f"\t Using MDTF code base {mdtf_codebase}")
+
+    #
+    # Move the data to the dir structure and file names expected by the MDTF
+    #    model_input_data/case/freq/case.VAR.freq.nc
+
+    self.move_tsfiles_for_mdtf(verbose)
+
+    #
+    # Submit the MDTF script in background mode, send output to mdtf.out file
+    #
+    mdtf_log = "mdtf.out" # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+    mdtf_exe = mdtf_codebase + os.sep + "mdtf -f " + mdtf_input_settings_filename
+    if copy_files_only:
+        print("\t ...Copy files only. NOT Running MDTF")
+        print(f"\t    Command: {mdtf_exe} Log: {mdtf_log}")
+    else:
+        print(
+            f"\t ...Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}"
         )
-
-        # The plot_path is given by case in ADF but MDTF needs one top dir, so use case 0
-        # Working dir and output dir can be different. These could be set in config.yaml
-        # but then we don't get the nicely formated plot_location
-        case_idx = 0
-        plot_path = os.path.join(self.plot_location[case_idx], "mdtf")
-        for var in ["WORKING_DIR", "OUTPUT_DIR"]:
-            if mdtf_info[var] == "default":
-                mdtf_info[var] = plot_path
-
-
-        #
-        # Write the input settings json file
-        #
-        mdtf_input_settings_filename = self.get_mdtf_info(
-            "mdtf_input_settings_filename", required=True
-        )
-
-        with open(
-            mdtf_input_settings_filename,
-            "w",
-            encoding="utf-8",
-        ) as out_file:
-            json.dump(mdtf_info, out_file, sort_keys=True, indent=4, ensure_ascii=False)
-        mdtf_codebase = self.get_mdtf_info("mdtf_codebase_loc")
-        print(f"\t Using MDTF code base {mdtf_codebase}")
-
-        #
-        # Move the data to the dir structure and file names expected by the MDTF
-        #    model_input_data/case/freq/case.VAR.freq.nc
-
-        self.move_tsfiles_for_mdtf(verbose)
-
-        #
-        # Submit the MDTF script in background mode, send output to mdtf.out file
-        #
-        mdtf_log = "mdtf.out" # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
-        mdtf_exe = mdtf_codebase + os.sep + "mdtf -f " + mdtf_input_settings_filename
-        if copy_files_only:
-            print("\t ...Copy files only. NOT Running MDTF")
-            print(f"\t    Command: {mdtf_exe} Log: {mdtf_log}")
-        else:
-            print(
-                f"\t ...Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}"
+        print(f"Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}")
+        with open(mdtf_log, "w", encoding="utf-8") as subout:
+            _ = subprocess.Popen(
+                [mdtf_exe],
+                shell=True,
+                stdout=subout,
+                stderr=subout,
+                close_fds=True,
             )
-            print(f"Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}")
-            with open(mdtf_log, "w", encoding="utf-8") as subout:
-                _ = subprocess.Popen(
-                    [mdtf_exe],
-                    shell=True,
-                    stdout=subout,
-                    stderr=subout,
-                    close_fds=True,
-                )

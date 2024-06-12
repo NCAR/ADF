@@ -118,6 +118,9 @@ FICE:
 # Category: Aerosols
 #+++++++++++
 
+#List of zonal areosols
+aerosol_zonal_list: ["BC","POM","SO4","SOA","NH4HSO4","DUST","SeaSalt"]
+
 AODDUST:
   category: "Aerosols"
   colormap: "Oranges"

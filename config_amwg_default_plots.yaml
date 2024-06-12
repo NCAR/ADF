@@ -77,7 +77,7 @@ diag_basic_info:
     #Location of observational datasets:
     #Note: this only matters if "compare_obs" is true and the path
     #isn't specified in the variable defaults file.
-    obs_data_loc: /glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_regrid_loc: /glade/scratch/${user}/ADF/regrid
@@ -182,6 +182,20 @@ diag_cam_climo:
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
 
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    tem_hist_str: cam.h4
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    cam_tem_loc: /glade/scratch/${user}/${diag_cam_climo.cam_case_name}/tem/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    overwrite_tem: false
+
     #----------------------
 
 #This third set of variables provide info for the CAM baseline climatologies.
@@ -244,6 +258,20 @@ diag_cam_baseline_climo:
 
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
+
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    tem_hist_str: cam.h4
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    cam_tem_loc: /glade/scratch/${user}/${diag_cam_baseline_climo.cam_case_name}/tem/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    overwrite_tem: false
 
 #This fourth set of variables provides settings for calling the Climate Variability
 # Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
@@ -366,13 +394,12 @@ plotting_scripts:
     - global_latlon_map
     - global_latlon_vect_map
     - zonal_mean
+    - meridional_mean
     - polar_map
     - cam_taylor_diagram
-#    - qbo
-#    - meridional_mean
-#    - tape_recorder
-    #- tem #To plot TEM, please un-comment fill-out
-                              #the "tem_info" section below
+    - qbo
+    #- tape_recorder
+    #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
                               #the "region_multicase" section below
 
@@ -442,26 +469,5 @@ diag_var_list:
 #     region_month: <NULL means look for season>
 #     region_season: <NULL means use annual mean>
 #     region_variables: <list of variables to try to use; allows for a subset of the total diag variables>
-
-# Options for TEM diagnostics (./averaging/create_TEM_files.py and ./plotting/temp.py)
-#tem_info:
-    #Location where TEM files are stored:
-    #If path not specified or commented out, TEM calculation/plots will be skipped
-#    tem_loc: /glade/scratch/richling/adf-output/ADF-data/TEM/
-
-    #TEM history file number
-    #If missing or blank, ADF will default to h4
-#    hist_num: h4
-
-    #Overwrite TEM files, if found?
-    #If set to false, then TEM creation will be skipped if files are found:
-#    overwrite_tem_case: false
-
-    #For multi-case
-    #overwrite_tem_case:
-    #    - false
-    #    - true
-
-#    overwrite_tem_base: false
 
 #END OF FILE
