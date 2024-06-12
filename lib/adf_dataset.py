@@ -129,7 +129,7 @@ class AdfData:
         """Return Dataset for climo of variablename"""
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            print(f"ERROR: Did not find climo file for variable: {variablename}. Will try to skip.")
+            warnings.warning(f"ERROR: Did not find climo file for variable: {variablename}. Will try to skip.")
             return None
         return self.load_dataset(fils)
     
@@ -138,7 +138,6 @@ class AdfData:
         """Retrieve the climo file path(s) for variablename for a specific case."""
         a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
         caseindex = (self.case_names).index(case) # the entry for specified case
-        # print(f"Checking if case name is in the climo loc entry: {case in a[caseindex]}")
         model_cl_loc = Path(a[caseindex])
         return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
 
@@ -200,7 +199,7 @@ class AdfData:
     def load_da(self, fils, variablename):
         ds = self.load_dataset(fils)
         if ds is None:
-            print(f"ERROR: Load failed for {variablename}")
+            warnings.warn(f"ERROR: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
         if variablename in self.adf.variable_defaults:
