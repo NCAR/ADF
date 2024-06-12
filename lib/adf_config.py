@@ -240,7 +240,7 @@ class AdfConfig(AdfBase):
         #Loop through dictionary:
         for key, value in config_dict_copy.items():
 
-            #Skipe non-strings (as they won't contain a keyword):
+            #Skip non-strings (as they won't contain a keyword):
             if not isinstance(value, str):
                 continue
 
@@ -274,6 +274,9 @@ class AdfConfig(AdfBase):
             raise TypeError(emsg)
         #End if
 
+        if varname == "ALL":
+            return var_dict
+        
         #Check that variable name exists in dictionary:
         if varname not in var_dict.keys():
             #If variable is required, then throw an error:

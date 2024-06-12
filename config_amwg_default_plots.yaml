@@ -63,12 +63,6 @@ user: 'USER-NAME-NOT-SET'
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
 
-    #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries
-    # Leave off trailing '.'
-    #Default: cam.h0
-    hist_str: cam.h0
-
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
     compare_obs: false
@@ -129,6 +123,12 @@ diag_basic_info:
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
+
+    # History file list of strings to match
+    # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
+    # Only affects timeseries as everything else uses the created timeseries 
+    # Default: 
+    hist_str: cam.h0
 
     #Calculate climatologies?
     #If false, the climatology files will not be created:
@@ -202,7 +202,13 @@ diag_cam_climo:
 #This only matters if "compare_obs" is false:
 diag_cam_baseline_climo:
 
-    #Calculate cam baseline climatologies?
+    # History file list of strings to match
+    # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
+    # Only affects timeseries as everything else uses the created timeseries 
+    # Default: 
+    hist_str: cam.h0
+    
+#Calculate cam baseline climatologies?
     #If false, the climatology files will not be created:
     calc_cam_climo: true
 
@@ -290,6 +296,71 @@ diag_cvdp_info:
     # tar up CVDP results?
     cvdp_tar: false
 
+# This set of variables provides settings for calling NOAA's
+# Model Diagnostic Task Force (MDTF) diagnostic package.
+# https://github.com/NOAA-GFDL/MDTF-diagnostics
+#
+# If mdtf_run: true, the MDTF will be set up and 
+# run in background mode, likely completing after the ADF has completed.
+#
+# The variables required depend on the diagnostics (PODs) selected. 
+# AMWG-developed PODS and their required variables:
+#   (Note that PRECT can be computed from PRECC & PRECL)
+#  - MJO_suite: daily PRECT, FLUT, U850, U200, V200  (all required)
+#  - Wheeler-Kiladis Wavenumber Frequency Spectra: daily PRECT, FLUT, U200, U850, OMEGA500
+#              (will use what is available)
+#  - Blocking (Rich Neale):  daily OMEGA500
+#  - Precip Diurnal Cycle (Rich Neale): 3-hrly PRECT
+#
+# Many other diagnostics are available; see 
+# https://mdtf-diagnostics.readthedocs.io/en/main/sphinx/start_overview.html
+
+#
+diag_mdtf_info:
+    # Run the MDTF on the model cases
+    mdtf_run: false
+
+    # The file that will be written by ADF to input to MDTF. Call this whatever you want.
+    mdtf_input_settings_filename : mdtf_input.json   
+
+    ## MDTF code path, sets the location of the MDTF codebase and pre-compiled conda envs
+    #  CHANGE if you have any: your own MDTF code, installed conda envs and/or obs_data
+
+    mdtf_codebase_path : /glade/campaign/cgd/amp/amwg/mdtf                                                                                                                                 
+    mdtf_codebase_loc  : ${mdtf_codebase_path}/MDTF-diagnostics.v3.1.20230817.ADF
+    conda_root         : ${mdtf_codebase_path}/miniconda2
+    conda_env_root     : ${mdtf_codebase_path}/miniconda2/envs.MDTFv3.1.20230412/
+    OBS_DATA_ROOT      : ${mdtf_codebase_path}/obs_data
+
+
+
+    # Set to default for same as the ADF plot_location. Anything else here overrides that
+    OUTPUT_DIR         : default
+    WORKING_DIR        : default
+
+    # SET this to a writable dir. The ADF will place ts files here for the MDTF to read (adds the casename)
+    MODEL_DATA_ROOT     : ${diag_cam_climo.cam_ts_loc}/mdtf/inputdata/model     
+
+    # Choose diagnostics (PODs). Full list of available PODs: https://github.com/NOAA-GFDL/MDTF-diagnostics
+    pod_list      :  [ "MJO_suite" ]
+
+    # Intermediate/output file settings
+    make_variab_tar: false     # tar up MDTF results
+    save_ps : false     # save postscript figures in addition to bitmaps
+    save_nc : true      # save netCDF files of processed data (recommend true when starting with new model data)
+    overwrite: true     # overwrite results in OUTPUT_DIR; otherwise results saved under a unique name
+
+    # Settings used in debugging:
+    verbose  : 3       # Log verbosity level.
+    test_mode: false   # Set to true for framework test. Data is fetched but PODs are not run.
+    dry_run  : false   # Framework test. No external commands are run and no remote data is copied. Implies test_mode.
+
+    # Settings that shouldn't change in ADF implementation for now
+    data_type           : single_run # single_run or multi_run (only works with single right now)
+    data_manager        : Local_File # Fetch data or it is local?
+    environment_manager : Conda      # Manage dependencies
+
+
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 #These variables below only matter if you are using
@@ -375,7 +446,16 @@ diag_var_list:
    - LANDFRAC
 
 #<Add more variables here.>
-
+# MDTF recommended variables
+#    - OMEGA
+#    - PRECT
+#    - PS
+#    - PSL
+#    - U200
+#    - U850
+#    - V200
+#    - V850
+    
 # Options for multi-case regional contour plots (./plotting/regional_map_multicase.py)
 # region_multicase:
 #     region_spec: [slat, nlat, wlon, elon]

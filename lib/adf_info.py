@@ -76,8 +76,23 @@ class AdfInfo(AdfConfig):
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
 
-        #Check if inputs are of the correct type:
-        #-------------------------------------------
+        # Add CVDP info to object:
+        self.__cvdp_info = self.read_config_var("diag_cvdp_info")
+
+        # Expand CVDP climo info variable strings:
+        if self.__cvdp_info is not None:
+            self.expand_references(self.__cvdp_info)
+        # End if
+
+        # Add MDTF info to object:
+        self.__mdtf_info = self.read_config_var("diag_mdtf_info")
+
+        if self.__mdtf_info is not None:
+            self.expand_references(self.__mdtf_info)
+        # End if
+        
+        # Check if inputs are of the correct type:
+        # -------------------------------------------
 
         #Use "cam_case_name" as the variable that sets the total number of cases:
         if isinstance(self.get_cam_info("cam_case_name", required=True), list):
@@ -92,8 +107,11 @@ class AdfInfo(AdfConfig):
 
         #Loop over all items in config dict:
         for conf_var, conf_val in self.__cam_climo_info.items():
-            if isinstance(conf_val, list):
-                #If a list, then make sure it is has the correct number of entries:
+            # Hist_str can be a list for each case, so set it as a nested list here
+            if "hist_str" in conf_var:
+                self.hist_str_to_list(conf_var, conf_val)
+            elif isinstance(conf_val, list):
+                # If a list, then make sure it is has the correct number of entries:
                 if not len(conf_val) == self.__num_cases:
                     emsg = f"diag_cam_climo config variable '{conf_var}' should have"
                     emsg += f" {self.__num_cases} entries, instead it has {len(conf_val)}"
@@ -101,16 +119,9 @@ class AdfInfo(AdfConfig):
             else:
                 #If not a list, then convert it to one:
                 self.__cam_climo_info[conf_var] = [conf_val]
-            #End if
-        #End for
-        #-------------------------------------------
-
-        #Read hist_str (component.hist_num) from the yaml file, or set to default
-        hist_str = self.get_basic_info('hist_str')
-        #If hist_str is not present, then default to 'cam.h0':
-        if not hist_str:
-            hist_str = 'cam.h0'
-        #End if
+            # End if
+        # End for
+        # -------------------------------------------
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
@@ -211,15 +222,15 @@ class AdfInfo(AdfConfig):
                     msg += f"{data_name}, using first found year: {found_eyear_baseline}\n"
                     print(msg)
                     eyear_baseline = found_eyear_baseline
-            #End if
+            # End if
 
-            #Check if history file path exists:
-            if baseline_hist_locs:
-
+            # Check if history file path exists:
+            if any(baseline_hist_locs):
+                hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
-                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
-                #Partition string to find exactly where h-number is
-                #This cuts the string before and after the `{hist_str}.` sub-string
+                file_list = sorted(starting_location.glob("*" + hist_str + ".*.nc"))
+                # Partition string to find exactly where h-number is
+                # This cuts the string before and after the `{hist_str}.` sub-string
                 # so there will always be three parts:
                 # before sub-string, sub-string, and after sub-string
                 #Since the last part always includes the time range, grab that with last index (2)
@@ -309,7 +320,10 @@ class AdfInfo(AdfConfig):
 
         #Extract cam history files location:
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
-        
+
+        # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
+        cam_hist_str = self.get_cam_info("hist_str")
+
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
         
@@ -362,7 +376,10 @@ class AdfInfo(AdfConfig):
             #End if
 
             #Check if history file path exists:
-            if cam_hist_locs[case_idx]:
+            hist_str_case = cam_hist_str[case_idx]
+            if any(cam_hist_locs):
+                hist_str = hist_str_case[0]
+
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
@@ -493,7 +510,21 @@ class AdfInfo(AdfConfig):
         #End if
         #Print number of processors being used to debug log (if requested):
         self.debug_log(f"ADF is running with {self.__num_procs} processors.")
-        #-----------------------------------------
+        # -----------------------------------------
+
+    #########
+    def hist_str_to_list(self, conf_var, conf_val):
+        """
+        Make hist_str a nested list [ncases,nfiles] of the given value(s)
+        """
+        if isinstance(self.get_cam_info("hist_str", required=True), list):
+            hist_str = conf_val
+        else:  # one case, one hist str
+            hist_str = [
+                conf_val
+            ]  
+        self.__cam_climo_info[conf_var] = [hist_str]
+        # -----------------------------------------
 
     #########
 
@@ -583,8 +614,7 @@ class AdfInfo(AdfConfig):
     def get_basic_info(self, var_str, required=False):
         """
         Return the config variable from 'diag_basic_info' as requested by
-        the user.  This function assumes that if the user is requesting it,
-        then it must be required.
+        the user.  
         """
 
         return self.read_config_var(var_str,
@@ -597,9 +627,7 @@ class AdfInfo(AdfConfig):
     def get_cam_info(self, var_str, required=False):
         """
         Return the config variable from 'diag_cam_climo' as requested by
-        the user.  This function assumes that if the user is requesting it,
-        then it must be required.
-        """
+        the user.  """
 
         return self.read_config_var(var_str,
                                     conf_dict=self.__cam_climo_info,
@@ -648,7 +676,38 @@ class AdfInfo(AdfConfig):
 
     #########
 
-    #Utility function to grab climo years from pre-made time series files:
+    # Utility function to access expanded 'diag_cvdp_info' variables
+    def get_cvdp_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_cvdp_info' as requested by
+        the user. If 'diag_cvdp_info' is not found then try grabbing the
+        variable from the top level of the YAML config file dictionary
+        instead.
+        """
+
+        return self.read_config_var(
+            var_str, conf_dict=self.__cvdp_info, required=required
+        )
+
+    #########
+
+    # Utility function to access expanded 'diag_mdtf_info' variables
+    def get_mdtf_info(self, var_str, required=False):
+        """
+        Return the config variable from 'diag_mdtf_info' as requested by
+        the user. If 'diag_mdtf_info' is not found then try grabbing the
+        variable from the top level of the YAML config file dictionary
+        instead.
+        """
+
+        return self.read_config_var(
+            var_str, conf_dict=self.__mdtf_info, required=required
+        )
+ 
+        
+    #########
+   
+    # Utility function to grab climo years from pre-made time series files:
     def get_climo_yrs_from_ts(self, input_ts_loc, case_name):
         """
         Grab start and end climo years if none are specified in config file
@@ -671,9 +730,10 @@ class AdfInfo(AdfConfig):
             errmsg = f"Time series directory '{input_ts_loc}' not found.  Script is exiting."
             raise AdfError(errmsg)
 
-        #Search for first variable in var_list to get a time series file to read
-        #NOTE: it is assumed all the variables have the same dates!
-        ts_files = sorted(input_location.glob(f"{case_name}*.{var_list[0]}.*nc"))
+        # Search for first variable in var_list to get a time series file to read
+        # NOTE: it is assumed all the variables have the same dates!
+        # Also, it is assumed that only h0 files should be climo-ed.
+        ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var_list[0]}.*nc"))
 
         #Read in file(s)
         if len(ts_files) == 1:
