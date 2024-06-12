@@ -183,7 +183,6 @@ class AdfDiag(AdfWeb):
         # Note that a copy is needed in order to avoid having a script mistakenly
         # modify this variable:
         return copy.copy(self.__plotting_scripts)
-        )
 
     #########
     # Script-running functions
