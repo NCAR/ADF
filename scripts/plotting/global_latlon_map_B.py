@@ -18,7 +18,7 @@ import xarray as xr
 import warnings  # use to warn user about missing files.
 
 import plotting_functions as pf
-from adf_dataset import AdfData
+# from adf_dataset import AdfData
 
 #Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
@@ -83,7 +83,7 @@ def global_latlon_map_B(adfobj):
     #
     # Use ADF api to get all necessary information
     #
-    data = AdfData(adfobj)
+    # data = AdfData(adfobj) NO LONGER NEEDED
     var_list = adfobj.diag_var_list
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
@@ -128,7 +128,7 @@ def global_latlon_map_B(adfobj):
     
     # probably want to do this one variable at a time:
     for var in var_list:
-        if var not in data.ref_var_nam:
+        if var not in adfobj.data.ref_var_nam:
             dmsg = f"No reference data found for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             continue        
@@ -156,7 +156,7 @@ def global_latlon_map_B(adfobj):
         vres['central_longitude'] = pf.get_central_longitude(adfobj)
 
         # load reference data (observational or baseline)
-        odata = data.load_reference_da(var)
+        odata = adfobj.data.load_reference_da(var)
         if odata is None:
             continue
         has_dims = pf.lat_lon_validate_dims(odata) # T iff dims are (lat,lon) -- can't plot unless we have both
@@ -165,10 +165,10 @@ def global_latlon_map_B(adfobj):
             continue
 
         #Loop over model cases:
-        for case_idx, case_name in enumerate(data.case_names):
+        for case_idx, case_name in enumerate(adfobj.data.case_names):
 
             #Set case nickname:
-            case_nickname = data.test_nicknames[case_idx]
+            case_nickname = adfobj.data.test_nicknames[case_idx]
 
             #Set output plot location:
             plot_loc = Path(plot_locations[case_idx])
@@ -179,7 +179,7 @@ def global_latlon_map_B(adfobj):
                 plot_loc.mkdir(parents=True)
 
             #Load re-gridded model files:
-            mdata = data.load_regrid_da(case_name, var)
+            mdata = adfobj.data.load_regrid_da(case_name, var)
 
             #Skip this variable/case if the regridded climo file doesn't exist:
             if mdata is None:
@@ -239,11 +239,11 @@ def global_latlon_map_B(adfobj):
                     # difference: each entry should be (lat, lon)
                     dseasons[s] = mseasons[s] - oseasons[s]
 
-                    pf.plot_map_and_save(plot_name, case_nickname, data.ref_nickname,
+                    pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                             [syear_cases[case_idx],eyear_cases[case_idx]],
                                             [syear_baseline,eyear_baseline],
                                             mseasons[s], oseasons[s], dseasons[s],
-                                            obs=data.adf.compare_obs, **vres)
+                                            obs=adfobj.compare_obs, **vres)
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
@@ -283,7 +283,7 @@ def global_latlon_map_B(adfobj):
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                 [syear_baseline,eyear_baseline],
                                                 mseasons[s].sel(lev=pres), oseasons[s].sel(lev=pres), dseasons[s].sel(lev=pres),
-                                                obs=data.adf.compare_obs, **vres)
+                                                obs=adfobj.compare_obs, **vres)
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
@@ -343,14 +343,14 @@ def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_p
     if plot_name.is_file():
         if redo_plot:
             plot_name.unlink()
-            return 1
+            return True
         else:
             #Add already-existing plot to website (if enabled):
             adfobj.add_website_data(plot_name, var, case_name, category=web_category,
                                     season=season, plot_type=plot_type)
-            return None  # None tells caller that file exists and not to overwrite
+            return False  # False tells caller that file exists and not to overwrite
     else:
-        return 1
+        return True
 
 ##############
 #END OF SCRIPT

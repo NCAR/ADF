@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
-from adf_dataset import AdfData
+# from adf_dataset import AdfData
 
 import warnings  # use to warn user about missing files.
 
@@ -47,7 +47,7 @@ def zonal_mean_B(adfobj):
 
     # Start by instantiating the AdfData object
     # and Extract needed quantities from ADF object:
-    data = AdfData(adfobj)
+    # data = AdfData(adfobj)
 
     var_list = adfobj.diag_var_list
 
@@ -93,7 +93,7 @@ def zonal_mean_B(adfobj):
     logp_zonal_skip = []
 
     #Loop over model cases:
-    for case_idx, case_name in enumerate(data.case_names):
+    for case_idx, case_name in enumerate(adfobj.data.case_names):
         #Set output plot location:
         plot_loc = Path(plot_locations[case_idx])
 
@@ -146,7 +146,7 @@ def zonal_mean_B(adfobj):
     #
     #Loop over variables:
     for var in var_list:
-        if var not in data.ref_var_nam:
+        if var not in adfobj.data.ref_var_nam:
             dmsg = f"No obs found for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             continue
@@ -165,20 +165,20 @@ def zonal_mean_B(adfobj):
         #End if
 
         # load reference data (observational or baseline)
-        odata = data.load_reference_da(var)
+        odata = adfobj.data.load_reference_da(var)
         has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
 
         #Loop over model cases:
-        for case_idx, case_name in enumerate(data.case_names):
+        for case_idx, case_name in enumerate(adfobj.data.case_names):
 
             #Set case nickname:
-            case_nickname = data.test_nicknames[case_idx]
+            case_nickname = adfobj.data.test_nicknames[case_idx]
 
             #Set output plot location:
             plot_loc = Path(plot_locations[case_idx])
 
             # load re-gridded model files:
-            mdata = data.load_regrid_da(case_name, var)
+            mdata = adfobj.data.load_regrid_da(case_name, var)
 
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
@@ -221,10 +221,10 @@ def zonal_mean_B(adfobj):
                         # This could be re-visited for efficiency or improved code structure.
 
                         #Create new plot:
-                        pf.plot_zonal_mean_and_save(plot_name, case_nickname, data.ref_nickname,
+                        pf.plot_zonal_mean_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
                                                     [syear_baseline,eyear_baseline],
-                                                    mseasons[s], oseasons[s], has_lev, log_p=False, obs=data.adf.compare_obs, **vres)
+                                                    mseasons[s], oseasons[s], has_lev, log_p=False, obs=adfobj.compare_obs, **vres)
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Zonal")
@@ -244,10 +244,10 @@ def zonal_mean_B(adfobj):
                         mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
                         oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
 
-                        pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, data.ref_nickname,
+                        pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, adfobj.data.ref_nickname,
                                                         [syear_cases[case_idx],eyear_cases[case_idx]],
                                                         [syear_baseline,eyear_baseline],
-                                                        mseasons[s], oseasons[s], has_lev, log_p=True, obs=data.adf.compare_obs, **vres)
+                                                        mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category="Log-P")

@@ -2317,9 +2317,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
     mnorm = mpl.colors.Normalize(mn, mx)
 
     coord1, coord2 = fld1.coords  # ASSUMES xarray WITH coords AND 2-dimensions
-    # print(f"{coord1}, {coord2}")
     xx, yy = np.meshgrid(fld1[coord2], fld1[coord1])
-    # print(f"shape of meshgrid: {xx.shape}")
 
     img1 = ax1.contourf(xx, yy, fld1.transpose())
     if (coord1 == 'month') and (fld1.shape[0] ==12):

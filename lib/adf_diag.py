@@ -92,9 +92,9 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 
 # +++++++++++++++++++++++++++++
 
-# Finally, import needed ADF module:
+# Finally, import needed ADF modules:
 from adf_web import AdfWeb
-
+from adf_dataset import AdfData
 
 #################
 # Helper functions
@@ -181,6 +181,9 @@ class AdfDiag(AdfWeb):
 
         # Add plotting script names:
         self.__plotting_scripts = self.read_config_var("plotting_scripts")
+
+        # Provide convenience functions for data handling:
+        self.data = AdfData(self)
 
     # Create property needed to return "plotting_scripts" variable to user:
     @property
