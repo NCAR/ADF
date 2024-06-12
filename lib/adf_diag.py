@@ -183,10 +183,6 @@ class AdfDiag(AdfWeb):
         # Note that a copy is needed in order to avoid having a script mistakenly
         # modify this variable:
         return copy.copy(self.__plotting_scripts)
-
-
-        return self.read_config_var(
-            var_str, conf_dict=self.__cvdp_info, required=required
         )
 
     #########
