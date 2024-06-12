@@ -224,7 +224,7 @@ def zonal_mean_B(adfobj):
                         pf.plot_zonal_mean_and_save(plot_name, case_nickname, data.ref_nickname,
                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
                                                     [syear_baseline,eyear_baseline],
-                                                    mseasons[s], oseasons[s], has_lev, log_p=False, obs=data.reference_is_obs, **vres)
+                                                    mseasons[s], oseasons[s], has_lev, log_p=False, obs=data.adf.compare_obs, **vres)
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Zonal")
@@ -247,7 +247,7 @@ def zonal_mean_B(adfobj):
                         pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, data.ref_nickname,
                                                         [syear_cases[case_idx],eyear_cases[case_idx]],
                                                         [syear_baseline,eyear_baseline],
-                                                        mseasons[s], oseasons[s], has_lev, log_p=True, obs=data.reference_is_obs, **vres)
+                                                        mseasons[s], oseasons[s], has_lev, log_p=True, obs=data.adf.compare_obs, **vres)
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category="Log-P")
