@@ -874,9 +874,6 @@ class AdfDiag(AdfWeb):
 
         """
 
-        # import needed standard modules:
-        import shutil
-
         # Case names:
         case_names = self.get_cam_info("cam_case_name", required=True)
 
