@@ -145,7 +145,7 @@ def zonal_mean(adfobj):
         for var in var_list:
             for s in seasons:
                 #Check zonal log-p:
-                plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
+                plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
 
                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                 if (not redo_plot) and plot_name_log.is_file():
@@ -230,7 +230,7 @@ def zonal_mean(adfobj):
             else:
                 oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
             #End if
-            oclim_ds = _load_dataset(oclim_fils)
+            oclim_ds = pf.load_dataset(oclim_fils)
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
@@ -243,7 +243,7 @@ def zonal_mean(adfobj):
 
                 # load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
-                mclim_ds = _load_dataset(mclim_fils)
+                mclim_ds = pf.load_dataset(mclim_fils)
 
                 # stop if data is invalid:
                 if (oclim_ds is None) or (mclim_ds is None):
@@ -320,7 +320,7 @@ def zonal_mean(adfobj):
 
                     #Create new plot with log-p:
                     if has_lev:
-                        plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
+                        plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
 
                         if plot_name_log not in logp_zonal_skip:
                             pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, base_nickname,
@@ -344,18 +344,6 @@ def zonal_mean(adfobj):
 # Helpers
 #########
 
-def _load_dataset(fils):
-    if len(fils) == 0:
-        warnings.warn(f"Input file list is empty.")
-        return None
-    elif len(fils) > 1:
-        return xr.open_mfdataset(fils, combine='by_coords')
-    else:
-        sfil = str(fils[0])
-        return xr.open_dataset(sfil)
-    #End if
-#End def
 
 ##############
 #END OF SCRIPT
-

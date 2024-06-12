@@ -232,8 +232,9 @@ table.dataframe thead th{
 
 .grid-item-blocked {
   background-color: rgba(192, 192, 192, 0.6);
-  border: 1px solid rgba(0, 0, 0, 0.8);
-  padding: 10px;
+  font-family: Tahoma, Geneva, Verdana, sans-serif;
+  border-collapse: collapse;
+  border-radius: 15px;  padding: 10px;
   font-size: 16px;
   text-align: center;
 }
@@ -260,7 +261,7 @@ table.dataframe thead th{
   display: grid;
   column-gap: 50px;
   row-gap: 50px;
-  grid-template-columns: repeat(3, auto);
+  grid-template-columns: repeat(4, auto);
   background-color: #e4eef0;
   padding: 85px;
 }

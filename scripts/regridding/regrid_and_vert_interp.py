@@ -532,7 +532,7 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
         #Regrid model data to match target grid:
         rgdata = regrid_data(mdata, tgrid, method=1)
         if mdat_ofrac:
-            rgofrac = regrid_data(mdat_ofrac, tgrd, method=1)
+            rgofrac = regrid_data(mdat_ofrac, tgrid, method=1)
         #Regrid surface pressure if need be:
         if has_lev:
             if not regridded_ps:

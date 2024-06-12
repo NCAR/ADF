@@ -150,6 +150,8 @@ def amwg_table(adf):
     #-----------------------------------------
 
     #Loop over CAM cases:
+    #Initialize list of case name csv files for case comparison check later
+    csv_list = []
     for case_idx, case_name in enumerate(case_names):
 
         #Convert output location string to a Path object:
@@ -206,8 +208,9 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #Load model data from file:
-            data = _load_data(ts_files[0], var)
+            #Load model variable data from file:
+            ds = pf.load_dataset(ts_files)
+            data = ds[var]
 
             #Extract units string, if available:
             if hasattr(data, 'units'):
@@ -305,6 +308,9 @@ def amwg_table(adf):
             print(f"\n\tAMWG table for '{case_name}' not created.\n")
         #End try/except
 
+        #Keep track of case csv files for comparison table check later
+        csv_list.extend(sorted(output_location.glob(f"amwg_table_{case_name}.csv")))
+
     #End of model case loop
     #----------------------
 
@@ -313,7 +319,7 @@ def amwg_table(adf):
     #Check if observations are being compared to, if so skip table comparison...
     if not adf.get_basic_info("compare_obs"):
         #Check if all tables were created to compare against, if not, skip table comparison...
-        if len(sorted(output_location.glob("*.csv"))) != len(case_names):
+        if len(csv_list) != len(case_names):
             print("\tNot enough cases to compare, skipping comparison table...")
         else:
             #Create comparison table for both cases
@@ -332,13 +338,6 @@ def amwg_table(adf):
 ##################
 # Helper functions
 ##################
-
-def _load_data(dataloc, varname):
-    import xarray as xr
-    ds = xr.open_dataset(dataloc)
-    return ds[varname]
-
-#####
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:

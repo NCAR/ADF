@@ -485,179 +485,186 @@ class AdfDiag(AdfWeb):
                             print(wmsg)
 
                             vert_coord_type = None
-                        # End if (long name)
-                    # End if (vert_coord)
-                else:
-                    # No level dimension found, so assume there is no vertical coordinate:
-                    vert_coord_type = None
-                # End if (lev existence)
-                # ------------------------
 
-                # Check if time series directory exists, and if not, then create it:
-                # Use pathlib to create parent directories, if necessary.
-                Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
+                      # End if (long name)
+                  # End if (vert_coord)
+              else:
+                # No level dimension found, so assume there is no vertical coordinate:
+                vert_coord_type = None
+              # End if (lev existence)
+              # ------------------------
 
-                # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
-                first_file_split = str(hist_files[0]).split(".")
-                if first_file_split[-1] == "nc":
-                    time_string_start = first_file_split[-2].replace("-", "")
-                else:
-                    time_string_start = first_file_split[-1].replace("-", "")
-                last_file_split = str(hist_files[-1]).split(".")
-                if last_file_split[-1] == "nc":
-                    time_string_finish = last_file_split[-2].replace("-", "")
-                else:
-                    time_string_finish = last_file_split[-1].replace("-", "")
-                time_string = "-".join([time_string_start, time_string_finish])
+              # Check if time series directory exists, and if not, then create it:
+              # Use pathlib to create parent directories, if necessary.
+              Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
 
-                # Loop over CAM history variables:
-                list_of_commands = []
-                vars_to_derive = []
-                # create copy of var list that can be modified for derivable variables
-                diag_var_list = self.diag_var_list
-                for var in diag_var_list:
-                    if var not in hist_file_var_list:
-                        vres = res.get(var, {})
-                        if "derivable_from" in vres:
-                            constit_list = vres["derivable_from"]
-                            for constit in constit_list:
-                                if constit not in diag_var_list:
-                                    diag_var_list.append(constit)
-                            vars_to_derive.append(var)
-                            continue
-                # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
-                first_file_split = str(hist_files[0]).split(".")
-                if first_file_split[-1] == "nc":
-                    time_string_start = first_file_split[-2].replace("-", "")
-                else:
-                    time_string_start = first_file_split[-1].replace("-", "")
-                last_file_split = str(hist_files[-1]).split(".")
-                if last_file_split[-1] == "nc":
-                    time_string_finish = last_file_split[-2].replace("-", "")
-                else:
-                    time_string_finish = last_file_split[-1].replace("-", "")
-                time_string = "-".join([time_string_start, time_string_finish])
+              # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
+              first_file_split = str(hist_files[0]).split(".")
+              if first_file_split[-1] == "nc":
+                  time_string_start = first_file_split[-2].replace("-", "")
+              else:
+                  time_string_start = first_file_split[-1].replace("-", "")
+              last_file_split = str(hist_files[-1]).split(".")
+              if last_file_split[-1] == "nc":
+                  time_string_finish = last_file_split[-2].replace("-", "")
+              else:
+                  time_string_finish = last_file_split[-1].replace("-", "")
+              time_string = "-".join([time_string_start, time_string_finish])
 
-                # Loop over CAM history variables:
-                list_of_commands = []
-                vars_to_derive = []
-                # create copy of var list that can be modified for derivable variables
-                diag_var_list = self.diag_var_list
+              # Loop over CAM history variables:
+              list_of_commands = []
+              vars_to_derive = []
+              # create copy of var list that can be modified for derivable variables
+              diag_var_list = self.diag_var_list
 
-                # Aerosol Calcs
-                #--------------
-                #Always make sure PMID is made if aerosols are desired in config file
-                if "PMID" not in diag_var_list:
-                    if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
-                        diag_var_list += ["PMID"]
-                if "T" not in diag_var_list:
-                    if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
-                        diag_var_list += ["T"]
-                #End aerosol calcs
+              # Aerosol Calcs
+              #--------------
+              #Always make sure PMID is made if aerosols are desired in config file
+              if "PMID" not in diag_var_list:
+                  if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
+                      diag_var_list += ["PMID"]
+              if "T" not in diag_var_list:
+                  if any(item in res["aerosol_zonal_list"] for item in diag_var_list):
+                      diag_var_list += ["T"]
+              #End aerosol calcs
 
-                for var in diag_var_list:
-                    if var not in hist_file_var_list:
-                        vres = res.get(var, {})
-                        if "derivable_from" in vres:
-                            constit_list = vres["derivable_from"]
-                            for constit in constit_list:
-                                if constit not in diag_var_list:
-                                    diag_var_list.append(constit)
-                            vars_to_derive.append(var)
-                            continue
-                        else:
-                            msg = f"WARNING: {var} is not in the file {hist_files[0]}."
-                            msg += " No time series will be generated."
-                            print(msg)
-                            continue
+              for var in diag_var_list:
+                  if var not in hist_file_var_list:
+                      vres = res.get(var, {})
+                      if "derivable_from" in vres:
+                          constit_list = vres["derivable_from"]
+                          for constit in constit_list:
+                              if constit not in diag_var_list:
+                                  diag_var_list.append(constit)
+                          vars_to_derive.append(var)
+                          continue
+                      else:
+                          msg = f"WARNING: {var} is not in the file {hist_files[0]}."
+                          msg += " No time series will be generated."
+                          print(msg)
+                          continue
 
-                    # Check if variable has a "lev" dimension according to first file:
-                    has_lev = bool("lev" in hist_file_ds[var].dims)
+                  # Check if variable has a "lev" dimension according to first file:
+                  has_lev = bool("lev" in hist_file_ds[var].dims)
 
-                    # Create full path name, file name template:
-                    # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
+                  # Create full path name, file name template:
+                  # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
 
-                    ts_outfil_str = (
-                        ts_dir[case_idx]
-                        + os.sep
-                        + ".".join([case_name, hist_str, var, time_string, "nc"])
-                    )
+                  ts_outfil_str = (
+                      ts_dir[case_idx]
+                      + os.sep
+                      + ".".join([case_name, hist_str, var, time_string, "nc"])
+                  )
 
-                    # Check if files already exist in time series directory:
-                    ts_file_list = glob.glob(ts_outfil_str)
+                  # Check if files already exist in time series directory:
+                  ts_file_list = glob.glob(ts_outfil_str)
 
-                    # If files exist, then check if over-writing is allowed:
-                    if ts_file_list:
-                        if not overwrite_ts[case_idx]:
-                            # If not, then simply skip this variable:
-                            continue
+                  # If files exist, then check if over-writing is allowed:
+                  if ts_file_list:
+                      if not overwrite_ts[case_idx]:
+                          # If not, then simply skip this variable:
+                          continue
 
-                    # Notify user of new time series file:
-                    print(f"\t - time series for {var}")
+                  # Notify user of new time series file:
+                  print(f"\t - time series for {var}")
 
-                    # Variable list starts with just the variable
-                    ncrcat_var_list = f"{var}"
+                  # Variable list starts with just the variable
+                  ncrcat_var_list = f"{var}"
 
-                    # Determine "ncrcat" command to generate time series file:
-                    if "date" in hist_file_ds[var].dims:
-                        ncrcat_var_list = ncrcat_var_list + ",date"
-                    if "datesec" in hist_file_ds[var].dims:
-                        ncrcat_var_list = ncrcat_var_list + ",datesec"
+                  # Determine "ncrcat" command to generate time series file:
+                  if "date" in hist_file_ds[var].dims:
+                      ncrcat_var_list = ncrcat_var_list + ",date"
+                  if "datesec" in hist_file_ds[var].dims:
+                      ncrcat_var_list = ncrcat_var_list + ",datesec"
 
-                    if has_lev and vert_coord_type:
-                        # For now, only add these variables if using CAM:
-                        if "cam" in hist_str:
-                            # PS might be in a different history file. If so, continue without error.
-                            ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
+                  if has_lev and vert_coord_type:
+                      # For now, only add these variables if using CAM:
+                      if "cam" in hist_str:
+                          # PS might be in a different history file. If so, continue without error.
+                          ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
 
-                            if "PS" in hist_file_var_list:
-                                ncrcat_var_list = ncrcat_var_list + ",PS"
-                                print("Adding PS to file")
-                            else:
-                                wmsg = "WARNING: PS not found in history file."
-                                wmsg += " It might be needed at some point."
-                                print(wmsg)
-                            # End if
+                          if "PS" in hist_file_var_list:
+                              ncrcat_var_list = ncrcat_var_list + ",PS"
+                              print("Adding PS to file")
+                          else:
+                              msg = f"WARNING: {var} is not in the file {hist_files[0]}."
+                              msg += " No time series will be generated."
+                              print(msg)
+                              continue
 
-                            if vert_coord_type == "height":
-                                # Adding PMID here works, but significantly increases
-                                # the storage (disk usage) requirements of the ADF.
-                                # This can be alleviated in the future by figuring out
-                                # a way to determine all of the regridding targets at
-                                # the start of the ADF run, and then regridding a single
-                                # PMID file to each one of those targets separately. -JN
-                                if "PMID" in hist_file_var_list:
-                                    ncrcat_var_list = ncrcat_var_list + ",PMID"
-                                    print("Adding PMID to file")
-                                else:
-                                    wmsg = "WARNING: PMID not found in history file."
-                                    wmsg += " It might be needed at some point."
-                                    print(wmsg)
-                                # End if PMID
-                            # End if height
-                        # End if cam
-                    # End if has_lev
+                      # Check if variable has a "lev" dimension according to first file:
+                      has_lev = bool("lev" in hist_file_ds[var].dims)
 
-                    cmd = (
-                        ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
-                        + hist_files
-                        + ["-o", ts_outfil_str]
-                    )
+                      # Create full path name, file name template:
+                      # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
 
-                    # Add to command list for use in multi-processing pool:
-                    list_of_commands.append(cmd)
+                      ts_outfil_str = (
+                          ts_dir[case_idx]
+                          + os.sep
+                          + ".".join([case_name, hist_str, var, time_string, "nc"])
+                      )
 
-                # End variable loop
+                      # Check if files already exist in time series directory:
+                      ts_file_list = glob.glob(ts_outfil_str)
 
-                # Now run the "ncrcat" subprocesses in parallel:
-                with mp.Pool(processes=self.num_procs) as mpool:
-                    _ = mpool.map(call_ncrcat, list_of_commands)
+                      # If files exist, then check if over-writing is allowed:
+                      if ts_file_list:
+                          if not overwrite_ts[case_idx]:
+                              # If not, then simply skip this variable:
+                              continue
 
-                if vars_to_derive:
-                    self.derive_variables(
-                        res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
-                    )
-                # End with
+                      # Notify user of new time series file:
+                      print(f"\t - time series for {var}")
+
+                      # Variable list starts with just the variable
+                      ncrcat_var_list = f"{var}"
+
+                      # Determine "ncrcat" command to generate time series file:
+                      if "date" in hist_file_ds[var].dims:
+                          ncrcat_var_list = ncrcat_var_list + ",date"
+                      if "datesec" in hist_file_ds[var].dims:
+                          ncrcat_var_list = ncrcat_var_list + ",datesec"
+
+                      if has_lev and vert_coord_type:
+                          # For now, only add these variables if using CAM:
+                          if "cam" in hist_str:
+                              # PS might be in a different history file. If so, continue without error.
+                              ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
+
+                              if "PS" in hist_file_var_list:
+                                  ncrcat_var_list = ncrcat_var_list + ",PS"
+                                  print("Adding PS to file")
+                              else:
+                                  wmsg = "WARNING: PS not found in history file."
+                                  wmsg += " It might be needed at some point."
+                                  print(wmsg)
+
+                              # End if PMID
+                          # End if height
+                      # End if cam
+                  # End if has_lev
+
+                  cmd = (
+                      ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
+                      + hist_files
+                      + ["-o", ts_outfil_str]
+                  )
+
+                  # Add to command list for use in multi-processing pool:
+                  list_of_commands.append(cmd)
+
+              # End variable loop
+
+              # Now run the "ncrcat" subprocesses in parallel:
+              with mp.Pool(processes=self.num_procs) as mpool:
+                  _ = mpool.map(call_ncrcat, list_of_commands)
+
+              if vars_to_derive:
+                  self.derive_variables(
+                      res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
+                  )
+              # End with
+
             # End for hist_str
 
         # End cases loop
@@ -1165,6 +1172,99 @@ def _load_dataset(fils):
     #End if
 #End def
 ########
+
+=======
+                        print(
+                            f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
+                        )
+                        continue
+
+                #NOTE: this will need to be changed when derived equations are more complex! - JR
+                if var == "RESTOM":
+                    der_val = ds["FSNT"]-ds["FLNT"]
+                else:
+                    #Loop through all constituents and sum
+                    der_val = 0
+                    for v in constit_list:
+                        der_val += ds[v]
+                
+                #Set derived variable name and add to dataset
+                der_val.name = var
+                ds[var] = der_val
+
+                #Aerosol Calculations - used for zonal plots
+                #These will be multiplied by rho (density of dry air)
+                ds_pmid_done = False
+                ds_t_done = False
+                if var in res["aerosol_zonal_list"]:
+                    
+                    #Only calculate once for all aerosol vars
+                    if not ds_pmid_done:
+                        ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
+                        ds_pmid_done = True
+                        if not ds_pmid:
+                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
+                            errmsg += "Please make sure 'PMID' is in the CAM run for aerosol calculations"
+                            print(errmsg)
+                            continue
+                    if not ds_t_done:
+                        ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
+                        ds_t_done = True
+                        if not ds_t:
+                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
+                            errmsg += "Please make sure 'T' is in the CAM run for aerosol calculations"
+                            print(errmsg)
+                            continue
+
+                    #Multiply aerosol by dry air density (rho): (P/Rd*T)
+                    ds[var] = ds[var]*(ds_pmid["PMID"]/(res["Rgas"]*ds_t["T"]))
+
+                    #Sulfate conversion factor
+                    if var == "SO4":
+                        ds[var] = ds[var]*(96./115.)
+
+                #Drop all constituents from final saved dataset
+                #These are not necessary because they have their own time series files
+                ds_final = ds.drop_vars(constit_list)
+                ds_final.to_netcdf(derived_file, unlimited_dims='time', mode='w')
+
+########
+
+#Helper Function(s)
+def _load_dataset(fils):
+    """
+    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    import warnings  # use to warn user about missing files.
+
+    #Format warning messages:
+    def my_formatwarning(msg, *args, **kwargs):
+        """Issue `msg` as warning."""
+        return str(msg) + '\n'
+    warnings.formatwarning = my_formatwarning
+
+    if len(fils) == 0:
+        warnings.warn("Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        return xr.open_dataset(fils[0])
+    #End if
+#End def
 
                     
 ######### MDTF functions #########
