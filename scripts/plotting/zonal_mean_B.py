@@ -2,7 +2,6 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
-# from adf_dataset import AdfData
 
 import warnings  # use to warn user about missing files.
 

@@ -18,7 +18,6 @@ import xarray as xr
 import warnings  # use to warn user about missing files.
 
 import plotting_functions as pf
-# from adf_dataset import AdfData
 
 #Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
