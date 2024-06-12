@@ -673,20 +673,38 @@ class AdfInfo(AdfConfig):
 
         #Search for first variable in var_list to get a time series file to read
         #NOTE: it is assumed all the variables have the same dates!
-        ts_files = sorted(input_location.glob(f"{case_name}*.{var_list[0]}.*nc"))
+
+        #Read hist_str (component.hist_num) from the yaml file, or set to default
+        hist_str = self.get_basic_info('hist_str')
+        #If hist_str is not present, then default to 'cam.h0':
+        if not hist_str:
+            hist_str = 'cam.h0'
+        #End if
+
+        ts_files = sorted(input_location.glob(f"{case_name}.{hist_str}.{var_list[0]}.*nc"))
 
         #Read in file(s)
         if len(ts_files) == 1:
             cam_ts_data = xr.open_dataset(ts_files[0], decode_times=True)
         else:
-            cam_ts_data = xr.open_mfdataset(ts_files, decode_times=True, combine='by_coords')
+            try:
+                cam_ts_data = xr.open_mfdataset(ts_files, decode_times=True, combine='by_coords')
+            except:
+                print(" -----------    ERROR   ------------")
+                print(ts_files)
 
         #Average time dimension over time bounds, if bounds exist:
         if 'time_bnds' in cam_ts_data:
+            timeBoundsName = 'time_bnds'
+        elif 'time_bounds' in cam_ts_data:
+            timeBoundsName = 'time_bounds'
+        else:
+            timeBoundsName = None
+        if timeBoundsName:
             time = cam_ts_data['time']
             #NOTE: force `load` here b/c if dask & time is cftime, 
             #throws a NotImplementedError:
-            time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
+            time = xr.DataArray(cam_ts_data[timeBoundsName].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
             cam_ts_data.assign_coords(time=time)
             cam_ts_data = xr.decode_cf(cam_ts_data)
