@@ -417,13 +417,19 @@ class AdfInfo(AdfConfig):
 
             #Set the final directory name and save it to plot_location:
             direc_name = f"{case_name}_vs_{data_name}"
-            self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            plot_loc = os.path.join(plot_dir, direc_name)
+            self.__plot_location.append(plot_loc)
 
             #If first iteration, then save directory name for use by baseline:
             if case_idx == 0:
                 first_case_dir = direc_name
             #End if
 
+            #Go ahead and make the diag plot location if it doesn't exist already
+            diag_location = Path(plot_loc)
+            if not diag_location.is_dir():
+                print(f"\t    {diag_location} not found, making new directory")
+                diag_location.mkdir(parents=True)
         #End for
 
         self.__syears = syears_fixed
@@ -436,11 +442,6 @@ class AdfInfo(AdfConfig):
             self.__plot_location.append(os.path.join(plot_dir, first_case_dir))
         #End if
 
-        #Go ahead and make the diag plot location if it doesn't exist already
-        diag_location = Path(self.__plot_location[0])
-        if not diag_location.is_dir():
-            print(f"\t    {diag_location} not found, making new directory")
-            diag_location.mkdir(parents=True)
         #-------------------------------------------------------------------------
 
         #Initialize "num_procs" variable:
