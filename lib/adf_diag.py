@@ -221,6 +221,7 @@ class AdfDiag(AdfWeb):
                 func_name = list(func_name.keys())[0]
             elif isinstance(func_name, str):
                 has_opt = False
+                opt = ''
             else:
                 raise TypeError(
                     "Provided script must either be a string or a dictionary."
@@ -306,6 +307,7 @@ class AdfDiag(AdfWeb):
             emsg = (
                 f"Function '{func_name}' cannot be found in module '{module_name}.py'."
             )
+            func = None
             self.end_diag_fail(emsg)
 
         # If kwargs are present, then run function with kwargs and return result:
@@ -334,7 +336,7 @@ class AdfDiag(AdfWeb):
 
         # End def
 
-        print(f"\n  Generating CAM time series files...")
+        print("\n  Generating CAM time series files...")
 
         # Check if baseline time-series files are being created:
         if baseline:
@@ -368,7 +370,7 @@ class AdfDiag(AdfWeb):
         hist_str_list = self.get_cam_info("hist_str")
         dmsg = f"reading from {hist_str_list} files"
         self.debug_log(dmsg)
-    
+
         # get info about variable defaults
         res = self.variable_defaults
 
@@ -391,8 +393,8 @@ class AdfDiag(AdfWeb):
 
             # Check that path actually exists:
             if not starting_location.is_dir():
-                emsg = f"Provided {case_type_string} 'cam_hist_loc' directory '{starting_location}' "
-                emsg += "not found.  Script is ending here."
+                emsg = f"Provided {case_type_string} 'cam_hist_loc' directory"
+                emsg += f" '{starting_location}' not found.  Script is ending here."
                 self.end_diag_fail(emsg)
             # End if
 
@@ -464,7 +466,8 @@ class AdfDiag(AdfWeb):
                                 wmsg = (
                                     "WARNING! Unable to determine the vertical coordinate"
                                 )
-                                wmsg += f" type from the 'lev' long name, which is:\n'{lev_long_name}'."
+                                wmsg = " type from the 'lev' long name,"
+                                wmsg += f" which is:\n'{lev_long_name}'."
                                 wmsg += "\nNo additional vertical coordinate information will be"
                                 wmsg += " transferred beyond the 'lev' dimension itself."
                                 print(wmsg)
@@ -908,6 +911,11 @@ class AdfDiag(AdfWeb):
             syears_baseline = self.climo_yrs["syear_baseline"]
             eyears_baseline = self.climo_yrs["eyear_baseline"]
             baseline_ts_loc = self.get_baseline_info("cam_ts_loc")
+        else:
+            case_name_baseline = ''
+            syears_baseline = 0
+            eyears_baseline = 0
+            baseline_ts_loc = ''
         # End if
 
         # Loop over cases to create individual text array to be written to namelist file.
@@ -933,7 +941,7 @@ class AdfDiag(AdfWeb):
                 fnml.write(rowtext)
             # End for
             fnml.write("\n\n")
-            if "baseline_ts_loc" in locals():
+            if baseline_ts_loc:
                 rowb = [
                     case_name_baseline,
                     " | ",
@@ -1060,7 +1068,7 @@ class AdfDiag(AdfWeb):
             else:
                 #Open a new dataset with all the constituent files/variables
                 ds = xr.open_mfdataset(constit_files)
-    
+
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
 
@@ -1069,9 +1077,9 @@ class AdfDiag(AdfWeb):
                     if overwrite:
                         Path(derived_file).unlink()
                     else:
-                        print(
-                            f"[{__name__}] Warning: '{var}' file was found and overwrite is False. Will use existing file."
-                        )
+                        wmsg = f"[{__name__}] Warning: '{var}' file was found"
+                        wmsg += " and overwrite is False. Will use existing file."
+                        print(wmsg)
                         continue
 
                 #NOTE: this will need to be changed when derived equations are more complex! - JR
@@ -1082,7 +1090,7 @@ class AdfDiag(AdfWeb):
                     der_val = 0
                     for v in constit_list:
                         der_val += ds[v]
-                
+
                 #Set derived variable name and add to dataset
                 der_val.name = var
                 ds[var] = der_val
@@ -1092,22 +1100,26 @@ class AdfDiag(AdfWeb):
                 ds_pmid_done = False
                 ds_t_done = False
                 if var in res["aerosol_zonal_list"]:
-                    
+
                     #Only calculate once for all aerosol vars
                     if not ds_pmid_done:
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
                         ds_pmid_done = True
                         if not ds_pmid:
-                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
-                            errmsg += "Please make sure 'PMID' is in the CAM run for aerosol calculations"
+                            errmsg = "Missing necessary files for dry air density"
+                            errmsg += " (rho) calculation.\n"
+                            errmsg += "Please make sure 'PMID' is in the CAM run"
+                            errmsg += " for aerosol calculations"
                             print(errmsg)
                             continue
                     if not ds_t_done:
                         ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
                         ds_t_done = True
                         if not ds_t:
-                            errmsg = f"Missing necessary files for dry air density (rho) calculation.\n"
-                            errmsg += "Please make sure 'T' is in the CAM run for aerosol calculations"
+                            errmsg = "Missing necessary files for dry air density"
+                            errmsg += " (rho) calculation.\n"
+                            errmsg += "Please make sure 'T' is in the CAM run"
+                            errmsg += " for aerosol calculations"
                             print(errmsg)
                             continue
 
@@ -1131,14 +1143,14 @@ class AdfDiag(AdfWeb):
 
         """
 
-        
+
         copy_files_only = False  # True (copy files but don't run), False (copy files and run MDTF)
-        # Note that the MDTF variable test_mode (set in the mdtf_info of the yaml file) 
+        # Note that the MDTF variable test_mode (set in the mdtf_info of the yaml file)
         # has a different meaning: Data is fetched but PODs are not run.
 
         print("\n  Setting up MDTF...")
         # We want access to the entire dict of mdtf_info
-        mdtf_info = self.get_mdtf_info("ALL")  
+        mdtf_info = self.get_mdtf_info("ALL")
         verbose = mdtf_info["verbose"]
 
         #
@@ -1308,7 +1320,7 @@ class AdfDiag(AdfWeb):
                     else:
                         if verbose > 0:
                             print(
-                                f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {time_period_freq}"
+                                f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {dataset_freq}"
                             )
                             print(f"Skipping {adf_file}")
                             freq = "frequency_missing"
@@ -1330,7 +1342,7 @@ class AdfDiag(AdfWeb):
                     if (
                         mdtf_file_list
                     ):  # If file exists, don't overwrite:
-                        # To do in the future: add logic that says to over-write or not  
+                        # To do in the future: add logic that says to over-write or not
                         if verbose > 1:
                             print(
                                 f"\t   INFO: not clobbering existing mdtf file {mdtf_file_list}"
@@ -1386,5 +1398,3 @@ def _load_dataset(fils):
     #End if
 #End def
 ########
-
-

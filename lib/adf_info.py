@@ -31,12 +31,15 @@ dictionaries.
 from pathlib import Path
 import copy
 import os
-import numpy as np
-import xarray as xr
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
 #+++++++++++++++++++++++++++++++++++++++++++++++++
+
+# pylint: disable=unused-import
+import numpy as np
+import xarray as xr
+# pylint: enable=unused-import
 
 #ADF modules:
 from adf_config import AdfConfig
@@ -90,7 +93,7 @@ class AdfInfo(AdfConfig):
         if self.__mdtf_info is not None:
             self.expand_references(self.__mdtf_info)
         # End if
-        
+
         # Check if inputs are of the correct type:
         # -------------------------------------------
 
@@ -329,7 +332,7 @@ class AdfInfo(AdfConfig):
 
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
-        
+
         #Grab case time series file location(s)
         input_ts_locs = self.get_cam_info("cam_ts_loc", required=True)
 
@@ -439,6 +442,7 @@ class AdfInfo(AdfConfig):
             self.__plot_location.append(os.path.join(plot_dir, direc_name))
 
             #If first iteration, then save directory name for use by baseline:
+            first_case_dir = ''
             if case_idx == 0:
                 first_case_dir = direc_name
             #End if
@@ -525,7 +529,7 @@ class AdfInfo(AdfConfig):
         else:  # one case, one hist str
             hist_str = [
                 conf_val
-            ]  
+            ]
         self.__cam_climo_info[conf_var] = [hist_str]
         # -----------------------------------------
 
@@ -617,7 +621,7 @@ class AdfInfo(AdfConfig):
     def get_basic_info(self, var_str, required=False):
         """
         Return the config variable from 'diag_basic_info' as requested by
-        the user.  
+        the user.
         """
 
         return self.read_config_var(var_str,
@@ -706,10 +710,10 @@ class AdfInfo(AdfConfig):
         return self.read_config_var(
             var_str, conf_dict=self.__mdtf_info, required=required
         )
- 
-        
+
+
     #########
-   
+
     # Utility function to grab climo years from pre-made time series files:
     def get_climo_yrs_from_ts(self, input_ts_loc, case_name):
         """
@@ -747,7 +751,7 @@ class AdfInfo(AdfConfig):
         #Average time dimension over time bounds, if bounds exist:
         if 'time_bnds' in cam_ts_data:
             time = cam_ts_data['time']
-            #NOTE: force `load` here b/c if dask & time is cftime, 
+            #NOTE: force `load` here b/c if dask & time is cftime,
             #throws a NotImplementedError:
             time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
