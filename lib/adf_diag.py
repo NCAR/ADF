@@ -539,7 +539,7 @@ class AdfDiag(AdfWeb):
             # Aerosol Calcs
             #--------------
             #Always make sure PMID is made if aerosols are desired in config file
-            # Since there's no requirement for `aerosol_zonal_list` to be included, allow it to be absent:
+            # Since there's no requirement for `aerosol_zonal_list`, allow it to be absent:
             azl = res.get("aerosol_zonal_list", [])
             if "PMID" not in diag_var_list:
                 if any(item in azl for item in diag_var_list):
@@ -603,13 +603,14 @@ class AdfDiag(AdfWeb):
                             constit_list = vres["derivable_from"]
                         else:
                             # Missing variable or missing derivable_from argument
-                            derive_from_errmsg = f"create time series for {case_name}:"
-                            derive_from_errmsg += f"\n Can't create time series for {var}."
-                            derive_from_errmsg += "\n\tEither the variable is missing from CAM output or it "
-                            derive_from_errmsg += "is a derived quantity and is missing the 'derivable_from' "
-                            derive_from_errmsg += "config argument.\n\tPlease add variable to CAM run "
-                            derive_from_errmsg += "or set appropriate argument in variable defaults yaml file."
-                            self.debug_log(derive_from_errmsg)
+                            der_from_msg = f"create time series for {case_name}:"
+                            der_from_msg += f"\n Can't create time series for {var}.\n\tEither "
+                            der_from_msg += "the variable is missing from CAM output or it is a "
+                            der_from_msg += "derived quantity and is missing the 'derivable_from' "
+                            der_from_msg += "config argument.\n\tPlease add variable to CAM run "
+                            der_from_msg += "or set appropriate argument in variable "
+                            der_from_msg += "defaults yaml file."
+                            self.debug_log(der_from_msg)
                         #End if
                     #End if
 
@@ -1136,13 +1137,15 @@ class AdfDiag(AdfWeb):
                 if constit_files:
                     #Add what's missing to debug log
                     dmsg = "create time series:"
-                    dmsg += f"\n\tneeded constituents for derivation of {var}:\n\t\t- {constit_list}\n"
-                    dmsg += f"\tfound constituent file(s) in {Path(constit_files[0]).parent}:\n"
-                    dmsg += f"\t\t- {[Path(f).parts[-1] for f in constit_files if Path(f).is_file()]}"
+                    dmsg += f"\n\tneeded constituents for derivation of "
+                    dmsg += f"{var}:\n\t\t- {constit_list}\n\tfound constituent file(s) in "
+                    dmsg += f"{Path(constit_files[0]).parent}:\n\t\t"
+                    dmsg += f"- {[Path(f).parts[-1] for f in constit_files if Path(f).is_file()]}"
                     self.debug_log(dmsg)
                 else:
                     dmsg = "create time series:"
-                    dmsg += f"\n\tneeded constituents for derivation of {var}:\n\t\t- {constit_list}\n"
+                    dmsg += f"\n\tneeded constituents for derivation of "
+                    dmsg += f"{var}:\n\t\t- {constit_list}\n"
                     dmsg += f"\tNo constituent(s) found in history files"
                     self.debug_log(dmsg)
 
