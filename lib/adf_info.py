@@ -524,7 +524,7 @@ class AdfInfo(AdfConfig):
         """
         Make hist_str a nested list [ncases,nfiles] of the given value(s)
         """
-        if isinstance(self.get_cam_info("hist_str", required=True), list):
+        if isinstance(conf_val, list):
             hist_str = conf_val
         else:  # one case, one hist str
             hist_str = [

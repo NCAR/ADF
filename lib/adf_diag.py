@@ -1138,7 +1138,7 @@ class AdfDiag(AdfWeb):
     ######### MDTF functions #########
     def setup_run_mdtf(self):
         """
-        Create MDTF directory tree, generate input setttings jsonc file
+        Create MDTF directory tree, generate input settings jsonc file
         Submit MDTF diagnostics.
 
         """

@@ -275,8 +275,9 @@ class AdfConfig(AdfBase):
         #End if
 
         if varname == "ALL":
-            return var_dict
-        
+            return copy.deepcopy(var_dict)
+        #End if
+
         #Check that variable name exists in dictionary:
         if varname not in var_dict.keys():
             #If variable is required, then throw an error:
