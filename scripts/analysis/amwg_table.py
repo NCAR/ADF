@@ -166,10 +166,6 @@ def amwg_table(adf):
             raise AdfError(errmsg)
         #Write to debug log if enabled:
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
-        #Check if analysis directory exists, and if not, then create it:
-        if not output_location.is_dir():
-            print(f"\t    {output_locs[case_idx]} not found, making new directory")
-            output_location.mkdir(parents=True)
 
         #Create output file name:
         output_csv_file = output_location / f"amwg_table_{case_name}.csv"
