@@ -82,7 +82,6 @@ def global_latlon_map_B(adfobj):
     #
     # Use ADF api to get all necessary information
     #
-    # data = AdfData(adfobj) NO LONGER NEEDED
     var_list = adfobj.diag_var_list
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:

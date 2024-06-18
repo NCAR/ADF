@@ -129,7 +129,7 @@ class AdfData:
         """Return Dataset for climo of variablename"""
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            warnings.warning(f"ERROR: Did not find climo file for variable: {variablename}. Will try to skip.")
+            warnings.warn(f"ERROR: Did not find climo file for variable: {variablename}. Will try to skip.")
             return None
         return self.load_dataset(fils)
     

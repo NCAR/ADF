@@ -44,10 +44,6 @@ def zonal_mean_B(adfobj):
 
     print("\n  Generating zonal mean plots...")
 
-    # Start by instantiating the AdfData object
-    # and Extract needed quantities from ADF object:
-    # data = AdfData(adfobj)
-
     var_list = adfobj.diag_var_list
 
     #Special ADF variable which contains the output paths for
