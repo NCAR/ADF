@@ -122,9 +122,17 @@ class AdfInfo(AdfConfig):
             else:
                 #If not a list, then convert it to one:
                 self.__cam_climo_info[conf_var] = [conf_val]
-            # End if
-        # End for
-        # -------------------------------------------
+            #End if
+        #End for
+        #-------------------------------------------
+
+        #Read hist_str (component.hist_num) from the yaml file, or set to default
+        hist_str = self.__cam_climo_info('hist_str')
+        #If hist_str is not present, then default to 'cam.h0':
+        if not hist_str:
+            hist_str = [['cam.h0']]*self.__num_cases
+        #End if
+        self.__hist_str = hist_str
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
@@ -328,7 +336,7 @@ class AdfInfo(AdfConfig):
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
 
         # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
-        cam_hist_str = self.get_cam_info("hist_str")
+        cam_hist_str = self.__hist_str
 
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
@@ -439,7 +447,8 @@ class AdfInfo(AdfConfig):
 
             #Set the final directory name and save it to plot_location:
             direc_name = f"{case_name}_vs_{data_name}"
-            self.__plot_location.append(os.path.join(plot_dir, direc_name))
+            plot_loc = os.path.join(plot_dir, direc_name)
+            self.__plot_location.append(plot_loc)
 
             #If first iteration, then save directory name for use by baseline:
             first_case_dir = ''
@@ -447,6 +456,11 @@ class AdfInfo(AdfConfig):
                 first_case_dir = direc_name
             #End if
 
+            #Go ahead and make the diag plot location if it doesn't exist already
+            diag_location = Path(plot_loc)
+            if not diag_location.is_dir():
+                print(f"\t    {diag_location} not found, making new directory")
+                diag_location.mkdir(parents=True)
         #End for
 
         self.__syears = syears_fixed
@@ -615,6 +629,11 @@ class AdfInfo(AdfConfig):
 
         return {"test_nicknames":test_nicknames,"base_nickname":base_nickname}
 
+    @property
+    def hist_string(self):
+        """ Return the history string name to the user if requested."""
+        return self.__hist_str
+
     #########
 
     #Utility function to access expanded 'diag_basic_info' variables:
@@ -753,7 +772,8 @@ class AdfInfo(AdfConfig):
             time = cam_ts_data['time']
             #NOTE: force `load` here b/c if dask & time is cftime,
             #throws a NotImplementedError:
-            time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
+            time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, 
+                                dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
             cam_ts_data.assign_coords(time=time)
             cam_ts_data = xr.decode_cf(cam_ts_data)

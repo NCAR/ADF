@@ -36,6 +36,9 @@ def tape_recorder(adfobj):
     plot_location = adfobj.plot_location
     plot_loc = Path(plot_location[0])
 
+    #Grab history string:
+    hist_str = adfobj.hist_string
+
     #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
@@ -47,9 +50,7 @@ def tape_recorder(adfobj):
     end_years = adfobj.climo_yrs["eyears"]
 
     #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
-    if test_nicknames == None:
-        test_nicknames = case_names
+    test_nicknames = adfobj.case_nicknames['test_nicknames']
 
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
@@ -64,9 +65,7 @@ def tape_recorder(adfobj):
         data_ts_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
         case_ts_locs = case_ts_locs+[data_ts_loc]
 
-        base_nickname = adfobj.get_baseline_info('case_nickname')
-        if base_nickname == None:
-            base_nickname = data_name
+        base_nickname = adfobj.case_nicknames['base_nickname']
         test_nicknames = test_nicknames+[base_nickname]
 
         data_start_year = adfobj.climo_yrs["syear_baseline"]
@@ -88,17 +87,24 @@ def tape_recorder(adfobj):
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
+    #Set location for observations
+    obs_loc = Path(adfobj.get_basic_info("obs_data_loc"))
     #-----------------------------------------
 
+    #Set var to Q for now
+    #TODO: add option to look for H2O if Q is not available, and vice-versa
+    var = "Q"
+
     #This may have to change if other variables are desired in this plot type?
-    plot_name = plot_loc / f"Q_TapeRecorder_ANN_Special_Mean.{plot_type}"
-    print(f"\t - Plotting annual tape recorder for Q")
+    plot_name = plot_loc / f"{var}_TapeRecorder_ANN_Special_Mean.{plot_type}"
+    print(f"\t - Plotting annual tape recorder for {var}")
 
     # Check redo_plot. If set to True: remove old plot, if it already exists:
     if (not redo_plot) and plot_name.is_file():
         #Add already-existing plot to website (if enabled):
         adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-        adfobj.add_website_data(plot_name, "Q_TapeRecorder", None, season="ANN", multi_case=True)
+        adfobj.add_website_data(plot_name, f"{var}_TapeRecorder", None, season="ANN", multi_case=True)
         return
 
     elif (redo_plot) and plot_name.is_file():
@@ -110,7 +116,7 @@ def tape_recorder(adfobj):
         runs_LT2[val] = case_ts_locs[i]
 
     # MLS data
-    mls = xr.open_dataset("/glade/campaign/cgd/cas/islas/CAM7validation/MLS/mls_h2o_latNpressNtime_3d_monthly_v5.nc")
+    mls = xr.open_dataset(obs_loc / "mls_h2o_latNpressNtime_3d_monthly_v5.nc")
     mls = mls.rename(x='lat', y='lev', t='time')
     time = pd.date_range("2004-09","2021-11",freq='M')
     mls['time'] = time
@@ -120,17 +126,22 @@ def tape_recorder(adfobj):
     mls = mls*18.015280/(1e6*28.964)
 
     # ERA5 data
-    era5 = xr.open_dataset("/glade/campaign/cgd/cas/islas/CAM7validation/ERA5/ERA5_Q_10Sto10N_1980to2020.nc")
+    era5 = xr.open_dataset(obs_loc / "ERA5_Q_10Sto10N_1980to2020.nc")
     era5 = era5.groupby('time.month').mean('time')
+    era5_data = era5.Q
 
     alldat=[]
     runname_LT=[]
     for idx,key in enumerate(runs_LT2):
-        fils= sorted(Path(runs_LT2[key]).glob('*h0.Q.*.nc'))
+        fils= sorted(Path(runs_LT2[key]).glob(f'*{hist_str}.{var}.*.nc'))
         dat = pf.load_dataset(fils)
+        if not dat:
+            dmsg = f"No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            print(dmsg)
+            continue
         dat = fixcesmtime(dat,start_years[idx],end_years[idx])
         datzm = dat.mean('lon')
-        dat_tropics = cosweightlat(datzm.Q, -10, 10)
+        dat_tropics = cosweightlat(datzm[var], -10, 10)
         dat_mon = dat_tropics.groupby('time.month').mean('time').load()
         alldat.append(dat_mon)
         runname_LT.append(key)
@@ -149,9 +160,11 @@ def tape_recorder(adfobj):
                       x1[0],x2[0],y1[0],y2[0],cmap=cmap, paxis='lev',
                       taxis='month',climo_yrs="2004-2021")
 
-    ax = plot_pre_mon(fig, era5.Q, plot_step,plot_min,plot_max,
+    ax = plot_pre_mon(fig, era5_data, plot_step,plot_min,plot_max,
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
                       taxis='month',climo_yrs="1980-2020")
+
+
 
     #Start count at 2 to account for MLS and ERA5 plots above
     count=2
@@ -181,7 +194,7 @@ def tape_recorder(adfobj):
     y1_loc = y1[count]-0.03
     y2_loc = y1[count]-0.02
 
-    ax = plotcolorbar(fig, plot_step, plot_min, plot_max, 'Q (kg/kg)',
+    ax = plotcolorbar(fig, plot_step, plot_min, plot_max, f'{var} (kg/kg)',
                       x1_loc, x2_loc, y1_loc, y2_loc,
                       cmap=cmap)
 
@@ -189,7 +202,7 @@ def tape_recorder(adfobj):
     fig.savefig(plot_name, bbox_inches='tight', facecolor='white')
 
     #Add plot to website (if enabled):
-    adfobj.add_website_data(plot_name, "Q_TapeRecorder", None, season="ANN", multi_case=True)
+    adfobj.add_website_data(plot_name, f"{var}_TapeRecorder", None, season="ANN", multi_case=True)
 
     #Notify user that script has ended:
     print("  ...Tape recorder plots have been generated successfully.")
