@@ -54,7 +54,9 @@ class AdfBase:
             from datetime import datetime
             # Get the current date and time
             current_timestamp = datetime.now()
-            ext = f'{str(current_timestamp).replace(" ","-")}'
+            # Format the datetime object to a string without microseconds
+            dt_str = current_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            ext = f'{str(dt_str).replace(" ","-")}'
             debug_fname = f"ADF_debug_{ext}.log"
             self.__debug_fname = debug_fname
             logging.basicConfig(filename=debug_fname, level=logging.DEBUG)
