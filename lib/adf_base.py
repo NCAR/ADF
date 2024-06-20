@@ -47,6 +47,8 @@ class AdfBase:
         if not isinstance(debug, bool):
             raise TypeError("'debug' must be a boolean type (True or False)")
 
+        self.__debug_fname = ''
+
         # Create debug log, if requested:
         if debug:
             from datetime import datetime
