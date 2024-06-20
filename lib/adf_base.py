@@ -54,12 +54,21 @@ class AdfBase:
             current_timestamp = datetime.now()
             ext = f'{str(current_timestamp).replace(" ","-")}'
             debug_fname = f"ADF_debug_{ext}.log"
+            self.__debug_fname = debug_fname
             logging.basicConfig(filename=debug_fname, level=logging.DEBUG)
             self.__debug_log = logging.getLogger("ADF")
         else:
             self.__debug_log = None
 
+        
+
     #########
+
+    # Create property needed to return the number of test cases (num_cases) to user:
+    @property
+    def debug_fname(self):
+        """Return the "debug_fname" string to the user."""
+        return self.__debug_fname
 
     def debug_log(self, msg: str):
 

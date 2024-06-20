@@ -12,6 +12,7 @@ import sys
 import os
 import os.path
 import logging
+import glob
 
 #Set relevant path variables:
 _CURRDIR = os.path.abspath(os.path.dirname(__file__))
@@ -22,7 +23,6 @@ sys.path.append(_ADF_LIB_DIR)
 
 #Import AdfBase class
 from adf_base import AdfBase
-debug_fname = AdfBase.debug_fname
 from adf_base import AdfError
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -45,9 +45,12 @@ class AdfBaseTestRoutine(unittest.TestCase):
         Remove log files (if they exist).
         """
 
-        #Remove log file if it exists:
-        if os.path.exists(debug_fname):
-            os.remove(debug_fname)
+        debug_list = glob.glob("ADF_debug*")
+
+        for dfile in debug_list:
+            #Remove log file if it exists:
+            if os.path.exists(dfile):
+                os.remove(dfile)
 
 
         #Close all log streams:
@@ -77,6 +80,9 @@ class AdfBaseTestRoutine(unittest.TestCase):
 
         #Create AdfBase object with debug setting:
         adf_test = AdfBase(debug=True)
+
+        #Grab debug log name
+        debug_fname = adf_test.debug_fname
 
         #Assert that new object is of the "AdfBase" class:
         self.assertIsInstance(adf_test, AdfBase)
@@ -118,7 +124,8 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Call "debug_log" method:
         adf_test.debug_log("test")
 
-        print("YAHOOO:",AdfBase.debug_fname)
+        #Grab debug log name
+        debug_fname = adf_test.debug_fname
 
         #Check that no log file exists:
         self.assertFalse(os.path.exists(debug_fname))
@@ -134,10 +141,11 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Create AdfBase object with debug setting:
         adf_test = AdfBase(debug=True)
 
+        #Grab debug log name
+        debug_fname = adf_test.debug_fname
+
         #Call "debug_log" method:
         adf_test.debug_log("test")
-
-        print("YAHOOO:",AdfBase.debug_fname)
 
         #Check that debug log exists:
         self.assertTrue(os.path.exists(debug_fname))
