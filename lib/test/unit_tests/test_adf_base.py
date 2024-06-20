@@ -22,6 +22,7 @@ sys.path.append(_ADF_LIB_DIR)
 
 #Import AdfBase class
 from adf_base import AdfBase
+debug_fname = AdfBase.debug_fname
 from adf_base import AdfError
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -45,8 +46,8 @@ class AdfBaseTestRoutine(unittest.TestCase):
         """
 
         #Remove log file if it exists:
-        if os.path.exists("ADF_debug.log"):
-            os.remove("ADF_debug.log")
+        if os.path.exists(debug_fname):
+            os.remove(debug_fname)
 
 
         #Close all log streams:
@@ -80,8 +81,8 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Assert that new object is of the "AdfBase" class:
         self.assertIsInstance(adf_test, AdfBase)
 
-        #Assert that "ADF_debug.log" file exists in local directory:
-        self.assertTrue(os.path.exists("ADF_debug.log"))
+        #Assert that ADF debug log file exists in local directory:
+        self.assertTrue(os.path.exists(debug_fname))
 
     def test_AdfBase_bad_debug(self):
 
@@ -117,8 +118,10 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Call "debug_log" method:
         adf_test.debug_log("test")
 
+        print("YAHOOO:",AdfBase.debug_fname)
+
         #Check that no log file exists:
-        self.assertFalse(os.path.exists("ADF_debug.log"))
+        self.assertFalse(os.path.exists(debug_fname))
 
     def test_AdfBase_debug_write(self):
 
@@ -134,14 +137,16 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Call "debug_log" method:
         adf_test.debug_log("test")
 
+        print("YAHOOO:",AdfBase.debug_fname)
+
         #Check that debug log exists:
-        self.assertTrue(os.path.exists("ADF_debug.log"))
+        self.assertTrue(os.path.exists(debug_fname))
 
         #If debug log exists, then open file:
-        if os.path.exists("ADF_debug.log"):
+        if os.path.exists(debug_fname):
 
             #Open log file:
-            with open("ADF_debug.log") as logfil:
+            with open(debug_fname) as logfil:
 
                 #Extract file contents:
                 log_text = logfil.read()

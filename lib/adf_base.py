@@ -53,7 +53,8 @@ class AdfBase:
             # Get the current date and time
             current_timestamp = datetime.now()
             ext = f'{str(current_timestamp).replace(" ","-")}'
-            logging.basicConfig(filename=f"ADF_debug_{ext}.log", level=logging.DEBUG)
+            debug_fname = f"ADF_debug_{ext}.log"
+            logging.basicConfig(filename=debug_fname, level=logging.DEBUG)
             self.__debug_log = logging.getLogger("ADF")
         else:
             self.__debug_log = None
