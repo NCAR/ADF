@@ -237,8 +237,8 @@ SO4:
     colorbar:
       label : '$\mu$g/m3'
   category: "Aerosols"
-  derivable_from_cam_chem: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
   derivable_from: ["so4_a1", "so4_a2", "so4_a3"]
+  derivable_from_cam_chem: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
 
 SOA:
   colormap: "RdBu_r"
