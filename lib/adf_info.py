@@ -711,6 +711,7 @@ class AdfInfo(AdfConfig):
             time = cam_ts_data['time']
             #NOTE: force `load` here b/c if dask & time is cftime,
             #throws a NotImplementedError:
+
             time = xr.DataArray(cam_ts_data[timeBoundsName].load().mean(dim='nbnd').values, 
                                 dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
