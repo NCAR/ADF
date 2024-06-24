@@ -136,8 +136,9 @@ def tape_recorder(adfobj):
         fils= sorted(Path(runs_LT2[key]).glob(f'*{hist_str}.{var}.*.nc'))
         dat = pf.load_dataset(fils)
         if not dat:
-            dmsg = f"No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
             print(dmsg)
+            adfobj.debug_log(dmsg)
             continue
         dat = fixcesmtime(dat,start_years[idx],end_years[idx])
         datzm = dat.mean('lon')
@@ -146,9 +147,18 @@ def tape_recorder(adfobj):
         alldat.append(dat_mon)
         runname_LT.append(key)
 
-    runname_LT=xr.DataArray(runname_LT, dims='run', coords=[np.arange(0,len(runname_LT),1)], name='run')
-    alldat_concat_LT = xr.concat(alldat, dim=runname_LT)
+    #Check to see if any cases were successful
+    if runname_LT:
+        runname_LT=xr.DataArray(runname_LT, dims='run', coords=[np.arange(0,len(runname_LT),1)], name='run')
+        alldat_concat_LT = xr.concat(alldat, dim=runname_LT)
+    else:
+        msg = f"WARNING: No cases seem to be available, please check history files for {var}."
+        msg += "\n\tNo tape recorder plots will be made."
+        print(msg)
+        #End tape recorder plotting script:
+        return
 
+    #Set up figure for plots
     fig = plt.figure(figsize=(16,16))
     x1, x2, y1, y2 = get5by5coords_zmplots()
 
@@ -164,9 +174,7 @@ def tape_recorder(adfobj):
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
                       taxis='month',climo_yrs="1980-2020")
 
-
-
-    #Start count at 2 to account for MLS and ERA5 plots above
+    #Loop over case(s) and start count at 2 to account for MLS and ERA5 plots above
     count=2
     for irun in np.arange(0,alldat_concat_LT.run.size,1):
         title = f"{alldat_concat_LT.run.isel(run=irun).values}"
@@ -175,12 +183,9 @@ def tape_recorder(adfobj):
                           x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
                           taxis='month',climo_yrs=f"{start_years[irun]}-{end_years[irun]}")
         count=count+1
-    
+
     #Shift colorbar if there are less than 5 subplots
     # There will always be at least 2 (MLS and ERA5)
-    if len(case_ts_locs) == 0:
-        print("Seems like there are no simulations to plot, exiting script.")
-        return
     if len(case_ts_locs) == 1:
         x1_loc = (x1[1]-x1[0])/2
         x2_loc = ((x2[2]-x2[1])/2)+x2[1]
