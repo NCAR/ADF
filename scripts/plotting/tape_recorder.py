@@ -186,10 +186,10 @@ def tape_recorder(adfobj):
 
     #Shift colorbar if there are less than 5 subplots
     # There will always be at least 2 (MLS and ERA5)
-    if len(case_ts_locs) == 1:
+    if len(runname_LT) == 1:
         x1_loc = (x1[1]-x1[0])/2
         x2_loc = ((x2[2]-x2[1])/2)+x2[1]
-    elif len(case_ts_locs) == 2:
+    elif len(runname_LT) == 2:
         x1_loc = (x1[1]-x1[0])/2
         x2_loc = ((x2[3]-x2[2])/2)+x2[2]
     else:
