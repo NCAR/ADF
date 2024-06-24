@@ -1125,8 +1125,13 @@ class AdfDiag(AdfWeb):
             constit_files = []
             for constit in constit_list:
                 #Check if the constituent file is present, if so add it to list
-                if glob.glob(os.path.join(ts_dir, f"*{hist_str}*.{constit}.*.nc")):
-                    constit_files.append(glob.glob(os.path.join(ts_dir, f"*{hist_str}*.{constit}.*"))[0])
+                if hist_str:
+                    const_glob_str = f"*{hist_str}*.{constit}.*.nc"
+                else:
+                    const_glob_str = f"*.{constit}.*.nc"
+                #end if
+                if glob.glob(os.path.join(ts_dir, const_glob_str)):
+                    constit_files.append(glob.glob(os.path.join(ts_dir, const_glob_str ))[0])
 
             #Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
