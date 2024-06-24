@@ -45,12 +45,12 @@ class AdfBaseTestRoutine(unittest.TestCase):
         Remove log files (if they exist).
         """
 
-        debug_list = glob.glob("ADF_debug*")
+        debug_list = glob.glob("ADF_debug*.log")
 
-        #for dfile in debug_list:
-        #    #Remove log file if it exists:
-        #    if os.path.exists(dfile):
-        #        os.remove(dfile)
+        for dfile in debug_list:
+            #Remove log file if it exists:
+            if os.path.exists(dfile):
+                os.remove(dfile)
 
 
         #Close all log streams:
@@ -146,8 +146,6 @@ class AdfBaseTestRoutine(unittest.TestCase):
 
         #Call "debug_log" method:
         adf_test.debug_log("test")
-
-        print(debug_fname)
 
         #Check that debug log exists:
         self.assertTrue(os.path.exists(debug_fname))

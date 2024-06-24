@@ -79,7 +79,7 @@ default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
 Rgas: 287.04 #[J/K/Kg]=8.314/0.028965
 
 #+++++++++++++
-# CAM CHEM Variables
+# CAM-CHEM Variables
 #+++++++++++++
 #List of variables for CAM-CHEM runs that have different constituents than regular CAM runs
 cam_chem_list: ["SOA","SO4"]

@@ -17,6 +17,7 @@ Currently this class only does two things:
 #++++++++++++++++++++++++++++++
 
 import logging
+from datetime import datetime
 
 #+++++++++++++++++++++++++
 # ADF Error-handling class
@@ -51,7 +52,6 @@ class AdfBase:
 
         # Create debug log, if requested:
         if debug:
-            from datetime import datetime
             # Get the current date and time
             current_timestamp = datetime.now()
             # Format the datetime object to a string without microseconds
@@ -68,7 +68,7 @@ class AdfBase:
 
     #########
 
-    # Create property needed to return the number of test cases (num_cases) to user:
+    # Create property needed to return the name of the debug log file (debug_fname) to user:
     @property
     def debug_fname(self):
         """Return the "debug_fname" string to the user."""

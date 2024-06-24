@@ -720,8 +720,8 @@ class AdfDiag(AdfWeb):
 
             if vars_to_derive:
                 self.derive_variables(
-                    res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx],
-                    constit_dict=constit_dict
+                    res=res, hist_str=hist_str, vars_to_derive=vars_to_derive,
+                    ts_dir=ts_dir[case_idx], constit_dict=constit_dict
                 )
             # End with
 
@@ -1101,7 +1101,7 @@ class AdfDiag(AdfWeb):
 
     #########
 
-    def derive_variables(self, res=None, vars_to_derive=None, ts_dir=None,
+    def derive_variables(self, res=None, hist_str=None, vars_to_derive=None, ts_dir=None,
                          constit_dict=None, overwrite=None):
         """
         Derive variables acccording to steps given here.  Since derivations will depend on the
@@ -1125,8 +1125,8 @@ class AdfDiag(AdfWeb):
             constit_files = []
             for constit in constit_list:
                 #Check if the constituent file is present, if so add it to list
-                if glob.glob(os.path.join(ts_dir, f"*.{constit}.*.nc")):
-                    constit_files.append(glob.glob(os.path.join(ts_dir, f"*.{constit}.*"))[0])
+                if glob.glob(os.path.join(ts_dir, f"*{hist_str}*.{constit}.*.nc")):
+                    constit_files.append(glob.glob(os.path.join(ts_dir, f"*{hist_str}*.{constit}.*"))[0])
 
             #Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
