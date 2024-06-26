@@ -107,9 +107,9 @@ class AdfInfo(AdfConfig):
 
         #Read hist_str (component.hist_num) from the yaml file, or set to default
         hist_str = self.get_basic_info('hist_str')
-        #If hist_str is not present, then default to 'cam.h0':
+        #If hist_str is not present, then default to 'cam.h0a':
         if not hist_str:
-            hist_str = 'cam.h0'
+            hist_str = 'cam.h0a'
         #End if
         self.__hist_str = hist_str
 

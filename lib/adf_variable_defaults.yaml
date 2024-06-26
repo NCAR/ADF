@@ -79,6 +79,12 @@ default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
 Rgas: 287.04 #[J/K/Kg]=8.314/0.028965
 
 #+++++++++++++
+# CAM-CHEM Variables
+#+++++++++++++
+#List of variables for CAM-CHEM runs that have different constituents than regular CAM runs
+cam_chem_list: ["SOA","SO4"]
+
+#+++++++++++++
 # Category: Microphysics
 #+++++++++++++
 
@@ -231,7 +237,8 @@ SO4:
     colorbar:
       label : '$\mu$g/m3'
   category: "Aerosols"
-  derivable_from: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
+  derivable_from: ["so4_a1", "so4_a2", "so4_a3"]
+  derivable_from_cam_chem: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
 
 SOA:
   colormap: "RdBu_r"
@@ -244,6 +251,7 @@ SOA:
       label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["soa_a1", "soa_a2"]
+  derivable_from_cam_chem: ["soa1_a1", "soa2_a1", "soa3_a1", "soa4_a1", "soa5_a1", "soa1_a2", "soa2_a2", "soa3_a2", "soa4_a2", "soa5_a2"]
 
 DUST:
   colormap: "RdBu_r"
@@ -276,8 +284,6 @@ SeaSalt:
       ticks: [-10,8,6,4,2,0,-2,-4,-6,-8,-10]
   category: "Aerosols"
   derivable_from: ["ncl_a1", "ncl_a2", "ncl_a3"]
-
-
 
 #+++++++++++++++++
 # Category: Budget
@@ -373,7 +379,6 @@ H2SO4:
 
 N2O:
   category: "Composition"
-
 
 #+++++++++++++++++
 # Category: Clouds
@@ -700,7 +705,6 @@ OCNFRAC:
 LANDFRAC:
   category: "Surface variables"
 
-
 #+++++++++++++++++
 # Category: State
 #+++++++++++++++++
@@ -816,6 +820,7 @@ QRS:
 #+++++++++++++++++
 # Category: TOA energy flux
 #+++++++++++++++++
+
 RESTOM:
   colormap: "RdBu_r"
   contour_levels_range: [-100, 100, 5]
@@ -1108,6 +1113,7 @@ OMEGAT:
 #++++++++++++++
 # Category: TEM
 #++++++++++++++
+
 uzm:
   ylim: [1e3,1]
   units: m s-1
