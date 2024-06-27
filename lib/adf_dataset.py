@@ -119,6 +119,22 @@ class AdfData:
         return da
 
 
+    def load_reference_regrid_dataset(self, case, field):
+        fils = self.get_ref_regrid_file(case, field)
+        if not fils:
+            warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_dataset(fils)
+
+
+    def load_reference_regrid_da(self, case, field):
+        fils = self.get_ref_regrid_file(case, field)
+        if not fils:
+            warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_da(fils, field)
+
+
     def load_climo_da(self, case, variablename):
         """Return DataArray from climo file"""
         fils = self.get_climo_file(case, variablename)
@@ -158,6 +174,11 @@ class AdfData:
             ts_files = sorted(ts_loc.glob(ts_filenames))
             return ts_files
 
+
+    def get_ref_regrid_file(self, case, field):
+        model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
+        return sorted(model_rg_loc.glob(f"{case}_{field}_*.nc"))
+    
 
     def get_regrid_file(self, case, field):
         model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))

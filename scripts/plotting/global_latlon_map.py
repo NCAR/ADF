@@ -43,7 +43,7 @@ def global_latlon_map_B(adfobj):
     -----
 
     It uses the AdfDiag object's methods to get necessary information.
-    This version passes the AdfDiag object to instatiate an AdfData object.
+    Makes use of AdfDiag's data sub-class.
     Explicitly accesses:
     adfobj.diag_var_list
         List of variables
@@ -61,6 +61,8 @@ def global_latlon_map_B(adfobj):
         Issues debug message
     adfobj.add_website_data
         Communicates information to the website generator
+    adfobj.compare_obs
+        Logical to determine if comparing to observations
 
         
     The `plotting_functions` module is needed for:
@@ -154,11 +156,12 @@ def global_latlon_map_B(adfobj):
         vres['central_longitude'] = pf.get_central_longitude(adfobj)
 
         # load reference data (observational or baseline)
-        odata = adfobj.data.load_reference_da(var)
+        # odata = adfobj.data.load_reference_da(var)
+        odata = adfobj.data.load_reference_regrid_da(adfobj.data.ref_case_label, var)
         if odata is None:
             continue
-        has_dims = pf.lat_lon_validate_dims(odata) # T iff dims are (lat,lon) -- can't plot unless we have both
-        if not has_dims:
+        o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
+        if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
             print(f"\t = skipping global map for {var} as REFERENCE does not have both lat and lon")
             continue
 
@@ -184,13 +187,12 @@ def global_latlon_map_B(adfobj):
                 continue
 
             #Determine dimensions of variable:
-            has_dims_cam = pf.lat_lon_validate_dims(mdata) # T iff dims are (lat,lon) -- can't plot unless we have both
-            _, has_lev = pf.zm_validate_dims(mdata)    # has_lev T if lev in mdata
-            if not has_dims_cam:
+            has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
+            if (not has_dims['has_lat']) or (not has_dims['has_lon']):
                 print(f"\t = skipping global map for {var} for case {case_name} as it does not have both lat and lon")
                 continue
             else: # i.e., has lat&lon
-                if pres_levs and (not has_lev):
+                if pres_levs and (not has_dims['has_lev']):
                     print(f"\t - skipping global map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
                     continue
 
@@ -217,7 +219,7 @@ def global_latlon_map_B(adfobj):
             oseasons = {}
             dseasons = {} # hold the differences
 
-            if not pres_levs:            
+            if not has_dims['has_lev']:  # strictly 2-d data          
 
                 #Loop over season dictionary:
                 for s in seasons:
@@ -255,8 +257,8 @@ def global_latlon_map_B(adfobj):
                     #exists in the model data, which should already
                     #have been interpolated to the standard reference
                     #pressure levels:
-                    if not (pres in mdata['lev']):
-                        print(f"plot_press_levels value '{pres}' not present in {var}, so skipping.")
+                    if (not (pres in mdata['lev'])) or (not (pres in odata['lev'])):
+                        print(f"plot_press_levels value '{pres}' not present in {var} [test: {(pres in mdata['lev'])}, ref: {pres in odata['lev']}], so skipping.")
                         continue
 
                     #Loop over seasons:
@@ -277,7 +279,7 @@ def global_latlon_map_B(adfobj):
                         # difference: each entry should be (lat, lon)
                         dseasons[s] = mseasons[s] - oseasons[s]
 
-                        pf.plot_map_and_save(plot_name, case_nickname, data.ref_nickname,
+                        pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                 [syear_baseline,eyear_baseline],
                                                 mseasons[s].sel(lev=pres), oseasons[s].sel(lev=pres), dseasons[s].sel(lev=pres),
