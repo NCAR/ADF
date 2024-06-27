@@ -93,9 +93,9 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 
 # +++++++++++++++++++++++++++++
 
-# Finally, import needed ADF module:
+# Finally, import needed ADF modules:
 from adf_web import AdfWeb
-
+from adf_dataset import AdfData
 
 #################
 # Helper functions
@@ -182,6 +182,9 @@ class AdfDiag(AdfWeb):
 
         # Add plotting script names:
         self.__plotting_scripts = self.read_config_var("plotting_scripts")
+
+        # Provide convenience functions for data handling:
+        self.data = AdfData(self)
 
     # Create property needed to return "plotting_scripts" variable to user:
     @property
@@ -539,7 +542,11 @@ class AdfDiag(AdfWeb):
             # Aerosol Calcs
             #--------------
             #Always make sure PMID is made if aerosols are desired in config file
+<<<<<<< adf_case_dataclass
+            # Since there's no requirement for `aerosol_zonal_list` to be included, allow it to be absent:
+=======
             # Since there's no requirement for `aerosol_zonal_list`, allow it to be absent:
+>>>>>>> main
             azl = res.get("aerosol_zonal_list", [])
             if "PMID" not in diag_var_list:
                 if any(item in azl for item in diag_var_list):
@@ -1156,8 +1163,13 @@ class AdfDiag(AdfWeb):
 
             else:
                 #Open a new dataset with all the constituent files/variables
+<<<<<<< adf_case_dataclass
+                ds = xr.open_mfdataset(constit_files).compute()
+    
+=======
                 ds = xr.open_mfdataset(constit_files)
 
+>>>>>>> main
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
 
@@ -1189,11 +1201,17 @@ class AdfDiag(AdfWeb):
                 #These will be multiplied by rho (density of dry air)
                 ds_pmid_done = False
                 ds_t_done = False
+<<<<<<< adf_case_dataclass
+                azl = res.get("aerosol_zonal_list", []) # User-defined defaults might not include aerosol zonal list
+                if var in azl:
+                    
+=======
 
                 # User-defined defaults might not include aerosol zonal list
                 azl = res.get("aerosol_zonal_list", [])
                 if var in azl:
 
+>>>>>>> main
                     #Only calculate once for all aerosol vars
                     if not ds_pmid_done:
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
