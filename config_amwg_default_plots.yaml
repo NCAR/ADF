@@ -328,7 +328,7 @@ diag_mdtf_info:
 
     mdtf_codebase_path : /glade/campaign/cgd/amp/amwg/mdtf                                                                                                                                 
     mdtf_codebase_loc  : ${mdtf_codebase_path}/MDTF-diagnostics.v3.1.20230817.ADF
-    conda_root         : ${mdtf_codebase_path}/miniconda2
+    conda_root         : /glade/u/apps/opt/conda
     conda_env_root     : ${mdtf_codebase_path}/miniconda2/envs.MDTFv3.1.20230412/
     OBS_DATA_ROOT      : ${mdtf_codebase_path}/obs_data
 

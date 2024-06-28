@@ -124,15 +124,14 @@ class AdfInfo(AdfConfig):
                 self.__cam_climo_info[conf_var] = [conf_val]
             #End if
         #End for
-        #-------------------------------------------
 
-        #Read hist_str (component.hist_num) from the yaml file, or set to default
-        hist_str = self.__cam_climo_info('hist_str')
-        #If hist_str is not present, then default to 'cam.h0a':
+        #If hist_str (component.hist_num) was not in yaml file, set to default
+        hist_str = self.__cam_climo_info['hist_str']
         if not hist_str:
             hist_str = [['cam.h0a']]*self.__num_cases
         #End if
-        self.__hist_str = hist_str
+
+        #-------------------------------------------
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
@@ -338,7 +337,7 @@ class AdfInfo(AdfConfig):
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
 
         # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
-        cam_hist_str = self.__hist_str
+        cam_hist_str = self.get_cam_info('hist_str')
 
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
