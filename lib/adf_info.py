@@ -240,6 +240,8 @@ class AdfInfo(AdfConfig):
 
             # Check if history file path exists:
             if any(baseline_hist_locs):
+                if not isinstance(baseline_hist_str, list):
+                    baseline_hist_str = [baseline_hist_str]
                 hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
                 file_list = sorted(starting_location.glob("*" + hist_str + ".*.nc"))
