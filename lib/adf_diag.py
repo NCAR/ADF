@@ -582,8 +582,8 @@ class AdfDiag(AdfWeb):
                         #If not CAM-CHEM, check regular CAM runs
                         if try_cam_constits:
                             if "derivable_from" in vres:
-                            derive = True
-                            constit_list = vres["derivable_from"]
+                                derive = True
+                                constit_list = vres["derivable_from"]
                         else:
                             # Missing variable or missing derivable_from argument
                             der_from_msg = f"create time series for {case_name}:"
