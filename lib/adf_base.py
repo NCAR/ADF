@@ -17,6 +17,7 @@ Currently this class only does two things:
 #++++++++++++++++++++++++++++++
 
 import logging
+from datetime import datetime
 
 #+++++++++++++++++++++++++
 # ADF Error-handling class
@@ -47,14 +48,31 @@ class AdfBase:
         if not isinstance(debug, bool):
             raise TypeError("'debug' must be a boolean type (True or False)")
 
+        self.__debug_fname = ''
+
         # Create debug log, if requested:
         if debug:
-            logging.basicConfig(filename="ADF_debug.log", level=logging.DEBUG)
+            # Get the current date and time
+            current_timestamp = datetime.now()
+            # Format the datetime object to a string without microseconds
+            dt_str = current_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            ext = f'{str(dt_str).replace(" ","-")}'
+            debug_fname = f"ADF_debug_{ext}.log"
+            self.__debug_fname = debug_fname
+            logging.basicConfig(filename=debug_fname, level=logging.DEBUG)
             self.__debug_log = logging.getLogger("ADF")
         else:
             self.__debug_log = None
 
+        
+
     #########
+
+    # Create property needed to return the name of the debug log file (debug_fname) to user:
+    @property
+    def debug_fname(self):
+        """Return the "debug_fname" string to the user."""
+        return self.__debug_fname
 
     def debug_log(self, msg: str):
 

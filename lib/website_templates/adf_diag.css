@@ -261,7 +261,7 @@ table.dataframe thead th{
   display: grid;
   column-gap: 50px;
   row-gap: 50px;
-  grid-template-columns: repeat(4, auto);
+  grid-template-columns: repeat(3, auto);
   background-color: #e4eef0;
   padding: 85px;
 }
