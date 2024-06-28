@@ -546,39 +546,42 @@ class AdfDiag(AdfWeb):
 
                     #Check if current variable is a derived quantity
                     if var not in hist_file_var_list:
+
+                        #Try to get varible defaults dictionary for
+                        #non-present quantity
                         vres = res.get(var, {})
 
-                    #Initialiaze list for constituents
-                    #NOTE: This is if the variable is NOT derivable but needs
-                    # an empty list as a check later
-                    constit_list = []
+                        #Initialiaze list for constituents
+                        #NOTE: This is if the variable is NOT derivable but needs
+                        # an empty list as a check later
+                        constit_list = []
 
-                    #intialize boolean to check if variable is derivable
-                    derive = False # assume it can't be derived and update if it can
+                        #intialize boolean to check if variable is derivable
+                        derive = False # assume it can't be derived and update if it can
 
-                    #intialize boolean for regular CAM variable constituents
-                    try_cam_constits = True
+                        #intialize boolean for regular CAM variable constituents
+                        try_cam_constits = True
 
-                    #Check first if variable is potentially part of a CAM-CHEM run
-                    if "derivable_from_cam_chem" in vres:
-                        constit_list = vres["derivable_from_cam_chem"]
-                        if constit_list:
-                            if all(item in hist_file_ds.data_vars for item in constit_list):
-                                #Set check to look for regular CAM constituents in variable defaults
-                                try_cam_constits = False
-                                derive = True
-                                msg = f"create time series for {case_name}:"
-                                msg += "\n\tLooks like this a CAM-CHEM run, "
-                                msg += f"checking constituents for '{var}'"
-                                self.debug_log(msg)
-                        else:
-                            self.debug_log(constit_errmsg)
+                        #Check first if variable is potentially part of a CAM-CHEM run
+                        if "derivable_from_cam_chem" in vres:
+                            constit_list = vres["derivable_from_cam_chem"]
+                            if constit_list:
+                                if all(item in hist_file_ds.data_vars for item in constit_list):
+                                    #Set check to look for regular CAM constituents in variable defaults
+                                    try_cam_constits = False
+                                    derive = True
+                                    msg = f"create time series for {case_name}:"
+                                    msg += "\n\tLooks like this a CAM-CHEM run, "
+                                    msg += f"checking constituents for '{var}'"
+                                    self.debug_log(msg)
+                            else:
+                                self.debug_log(constit_errmsg)
+                            #End if
                         #End if
-                    #End if
 
-                    #If not CAM-CHEM, check regular CAM runs
-                    if try_cam_constits:
-                        if "derivable_from" in vres:
+                        #If not CAM-CHEM, check regular CAM runs
+                        if try_cam_constits:
+                            if "derivable_from" in vres:
                             derive = True
                             constit_list = vres["derivable_from"]
                         else:
@@ -592,31 +595,31 @@ class AdfDiag(AdfWeb):
                             der_from_msg += "defaults yaml file."
                             self.debug_log(der_from_msg)
                         #End if
-                    #End if
 
-                    #Check if this variable can be derived
-                    if (derive) and (constit_list):
-                        for constit in constit_list:
-                            if constit not in diag_var_list:
-                                diag_var_list.append(constit)
-                        #Add variable to list to derive
-                        vars_to_derive.append(var)
-                        #Add constituent list to variable key in dictionary
-                        constit_dict[var] = constit_list
-                        continue
-                    #Log if this variable can be derived but is missing list of constituents
-                    elif (derive) and (not constit_list):
-                        self.debug_log(constit_errmsg)
-                        continue
-                    #Lastly, raise error if the variable is not a derived quanitity but is also not
-                    #in the history file(s)
-                    else:
-                        msg = f"WARNING: {var} is not in the file {hist_files[0]} "
-                        msg += "nor can it be derived.\n"
-                        msg += "\t  ** No time series will be generated."
-                        print(msg)
-                        continue
-                    #End if
+                        #Check if this variable can be derived
+                        if (derive) and (constit_list):
+                            for constit in constit_list:
+                                if constit not in diag_var_list:
+                                    diag_var_list.append(constit)
+                            #Add variable to list to derive
+                            vars_to_derive.append(var)
+                            #Add constituent list to variable key in dictionary
+                            constit_dict[var] = constit_list
+                            continue
+                        #Log if this variable can be derived but is missing list of constituents
+                        elif (derive) and (not constit_list):
+                            self.debug_log(constit_errmsg)
+                            continue
+                        #Lastly, raise error if the variable is not a derived quanitity but is also not
+                        #in the history file(s)
+                        else:
+                            msg = f"WARNING: {var} is not in the file {hist_files[0]} "
+                            msg += "nor can it be derived.\n"
+                            msg += "\t  ** No time series will be generated."
+                            print(msg)
+                            continue
+                        #End if
+                    #End if (var in var_diag_list)
 
                     # Check if variable has a "lev" dimension according to first file:
                     has_lev = bool("lev" in hist_file_ds[var].dims)
@@ -1122,16 +1125,16 @@ class AdfDiag(AdfWeb):
                 if constit_files:
                     #Add what's missing to debug log
                     dmsg = "create time series:"
-                    dmsg += f"\n\tneeded constituents for derivation of "
+                    dmsg += "\n\tneeded constituents for derivation of "
                     dmsg += f"{var}:\n\t\t- {constit_list}\n\tfound constituent file(s) in "
                     dmsg += f"{Path(constit_files[0]).parent}:\n\t\t"
                     dmsg += f"- {[Path(f).parts[-1] for f in constit_files if Path(f).is_file()]}"
                     self.debug_log(dmsg)
                 else:
                     dmsg = "create time series:"
-                    dmsg += f"\n\tneeded constituents for derivation of "
+                    dmsg += "\n\tneeded constituents for derivation of "
                     dmsg += f"{var}:\n\t\t- {constit_list}\n"
-                    dmsg += f"\tNo constituent(s) found in history files"
+                    dmsg += "\tNo constituent(s) found in history files"
                     self.debug_log(dmsg)
 
             else:
