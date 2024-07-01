@@ -702,7 +702,8 @@ class AdfDiag(AdfWeb):
 
                     if vars_to_derive:
                         self.derive_variables(
-                            res=res, vars_to_derive=vars_to_derive, ts_dir=ts_dir[case_idx]
+                            res=res, hist_str=hist_str, vars_to_derive=vars_to_derive,
+                            constit_dict=constit_dict, ts_dir=ts_dir[case_idx]
                         )
                 # End with
             # End for hist_str
