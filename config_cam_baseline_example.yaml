@@ -64,12 +64,6 @@ user: 'USER-NAME-NOT-SET'
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
 
-    #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries
-    # Leave off trailing '.'
-    #Default: cam.h0a
-    hist_str: cam.h0a
-
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
     compare_obs: false
@@ -129,6 +123,12 @@ diag_basic_info:
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
+
+    # History file list of strings to match
+    # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
+    # Only affects timeseries as everything else uses the created timeseries 
+    # Default: 
+    hist_str: cam.h0
 
     #Calculate climatologies?
     #If false, the climatology files will not be created:
@@ -285,6 +285,12 @@ diag_cam_climo:
 #This third set of variables provide info for the CAM baseline climatologies.
 #This only matters if "compare_obs" is false:
 diag_cam_baseline_climo:
+
+    # History file list of strings to match
+    # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
+    # Only affects timeseries as everything else uses the created timeseries 
+    # Default: 
+    hist_str: cam.h0
 
     #Calculate cam baseline climatologies?
     #If false, the climatology files will not be created:
