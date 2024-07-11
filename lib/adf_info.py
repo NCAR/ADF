@@ -196,13 +196,23 @@ class AdfInfo(AdfConfig):
             # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
             baseline_hist_str = self.get_baseline_info("hist_str")
 
+            #Check if user provided
+            if not baseline_hist_str:
+                baseline_hist_str = ['cam.h0a']
+            else:
+                #Make list if not already
+                if not isinstance(baseline_hist_str, list):
+                    baseline_hist_str = [baseline_hist_str]
+            #Initialize baseline history string list
+            self.__base_hist_str = baseline_hist_str
+
             #Check if any time series files are pre-made
             baseline_ts_done   = self.get_baseline_info("cam_ts_done")
 
             #Check if time series files already exist,
             #if so don't rely on climo years from history location
             if baseline_ts_done:
-                baseline_hist_locs = None
+                baseline_hist_locs = [None]
 
                 #Grab baseline time series file location
                 input_ts_baseline = self.get_baseline_info("cam_ts_loc", required=True)
@@ -337,8 +347,17 @@ class AdfInfo(AdfConfig):
         #Extract cam history files location:
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
 
-        # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
-        cam_hist_str = self.get_cam_info('hist_str')
+        #Get cleaned nested list of hist_str for test case(s) (component.hist_num, eg cam.h0)
+        cam_hist_str = self.__cam_climo_info['hist_str']
+
+        if not cam_hist_str:
+            hist_str = [['cam.h0a']]*self.__num_cases
+        else:
+            hist_str = cam_hist_str
+        #End if
+
+        #Initialize CAM history string nested list
+        self.__hist_str = hist_str
 
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
@@ -633,8 +652,11 @@ class AdfInfo(AdfConfig):
 
     @property
     def hist_string(self):
-        """ Return the history string name to the user if requested."""
-        return self.get_cam_info('hist_str')
+        """ Return the CAM history string list to the user if requested."""
+        cam_hist_strs = copy.copy(self.__hist_str)
+        base_hist_strs = copy.copy(self.__base_hist_str)
+        hist_strs = {"test_hist_str":cam_hist_strs, "base_hist_str":base_hist_strs}
+        return hist_strs
 
     #########
 
@@ -761,13 +783,15 @@ class AdfInfo(AdfConfig):
         # Search for first variable in var_list to get a time series file to read
         # NOTE: it is assumed all the variables have the same dates!
         # Also, it is assumed that only h0 files should be climo-ed.
-        ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var_list[0]}.*nc"))
-
-        #Read hist_str (component.hist_num) from the yaml file, or set to default
-        hist_str = self.get_basic_info('hist_str')
-        #If hist_str is not present, then default to 'cam.h0':
-        if not hist_str:
-            hist_str = 'cam.h0'
+        for var in var_list:
+            ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var}.*nc"))
+            if ts_files:
+                print(var)
+                break
+            else:
+                logmsg = "get years for time series:"
+                logmsg = f"\tVar '{var}' not in dataset, skip to next to try and find climo years..."
+                self.debug_log(logmsg)
 
         #Read in file(s)
         if len(ts_files) == 1:
