@@ -165,6 +165,7 @@ class AdfData:
         ts_files = sorted(ts_loc.glob(ts_filenames))
         return ts_files
 
+
     def get_ref_timeseries_file(self, field):
         if self.adf.compare_obs:
             return None
@@ -174,6 +175,33 @@ class AdfData:
             ts_files = sorted(ts_loc.glob(ts_filenames))
             return ts_files
 
+
+    def load_timeseries_dataset(self, fils):
+        if (len(fils) == 0):
+            warnings.warn("Input file list is empty.")
+            return None
+        elif (len(fils) > 1):
+            ds = xr.open_mfdataset(fils, decode_times=False)
+        else:
+            sfil = str(fils[0])
+            if not Path(sfil).is_file():
+                warnings.warn(f"Expecting to find file: {sfil}")
+                return None
+            ds = xr.open_dataset(sfil, decode_times=False)
+        if ds is None:
+            warnings.warn(f"invalid data on load_dataset")
+        # assign time to midpoint of interval (even if it is already)
+        if 'time_bnds' in ds:
+            t = ds['time_bnds'].mean(dim='nbnd')
+            t.attrs = ds['time'].attrs
+            ds = ds.assign_coords({'time':t})
+        elif 'time_bounds' in ds:
+            t = ds['time_bounds'].mean(dim='nbnd')
+            t.attrs = ds['time'].attrs
+            ds = ds.assign_coords({'time':t})
+        else:
+            warnings.warn("Timeseries file does not have time bounds info.")
+        return xr.decode_cf(ds)
 
     def get_ref_regrid_file(self, case, field):
         model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
