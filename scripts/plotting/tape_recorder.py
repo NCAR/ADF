@@ -36,14 +36,25 @@ def tape_recorder(adfobj):
     plot_location = adfobj.plot_location
     plot_loc = Path(plot_location[0])
 
-    #Grab history string:
-    hist_str = adfobj.hist_string
-
     #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
     #Grab test case time series locs(s)
     case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
+
+    #Grab history strings:
+    cam_hist_strs = adfobj.hist_string["test_hist_str"]
+
+    # Filter the list to include only strings that are exactly in the possible h0 strings
+    # - Search for either h0 or h0a
+    substrings = {"cam.h0","cam.h0a"}
+    case_hist_strs = []
+    for cam_case_str in cam_hist_strs:
+        # Check each possible h0 string
+        for string in cam_case_str:
+            if string in substrings:
+               case_hist_strs.append(string)
+               break
 
     #Grab test case climo years
     start_years = adfobj.climo_yrs["syears"]
@@ -72,7 +83,24 @@ def tape_recorder(adfobj):
         data_end_year = adfobj.climo_yrs["eyear_baseline"]
         start_years = start_years+[data_start_year]
         end_years = end_years+[data_end_year]
+
+        #Grab history string:
+        baseline_hist_strs = adfobj.hist_string["base_hist_str"]
+        # Filter the list to include only strings that are exactly in the substrings list
+        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
+        hist_strs = case_hist_strs + base_hist_strs
     #End if
+
+    if not case_ts_locs:
+        exitmsg = "WARNING: No time series files in any case directory."
+        exitmsg += " No tape recorder plots will be made."
+        print(exitmsg)
+        logmsg = "create tape recorder:"
+        logmsg += f"\n Tape recorder plots require monthly mean h0 time series files."
+        logmsg += f"\n None were found for any case. Please check the time series paths."
+        adfobj.debug_log(logmsg)
+        #End tape recorder plotting script:
+        return
 
     # Default colormap
     cmap='precip_nowhite'
@@ -110,10 +138,10 @@ def tape_recorder(adfobj):
     elif (redo_plot) and plot_name.is_file():
         plot_name.unlink()
     
-    #Make dictionary for case names and associated timeseries file locations
+    #Make dictionary for case names and associated timeseries file locations and hist strings
     runs_LT2={}
     for i,val in enumerate(test_nicknames):
-        runs_LT2[val] = case_ts_locs[i]
+        runs_LT2[val] = [case_ts_locs[i], hist_strs[i]]
 
     # MLS data
     mls = xr.open_dataset(obs_loc / "mls_h2o_latNpressNtime_3d_monthly_v5.nc")
@@ -133,21 +161,34 @@ def tape_recorder(adfobj):
     alldat=[]
     runname_LT=[]
     for idx,key in enumerate(runs_LT2):
-        fils= sorted(Path(runs_LT2[key]).glob(f'*{hist_str}.{var}.*.nc'))
-        dat = pf.load_dataset(fils)
+        # Search for files
+        ts_loc = Path(runs_LT2[key][0])
+        hist_str = runs_LT2[key][1]
+        fils= sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        dat = adfobj.data.load_timeseries_dataset(fils)
         if not dat:
-            dmsg = f"No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
             print(dmsg)
+            adfobj.debug_log(dmsg)
             continue
-        dat = fixcesmtime(dat,start_years[idx],end_years[idx])
+        #Grab time slice based on requested years (if applicable)
+        dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
         datzm = dat.mean('lon')
         dat_tropics = cosweightlat(datzm[var], -10, 10)
         dat_mon = dat_tropics.groupby('time.month').mean('time').load()
         alldat.append(dat_mon)
         runname_LT.append(key)
 
-    runname_LT=xr.DataArray(runname_LT, dims='run', coords=[np.arange(0,len(runname_LT),1)], name='run')
-    alldat_concat_LT = xr.concat(alldat, dim=runname_LT)
+    #Check to see if any cases were successful
+    if runname_LT:
+        runname_LT=xr.DataArray(runname_LT, dims='run', coords=[np.arange(0,len(runname_LT),1)], name='run')
+        alldat_concat_LT = xr.concat(alldat, dim=runname_LT)
+    else:
+        msg = f"WARNING: No cases seem to be available, please check time series files for {var}."
+        msg += "\n\tNo tape recorder plots will be made."
+        print(msg)
+        #End tape recorder plotting script:
+        return
 
     fig = plt.figure(figsize=(16,16))
     x1, x2, y1, y2 = get5by5coords_zmplots()
@@ -164,9 +205,7 @@ def tape_recorder(adfobj):
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
                       taxis='month',climo_yrs="1980-2020")
 
-
-
-    #Start count at 2 to account for MLS and ERA5 plots above
+    #Loop over case(s) and start count at 2 to account for MLS and ERA5 plots above
     count=2
     for irun in np.arange(0,alldat_concat_LT.run.size,1):
         title = f"{alldat_concat_LT.run.isel(run=irun).values}"
@@ -175,16 +214,13 @@ def tape_recorder(adfobj):
                           x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
                           taxis='month',climo_yrs=f"{start_years[irun]}-{end_years[irun]}")
         count=count+1
-    
+
     #Shift colorbar if there are less than 5 subplots
     # There will always be at least 2 (MLS and ERA5)
-    if len(case_ts_locs) == 0:
-        print("Seems like there are no simulations to plot, exiting script.")
-        return
-    if len(case_ts_locs) == 1:
+    if len(runname_LT) == 1:
         x1_loc = (x1[1]-x1[0])/2
         x2_loc = ((x2[2]-x2[1])/2)+x2[1]
-    elif len(case_ts_locs) == 2:
+    elif len(runname_LT) == 2:
         x1_loc = (x1[1]-x1[0])/2
         x2_loc = ((x2[3]-x2[2])/2)+x2[2]
     else:
@@ -309,17 +345,6 @@ def precip_cmap(n, nowhite=False):
     mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
 
     return mymap
-
-#########
-
-def fixcesmtime(dat,syear,eyear):
-    """
-    Fix the CESM timestamp with a simple set of dates
-    """
-    timefix = pd.date_range(start=f'1/1/{syear}', end=f'12/1/{eyear}', freq='MS') # generic time coordinate from a non-leap-year
-    dat = dat.assign_coords({"time":timefix})
-
-    return dat
 
 #########
 
