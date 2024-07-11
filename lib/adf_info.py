@@ -209,7 +209,8 @@ class AdfInfo(AdfConfig):
                 input_ts_loc = Path(input_ts_baseline)
 
                 #Get years from pre-made timeseries file(s)
-                found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(input_ts_loc, data_name)
+                found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(
+                    input_ts_loc, data_name)
                 found_yr_range = np.arange(found_syear_baseline,found_eyear_baseline,1)
 
                 #History file path isn't needed if user is running ADF directly on time series.
@@ -633,7 +634,7 @@ class AdfInfo(AdfConfig):
     @property
     def hist_string(self):
         """ Return the history string name to the user if requested."""
-        return self.__hist_str
+        return self.get_cam_info('hist_str')
 
     #########
 
@@ -762,6 +763,12 @@ class AdfInfo(AdfConfig):
         # Also, it is assumed that only h0 files should be climo-ed.
         ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var_list[0]}.*nc"))
 
+        #Read hist_str (component.hist_num) from the yaml file, or set to default
+        hist_str = self.get_basic_info('hist_str')
+        #If hist_str is not present, then default to 'cam.h0':
+        if not hist_str:
+            hist_str = 'cam.h0'
+
         #Read in file(s)
         if len(ts_files) == 1:
             cam_ts_data = xr.open_dataset(ts_files[0], decode_times=True)
@@ -770,10 +777,18 @@ class AdfInfo(AdfConfig):
 
         #Average time dimension over time bounds, if bounds exist:
         if 'time_bnds' in cam_ts_data:
+            time_bounds_name = 'time_bnds'
+        elif 'time_bounds' in cam_ts_data:
+            time_bounds_name = 'time_bounds'
+        else:
+            time_bounds_name = None
+
+        if time_bounds_name:
             time = cam_ts_data['time']
             #NOTE: force `load` here b/c if dask & time is cftime,
             #throws a NotImplementedError:
-            time = xr.DataArray(cam_ts_data['time_bnds'].load().mean(dim='nbnd').values, 
+
+            time = xr.DataArray(cam_ts_data[time_bounds_name].load().mean(dim='nbnd').values,
                                 dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
             cam_ts_data.assign_coords(time=time)
