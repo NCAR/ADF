@@ -25,7 +25,7 @@ def my_formatwarning(msg, *args, **kwargs):
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
 
-def global_latlon_map_B(adfobj):
+def global_latlon_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
