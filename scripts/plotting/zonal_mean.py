@@ -11,7 +11,7 @@ def my_formatwarning(msg, *args, **kwargs):
 
 warnings.formatwarning = my_formatwarning
 
-def zonal_mean_B(adfobj):
+def zonal_mean(adfobj):
 
     """
     Plots zonal average from climatological files (annual and seasonal).
