@@ -124,13 +124,6 @@ class AdfInfo(AdfConfig):
                 self.__cam_climo_info[conf_var] = [conf_val]
             #End if
         #End for
-
-        #If hist_str (component.hist_num) was not in yaml file, set to default
-        hist_str = self.__cam_climo_info['hist_str']
-        if not hist_str:
-            hist_str = [['cam.h0a']]*self.__num_cases
-        #End if
-
         #-------------------------------------------
 
         #Initialize ADF variable list:
@@ -250,11 +243,20 @@ class AdfInfo(AdfConfig):
 
             # Check if history file path exists:
             if any(baseline_hist_locs):
-                if not isinstance(baseline_hist_str, list):
-                    baseline_hist_str = [baseline_hist_str]
-                hist_str = baseline_hist_str[0]
+                #Check if user provided
+                if not baseline_hist_str:
+                    baseline_hist_str = ['cam.h0a']
+                else:
+                    #Make list if not already
+                    if not isinstance(baseline_hist_str, list):
+                        baseline_hist_str = [baseline_hist_str]
+                #Initialize baseline history string list
+                self.__base_hist_str = baseline_hist_str
+
+                #Grab first possible hist string, just looking for years of run
+                base_hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
-                file_list = sorted(starting_location.glob("*" + hist_str + ".*.nc"))
+                file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
                 # Partition string to find exactly where h-number is
                 # This cuts the string before and after the `{hist_str}.` sub-string
                 # so there will always be three parts:
@@ -262,7 +264,7 @@ class AdfInfo(AdfConfig):
                 #Since the last part always includes the time range, grab that with last index (2)
                 #NOTE: this is based off the current CAM file name structure in the form:
                 #  $CASE.cam.h#.YYYY<other date info>.nc
-                base_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
+                base_climo_yrs = [int(str(i).partition(f"{base_hist_str}.")[2][0:4]) for i in file_list]
                 base_climo_yrs = sorted(np.unique(base_climo_yrs))
 
                 base_found_syr = int(base_climo_yrs[0])
@@ -348,7 +350,7 @@ class AdfInfo(AdfConfig):
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
 
         #Get cleaned nested list of hist_str for test case(s) (component.hist_num, eg cam.h0)
-        cam_hist_str = self.__cam_climo_info['hist_str']
+        cam_hist_str = self.__cam_climo_info.get('hist_str', None)
 
         if not cam_hist_str:
             hist_str = [['cam.h0a']]*self.__num_cases
@@ -411,8 +413,9 @@ class AdfInfo(AdfConfig):
             #End if
 
             #Check if history file path exists:
-            hist_str_case = cam_hist_str[case_idx]
+            hist_str_case = hist_str[case_idx]
             if any(cam_hist_locs):
+                #Grab first possible hist string, just looking for years of run
                 hist_str = hist_str_case[0]
 
                 #Get climo years for verification or assignment if missing
