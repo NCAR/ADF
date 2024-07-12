@@ -36,14 +36,25 @@ def tape_recorder(adfobj):
     plot_location = adfobj.plot_location
     plot_loc = Path(plot_location[0])
 
-    #Grab history string:
-    hist_str = adfobj.hist_string
-
     #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
     #Grab test case time series locs(s)
     case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
+
+    #Grab history strings:
+    cam_hist_strs = adfobj.hist_string["test_hist_str"]
+
+    # Filter the list to include only strings that are exactly in the possible h0 strings
+    # - Search for either h0 or h0a
+    substrings = {"cam.h0","cam.h0a"}
+    case_hist_strs = []
+    for cam_case_str in cam_hist_strs:
+        # Check each possible h0 string
+        for string in cam_case_str:
+            if string in substrings:
+               case_hist_strs.append(string)
+               break
 
     #Grab test case climo years
     start_years = adfobj.climo_yrs["syears"]
@@ -72,7 +83,24 @@ def tape_recorder(adfobj):
         data_end_year = adfobj.climo_yrs["eyear_baseline"]
         start_years = start_years+[data_start_year]
         end_years = end_years+[data_end_year]
+
+        #Grab history string:
+        baseline_hist_strs = adfobj.hist_string["base_hist_str"]
+        # Filter the list to include only strings that are exactly in the substrings list
+        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
+        hist_strs = case_hist_strs + base_hist_strs
     #End if
+
+    if not case_ts_locs:
+        exitmsg = "WARNING: No time series files in any case directory."
+        exitmsg += " No tape recorder plots will be made."
+        print(exitmsg)
+        logmsg = "create tape recorder:"
+        logmsg += f"\n Tape recorder plots require monthly mean h0 time series files."
+        logmsg += f"\n None were found for any case. Please check the time series paths."
+        adfobj.debug_log(logmsg)
+        #End tape recorder plotting script:
+        return
 
     # Default colormap
     cmap='precip_nowhite'
@@ -110,10 +138,10 @@ def tape_recorder(adfobj):
     elif (redo_plot) and plot_name.is_file():
         plot_name.unlink()
     
-    #Make dictionary for case names and associated timeseries file locations
+    #Make dictionary for case names and associated timeseries file locations and hist strings
     runs_LT2={}
     for i,val in enumerate(test_nicknames):
-        runs_LT2[val] = case_ts_locs[i]
+        runs_LT2[val] = [case_ts_locs[i], hist_strs[i]]
 
     # MLS data
     mls = xr.open_dataset(obs_loc / "mls_h2o_latNpressNtime_3d_monthly_v5.nc")
@@ -133,7 +161,10 @@ def tape_recorder(adfobj):
     alldat=[]
     runname_LT=[]
     for idx,key in enumerate(runs_LT2):
-        fils= sorted(Path(runs_LT2[key]).glob(f'*{hist_str}.{var}.*.nc'))
+        # Search for files
+        ts_loc = Path(runs_LT2[key][0])
+        hist_str = runs_LT2[key][1]
+        fils= sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
         dat = pf.load_dataset(fils)
         if not dat:
             dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
@@ -152,7 +183,7 @@ def tape_recorder(adfobj):
         runname_LT=xr.DataArray(runname_LT, dims='run', coords=[np.arange(0,len(runname_LT),1)], name='run')
         alldat_concat_LT = xr.concat(alldat, dim=runname_LT)
     else:
-        msg = f"WARNING: No cases seem to be available, please check history files for {var}."
+        msg = f"WARNING: No cases seem to be available, please check time series files for {var}."
         msg += "\n\tNo tape recorder plots will be made."
         print(msg)
         #End tape recorder plotting script:

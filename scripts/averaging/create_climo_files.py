@@ -8,10 +8,19 @@ def my_formatwarning(msg, *args, **kwargs):
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
 
-
+import numpy as np
 import xarray as xr  # module-level import so all functions can get to it.
 
 import multiprocessing as mp
+
+def get_time_slice_by_year(time, startyear, endyear):
+    if not hasattr(time, 'dt'):
+        print("Warning: get_time_slice_by_year requires the `time` parameter to be an xarray time coordinate with a dt accessor. Returning generic slice (which will probably fail).")
+        return slice(startyear, endyear)
+    start_time_index = np.argwhere((time.dt.year >= startyear).values).flatten().min()
+    end_time_index = np.argwhere((time.dt.year <= endyear).values).flatten().max()
+    return slice(start_time_index, end_time_index+1)
+
 
 
 ##############
@@ -207,7 +216,8 @@ def process_variable(ts_files, syr, eyr, output_file):
         cam_ts_data.assign_coords(time=time)
         cam_ts_data = xr.decode_cf(cam_ts_data)
     #Extract data subset using provided year bounds:
-    cam_ts_data = cam_ts_data.sel(time=slice(syr, eyr))
+    tslice = get_time_slice_by_year(cam_ts_data.time, int(syr), int(eyr))
+    cam_ts_data = cam_ts_data.isel(time=tslice)
     #Group time series values by month, and average those months together:
     cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')
     #Rename "months" to "time":
