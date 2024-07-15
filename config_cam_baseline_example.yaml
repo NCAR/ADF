@@ -81,7 +81,7 @@ diag_basic_info:
     obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
-    cam_regrid_loc: /glade/scratch/${user}/ADF/regrid
+    cam_regrid_loc: /glade/derecho/scratch/${user}/ADF/regrid
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
@@ -89,7 +89,7 @@ diag_basic_info:
     cam_overwrite_regrid: false
 
     #Location where diagnostic plots are stored:
-    cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+    cam_diag_plot_loc: /glade/derecho/scratch/${user}/ADF/plots
 
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
@@ -139,7 +139,7 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e20.BHIST.f09_g17.20thC.297_05
+    cam_case_name: b.e23_alpha17f.BLT1850.ne30_t232.098
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
@@ -149,20 +149,20 @@ diag_cam_climo:
 
     #Location of CAM history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/p/cesm/ADF/${diag_cam_climo.cam_case_name}
+    cam_hist_loc: /glade/campaign/cgd/amp/amwg/ADF_test_cases/${diag_cam_climo.cam_case_name}
 
     #Location of CAM climatologies (to be created and then used by this script)
-    cam_climo_loc: /glade/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
+    cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1990
+    start_year: 10
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 1999
+    end_year: 14
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -180,7 +180,7 @@ diag_cam_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
+    cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
 
     #TEM diagnostics
     #---------------
@@ -190,7 +190,7 @@ diag_cam_climo:
 
     #Location where TEM files are stored:
     #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
-    cam_tem_loc: /glade/scratch/${user}/${diag_cam_climo.cam_case_name}/tem/
+    cam_tem_loc: /glade/derecho/scratch/${user}/${diag_cam_climo.cam_case_name}/tem/
 
     #Overwrite TEM files, if found?
     #If set to false, then TEM creation will be skipped if files are found:
@@ -208,8 +208,8 @@ diag_cam_climo:
     #Also please note that config keywords cannot currently be used in list mode.
 
     #cam_case_name:
-    #    - b.e20.BHIST.f09_g17.20thC.297_05
-    #    - b1850.f19_g17.validation_mct.004
+    #    - b.e23_alpha17f.BLT1850.ne30_t232.098
+    #    - b.e23_alpha17f.BLT1850.ne30_t232.095
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
@@ -228,20 +228,20 @@ diag_cam_climo:
     #    - false
 
     #cam_hist_loc:
-    #    - /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05
-    #    - /glade/p/cesm/ADF/b1850.f19_g17.validation_mct.004
+    #    - /glade/campaign/cgd/amp/amwg/ADF_test_cases/b.e23_alpha17f.BLT1850.ne30_t232.098
+    #    - /glade/campaign/cgd/amp/amwg/ADF_test_cases/b.e23_alpha17f.BLT1850.ne30_t232.095
 
     #cam_climo_loc:
     #    - /some/where/you/want/to/have/climo_files/ #MUST EDIT!
     #    - /the/same/or/some/other/climo/files/location
 
     #start_year:
-    #    - 1990
-    #    - 90
+    #    - 10
+    #    - 10
 
     #end_year:
-    #    - 1999
-    #    - 99
+    #    - 14
+    #    - 14
 
     #cam_ts_done:
     #    - false
@@ -291,8 +291,8 @@ diag_cam_baseline_climo:
     # Only affects timeseries as everything else uses the created timeseries 
     # Default: 
     hist_str: cam.h0
-    
-#Calculate cam baseline climatologies?
+
+    #Calculate cam baseline climatologies?
     #If false, the climatology files will not be created:
     calc_cam_climo: true
 
@@ -301,7 +301,7 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
+    cam_case_name: b.e23_alpha17f.BLT1850.ne30_t232.093
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
@@ -311,20 +311,20 @@ diag_cam_baseline_climo:
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/p/cesm/ADF/${diag_cam_baseline_climo.cam_case_name}
+    cam_hist_loc: /glade/campaign/cgd/amp/amwg/ADF_test_cases/${diag_cam_baseline_climo.cam_case_name}
 
     #Location of baseline CAM climatologies:
-    cam_climo_loc: /glade/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/climo
+    cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/climo
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1990
+    start_year: 10
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 1999
+    end_year: 14
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -341,7 +341,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
+    cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
 
     #TEM diagnostics
     #---------------
@@ -351,7 +351,7 @@ diag_cam_baseline_climo:
 
     #Location where TEM files are stored:
     #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
-    cam_tem_loc: /glade/scratch/${user}/${diag_cam_baseline_climo.cam_case_name}/tem/
+    cam_tem_loc: /glade/derecho/scratch/${user}/${diag_cam_baseline_climo.cam_case_name}/tem/
 
     #Overwrite TEM files, if found?
     #If set to false, then TEM creation will be skipped if files are found:
@@ -376,7 +376,7 @@ diag_cvdp_info:
     cvdp_codebase_loc: /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
 
     # Location where cvdp codebase will be copied to and diagnostic plots will be stored
-    cvdp_loc: /glade/scratch/asphilli/ADF-Sandbox/cvdp/      #MUST EDIT!
+    cvdp_loc: /glade/derecho/scratch/${user}/ADF/cvdp/
 
     # tar up CVDP results?
     cvdp_tar: false

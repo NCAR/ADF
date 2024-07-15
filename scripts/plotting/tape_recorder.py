@@ -189,6 +189,7 @@ def tape_recorder(adfobj):
         #End tape recorder plotting script:
         return
 
+    #Set up figure for plots
     fig = plt.figure(figsize=(16,16))
     x1, x2, y1, y2 = get5by5coords_zmplots()
 
@@ -203,8 +204,6 @@ def tape_recorder(adfobj):
     ax = plot_pre_mon(fig, era5_data, plot_step,plot_min,plot_max,
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
                       taxis='month',climo_yrs="1980-2020")
-
-
 
     #Loop over case(s) and start count at 2 to account for MLS and ERA5 plots above
     count=2
