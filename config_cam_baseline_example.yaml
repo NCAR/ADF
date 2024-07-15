@@ -376,7 +376,7 @@ diag_cvdp_info:
     cvdp_codebase_loc: /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
 
     # Location where cvdp codebase will be copied to and diagnostic plots will be stored
-    cvdp_loc: /glade/derecho/scratch/asphilli/ADF-Sandbox/cvdp/      #MUST EDIT!
+    cvdp_loc: /glade/derecho/scratch/${user}/ADF/cvdp/
 
     # tar up CVDP results?
     cvdp_tar: false
