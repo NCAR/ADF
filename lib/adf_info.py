@@ -161,6 +161,9 @@ class AdfInfo(AdfConfig):
             #that check this variable won't crash:
             self.__cam_bl_climo_info = None
 
+            # Set baseline hist string object to None
+            self.__base_hist_str = None
+
             #Also set data name for use below:
             data_name = "Obs"
             base_nickname = "Obs"
@@ -189,23 +192,13 @@ class AdfInfo(AdfConfig):
             # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
             baseline_hist_str = self.get_baseline_info("hist_str")
 
-            #Check if user provided
-            if not baseline_hist_str:
-                baseline_hist_str = ['cam.h0a']
-            else:
-                #Make list if not already
-                if not isinstance(baseline_hist_str, list):
-                    baseline_hist_str = [baseline_hist_str]
-            #Initialize baseline history string list
-            self.__base_hist_str = baseline_hist_str
-
             #Check if any time series files are pre-made
             baseline_ts_done   = self.get_baseline_info("cam_ts_done")
 
             #Check if time series files already exist,
             #if so don't rely on climo years from history location
             if baseline_ts_done:
-                baseline_hist_locs = [None]
+                baseline_hist_locs = None
 
                 #Grab baseline time series file location
                 input_ts_baseline = self.get_baseline_info("cam_ts_loc", required=True)
@@ -783,7 +776,7 @@ class AdfInfo(AdfConfig):
             errmsg = f"Time series directory '{input_ts_loc}' not found.  Script is exiting."
             raise AdfError(errmsg)
 
-        # Search for first variable in var_list to get a time series file to read
+        # Search for first available variable in var_list to get a time series file to read
         # NOTE: it is assumed all the variables have the same dates!
         # Also, it is assumed that only h0 files should be climo-ed.
         for var in var_list:
