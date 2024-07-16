@@ -282,7 +282,6 @@ class AdfData:
             else:
                 scale_factor = vres.get("scale_factor",1)
                 add_offset = vres.get("add_offset", 0)
-            print(case, variablename, scale_factor, add_offset)
             da = da * scale_factor + add_offset
             da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
         return da
