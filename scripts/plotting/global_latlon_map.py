@@ -25,7 +25,7 @@ def my_formatwarning(msg, *args, **kwargs):
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
 
-def global_latlon_map_B(adfobj):
+def global_latlon_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
@@ -125,12 +125,13 @@ def global_latlon_map_B(adfobj):
                "MAM": [3, 4, 5],
                "SON": [9, 10, 11]
                }
-    
+
     # probably want to do this one variable at a time:
     for var in var_list:
         if var not in adfobj.data.ref_var_nam:
-            dmsg = f"No reference data found for variable `{var}`, zonal mean plotting skipped."
+            dmsg = f"No reference data found for variable `{var}`, global lat/lon mean plotting skipped."
             adfobj.debug_log(dmsg)
+            print(dmsg)
             continue        
 
         #Notify user of variable being plotted:
@@ -156,10 +157,20 @@ def global_latlon_map_B(adfobj):
         vres['central_longitude'] = pf.get_central_longitude(adfobj)
 
         # load reference data (observational or baseline)
-        # odata = adfobj.data.load_reference_da(var)
-        odata = adfobj.data.load_reference_regrid_da(adfobj.data.ref_case_label, var)
+        #ref_case_label
+        if not adfobj.compare_obs:
+            base_name = adfobj.data.ref_case_label
+        else:
+            base_name = adfobj.data.ref_labels[var]
+
+        # Gather reference variable data
+        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+
         if odata is None:
+            dmsg = f"No regridded test file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
+            adfobj.debug_log(dmsg)
             continue
+
         o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
         if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
             print(f"\t = skipping global map for {var} as REFERENCE does not have both lat and lon")
@@ -184,6 +195,8 @@ def global_latlon_map_B(adfobj):
 
             #Skip this variable/case if the regridded climo file doesn't exist:
             if mdata is None:
+                dmsg = f"No regridded test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
+                adfobj.debug_log(dmsg)
                 continue
 
             #Determine dimensions of variable:
@@ -192,8 +205,8 @@ def global_latlon_map_B(adfobj):
                 print(f"\t = skipping global map for {var} for case {case_name} as it does not have both lat and lon")
                 continue
             else: # i.e., has lat&lon
-                if pres_levs and (not has_dims['has_lev']):
-                    print(f"\t - skipping global map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
+                if (has_dims['has_lev']) and (not pres_levs):
+                    print(f"\t - skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
                     continue
 
             # Check output file. If file does not exist, proceed.
@@ -201,7 +214,8 @@ def global_latlon_map_B(adfobj):
             #   if redo_plot is true: delete it now and make plot
             #   if redo_plot is false: add to website and move on
             doplot = {}
-            if not pres_levs:
+
+            if not has_dims['has_lev']:
                 for s in seasons:
                     plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
                     doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon")
