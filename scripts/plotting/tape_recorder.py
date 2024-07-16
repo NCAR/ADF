@@ -89,6 +89,8 @@ def tape_recorder(adfobj):
         # Filter the list to include only strings that are exactly in the substrings list
         base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
         hist_strs = case_hist_strs + base_hist_strs
+    else:
+        hist_strs = case_hist_strs
     #End if
 
     if not case_ts_locs:
