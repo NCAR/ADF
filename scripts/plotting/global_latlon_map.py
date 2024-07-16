@@ -157,7 +157,6 @@ def global_latlon_map(adfobj):
         vres['central_longitude'] = pf.get_central_longitude(adfobj)
 
         # load reference data (observational or baseline)
-        #ref_case_label
         if not adfobj.compare_obs:
             base_name = adfobj.data.ref_case_label
         else:
