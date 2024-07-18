@@ -128,6 +128,7 @@ def tape_recorder(adfobj):
 
     #This may have to change if other variables are desired in this plot type?
     plot_name = plot_loc / f"{var}_TapeRecorder_ANN_Special_Mean.{plot_type}"
+
     print(f"\t - Plotting annual tape recorder for {var}")
 
     # Check redo_plot. If set to True: remove old plot, if it already exists:
@@ -140,11 +141,8 @@ def tape_recorder(adfobj):
     elif (redo_plot) and plot_name.is_file():
         plot_name.unlink()
     
-    #Make dictionary for case names and associated timeseries file locations and hist strings
-    runs_LT2={}
-    for i,val in enumerate(test_nicknames):
-        runs_LT2[val] = [case_ts_locs[i], hist_strs[i]]
-
+    # Plotting
+    #---------
     # MLS data
     mls = xr.open_dataset(obs_loc / "mls_h2o_latNpressNtime_3d_monthly_v5.nc")
     mls = mls.rename(x='lat', y='lev', t='time')
@@ -160,39 +158,7 @@ def tape_recorder(adfobj):
     era5 = era5.groupby('time.month').mean('time')
     era5_data = era5.Q
 
-    alldat=[]
-    runname_LT=[]
-    for idx,key in enumerate(runs_LT2):
-        # Search for files
-        ts_loc = Path(runs_LT2[key][0])
-        hist_str = runs_LT2[key][1]
-        fils= sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
-        dat = adfobj.data.load_timeseries_dataset(fils)
-
-        if not dat:
-            dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
-            print(dmsg)
-            adfobj.debug_log(dmsg)
-            continue
-        #Grab time slice based on requested years (if applicable)
-        dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
-        datzm = dat.mean('lon')
-        dat_tropics = cosweightlat(datzm[var], -10, 10)
-        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
-        alldat.append(dat_mon)
-        runname_LT.append(key)
-
-    #Check to see if any cases were successful
-    if runname_LT:
-        runname_LT=xr.DataArray(runname_LT, dims='run', coords=[np.arange(0,len(runname_LT),1)], name='run')
-        alldat_concat_LT = xr.concat(alldat, dim=runname_LT)
-    else:
-        msg = f"WARNING: No cases seem to be available, please check time series files for {var}."
-        msg += "\n\tNo tape recorder plots will be made."
-        print(msg)
-        #End tape recorder plotting script:
-        return
-
+    #Set up figure and plot MLS and ERA5 data
     fig = plt.figure(figsize=(16,16))
     x1, x2, y1, y2 = get5by5coords_zmplots()
 
@@ -208,15 +174,42 @@ def tape_recorder(adfobj):
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
                       taxis='month',climo_yrs="1980-2020")
 
+
     #Loop over case(s) and start count at 2 to account for MLS and ERA5 plots above
+    runname_LT=[]
     count=2
-    for irun in np.arange(0,alldat_concat_LT.run.size,1):
-        title = f"{alldat_concat_LT.run.isel(run=irun).values}"
-        ax = plot_pre_mon(fig, alldat_concat_LT.isel(run=irun),
-                          plot_step, plot_min, plot_max, title,
+    for idx,key in enumerate(test_nicknames):
+        # Search for files
+        ts_loc = Path(case_ts_locs[idx])
+        hist_str = hist_strs[idx]
+        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        dat = adfobj.data.load_timeseries_dataset(fils)
+
+        if not dat:
+            dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            print(dmsg)
+            adfobj.debug_log(dmsg)
+            continue
+
+        #Grab time slice based on requested years (if applicable)
+        dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+        datzm = dat.mean('lon')
+        dat_tropics = cosweightlat(datzm[var], -10, 10)
+        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+        ax = plot_pre_mon(fig, dat_mon,
+                          plot_step, plot_min, plot_max, key,
                           x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
-                          taxis='month',climo_yrs=f"{start_years[irun]}-{end_years[irun]}")
+                          taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
         count=count+1
+        runname_LT.append(key)
+
+    #Check to see if any cases were successful
+    if not runname_LT:
+        msg = f"WARNING: No cases seem to be available, please check time series files for {var}."
+        msg += "\n\tNo tape recorder plots will be made."
+        print(msg)
+        #End tape recorder plotting script:
+        return
 
     #Shift colorbar if there are less than 5 subplots
     # There will always be at least 2 (MLS and ERA5)
