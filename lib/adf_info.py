@@ -782,7 +782,6 @@ class AdfInfo(AdfConfig):
         for var in var_list:
             ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var}.*nc"))
             if ts_files:
-                print(var)
                 break
             else:
                 logmsg = "get years for time series:"
