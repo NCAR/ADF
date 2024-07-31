@@ -804,8 +804,8 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         ax2.set_ylabel(kwargs["units"])
         ax3.set_ylabel(kwargs["units"])
     else:
-        ax2.set_ylabel(f"{dif.units}")
-        ax3.set_ylabel(f"{dif.units}")
+        ax2.set_ylabel(f"{d1.units}")
+        ax3.set_ylabel(f"{d1.units}")
 
 
     [a.set_extent(domain, ccrs.PlateCarree()) for a in [ax1, ax2, ax3]]
