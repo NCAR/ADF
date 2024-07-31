@@ -152,9 +152,9 @@ class AdfData:
     # Test case(s)
     def load_climo_da(self, case, variablename):
         """Return DataArray from climo file"""
-        new_unit, add_offset, scale_factor = self.get_defaults(case, variablename)
+        add_offset, scale_factor = self.get_defaults(case, variablename)
         fils = self.get_climo_file(case, variablename)
-        return self.load_da(fils, variablename, new_unit=new_unit, add_offset=add_offset, scale_factor=scale_factor)
+        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
 
 
     def load_climo_file(self, case, variablename):
@@ -212,12 +212,12 @@ class AdfData:
     
     def load_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        new_unit, add_offset, scale_factor = self.get_defaults(case, field)
+        add_offset, scale_factor = self.get_defaults(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
-        return self.load_da(fils, field, new_unit=new_unit, add_offset=add_offset, scale_factor=scale_factor)
+        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
 
     # Reference case (baseline/obs)
@@ -243,7 +243,7 @@ class AdfData:
     
     def load_reference_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        new_unit, add_offset, scale_factor = self.get_defaults(case, field)
+        add_offset, scale_factor = self.get_defaults(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
@@ -252,7 +252,7 @@ class AdfData:
         # listed in variable defaults for this observation field
         if self.adf.compare_obs:
             field = self.ref_var_nam[field]
-        return self.load_da(fils, field, new_unit=new_unit, add_offset=add_offset, scale_factor=scale_factor)
+        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
     #------------------
 
@@ -278,7 +278,6 @@ class AdfData:
             warnings.warn(f"invalid data on load_dataset")
         return ds
 
-
     # Load DataArray
     def load_da(self, fils, variablename, **kwargs):
         """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
@@ -289,8 +288,11 @@ class AdfData:
         da = (ds[variablename]).squeeze()
 
         da = da * kwargs["scale_factor"] + kwargs["add_offset"]
-        if kwargs["new_unit"] != 'none':
-            da.attrs['units'] = kwargs["new_unit"]
+        if variablename in self.adf.variable_defaults:
+            vres = self.adf.variable_defaults[variablename]
+            da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
+        else:
+            da.attrs['units'] = 'none'
         return da
 
     # Get vairable defaults, if applicable
@@ -298,15 +300,13 @@ class AdfData:
         """
         Get variable defaults if applicable
         
-           - This is to get any scale factors or off-sets and new units
+           - This is to get any scale factors or off-sets
 
         Returns
         -------
-           new_unit - str
            add_offset - int/float
            scale_factor - int/float
         """
-        new_unit = 'none'
         add_offset = 0
         scale_factor = 1
         res = self.adf.variable_defaults
@@ -318,8 +318,7 @@ class AdfData:
             else:
                 scale_factor = vres.get("scale_factor",1)
                 add_offset = vres.get("add_offset", 0)
-            new_unit = vres.get("new_unit", 'none')
-        return new_unit, add_offset, scale_factor
+        return add_offset, scale_factor
 
     #------------------
 
