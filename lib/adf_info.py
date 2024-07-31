@@ -151,6 +151,8 @@ class AdfInfo(AdfConfig):
             #End for
         #End if
 
+        self.__base_hist_str = ""
+
         #Initialize "compare_obs" variable:
         self.__compare_obs = self.get_basic_info('compare_obs')
 
@@ -650,7 +652,10 @@ class AdfInfo(AdfConfig):
     def hist_string(self):
         """ Return the CAM history string list to the user if requested."""
         cam_hist_strs = copy.copy(self.__hist_str)
-        base_hist_strs = copy.copy(self.__base_hist_str)
+        if self.__base_hist_str:
+            base_hist_strs = copy.copy(self.__base_hist_str)
+        else:
+            base_hist_strs = ""
         hist_strs = {"test_hist_str":cam_hist_strs, "base_hist_str":base_hist_strs}
         return hist_strs
 

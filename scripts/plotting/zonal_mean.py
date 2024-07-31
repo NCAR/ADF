@@ -171,7 +171,7 @@ def zonal_mean(adfobj):
 
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
-            dmsg = f"No regridded baseline file for {adfobj.data.ref_case_label} for variable `{var}`, zonal mean plotting skipped."
+            dmsg = f"No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             continue
 
