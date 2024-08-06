@@ -152,7 +152,7 @@ class AdfData:
     # Test case(s)
     def load_climo_da(self, case, variablename):
         """Return DataArray from climo file"""
-        add_offset, scale_factor = self.get_defaults(case, variablename)
+        add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_climo_file(case, variablename)
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
 
@@ -161,7 +161,7 @@ class AdfData:
         """Return Dataset for climo of variablename"""
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            warnings.warn(f"ERROR: Did not find climo file for variable: {variablename}. Will try to skip.")
+            warnings.warn(f"WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
             return None
         return self.load_dataset(fils)
     
@@ -212,7 +212,7 @@ class AdfData:
     
     def load_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        add_offset, scale_factor = self.get_defaults(case, field)
+        add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
@@ -225,7 +225,10 @@ class AdfData:
         """Return list of reference regridded files"""
         if self.adf.compare_obs:
             obs_loc = self.ref_var_loc.get(field, None)
-            fils = [str(obs_loc)]
+            if obs_loc:
+                fils = [str(obs_loc)]
+            else:
+                fils = []
         else:
             model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_*.nc"))
@@ -236,19 +239,19 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"ERROR: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
     
     def load_reference_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        add_offset, scale_factor = self.get_defaults(case, field)
+        add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"ERROR: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
-        #Change the variable name from CAM standard to what is is 
+        #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
         if self.adf.compare_obs:
             field = self.ref_var_nam[field]
@@ -286,8 +289,9 @@ class AdfData:
             warnings.warn(f"ERROR: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
-
-        da = da * kwargs["scale_factor"] + kwargs["add_offset"]
+        scale_factor = kwargs.get('scale_factor', 1)
+        add_offset = kwargs.get('add_offset', 0)
+        da = da * scale_factor + add_offset
         if variablename in self.adf.variable_defaults:
             vres = self.adf.variable_defaults[variablename]
             da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
@@ -295,8 +299,8 @@ class AdfData:
             da.attrs['units'] = 'none'
         return da
 
-    # Get vairable defaults, if applicable
-    def get_defaults(self, case, variablename):
+    # Get variable conversion defaults, if applicable
+    def get_value_converters(self, case, variablename):
         """
         Get variable defaults if applicable
         
