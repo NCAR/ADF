@@ -205,7 +205,7 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
@@ -215,7 +215,7 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"ERROR: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
         return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
@@ -239,7 +239,7 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"ERROR: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
@@ -249,7 +249,7 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"ERROR: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
@@ -286,7 +286,7 @@ class AdfData:
         """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
         ds = self.load_dataset(fils)
         if ds is None:
-            warnings.warn(f"ERROR: Load failed for {variablename}")
+            warnings.warn(f"WARNING: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
         scale_factor = kwargs.get('scale_factor', 1)
