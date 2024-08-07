@@ -163,6 +163,9 @@ class AdfInfo(AdfConfig):
             #that check this variable won't crash:
             self.__cam_bl_climo_info = None
 
+            # Set baseline hist string object to None
+            self.__base_hist_str = None
+
             #Also set data name for use below:
             data_name = "Obs"
             base_nickname = "Obs"
@@ -778,16 +781,17 @@ class AdfInfo(AdfConfig):
             errmsg = f"Time series directory '{input_ts_loc}' not found.  Script is exiting."
             raise AdfError(errmsg)
 
-        # Search for first variable in var_list to get a time series file to read
+        # Search for first available variable in var_list to get a time series file to read
         # NOTE: it is assumed all the variables have the same dates!
         # Also, it is assumed that only h0 files should be climo-ed.
-        ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var_list[0]}.*nc"))
-
-        #Read hist_str (component.hist_num) from the yaml file, or set to default
-        hist_str = self.get_basic_info('hist_str')
-        #If hist_str is not present, then default to 'cam.h0':
-        if not hist_str:
-            hist_str = 'cam.h0'
+        for var in var_list:
+            ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var}.*nc"))
+            if ts_files:
+                break
+            else:
+                logmsg = "get years for time series:"
+                logmsg = f"\tVar '{var}' not in dataset, skip to next to try and find climo years..."
+                self.debug_log(logmsg)
 
         #Read in file(s)
         if len(ts_files) == 1:
