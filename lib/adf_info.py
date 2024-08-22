@@ -376,6 +376,7 @@ class AdfInfo(AdfConfig):
 
                 #Grab case time series file location
                 input_ts_loc = Path(input_ts_locs[case_idx])
+                print(f"Checking existing time-series files in {input_ts_loc}")
 
                 #Get years from pre-made timeseries file(s)
                 found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)

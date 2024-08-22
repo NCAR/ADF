@@ -339,7 +339,6 @@ class AdfDiag(AdfWeb):
 
         # End def
 
-        print("\n  Generating CAM time series files...")
 
         # Check if baseline time-series files are being created:
         if baseline:
@@ -368,6 +367,7 @@ class AdfDiag(AdfWeb):
             hist_str_list = self.hist_string["test_hist_str"]
 
         # Notify user that script has started:
+        print(f"\n  Writing time series files to {ts_dir}")
 
         # End if
 
@@ -1329,8 +1329,11 @@ class AdfDiag(AdfWeb):
         # Going to need a dict to translate.
         # Use cesm_freq_strings = freq_string_options.keys
         # and then freq = freq_string_option(freq_string_found)
-        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]
+        freq_string_cesm    = ["month", "day", "hour_6", "hour_3", "hour_1"]  #keys
+        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]           #values
+        freq_string_dict    = dict(zip(freq_string_cesm,freq_string_options)) #make dict
 
+        
         hist_str_list = self.get_cam_info("hist_str")
         case_names = self.get_cam_info("cam_case_name", required=True)
         var_list = self.diag_var_list
@@ -1385,7 +1388,7 @@ class AdfDiag(AdfWeb):
                         continue
 
                     found_strings = [
-                        word for word in freq_string_options if word in dataset_freq
+                        word for word in freq_string_cesm if word in dataset_freq
                     ]
                     if len(found_strings) == 1:
                         if verbose > 2:
@@ -1400,13 +1403,14 @@ class AdfDiag(AdfWeb):
                     else:
                         if verbose > 0:
                             print(
-                                f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {dataset_freq}"
+                                f"WARNING: None of the frequency options {freq_string_cesm} are present in the time_period_freq attribute {dataset_freq}"
                             )
                             print(f"Skipping {adf_file}")
                             freq = "frequency_missing"
                         continue
-                    freq = found_strings[0]
-
+                    freq = freq_string_dict.get(found_strings[0])
+                    print(f"Translated {found_strings[0]} to {freq}")
+                    
                     #
                     # Destination file is MDTF directory and name structure
                     #
