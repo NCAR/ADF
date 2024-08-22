@@ -1142,6 +1142,9 @@ class AdfDiag(AdfWeb):
                 # Open a new dataset with all the constituent files/variables
                 ds = xr.open_mfdataset(constit_files).compute()
 
+                # Grab attributes from first constituent file to be used in derived variable
+                attrs = ds[constit_list[0]].attrs
+
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
 
@@ -1210,6 +1213,8 @@ class AdfDiag(AdfWeb):
                 # Drop all constituents from final saved dataset
                 # These are not necessary because they have their own time series files
                 ds_final = ds.drop_vars(constit_list)
+                # Copy attributes from constituent file to derived variable
+                ds_final[var].attrs = attrs
                 ds_final.to_netcdf(derived_file, unlimited_dims='time', mode='w')
 
     ######### MDTF functions #########
