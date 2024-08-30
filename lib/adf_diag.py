@@ -539,7 +539,7 @@ class AdfDiag(AdfWeb):
 
                     # Check if current variable is not in history file(s)
                     if var not in hist_file_var_list:
-                        # Let user know variable is not in history file
+                        # Let user know variable is not
                         print(f"\t     {var} not in history file, will try to derive if possible")
 
                         # Check if variable can be derived

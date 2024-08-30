@@ -72,7 +72,7 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
 
     # No time series creation
     exit_msg = f"WARNING: {var} is not in the file {hist0} and can't be derived."
-    exit_msg += "\n\t  ** No time series will be generated. **\n"
+    exit_msg += "\t     ** No time series will be generated. **"
 
     # Initialiaze list for constituents
     # NOTE: This is if the variable is NOT derivable but needs
