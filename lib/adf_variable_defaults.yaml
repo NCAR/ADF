@@ -895,7 +895,7 @@ FSNT:
       label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
-  obs_var_name: "toa_sw_all_mon"
+  obs_var_name: "fsnt"
   category: "TOA energy flux"
 
 FSNTC:
