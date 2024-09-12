@@ -332,12 +332,6 @@ diag_mdtf_info:
     conda_env_root     : ${mdtf_codebase_path}/miniconda2/envs.MDTFv3.1.20230412/
     OBS_DATA_ROOT      : ${mdtf_codebase_path}/obs_data
 
-
-
-    # Set to default for same as the ADF plot_location. Anything else here overrides that
-    OUTPUT_DIR         : default
-    WORKING_DIR        : default
-
     # SET this to a writable dir. The ADF will place ts files here for the MDTF to read (adds the casename)
     MODEL_DATA_ROOT     : ${diag_cam_climo.cam_ts_loc}/mdtf/inputdata/model     
 
