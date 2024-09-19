@@ -303,6 +303,8 @@ diag_cvdp_info:
 # If mdtf_run: true, the MDTF will be set up and 
 # run in background mode, likely completing after the ADF has completed.
 #
+# WARNING: This currently only runs on CASPER (not derecho)
+#
 # The variables required depend on the diagnostics (PODs) selected. 
 # AMWG-developed PODS and their required variables:
 #   (Note that PRECT can be computed from PRECC & PRECL)
