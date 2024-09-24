@@ -523,7 +523,8 @@ class AdfDiag(AdfWeb):
                 # Aerosol Calcs
                 # --------------
                 # Always make sure PMID is made if aerosols are desired in config file
-                # Since there's no requirement for `aerosol_zonal_list` to be included, allow it to be absent:
+                # Since there's no requirement for `aerosol_zonal_list` to be included,
+                # allow it to be absent:
 
                 azl = res.get("aerosol_zonal_list", [])
                 if "PMID" not in diag_var_list:
@@ -569,7 +570,7 @@ class AdfDiag(AdfWeb):
                             constit_list = vres["derivable_from_cam_chem"]
                             if constit_list:
                                 if all(item in hist_file_ds.data_vars for item in constit_list):
-                                    # Set check to look for regular CAM constituents in variable defaults
+                                    # Set check to look for regular CAM constituents
                                     try_cam_constits = False
                                     derive = True
                                     msg = f"create time series for {case_name}:"
@@ -608,12 +609,12 @@ class AdfDiag(AdfWeb):
                             # Add constituent list to variable key in dictionary
                             constit_dict[var] = constit_list
                             continue
-                            # Log if this variable can be derived but is missing list of constituents
+                            # Log if variable can be derived but is missing list of constituents
                         elif (derive) and (not constit_list):
                             self.debug_log(constit_errmsg)
                             continue
-                        # Lastly, raise error if the variable is not a derived quanitity but is also not
-                        # in the history file(s)
+                        # Lastly, raise error if the variable is not a derived quanitity
+                        # but is also not in the history file(s)
                         else:
                             msg = f"WARNING: {var} is not in the file {hist_files[0]} "
                             msg += "nor can it be derived.\n"
@@ -656,7 +657,7 @@ class AdfDiag(AdfWeb):
                     if has_lev and vert_coord_type:
                         # For now, only add these variables if using CAM:
                         if "cam" in hist_str:
-                            # PS might be in a different history file. If so, continue without error.
+                            # PS might be in a different history file. If so, continue w/o error.
                             ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
 
                             if "PS" in hist_file_var_list:
@@ -1377,7 +1378,6 @@ class AdfDiag(AdfWeb):
         freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]           #values
         freq_string_dict    = dict(zip(freq_string_cesm,freq_string_options)) #make dict
 
-        
         hist_str_list = self.get_cam_info("hist_str")
         case_names = self.get_cam_info("cam_case_name", required=True)
         var_list = self.diag_var_list
@@ -1454,7 +1454,7 @@ class AdfDiag(AdfWeb):
                         continue
                     freq = freq_string_dict.get(found_strings[0])
                     print(f"Translated {found_strings[0]} to {freq}")
-                    
+
                     #
                     # Destination file is MDTF directory and name structure
                     #
