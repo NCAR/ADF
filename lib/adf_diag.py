@@ -514,6 +514,8 @@ class AdfDiag(AdfWeb):
 
                 # Loop over CAM history variables:
                 list_of_commands = []
+                list_of_ncattend_commands = []
+                list_of_hist_commands = []
                 vars_to_derive = []
                 # create copy of var list that can be modified for derivable variables
                 diag_var_list = self.diag_var_list
@@ -521,7 +523,8 @@ class AdfDiag(AdfWeb):
                 # Aerosol Calcs
                 # --------------
                 # Always make sure PMID is made if aerosols are desired in config file
-                # Since there's no requirement for `aerosol_zonal_list` to be included, allow it to be absent:
+                # Since there's no requirement for `aerosol_zonal_list` to be included,
+                # allow it to be absent:
 
                 azl = res.get("aerosol_zonal_list", [])
                 if "PMID" not in diag_var_list:
@@ -567,7 +570,7 @@ class AdfDiag(AdfWeb):
                             constit_list = vres["derivable_from_cam_chem"]
                             if constit_list:
                                 if all(item in hist_file_ds.data_vars for item in constit_list):
-                                    # Set check to look for regular CAM constituents in variable defaults
+                                    # Set check to look for regular CAM constituents
                                     try_cam_constits = False
                                     derive = True
                                     msg = f"create time series for {case_name}:"
@@ -606,12 +609,12 @@ class AdfDiag(AdfWeb):
                             # Add constituent list to variable key in dictionary
                             constit_dict[var] = constit_list
                             continue
-                            # Log if this variable can be derived but is missing list of constituents
+                            # Log if variable can be derived but is missing list of constituents
                         elif (derive) and (not constit_list):
                             self.debug_log(constit_errmsg)
                             continue
-                        # Lastly, raise error if the variable is not a derived quanitity but is also not
-                        # in the history file(s)
+                        # Lastly, raise error if the variable is not a derived quanitity
+                        # but is also not in the history file(s)
                         else:
                             msg = f"WARNING: {var} is not in the file {hist_files[0]} "
                             msg += "nor can it be derived.\n"
@@ -654,7 +657,7 @@ class AdfDiag(AdfWeb):
                     if has_lev and vert_coord_type:
                         # For now, only add these variables if using CAM:
                         if "cam" in hist_str:
-                            # PS might be in a different history file. If so, continue without error.
+                            # PS might be in a different history file. If so, continue w/o error.
                             ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
 
                             if "PS" in hist_file_var_list:
@@ -691,20 +694,62 @@ class AdfDiag(AdfWeb):
                         + ["-o", ts_outfil_str]
                     )
 
+                    # Example ncatted command (you can modify it with the specific attribute changes you need)
+                    #cmd_ncatted = ["ncatted", "-O", "-a", f"adf_user,global,a,c,{self.user}", ts_outfil_str]
+                    # Step 1: Convert Path objects to strings and concatenate the list of historical files into a single string
+                    hist_files_str = ', '.join(str(f.name) for f in hist_files)
+                    #3parent
+                    #hist_locs = []
+                    #for f in hist_files:
+                    hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
+
+                    # Step 2: Create the ncatted command to add both global attributes
+                    cmd_ncatted = [
+                        "ncatted", "-O",
+                        "-a", "adf_user,global,a,c," + f"{self.user}",
+                        "-a", "hist_file_locs,global,a,c," + f"{hist_locs_str}",
+                        "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
+                        ts_outfil_str
+                    ]
+
+                    # Step 3: Create the ncatted command to remove the history attribute
+                    cmd_remove_history = [
+                        "ncatted", "-O", "-h",
+                        "-a", "history,global,d,,",
+                        ts_outfil_str
+                    ]
+
                     # Add to command list for use in multi-processing pool:
+                    # -----------------------------------------------------
+                    # generate time series files
                     list_of_commands.append(cmd)
+                    # Add global attributes: user, original hist file loc(s) and all filenames
+                    list_of_ncattend_commands.append(cmd_ncatted)
+                    # Remove the `history` attr that gets tacked on (for clean up)
+                    # NOTE: this may not be best practice, but it the history attr repeats
+                    #       the files attrs so the global attrs become obtrusive...
+                    list_of_hist_commands.append(cmd_remove_history)
 
                 # End variable loop
 
                 # Now run the "ncrcat" subprocesses in parallel:
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_commands)
+                # End with
 
-                    if vars_to_derive:
-                        self.derive_variables(
-                            res=res, hist_str=hist_str, vars_to_derive=vars_to_derive,
-                            constit_dict=constit_dict, ts_dir=ts_dir[case_idx]
-                        )
+                # Run ncatted commands after ncrcat is done
+                with mp.Pool(processes=self.num_procs) as mpool:
+                    _ = mpool.map(call_ncrcat, list_of_ncattend_commands)
+
+                # Run ncatted command to remove history attribute after the global attributes are set
+                with mp.Pool(processes=self.num_procs) as mpool:
+                    _ = mpool.map(call_ncrcat, list_of_hist_commands)
+
+                if vars_to_derive:
+                    self.derive_variables(
+                        res=res, hist_str=hist_str, vars_to_derive=vars_to_derive,
+                        constit_dict=constit_dict, ts_dir=ts_dir[case_idx]
+                    )
                 # End with
             # End for hist_str
         # End cases loop
@@ -1333,7 +1378,6 @@ class AdfDiag(AdfWeb):
         freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]           #values
         freq_string_dict    = dict(zip(freq_string_cesm,freq_string_options)) #make dict
 
-        
         hist_str_list = self.get_cam_info("hist_str")
         case_names = self.get_cam_info("cam_case_name", required=True)
         var_list = self.diag_var_list
@@ -1410,7 +1454,7 @@ class AdfDiag(AdfWeb):
                         continue
                     freq = freq_string_dict.get(found_strings[0])
                     print(f"Translated {found_strings[0]} to {freq}")
-                    
+
                     #
                     # Destination file is MDTF directory and name structure
                     #

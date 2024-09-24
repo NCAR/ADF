@@ -178,7 +178,7 @@ def create_climo_files(adf, clobber=False, search=None):
                 warnings.warn(errmsg)
                 continue
 
-            list_of_arguments.append((ts_files, syr, eyr, output_file))
+            list_of_arguments.append((adf, ts_files, syr, eyr, output_file))
 
 
         #End of var_list loop
@@ -198,7 +198,7 @@ def create_climo_files(adf, clobber=False, search=None):
 #
 # Local functions
 #
-def process_variable(ts_files, syr, eyr, output_file):
+def process_variable(adf, ts_files, syr, eyr, output_file):
     '''
     Compute and save the climatology file.
     '''
@@ -226,6 +226,17 @@ def process_variable(ts_files, syr, eyr, output_file):
     enc_dv = {xname: {'_FillValue': None, 'zlib': True, 'complevel': 4} for xname in cam_climo_data.data_vars}
     enc_c  = {xname: {'_FillValue': None} for xname in cam_climo_data.coords}
     enc    = {**enc_c, **enc_dv}
+
+    # Create a dictionary of attributes
+    # Convert the list to a string (join with commas)
+    ts_files_str = [str(path) for path in ts_files]
+    ts_files_str = ', '.join(ts_files_str)
+    attrs_dict = {
+        "adf_user": adf.user,
+        "climo_yrs": f"{syr}-{eyr}",
+        "time_series_files": ts_files_str,
+    }
+    cam_climo_data = cam_climo_data.assign_attrs(attrs_dict)
 
     #Output variable climatology to NetCDF-4 file:
     cam_climo_data.to_netcdf(output_file, format='NETCDF4', encoding=enc)
