@@ -1053,8 +1053,7 @@ class AdfDiag(AdfWeb):
         case_idx = 0
         plot_path = os.path.join(self.plot_location[case_idx], "mdtf")
         for var in ["WORKING_DIR", "OUTPUT_DIR"]:
-            if mdtf_info[var] == "default":
-                mdtf_info[var] = plot_path
+            mdtf_info[var] = plot_path
 
         #
         # Write the input settings json file
@@ -1141,7 +1140,7 @@ class AdfDiag(AdfWeb):
                     adf_file_list = glob.glob(adf_file_str)
 
                     if len(adf_file_list) == 1:
-                        if verbose > 2:
+                        if verbose > 1:
                             print(f"Copying ts file: {adf_file_list} to MDTF dir")
                     elif len(adf_file_list) > 1:
                         if verbose > 0:
@@ -1149,7 +1148,7 @@ class AdfDiag(AdfWeb):
                                 f"WARNING: found multiple timeseries files {adf_file_list}. Continuing with best guess; suggest cleaning up multiple dates in ts dir"
                             )
                     else:
-                        if verbose > 0:
+                        if verbose > 1:
                             print(
                                 f"WARNING: No files matching {case_name}.{hist_str}.{var} found in {adf_file_str}. Skipping"
                             )

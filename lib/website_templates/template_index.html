@@ -48,5 +48,23 @@
       {% endfor %}
     </div><!--grid-container-ptype-->
 
+    <div class="center">
+      <h1>External Diagnostic Packages</h1>
+    </div>
+    
+    <div class="grid-container">
+      {% for avail_type in avail_external_packages %}
+        {% if avail_type in external_package_links.keys() %}
+          <div class="grid-item">
+            <a href={{ external_package_links[avail_type] }} style="font-size: 30px;"> &nbsp; {{ avail_type }} </a>
+          </div><!--grid-item-->
+        {% else %}
+          <div class="grid-item-blocked">
+            <a-blocked style="font-size: 30px;">{{ avail_type }}</a-blocked>
+          </div><!--grid-item-blocked-->
+        {% endif %}
+      {% endfor %}
+    </div><!--grid-container-external-plots-->
+
   </body>
 </html>
