@@ -157,7 +157,11 @@ class AdfWeb(AdfObs):
                 mdtf_path += f"_{syear[0]}_{eyear[0]}"
                 self.external_package_links['MDTF'] = mdtf_path
             #End if
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> d8eec242 (Pull newest changed from main)
             #Add all relevant paths to dictionary for specific case:
             self.__case_web_paths[case_name] = {'website_dir': website_dir,
                                                 'img_pages_dir': img_pages_dir,
@@ -847,7 +851,11 @@ class AdfWeb(AdfObs):
 
             # External packages that can be run through ADF
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> d8eec242 (Pull newest changed from main)
             #Construct index.html
             index_title = "CAM Diagnostics"
             index_tmpl = jinenv.get_template('template_index.html')
@@ -859,8 +867,12 @@ class AdfWeb(AdfObs):
                                             plot_types=plot_types,
                                             avail_plot_types=avail_plot_types,
                                             avail_external_packages=avail_external_packages,
+<<<<<<< HEAD
                                             external_package_links=self.external_package_links,
                                             run_info=run_info_html)
+=======
+                                            external_package_links=self.external_package_links)
+>>>>>>> d8eec242 (Pull newest changed from main)
 
             #Write Mean diagnostics index HTML file:
             with open(index_html_file, 'w', encoding='utf-8') as ofil:
