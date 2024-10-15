@@ -406,7 +406,7 @@ def spatial_average(indata, weights=None, spatial_dims=None):
         emsg += " so can not perform average."
         raise AdfError(emsg)
 
-    return weighted.mean(dim=spatial_dims)
+    return weighted.mean(dim=spatial_dims, keep_attrs=True)
 
 
 def wgt_rmse(fld1, fld2, wgt):
@@ -494,6 +494,7 @@ def annual_mean(data, whole_years=False, time_name='time'):
     # weighted average with normalized weights: <x> = SUM x_i * w_i  (implied division by SUM w_i)
     result =  (data_to_avg * days_gb).groupby('time.year').sum(dim='time')
     result.attrs['averaging_period'] = date_range_string
+    result.attrs['units'] = data.attrs.get("units",None)
     return result
 
 
