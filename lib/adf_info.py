@@ -255,7 +255,29 @@ class AdfInfo(AdfConfig):
                 #Grab first possible hist string, just looking for years of run
                 base_hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
+                print(f"Checking history files in '{starting_location}'")
+
+                #Check if the history file location exists
+                if not starting_location.is_dir():
+                    msg = "Checking history file location:\n"
+                    msg += f"\tYeah, there's no history file location: '{starting_location}'."
+                    self.debug_log(msg)
+                    emsg = f"{data_name} starting_location: History file location not found!\n"
+                    emsg += "\tTry checking the path 'cam_hist_loc' in 'diag_cam_baseline_climo' "
+                    emsg += "section in your config file is correct..."
+                    self.end_diag_fail(emsg)
                 file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
+
+                #Check if there are any history files
+                if len(file_list) == 0:
+                    msg = "Checking history files:\n"
+                    msg += f"\tThere are no history files in '{starting_location}'."
+                    self.debug_log(msg)
+                    emsg = f"{data_name} starting_location '{starting_location}': No history files found!\n"
+                    emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' in 'diag_cam_baseline_climo' "
+                    emsg += "section in your config file are correct..."
+                    self.end_diag_fail(emsg)
+
                 # Partition string to find exactly where h-number is
                 # This cuts the string before and after the `{hist_str}.` sub-string
                 # so there will always be three parts:
@@ -420,7 +442,29 @@ class AdfInfo(AdfConfig):
 
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
+                print(f"Checking history files in '{starting_location}'")
+
+                #Check if the history file location exists
+                if not starting_location.is_dir():
+                    msg = "Checking history file location:\n"
+                    msg += f"\tThere is no history file location: '{starting_location}'."
+                    self.debug_log(msg)
+                    emsg = f"{case_name} starting_location: History file location not found!\n"
+                    emsg += "\tTry checking the path 'cam_hist_loc' in 'diag_cam_climo' "
+                    emsg += "section in your config file is correct..."
+                    self.end_diag_fail(emsg)
+                
+                #Check if there are any history files
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+                if len(file_list) == 0:
+                    msg = "Checking history files:\n"
+                    msg += f"\tYeah, there's no history files in '{starting_location}'."
+                    self.debug_log(msg)
+                    emsg = f"{case_name} starting_location {starting_location}: No history files found!\n"
+                    emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' in 'diag_cam_climo' "
+                    emsg += "section in your config file are correct..."
+                    self.end_diag_fail(emsg)
+
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
                 # so there will always be three parts:
