@@ -12,18 +12,32 @@ plot_file_op
     Check on status of output plot file.
 """
 #Import standard modules:
+import os
+import subprocess
 from pathlib import Path
 import numpy as np
 import xarray as xr
 import warnings  # use to warn user about missing files.
 
+# Import plotting modules:
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from cartopy.util import add_cyclic_point
+from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 import plotting_functions as pf
 
-#Format warning messages:
+# Warnings
+import warnings  # use to warn user about missing files.
+#     - Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
     """Issue `msg` as warning."""
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
+
+#########
 
 def global_latlon_map(adfobj):
     """
@@ -307,6 +321,11 @@ def global_latlon_map(adfobj):
         #End for (case loop)
     #End for (variable loop)
 
+    # Check for AOD, and run the 4-panel diagnostics against MERRA and MODIS
+    if "AODVISdn" in var_list:
+        print("\tRunning AOD panel diagnostics...")
+        aod_latlon(adfobj)
+
     #Notify user that script has ended:
     print("  ...lat/lon maps have been generated successfully.")
 
@@ -364,6 +383,346 @@ def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_p
             return False  # False tells caller that file exists and not to overwrite
     else:
         return True
+########
+
+
+def aod_latlon(adfobj):
+    var = "AODVISdn"
+    season_abbr = ['Dec-Jan-Feb', 'Mar-Apr-May', 'Jun-Jul-Aug', 'Sep-Oct-Nov']
+    # Define a list of season labels
+    seasons = ['DJF', 'MAM', 'JJA', 'SON']
+
+    test_case_names = adfobj.get_cam_info('cam_case_name', required=True)
+    # load reference data (observational or baseline)
+    if not adfobj.compare_obs:
+        base_name = adfobj.data.ref_case_label
+        case_names = test_case_names + [base_name]
+    else:
+        case_names = test_case_names
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
+    case_nicknames = test_nicknames + [base_nickname]
+
+    res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
+    # or an empty dictionary if use_defaults was not specified in YAML.
+    res_aod_diags = res["aod_diags"]
+    plot_params = res_aod_diags["plot_params"]
+    plot_params_relerr = res_aod_diags["plot_params_relerr"]
+
+    # Observational Datasets
+    #-----------------------
+    obs_dir = adfobj.get_basic_info("obs_data_loc")
+    file_merra2 = os.path.join(obs_dir, 'MERRA2_192x288_AOD_2001-2020_climo.nc')
+    file_mod08_m3 = os.path.join(obs_dir, 'MOD08_M3_192x288_AOD_2001-2020_climo.nc')
+
+    ds_merra2 = xr.open_dataset(file_merra2)
+    ds_merra2 = ds_merra2['TOTEXTTAU']
+    ds_merra2['lon'] = ds_merra2['lon'].round(5)
+    ds_merra2['lat'] = ds_merra2['lat'].round(5)
+
+    ds_mod08_m3 = xr.open_dataset(file_mod08_m3)
+    ds_mod08_m3 = ds_mod08_m3['AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean']
+    ds_mod08_m3['lon'] = ds_mod08_m3['lon'].round(5)
+    ds_mod08_m3['lat'] = ds_mod08_m3['lat'].round(5)
+
+    ds_merra2_season = monthly_to_seasonal(ds_merra2)
+    ds_merra2_season['lon'] = ds_merra2_season['lon'].round(5)
+    ds_merra2_season['lat'] = ds_merra2_season['lat'].round(5)
+
+    ds_mod08_m3_season = monthly_to_seasonal(ds_mod08_m3)
+    ds_mod08_m3_season['lon'] = ds_mod08_m3_season['lon'].round(5)
+    ds_mod08_m3_season['lat'] = ds_mod08_m3_season['lat'].round(5)
+
+    ds_obs = [ds_mod08_m3_season, ds_merra2_season]
+    obs_titles = ["TERRA MODIS", "MERRA2"]
+
+    # Model Case Datasets
+    #-----------------------
+    ds_cases = []
+
+    for case in test_case_names:
+        """
+        TODO: Need to check grid of test data in case they are on a different
+                 grid than these particular observational data sets!
+        
+        """
+        #Load re-gridded model files:
+        ds_case = adfobj.data.load_climo_da(case, var)
+
+        #Skip this variable/case if the regridded climo file doesn't exist:
+        if ds_case is None:
+            dmsg = f"No regridded test file for {case} for variable `{var}`, global lat/lon plots skipped."
+            adfobj.debug_log(dmsg)
+            continue
+        else:
+            ds_case['lon'] = ds_case['lon'].round(5)
+            ds_case['lat'] = ds_case['lat'].round(5)
+
+            # Check if the lats/lons are same as the first supplied observations
+            if ds_case['lat'].shape == ds_obs[0]['lat'].shape:
+                case_lat = True
+            else:
+                err_msg = "AOD 4-panel plot:\n"
+                err_msg += f"\t The lat values don't match between '{obs_name}' and '{case}'"                    
+                err_msg += f"{case} lat shape: {ds_case.lat.shape} and "
+                err_msg += f"{obs_name} lat shape: {ds_ob.lat.shape}"
+                adfobj.debug_log(err_msg)
+                case_lat = False
+            if ds_case['lon'].shape == ds_obs[0]['lon'].shape:
+                case_lon = True
+            else:
+                err_msg = "AOD 4-panel plot:\n"
+                err_msg += f"\t The lon values don't match between '{obs_name}' and '{case}'"
+                err_msg += f"{case} lon shape: {ds_case.lon.shape} and "
+                err_msg += f"{obs_name} lon shape: {ds_ob.lon.shape}"
+                adfobj.debug_log(err_msg)
+                case_lon = False
+            
+            # Check to make sure spatial dimensions are compatible
+            if (case_lat) and (case_lon):
+                # Calculate seasonal means
+                ds_case_season = monthly_to_seasonal(ds_case)
+                ds_case_season['lon'] = ds_case_season['lon'].round(5)
+                ds_case_season['lat'] = ds_case_season['lat'].round(5)
+                ds_cases.append(ds_case_season)
+
+    # load reference data (observational or baseline)
+    if not adfobj.compare_obs:
+        base_name = adfobj.data.ref_case_label
+    
+        # Gather reference variable data
+        ds_base = adfobj.data.load_reference_climo_da(base_name, var)
+        if ds_base is None:
+            dmsg = f"No regridded test file for {base_name} for variable `{var}`, global lat/lon plots skipped."
+            adfobj.debug_log(dmsg)
+        else:
+            ds_base['lon'] = ds_base['lon'].round(5)
+            ds_base['lat'] = ds_base['lat'].round(5)
+
+            # Check if the lats/lons are same as the first supplied observations
+            if ds_base['lat'].shape == ds_obs[0]['lat'].shape:
+                base_lat = True
+            else:
+                err_msg = "AOD 4-panel plot:\n"
+                err_msg += f"\t The lat values don't match between '{obs_name}' and '{base_name}'"                    
+                err_msg += f"{base_name} lat shape: {ds_case.lat.shape} and "
+                err_msg += f"{obs_name} lat shape: {ds_ob.lat.shape}"
+                adfobj.debug_log(err_msg)
+                base_lat = False
+            if ds_base['lon'].shape == ds_obs[0]['lon'].shape:
+                base_lon = True
+            else:
+                err_msg = "AOD 4-panel plot:\n"
+                err_msg += f"\t The lon values don't match between '{obs_name}' and '{base_name}'"
+                err_msg += f"{base_name} lon shape: {ds_case.lon.shape} and "
+                err_msg += f"{obs_name} lon shape: {ds_ob.lon.shape}"
+                adfobj.debug_log(err_msg)
+                base_lon = False
+
+            # Check to make sure spatial dimensions are compatible
+            if (base_lat) and (base_lon):
+                # Calculate seasonal means
+                ds_base_season = monthly_to_seasonal(ds_base)
+                ds_base_season['lon'] = ds_base_season['lon'].round(5)
+                ds_base_season['lat'] = ds_base_season['lat'].round(5)
+                ds_cases.append(ds_base_season)
+
+    # Number of relevant cases
+    case_num = len(ds_cases)
+    
+    # 4-Panel global lat/lon plots
+    #-----------------------------
+    for i_obs,ds_ob in enumerate(ds_obs):
+        for i_s,season in enumerate(seasons):
+            plotnames = []
+            fields = []
+            params = []
+            types = []
+            case_name_list = []
+
+            obs_name = obs_titles[i_obs]
+            chem_season = season_abbr[i_s]
+
+            for i_case,ds_case in enumerate(ds_cases):
+                case_nickname = case_nicknames[i_case]
+
+                case_field = ds_case.sel(season=season) - ds_ob.sel(season=season)
+                plotnames.append(f'{case_nickname} - {obs_name}\nAOD 550 nm - ' + chem_season)
+                fields.append(case_field)
+                params.append(plot_params)
+                types.append("Diff")
+                case_name_list.append(case_names[i_case])
+
+                field_relerr = 100 * case_field / ds_ob.sel(season=season)
+                field_relerr = np.clip(field_relerr, -100, 100)
+                plotnames.append(f'Percent Diff {case_nickname} - {obs_name}\nAOD 550 nm - ' + chem_season)
+                fields.append(field_relerr)
+                params.append(plot_params_relerr)
+                types.append("Percent Diff")
+                case_name_list.append(case_names[i_case])
+            # End for
+
+            # Create 4-panel plot for season
+            aod_panel_latlon(adfobj, plotnames, params, fields, season, obs_name, case_name_list, case_num, types, symmetric=True)
+        # End for
+    # End for
+
+
+#######################################
+# Helper functions for AOD 4-panel plts
+#######################################
+
+def monthly_to_seasonal(ds,obs=False):
+    ds_season = xr.Dataset(
+        coords={'lat': ds.coords['lat'], 'lon': ds.coords['lon'],
+                'season': np.arange(4)})
+    da_season = xr.DataArray(
+         coords=ds_season.coords, dims=['lat', 'lon', 'season'])
+    
+    # Create a list of DataArrays
+    dataarrays = []
+    # Define a list of season labels
+    seasons = ['DJF', 'MAM', 'JJA', 'SON']
+    
+    if obs:
+        for varname in ds:
+            if '_n' not in varname:
+                ds_season = xr.zeros_like(da_season)
+                for s in seasons:
+                    dataarrays.append(pf.seasonal_mean(ds, season=s, is_climo=True))
+    else:
+        for s in seasons:
+            dataarrays.append(pf.seasonal_mean(ds, season=s, is_climo=True))
+
+    # Use xr.concat to combine along a new 'season' dimension
+    ds_season = xr.concat(dataarrays, dim='season')
+
+    # Assign the 'season' labels to the new 'season' dimension
+    ds_season['season'] = seasons
+    ds_season = ds_season.transpose('lat', 'lon', 'season')
+
+    return ds_season
+#######
+
+
+def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, case_name, case_num, types, symmetric=False):
+
+    #Set plot details:
+    # -- this should be set in basic_info_dict, but is not required
+    # -- So check for it, and default to png
+    basic_info_dict = adfobj.read_config_var("diag_basic_info")
+    file_type = basic_info_dict.get('plot_type', 'png')
+    plot_dir = adfobj.plot_location[0]
+
+    # create figure:
+    fig = plt.figure(figsize=(7*case_num,10))
+    proj = ccrs.PlateCarree()
+
+    # LAYOUT WITH GRIDSPEC
+    plot_len = int(3*case_num)
+    gs = mpl.gridspec.GridSpec(2*case_num, plot_len, wspace=0.5, hspace=0.0)
+    gs.tight_layout(fig)
+
+    axs = []
+    for i in range(case_num):
+        start = i * 3
+        end = (i + 1) * 3
+        axs.append(plt.subplot(gs[0:case_num, start:end], projection=proj))
+        axs.append(plt.subplot(gs[case_num:, start:end], projection=proj))
+
+    # formatting for tick labels
+    lon_formatter = LongitudeFormatter(number_format='0.0f',
+                                        degree_symbol='',
+                                        dateline_direction_label=False)
+    lat_formatter = LatitudeFormatter(number_format='0.0f',
+                                        degree_symbol='')
+
+    # 
+    for i,field in enumerate(fields):
+        # Set up sub plots for main panel plot
+        ind_fig, ind_ax = plt.subplots(1, 1, figsize=((7*case_num)/2,10/2),subplot_kw={'projection': proj})
+
+        lon_values = field.lon.values
+        lat_values = field.lat.values
+
+        # Get field plot paramters
+        plot_param = plot_params[i]
+
+        # Define plot levels
+        levels = np.linspace(
+            plot_param['range_min'], plot_param['range_max'],
+            plot_param['nlevel'], endpoint=True)
+        if 'augment_levels' in plot_param:
+            levels = sorted(np.append(
+                levels, np.array(plot_param['augment_levels'])))
+
+        if field.ndim > 2:
+            print(f"Required 2d lat/lon coordinates, got {field.ndim}d")
+            emg = "AOD panel plot:\n"
+            emg += f"\t Too many dimensions for {case_name}. Needs 2 (lat/lon) but got {field.ndim}"
+            adfobj.debug_log(emg)
+            return
+
+        # Get data
+        field_values = field.values[:,:]
+        field_values, lon_values  = add_cyclic_point(field_values, coord=lon_values)
+        lon_mesh, lat_mesh = np.meshgrid(lon_values, lat_values)
+        field_mean = np.nanmean(field_values)
+
+        extend_option = 'both' if symmetric else 'max'
+        cmap_option = plt.cm.bwr if symmetric else plt.cm.turbo
+
+        img = axs[i].contourf(lon_mesh, lat_mesh, field_values,
+            levels, cmap=cmap_option, extend=extend_option,
+                              transform_first=True,
+            transform=ccrs.PlateCarree())
+        ind_img = ind_ax.contourf(lon_mesh, lat_mesh, field_values,
+            levels, cmap=cmap_option, extend=extend_option,
+                              transform_first=True,
+            transform=ccrs.PlateCarree())
+
+        # ax.gridlines()
+        axs[i].set_facecolor('gray')
+        ind_ax.set_facecolor('gray')
+        axs[i].coastlines()
+        ind_ax.coastlines()
+
+        # Averages plot titles
+        axs[i].set_title(plotnames[i] + ('  Mean %.2g' % field_mean),fontsize=10)
+        ind_ax.set_title(plotnames[i] + ('  Mean %.2g' % field_mean),fontsize=10)
+
+        # Colorbar options
+        cbar = plt.colorbar(img, orientation='horizontal', pad=0.05)
+        ind_cbar = plt.colorbar(ind_img, orientation='horizontal', pad=0.05)
+
+        if 'ticks' in plot_param:
+            cbar.set_ticks(plot_param['ticks'])
+            ind_cbar.set_ticks(plot_param['ticks'])
+        if 'tick_labels' in plot_param:
+            cbar.ax.set_xticklabels(plot_param['tick_labels'])
+            ind_cbar.ax.set_xticklabels(plot_param['tick_labels'])
+        cbar.ax.tick_params(labelsize=6)
+
+        # Save the individual figure
+        pbase = f'AOD_{case_name[i]}_vs_{obs_name.replace(" ","_")}_{types[i].replace(" ","_")}'
+        ind_plotfile = f'{pbase}_{season}_Chemistry_Mean.{file_type}'
+        ind_png_file = Path(plot_dir) / ind_plotfile
+        ind_fig.savefig(f'{ind_png_file}', bbox_inches='tight', dpi=300)
+        plt.close(ind_fig)
+    # End for
+
+    # Save the panel figure
+    plot_name = f'AOD_diff_{obs_name.replace(" ","_")}_{season}_LatLon_Mean.{file_type}'
+    plotfile = Path(plot_dir) / plot_name
+    fig.savefig(plotfile, bbox_inches='tight', dpi=300)
+    adfobj.add_website_data(plotfile, f'AOD_diff_{obs_name.replace(" ","_")}', None,
+                            season=season, multi_case=True, plot_type="LatLon", category="4-Panel AOD Diags")
+
+    # Close the figure
+    plt.close(fig)
+
 
 ##############
 #END OF SCRIPT
