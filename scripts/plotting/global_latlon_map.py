@@ -386,6 +386,20 @@ def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_p
 
 
 def aod_latlon(adfobj):
+    """
+    Function to gather data and plot parameters to plot a panel plot of model vs observation
+      difference and percent difference.
+
+    Calculate the seasonal means for DJF, MAM, JJA, SON for model and obs datasets
+
+    NOTE: The model lat/lons must be on the same grid as the observations. If they are not, they need to be
+          regridded to match both the MERRA and MODIS observation dataset! 
+
+          For details about spatial coordiantes of obs datasets, see /glade/campaign/cgd/amp/amwg/ADF_obs/:
+            - MERRA2_192x288_AOD_2001-2020_climo.nc
+            - MOD08_M3_192x288_AOD_2001-2020_climo.nc
+    """
+
     var = "AODVISdn"
     season_abbr = ['Dec-Jan-Feb', 'Mar-Apr-May', 'Jun-Jul-Aug', 'Sep-Oct-Nov']
     # Define a list of season labels
@@ -643,7 +657,22 @@ def monthly_to_seasonal(ds,obs=False):
 
 
 def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, case_name, case_num, types, symmetric=False):
+    """
+    Function to plot a panel plot of model vs observation difference and percent difference
 
+    This will be a 4-panel plot if model vs model run:
+        - Top left is test model minus obs
+        - Top right is baseline model minus obs
+        - Bottom left is test model minus obs percent difference
+        - Bottom right is baseline model minus obs percent difference
+    
+    This will be a 2-panel plot if model vs obs run:
+        - Top is test model minus obs
+        - Bottom is test model minus obs percent difference
+
+    NOTE: Individual plots of the panel plots will be created and saved to plotting location(s)
+          but will not be published to the webpage (if enabled)
+    """
     #Set plot details:
     # -- this should be set in basic_info_dict, but is not required
     # -- So check for it, and default to png
