@@ -323,7 +323,7 @@ def global_latlon_map(adfobj):
 
     # Check for AOD, and run the 4-panel diagnostics against MERRA and MODIS
     if "AODVISdn" in var_list:
-        print("\tRunning AOD panel diagnostics...")
+        print("\tRunning AOD panel diagnostics against MERRA and MODIS...")
         aod_latlon(adfobj)
 
     #Notify user that script has ended:
@@ -443,24 +443,23 @@ def aod_latlon(adfobj):
     ds_cases = []
 
     for case in test_case_names:
-        """
-        TODO: Need to check grid of test data in case they are on a different
-                 grid than these particular observational data sets!
-        
-        """
         #Load re-gridded model files:
         ds_case = adfobj.data.load_climo_da(case, var)
 
-        #Skip this variable/case if the regridded climo file doesn't exist:
+        #Skip this variable/case if the climo file doesn't exist:
         if ds_case is None:
-            dmsg = f"No regridded test file for {case} for variable `{var}`, global lat/lon plots skipped."
+            dmsg = f"No test climo file for {case} for variable `{var}`, global lat/lon plots skipped."
             adfobj.debug_log(dmsg)
             continue
         else:
+            # Round lat/lons so thaey match obs
+            # NOTE: this is neccessary due to small fluctuations in insignificant decimal places
+            #       that raise an error due to non-exact difference calculations.
+            #       Rounding all datasets to 5 places ensures the proper difference calculation
             ds_case['lon'] = ds_case['lon'].round(5)
             ds_case['lat'] = ds_case['lat'].round(5)
 
-            # Check if the lats/lons are same as the first supplied observations
+            # Check if the lats/lons are same as the first supplied observation set
             if ds_case['lat'].shape == ds_obs[0]['lat'].shape:
                 case_lat = True
             else:
@@ -490,18 +489,24 @@ def aod_latlon(adfobj):
 
     # load reference data (observational or baseline)
     if not adfobj.compare_obs:
+
+        # Get baseline case name
         base_name = adfobj.data.ref_case_label
     
         # Gather reference variable data
         ds_base = adfobj.data.load_reference_climo_da(base_name, var)
         if ds_base is None:
-            dmsg = f"No regridded test file for {base_name} for variable `{var}`, global lat/lon plots skipped."
+            dmsg = f"No baseline climo file for {base_name} for variable `{var}`, global lat/lon plots skipped."
             adfobj.debug_log(dmsg)
         else:
+            # Round lat/lons so thaey match obs
+            # NOTE: this is neccessary due to small fluctuations in insignificant decimal places
+            #       that raise an error due to non-exact difference calculations.
+            #       Rounding all datasets to 5 places ensures the proper difference calculation
             ds_base['lon'] = ds_base['lon'].round(5)
             ds_base['lat'] = ds_base['lat'].round(5)
 
-            # Check if the lats/lons are same as the first supplied observations
+            # Check if the lats/lons are same as the first supplied observation set
             if ds_base['lat'].shape == ds_obs[0]['lat'].shape:
                 base_lat = True
             else:
@@ -511,6 +516,8 @@ def aod_latlon(adfobj):
                 err_msg += f"{obs_name} lat shape: {ds_ob.lat.shape}"
                 adfobj.debug_log(err_msg)
                 base_lat = False
+            # End if
+
             if ds_base['lon'].shape == ds_obs[0]['lon'].shape:
                 base_lon = True
             else:
@@ -520,6 +527,7 @@ def aod_latlon(adfobj):
                 err_msg += f"{obs_name} lon shape: {ds_ob.lon.shape}"
                 adfobj.debug_log(err_msg)
                 base_lon = False
+            # End if
 
             # Check to make sure spatial dimensions are compatible
             if (base_lat) and (base_lon):
@@ -528,44 +536,63 @@ def aod_latlon(adfobj):
                 ds_base_season['lon'] = ds_base_season['lon'].round(5)
                 ds_base_season['lat'] = ds_base_season['lat'].round(5)
                 ds_cases.append(ds_base_season)
-
+            # End if
+        # End if
     # Number of relevant cases
     case_num = len(ds_cases)
     
     # 4-Panel global lat/lon plots
     #-----------------------------
+    # NOTE: This loops over all obs and available cases, so just
+    # make lists to keepo track of details for each case vs obs matchup
+    #   Plots:
+    #      - Difference of seasonal avg of case minus seasonal avg of observation
+    #      - Percent Difference of seasonal avg of case minus seasonal avg of observation
+
+    # Loop over each observation dataset first
     for i_obs,ds_ob in enumerate(ds_obs):
         for i_s,season in enumerate(seasons):
-            plotnames = []
-            fields = []
+            # Plot title list
+            plot_titles = []
+            # Calculated data list
+            data = []
+            # Plot parameter list
             params = []
+            # Plot type list, ie difference or percent difference
             types = []
+            # Model case name list
             case_name_list = []
 
+            # Get observation short name
             obs_name = obs_titles[i_obs]
+
+            # Get seasonal abbriviation
             chem_season = season_abbr[i_s]
 
+            # Then loop over each available model case
             for i_case,ds_case in enumerate(ds_cases):
                 case_nickname = case_nicknames[i_case]
 
+                # Difference with obs
                 case_field = ds_case.sel(season=season) - ds_ob.sel(season=season)
-                plotnames.append(f'{case_nickname} - {obs_name}\nAOD 550 nm - ' + chem_season)
-                fields.append(case_field)
+                plot_titles.append(f'{case_nickname} - {obs_name}\nAOD 550 nm - ' + chem_season)
+                data.append(case_field)
                 params.append(plot_params)
                 types.append("Diff")
                 case_name_list.append(case_names[i_case])
 
+                # Percent difference with obs
                 field_relerr = 100 * case_field / ds_ob.sel(season=season)
                 field_relerr = np.clip(field_relerr, -100, 100)
-                plotnames.append(f'Percent Diff {case_nickname} - {obs_name}\nAOD 550 nm - ' + chem_season)
-                fields.append(field_relerr)
+                plot_titles.append(f'Percent Diff {case_nickname} - {obs_name}\nAOD 550 nm - ' + chem_season)
+                data.append(field_relerr)
                 params.append(plot_params_relerr)
                 types.append("Percent Diff")
                 case_name_list.append(case_names[i_case])
             # End for
 
             # Create 4-panel plot for season
-            aod_panel_latlon(adfobj, plotnames, params, fields, season, obs_name, case_name_list, case_num, types, symmetric=True)
+            aod_panel_latlon(adfobj, plot_titles, params, data, season, obs_name, case_name_list, case_num, types, symmetric=True)
         # End for
     # End for
 
@@ -607,7 +634,7 @@ def monthly_to_seasonal(ds,obs=False):
 #######
 
 
-def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, case_name, case_num, types, symmetric=False):
+def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, case_name, case_num, types, symmetric=False):
 
     #Set plot details:
     # -- this should be set in basic_info_dict, but is not required
@@ -615,6 +642,28 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     file_type = basic_info_dict.get('plot_type', 'png')
     plot_dir = adfobj.plot_location[0]
+
+    # check if existing plots need to be redone
+    redo_plot = adfobj.get_basic_info('redo_plot')
+
+    # Save the panel figure
+    plot_name = f'AOD_diff_{obs_name.replace(" ","_")}_{season}_LatLon_Mean.{file_type}'
+    plotfile = Path(plot_dir) / plot_name
+
+    # Check redo_plot. If set to True: remove old plot, if it already exists:
+    if (not redo_plot) and plotfile.is_file():
+        adfobj.debug_log(f"'{plotfile}' exists and clobber is false.")
+        #Add already-existing plot to website (if enabled):
+        adfobj.add_website_data(plotfile, f'AOD_diff_{obs_name.replace(" ","_")}', None,
+                            season=season, multi_case=True, plot_type="LatLon", category="4-Panel AOD Diags")
+
+        # Exit
+        return
+    else:
+        if plotfile.is_file():
+            plotfile.unlink()
+        # End if
+    # End if
 
     # create figure:
     fig = plt.figure(figsize=(7*case_num,10))
@@ -631,6 +680,7 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
         end = (i + 1) * 3
         axs.append(plt.subplot(gs[0:case_num, start:end], projection=proj))
         axs.append(plt.subplot(gs[case_num:, start:end], projection=proj))
+    # End for
 
     # formatting for tick labels
     lon_formatter = LongitudeFormatter(number_format='0.0f',
@@ -639,8 +689,8 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
     lat_formatter = LatitudeFormatter(number_format='0.0f',
                                         degree_symbol='')
 
-    # 
-    for i,field in enumerate(fields):
+    # Loop over each data set
+    for i,field in enumerate(data):
         # Set up sub plots for main panel plot
         ind_fig, ind_ax = plt.subplots(1, 1, figsize=((7*case_num)/2,10/2),subplot_kw={'projection': proj})
 
@@ -657,6 +707,7 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
         if 'augment_levels' in plot_param:
             levels = sorted(np.append(
                 levels, np.array(plot_param['augment_levels'])))
+        # End if
 
         if field.ndim > 2:
             print(f"Required 2d lat/lon coordinates, got {field.ndim}d")
@@ -664,6 +715,7 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
             emg += f"\t Too many dimensions for {case_name}. Needs 2 (lat/lon) but got {field.ndim}"
             adfobj.debug_log(emg)
             return
+        # End if
 
         # Get data
         field_values = field.values[:,:]
@@ -671,6 +723,7 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
         lon_mesh, lat_mesh = np.meshgrid(lon_values, lat_values)
         field_mean = np.nanmean(field_values)
 
+        # Set plot details
         extend_option = 'both' if symmetric else 'max'
         cmap_option = plt.cm.bwr if symmetric else plt.cm.turbo
 
@@ -683,15 +736,14 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
                               transform_first=True,
             transform=ccrs.PlateCarree())
 
-        # ax.gridlines()
         axs[i].set_facecolor('gray')
         ind_ax.set_facecolor('gray')
         axs[i].coastlines()
         ind_ax.coastlines()
 
-        # Averages plot titles
-        axs[i].set_title(plotnames[i] + ('  Mean %.2g' % field_mean),fontsize=10)
-        ind_ax.set_title(plotnames[i] + ('  Mean %.2g' % field_mean),fontsize=10)
+        # Set plot titles
+        axs[i].set_title(plot_titles[i] + ('  Mean %.2g' % field_mean),fontsize=10)
+        ind_ax.set_title(plot_titles[i] + ('  Mean %.2g' % field_mean),fontsize=10)
 
         # Colorbar options
         cbar = plt.colorbar(img, orientation='horizontal', pad=0.05)
@@ -707,7 +759,7 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
 
         # Save the individual figure
         pbase = f'AOD_{case_name[i]}_vs_{obs_name.replace(" ","_")}_{types[i].replace(" ","_")}'
-        ind_plotfile = f'{pbase}_{season}_Chemistry_Mean.{file_type}'
+        ind_plotfile = f'{pbase}_{season}_LatLon_Mean.{file_type}'
         ind_png_file = Path(plot_dir) / ind_plotfile
         ind_fig.savefig(f'{ind_png_file}', bbox_inches='tight', dpi=300)
         plt.close(ind_fig)
@@ -716,9 +768,11 @@ def aod_panel_latlon(adfobj, plotnames, plot_params, fields, season, obs_name, c
     # Save the panel figure
     plot_name = f'AOD_diff_{obs_name.replace(" ","_")}_{season}_LatLon_Mean.{file_type}'
     plotfile = Path(plot_dir) / plot_name
+
+    # Save figure and add to website if applicable
     fig.savefig(plotfile, bbox_inches='tight', dpi=300)
     adfobj.add_website_data(plotfile, f'AOD_diff_{obs_name.replace(" ","_")}', None,
-                            season=season, multi_case=True, plot_type="LatLon", category="4-Panel AOD Diags")
+                                season=season, multi_case=True, plot_type="LatLon", category="4-Panel AOD Diags")
 
     # Close the figure
     plt.close(fig)
