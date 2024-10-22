@@ -458,7 +458,7 @@ class AdfInfo(AdfConfig):
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 if len(file_list) == 0:
                     msg = "Checking history files:\n"
-                    msg += f"\tYThere are no history files in '{starting_location}'."
+                    msg += f"\tThere are no history files in '{starting_location}'."
                     self.debug_log(msg)
                     emsg = f"{case_name} starting_location {starting_location}: No history files found!\n"
                     emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' in 'diag_cam_climo' "
