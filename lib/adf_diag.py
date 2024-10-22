@@ -415,6 +415,9 @@ class AdfDiag(AdfWeb):
                     self.end_diag_fail(emsg)
                 # End if
 
+                 # Notify user that script has started:
+                print(f"\n  Writing time series files to {ts_dir}")
+
                 # Create empty list:
                 files_list = []
 
