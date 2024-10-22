@@ -13,7 +13,6 @@ plot_file_op
 """
 #Import standard modules:
 import os
-import subprocess
 from pathlib import Path
 import numpy as np
 import xarray as xr
