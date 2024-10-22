@@ -412,6 +412,10 @@ def aod_latlon(adfobj):
 
     # Observational Datasets
     #-----------------------
+    # Round lat/lons to 5 decimal places
+        # NOTE: this is neccessary due to small fluctuations in insignificant decimal places
+        #       in lats/lons between models and these obs data sets. The model cases will also 
+        #       be rounded in turn.
     obs_dir = adfobj.get_basic_info("obs_data_loc")
     file_merra2 = os.path.join(obs_dir, 'MERRA2_192x288_AOD_2001-2020_climo.nc')
     file_mod08_m3 = os.path.join(obs_dir, 'MOD08_M3_192x288_AOD_2001-2020_climo.nc')
@@ -451,7 +455,7 @@ def aod_latlon(adfobj):
             adfobj.debug_log(dmsg)
             continue
         else:
-            # Round lat/lons so thaey match obs
+            # Round lat/lons so they match obs
             # NOTE: this is neccessary due to small fluctuations in insignificant decimal places
             #       that raise an error due to non-exact difference calculations.
             #       Rounding all datasets to 5 places ensures the proper difference calculation
@@ -468,6 +472,8 @@ def aod_latlon(adfobj):
                 err_msg += f"{obs_name} lat shape: {ds_ob.lat.shape}"
                 adfobj.debug_log(err_msg)
                 case_lat = False
+            # End if
+
             if ds_case['lon'].shape == ds_obs[0]['lon'].shape:
                 case_lon = True
             else:
@@ -477,6 +483,7 @@ def aod_latlon(adfobj):
                 err_msg += f"{obs_name} lon shape: {ds_ob.lon.shape}"
                 adfobj.debug_log(err_msg)
                 case_lon = False
+            # End if
             
             # Check to make sure spatial dimensions are compatible
             if (case_lat) and (case_lon):
@@ -485,6 +492,8 @@ def aod_latlon(adfobj):
                 ds_case_season['lon'] = ds_case_season['lon'].round(5)
                 ds_case_season['lat'] = ds_case_season['lat'].round(5)
                 ds_cases.append(ds_case_season)
+            # End if
+        # End if
 
     # load reference data (observational or baseline)
     if not adfobj.compare_obs:
@@ -498,7 +507,7 @@ def aod_latlon(adfobj):
             dmsg = f"No baseline climo file for {base_name} for variable `{var}`, global lat/lon plots skipped."
             adfobj.debug_log(dmsg)
         else:
-            # Round lat/lons so thaey match obs
+            # Round lat/lons so they match obs
             # NOTE: this is neccessary due to small fluctuations in insignificant decimal places
             #       that raise an error due to non-exact difference calculations.
             #       Rounding all datasets to 5 places ensures the proper difference calculation
