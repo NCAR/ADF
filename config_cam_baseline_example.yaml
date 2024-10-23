@@ -182,6 +182,20 @@ diag_cam_climo:
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
 
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    tem_hist_str: cam.h4
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    cam_tem_loc: /glade/derecho/scratch/${user}/${diag_cam_climo.cam_case_name}/tem/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    overwrite_tem: false
+
     #----------------------
 
     #You can alternatively provide a list of cases, which will make the ADF
@@ -302,6 +316,20 @@ diag_cam_baseline_climo:
 
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
+
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    tem_hist_str: cam.h4
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    cam_tem_loc: /glade/derecho/scratch/${user}/${diag_cam_baseline_climo.cam_case_name}/tem/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    overwrite_tem: false
 
 #This fourth set of variables provides settings for calling the Climate Variability
 # Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
