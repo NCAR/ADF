@@ -347,7 +347,7 @@ class AdfDiag(AdfWeb):
             case_names = [self.get_baseline_info("cam_case_name", required=True)]
             cam_ts_done = [self.get_baseline_info("cam_ts_done")]
             cam_hist_locs = [self.get_baseline_info("cam_hist_loc")]
-            ts_dir = [self.get_baseline_info("cam_ts_loc", required=True)]
+            ts_dirs = [self.get_baseline_info("cam_ts_loc", required=True)]
             overwrite_ts = [self.get_baseline_info("cam_overwrite_ts")]
             start_years = [self.climo_yrs["syear_baseline"]]
             end_years = [self.climo_yrs["eyear_baseline"]]
@@ -359,16 +359,12 @@ class AdfDiag(AdfWeb):
             case_names = self.get_cam_info("cam_case_name", required=True)
             cam_ts_done = self.get_cam_info("cam_ts_done")
             cam_hist_locs = self.get_cam_info("cam_hist_loc")
-            ts_dir = self.get_cam_info("cam_ts_loc", required=True)
+            ts_dirs = self.get_cam_info("cam_ts_loc", required=True)
             overwrite_ts = self.get_cam_info("cam_overwrite_ts")
             start_years = self.climo_yrs["syears"]
             end_years = self.climo_yrs["eyears"]
             case_type_string="case"
             hist_str_list = self.hist_string["test_hist_str"]
-
-        # Notify user that script has started:
-        print(f"\n  Writing time series files to {ts_dir}")
-
         # End if
 
         # Read hist_str (component.hist_num) from the yaml file, or set to default
@@ -402,6 +398,9 @@ class AdfDiag(AdfWeb):
                 self.end_diag_fail(emsg)
             # End if
 
+            # Extract time series file location
+            ts_dir = ts_dirs[case_idx]
+
             # Check if history files actually exqist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
@@ -414,6 +413,9 @@ class AdfDiag(AdfWeb):
                     emsg += " Script is ending here."
                     self.end_diag_fail(emsg)
                 # End if
+
+                # Notify user that script has started:
+                print(f"\n  Writing time series files to {ts_dir}")
 
                 # Create empty list:
                 files_list = []
@@ -497,7 +499,7 @@ class AdfDiag(AdfWeb):
 
                 # Check if time series directory exists, and if not, then create it:
                 # Use pathlib to create parent directories, if necessary.
-                Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
+                Path(ts_dir).mkdir(parents=True, exist_ok=True)
 
                 # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
                 first_file_split = str(hist_files[0]).split(".")
@@ -631,7 +633,7 @@ class AdfDiag(AdfWeb):
                     # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
 
                     ts_outfil_str = (
-                        ts_dir[case_idx]
+                        ts_dir
                         + os.sep
                         + ".".join([case_name, hist_str, var, time_string, "nc"])
                     )
@@ -748,7 +750,7 @@ class AdfDiag(AdfWeb):
                 if vars_to_derive:
                     self.derive_variables(
                         res=res, hist_str=hist_str, vars_to_derive=vars_to_derive,
-                        constit_dict=constit_dict, ts_dir=ts_dir[case_idx]
+                        constit_dict=constit_dict, ts_dir=ts_dir
                     )
                 # End with
             # End for hist_str
