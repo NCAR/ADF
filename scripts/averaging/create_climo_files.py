@@ -8,10 +8,19 @@ def my_formatwarning(msg, *args, **kwargs):
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
 
-
+import numpy as np
 import xarray as xr  # module-level import so all functions can get to it.
 
 import multiprocessing as mp
+
+def get_time_slice_by_year(time, startyear, endyear):
+    if not hasattr(time, 'dt'):
+        print("Warning: get_time_slice_by_year requires the `time` parameter to be an xarray time coordinate with a dt accessor. Returning generic slice (which will probably fail).")
+        return slice(startyear, endyear)
+    start_time_index = np.argwhere((time.dt.year >= startyear).values).flatten().min()
+    end_time_index = np.argwhere((time.dt.year <= endyear).values).flatten().max()
+    return slice(start_time_index, end_time_index+1)
+
 
 
 ##############
@@ -137,7 +146,7 @@ def create_climo_files(adf, clobber=False, search=None):
 
         #Time series file search
         if search is None:
-            search = "{CASE}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
+            search = "{CASE}*{HIST_STR}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
 
         #Check model year bounds:
         syr, eyr = check_averaging_interval(start_year[case_idx], end_year[case_idx])
@@ -156,10 +165,12 @@ def create_climo_files(adf, clobber=False, search=None):
                 print(f"\t    INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
 
             #Create list of time series files present for variable:
-            ts_filenames = search.format(CASE=case_name, VARIABLE=var)
+            # Note that we hard-code for h0 because we only want to make climos of monthly output
+            ts_filenames = search.format(CASE=case_name, HIST_STR="h0", VARIABLE=var)
             ts_files = sorted(list(input_location.glob(ts_filenames)))
 
-            #If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
+            #If no files exist, try to move to next variable. --> Means we can not proceed with this variable,
+            # and it'll be problematic later unless there are multiple hist file streams and the variable is in the others
             if not ts_files:
                 errmsg = "Time series files for variable '{}' not found.  Script will continue to next variable.".format(var)
                 print(f"The input location searched was: {input_location}. The glob pattern was {ts_filenames}.")
@@ -167,7 +178,7 @@ def create_climo_files(adf, clobber=False, search=None):
                 warnings.warn(errmsg)
                 continue
 
-            list_of_arguments.append((ts_files, syr, eyr, output_file))
+            list_of_arguments.append((adf, ts_files, syr, eyr, output_file))
 
 
         #End of var_list loop
@@ -187,7 +198,7 @@ def create_climo_files(adf, clobber=False, search=None):
 #
 # Local functions
 #
-def process_variable(ts_files, syr, eyr, output_file):
+def process_variable(adf, ts_files, syr, eyr, output_file):
     '''
     Compute and save the climatology file.
     '''
@@ -205,7 +216,8 @@ def process_variable(ts_files, syr, eyr, output_file):
         cam_ts_data.assign_coords(time=time)
         cam_ts_data = xr.decode_cf(cam_ts_data)
     #Extract data subset using provided year bounds:
-    cam_ts_data = cam_ts_data.sel(time=slice(syr, eyr))
+    tslice = get_time_slice_by_year(cam_ts_data.time, int(syr), int(eyr))
+    cam_ts_data = cam_ts_data.isel(time=tslice)
     #Group time series values by month, and average those months together:
     cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')
     #Rename "months" to "time":
@@ -214,6 +226,17 @@ def process_variable(ts_files, syr, eyr, output_file):
     enc_dv = {xname: {'_FillValue': None, 'zlib': True, 'complevel': 4} for xname in cam_climo_data.data_vars}
     enc_c  = {xname: {'_FillValue': None} for xname in cam_climo_data.coords}
     enc    = {**enc_c, **enc_dv}
+
+    # Create a dictionary of attributes
+    # Convert the list to a string (join with commas)
+    ts_files_str = [str(path) for path in ts_files]
+    ts_files_str = ', '.join(ts_files_str)
+    attrs_dict = {
+        "adf_user": adf.user,
+        "climo_yrs": f"{syr}-{eyr}",
+        "time_series_files": ts_files_str,
+    }
+    cam_climo_data = cam_climo_data.assign_attrs(attrs_dict)
 
     #Output variable climatology to NetCDF-4 file:
     cam_climo_data.to_netcdf(output_file, format='NETCDF4', encoding=enc)

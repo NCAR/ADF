@@ -35,12 +35,36 @@
     </div>
 
     <div class="grid-container">
-      {% for type, html_file in plot_types.items() %}
-      <div class="grid-item">
-        <a href={{ html_file }} style="font-size: 30px;"> &nbsp; {{ type }} </a>
-      </div><!--grid-item-->
+      {% for avail_type in avail_plot_types %}
+        {% if avail_type in plot_types.keys() %}
+          <div class="grid-item">
+            <a href={{ plot_types[avail_type] }} style="font-size: 30px;"> &nbsp; {{ avail_type }} </a>
+          </div><!--grid-item-->
+        {% else %}
+          <div class="grid-item-blocked">
+            <a-blocked style="font-size: 30px;">{{ avail_type }}</a-blocked>
+          </div><!--grid-item-blocked-->
+        {% endif %}
       {% endfor %}
     </div><!--grid-container-ptype-->
+
+    <div class="center">
+      <h1>External Diagnostic Packages</h1>
+    </div>
+    
+    <div class="grid-container">
+      {% for avail_type in avail_external_packages %}
+        {% if avail_type in external_package_links.keys() %}
+          <div class="grid-item">
+            <a href={{ external_package_links[avail_type] }} style="font-size: 30px;"> &nbsp; {{ avail_type }} </a>
+          </div><!--grid-item-->
+        {% else %}
+          <div class="grid-item-blocked">
+            <a-blocked style="font-size: 30px;">{{ avail_type }}</a-blocked>
+          </div><!--grid-item-blocked-->
+        {% endif %}
+      {% endfor %}
+    </div><!--grid-container-external-plots-->
 
   </body>
 </html>

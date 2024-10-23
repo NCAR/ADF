@@ -147,7 +147,7 @@ def meridional_mean(adfobj):
             else:
                 oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
             #End if
-            oclim_ds = _load_dataset(oclim_fils)
+            oclim_ds = pf.load_dataset(oclim_fils)
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
@@ -165,7 +165,7 @@ def meridional_mean(adfobj):
 
                 # load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
-                mclim_ds = _load_dataset(mclim_fils)
+                mclim_ds = pf.load_dataset(mclim_fils)
 
                 # stop if data is invalid:
                 if (oclim_ds is None) or (mclim_ds is None):
@@ -256,17 +256,6 @@ def meridional_mean(adfobj):
 # Helpers
 #########
 
-def _load_dataset(fils):
-    if len(fils) == 0:
-        warnings.warn(f"Input file list is empty.")
-        return None
-    elif len(fils) > 1:
-        return xr.open_mfdataset(fils, combine='by_coords')
-    else:
-        sfil = str(fils[0])
-        return xr.open_dataset(sfil)
-    #End if
-#End def
 
 ##############
 #END OF SCRIPT

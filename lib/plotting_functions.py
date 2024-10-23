@@ -3,6 +3,8 @@ Generic computation and plotting helper functions
 
 Functions
 ---------
+load_dataset()
+    generalized load dataset method used for plotting/analysis functions
 use_this_norm()
     switches matplotlib color normalization method
 get_difference_colors(values)
@@ -96,9 +98,18 @@ from cartopy.util import add_cyclic_point
 import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
+import matplotlib.cm as cm
 
 from adf_diag import AdfDiag
 from adf_base import AdfError
+
+import warnings  # use to warn user about missing files.
+
+#Format warning messages:
+def my_formatwarning(msg, *args, **kwargs):
+    """Issue `msg` as warning."""
+    return str(msg) + '\n'
+warnings.formatwarning = my_formatwarning
 
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
@@ -122,6 +133,33 @@ seasons = {"ANN": np.arange(1,13,1),
 #################
 #HELPER FUNCTIONS
 #################
+
+def load_dataset(fils):
+    """
+    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine='by_coords')
+    else:
+        return xr.open_dataset(fils[0])
+    #End if
+#End def
 
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""
@@ -766,8 +804,8 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         ax2.set_ylabel(kwargs["units"])
         ax3.set_ylabel(kwargs["units"])
     else:
-        ax2.set_ylabel(f"{dif.units}")
-        ax3.set_ylabel(f"{dif.units}")
+        ax2.set_ylabel(f"{d1.units}")
+        ax3.set_ylabel(f"{d1.units}")
 
 
     [a.set_extent(domain, ccrs.PlateCarree()) for a in [ax1, ax2, ax3]]
@@ -952,10 +990,10 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     # Generate vector plot:
     #  - contourf to show magnitude w/ colorbar
     #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
-    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree(), transform_first=True,)
     ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
-    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree())
+    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree(), transform_first=True)
     ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
     # We should think about how to do plot customization and defaults.
@@ -1028,7 +1066,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     fig.colorbar(img2, cax=cb_c2_ax)
 
     # Plot vector differences:
-    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), norm=normdiff, cmap='PuOr', alpha=0.5)
+    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), transform_first=True, norm=normdiff, cmap='PuOr', alpha=0.5)
     ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
 
     # Add color bar to difference plot:
@@ -1182,10 +1220,10 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
         levs = np.unique(np.array(levels))
         if len(levs) < 2:
-            img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree()))
+            img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
-            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), **cp_info['contourf_opt']))
+            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
 
@@ -1716,6 +1754,7 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
         - 'subplots_opt': mpl kwargs for subplots
         - 'contourf_opt': mpl kwargs for contourf
         - 'colorbar_opt': mpl kwargs for colorbar
+        - 'diff_colorbar_opt' : mpl kwargs for difference colorbar
         - 'normdiff': color normalization for difference panel
         - 'cmapdiff': colormap for difference panel
         - 'levelsdiff': contour levels for difference panel
@@ -1739,16 +1778,28 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
 
     if 'contour_levels' in kwargs:
         levels1 = kwargs['contour_levels']
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+            cmap_obj = cm.get_cmap(cmap1)
+            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
+        else:
+            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     elif 'contour_levels_range' in kwargs:
         assert len(kwargs['contour_levels_range']) == 3, \
         "contour_levels_range must have exactly three entries: min, max, step"
 
         levels1 = np.arange(*kwargs['contour_levels_range'])
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+            cmap_obj = cm.get_cmap(cmap1)
+            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
+        else:
+            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
         levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+            cmap_obj = cm.get_cmap(cmap1)
+            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
+        else:
+            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
     #End if
 
     #Check if the minval and maxval are actually different.  If not,
@@ -1803,16 +1854,19 @@ def prep_contour_plot(adata, bdata, diffdata, **kwargs):
     subplots_opt = {}
     contourf_opt = {}
     colorbar_opt = {}
+    diff_colorbar_opt = {}
 
     # extract any MPL kwargs that should be passed on:
     if 'mpl' in kwargs:
         subplots_opt.update(kwargs['mpl'].get('subplots',{}))
         contourf_opt.update(kwargs['mpl'].get('contourf',{}))
         colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
+        diff_colorbar_opt.update(kwargs['mpl'].get('diff_colorbar',{}))
     #End if
     return {'subplots_opt': subplots_opt,
             'contourf_opt': contourf_opt,
             'colorbar_opt': colorbar_opt,
+            'diff_colorbar_opt': diff_colorbar_opt,
             'normdiff': normdiff,
             'cmapdiff': cmapdiff,
             'levelsdiff': levelsdiff,
@@ -1899,7 +1953,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         levs_diff = np.unique(np.array(cp_info['levelsdiff']))
 
-
         if len(levs) < 2:
             img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0])
             ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
@@ -1917,7 +1970,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
             ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
         else:
             img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],levels=cp_info['levelsdiff'],**cp_info['contourf_opt'])
-            fig.colorbar(img2, ax=ax[2], location='right',**cp_info['colorbar_opt'])
+            fig.colorbar(img2, ax=ax[2], location='right',**cp_info['diff_colorbar_opt'])
 
         ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
@@ -2264,9 +2317,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
     mnorm = mpl.colors.Normalize(mn, mx)
 
     coord1, coord2 = fld1.coords  # ASSUMES xarray WITH coords AND 2-dimensions
-    print(f"{coord1}, {coord2}")
     xx, yy = np.meshgrid(fld1[coord2], fld1[coord1])
-    print(f"shape of meshgrid: {xx.shape}")
 
     img1 = ax1.contourf(xx, yy, fld1.transpose())
     if (coord1 == 'month') and (fld1.shape[0] ==12):

@@ -64,12 +64,6 @@ user: 'shawnh'
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
 
-    #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
-    # Only affects timeseries as everything else uses timeseries
-    # Leave off trailing '.'
-    #Default: cam.h0
-    hist_str: cam.h0
-
     #Is this a model vs observations comparison?
     #If "false" or missing, then a model-model comparison is assumed:
     compare_obs: false
@@ -84,7 +78,7 @@ diag_basic_info:
     #Location of observational datasets:
     #Note: this only matters if "compare_obs" is true and the path
     #isn't specified in the variable defaults file.
-    obs_data_loc: /glade/work/nusbaume/SE_projects/model_diagnostics/ADF_obs
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_regrid_loc: /glade/derecho/scratch/${user}/ADF/regrid
@@ -130,6 +124,12 @@ diag_basic_info:
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
 
+    # History file list of strings to match
+    # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
+    # Only affects timeseries as everything else uses the created timeseries 
+    # Default: 
+    hist_str: cam.h0
+
     #Calculate climatologies?
     #If false, the climatology files will not be created:
     calc_cam_climo: true
@@ -139,7 +139,7 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e20.BHIST.f09_g17.20thC.297_05
+    cam_case_name: b.e23_alpha17f.BLT1850.ne30_t232.098
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
@@ -149,7 +149,7 @@ diag_cam_climo:
 
     #Location of CAM history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/p/cesm/ADF/${diag_cam_climo.cam_case_name}
+    cam_hist_loc: /glade/campaign/cgd/amp/amwg/ADF_test_cases/${diag_cam_climo.cam_case_name}
 
     #Location of CAM climatologies (to be created and then used by this script)
     cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
@@ -157,12 +157,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1990
+    start_year: 10
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 1999
+    end_year: 14
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -208,8 +208,8 @@ diag_cam_climo:
     #Also please note that config keywords cannot currently be used in list mode.
 
     #cam_case_name:
-    #    - b.e20.BHIST.f09_g17.20thC.297_05
-    #    - b1850.f19_g17.validation_mct.004
+    #    - b.e23_alpha17f.BLT1850.ne30_t232.098
+    #    - b.e23_alpha17f.BLT1850.ne30_t232.095
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
@@ -228,20 +228,20 @@ diag_cam_climo:
     #    - false
 
     #cam_hist_loc:
-    #    - /glade/p/cesm/ADF/b.e20.BHIST.f09_g17.20thC.297_05
-    #    - /glade/p/cesm/ADF/b1850.f19_g17.validation_mct.004
+    #    - /glade/campaign/cgd/amp/amwg/ADF_test_cases/b.e23_alpha17f.BLT1850.ne30_t232.098
+    #    - /glade/campaign/cgd/amp/amwg/ADF_test_cases/b.e23_alpha17f.BLT1850.ne30_t232.095
 
     #cam_climo_loc:
     #    - /some/where/you/want/to/have/climo_files/ #MUST EDIT!
     #    - /the/same/or/some/other/climo/files/location
 
     #start_year:
-    #    - 1990
-    #    - 90
+    #    - 10
+    #    - 10
 
     #end_year:
-    #    - 1999
-    #    - 99
+    #    - 14
+    #    - 14
 
     #cam_ts_done:
     #    - false
@@ -259,12 +259,38 @@ diag_cam_climo:
     #    - /some/where/you/want/to/have/time_series_files
     #    - /same/or/different/place/you/want/files
 
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    #tem_hist_str:
+    #    - cam.h4
+    #    - cam.h#
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    #cam_tem_loc:
+    #    - /some/where/you/want/to/have/TEM_files/
+    #    - /same/or/different/place/you/want/TEM_files/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    #overwrite_tem:
+    #    - false
+    #    - true
+
     #----------------------
 
 
 #This third set of variables provide info for the CAM baseline climatologies.
 #This only matters if "compare_obs" is false:
 diag_cam_baseline_climo:
+
+    # History file list of strings to match
+    # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
+    # Only affects timeseries as everything else uses the created timeseries 
+    # Default: 
+    hist_str: cam.h0
 
     #Calculate cam baseline climatologies?
     #If false, the climatology files will not be created:
@@ -275,7 +301,7 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e20.BHIST.f09_g16.20thC.125.02
+    cam_case_name: b.e23_alpha17f.BLT1850.ne30_t232.093
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
@@ -285,7 +311,7 @@ diag_cam_baseline_climo:
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/p/cesm/ADF/${diag_cam_baseline_climo.cam_case_name}
+    cam_hist_loc: /glade/campaign/cgd/amp/amwg/ADF_test_cases/${diag_cam_baseline_climo.cam_case_name}
 
     #Location of baseline CAM climatologies:
     cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/climo
@@ -293,12 +319,12 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1990
+    start_year: 10
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 1999
+    end_year: 14
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -331,6 +357,7 @@ diag_cam_baseline_climo:
     #If set to false, then TEM creation will be skipped if files are found:
     overwrite_tem: false
 
+
 #This fourth set of variables provides settings for calling the Climate Variability
 # Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
 # run in background mode, likely completing after the ADF has completed.
@@ -349,10 +376,71 @@ diag_cvdp_info:
     cvdp_codebase_loc: /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
 
     # Location where cvdp codebase will be copied to and diagnostic plots will be stored
-    cvdp_loc: /glade/scratch/asphilli/ADF-Sandbox/cvdp/      #MUST EDIT!
+    cvdp_loc: /glade/derecho/scratch/${user}/ADF/cvdp/
 
     # tar up CVDP results?
     cvdp_tar: false
+
+# This set of variables provides settings for calling NOAA's
+# Model Diagnostic Task Force (MDTF) diagnostic package.
+# https://github.com/NOAA-GFDL/MDTF-diagnostics
+#
+# If mdtf_run: true, the MDTF will be set up and 
+# run in background mode, likely completing after the ADF has completed.
+#
+# WARNING: This currently only runs on CASPER (not derecho)
+#
+# The variables required depend on the diagnostics (PODs) selected. 
+# AMWG-developed PODS and their required variables:
+#   (Note that PRECT can be computed from PRECC & PRECL)
+#  - MJO_suite: daily PRECT, FLUT, U850, U200, V200  (all required)
+#  - Wheeler-Kiladis Wavenumber Frequency Spectra: daily PRECT, FLUT, U200, U850, OMEGA500
+#              (will use what is available)
+#  - Blocking (Rich Neale):  daily OMEGA500
+#  - Precip Diurnal Cycle (Rich Neale): 3-hrly PRECT
+#
+# Many other diagnostics are available; see 
+# https://mdtf-diagnostics.readthedocs.io/en/main/sphinx/start_overview.html
+
+#
+diag_mdtf_info:
+    # Run the MDTF on the model cases
+    mdtf_run: false
+
+    # The file that will be written by ADF to input to MDTF. Call this whatever you want.
+    mdtf_input_settings_filename : mdtf_input.json   
+
+    ## MDTF code path, sets the location of the MDTF codebase and pre-compiled conda envs
+    #  CHANGE if you have any: your own MDTF code, installed conda envs and/or obs_data
+
+    mdtf_codebase_path : /glade/campaign/cgd/amp/amwg/mdtf                                                                                                                                 
+    mdtf_codebase_loc  : ${mdtf_codebase_path}/MDTF-diagnostics.v3.1.20230817.ADF
+    conda_root         : /glade/u/apps/opt/conda
+    conda_env_root     : ${mdtf_codebase_path}/miniconda2/envs.MDTFv3.1.20230412/
+    OBS_DATA_ROOT      : ${mdtf_codebase_path}/obs_data
+
+    # SET this to a writable dir. The ADF will place ts files here for the MDTF to read (adds the casename)
+    MODEL_DATA_ROOT     : ${diag_cam_climo.cam_ts_loc}/mdtf/inputdata/model     
+
+    # Choose diagnostics (PODs). Full list of available PODs: https://github.com/NOAA-GFDL/MDTF-diagnostics
+    pod_list      :  [ "MJO_suite" ]
+
+    # Intermediate/output file settings
+    make_variab_tar: false     # tar up MDTF results
+    save_ps : false     # save postscript figures in addition to bitmaps
+    save_nc : true      # save netCDF files of processed data (recommend true when starting with new model data)
+    overwrite: true     # overwrite results in OUTPUT_DIR; otherwise results saved under a unique name
+
+    # Settings used in debugging:
+    verbose  : 3       # Log verbosity level.
+    test_mode: false   # Set to true for framework test. Data is fetched but PODs are not run.
+    dry_run  : false   # Framework test. No external commands are run and no remote data is copied. Implies test_mode.
+
+    # Settings that shouldn't change in ADF implementation for now
+    data_type           : single_run # single_run or multi_run (only works with single right now)
+    data_manager        : Local_File # Fetch data or it is local?
+    environment_manager : Conda      # Manage dependencies
+
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -393,8 +481,7 @@ plotting_scripts:
     - qbo
     - ozone_diagnostics
     #- tape_recorder
-    #- tem #To plot TEM, please un-comment fill-out
-                              #the "tem_info" section below
+    #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
                               #the "region_multicase" section below
 
@@ -420,7 +507,17 @@ diag_var_list:
     - O3
 
 #<Add more variables here.>
-
+# MDTF recommended variables
+#    - FLUT
+#    - OMEGA500
+#    - PRECT
+#    - PS
+#    - PSL
+#    - U200
+#    - U850
+#    - V200
+#    - V850
+    
 # Options for multi-case regional contour plots (./plotting/regional_map_multicase.py)
 # region_multicase:
 #     region_spec: [slat, nlat, wlon, elon]
@@ -432,26 +529,5 @@ diag_var_list:
 #     region_month: <NULL means look for season>
 #     region_season: <NULL means use annual mean>
 #     region_variables: <list of variables to try to use; allows for a subset of the total diag variables>
-
-# Options for TEM diagnostics (./averaging/create_TEM_files.py and ./plotting/temp.py)
-#tem_info:
-    #Location where TEM files are stored:
-    #If path not specified or commented out, TEM calculation/plots will be skipped
-#    tem_loc: /glade/scratch/richling/adf-output/ADF-data/TEM/
-
-    #TEM history file number
-    #If missing or blank, ADF will default to h4
-#    hist_num: h4
-
-    #Overwrite TEM files, if found?
-    #If set to false, then TEM creation will be skipped if files are found:
-#    overwrite_tem_case: false
-
-    #For multi-case
-    #overwrite_tem_case:
-    #    - false
-    #    - true
-
-#    overwrite_tem_base: false
 
 #END OF FILE
