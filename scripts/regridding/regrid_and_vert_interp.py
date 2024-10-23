@@ -443,12 +443,15 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
     #        mdat_ofrac = model_dataset['OCNFRAC'].squeeze()
 
     #Check if variable has a vertical component:
-    if 'lev' in mdata.dims:
+    if 'lev' in mdata.dims or 'ilev' in mdata.dims:
         has_lev = True
 
         #If lev exists, then determine what kind of vertical coordinate
         #is being used:
-        lev_attrs = model_dataset['lev'].attrs
+        if 'lev' in mdata.dims:
+            lev_attrs = model_dataset['lev'].attrs
+        elif 'ilev' in mdata.dims:
+            lev_attrs = model_dataset['ilev'].attrs
 
         #First check if there is a "vert_coord" attribute:
         if 'vert_coord' in lev_attrs:
@@ -492,12 +495,20 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
 
         if vert_coord_type == "hybrid":
             # Need hyam, hybm, and P0 for vertical interpolation of hybrid levels:
-            if ('hyam' not in model_dataset) or ('hybm' not in model_dataset):
-                print(f"!! PROBLEM -- NO hyam or hybm for 3-D variable {var_name}, so it will not be re-gridded.")
-                return None #Return None to skip to next variable.
-            #End if
-            mhya = model_dataset['hyam']
-            mhyb = model_dataset['hybm']
+            if 'lev' in mdata.dims:
+                if ('hyam' not in model_dataset) or ('hybm' not in model_dataset):
+                    print(f"!! PROBLEM -- NO hyam or hybm for 3-D variable {var_name}, so it will not be re-gridded.")
+                    return None #Return None to skip to next variable.
+                #End if
+                mhya = model_dataset['hyam']
+                mhyb = model_dataset['hybm']
+            elif 'ilev' in mdata.dims:
+                if ('hyai' not in model_dataset) or ('hybi' not in model_dataset):
+                    print(f"!! PROBLEM -- NO hyai or hybi for 3-D variable {var_name}, so it will not be re-gridded.")
+                    return None #Return None to skip to next variable.
+                #End if
+                mhya = model_dataset['hyai']
+                mhyb = model_dataset['hybi']
             if 'time' in mhya.dims:
                 mhya = mhya.isel(time=0).squeeze()
             if 'time' in mhyb.dims:
