@@ -625,7 +625,7 @@ class AdfDiag(AdfWeb):
                     # End if (var in var_diag_list)
 
                     # Check if variable has a "lev" dimension according to first file:
-                    has_lev = bool("lev" in hist_file_ds[var].dims)
+                    has_lev = bool("lev" in hist_file_ds[var].dims or "ilev" in hist_file_ds[var].dims)
 
                     # Create full path name, file name template:
                     # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
