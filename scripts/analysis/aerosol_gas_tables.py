@@ -270,9 +270,11 @@ def aerosol_gas_tables(adfobj):
         # Make dictionary of all data for current case
         # NOTE: The calculations can take a long time...
         #print(f'\t Calculating values for {case}',"\n",len(f'\t Calculating values for {case}')*'-','\n')
-        text = f'\t Calculating values for {case}'
+        text = f'\n\t Calculating values for {case}'
         print(text)
-        print("\t " + "-" * (len(text) - 1))  # Subtracting 1 to account for the tab
+        print("\n\t " + "-" * (len(text) - 1))
+
+        # Gather dictionary data for current case
         Dic_crit, Dic_scn_var_comp[case] = make_Dic_scn_var_comp(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS)
 
         # Regional refinement
