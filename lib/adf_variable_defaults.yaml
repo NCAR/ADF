@@ -1209,6 +1209,10 @@ budget_tables:
   # list of the aerosol variables to be caculated.
   AEROSOL_VARIABLES: ['AOD','SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
 
+  # The variables in the list below must be aerosols - do not add AOD and DAOD
+  # WARNING: no need to change this list, unless for a specific need!
+  AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
+
   # For the case that outputs are saved for a specific region.
   # i.e., when using fincllonlat in user_nl_cam
   ext1_SE: ''
@@ -1224,7 +1228,7 @@ budget_tables:
   # To calculate the budgets only for a region
   # Lat/Lon extent
   limit: (20,20,40,120)
-  regional: False
+  regional: False # DO NOT CHANGE
 
   #Dictionary for Molecular weights. Keys must be consistent with variable name
   # For aerosols, the MW is used only for chemical loss, chemical production, and elevated emission calculations
@@ -1250,10 +1254,5 @@ budget_tables:
   gr: 9.80616
   # Mw air
   Mwair: 28.97
-
-  # The variables in the list below must be aerosols - do not add AOD and DAOD
-  # WARNING: no need to change this list, unless for a specific need!
-  AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
-
 #-----------
 #End of File
