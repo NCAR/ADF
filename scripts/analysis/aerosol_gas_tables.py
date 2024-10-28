@@ -267,14 +267,12 @@ def aerosol_gas_tables(adfobj):
         dic_SE = set_dic_SE(ListVars,ext1_SE)
         dic_SE = fill_dic_SE(adfobj, dic_SE, VARIABLES, ListVars, ext1_SE, AEROSOLS, MW, AVO, gr, Mwair)
 
-        # Make dictionary of all data for current case
-        # NOTE: The calculations can take a long time...
-        #print(f'\t Calculating values for {case}',"\n",len(f'\t Calculating values for {case}')*'-','\n')
         text = f'\n\t Calculating values for {case}'
         print(text)
-        print("\n\t " + "-" * (len(text) - 1))
+        print("\t " + "-" * (len(text) - 2))
 
         # Gather dictionary data for current case
+        # NOTE: The calculations can take a long time...
         Dic_crit, Dic_scn_var_comp[case] = make_Dic_scn_var_comp(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS)
 
         # Regional refinement
