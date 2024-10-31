@@ -393,6 +393,7 @@ plotting_scripts:
     - zonal_mean
     - polar_map
     - cam_taylor_diagram
+    - ozone_diagnostics
     #- tape_recorder
     #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
@@ -441,6 +442,7 @@ diag_var_list:
    - ICEFRAC
    - OCNFRAC
    - LANDFRAC
+   - O3
 
 #<Add more variables here.>
 # MDTF recommended variables
