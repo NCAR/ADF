@@ -164,7 +164,7 @@ def tape_recorder(adfobj):
 
     plot_step = 0.5e-7
     plot_min = 1.5e-6
-    plot_max = 3e-6
+    plot_max = 3.5e-6
 
     ax = plot_pre_mon(fig, mls, plot_step,plot_min,plot_max,'MLS',
                       x1[0],x2[0],y1[0],y2[0],cmap=cmap, paxis='lev',
