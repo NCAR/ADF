@@ -1267,6 +1267,7 @@ class AdfDiag(AdfWeb):
         """
         Create MDTF directory tree, generate input settings jsonc file
         Submit MDTF diagnostics.
+        Returns mdtf_proc for sub-process control (waits for it to finish in run_adf_diag)
 
         """
 
@@ -1343,19 +1344,21 @@ class AdfDiag(AdfWeb):
         if copy_files_only:
             print("\t ...Copy files only. NOT Running MDTF")
             print(f"\t    Command: {mdtf_exe} Log: {mdtf_log}")
+            return 0
         else:
             print(
                 f"\t ...Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}"
             )
             print(f"Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}")
             with open(mdtf_log, "w", encoding="utf-8") as subout:
-                _ = subprocess.Popen(
+                mdtf_proc_var = subprocess.Popen(
                     [mdtf_exe],
                     shell=True,
                     stdout=subout,
                     stderr=subout,
                     close_fds=True,
                 )
+            return mdtf_proc_var
 
     def move_tsfiles_for_mdtf(self, verbose):
         """
