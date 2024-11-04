@@ -1644,17 +1644,6 @@ NO3:
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
-NOY:
-  category: "Composition"
-  #contour_levels_range: [0.0,100,1.0]
-  colormap: "jet"
-  diff_colormap: "gist_ncar"
-  #diff_contour_range: [-5.0,5.0,0.5]
-  #pct_diff_contour_range: [0.0, 100.0, 5.0] 
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
-  scale_factor: 1000000000.0
-  new_unit: "ppbv"
 O3S:
   category: "Composition"
   #contour_levels_range: [0.0,1000.0,50.0]
