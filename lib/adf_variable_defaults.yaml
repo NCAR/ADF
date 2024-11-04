@@ -222,8 +222,14 @@ DMS:
 
 SO2:
   category: "Aerosols"
+  colormap: "jet"
+  diff_colormap: "gist_ncar"
+  #diff_contour_range: [-0.1,0.1,0.05]
+  #pct_diff_contour_range: [0.0, 100.0, 5.0] 
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  scale_factor: 1000000000.0
+  new_unit: "ppbv"
 
 SOAG:
   category: "Aerosols"
@@ -905,17 +911,6 @@ OH:
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000000.0
   new_unit: "pptv"
-SO2:
-  category: "Composition"
-  #contour_levels_range: [0.0,10,0.5]
-  colormap: "jet"
-  diff_colormap: "gist_ncar"
-  #diff_contour_range: [-0.1,0.1,0.05]
-  #pct_diff_contour_range: [0.0, 100.0, 5.0] 
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
-  scale_factor: 1000000000.0
-  new_unit: "ppbv"
 BIGALK:
   category: "Composition"
   #contour_levels_range: [0.0,100,1.0]
