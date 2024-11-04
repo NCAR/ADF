@@ -240,8 +240,15 @@ SO2:
 
 SOAG:
   category: "Aerosols"
+  #contour_levels_range: [0.0,1000.0,50.0]
+  colormap: "jet"
+  diff_colormap: "gist_ncar"
+  #diff_contour_range: [-25.0,25.0,5.0]
+  #pct_diff_contour_range: [0.0, 100.0, 5.0] 
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  scale_factor: 1000000000.0
+  new_unit: "ppbv"
 
 BC:
   colormap: "RdBu_r"
@@ -1744,17 +1751,6 @@ SO3:
   scale_factor: 1000000000.0
   new_unit: "ppbv"
 SOAE:
-  category: "Composition"
-  #contour_levels_range: [0.0,1000.0,50.0]
-  colormap: "jet"
-  diff_colormap: "gist_ncar"
-  #diff_contour_range: [-25.0,25.0,5.0]
-  #pct_diff_contour_range: [0.0, 100.0, 5.0] 
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
-  scale_factor: 1000000000.0
-  new_unit: "ppbv"
-SOAG:
   category: "Composition"
   #contour_levels_range: [0.0,1000.0,50.0]
   colormap: "jet"
