@@ -1194,6 +1194,66 @@ utendwtem:
   obs_name: "ERA5"
   obs_var_name: "utendwtem"
 
+
+
+# Plot Specific formatting
+##########################
+
+# Chemistry and Aerosol Budget Tables
+#------------------------------------
+budget_tables:
+  # INPUTS
+  #list of the gaseous variables to be caculated.
+  GAS_VARIABLES: ['CH4','CH3CCL3', 'CO', 'O3', 'ISOP', 'MTERP', 'CH3OH', 'CH3COCH3']
+
+  # list of the aerosol variables to be caculated.
+  AEROSOL_VARIABLES: ['AOD','SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
+
+  # The variables in the list below must be aerosols - do not add AOD and DAOD
+  # WARNING: no need to change this list, unless for a specific need!
+  AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
+
+  # For the case that outputs are saved for a specific region.
+  # i.e., when using fincllonlat in user_nl_cam
+  ext1_SE: ''
+
+  # Tropospheric Values
+  # -------------------
+  # if True, calculate only Tropospheric values
+  # if False, all layers
+  # tropopause is defiend as o3>150ppb. If needed, change accordingly.
+  Tropospheric: True
+
+  ### NOT WORKING FOR NOW
+  # To calculate the budgets only for a region
+  # Lat/Lon extent
+  limit: (20,20,40,120)
+  regional: False # DO NOT CHANGE
+
+  #Dictionary for Molecular weights. Keys must be consistent with variable name
+  # For aerosols, the MW is used only for chemical loss, chemical production, and elevated emission calculations
+  # For SO4, we report everything in terms of Sulfur, so we use Sulfur MW here
+  MW: {'O3':48,
+        'CH4':16,
+        'CO':28,
+        'ISOP':68,
+        'MTERP':136,
+        'SOA':144.132,
+        'SALT':58.4412,
+        'SO4':32.066,
+        'POM':12.011,
+        'BC':12.011 ,
+        'DUST':168.0456,
+        'CH3CCL3':133.4042,
+        'CH3OH':32,
+        'CH3COCH3':58}
+
+  # Avogadro's Number
+  AVO: 6.022e23
+  # gravity
+  gr: 9.80616
+  # Mw air
+  Mwair: 28.97
 #-----------
 
 
