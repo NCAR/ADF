@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import numpy as np
 import xarray as xr
+import xesmf as xe
 import warnings  # use to warn user about missing files.
 
 # Import plotting modules:
@@ -392,8 +393,8 @@ def aod_latlon(adfobj):
 
     Calculate the seasonal means for DJF, MAM, JJA, SON for model and obs datasets
 
-    NOTE: The model lat/lons must be on the same grid as the observations. If they are not, they need to be
-          regridded to match both the MERRA and MODIS observation dataset! 
+    NOTE: The model lat/lons must be on the same grid as the observations. If they are not, they will be
+          regridded to match both the MERRA and MODIS observation dataset using helper function 'regrid_to_obs'
 
           For details about spatial coordiantes of obs datasets, see /glade/campaign/cgd/amp/amwg/ADF_obs/:
             - MERRA2_192x288_AOD_2001-2020_climo.nc
@@ -453,6 +454,8 @@ def aod_latlon(adfobj):
     ds_mod08_m3_season['lat'] = ds_mod08_m3_season['lat'].round(5)
 
     ds_obs = [ds_mod08_m3_season, ds_merra2_season]
+    obs_lat_shape = ds_obs[0]['lat'].shape[0]
+    obs_lon_shape = ds_obs[0]['lon'].shape[0]
     obs_titles = ["TERRA MODIS", "MERRA2"]
 
     # Model Case Datasets
@@ -475,27 +478,31 @@ def aod_latlon(adfobj):
             #       Rounding all datasets to 5 places ensures the proper difference calculation
             ds_case['lon'] = ds_case['lon'].round(5)
             ds_case['lat'] = ds_case['lat'].round(5)
+            case_lat_shape = ds_case['lat'].shape[0]
+            case_lon_shape = ds_case['lon'].shape[0]
 
             # Check if the lats/lons are same as the first supplied observation set
-            if ds_case['lat'].shape == ds_obs[0]['lat'].shape:
+            if case_lat_shape == obs_lat_shape:
                 case_lat = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lat values don't match between '{obs_name}' and '{case}'"                    
-                err_msg += f"{case} lat shape: {ds_case.lat.shape} and "
-                err_msg += f"{obs_name} lat shape: {ds_ob.lat.shape}"
+                err_msg += f"\t The lat values don't match between obs and '{case}'\n"                    
+                err_msg += f"\t  - {case} lat shape: {case_lat_shape} and "
+                err_msg += f"obs lat shape: {obs_lat_shape}"
                 adfobj.debug_log(err_msg)
+                print(err_msg)
                 case_lat = False
             # End if
 
-            if ds_case['lon'].shape == ds_obs[0]['lon'].shape:
+            if case_lon_shape == obs_lon_shape:
                 case_lon = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lon values don't match between '{obs_name}' and '{case}'"
-                err_msg += f"{case} lon shape: {ds_case.lon.shape} and "
-                err_msg += f"{obs_name} lon shape: {ds_ob.lon.shape}"
+                err_msg += f"\t The lon values don't match between obs and '{case}'\n"
+                err_msg += f"\t  - {case} lon shape: {case_lon_shape} and "
+                err_msg += f"obs lon shape: {obs_lon_shape}"
                 adfobj.debug_log(err_msg)
+                print(err_msg)
                 case_lon = False
             # End if
             
@@ -503,6 +510,16 @@ def aod_latlon(adfobj):
             if (case_lat) and (case_lon):
                 # Calculate seasonal means
                 ds_case_season = monthly_to_seasonal(ds_case)
+                ds_case_season['lon'] = ds_case_season['lon'].round(5)
+                ds_case_season['lat'] = ds_case_season['lat'].round(5)
+                ds_cases.append(ds_case_season)
+            else:
+                # Regrid the model data to obs
+                #NOTE: first argument is the model to be regridded, second is the obs
+                #      to be regridded to
+                ds_case_regrid = regrid_to_obs(adfobj, ds_case, ds_obs[0])
+
+                ds_case_season = monthly_to_seasonal(ds_case_regrid)
                 ds_case_season['lon'] = ds_case_season['lon'].round(5)
                 ds_case_season['lat'] = ds_case_season['lat'].round(5)
                 ds_cases.append(ds_case_season)
@@ -527,27 +544,31 @@ def aod_latlon(adfobj):
             #       Rounding all datasets to 5 places ensures the proper difference calculation
             ds_base['lon'] = ds_base['lon'].round(5)
             ds_base['lat'] = ds_base['lat'].round(5)
+            base_lat_shape = ds_base['lat'].shape[0]
+            base_lon_shape = ds_base['lon'].shape[0]
 
             # Check if the lats/lons are same as the first supplied observation set
-            if ds_base['lat'].shape == ds_obs[0]['lat'].shape:
+            if base_lat_shape == obs_lat_shape:
                 base_lat = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lat values don't match between '{obs_name}' and '{base_name}'"                    
-                err_msg += f"{base_name} lat shape: {ds_case.lat.shape} and "
-                err_msg += f"{obs_name} lat shape: {ds_ob.lat.shape}"
+                err_msg += f"\t The lat values don't match between obs and '{base_name}'\n"                    
+                err_msg += f"\t  - {base_name} lat shape: {base_lat_shape} and "
+                err_msg += f"obs lat shape: {obs_lat_shape}"
                 adfobj.debug_log(err_msg)
+                print(err_msg)
                 base_lat = False
             # End if
 
-            if ds_base['lon'].shape == ds_obs[0]['lon'].shape:
+            if base_lon_shape == obs_lon_shape:
                 base_lon = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lon values don't match between '{obs_name}' and '{base_name}'"
-                err_msg += f"{base_name} lon shape: {ds_case.lon.shape} and "
-                err_msg += f"{obs_name} lon shape: {ds_ob.lon.shape}"
+                err_msg += f"\t The lon values don't match between obs and '{base_name}'\n"
+                err_msg += f"\t  - {base_name} lon shape: {base_lon_shape} and "
+                err_msg += f"obs lon shape: {obs_lon_shape}"
                 adfobj.debug_log(err_msg)
+                print(err_msg)
                 base_lon = False
             # End if
 
@@ -555,6 +576,16 @@ def aod_latlon(adfobj):
             if (base_lat) and (base_lon):
                 # Calculate seasonal means
                 ds_base_season = monthly_to_seasonal(ds_base)
+                ds_base_season['lon'] = ds_base_season['lon'].round(5)
+                ds_base_season['lat'] = ds_base_season['lat'].round(5)
+                ds_cases.append(ds_base_season)
+            else:
+                # Regrid the model data to obs
+                #NOTE: first argument is the model to be regridded, second is the obs
+                #      to be regridded to
+                ds_base_regrid = regrid_to_obs(adfobj, ds_base, ds_obs[0])
+
+                ds_base_season = monthly_to_seasonal(ds_base_regrid)
                 ds_base_season['lon'] = ds_base_season['lon'].round(5)
                 ds_base_season['lat'] = ds_base_season['lat'].round(5)
                 ds_cases.append(ds_base_season)
@@ -619,9 +650,9 @@ def aod_latlon(adfobj):
     # End for
 
 
-#######################################
-# Helper functions for AOD 4-panel plts
-#######################################
+########################################
+# Helper functions for AOD 4-panel plots
+########################################
 
 def monthly_to_seasonal(ds,obs=False):
     ds_season = xr.Dataset(
@@ -751,6 +782,7 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
             emg = "AOD panel plot:\n"
             emg += f"\t Too many dimensions for {case_name}. Needs 2 (lat/lon) but got {field.ndim}"
             adfobj.debug_log(emg)
+            print(f"{emg} ")
             return
         # End if
 
@@ -762,7 +794,11 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
 
         # Set plot details
         extend_option = 'both' if symmetric else 'max'
-        cmap_option = plt.cm.bwr if symmetric else plt.cm.turbo
+
+        if 'colormap' in plot_param:
+            cmap_option = plot_param['colormap'] if symmetric else plt.cm.turbo
+        else:
+            cmap_option = plt.cm.bwr if symmetric else plt.cm.turbo
 
         img = axs[i].contourf(lon_mesh, lat_mesh, field_values,
             levels, cmap=cmap_option, extend=extend_option,
@@ -813,7 +849,63 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
 
     # Close the figure
     plt.close(fig)
+######
 
+
+def regrid_to_obs(adfobj, model_arr, obs_arr):
+    """
+    Check if the model grid needs to be interpolated to the obs grid. If so,
+    use xesmf to regrid and return new dataset
+    """
+    test_lons = model_arr.lon
+    test_lats = model_arr.lat
+
+    obs_lons = obs_arr.lon
+    obs_lats = obs_arr.lat
+
+    # Just set defaults for now
+    same_lats = True
+    same_lons = True
+    model_regrid_arr = None
+
+    if obs_lons.shape == test_lons.shape:
+        try:
+            xr.testing.assert_equal(test_lons, obs_lons)
+        except AssertionError as e:
+            same_lons = False
+            err_msg = "AOD 4-panel plot:\n"
+            err_msg += "\t The lons ARE NOT the same"
+            adfobj.debug_log(err_msg)
+        try:
+            xr.testing.assert_equal(test_lats, obs_lats)
+        except AssertionError as e:
+            same_lats = False
+            err_msg = "AOD 4-panel plot:\n"
+            err_msg += "\t The lats ARE NOT the same"
+            adfobj.debug_log(err_msg)
+    else:
+        same_lats = False
+        same_lons = False
+        print("\tThe model lat/lon grid does not match the " \
+             "obs grid.\n\t - Regridding to observation lats and lons")
+
+    # QUESTION: will there ever be a scenario where we need to regrid only lats or lons??
+    if (not same_lons) and (not same_lats):
+        # Make dummy array to be populated
+        ds_out = xr.Dataset(
+            {
+                "lat": (["lat"], obs_lats.values, {"units": "degrees_north"}),
+                "lon": (["lon"], obs_lons.values, {"units": "degrees_east"}),
+            }
+        )
+
+        # Regrid to the obs grid to make altered model grid
+        regridder = xe.Regridder(model_arr, ds_out, "bilinear", periodic=True)
+        model_regrid_arr = regridder(model_arr, keep_attrs=True)
+
+    # Return the new interpolated model array
+    return model_regrid_arr
+#######
 
 ##############
 #END OF SCRIPT
