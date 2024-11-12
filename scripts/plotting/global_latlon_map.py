@@ -254,7 +254,6 @@ def global_latlon_map(adfobj):
                     dseasons[s] = mseasons[s] - oseasons[s]
                     
                     # percent change
-                    #pseasons[s] = (abs(mseasons[s] - oseasons[s])/((mseasons[s] + oseasons[s])/2.0))*100.0
                     pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
                     pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
@@ -298,7 +297,6 @@ def global_latlon_map(adfobj):
                         dseasons[s] = mseasons[s] - oseasons[s]
                         
                         # percent change
-                        #pseasons[s] = (abs(mseasons[s] - oseasons[s])/((mseasons[s] + oseasons[s])/2.0))*100.0 #absolute
                         pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
                         pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
