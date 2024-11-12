@@ -128,7 +128,7 @@ diag_cam_climo:
     # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
     # Only affects timeseries as everything else uses the created timeseries 
     # Default: 
-    hist_str: cam.h0
+    hist_str: cam.h0a
 
     #Calculate climatologies?
     #If false, the climatology files will not be created:
@@ -206,7 +206,7 @@ diag_cam_baseline_climo:
     # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
     # Only affects timeseries as everything else uses the created timeseries 
     # Default: 
-    hist_str: cam.h0
+    hist_str: cam.h0a
 
     #Calculate cam baseline climatologies?
     #If false, the climatology files will not be created:
@@ -343,8 +343,8 @@ diag_mdtf_info:
     # Intermediate/output file settings
     make_variab_tar: false     # tar up MDTF results
     save_ps : false     # save postscript figures in addition to bitmaps
-    save_nc : true      # save netCDF files of processed data (recommend true when starting with new model data)
-    overwrite: true     # overwrite results in OUTPUT_DIR; otherwise results saved under a unique name
+    save_nc : false      # save netCDF files of processed data (recommend true when starting with new model data)
+    overwrite: true     # overwrite results in OUTPUT_DIR; otherwise results will be saved under a unique name
 
     # Settings used in debugging:
     verbose  : 3       # Log verbosity level.

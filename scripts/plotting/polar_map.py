@@ -237,6 +237,7 @@ def polar_map(adfobj):
                         mseasons = {}
                         oseasons = {}
                         dseasons = {} # hold the differences
+                        pseasons = {} # hold percent change
 
                         #Loop over season dictionary:
                         for s in seasons:
@@ -245,6 +246,13 @@ def polar_map(adfobj):
                             # difference: each entry should be (lat, lon)
                             dseasons[s] = mseasons[s] - oseasons[s]
                             dseasons[s].attrs['units'] = mseasons[s].attrs['units']
+                            
+                            # percent change 
+                            pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 # relative change
+                            pseasons[s].attrs['units'] = '%'
+                            #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
+                            pseasons[s] = pseasons[s].where(np.isfinite(pseasons[s]), np.nan)
+                            pseasons[s] = pseasons[s].fillna(0.0)
 
                             # make plots: northern and southern hemisphere separately:
                             for hemi_type in ["NHPolar", "SHPolar"]:
@@ -283,7 +291,7 @@ def polar_map(adfobj):
                                     pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
                                                      [syear_baseline,eyear_baseline],
-                                                     mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, obs=obs, **vres)
+                                                     mseasons[s], oseasons[s], dseasons[s], pseasons[s], hemisphere=hemi, obs=obs, **vres)
 
                                     #Add plot to website (if enabled):
                                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
@@ -317,6 +325,7 @@ def polar_map(adfobj):
                             mseasons = {}
                             oseasons = {}
                             dseasons = {} # hold the differences
+                            pseasons = {} # hold percent change
 
                             #Loop over season dictionary:
                             for s in seasons:
@@ -325,6 +334,13 @@ def polar_map(adfobj):
                                 # difference: each entry should be (lat, lon)
                                 dseasons[s] = mseasons[s] - oseasons[s]
                                 dseasons[s].attrs['units'] = mseasons[s].attrs['units']
+                                
+                                # percent change
+                                pseasons[s] = (mseasons[s] - oseasons[s]) / abs(oseasons[s]) * 100.0 # relative change
+                                pseasons[s].attrs['units'] = '%'
+                                #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
+                                pseasons[s] = pseasons[s].where(np.isfinite(pseasons[s]), np.nan)
+                                pseasons[s] = pseasons[s].fillna(0.0)
 
                                 # make plots: northern and southern hemisphere separately:
                                 for hemi_type in ["NHPolar", "SHPolar"]:
@@ -364,7 +380,7 @@ def polar_map(adfobj):
                                         pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
                                                      [syear_baseline,eyear_baseline],
-                                                     mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, obs=obs, **vres)
+                                                     mseasons[s], oseasons[s], dseasons[s], pseasons[s], hemisphere=hemi, obs=obs, **vres)
 
                                         #Add plot to website (if enabled):
                                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",

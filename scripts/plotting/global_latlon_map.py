@@ -245,6 +245,7 @@ def global_latlon_map(adfobj):
             mseasons = {}
             oseasons = {}
             dseasons = {} # hold the differences
+            pseasons = {} # hold percent change
 
             if not has_dims['has_lev']:  # strictly 2-d data          
 
@@ -265,11 +266,14 @@ def global_latlon_map(adfobj):
 
                     # difference: each entry should be (lat, lon)
                     dseasons[s] = mseasons[s] - oseasons[s]
+                    
+                    # percent change
+                    pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
                     pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                             [syear_cases[case_idx],eyear_cases[case_idx]],
                                             [syear_baseline,eyear_baseline],
-                                            mseasons[s], oseasons[s], dseasons[s],
+                                            mseasons[s], oseasons[s], dseasons[s], pseasons[s],
                                             obs=adfobj.compare_obs, **vres)
 
                     #Add plot to website (if enabled):
@@ -305,11 +309,15 @@ def global_latlon_map(adfobj):
 
                         # difference: each entry should be (lat, lon)
                         dseasons[s] = mseasons[s] - oseasons[s]
+                        
+                        # percent change
+                        pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
                         pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                 [syear_baseline,eyear_baseline],
                                                 mseasons[s].sel(lev=pres), oseasons[s].sel(lev=pres), dseasons[s].sel(lev=pres),
+                                                pseasons[s].sel(lev=pres),
                                                 obs=adfobj.compare_obs, **vres)
 
                         #Add plot to website (if enabled):

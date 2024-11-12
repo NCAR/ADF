@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
     #Call the MDTF:
     if diag.get_mdtf_info('mdtf_run'):
-       diag.setup_run_mdtf()
+        mdtf_proc = diag.setup_run_mdtf()  #returns mdtf_proc for subprocess control
 
     #Create model climatology (climo) files.
     #This call uses the "time_averaging_scripts" specified
@@ -193,6 +193,13 @@ if __name__ == "__main__":
     if diag.create_html:
         diag.create_website()
 
+    # Check if sub-processes are still running (CVDP, MDTF)
+    mdtf_status = mdtf_proc.wait(timeout=None)
+    if (mdtf_status != 0):
+        print(f"ERROR: MDTF finished with code {mdtf_status}")
+    else:
+        print("MDTF finished successfully")
+        
     #+++++++++++++++
     #End diag script
     #+++++++++++++++
