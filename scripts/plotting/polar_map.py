@@ -247,8 +247,7 @@ def polar_map(adfobj):
                             dseasons[s] = mseasons[s] - oseasons[s]
                             dseasons[s].attrs['units'] = mseasons[s].attrs['units']
                             
-                            # percent change
-                            #pseasons[s] = (abs(mseasons[s] - oseasons[s])/((mseasons[s] + oseasons[s])/2.0))*100.0 #absolute 
+                            # percent change 
                             pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 # relative change
                             pseasons[s].attrs['units'] = '%'
                             #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
@@ -337,7 +336,6 @@ def polar_map(adfobj):
                                 dseasons[s].attrs['units'] = mseasons[s].attrs['units']
                                 
                                 # percent change
-                                #pseasons[s] = (abs(mseasons[s] - oseasons[s])/((mseasons[s] + oseasons[s])/2.0))*100.0
                                 pseasons[s] = (mseasons[s] - oseasons[s]) / abs(oseasons[s]) * 100.0 # relative change
                                 pseasons[s].attrs['units'] = '%'
                                 #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
