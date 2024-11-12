@@ -653,7 +653,6 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         dif = difference
         
     if  pctchange is None:
-        #pct = (abs(d2 - d1)/((d2 + d1)/2.0))*100.0
         pct = (d2 - d1) / np.abs(d1) * 100.0
     else:
         pct = pctchange
@@ -700,7 +699,6 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     maxval    = np.max([np.max(d1), np.max(d2)])
     absmaxdif = np.max(np.abs(dif))
     absmaxpct = np.max(np.abs(pct))
-    #print('absmaxpct: ',absmaxpct)
 
     if 'colormap' in kwargs:
         cmap1 = kwargs['colormap']
@@ -739,8 +737,6 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     else:
         # set levels for difference plot (with a symmetric color bar):
         levelspctdiff = np.linspace(-1*absmaxpct, absmaxpct, 15)
-        
-    #print("levelspctdiff=======",levelspctdiff)
 
     #NOTE: Sometimes the contour levels chosen in the defaults file
     #can result in the "contourf" software stack generating a
@@ -763,9 +759,6 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     if max(np.abs(levelsdiff)) > 10*absmaxdif:
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
     
-    #don't do this for the percent difference.
-    #if max(np.abs(levelspctdiff)) > 10*absmaxpct:
-    #    levelspctdiff = np.linspace(-1*absmaxpct, absmaxpct, 12)
     
     #End if
     #-------------------------------
@@ -1338,17 +1331,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     # set rmse title:
     ax[3].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
     ax[3].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
-    #ax[2].set_title("$\mathbf{Test} % \mathbf{Diff} \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
     ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
-
-    #if "units" in kwargs:
-        #ax[1].set_ylabel(f"[{kwargs['units']}]")
-        #ax[2].set_ylabel(f"[{kwargs['units']}]")
-        #ax[3].set_ylabel(f"[{kwargs['units']}]")
-    #else:
-    #    ax[1].set_ylabel(f"{mdlfld.units}")
-    #    ax[2].set_ylabel(f"{mdlfld.units}")
-    #    ax[3].set_ylabel(f"{mdlfld.units}")
 
     for a in ax:
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
@@ -1967,7 +1950,6 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         
     # color normalization for percent difference
     if "pct_diff_contour_levels" in kwargs:
-        #normpct = mpl.colors.Normalize(vmin=np.min(levelspctdiff), vmax=np.max(levelspctdiff))
         normpct = mpl.colors.BoundaryNorm(levelspctdiff,256)
     else :
         normpct = mpl.colors.Normalize(vmin=np.min(levelspctdiff), vmax=np.max(levelspctdiff))
@@ -2073,7 +2055,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         diff = azm - bzm
         
         # calculate the percent change
-        #pct = (np.abs(azm - bzm)/((azm + bzm)/2.0))*100.0
         pct = (azm - bzm) / np.abs(bzm) * 100.0
         #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
         pct = pct.where(np.isfinite(pct), np.nan)
@@ -2143,7 +2124,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         diff = azm - bzm
         
         # calculate the percent change
-        #pct = (np.abs(azm - bzm)/((azm + bzm)/2.0))*100.0
         pct = (azm - bzm) / np.abs(bzm) * 100.0
         #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
         pct = pct.where(np.isfinite(pct), np.nan)
@@ -2295,7 +2275,6 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
     diff = adata - bdata
     
     # calculate the percent change
-    #pct = (np.abs(adata - bdata)/((adata + bdata)/2.0))*100.0
     pct = (adata - bdata) / np.abs(bdata) * 100.0
     #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
     pct = pct.where(np.isfinite(pct), np.nan)
@@ -2508,7 +2487,6 @@ def square_contour_difference(fld1, fld2, **kwargs):
 
     diff = fld1 - fld2
     
-    #pct = (np.abs(fld1 - fld2)/((fld1 + fld2)/2.0))*100.0
     pct = (fld1 - fld2) / np.abs(fld2) * 100.0
     #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
     pct = pct.where(np.isfinite(pct), np.nan)
