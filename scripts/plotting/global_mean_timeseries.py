@@ -36,6 +36,11 @@ def global_mean_timeseries(adfobj):
     for field in adfobj.diag_var_list:
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
+        if ref_ts_da is None:
+            print(
+                f"\t Variable named {field} provides Nonetype. Skipping this variable"
+            )
+            continue
         # check if this is a "2-d" varaible:
         has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
         if has_lev_ref:
