@@ -256,6 +256,7 @@ class AdfInfo(AdfConfig):
                 base_hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
                 print(f"Checking history files in '{starting_location}'")
+                file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
 
                 #Check if the history file location exists
                 if not starting_location.is_dir():
@@ -273,8 +274,10 @@ class AdfInfo(AdfConfig):
                     msg = "Checking history files:\n"
                     msg += f"\tThere are no history files in '{starting_location}'."
                     self.debug_log(msg)
-                    emsg = f"{data_name} starting_location '{starting_location}': No history files found!\n"
-                    emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' in 'diag_cam_baseline_climo' "
+                    emsg = f"{data_name} starting_location {starting_location}: "
+                    emsg += f"No history files found for {base_hist_str}!\n"
+                    emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' "
+                    emsg += " in 'diag_cam_baseline_climo' "
                     emsg += "section in your config file are correct..."
                     self.end_diag_fail(emsg)
 
@@ -286,6 +289,10 @@ class AdfInfo(AdfConfig):
                 #NOTE: this is based off the current CAM file name structure in the form:
                 #  $CASE.cam.h#.YYYY<other date info>.nc
                 base_climo_yrs = [int(str(i).partition(f"{base_hist_str}.")[2][0:4]) for i in file_list]
+                if not base_climo_yrs:
+                    msg = f"No climo years found in {baseline_hist_locs}, "
+                    raise AdfError(msg)
+
                 base_climo_yrs = sorted(np.unique(base_climo_yrs))
 
                 base_found_syr = int(base_climo_yrs[0])
@@ -444,6 +451,8 @@ class AdfInfo(AdfConfig):
                 starting_location = Path(cam_hist_locs[case_idx])
                 print(f"Checking history files in '{starting_location}'")
 
+                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+
                 #Check if the history file location exists
                 if not starting_location.is_dir():
                     msg = "Checking history file location:\n"
@@ -460,8 +469,10 @@ class AdfInfo(AdfConfig):
                     msg = "Checking history files:\n"
                     msg += f"\tThere are no history files in '{starting_location}'."
                     self.debug_log(msg)
-                    emsg = f"{case_name} starting_location {starting_location}: No history files found!\n"
-                    emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' in 'diag_cam_climo' "
+                    emsg = f"{case_name} starting_location {starting_location}: "
+                    emsg += f"No history files found for {hist_str}!\n"
+                    emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' "
+                    emsg += "in 'diag_cam_climo' "
                     emsg += "section in your config file are correct..."
                     self.end_diag_fail(emsg)
 
@@ -473,6 +484,9 @@ class AdfInfo(AdfConfig):
                 #NOTE: this is based off the current CAM file name structure in the form:
                 #  $CASE.cam.h#.YYYY<other date info>.nc
                 case_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
+                if not case_climo_yrs:
+                    msg = f"No climo years found in {cam_hist_locs[case_idx]}, "
+                    raise AdfError(msg)
                 case_climo_yrs = sorted(np.unique(case_climo_yrs))
 
                 case_found_syr = int(case_climo_yrs[0])
@@ -845,7 +859,7 @@ class AdfInfo(AdfConfig):
                 break
             else:
                 logmsg = "get years for time series:"
-                logmsg = f"\tVar '{var}' not in dataset, skip to next to try and find climo years..."
+                logmsg = f"\n\tVar '{var}' not in dataset, skip to next to try and find climo years..."
                 self.debug_log(logmsg)
 
         #Read in file(s)
