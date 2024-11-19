@@ -86,12 +86,12 @@ def global_mean_timeseries(adfobj):
         for case_name in adfobj.data.case_names:
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
-            # If no reference, we still neeed to check if this is a "2-d" varaible:
+            # If no reference, we still need to check if this is a "2-d" varaible:
             if ref_ts_da is None:
                 has_lat_ref, has_lev_ref = pf.zm_validate_dims(c_ts_da)
             # End if
 
-            # If 3-d variable, notify useer, flag and move to next test case
+            # If 3-d variable, notify user, flag and move to next test case
             if has_lev_ref:
                 print(
                     f"Variable named {field} has a lev dimension for '{case_name}', which does not work with this script."
