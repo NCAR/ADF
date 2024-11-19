@@ -106,6 +106,7 @@ class AdfData:
     def get_ref_timeseries_file(self, field):
         """Return list of reference time series files"""
         if self.adf.compare_obs:
+            warnings.warn("ADF does not currently expect observational time series files.")
             return None
         else:
             ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
@@ -141,6 +142,33 @@ class AdfData:
         else:
             warnings.warn("Timeseries file does not have time bounds info.")
         return xr.decode_cf(ds)
+
+    def load_timeseries_da(self, case, variablename):
+        """Return DataArray from time series file(s).
+           Uses defaults file to convert units.
+        """
+        add_offset, scale_factor = self.get_value_converters(case, variablename)
+        fils = self.get_timeseries_file(case, variablename)
+        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
+    
+    def load_reference_timeseries_da(self, field):
+        """Return a DataArray time series to be used as reference 
+          (aka baseline) for variable field.
+        """
+        fils = self.get_ref_timeseries_file(field)
+        if not fils:
+            warnings.warn(f"WARNING: Did not find time series file(s), variable: {field}")
+            return None
+        #Change the variable name from CAM standard to what is
+        # listed in variable defaults for this observation field
+        if self.adf.compare_obs:
+            field = self.ref_var_nam[field]
+            add_offset = 0
+            scale_factor = 1
+        else:
+            add_offset, scale_factor = self.get_value_converters(self.ref_case_label, field)
+
+        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
 
     #------------------
@@ -316,12 +344,13 @@ class AdfData:
         res = self.adf.variable_defaults
         if variablename in res:
             vres = res[variablename]
-            if (case == self.ref_labels[variablename]) and (self.adf.compare_obs):
-                scale_factor = vres.get("obs_scale_factor",1)
-                add_offset = vres.get("obs_add_offset", 0)
-            else:
-                scale_factor = vres.get("scale_factor",1)
-                add_offset = vres.get("add_offset", 0)
+            if variablename in self.ref_labels:
+                if (case == self.ref_labels[variablename]) and (self.adf.compare_obs):
+                    scale_factor = vres.get("obs_scale_factor",1)
+                    add_offset = vres.get("obs_add_offset", 0)
+                else:
+                    scale_factor = vres.get("scale_factor",1)
+                    add_offset = vres.get("add_offset", 0)
         return add_offset, scale_factor
 
     #------------------
