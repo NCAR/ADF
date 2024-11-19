@@ -250,7 +250,7 @@ class AdfInfo(AdfConfig):
 
                 #Grab first possible hist string, just looking for years of run
                 base_hist_str = baseline_hist_str[0]
-                print(f"CHECK BASE_HIST_STR: {base_hist_str}")
+
                 starting_location = Path(baseline_hist_locs)
                 file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
                 # Partition string to find exactly where h-number is
@@ -262,7 +262,7 @@ class AdfInfo(AdfConfig):
                 #  $CASE.cam.h#.YYYY<other date info>.nc
                 base_climo_yrs = [int(str(i).partition(f"{base_hist_str}.")[2][0:4]) for i in file_list]
                 base_climo_yrs = sorted(np.unique(base_climo_yrs))
-                print(f"CHECK YEARS: {base_climo_yrs}")
+
                 base_found_syr = int(base_climo_yrs[0])
                 base_found_eyr = int(base_climo_yrs[-1])
 
