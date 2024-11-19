@@ -6,6 +6,7 @@ from I. Simpson's directory (to be generalized).
 """
 
 from pathlib import Path
+from types import NoneType
 import warnings  # use to warn user about missing files.
 import xarray as xr
 import matplotlib.pyplot as plt
@@ -35,18 +36,32 @@ def global_mean_timeseries(adfobj):
     # Gather ADF configurations
     plot_loc = get_plot_loc(adfobj)
     plot_type = adfobj.read_config_var("diag_basic_info").get("plot_type", "png")
+    res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
+    # or an empty dictionary if use_defaults was not specified in YAML.
 
     # Loop over variables
     for field in adfobj.diag_var_list:
+
+        # Check res for any variable specific options that need to be used BEFORE going to the plot:
+        if field in res:
+            vres = res[field]
+            #If found then notify user, assuming debug log is enabled:
+            adfobj.debug_log(f"global_mean_timeseries: Found variable defaults for {field}")
+        else:
+            vres = {}
+        #End if
+
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
-        
+
         # Check to see if this field is available
         if ref_ts_da is None:
             print(
                 f"\t Variable named {field} provides Nonetype. Skipping this variable"
             )
+            validate_dims = True
         else:
+            validate_dims = False
             # reference time series global average
             ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
 
@@ -82,12 +97,19 @@ def global_mean_timeseries(adfobj):
             else adfobj.data.ref_case_label
         )
 
-        has_lev = False
+        skip_var = False
         for case_name in adfobj.data.case_names:
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
+            if c_ts_da is None:
+                print(
+                    f"\t Variable named {field} provides Nonetype. Skipping this variable"
+                )
+                skip_var = True
+                continue
+
             # If no reference, we still need to check if this is a "2-d" varaible:
-            if ref_ts_da is None:
+            if validate_dims:
                 has_lat_ref, has_lev_ref = pf.zm_validate_dims(c_ts_da)
             # End if
 
@@ -97,7 +119,7 @@ def global_mean_timeseries(adfobj):
                     f"Variable named {field} has a lev dimension for '{case_name}', which does not work with this script."
                 )
 
-                has_lev = True
+                skip_var = True
                 continue
             # End if
 
@@ -105,15 +127,17 @@ def global_mean_timeseries(adfobj):
             c_ts_da_ga = pf.spatial_average(c_ts_da)
             case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga)
 
-        # If this case is 3-d, then break the loop and go to next variable
-        if has_lev:
+        # If this case is 3-d or missing variable, then break the loop and go to next variable
+        if skip_var:
             continue
 
         # Plot the timeseries
         fig, ax = make_plot(
             case_ts, lens2_data, label=adfobj.data.ref_nickname, ref_ts_da=ref_ts_da
         )
-        ax.set_ylabel(getattr(ref_ts_da,"new_unit", "[-]")) # add units
+
+        unit = vres.get("new_unit","[-]")
+        ax.set_ylabel(getattr(ref_ts_da,"unit", unit)) # add units
         plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
 
         conditional_save(adfobj, plot_name, fig)
@@ -128,7 +152,7 @@ def global_mean_timeseries(adfobj):
         )
 
     #Notify user that script has ended:
-    print("  ...lat/lon maps have been generated successfully.")
+    print("  ... global mean time series plots have been generated successfully.")
 
 
 # Helper/plotting functions
@@ -216,7 +240,7 @@ def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     fig, ax = plt.subplots()
     
     # Plot reference/baseline if available
-    if ref_ts_da:
+    if type(ref_ts_da) != NoneType:
         ax.plot(ref_ts_da.year, ref_ts_da, label=label)
     for c, cdata in case_ts.items():
         ax.plot(cdata.year, cdata, label=c)
