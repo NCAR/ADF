@@ -55,7 +55,7 @@ class _WebData:
     needed by the website generator.
     """
 
-    def __init__(self, web_data, web_name, case_name,
+    def __init__(self, web_data, web_name, case_name,ext="Mean",
                  category = None,
                  season = None,
                  non_season = False,
@@ -73,6 +73,7 @@ class _WebData:
         self.season     = season
         self.non_season = non_season
         self.plot_type  = plot_type
+        self.ext        = ext
         self.data_frame = data_frame
         self.html_file  = html_file
         self.asset_path = asset_path
@@ -164,9 +165,6 @@ class AdfWeb(AdfObs):
                                                 'assets_dir': assets_dir,
                                                 'table_pages_dir': table_pages_dir,
                                                 'css_files_dir': css_files_dir}
-
-
-
         #End for
         #--------------------------------
 
@@ -186,8 +184,6 @@ class AdfWeb(AdfObs):
                                                    'css_files_dir': css_files_dir}
         #End if
 
-
-        
     #########
 
     # Create property needed to return "create_html" logical to user:
@@ -198,7 +194,7 @@ class AdfWeb(AdfObs):
 
     #########
 
-    def add_website_data(self, web_data, web_name, case_name,
+    def add_website_data(self, web_data, web_name, case_name,ext="Mean",
                          category = None,
                          season = None,
                          non_season = False,
@@ -302,6 +298,8 @@ class AdfWeb(AdfObs):
             asset_path = None
         else:
             html_name = f'plot_page_{web_data.stem}.html'
+            #print(web_data)
+            #print(html_name)
             html_file = self.__case_web_paths[case_name]["img_pages_dir"] / html_name
             asset_path = self.__case_web_paths[case_name]['assets_dir'] / web_data.name
         #End if
@@ -312,6 +310,7 @@ class AdfWeb(AdfObs):
                             season = season,
                             non_season = non_season,
                             plot_type = plot_type,
+                            ext = ext,
                             data_frame = data_frame,
                             html_file = html_file,
                             asset_path = asset_path,
@@ -554,7 +553,6 @@ class AdfWeb(AdfObs):
                 #Initialize Ordered Dictionary for season:
                 mean_html_info[ptype][category][var][season] = web_data.html_file.name
 
-
                 #Initialize Ordered Dictionary for non season kwarg:
                 if ptype not in non_seasons:
                     non_seasons[ptype] = OrderedDict()
@@ -649,8 +647,9 @@ class AdfWeb(AdfObs):
 
                 rend_kwarg_dict = {"title": main_title,
                                        "var_title": web_data.name,
+                                       "ext": web_data.ext,
                                        "season_title": web_data.season,
-                                       "case_name": web_data.case,
+                                       "case_name": case1,
                                        "case_yrs": case_yrs,
                                        "base_name": data_name,
                                        "baseline_yrs": baseline_yrs,
@@ -693,6 +692,7 @@ class AdfWeb(AdfObs):
             if web_data.case == 'multi-case':
                 plot_types = multi_plot_type_html
             else:
+                case1 = web_data.case
                 plot_types = plot_type_html
             plot_types = plot_type_html
             #End if
