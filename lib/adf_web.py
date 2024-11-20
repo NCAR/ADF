@@ -164,9 +164,6 @@ class AdfWeb(AdfObs):
                                                 'assets_dir': assets_dir,
                                                 'table_pages_dir': table_pages_dir,
                                                 'css_files_dir': css_files_dir}
-
-
-
         #End for
         #--------------------------------
 
@@ -186,8 +183,6 @@ class AdfWeb(AdfObs):
                                                    'css_files_dir': css_files_dir}
         #End if
 
-
-        
     #########
 
     # Create property needed to return "create_html" logical to user:
@@ -352,10 +347,13 @@ class AdfWeb(AdfObs):
             self.end_diag_fail(emsg)
         #End except
 
-        #Make a jinja function that mimics python list object. This will allow for
-        # the use of 'list' in the html rendering.
+        #Make jinja functions that mimics python functions.
+        #  - This will allow for the use of 'list' in the html rendering.
         def jinja_list(seas_list):
             return list(seas_list)
+        #   - This will allow for the use of 'enumerate' in the html rendering.
+        def jinja_enumerate(arg):
+            return enumerate(arg)
 
         #Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
@@ -619,6 +617,7 @@ class AdfWeb(AdfObs):
 
                 #Check if the mean plot type page exists for this case (or for multi-case):
                 mean_table_file = table_pages_dir / "mean_tables.html"
+
                 #Construct mean_table.html
                 mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
                 #Reuse the rend_kwarg_dict, but ignore certain keys
@@ -629,6 +628,7 @@ class AdfWeb(AdfObs):
                 with open(mean_table_file, 'w', encoding='utf-8') as ofil:
                     ofil.write(mean_table_rndr)
                 #End with
+
             #End if (tables)
 
             else: #Plot image
@@ -648,18 +648,19 @@ class AdfWeb(AdfObs):
                 #End if
 
                 rend_kwarg_dict = {"title": main_title,
-                                       "var_title": web_data.name,
-                                       "season_title": web_data.season,
-                                       "case_name": web_data.case,
-                                       "case_yrs": case_yrs,
-                                       "base_name": data_name,
-                                       "baseline_yrs": baseline_yrs,
-                                       "plottype_title": web_data.plot_type,
-                                       "imgs": img_data,
-                                       "mydata": mean_html_info[web_data.plot_type],
-                                       "plot_types": plot_types,
-                                       "seasons": seasons,
-                                       "non_seasons": non_seasons[web_data.plot_type]}
+                                   "var_title": web_data.name,
+                                   "season_title": web_data.season,
+                                   "case_name": web_data.case,
+                                   "case_yrs": case_yrs,
+                                   "base_name": data_name,
+                                   "baseline_yrs": baseline_yrs,
+                                   "plottype_title": web_data.plot_type,
+                                   "imgs": img_data,
+                                   "mydata": mean_html_info[web_data.plot_type],
+                                   "plot_types": plot_types,
+                                   "seasons": seasons,
+                                   "non_seasons": non_seasons[web_data.plot_type]}
+
                 tmpl = jinenv.get_template('template.html')  #Set template
                 rndr = tmpl.render(rend_kwarg_dict) #The template rendered
 
@@ -674,10 +675,9 @@ class AdfWeb(AdfObs):
                 #Construct individual plot type mean_diag html files
                 mean_tmpl = jinenv.get_template('template_mean_diag.html')
 
-                #Remove keys from main dictionary for this html page
-                templ_rend_kwarg_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'imgs', 'var_title', 'season_title'}}
-                templ_rend_kwarg_dict["list"] = jinja_list
-                mean_rndr = mean_tmpl.render(templ_rend_kwarg_dict)
+                rend_kwarg_dict["enumerate"] = jinja_enumerate
+                rend_kwarg_dict["list"] = jinja_list
+                mean_rndr = mean_tmpl.render(rend_kwarg_dict)
 
                 #Write mean diagnostic plots HTML file:
                 with open(mean_ptype_file,'w', encoding='utf-8') as ofil:

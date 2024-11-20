@@ -255,6 +255,7 @@ class AdfInfo(AdfConfig):
                 #Grab first possible hist string, just looking for years of run
                 base_hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
+                print(f"Checking history files in '{starting_location}'")
                 file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
 
                 #Check if the history file location exists
