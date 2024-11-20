@@ -288,6 +288,7 @@ plotting_scripts:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
     - AODVISdn
+    - Q
     - BC
     - POM
     - SO4
