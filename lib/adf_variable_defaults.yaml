@@ -69,7 +69,7 @@
 # Available ADF Default Plot Types
 #+++++++++++++
 default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
-                  "NHPolar","SHPolar","TimeSeries","Special"]
+                  "NHPolar","SHPolar","TimeSeries","Special","WACCM"]
 
 #+++++++++++++
 # Constants
@@ -2288,93 +2288,281 @@ OMEGAT:
 #++++++++++++++
 # Category: TEM
 #++++++++++++++
-
 uzm:
-  ylim: [1e3,1]
+  colormap: "PiYG"
+  contour_levels_range: [-60,61,8]
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-35,36,5]
+  ylim: [1e3,1e-1]
   units: m s-1
-  long_name: Zonal-Mean zonal wind
+  mpl:
+    colorbar:
+      label : "m/s"
+  long_name: Zonal mean zonal wind ($\bar{u}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "uzm"
 
 vzm:
-  ylim: [1e3,1]
+  ylim: [1e3,1e-1]
   units: m s-1
-  long_name: Zonal-Mean meridional wind
+  long_name: Zonal-Mean meridional wind ($\bar{v}$) 
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "vzm"
 
+thzm:
+  colormap: "Spectral_r"
+  contour_levels_range: [185,300,6]
+  diff_colormap: "PuOr_r"
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "K"
+  long_name: Zonal mean temperature ($\bar{T}$)
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "uzm"
+
 epfy:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: northward component of the Eliassen–Palm flux
+  colormap: "PiYG"
+  contour_adjust: 1e7
+  contour_levels: [-5e7,-4e7,-3e7,-2e7,-1e7,-0.8e7,-0.6e7,-0.4e7,-0.2e7,-0.1e7,0,0.1e7,0.2e7,0.4e7,0.6e7,0.8e7,1e7,2e7,3e7,4e7,5e7]
+  non_linear_levels: True
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-2e7,2e7,0.2e7]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "m3/s2"
+  long_name: EP Flux - meridional component ($F_{y}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "epfy"
 
 epfz:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: upward component of the Eliassen–Palm flux
+  colormap: "PiYG"
+  contour_adjust: 1e6
+  contour_levels: [-5e6,-4e6,-3e6,-2e6,-1e6,-0.8e6,-0.6e6,-0.4e6,-0.2e6,-0.1e6,0,0.1e6,0.2e6,0.4e6,0.6e6,0.8e6,1e6,2e6,3e6,4e6,5e6]
+  non_linear_levels: True
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-1e5,1.1e5,0.1e5]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "m3/s2"
+  long_name: EP Flux - vertical component ($F_{z}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "epfz"
 
 vtem:
-  ylim: [1e2,1]
-  units: m/s
-  long_name: Transformed Eulerian mean northward wind
+  colormap: "PiYG"
+  contour_levels: [-5,-4,-3,-2,-1,-0.8,-0.6,-0.4,-0.2,-0.1,0,0.1,0.2,0.4,0.6,0.8,1,2,3,4,5]
+  non_linear_levels: True
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-2,2.1,0.2]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      ticks: [-5,-1,-0.2,0.2,1,5]
+      label : "m/s"
+  long_name: TEM meridional wind ($\bar{v}^{*}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "vtem"
 
 wtem:
-  ylim: [1e2,1]
-  units: m/s
-  long_name: Transformed Eulerian mean upward wind
+  colormap: "PiYG"
+  contour_levels: [-2,-1.7,-1.4,-1.1,-0.8,-0.65,-0.5,-0.35,-0.2,-0.1,0,0.1,0.2,0.35,0.5,0.65,0.8,1.1,1.4,1.7,2]
+  scale_factor: 100
+  non_linear_levels: True
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-2,2.1,0.2]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      ticks: [-2,-0.8,-0.2,0.2,0.8,2]
+      label : "cm/s"
+  units: cm/s
+  long_name: TEM vertical wind ($\bar{w}^{*}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "wtem"
 
 psitem:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: Transformed Eulerian mean mass stream function
+  colormap: "PiYG"
+  contour_levels: [-3e11,-2e11,-1e11,-0.8e11,-0.6e11,-0.4e11,-0.2e11,-0.1e11,0,0.1e11,0.2e11,0.4e11,0.6e11,0.8e11,1e11,2e11,3e11]
+  contour_adjust: 1e11
+  non_linear_levels: True
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-5e9,5.1e9,.5e9]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "kg/s"
+  units: kg/s
+  long_name: TEM mass stream function ($\bar{\chi}^{*}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "psitem"
 
 utendepfd:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: tendency of eastward wind due to Eliassen-Palm flux divergence
+  colormap: "PiYG"
+  contour_levels: [-0.3,-0.2,-0.1,-0.08,-0.06,-0.04,-0.02,-0.01,0,0.01,0.02,0.04,0.06,0.08,0.1,0.2,0.3]
+  non_linear_levels: True
+  diff_colormap: "PuOr_r"
+  diff_contour_range: [-0.1,0.11,.01]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "mm/s2"
+  long_name: EP flux divergence ($\nabla \cdot F$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "utendepfd"
 
 utendvtem:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: tendency of eastward wind due to TEM northward wind advection and the coriolis term
+  colormap: "PiYG"
+  diff_colormap: "PuOr_r"
+  ylim: [1e3,1e-1]
+  long_name: EP flux divergence - meridional component ($F_{yy}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "utendvtem"
 
 utendwtem:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: tendency of eastward wind due to TEM upward wind advection
+  colormap: "PiYG"
+  diff_colormap: "PuOr_r"
+  ylim: [1e3,1e-1]
+  long_name: EP flux divergence - vertical component ($F_{zz})
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "utendwtem"
 
-#######
-
-
+#####
 
 # Plot Specific formatting
 ##########################
+#NOTE: If using any obs file that is in the ADF default directory, provide just the file name
+#      ex: MERRA2_met.nc -> is an ADF default obs file
+#
+#      If providing your own path for obs file (not using ADF defaults), provide the full path and file name
+#      ex: /glade/work/richling/ADF/different_MERRA2.nc
+
+
+# AOD 4-Panel plots vs MERRA and MODIS
+#-------------------------------------
+aod_diags:
+    plot_params:
+      range_min: -0.4
+      range_max: 0.4
+      nlevel: 17
+      colormap: "bwr"
+
+    plot_params_relerr:
+      range_max: 100
+      range_min: -100
+      nlevel: 21
+      colormap: "PuOr_r"
+
+#-----------
+
+
+# WACCM seasonal cycle plots
+#---------------------------
+waccm_seasonal_cycle:
+  calc_var_list: ['U','T','V','UU','VU','VT','OMEGAU','OMEGA','O3','Q','UTEND_VDIFF']
+  #calc_var_list = ['U','T','V','O3','Q','UTEND_VDIFF']
+  calc_var_list: ['U','T','Q']
+
+  merra2_vars: ['U','T','V','lat','lev']
+  saber_vars: ['u','temp','lat','lev']
+  #merra2_file: "/glade/work/richling/ADF/ADF_dev/notebooks/chem-diags/MERRA2_met.nc"
+  #saber_file: "/glade/work/richling/ADF/ADF_dev/notebooks/chem-diags/SABER_monthly_2002-2014.nc"
+  
+  merra2_file: "MERRA2_met.nc"
+  #merra2_file: "MERRA2_met_FAKESIES.nc"
+  saber_file: "SABER_monthly_2002-2014.nc"
+  #swoosh_file: 
+
+  obs_cam_vars:
+    saber:
+      U: "u"
+      T: "temp"
+    merra: 
+      U: "U"
+      T: "T"
+    swoosh:
+      O3: "O3"
+
+# Latitude vs Month
+lat_vs_month:
+  T: 
+    slat: -45
+    nlat: 45
+    levels: [190,221,2]
+    diff_levels: [-5,5.1,0.5]
+    cmap: 'RdBu_r'
+    title: "Cold Point Tropopause (CPT) Temps"
+    tick_inter: 15
+    units: "K"
+    y_labels: ["45S","30S","15S","EQ","15N","30N","45N"]
+    plot_vert_levs: [90]
+    cmap: 'RdYlBu_r'
+    diff_cmap: "PuOr_r"
+    #diff_cmap: "RdGy"
+  
+  Q: 
+    slat: -90
+    nlat: 90
+    levels: [0.5,5.3,0.3]
+    #diff_levels: [-2,2.1,.2]
+    diff_levels: [-1.2,1.3,0.12]
+    cmap: 'RdYlBu_r'
+    title: "H$_{2}$O Mixing Ratio"
+    y_labels: ["90S","60S","30S","EQ","30N","60N","90N"]
+    tick_inter: 30
+    units: "ppmv"
+    plot_vert_levs: [90,100]
+    cmap: 'RdYlBu_r'
+    diff_cmap: "PuOr_r"
+    #diff_cmap: "RdGy"
+
+# Comparison plots for SABER/MERRA2/SWOOSH
+comparison_plots:
+  cam_vars: ["U","T"]
+  #NOTE: If using month number for month, you must keep it as an integer, not a string!
+  interval: [6,12,"DJF","JJA"]
+
+  U:
+    levs: [-120, 121, 10]
+    diff_levs: [-30, 31, 3]
+    units: "m/s"
+  T: 
+    levs: [140, 300, 10]
+    diff_levs: [-40, 41, 4]
+    units: "K"
+
+# Polar Cap Temps
+pcap_plots:
+  T: 
+    levs: [140, 300, 10]
+    diff_levs: [-40, 41, 4]
+    units: "K"
+
+# Tape Recorder plot
+#-------------------
+tape_recorder:
+  mls:
+    #obs_file: "mls_h2o_latNpressNtime_3d_monthly_v5_FAKESIES.nc"
+    obs_file: "mls_h2o_latNpressNtime_3d_monthly_v5.nc"
+
+  era5:
+    obs_file: "ERA5_Q_10Sto10N_1980to2020.nc"
+
+#-----------
+
 
 # Chemistry and Aerosol Budget Tables
 #------------------------------------
