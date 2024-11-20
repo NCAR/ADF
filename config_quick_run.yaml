@@ -301,5 +301,6 @@ diag_var_list:
     - FSNT
     - FLNT
     - RESTOM
+    - ICEFRAC
 
 #END OF FILE
