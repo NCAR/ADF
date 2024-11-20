@@ -302,42 +302,21 @@ regridding_scripts:
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
-    #- amwg_table
-    #- aerosol_gas_tables
+
 
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-    #- global_latlon_map
-    #- global_latlon_vect_map
-    #- zonal_mean
-    #- meridional_mean
-    #- polar_map
-    #- cam_taylor_diagram
-    #- qbo
-    #- ozone_diagnostics
     - seasonal_cycle
-    #- tape_recorder
     - tem
-    #- regional_map_multicase #To use this please un-comment and fill-out
-                              #the "region_multicase" section below
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
     - PMID
+    - PSL
+    - Q
 
     
-# Options for multi-case regional contour plots (./plotting/regional_map_multicase.py)
-# region_multicase:
-#     region_spec: [slat, nlat, wlon, elon]
-#     region_time_option: <calendar | zeroanchor>  # If calendar, will look for specified years. If zeroanchor will use a nyears starting from year_offset from the beginning of timeseries
-#     region_start_year:
-#     region_end_year:
-#     region_nyear:
-#     region_year_offset:
-#     region_month: <NULL means look for season>
-#     region_season: <NULL means use annual mean>
-#     region_variables: <list of variables to try to use; allows for a subset of the total diag variables>
 
 #END OF FILE
