@@ -32,10 +32,13 @@ def create_TEM_files(adf):
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
 
     if "qbo" in adf.plotting_scripts:
-        var_list = ['uzm','epfy','epfz','vtem','wtem',
+        #var_list = ['uzm','epfy','epfz','vtem','wtem',
+        #            'psitem','utendepfd','utendvtem','utendwtem']
+        var_list = ['uzm','thzm','epfy','epfz','vtem','wtem',
                     'psitem','utendepfd','utendvtem','utendwtem']
     else:
-        var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        #var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        var_list = ['uzm','thzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
 
     tem_locs = []
     
@@ -422,6 +425,9 @@ def calc_tem(ds):
     vzm.attrs['long_name'] = 'Zonal-Mean meridional wind'
     vzm.attrs['units'] = 'm/s'
 
+    thzm.attrs['long_name'] = 'Zonal-Mean potential temperature'
+    thzm.attrs['units'] = 'K'
+
     epfy.attrs['long_name'] = 'northward component of E-P flux'
     epfy.attrs['units'] = 'm3/s2'
 
@@ -459,6 +465,7 @@ def calc_tem(ds):
                                       time_bnds = ds.time_bnds,
                                       uzm = uzm,
                                       vzm = vzm,
+                                      thzm = thzm,
                                       epfy = epfy,
                                       epfz = epfz,
                                       vtem = vtem,
