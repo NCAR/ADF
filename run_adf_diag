@@ -160,6 +160,8 @@ if __name__ == "__main__":
     #Call the MDTF:
     if diag.get_mdtf_info('mdtf_run'):
         mdtf_proc = diag.setup_run_mdtf()  #returns mdtf_proc for subprocess control
+    else:
+        mdtf_proc = None
 
     #Create model climatology (climo) files.
     #This call uses the "time_averaging_scripts" specified
