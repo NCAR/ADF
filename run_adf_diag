@@ -196,11 +196,12 @@ if __name__ == "__main__":
         diag.create_website()
 
     # Check if sub-processes are still running (CVDP, MDTF)
-    mdtf_status = mdtf_proc.wait(timeout=None)
-    if (mdtf_status != 0):
-        print(f"ERROR: MDTF finished with code {mdtf_status}")
-    else:
-        print("MDTF finished successfully")
+    if mdtf_proc:
+        mdtf_status = mdtf_proc.wait(timeout=None)
+        if (mdtf_status != 0):
+            print(f"ERROR: MDTF finished with code {mdtf_status}")
+        else:
+            print("MDTF finished successfully")
         
     #+++++++++++++++
     #End diag script
