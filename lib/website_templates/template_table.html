@@ -42,17 +42,17 @@
     </div>
 
     <div style="width: 100%;">
-        <table class="big-table">
-          {% for case_name, html_file in amwg_tables.items() %}
-            <tr>
-              <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
-            </tr>
-          {% endfor %}
-        </table>
+      <table class="big-table">
+        {% for case_name, html_file in amwg_tables.items() %}
+          <tr>
+            <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
+          </tr>
+        {% endfor %}
+      </table><br>
 
-        <!-- Main Table HTML -->
-        <h3> {{ table_name }} </h3>
-        {{ table_html }}
+      <!-- Main Table HTML -->
+      <h3> {{ table_name }} </h3>
+      {{ table_html }}
     </div>
 
   </body>
