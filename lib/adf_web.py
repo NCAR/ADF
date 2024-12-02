@@ -607,6 +607,15 @@ class AdfWeb(AdfObs):
                                   "table_html": table_html,
                                   "multi_head": False}
                 rend_kwarg_dict["plot_types"] = multi_plot_type_html
+
+                if web_data.name == case1:
+                    rend_kwarg_dict["disp_table_name"] = case1
+                    rend_kwarg_dict["disp_table_html"] = table_html
+                
+                if web_data.name == "Case Comparison":
+                    rend_kwarg_dict["disp_table_name"] = "Case Comparison"
+                    rend_kwarg_dict["disp_table_html"] = table_html
+
                 table_tmpl = jinenv.get_template('template_table.html')
                 table_rndr = table_tmpl.render(rend_kwarg_dict)
 
@@ -620,10 +629,8 @@ class AdfWeb(AdfObs):
 
                 #Construct mean_table.html
                 mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
-                #Reuse the rend_kwarg_dict, but ignore certain keys
-                #since all others are the same
-                new_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'table_name', 'table_html'}}
-                mean_table_rndr = mean_table_tmpl.render(new_dict)
+                #Reuse the rend_kwarg_dict
+                mean_table_rndr = mean_table_tmpl.render(rend_kwarg_dict)
                 #Write mean diagnostic tables HTML file:
                 with open(mean_table_file, 'w', encoding='utf-8') as ofil:
                     ofil.write(mean_table_rndr)
@@ -714,7 +721,7 @@ class AdfWeb(AdfObs):
             index_title = "AMP Diagnostics Prototype"
             index_tmpl = jinenv.get_template('template_index.html')
             index_rndr = index_tmpl.render(title=index_title,
-                                            case_name=case1,
+                                            case_name=web_data.case,
                                             base_name=data_name,
                                             case_yrs=case_yrs,
                                             baseline_yrs=baseline_yrs,
