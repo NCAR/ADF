@@ -1406,12 +1406,16 @@ CLDICE:
   obs_file: "CLDICE_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "CLDICE"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
 
 CLDLIQ:
   category: "Clouds"
   obs_file: "CLDLIQ_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "CLDLIQ"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
 
 CLDTOT:
   colormap: "Oranges"
