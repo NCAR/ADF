@@ -443,6 +443,10 @@ def aod_latlon(adfobj):
     file_merra2 = os.path.join(obs_dir, 'MERRA2_192x288_AOD_2001-2020_climo.nc')
     file_mod08_m3 = os.path.join(obs_dir, 'MOD08_M3_192x288_AOD_2001-2020_climo.nc')
 
+    if (not Path(file_merra2).is_file()) or (not Path(file_mod08_m3).is_file()):
+        print("\t  ** AOD Panel plots not made, missing MERRA2 and/or MODIS file")
+        return
+
     ds_merra2 = xr.open_dataset(file_merra2)
     ds_merra2 = ds_merra2['TOTEXTTAU']
     ds_merra2['lon'] = ds_merra2['lon'].round(5)
