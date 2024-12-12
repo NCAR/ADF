@@ -232,9 +232,9 @@ class AdfData:
         """Return list of test regridded files"""
         model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
         rlbl = self.ref_labels[field]  # rlbl = "reference label" = the name of the reference data that defines target grid
-        return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_*.nc"))
+        return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
-    
+
     def load_regrid_dataset(self, case, field):
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_regrid_file(case, field)
@@ -265,7 +265,7 @@ class AdfData:
                 fils = []
         else:
             model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
-            fils = sorted(model_rg_loc.glob(f"{case}_{field}_*.nc"))
+            fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
 
 
