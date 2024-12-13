@@ -169,7 +169,9 @@ def aerosol_gas_tables(adfobj):
     hist_locs = adfobj.get_cam_info("cam_hist_loc", required=True)
 
     # Grab history file locations from config yaml file
-    hist_strs = adfobj.get_cam_info("aerosol_hist_str", required=True)
+    hist_strs = adfobj.get_cam_info("aerosol_hist_str")
+    if hist_strs is None:
+        hist_strs = ["cam.h0a"]*len(case_names)
     
     # Check if this is test model vs baseline model
     # If so, update test case(s) lists created above
@@ -186,7 +188,10 @@ def aerosol_gas_tables(adfobj):
         hist_locs += [adfobj.get_baseline_info("cam_hist_loc")]
 
         # Grab history file locations from config yaml file
-        hist_strs = +[adfobj.get_baseline_info("aerosol_hist_str", required=True)]
+        base_hist_str = adfobj.get_baseline_info("aerosol_hist_str")
+        if base_hist_str is None:
+            base_hist_str = "cam.h0a"
+        hist_strs += [base_hist_str]
     # End if
 
     # Check to ensure number of case names matches number history file locations.
