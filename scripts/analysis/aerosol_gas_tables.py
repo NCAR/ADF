@@ -335,17 +335,19 @@ def list_files(adfobj, directory, start_year ,end_year):#, h_case
     # History file year range
     yrs = np.arange(int(start_year), int(end_year)+1)
 
-    possible_h_strings = ["cam.h0","cam.h0a","cam.h1","cam.h1a","cam.h2","cam.h2a"]
+    #possible_h_strings = ["cam.h0","cam.h0a","cam.h1","cam.h1a","cam.h2","cam.h2a"]
 
-    for h_case in possible_h_strings:
-        test_files = sorted(Path(directory).glob(f'*.{h_case}.{yrs[0]}-*'))
-        if len(test_files) > 0:
-            print(f"Looks like its {h_case}!")
-            use_h_case = h_case
-            break
-            #h_case = "cam.h0a"
+    #for h_case in possible_h_strings:
+    #    test_files = sorted(Path(directory).glob(f'*.{h_case}.{yrs[0]}-*'))
+    #    if len(test_files) > 0:
+    #        print(f"Looks like its {h_case}!")
+    #        use_h_case = h_case
+    #        break
+    #        #h_case = "cam.h0a"
         
-
+    #use_h_case =
+    h_case = "cam.h2a"
+    test_files = sorted(Path(directory).glob(f'*.{h_case}.{yrs[0]}-*'))
     all_filenames = []
     for i in yrs:
         all_filenames.append(sorted(Path(directory).glob(f'*.{use_h_case}.{i}-*')))
