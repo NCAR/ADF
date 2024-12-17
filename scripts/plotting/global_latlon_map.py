@@ -266,7 +266,7 @@ def global_latlon_map(adfobj):
 
                     # difference: each entry should be (lat, lon)
                     dseasons[s] = mseasons[s] - oseasons[s]
-
+                    
                     # percent change
                     pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
@@ -309,7 +309,7 @@ def global_latlon_map(adfobj):
 
                         # difference: each entry should be (lat, lon)
                         dseasons[s] = mseasons[s] - oseasons[s]
-
+                        
                         # percent change
                         pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
@@ -443,6 +443,10 @@ def aod_latlon(adfobj):
     file_merra2 = os.path.join(obs_dir, 'MERRA2_192x288_AOD_2001-2020_climo.nc')
     file_mod08_m3 = os.path.join(obs_dir, 'MOD08_M3_192x288_AOD_2001-2020_climo.nc')
 
+    if (not Path(file_merra2).is_file()) or (not Path(file_mod08_m3).is_file()):
+        print("\t  ** AOD Panel plots not made, missing MERRA2 and/or MODIS file")
+        return
+
     ds_merra2 = xr.open_dataset(file_merra2)
     ds_merra2 = ds_merra2['TOTEXTTAU']
     ds_merra2['lon'] = ds_merra2['lon'].round(5)
@@ -515,34 +519,23 @@ def aod_latlon(adfobj):
             # End if
             
             # Check to make sure spatial dimensions are compatible
-            #if (case_lat) and (case_lon):
+            if (case_lat) and (case_lon):
                 # Calculate seasonal means
-                #ds_case_season = monthly_to_seasonal(ds_case)
-                #ds_case_season['lon'] = ds_case_season['lon'].round(5)
-                #ds_case_season['lat'] = ds_case_season['lat'].round(5)
-                #ds_cases.append(ds_case_season)
-            if (not case_lat) and (not case_lon):
+                ds_case_season = monthly_to_seasonal(ds_case)
+                ds_case_season['lon'] = ds_case_season['lon'].round(5)
+                ds_case_season['lat'] = ds_case_season['lat'].round(5)
+                ds_cases.append(ds_case_season)
+            else:
                 # Regrid the model data to obs
                 #NOTE: first argument is the model to be regridded, second is the obs
                 #      to be regridded to
-                ds_case = regrid_to_obs(adfobj, ds_case, ds_obs[0])
-                #print("ds_case_regrid['lat'].shape[0]",ds_case_regrid['lat'].shape[0])
-                #print("ds_obs[0]['lat'].shape[0]",obs_lat_shape[0],"\n")
-                #ds_case_season = monthly_to_seasonal(ds_case_regrid)
-                #ds_case_season['lon'] = ds_case_season['lon'].round(5)
-                #ds_case_season['lat'] = ds_case_season['lat'].round(5)
-                #ds_cases.append(ds_case_season)
+                ds_case_regrid = regrid_to_obs(adfobj, ds_case, ds_obs[0])
+
+                ds_case_season = monthly_to_seasonal(ds_case_regrid)
+                ds_case_season['lon'] = ds_case_season['lon'].round(5)
+                ds_case_season['lat'] = ds_case_season['lat'].round(5)
+                ds_cases.append(ds_case_season)
             # End if
-
-            # Get seasonal averages
-            ds_case_season = monthly_to_seasonal(ds_case)
-
-            # Round lat/lons
-            ds_case_season['lon'] = ds_case_season['lon'].round(5)
-            ds_case_season['lat'] = ds_case_season['lat'].round(5)
-
-            # Add data set to list
-            ds_cases.append(ds_case_season)
         # End if
 
     # load reference data (observational or baseline)
@@ -566,10 +559,6 @@ def aod_latlon(adfobj):
             base_lat_shape = ds_base['lat'].shape[0]
             base_lon_shape = ds_base['lon'].shape[0]
 
-            """print(f"{base_name} lat shape:",base_lat_shape)
-            print("Obs lat shape:",obs_lat_shape)
-            print(f"{base_name} lon shape:",base_lon_shape)
-            print("Obs lon shape:",obs_lon_shape)"""
             # Check if the lats/lons are same as the first supplied observation set
             if base_lat_shape == obs_lat_shape:
                 base_lat = True
@@ -596,36 +585,23 @@ def aod_latlon(adfobj):
             # End if
 
             # Check to make sure spatial dimensions are compatible
-            #if (base_lat) and (base_lon):
+            if (base_lat) and (base_lon):
                 # Calculate seasonal means
-                #ds_base_season = monthly_to_seasonal(ds_base)
-                #ds_base_season['lon'] = ds_base_season['lon'].round(5)
-                #ds_base_season['lat'] = ds_base_season['lat'].round(5)
-                #ds_cases.append(ds_base_season)
-            if (not base_lat) and (not base_lon):
+                ds_base_season = monthly_to_seasonal(ds_base)
+                ds_base_season['lon'] = ds_base_season['lon'].round(5)
+                ds_base_season['lat'] = ds_base_season['lat'].round(5)
+                ds_cases.append(ds_base_season)
+            else:
                 # Regrid the model data to obs
                 #NOTE: first argument is the model to be regridded, second is the obs
                 #      to be regridded to
-                #ds_base_regrid = regrid_to_obs(adfobj, ds_base, ds_obs[0])
-                ds_base = regrid_to_obs(adfobj, ds_base, ds_obs[0])
-                #print("ds_base_regrid['lat'].shape[0]",ds_base_regrid['lat'].shape[0])
-                #print("ds_obs[0]['lat'].shape[0]",obs_lat_shape,"\n")
-                #ds_base_season = monthly_to_seasonal(ds_base_regrid)
-                #ds_base_season['lon'] = ds_base_season['lon'].round(5)
-                #ds_base_season['lat'] = ds_base_season['lat'].round(5)
-                #ds_cases.append(ds_base_season)
+                ds_base_regrid = regrid_to_obs(adfobj, ds_base, ds_obs[0])
+
+                ds_base_season = monthly_to_seasonal(ds_base_regrid)
+                ds_base_season['lon'] = ds_base_season['lon'].round(5)
+                ds_base_season['lat'] = ds_base_season['lat'].round(5)
+                ds_cases.append(ds_base_season)
             # End if
-
-            # Get seasonal averages
-            ds_base_season = monthly_to_seasonal(ds_base)
-
-            # Round lat/lons
-            ds_base_season['lon'] = ds_base_season['lon'].round(5)
-            ds_base_season['lat'] = ds_base_season['lat'].round(5)
-
-            # Add data set to list
-            ds_cases.append(ds_base_season)
-
         # End if
     # Number of relevant cases
     case_num = len(ds_cases)
@@ -830,7 +806,6 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
 
         # Set plot details
         extend_option = 'both' if symmetric else 'max'
-        #cmap_option = plt.cm.bwr if symmetric else plt.cm.turbo
 
         if 'colormap' in plot_param:
             cmap_option = plot_param['colormap'] if symmetric else plt.cm.turbo
@@ -908,9 +883,6 @@ def regrid_to_obs(adfobj, model_arr, obs_arr):
     if obs_lons.shape == test_lons.shape:
         try:
             xr.testing.assert_equal(test_lons, obs_lons)
-            #err_msg = "AOD 4-panel plot:\n"
-            #err_msg += "\t The lons ARE the same"
-            #adfobj.debug_log(err_msg)
         except AssertionError as e:
             same_lons = False
             err_msg = "AOD 4-panel plot:\n"
@@ -918,9 +890,6 @@ def regrid_to_obs(adfobj, model_arr, obs_arr):
             adfobj.debug_log(err_msg)
         try:
             xr.testing.assert_equal(test_lats, obs_lats)
-            #err_msg = "AOD 4-panel plot:\n"
-            #err_msg += "\t The lats ARE the same"
-            #adfobj.debug_log(err_msg)
         except AssertionError as e:
             same_lats = False
             err_msg = "AOD 4-panel plot:\n"
@@ -948,9 +917,7 @@ def regrid_to_obs(adfobj, model_arr, obs_arr):
 
     # Return the new interpolated model array
     return model_regrid_arr
-
 #######
-
 
 ##############
 #END OF SCRIPT
