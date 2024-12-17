@@ -86,7 +86,6 @@ _meridional_plot_preslon
 """
 
 #import statements:
-from types import NoneType
 from typing import Optional
 import numpy as np
 import xarray as xr
@@ -336,27 +335,6 @@ def global_average(fld, wgt, verbose=False):
     avg1, sofw = np.ma.average(fld2, axis=a, weights=wgt, returned=True) # sofw is sum of weights
 
     return np.ma.average(avg1)
-#######
-
-
-def coslat_average(darray, lat1, lat2):
-    """
-    Calculate the weighted average for an [:,lat] array over the region
-    lat1 to lat2
-    """
-
-    # flip latitudes if they are decreasing
-    if (darray.lat[0] > darray.lat[darray.lat.size -1]):
-        print("flipping latitudes")
-        darray = darray.sortby('lat')
-
-    region = darray.sel(lat=slice(lat1, lat2))
-    weights=np.cos(np.deg2rad(region.lat))
-    regionw = region.weighted(weights)
-    regionm = regionw.mean("lat")
-
-    return regionm
-#######
 
 
 def spatial_average(indata, weights=None, spatial_dims=None):
@@ -758,8 +736,8 @@ def make_polar_plot(wks, case_nickname, base_nickname,
             assert len(kwargs['pct_diff_contour_range']) == 3, "pct_diff_contour_range must have exactly three entries: min, max, step"
             levelspctdiff = np.arange(*kwargs['pct_diff_contour_range'])
     else:
-        # set levels for difference plot (with a symmetric color bar):
-        levelspctdiff = np.linspace(-1*absmaxpct, absmaxpct, 15)
+        levelspctdiff = [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+    pctnorm = mpl.colors.BoundaryNorm(levelspctdiff,256)
 
     #NOTE: Sometimes the contour levels chosen in the defaults file
     #can result in the "contourf" software stack generating a
@@ -795,16 +773,9 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         
     # Pct Difference options -- Check in kwargs for colormap and levels
     if "pct_diff_colormap" in kwargs:
-        cmappct = kwargs["pct_diff_colormap"]
-        if "pct_diff_contour_levels" in kwargs:
-            pnorm = mpl.colors.BoundaryNorm(levelspctdiff,256)
-        else:
-            pnorm, _ = get_difference_colors(levelspctdiff)  # color map output ignored
-        
+        cmappct = kwargs["pct_diff_colormap"]        
     else:
-        pnorm, cmappct = get_difference_colors(levelspctdiff)
-        if "pct_diff_contour_levels" in kwargs:
-            pnorm = mpl.colors.BoundaryNorm(levelspctdiff,256)
+        cmappct = "PuOr_r"
     #End if
 
     # -- end options
@@ -834,10 +805,10 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
 
     if len(levs_pctdiff) < 2:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=pnorm, transform_first=True)
+        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=pctnorm, transform_first=True)
         ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
     else:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pnorm, levels=levelspctdiff, transform_first=True)
+        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm, levels=levelspctdiff, transform_first=True)
 
     if len(levs_diff) < 2:
         img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
@@ -1303,7 +1274,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
         elif i == len(wrap_fields)-2:
             levels = cp_info['levelspctdiff']
             cmap = cp_info['cmappct']
-            norm = cp_info['normpct']
+            norm = cp_info['pctnorm']
         else:
             levels = cp_info['levels1']
             cmap = cp_info['cmap1']
@@ -1828,7 +1799,7 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
         ax = _meridional_plot_line(ax, lon,  data, color, **kwargs)
         return ax
 
-def prep_contour_plot(adata, bdata, diffdata, pctdata=None, **kwargs):
+def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     """Preparation for making contour plots.
 
     Prepares for making contour plots of adata, bdata, diffdata, and pctdata, which is
@@ -1872,38 +1843,30 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata=None, **kwargs):
 
     if 'colormap' in kwargs:
         cmap1 = kwargs['colormap']
-        # Check if the colormap name exists in Matplotlib
-        if cmap1 not in plt.colormaps():
-            print(f"{cmap1} is not a matplotlib standard color map. Defaulting to 'coolwarm' for test/base plots")
-            cmap1 = 'coolwarm'
     else:
         cmap1 = 'coolwarm'
     #End if
 
-    if 'contour_levels' in kwargs: # list: Check if contours are specified as list
+    if 'contour_levels' in kwargs:
         levels1 = kwargs['contour_levels']
-        # Check if any item in the list is a string
-        contains_string = any(isinstance(item, str) for item in levels1)
-        if contains_string:
-            levels1 = [float(item) for item in levels1]
-        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
+        if ('non_linear' in kwargs) and (kwargs['non_linear']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    elif 'contour_levels_range' in kwargs: # arange: Check if the user wants to generate a list from start, stop, step
+    elif 'contour_levels_range' in kwargs:
         assert len(kwargs['contour_levels_range']) == 3, \
         "contour_levels_range must have exactly three entries: min, max, step"
 
         levels1 = np.arange(*kwargs['contour_levels_range'])
-        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
+        if ('non_linear' in kwargs) and (kwargs['non_linear']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    else: # linspace: Check if user wants to generate a list from start, stop, num_steps
+    else:
         levels1 = np.linspace(minval, maxval, 12)
-        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
+        if ('non_linear' in kwargs) and (kwargs['non_linear']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
@@ -1929,28 +1892,17 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata=None, **kwargs):
     # Difference options -- Check in kwargs for colormap and levels
     if "diff_colormap" in kwargs:
         cmapdiff = kwargs["diff_colormap"]
-        # Check if the colormap name exists in Matplotlib
-        if cmapdiff not in plt.colormaps():
-            print(f"{cmapdiff} is not a matplotlib standard color map. Defaulting to 'PuOr_r' for difference plots")
-            cmapdiff = 'PuOr_r'
     else:
-        cmapdiff = "PuOr_r"
+        cmapdiff = 'coolwarm'
     #End if
 
     if "diff_contour_levels" in kwargs:
         levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
-        contains_string = any(isinstance(item, str) for item in levelsdiff)
-        if contains_string:
-            levelsdiff = [float(item) for item in levelsdiff]
     elif "diff_contour_range" in kwargs:
         assert len(kwargs['diff_contour_range']) == 3, \
         "diff_contour_range must have exactly three entries: min, max, step"
-        contains_string = any(isinstance(item, str) for item in kwargs['diff_contour_range'])
-        if contains_string:
-            levelsdiff_convert = [float(item) for item in kwargs['diff_contour_range']]
-            levelsdiff = np.arange(*levelsdiff_convert)
-        else:
-            levelsdiff = np.arange(*kwargs['diff_contour_range'])
+
+        levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
         absmaxdif = np.max(np.abs(diffdata))
@@ -1958,26 +1910,20 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata=None, **kwargs):
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
         
     # Percent Difference options -- Check in kwargs for colormap and levels
-    if type(pctdata) != NoneType:
-        if "pct_diff_colormap" in kwargs:
-            cmappct = kwargs["pct_diff_colormap"]
-        else:
-            cmappct = 'coolwarm'
-        #End if
+    if "pct_diff_colormap" in kwargs:
+        cmappct = kwargs["pct_diff_colormap"]
+    else:
+        cmappct = "PuOr_r"
+    #End if
 
-        if "pct_diff_contour_levels" in kwargs:
-            levelspctdiff = kwargs["pct_diff_contour_levels"]  # a list of explicit contour levels
-        elif "pct_diff_contour_range" in kwargs:
-            assert len(kwargs['pct_diff_contour_range']) == 3, \
-            "pct_diff_contour_range must have exactly three entries: min, max, step"
-
+    if "pct_diff_contour_levels" in kwargs:
+        levelspctdiff = kwargs["pct_diff_contour_levels"]  # a list of explicit contour levels
+    elif "pct_diff_contour_range" in kwargs:
+            assert len(kwargs['pct_diff_contour_range']) == 3, "pct_diff_contour_range must have exactly three entries: min, max, step"
             levelspctdiff = np.arange(*kwargs['pct_diff_contour_range'])
-        else:
-            # set a symmetric color bar for diff:
-            absmaxpct = np.max(np.abs(pctdata))
-            # set levels for difference plot:
-            levelspctdiff = np.linspace(-1*absmaxpct, absmaxpct, 12)
-        #End if
+    else:
+        levelspctdiff = [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+    pctnorm = mpl.colors.BoundaryNorm(levelspctdiff,256)
 
     if "plot_log_pressure" in kwargs:
         plot_log_p = kwargs["plot_log_pressure"]
@@ -1989,14 +1935,6 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata=None, **kwargs):
         normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
     else:
         normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
-        
-    # color normalization for percent difference
-    if type(pctdata) != NoneType:
-        if "pct_diff_contour_levels" in kwargs:
-            normpct = mpl.colors.BoundaryNorm(levelspctdiff,256)
-        else :
-            normpct = mpl.colors.Normalize(vmin=np.min(levelspctdiff), vmax=np.max(levelspctdiff))
-        #End if
 
     subplots_opt = {}
     contourf_opt = {}
@@ -2012,7 +1950,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata=None, **kwargs):
         diff_colorbar_opt.update(kwargs['mpl'].get('diff_colorbar',{}))
         pct_colorbar_opt.update(kwargs['mpl'].get('pct_diff_colorbar',{}))
     #End if
-    contour_dict = {'subplots_opt': subplots_opt,
+    return {'subplots_opt': subplots_opt,
             'contourf_opt': contourf_opt,
             'colorbar_opt': colorbar_opt,
             'diff_colorbar_opt': diff_colorbar_opt,
@@ -2020,16 +1958,14 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata=None, **kwargs):
             'normdiff': normdiff,
             'cmapdiff': cmapdiff,
             'levelsdiff': levelsdiff,
+            'pctnorm': pctnorm,
+            'cmappct': cmappct,
+            'levelspctdiff':levelspctdiff,
             'cmap1': cmap1,
             'norm1': norm1,
             'levels1': levels1,
             'plot_log_p': plot_log_p
             }
-    if type(pctdata) != NoneType:
-        contour_dict['normpct'] = normpct
-        contour_dict['cmappct'] = cmappct
-        contour_dict['levelspctdiff'] = levelspctdiff
-    return contour_dict
 
 
 def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
@@ -2138,7 +2074,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
             img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3])
             ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
         else:
-            img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3], norm=cp_info['normpct'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
+            img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
             fig.colorbar(img3, ax=ax[3], location='right',**cp_info['pct_colorbar_opt'])
 
         ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
@@ -2371,7 +2307,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
             img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
             ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
         else:
-            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3], norm=cp_info['normpct'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
+            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
             cb3 = fig.colorbar(img3, ax=ax[3], location='right',**cp_info['colorbar_opt'])
 
         #Set plot titles
@@ -2608,869 +2544,6 @@ def square_contour_difference(fld1, fld2, **kwargs):
     cb2 = fig.colorbar(img3, cax=cbax_bot, orientation='horizontal')
     cb3 = fig.colorbar(img4, cax=cbax_bot, orientation='horizontal')
     return fig
-
-
-# WACCM Plots
-#############
-
-#Set monthly codes:
-month_dict = {1:'JAN',
-    		  2:'FEB',
-    		  3:'MAR',
-    		  4:'APR',
-    		  5:'MAY',
-    		  6:'JUN',
-    		  7:'JUL',
-    		  8:'AUG',
-    		  9:'SEP',
-    		  10:'OCT',
-    		  11:'NOV',
-    		  12:'DEC'}
-
-delta_symbol = r'$\Delta$'
-
-
-def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dict, obs_ds_dict, time_avg, interval, comp_plots_dict, obs_cam_vars):
-    """
-
-    """
-
-    #Get plotting details for variable
-    levs = np.arange(*comp_plots_dict[cam_var]["levs"])
-    diff_levs = np.arange(*comp_plots_dict[cam_var]["diff_levs"])
-    units = comp_plots_dict[cam_var]["units"]
-
-    #Grab obs variable corresponding to CAM variable
-    saber_var = obs_cam_vars['saber'][cam_var]
-    merra_var = obs_cam_vars['merra'][cam_var]
-
-    font_size = 6
-
-    #Get number of test cases (number of columns)
-    casenum = len(case_names)
-
-    #Number of obs to compare
-    #Currently, just compared to MERRA2 and SABER
-    obsnum = 2
-    nrows = obsnum+1
-
-    #Set up plot
-    fig = plt.figure(figsize=(casenum*4,nrows*5))
-
-    for idx,case_name in enumerate(case_names):
-
-        data_coords = case_ds_dict["coords"][case_name]
-
-        data_lev = data_coords['lev']
-        data_lat = data_coords['lat']
-
-        #Set lat/lev grid for plotting
-        [lat_grid, lev_grid] = np.meshgrid(data_lev,data_lat)
-
-        if time_avg == "season":
-
-            data_array = case_ds_dict["seasonal"][case_name][cam_var][interval]
-
-            #Make Obs interpolated field from case
-            merra_ds = obs_ds_dict["seasonal"]["merra"][merra_var][interval]
-            merra_rfield = merra_ds.interp(lat=data_lat, lev=data_lev, method='linear')
-
-            saber_ds = obs_ds_dict["seasonal"]["saber"][saber_var][interval]
-            saber_rfield = saber_ds.interp(lat=data_lat, lev=data_lev, method='linear')
-
-        if time_avg == "month":
-            case_ds_dict["monthly"]
-            str_month = interval
-            data_array = case_ds_dict["monthly"][case_name][cam_var][str_month]
-
-            #Make Obs interpolated fields from case
-            merra_ds = obs_ds_dict["monthly"]["merra"][merra_var][str_month]
-            merra_rfield = merra_ds.interp(lat=data_lat, lev=data_lev, method='linear')
-
-            saber_ds = obs_ds_dict["monthly"]["saber"][saber_var][str_month]
-            saber_rfield = saber_ds.interp(lat=data_lat, lev=data_lev, method='linear')
-
-        #Case plots (contours and contour fill)
-        #######################################
-
-        #Set up set of axes for first row
-        ax = fig.add_subplot(nrows, casenum, idx+1)
-
-        #Plot case contour fill
-        cf=plt.contourf(lev_grid, lat_grid,
-                        data_array.transpose(transpose_coords=True),
-                        levels=levs, cmap='RdYlBu_r')
-
-        #Plot case contours (for highlighting)
-        contour = plt.contour(lev_grid, lat_grid,
-                        data_array.transpose(transpose_coords=True),
-                    colors="black",linewidths=0.5,levels=levs,zorder=100)
-        fmt = {lev: '{:.0f}'.format(lev) for lev in contour.levels}
-        ax.clabel(contour, contour.levels[::2], inline=True, fmt=fmt, fontsize=8)
-
-        #Format axes
-        plt.yscale("log")
-
-        # Find the next value below highest vertical level
-        prev_major_tick = 10 ** (np.floor(np.log10(np.nanmin(data_lev))))
-        y_lims = [float(lim) for lim in [1e3,prev_major_tick]]
-        ax.set_ylim(y_lims)
-        
-        plt.xticks(np.arange(-90,91,45),rotation=40)
-        ax.tick_params(axis='x', labelsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
-            plt.ylabel('hPa',fontsize=10)
-        ax.tick_params(axis='y', labelsize=8)
-
-        #Set individual plot title
-        plt.title(case_nicknames[idx], fontsize=font_size)
-
-        #Make colorbar on last plot only
-        if idx == casenum-1:
-            axins = inset_axes(ax,
-                        width="5%",
-                        height="80%",
-                        loc='center right',
-                        borderpad=-1.5
-                       )
-            cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label=units)
-            cbar.ax.tick_params(axis='y', labelsize=8)
-            cbar.set_label(units, fontsize=10, labelpad=1)
-
-        #Difference with MERRA2 and MERRA2 contours
-        ###########################################
-
-        #Set up new set of axes for second row
-        ax = fig.add_subplot(nrows, casenum, casenum+idx+1)
-
-        #Plot interpolated contour
-        contour = plt.contour(lev_grid, lat_grid, merra_rfield.transpose(transpose_coords=True),
-                    colors='black', levels=levs,
-                    negative_linestyles='dashed', linewidths=.5, alpha=0.5)
-        #fmt = {lev: '{:.0f}'.format(lev) for lev in contour.levels}
-        #ax.clabel(contour, contour.levels[::4], inline=True, fmt=fmt, fontsize=8)
-
-        #Add a legend for the contour lines for first plot only
-        legend_elements = [Line2D([0], [0],
-                               color=contour.collections[0].get_edgecolor(),
-                               label=f'MERRA2 interp {cam_var}')]
-
-        ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
-        #End if
-
-        #Plot difference contour fill
-        cf=plt.contourf(lev_grid, lat_grid,
-                        (data_array-merra_rfield).transpose(transpose_coords=True),
-                        levels=diff_levs, cmap='RdYlBu_r')
-        #fmt = {lev: '{:.0f}'.format(lev) for lev in cf.levels}
-        #ax.clabel(cf, cf.levels[::3], inline=True, fmt=fmt, fontsize=8)
-
-        #Plot case contours (for highlighting)
-        contour = plt.contour(lev_grid, lat_grid,
-                        (data_array-merra_rfield).transpose(transpose_coords=True),
-                    colors="black",linewidths=0.5,levels=diff_levs[::2],zorder=100)
-        fmt = {lev: '{:.0f}'.format(lev) for lev in contour.levels}
-        ax.clabel(contour, contour.levels, inline=True, fmt=fmt, fontsize=8)
-
-        #Format axes
-        plt.yscale("log")
-
-        # Find the next value below highest vertical level
-        prev_major_tick = 10 ** (np.floor(np.log10(np.nanmin(data_lev))))
-        y_lims = [float(lim) for lim in [1e3,prev_major_tick]]
-        ax.set_ylim(y_lims)
-
-        plt.xticks(np.arange(-90,91,45),rotation=40)
-        ax.tick_params(axis='x', labelsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
-            plt.ylabel('hPa',fontsize=10)
-
-        ax.tick_params(axis='y', labelsize=8)
-
-        #Set individual plot title
-        local_title = f'{case_nicknames[idx]}\n {delta_symbol} from MERRA2'
-        plt.title(local_title, fontsize=font_size)
-
-        #Make colorbar on last plot only
-        if idx == casenum-1:
-            axins = inset_axes(ax,
-                        width="5%",
-                        height="80%",
-                        loc='center right',
-                        borderpad=-1.5
-                       )
-            cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label=units)
-            cbar.ax.tick_params(axis='y', labelsize=8)
-            cbar.set_label(units, fontsize=10, labelpad=1)
-
-        #Difference with SABER and SABER contours (Temp only)
-        #####################################################
-        if cam_var == "T":
-            #Set up new set of axes for third row
-            ax = fig.add_subplot(nrows, casenum, (casenum*2)+idx+1)
-
-            #Plot interpolated contour
-            contour = plt.contour(lev_grid, lat_grid, saber_rfield.transpose(transpose_coords=True),
-                        colors='black', levels=levs,
-                        negative_linestyles='dashed', linewidths=.5, alpha=0.5)
-            #Add a legend for the contour lines for first plot only
-            legend_elements = [Line2D([0], [0],
-                                color=contour.collections[0].get_edgecolor(),
-                                label='SABER interp T')]
-
-            ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
-            #End if
-
-            #Plot difference contour fill
-            cf=plt.contourf(lev_grid, lat_grid,
-                            (data_array-saber_rfield).transpose(transpose_coords=True),
-                            levels=diff_levs, cmap='RdYlBu_r')
-
-            #Plot case contours (for highlighting)
-            contour = plt.contour(lev_grid, lat_grid,
-                            (data_array-saber_rfield).transpose(transpose_coords=True),
-                        colors="black",linewidths=0.5,levels=diff_levs,zorder=100)
-            fmt = {lev: '{:.0f}'.format(lev) for lev in contour.levels}
-            ax.clabel(contour, contour.levels[::2], inline=True, fmt=fmt, fontsize=8)
-
-            #Format axes
-            plt.yscale("log")
-
-            # Find the next value below highest vertical level
-            prev_major_tick = 10 ** (np.floor(np.log10(np.nanmin(data_lev))))
-            y_lims = [float(lim) for lim in [1e3,prev_major_tick]]
-
-            ax.set_ylim(y_lims)
-
-            plt.xticks(np.arange(-90,91,45),rotation=40)
-            ax.tick_params(axis='x', labelsize=8)
-            if idx > 0:
-                plt.yticks([])
-            else:
-                plt.ylabel('hPa',fontsize=10)
-            ax.tick_params(axis='y', labelsize=8)
-
-            #Set individual plot title
-            local_title = f'{case_nicknames[idx]}\n {delta_symbol} from SABER'
-            plt.title(local_title, fontsize=font_size)
-
-            #Make colorbar on last plot only
-            if idx == casenum-1:
-                axins = inset_axes(ax,
-                            width="5%",
-                            height="80%",
-                            loc='center right',
-                            borderpad=-1.5
-                        )
-                cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label=units)
-                cbar.ax.tick_params(axis='y', labelsize=8)
-                # Set the font size for the colorbar label
-                cbar.set_label(units, fontsize=10, labelpad=1)
-
-    #Set up main plot title
-    plt.suptitle(f"Zonal Mean {cam_var} - {interval}",fontsize=12,y=0.91)
-    
-    fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-
-    plt.close()
-
-
-
-def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, merra2_monthly, pcap_dict):
-    """
-    """
-
-    levs = np.arange(*pcap_dict["T"]["levs"])
-
-    #Get number of test cases (number of columns)
-    casenum = len(case_names)
-
-    font_size = 6
-    if hemi == "s":
-        slat = -90
-        nlat = -60
-        title_ext = f"{np.abs(nlat)}-{np.abs(slat)}\u00b0S"
-
-    if hemi == "n":
-        slat = 60
-        nlat = 90
-        title_ext = f"{slat}-{nlat}\u00b0N"
-
-    ncols = 4
-    nrows = 2
-
-    fig = plt.figure(figsize=(casenum*4,nrows*5))
-
-    for idx,case_name in enumerate(case_names):
-        ds = cases_coords[case_name]
-        ds_month = cases_monthly[case_name]
-
-        rfield_seas = np.zeros((12,len(ds['lev']),len(ds['lat'])))
-        rfield_seas = xr.DataArray(rfield_seas, dims=['month','lev', 'lat'],
-                                            coords={'month': np.arange(1,13,1),
-                                                    'lev': ds['lev'],
-                                                    'lat': ds['lat']})
-
-        case_seas = np.zeros((12,len(ds['lev']),len(ds['lat'])))
-        case_seas = xr.DataArray(case_seas, dims=['month','lev', 'lat'],
-                                 coords={'month': np.arange(1,13,1),
-                                         'lev': ds['lev'],
-                                         'lat': ds['lat']})
-        #Make array of monthly temp data
-        for m in range(0,12):
-            rfield_seas[m] = merra2_monthly['T'][month_dict[m+1]].interp(lat=ds['lat'], lev=ds['lev'],
-                                                                method='linear')
-            case_seas[m] = ds_month['T'][month_dict[m+1]]
-
-        #Average over set of latitudes
-        merra2_pcap = coslat_average(rfield_seas,slat,nlat)
-        case_pcap = coslat_average(case_seas,slat,nlat)
-
-        #
-        [time_grid, lev_grid] = np.meshgrid(ds['lev'],np.arange(0,12))
-
-        #Set up first row - Temps
-        ax = fig.add_subplot(nrows, casenum, idx+1)
-        cf=plt.contourf(lev_grid, time_grid, case_pcap,
-                        levels=levs,cmap='RdYlBu_r'
-                       ) #np.arange(-10,11,1)
-        c0=plt.contour(lev_grid, time_grid, case_pcap, colors='grey',
-                           levels=levs[::2],
-                           negative_linestyles='dashed',
-                           linewidths=.5, alpha=1)
-        fmt = {lev: '{:.0f}'.format(lev) for lev in c0.levels}
-        ax.clabel(c0, c0.levels, inline=True, fmt=fmt, fontsize=8)
-
-        #Format the axes
-        plt.yscale("log")
-        ax.set_ylim(300,1)
-        ax.set_yticks([300,100,30,10,1])
-        ax.set_xticks(np.arange(0,12,2))#,rotation=40
-        ax.set_xticklabels(('Jan','Mar','May','Jul','Sep','Nov'),rotation=40,fontsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
-            ax.set_yticklabels(["","$10^{2}$","","$10^{1}$","1"],fontsize=10)
-            plt.ylabel('hPa',fontsize=10)
-        
-        #Set title
-        local_title=f"{case_names[idx]}"
-        plt.title(local_title, fontsize=font_size)
-
-        #Make colorbar on last plot only
-        if idx == casenum-1:
-            axins = inset_axes(ax,
-                        width="5%",
-                        height="80%",
-                        loc='center right',
-                        borderpad=-1.5
-                       )
-            cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label="K")
-            cbar.ax.tick_params(axis='y', labelsize=8)
-            cbar.set_label("K", fontsize=10, labelpad=1)
-
-
-        #Set up second row - Temp anomlies and Merra2 contours
-        ax = fig.add_subplot(nrows, casenum, casenum+idx+1)
-        clevs = np.arange(-10,11,1)
-        cf=plt.contourf(lev_grid, time_grid, (case_pcap-merra2_pcap),
-                        levels=np.arange(-10,11,1),cmap='RdYlBu_r'
-                       ) #np.arange(-10,11,1)
-        c0=plt.contour(lev_grid, time_grid, (case_pcap-merra2_pcap), colors='grey',
-                           levels=clevs[::3],
-                           negative_linestyles='dashed',
-                           linewidths=.5, alpha=1)
-        fmt = {lev: '{:.0f}'.format(lev) for lev in c0.levels}
-        ax.clabel(c0, c0.levels, inline=True, fmt=fmt, fontsize=8)
-
-        c=plt.contour(lev_grid, time_grid, merra2_pcap, colors='black',
-                           levels=levs,
-                           negative_linestyles='dashed',
-                           linewidths=.5, alpha=0.5)
-
-        #fmt = {lev: '{:.0f}'.format(lev) for lev in c.levels}
-        #ax.clabel(c, c.levels, inline=True, fmt=fmt, fontsize=8)
-
-        #Add a legend for the contour lines for first plot only
-        legend_elements = [Line2D([0], [0],
-                               color=c.collections[0].get_edgecolor(),
-                               label='MERRA2 interp T')]
-
-        ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
-        #Format the axes
-        plt.yscale("log")
-        ax.set_ylim(300,1)
-        ax.set_yticks([300,100,30,10,1])
-        ax.set_xticks(np.arange(0,12,2))#,rotation=40
-        ax.set_xticklabels(('Jan','Mar','May','Jul','Sep','Nov'),rotation=40,fontsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
-            ax.set_yticklabels(["","$10^{2}$","","$10^{1}$","1"],fontsize=10)
-            plt.ylabel('hPa',fontsize=10)
-
-        #Set title
-        local_title=f"{case_names[idx]}\n {delta_symbol} from MERRA2"
-        plt.title(local_title, fontsize=font_size)
-
-        #Make colorbar on last plot only
-        if idx == casenum-1:
-            axins = inset_axes(ax,
-                                width="5%",
-                                height="80%",
-                                loc='center right',
-                                borderpad=-1.5
-                               )
-            cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label='K', ticks=np.arange(-9,10,3))
-            cbar.ax.tick_params(axis='y', labelsize=8)
-            # Set the font size for the colorbar label
-            cbar.set_label("K", fontsize=10, labelpad=1)
-
-    if hemi == "s":
-        ptype = "SHPolar"
-    if hemi == "n":
-        ptype = "NHPolar"
-
-    fig.suptitle(f"{hemi.upper()}H Polar Cap Temp Anomolies - {title_ext}",fontsize=12,y=0.93) #,horizontalalignment="center"
- 
-    fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-    
-    #Close plots:
-    plt.close()
-########
-
-
-def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, climo_yrs, case_runs, cases_monthly, vert_lev):
-    """
-    """
-
-    ahh = []
-    for i in list(month_dict.keys())[::3]:
-        ahh.append(month_dict[i].lower().capitalize())
-
-    #Grab values for the month vs lat plot in variable defaults yaml file
-    slat = var_dict[var]["slat"]
-    nlat = var_dict[var]["nlat"]
-    cmap = var_dict[var]["cmap"]
-    diff_cmap = var_dict[var]["diff_cmap"]
-    levs = np.arange(*var_dict[var]["levels"])
-    diff_levs = np.arange(*var_dict[var]["diff_levels"])
-    units = var_dict[var]["units"]
-    title = var_dict[var]["title"]
-    y_labels = var_dict[var]["y_labels"]
-    tick_inter = var_dict[var]["tick_inter"]
-
-
-    nplots = len(case_names)
-    if nplots > 4:
-        ncols = 4
-    else:
-        ncols = nplots
-    #End if
-    ncols = 2
-    nrows = int(np.ceil(nplots/ncols))
-
-    # create figure:
-    fig = plt.figure(figsize=(18,10))
-
-    # LAYOUT WITH GRIDSPEC
-    gs = mpl.gridspec.GridSpec(4, 8, wspace=4,hspace=0.5)
-    ax1 = plt.subplot(gs[0:2, :4])
-    ax2 = plt.subplot(gs[0:2, 4:])
-    ax3 = plt.subplot(gs[2:, 2:6])
-    ax = [ax1,ax2,ax3]
-
-    #
-    pcap_vals = {}
-
-    for idx,case_name in enumerate(case_names):
-        ds = case_runs[case_name]
-        ds_month = cases_monthly[case_name]
-
-        #Make 24 months so we can have Jan-Dec repeated twice
-        case_seas = np.zeros((25,len(ds['lev']),len(ds['lat'])))
-        case_seas = xr.DataArray(case_seas, dims=['month','lev', 'lat'],
-                                 coords={'month': np.arange(1,26,1),
-                                         'lev': ds['lev'],
-                                         'lat': ds['lat']})
-        #Make array of monthly temp data
-        for m in range(0,25):
-            month = m
-            if m > 11:
-                month = m-12
-            if month == 12:
-                month = 0
-
-            case_seas[m] = ds_month[var][month_dict[month+1]]
-
-        #Average over set of latitudes
-        case_pcap = coslat_average(case_seas,slat,nlat)
-        case_pcap = case_seas.sel(lev=vert_lev,method="nearest").sel(lat=slice(slat, nlat))
-        if var == "Q":
-            case_pcap = case_pcap*1e6
-
-        pcap_vals[case_name] = case_pcap
-
-        #
-        [time_grid, lat_grid] = np.meshgrid(ds['lat'].sel(lat=slice(slat, nlat)),
-                                            np.arange(0,25))
-        #Set up plot
-        cf=ax[idx].contourf(lat_grid, time_grid, (case_pcap),
-                        levels=levs,
-                        cmap=cmap,#zorder=100
-                      )
-        c=ax[idx].contour(lat_grid, time_grid, (case_pcap),
-                        levels=levs,
-                        colors='k',linewidths=0.5,alpha=0.5
-                      )
-        
-        # add contour labels
-        #lb = plt.clabel(c, fontsize=6, inline=True, fmt='%r')
-
-        # Format contour labels
-        if var == "T":
-            fmt = {lev: '{:.0f}'.format(lev) for lev in c.levels}
-        else:
-            fmt = {lev: '{:.1f}'.format(lev) for lev in c.levels}
-        ax[idx].clabel(c, c.levels, inline=True, fmt=fmt, fontsize=8)
-
-        #Add a horizontal line at 0 degrees latitude
-        ax[idx].axhline(0, color='grey', linestyle='-',zorder=200,alpha=0.7)
-
-        #Format the x-axis
-        ax[idx].set_xticks(np.arange(0,25,3))#,rotation=40
-        ax[idx].set_xticklabels(ahh+ahh+["Jan"],rotation=40)
-
-        #Set title
-        if idx == 0:
-            plot_title = "$\mathbf{Test}:$"+f"{case_nicknames[0]}\nyears: {climo_yrs[0][0]}-{climo_yrs[1][0]}"
-        if idx == 1:
-            plot_title = "$\mathbf{Baseline}:$"+f"{case_nicknames[1]}\nyears: {climo_yrs[0][1]}-{climo_yrs[1][1]}"
-        ax[idx].set_title(plot_title, loc='left', fontsize=10)
-
-        #Check for start of new row
-        if idx % 2 == 0:
-            row = idx // 2 + 1
-
-        #Add latitude label to first column of each row
-        ax[idx].set_ylabel('Latitude',fontsize=10)
-
-        #Format the y-axis
-        ax[idx].set_yticks(np.arange(slat,nlat+1,tick_inter))
-        ax[idx].set_yticklabels(y_labels,fontsize=10)
-
-        axins = inset_axes(ax[idx],
-                                width="3%",
-                                height="80%",
-                                loc='center right',
-                                borderpad=-2
-                               )
-        cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label=units,
-                                    #ticks=levs
-                                   )
-        cbar.add_lines(c)
-        cbar.ax.tick_params(axis='y', labelsize=8)
-        # Set the font size for the colorbar label
-        cbar.set_label(units, fontsize=10, labelpad=1)
-    #End cases
-
-
-    #Difference Plots
-    #----------------
-    idx = 2
-    diff_pcap = pcap_vals[case_names[0]] - pcap_vals[case_names[1]]
-
-    #
-    [time_grid, lat_grid] = np.meshgrid(ds['lat'].sel(lat=slice(slat, nlat)),
-                                            np.arange(0,25))
-    #Set up plot
-    cf=ax[idx].contourf(lat_grid, time_grid, (diff_pcap),
-                        levels=diff_levs,
-                        cmap=diff_cmap,#zorder=100
-                      )
-    c=ax[idx].contour(lat_grid, time_grid, (diff_pcap),
-                        levels=diff_levs[::2],
-                        colors='k',linewidths=0.5,alpha=0.5
-                      )
-        
-    # add contour labels
-    #lb = plt.clabel(c, fontsize=6, inline=True, fmt='%r')
-
-    # Format contour labels
-    if var == "T":
-        fmt = {lev: '{:.0f}'.format(lev) for lev in c.levels}
-    else:
-        fmt = {lev: '{:.1f}'.format(lev) for lev in c.levels}
-    ax[idx].clabel(c, c.levels, inline=True, fmt=fmt, fontsize=8)
-
-    #Add a horizontal line at 0 degrees latitude
-    ax[idx].axhline(0, color='grey', linestyle='-',zorder=200,alpha=0.7)
-
-    #Format the x-axis
-    ax[idx].set_xticks(np.arange(0,25,3))#,rotation=40
-    ax[idx].set_xticklabels(ahh+ahh+["Jan"],rotation=40)
-
-    #Set title
-    local_title="$\mathbf{Test} - \mathbf{Baseline}$" #"Test - Baseline"#case_names[idx]
-    ax[idx].set_title(local_title, fontsize=10)
-
-    #Add latitude label to first column of each row 
-    ax[idx].set_ylabel('Latitude',fontsize=10)
-
-    #Format the y-axis
-    ax[idx].set_yticks(np.arange(slat,nlat+1,tick_inter))
-    ax[idx].set_yticklabels(y_labels,fontsize=10)
-
-    axins = inset_axes(ax[idx],
-                                width="3%",
-                                height="80%",
-                                loc='center right',
-                                borderpad=-2
-                               )
-    cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label=units,
-                                    #ticks=levs
-                                   )
-    cbar.add_lines(c)
-    cbar.ax.tick_params(axis='y', labelsize=8)
-    # Set the font size for the colorbar label
-    cbar.set_label(units, fontsize=10, labelpad=1)
-
-    plt.suptitle(f"{title} - {vert_lev}hPa",fontsize=20,y=0.97)
-
-    fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-
-
-########
-
-#WACCM QBO
-import numpy as np
-
-def qbo_amplitude(data):
-    """
-    Calculate the QBO amplitude
-    """
-    
-    from scipy.signal import convolve
-    
-    boxcar = np.ones((6, 1)) / 6
-    filtered_data = convolve(data, boxcar, mode='valid')
-    amplitude=np.std(filtered_data, axis=0)
-    
-    return amplitude
-
-
-def qbo_frequency(data):
-    """
-    Calculate the QBO frequency
-    """
-    
-    [dt,dx]=data.shape
-    dt2=int(dt/2)
-    f=1*np.arange(0,dt2+1,1)/dt
-    f=f[1:]
-    f = np.tile(f, (dx, 1)).swapaxes(0,1)
-    
-    fft_data = np.fft.fft(data, axis=0)
-    fft_data = fft_data[1:dt2+1,:]
-    
-    power_spectrum = np.abs(fft_data)**2
-    
-    period=np.sum(power_spectrum*(1/f),axis=0)/np.sum(power_spectrum,axis=0)
-    
-    return period
-  
-
-def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, eyear_cases):
-    """
-    
-    """
-
-    def format_side_axes(axes, side_axis, x, merra_data, data=None, case_lev=None, merra=False):
-        """
-        Format the period and amplitiude side axes
-        """
-        axes[side_axis].plot(merra_data,merra2['lev'],color='k')# s=1
-        axes[side_axis].set_ylim(y_lims[0],y_lims[1])
-        axes[side_axis].set_yscale("log")
-
-        if merra==False:
-            axes[side_axis].plot(data,case_lev)#linewidths=1
-        if x == "period":
-            axes[side_axis].set_xlim(0,40)
-            axes[side_axis].set_xticks(np.arange(0,41,10))
-            axes[side_axis].set_xticklabels(np.arange(0,41,10),fontsize=8)
-            axes[side_axis].set_xlabel('months',fontsize=10)
-        if x == "amplitude":
-            axes[side_axis].set_xlim(0,20)
-            axes[side_axis].set_xticks(np.arange(0,21,5))
-            axes[side_axis].set_xticklabels(np.arange(0,21,5),fontsize=8)
-            axes[side_axis].set_xlabel('m/s',fontsize=10)
-        axes[side_axis].set_yticks([])
-        return axes
-
-    def advance_string(input_string):
-        advanced_chars = [chr(ord(char) + 3) if char.isalpha() else char for char in input_string]
-        advanced_string = ''.join(advanced_chars)
-        return advanced_string
-
-
-    #Build subplot mosiac based off number of CAM cases
-    input_string0 = 'AAAABC'
-    ahh = []
-    ahh.append(input_string0)
-    for i in range(len(case_names)):
-        if i ==0:
-            input_string = advance_string(input_string0)
-        else:
-            input_string = advance_string(input_string)
-            input_string = f"{input_string}"
-        ahh.append(input_string)
-
-    main_key = []
-    side1_key = []
-    side2_key = []
-    mos_str = input_string0
-    for idx,i in enumerate(ahh):
-        if idx != 0:
-            mos_str += f";{i}"
-        main_key.append(i[0])
-        side1_key.append(i[-2])
-        side2_key.append(i[-1])
-
-    fig, axes = plt.subplot_mosaic(mos_str,figsize=(12,5*len(case_names)))
-
-    y = 1.00
-    y_lims = [100,0.1]
-
-    contour_levels = np.arange(-35, 36, 2.5)
-
-    #Plot MERRA2 last; this will be based on number of CAM cases
-    merra_idx = len(case_names)
-
-    nt = 120
-    plotdata = coslat_average(merra2['U'],-10,10)
-
-    plotdata_clip = np.clip(np.abs(plotdata), None, 35)
-    plotdata=np.sign(plotdata)*plotdata_clip
-    [time_grid, lev_grid] = np.meshgrid(merra2['lev'],np.arange(1,nt+1,1))
-    start_ind=240
-    end_ind=start_ind+nt
-
-    data = plotdata[start_ind:end_ind,:]
-    cf = axes[main_key[merra_idx]].contourf(lev_grid, time_grid, data,
-                                        levels=contour_levels, cmap='RdBu_r')
-
-    c = axes[main_key[merra_idx]].contour(lev_grid, time_grid, data, alpha=0.75,linewidths=0.3,
-                                        levels=contour_levels[::5], colors='k',linestyles=['dashed' if val < 0 else 'solid' for val in np.unique(data)])
-    # add contour labels
-    lb = plt.clabel(c, fontsize=6, inline=True, fmt='%r')
-
-    axins = inset_axes(axes[main_key[merra_idx]], width="100%", height="5%", loc='lower center', borderpad = -3.5)
-    cbar = fig.colorbar(cf, cax=axins, orientation="horizontal", label="m/s",
-                                        ticks=contour_levels[::2])
-    cbar.ax.tick_params(axis='x', labelsize=8)
-    # Set the font size for the colorbar label
-    cbar.set_label("m/s", fontsize=10, labelpad=1)
-
-    axes[main_key[merra_idx]].set_ylim(y_lims[0],y_lims[1])
-    axes[main_key[merra_idx]].set_yscale("log")
-    axes[main_key[merra_idx]].set_ylabel('hPa',fontsize=10)
-    axes[main_key[merra_idx]].tick_params(axis='y', labelsize=8)
-    axes[main_key[merra_idx]].set_title("MERRA2",y=y,fontsize=10)
-    axes[main_key[merra_idx]].set_xticks(np.arange(1,nt+1,12))#,rotation=40
-    axes[main_key[merra_idx]].set_xticklabels(np.arange(1,nt+1,12),rotation=40)
-
-    start_year = int(str(plotdata[start_ind].time.values)[0:4])
-    axes[main_key[merra_idx]].set_xticklabels(np.arange(start_year,start_year+(nt/12),1).astype(int),fontsize=8)
-
-    #MERRA QBO Amplitude side axis
-    amp_m = qbo_amplitude(plotdata)
-    axes = format_side_axes(axes,side1_key[merra_idx],"amplitude",amp_m,merra=True)
-
-    #MERRA QBO Period side axis
-    period_m = qbo_frequency(plotdata)
-    axes = format_side_axes(axes,side2_key[merra_idx],"period",period_m,merra=True)
-
-    #Loop over CAM case data
-    for idx,case_name in enumerate(case_names):
-        case_data = case_runs[case_name]
-        nickname = nicknames[idx]
-        yrs = syear_cases[idx]
-        last_yr = eyear_cases[idx]
-        
-        #Get number of time steps
-        nt = len(case_data['time'])
-        #If the number is greater than 10 years, clip it to 10 years?
-        if nt > 120:
-            nt_sub = 120
-        else:
-            nt_sub = nt
-
-        [time_grid, lev_grid] = np.meshgrid(case_data['lev'],np.arange(0,nt_sub+1,1))
-
-        contour_levels = np.arange(-35, 35, 2.5)
-
-        plotdata = coslat_average(case_data['U'],-10,10)
-        plotdata_clip = np.clip(np.abs(plotdata), None, 35)
-        plotdata=np.sign(plotdata)*plotdata_clip
-
-        #TODO: this will need to be adjusted??
-        #Curently this is finding (start_idx)th month and then going out 9 years
-        #QUESTION: what if the data doesn't have 9 years? - we will need to clip this...
-        start_idx = 0
-
-        end_idx = start_idx+nt+1
-
-        yr0 = int(yrs+int(start_idx/12))
-
-        cf = axes[main_key[idx]].contourf(lev_grid[start_idx:end_idx-1,:], time_grid[start_idx:end_idx-1,:], plotdata[start_idx:end_idx,:],
-                                    levels=contour_levels, cmap='RdBu_r')
-
-        c = axes[main_key[idx]].contour(lev_grid[start_idx:end_idx-1,:], time_grid[start_idx:end_idx-1,:], plotdata[start_idx:end_idx,:],
-                                    levels=contour_levels[::5], colors='k',alpha=0.75,linewidths=0.5)
-        # add contour labels
-        lb = plt.clabel(c, fontsize=6, inline=True, fmt='%r')
-
-        axes[main_key[idx]].set_ylim(y_lims[0],y_lims[1])
-        axes[main_key[idx]].set_yscale("log")
-        axes[main_key[idx]].set_ylabel('hPa',fontsize=10)
-        axes[main_key[idx]].tick_params(axis='y', labelsize=8)
-        axes[main_key[idx]].set_title(nickname,y=y,fontsize=10)
-
-        # Set the x-axis limits
-        axes[main_key[idx]].set_xticks(range(0, 12*11, 12))
-        axes[main_key[idx]].set_xlim(0, 12*10)
-
-        need_yrs = []
-        for i in range((yr0+10)-last_yr):
-            need_yrs.append(yr0+i)
-        
-        axes[main_key[idx]].set_xticklabels(np.arange(yr0, yr0+11, 1), fontsize=8)
-
-        #Case QBO Amplitude side axis
-        amp = qbo_amplitude(plotdata)
-        axes = format_side_axes(axes, side1_key[idx], "amplitude",amp_m,amp,case_data['lev'])
-
-        #Case QBO Period side axis
-        period = qbo_frequency(plotdata)
-        axes = format_side_axes(axes, side2_key[idx], "period",period_m,period,case_data['lev'])
-
-        #Label first row of side axes only
-        if idx==0:
-            axes[side1_key[idx]].set_title('Amplitude',y=y,fontsize=12)
-            axes[side2_key[idx]].set_title('Period',y=y,fontsize=12)
-
-    # Adjust the vertical spacing (hspace)
-    plt.subplots_adjust(hspace=0.35)
-
-    fig.suptitle(f"QBO Diagnostics",fontsize=16,y=0.93,horizontalalignment="center")
-
-    fig.savefig(plot_name, bbox_inches='tight', dpi=300)
-
 
 #####################
 #END HELPER FUNCTIONS
