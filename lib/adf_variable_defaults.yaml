@@ -2070,7 +2070,6 @@ uzm:
   units: m s-1
   mpl:
     colorbar:
-      #ticks: [-5,-1,-0.2,0.2,1,5]
       label : "m/s"
   long_name: Zonal mean zonal wind ($\bar{u}$)
   obs_file: "TEM_ERA5.nc"
