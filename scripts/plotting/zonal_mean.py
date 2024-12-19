@@ -44,7 +44,11 @@ def zonal_mean(adfobj):
 
     print("\n  Generating zonal mean plots...")
 
+    #Variable list
     var_list = adfobj.diag_var_list
+    #Remove unneccasry vairbale from plotting
+    if "PMID" in var_list:
+        var_list.remove("PMID")
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables:

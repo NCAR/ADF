@@ -51,7 +51,12 @@ def global_latlon_vect_map(adfobj):
     #
     # Use ADF api to get all necessary information
     #
+    #Variable list
     var_list = adfobj.diag_var_list
+    #Remove unneccasry vairbale from plotting
+    if "PMID" in var_list:
+        var_list.remove("PMID")
+
     model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
     #Special ADF variable which contains the output path for
