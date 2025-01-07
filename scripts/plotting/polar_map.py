@@ -161,13 +161,9 @@ def polar_map(adfobj):
                 data_name = data_src
             else:
                 oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
-
-            if len(oclim_fils) > 1:
-                oclim_ds = xr.open_mfdataset(oclim_fils, combine='by_coords')
-            elif len(oclim_fils) == 1:
-                sfil = str(oclim_fils[0])
-                oclim_ds = xr.open_dataset(sfil)
-            else:
+           
+            oclim_ds = pf.load_dataset(oclim_fils)
+            if oclim_ds is None:
                 print("WARNING: Did not find any oclim_fils. Will try to skip.")
                 print(f"INFO: Data Location, dclimo_loc is {dclimo_loc}")
                 print(f"INFO: The glob is: {data_src}_{var}_*.nc")
@@ -190,11 +186,8 @@ def polar_map(adfobj):
                 # load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
 
-                if len(mclim_fils) > 1:
-                    mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
-                elif len(mclim_fils) == 1:
-                    mclim_ds = xr.open_dataset(mclim_fils[0])
-                else:
+                mclim_ds = pf.load_dataset(mclim_fils)
+                if mclim_ds is None:
                     print("WARNING: Did not find any regridded climo files. Will try to skip.")
                     print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
                     print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
@@ -244,6 +237,7 @@ def polar_map(adfobj):
                         mseasons = {}
                         oseasons = {}
                         dseasons = {} # hold the differences
+                        pseasons = {} # hold percent change
 
                         #Loop over season dictionary:
                         for s in seasons:
@@ -251,6 +245,14 @@ def polar_map(adfobj):
                             oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
                             # difference: each entry should be (lat, lon)
                             dseasons[s] = mseasons[s] - oseasons[s]
+                            dseasons[s].attrs['units'] = mseasons[s].attrs['units']
+                            
+                            # percent change 
+                            pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 # relative change
+                            pseasons[s].attrs['units'] = '%'
+                            #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
+                            pseasons[s] = pseasons[s].where(np.isfinite(pseasons[s]), np.nan)
+                            pseasons[s] = pseasons[s].fillna(0.0)
 
                             # make plots: northern and southern hemisphere separately:
                             for hemi_type in ["NHPolar", "SHPolar"]:
@@ -289,7 +291,7 @@ def polar_map(adfobj):
                                     pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
                                                      [syear_baseline,eyear_baseline],
-                                                     mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, obs=obs, **vres)
+                                                     mseasons[s], oseasons[s], dseasons[s], pseasons[s], hemisphere=hemi, obs=obs, **vres)
 
                                     #Add plot to website (if enabled):
                                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
@@ -323,6 +325,7 @@ def polar_map(adfobj):
                             mseasons = {}
                             oseasons = {}
                             dseasons = {} # hold the differences
+                            pseasons = {} # hold percent change
 
                             #Loop over season dictionary:
                             for s in seasons:
@@ -330,6 +333,14 @@ def polar_map(adfobj):
                                 oseasons[s] = (pf.seasonal_mean(odata, season=s, is_climo=True)).sel(lev=pres)
                                 # difference: each entry should be (lat, lon)
                                 dseasons[s] = mseasons[s] - oseasons[s]
+                                dseasons[s].attrs['units'] = mseasons[s].attrs['units']
+                                
+                                # percent change
+                                pseasons[s] = (mseasons[s] - oseasons[s]) / abs(oseasons[s]) * 100.0 # relative change
+                                pseasons[s].attrs['units'] = '%'
+                                #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
+                                pseasons[s] = pseasons[s].where(np.isfinite(pseasons[s]), np.nan)
+                                pseasons[s] = pseasons[s].fillna(0.0)
 
                                 # make plots: northern and southern hemisphere separately:
                                 for hemi_type in ["NHPolar", "SHPolar"]:
@@ -369,7 +380,7 @@ def polar_map(adfobj):
                                         pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
                                                      [syear_baseline,eyear_baseline],
-                                                     mseasons[s], oseasons[s], dseasons[s], hemisphere=hemi, obs=obs, **vres)
+                                                     mseasons[s], oseasons[s], dseasons[s], pseasons[s], hemisphere=hemi, obs=obs, **vres)
 
                                         #Add plot to website (if enabled):
                                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa",

@@ -59,6 +59,10 @@ def regrid_and_vert_interp(adf):
     case_names = adf.get_cam_info("cam_case_name", required=True)
     input_climo_locs = adf.get_cam_info("cam_climo_loc", required=True)
 
+    #Grab case years
+    syear_cases = adf.climo_yrs["syears"]
+    eyear_cases = adf.climo_yrs["eyears"]
+
     #Check if mid-level pressure, ocean fraction or land fraction exist
     #in the variable list:
     for var in ["PMID", "OCNFRAC", "LANDFRAC"]:
@@ -91,6 +95,9 @@ def regrid_and_vert_interp(adf):
     #Regrid target variables (either obs or a baseline run):
     if adf.compare_obs:
 
+        #Set obs name to match baseline (non-obs)
+        target_list = ["Obs"]
+
         #Extract variable-obs dictionary:
         var_obs_dict = adf.var_obs_dict
 
@@ -107,6 +114,13 @@ def regrid_and_vert_interp(adf):
         target_loc = adf.get_baseline_info("cam_climo_loc", required=True)
         target_list = [adf.get_baseline_info("cam_case_name", required=True)]
     #End if
+
+    #Grab baseline years (which may be empty strings if using Obs):
+    syear_baseline = adf.climo_yrs["syear_baseline"]
+    eyear_baseline = adf.climo_yrs["eyear_baseline"]
+
+    #Set attributes dictionary for climo years to save in the file attributes
+    base_climo_yrs_attr = f"{target_list[0]}: {syear_baseline}-{eyear_baseline}"
 
     #-----------------------------------------
 
@@ -136,6 +150,10 @@ def regrid_and_vert_interp(adf):
         #pressure and mid-level pressure fields:
         ps_loc_dict = {}
         pmid_loc_dict = {}
+
+        #Get climo years for case
+        syear = syear_cases[case_idx]
+        eyear = eyear_cases[case_idx]
 
         # probably want to do this one variable at a time:
         for var in var_list:
@@ -274,6 +292,15 @@ def regrid_and_vert_interp(adf):
                     #End if
 
                     #Finally, write re-gridded data to output file:
+                    #Convert the list of Path objects to a list of strings
+                    climatology_files_str = [str(path) for path in mclim_fils]
+                    climatology_files_str = ', '.join(climatology_files_str)
+                    test_attrs_dict = {
+                            "adf_user": adf.user,
+                            "climo_yrs": f"{case_name}: {syear}-{eyear}",
+                            "climatology_files": climatology_files_str,
+                        }
+                    rgdata_interp = rgdata_interp.assign_attrs(test_attrs_dict)
                     save_to_nc(rgdata_interp, regridded_file_loc)
                     rgdata_interp.close()  # bpm: we are completely done with this data
 
@@ -338,6 +365,17 @@ def regrid_and_vert_interp(adf):
                                 #End if
                             #End if
                         #End if
+
+                        # Convert the list to a string (join with commas or another separator)
+                        climatology_files_str = [str(path) for path in tclim_fils]
+                        climatology_files_str = ', '.join(climatology_files_str)
+                        # Create a dictionary of attributes
+                        base_attrs_dict = {
+                            "adf_user": adf.user,
+                            "climo_yrs": f"{case_name}: {syear}-{eyear}; {base_climo_yrs_attr}",
+                            "climatology_files": climatology_files_str,
+                        }
+                        tgdata_interp = tgdata_interp.assign_attrs(base_attrs_dict)
 
                         #Write interpolated baseline climatology to file:
                         save_to_nc(tgdata_interp, interp_bl_file)
@@ -405,12 +443,15 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
     #        mdat_ofrac = model_dataset['OCNFRAC'].squeeze()
 
     #Check if variable has a vertical component:
-    if 'lev' in mdata.dims:
+    if 'lev' in mdata.dims or 'ilev' in mdata.dims:
         has_lev = True
 
         #If lev exists, then determine what kind of vertical coordinate
         #is being used:
-        lev_attrs = model_dataset['lev'].attrs
+        if 'lev' in mdata.dims:
+            lev_attrs = model_dataset['lev'].attrs
+        elif 'ilev' in mdata.dims:
+            lev_attrs = model_dataset['ilev'].attrs
 
         #First check if there is a "vert_coord" attribute:
         if 'vert_coord' in lev_attrs:
@@ -454,12 +495,20 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
 
         if vert_coord_type == "hybrid":
             # Need hyam, hybm, and P0 for vertical interpolation of hybrid levels:
-            if ('hyam' not in model_dataset) or ('hybm' not in model_dataset):
-                print(f"!! PROBLEM -- NO hyam or hybm for 3-D variable {var_name}, so it will not be re-gridded.")
-                return None #Return None to skip to next variable.
-            #End if
-            mhya = model_dataset['hyam']
-            mhyb = model_dataset['hybm']
+            if 'lev' in mdata.dims:
+                if ('hyam' not in model_dataset) or ('hybm' not in model_dataset):
+                    print(f"!! PROBLEM -- NO hyam or hybm for 3-D variable {var_name}, so it will not be re-gridded.")
+                    return None #Return None to skip to next variable.
+                #End if
+                mhya = model_dataset['hyam']
+                mhyb = model_dataset['hybm']
+            elif 'ilev' in mdata.dims:
+                if ('hyai' not in model_dataset) or ('hybi' not in model_dataset):
+                    print(f"!! PROBLEM -- NO hyai or hybi for 3-D variable {var_name}, so it will not be re-gridded.")
+                    return None #Return None to skip to next variable.
+                #End if
+                mhya = model_dataset['hyai']
+                mhyb = model_dataset['hybi']
             if 'time' in mhya.dims:
                 mhya = mhya.isel(time=0).squeeze()
             if 'time' in mhyb.dims:
@@ -532,7 +581,7 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
         #Regrid model data to match target grid:
         rgdata = regrid_data(mdata, tgrid, method=1)
         if mdat_ofrac:
-            rgofrac = regrid_data(mdat_ofrac, tgrd, method=1)
+            rgofrac = regrid_data(mdat_ofrac, tgrid, method=1)
         #Regrid surface pressure if need be:
         if has_lev:
             if not regridded_ps:

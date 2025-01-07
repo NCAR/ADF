@@ -146,6 +146,18 @@ class AdfWeb(AdfObs):
             #Specify where CSS files will be stored:
             css_files_dir = website_dir / "templates"
 
+            #Add links to external packages (if applicable)
+            self.external_package_links = {}
+
+            #MDTF puts directory under case[0]
+            if self.get_mdtf_info('mdtf_run'):
+                syear = self.climo_yrs["syears"]
+                eyear = self.climo_yrs["eyears"]
+                mdtf_path = f"../mdtf/MDTF_{case_name}"
+                mdtf_path += f"_{syear[0]}_{eyear[0]}"
+                self.external_package_links['MDTF'] = mdtf_path
+            #End if
+            
             #Add all relevant paths to dictionary for specific case:
             self.__case_web_paths[case_name] = {'website_dir': website_dir,
                                                 'img_pages_dir': img_pages_dir,
@@ -335,10 +347,13 @@ class AdfWeb(AdfObs):
             self.end_diag_fail(emsg)
         #End except
 
-        #Make a jinja function that mimics python list object. This will allow for
-        # the use of 'list' in the html rendering.
+        #Make jinja functions that mimics python functions.
+        #  - This will allow for the use of 'list' in the html rendering.
         def jinja_list(seas_list):
             return list(seas_list)
+        #   - This will allow for the use of 'enumerate' in the html rendering.
+        def jinja_enumerate(arg):
+            return enumerate(arg)
 
         #Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
@@ -352,6 +367,9 @@ class AdfWeb(AdfObs):
         else:
             main_site_path = "" #Set main_site_path to blank value
         #End if
+
+        #Access variable defaults yaml file
+        res = self.variable_defaults
 
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
@@ -589,6 +607,15 @@ class AdfWeb(AdfObs):
                                   "table_html": table_html,
                                   "multi_head": False}
                 rend_kwarg_dict["plot_types"] = multi_plot_type_html
+
+                if web_data.name == case1:
+                    rend_kwarg_dict["disp_table_name"] = case1
+                    rend_kwarg_dict["disp_table_html"] = table_html
+                
+                if web_data.name == "Case Comparison":
+                    rend_kwarg_dict["disp_table_name"] = "Case Comparison"
+                    rend_kwarg_dict["disp_table_html"] = table_html
+
                 table_tmpl = jinenv.get_template('template_table.html')
                 table_rndr = table_tmpl.render(rend_kwarg_dict)
 
@@ -599,18 +626,16 @@ class AdfWeb(AdfObs):
 
                 #Check if the mean plot type page exists for this case (or for multi-case):
                 mean_table_file = table_pages_dir / "mean_tables.html"
-                if not mean_table_file.exists():
-                    #Construct mean_table.html
-                    mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
-                    #Reuse the rend_kwarg_dict, but ignore certain keys
-                    #since all others are the same
-                    new_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'table_name', 'table_html'}}
-                    mean_table_rndr = mean_table_tmpl.render(new_dict)
-                    #Write mean diagnostic tables HTML file:
-                    with open(mean_table_file, 'w', encoding='utf-8') as ofil:
-                        ofil.write(mean_table_rndr)
-                    #End with
-                #End if
+
+                #Construct mean_table.html
+                mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
+                #Reuse the rend_kwarg_dict
+                mean_table_rndr = mean_table_tmpl.render(rend_kwarg_dict)
+                #Write mean diagnostic tables HTML file:
+                with open(mean_table_file, 'w', encoding='utf-8') as ofil:
+                    ofil.write(mean_table_rndr)
+                #End with
+
             #End if (tables)
 
             else: #Plot image
@@ -630,18 +655,19 @@ class AdfWeb(AdfObs):
                 #End if
 
                 rend_kwarg_dict = {"title": main_title,
-                                       "var_title": web_data.name,
-                                       "season_title": web_data.season,
-                                       "case_name": web_data.case,
-                                       "case_yrs": case_yrs,
-                                       "base_name": data_name,
-                                       "baseline_yrs": baseline_yrs,
-                                       "plottype_title": web_data.plot_type,
-                                       "imgs": img_data,
-                                       "mydata": mean_html_info[web_data.plot_type],
-                                       "plot_types": plot_types,
-                                       "seasons": seasons,
-                                       "non_seasons": non_seasons[web_data.plot_type]}
+                                   "var_title": web_data.name,
+                                   "season_title": web_data.season,
+                                   "case_name": web_data.case,
+                                   "case_yrs": case_yrs,
+                                   "base_name": data_name,
+                                   "baseline_yrs": baseline_yrs,
+                                   "plottype_title": web_data.plot_type,
+                                   "imgs": img_data,
+                                   "mydata": mean_html_info[web_data.plot_type],
+                                   "plot_types": plot_types,
+                                   "seasons": seasons,
+                                   "non_seasons": non_seasons[web_data.plot_type]}
+
                 tmpl = jinenv.get_template('template.html')  #Set template
                 rndr = tmpl.render(rend_kwarg_dict) #The template rendered
 
@@ -650,23 +676,20 @@ class AdfWeb(AdfObs):
                     ofil.write(rndr)
                 #End with
 
-                #Check if the mean plot type page exists for this case:
+                #Mean plot type html file name
                 mean_ptype_file = img_pages_dir / f"mean_diag_{web_data.plot_type}.html"
-                if not mean_ptype_file.exists():
-                    #Construct individual plot type mean_diag html files, if they don't
-                    #already exist:
-                    mean_tmpl = jinenv.get_template('template_mean_diag.html')
 
-                    #Remove keys from main dictionary for this html page
-                    templ_rend_kwarg_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'imgs', 'var_title', 'season_title'}}
-                    templ_rend_kwarg_dict["list"] = jinja_list
-                    mean_rndr = mean_tmpl.render(templ_rend_kwarg_dict)
+                #Construct individual plot type mean_diag html files
+                mean_tmpl = jinenv.get_template('template_mean_diag.html')
 
-                    #Write mean diagnostic plots HTML file:
-                    with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
-                        ofil.write(mean_rndr)
-                    #End with
-                #End if (mean_ptype exists)
+                rend_kwarg_dict["enumerate"] = jinja_enumerate
+                rend_kwarg_dict["list"] = jinja_list
+                mean_rndr = mean_tmpl.render(rend_kwarg_dict)
+
+                #Write mean diagnostic plots HTML file:
+                with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
+                    ofil.write(mean_rndr)
+                #End with
             #End if (data frame)
 
             #Also check if index page exists for this case:
@@ -681,6 +704,19 @@ class AdfWeb(AdfObs):
             plot_types = plot_type_html
             #End if
 
+            #List of ADF default plot types
+            avail_plot_types = res["default_ptypes"]
+           
+            #Check if current plot type is in ADF default.
+            #If not, add it so the index.html file can include it
+            for ptype in plot_types.keys():
+                if ptype not in avail_plot_types:
+                    avail_plot_types.append(plot_types)
+
+
+            # External packages that can be run through ADF
+            avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
+            
             #Construct index.html
             index_title = "AMP Diagnostics Prototype"
             index_tmpl = jinenv.get_template('template_index.html')
@@ -689,7 +725,10 @@ class AdfWeb(AdfObs):
                                             base_name=data_name,
                                             case_yrs=case_yrs,
                                             baseline_yrs=baseline_yrs,
-                                            plot_types=plot_types)
+                                            plot_types=plot_types,
+                                            avail_plot_types=avail_plot_types,
+                                            avail_external_packages=avail_external_packages,
+                                            external_package_links=self.external_package_links)
 
             #Write Mean diagnostics index HTML file:
             with open(index_html_file, 'w', encoding='utf-8') as ofil:

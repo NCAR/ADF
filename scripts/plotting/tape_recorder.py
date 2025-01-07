@@ -9,6 +9,7 @@ import pandas as pd
 from dateutil.relativedelta import relativedelta
 import glob
 from pathlib import Path
+import plotting_functions as pf
 
 def tape_recorder(adfobj):
     """
@@ -41,14 +42,26 @@ def tape_recorder(adfobj):
     #Grab test case time series locs(s)
     case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
 
+    #Grab history strings:
+    cam_hist_strs = adfobj.hist_string["test_hist_str"]
+
+    # Filter the list to include only strings that are exactly in the possible h0 strings
+    # - Search for either h0 or h0a
+    substrings = {"cam.h0","cam.h0a"}
+    case_hist_strs = []
+    for cam_case_str in cam_hist_strs:
+        # Check each possible h0 string
+        for string in cam_case_str:
+            if string in substrings:
+               case_hist_strs.append(string)
+               break
+
     #Grab test case climo years
     start_years = adfobj.climo_yrs["syears"]
     end_years = adfobj.climo_yrs["eyears"]
 
     #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
-    if test_nicknames == None:
-        test_nicknames = case_names
+    test_nicknames = adfobj.case_nicknames['test_nicknames']
 
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
@@ -63,16 +76,33 @@ def tape_recorder(adfobj):
         data_ts_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
         case_ts_locs = case_ts_locs+[data_ts_loc]
 
-        base_nickname = adfobj.get_baseline_info('case_nickname')
-        if base_nickname == None:
-            base_nickname = data_name
+        base_nickname = adfobj.case_nicknames['base_nickname']
         test_nicknames = test_nicknames+[base_nickname]
 
         data_start_year = adfobj.climo_yrs["syear_baseline"]
         data_end_year = adfobj.climo_yrs["eyear_baseline"]
         start_years = start_years+[data_start_year]
         end_years = end_years+[data_end_year]
+
+        #Grab history string:
+        baseline_hist_strs = adfobj.hist_string["base_hist_str"]
+        # Filter the list to include only strings that are exactly in the substrings list
+        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
+        hist_strs = case_hist_strs + base_hist_strs
+    else:
+        hist_strs = case_hist_strs
     #End if
+
+    if not case_ts_locs:
+        exitmsg = "WARNING: No time series files in any case directory."
+        exitmsg += " No tape recorder plots will be made."
+        print(exitmsg)
+        logmsg = "create tape recorder:"
+        logmsg += f"\n Tape recorder plots require monthly mean h0 time series files."
+        logmsg += f"\n None were found for any case. Please check the time series paths."
+        adfobj.debug_log(logmsg)
+        #End tape recorder plotting script:
+        return
 
     # Default colormap
     cmap='precip_nowhite'
@@ -87,29 +117,34 @@ def tape_recorder(adfobj):
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
+    #Set location for observations
+    obs_loc = Path(adfobj.get_basic_info("obs_data_loc"))
     #-----------------------------------------
 
+    #Set var to Q for now
+    #TODO: add option to look for H2O if Q is not available, and vice-versa
+    var = "Q"
+
     #This may have to change if other variables are desired in this plot type?
-    plot_name = plot_loc / f"Q_ANN_TapeRecorder_Mean.{plot_type}"
-    print(f"\t - Plotting annual tape recorder for Q")
+    plot_name = plot_loc / f"{var}_TapeRecorder_ANN_Special_Mean.{plot_type}"
+
+    print(f"\t - Plotting annual tape recorder for {var}")
 
     # Check redo_plot. If set to True: remove old plot, if it already exists:
     if (not redo_plot) and plot_name.is_file():
         #Add already-existing plot to website (if enabled):
         adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-        adfobj.add_website_data(plot_name, "tape_recorder", None, season="ANN", multi_case=True)
+        adfobj.add_website_data(plot_name, f"{var}_TapeRecorder", None, season="ANN", multi_case=True)
         return
 
     elif (redo_plot) and plot_name.is_file():
         plot_name.unlink()
     
-    #Make dictionary for case names and associated timeseries file locations
-    runs_LT2={}
-    for i,val in enumerate(test_nicknames):
-        runs_LT2[val] = case_ts_locs[i]
-
+    # Plotting
+    #---------
     # MLS data
-    mls = xr.open_dataset("/glade/campaign/cgd/cas/islas/CAM7validation/MLS/mls_h2o_latNpressNtime_3d_monthly_v5.nc")
+    mls = xr.open_dataset(obs_loc / "mls_h2o_latNpressNtime_3d_monthly_v5.nc")
     mls = mls.rename(x='lat', y='lev', t='time')
     time = pd.date_range("2004-09","2021-11",freq='M')
     mls['time'] = time
@@ -119,57 +154,69 @@ def tape_recorder(adfobj):
     mls = mls*18.015280/(1e6*28.964)
 
     # ERA5 data
-    era5 = xr.open_dataset("/glade/campaign/cgd/cas/islas/CAM7validation/ERA5/ERA5_Q_10Sto10N_1980to2020.nc")
+    era5 = xr.open_dataset(obs_loc / "ERA5_Q_10Sto10N_1980to2020.nc")
     era5 = era5.groupby('time.month').mean('time')
+    era5_data = era5.Q
 
-    alldat=[]
-    runname_LT=[]
-    for idx,key in enumerate(runs_LT2):
-        dat = xr.open_dataset(glob.glob(runs_LT2[key]+'/*h0.Q.*.nc')[0])
-        dat = fixcesmtime(dat,start_years[idx],end_years[idx])
-        datzm = dat.mean('lon')
-        dat_tropics = cosweightlat(datzm.Q, -10, 10)
-        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
-        alldat.append(dat_mon)
-        runname_LT.append(key)
-
-    runname_LT=xr.DataArray(runname_LT, dims='run', coords=[np.arange(0,len(runname_LT),1)], name='run')
-    alldat_concat_LT = xr.concat(alldat, dim=runname_LT)
-
+    #Set up figure and plot MLS and ERA5 data
     fig = plt.figure(figsize=(16,16))
     x1, x2, y1, y2 = get5by5coords_zmplots()
 
     plot_step = 0.5e-7
     plot_min = 1.5e-6
-    plot_max = 3e-6
+    plot_max = 3.5e-6
 
     ax = plot_pre_mon(fig, mls, plot_step,plot_min,plot_max,'MLS',
                       x1[0],x2[0],y1[0],y2[0],cmap=cmap, paxis='lev',
                       taxis='month',climo_yrs="2004-2021")
 
-    ax = plot_pre_mon(fig, era5.Q, plot_step,plot_min,plot_max,
+    ax = plot_pre_mon(fig, era5_data, plot_step,plot_min,plot_max,
                       'ERA5',x1[1],x2[1],y1[1],y2[1], cmap=cmap, paxis='pre',
                       taxis='month',climo_yrs="1980-2020")
 
-    #Start count at 2 to account for MLS and ERA5 plots above
+
+    #Loop over case(s) and start count at 2 to account for MLS and ERA5 plots above
+    runname_LT=[]
     count=2
-    for irun in np.arange(0,alldat_concat_LT.run.size,1):
-        title = f"{alldat_concat_LT.run.isel(run=irun).values}"
-        ax = plot_pre_mon(fig, alldat_concat_LT.isel(run=irun),
-                          plot_step, plot_min, plot_max, title,
+    for idx,key in enumerate(test_nicknames):
+        # Search for files
+        ts_loc = Path(case_ts_locs[idx])
+        hist_str = hist_strs[idx]
+        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        dat = adfobj.data.load_timeseries_dataset(fils)
+
+        if not dat:
+            dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            print(dmsg)
+            adfobj.debug_log(dmsg)
+            continue
+
+        #Grab time slice based on requested years (if applicable)
+        dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+        datzm = dat.mean('lon')
+        dat_tropics = cosweightlat(datzm[var], -10, 10)
+        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+        ax = plot_pre_mon(fig, dat_mon,
+                          plot_step, plot_min, plot_max, key,
                           x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
-                          taxis='month',climo_yrs=f"{start_years[irun]}-{end_years[irun]}")
+                          taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
         count=count+1
-    
+        runname_LT.append(key)
+
+    #Check to see if any cases were successful
+    if not runname_LT:
+        msg = f"WARNING: No cases seem to be available, please check time series files for {var}."
+        msg += "\n\tNo tape recorder plots will be made."
+        print(msg)
+        #End tape recorder plotting script:
+        return
+
     #Shift colorbar if there are less than 5 subplots
     # There will always be at least 2 (MLS and ERA5)
-    if len(case_ts_locs) == 0:
-        print("Seems like there are no simulations to plot, exiting script.")
-        return
-    if len(case_ts_locs) == 1:
+    if len(runname_LT) == 1:
         x1_loc = (x1[1]-x1[0])/2
         x2_loc = ((x2[2]-x2[1])/2)+x2[1]
-    elif len(case_ts_locs) == 2:
+    elif len(runname_LT) == 2:
         x1_loc = (x1[1]-x1[0])/2
         x2_loc = ((x2[3]-x2[2])/2)+x2[2]
     else:
@@ -179,7 +226,7 @@ def tape_recorder(adfobj):
     y1_loc = y1[count]-0.03
     y2_loc = y1[count]-0.02
 
-    ax = plotcolorbar(fig, plot_step, plot_min, plot_max, 'Q (kg/kg)',
+    ax = plotcolorbar(fig, plot_step, plot_min, plot_max, f'{var} (kg/kg)',
                       x1_loc, x2_loc, y1_loc, y2_loc,
                       cmap=cmap)
 
@@ -187,7 +234,7 @@ def tape_recorder(adfobj):
     fig.savefig(plot_name, bbox_inches='tight', facecolor='white')
 
     #Add plot to website (if enabled):
-    adfobj.add_website_data(plot_name, "tape_recorder", None, season="ANN", multi_case=True)
+    adfobj.add_website_data(plot_name, f"{var}_TapeRecorder", None, season="ANN", multi_case=True)
 
     #Notify user that script has ended:
     print("  ...Tape recorder plots have been generated successfully.")
@@ -294,17 +341,6 @@ def precip_cmap(n, nowhite=False):
     mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
 
     return mymap
-
-#########
-
-def fixcesmtime(dat,syear,eyear):
-    """
-    Fix the CESM timestamp with a simple set of dates
-    """
-    timefix = pd.date_range(start=f'1/1/{syear}', end=f'12/1/{eyear}', freq='MS') # generic time coordinate from a non-leap-year
-    dat = dat.assign_coords({"time":timefix})
-
-    return dat
 
 #########
 
