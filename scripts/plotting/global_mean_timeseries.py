@@ -62,11 +62,6 @@ def global_mean_timeseries(adfobj):
             validate_dims = True
         else:
             validate_dims = False
-            # reference time series global average
-            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
-
-            # annually averaged
-            ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
 
             # check if this is a "2-d" varaible:
             has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
@@ -76,6 +71,11 @@ def global_mean_timeseries(adfobj):
                 )
                 continue
 
+            # reference time series global average
+            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+
+            # annually averaged
+            ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
 
         ## SPECIAL SECTION -- CESM2 LENS DATA:
         lens2_data = Lens2Data(
@@ -220,10 +220,13 @@ class Lens2Data:
         self.has_lens, self.lens2 = self._include_lens()
 
     def _include_lens(self):
-        lens2_fil = Path(
-            f"/glade/campaign/cgd/cas/islas/CESM_DATA/LENS2/global_means/annualmeans/{self.field}_am_LENS2_first50.nc"
+        lens2_path = Path(
+            f"/glade/campaign/cgd/cas/islas/CESM_DATA/LENS2/global_means/annualmeans/"
         )
-        if lens2_fil.is_file():
+
+        lens2_fil = sorted(lens2_path.glob(f"{self.field}_*LENS2*first50*nc"))
+        if lens2_fil:
+            lens2_fil = lens2_fil[0]
             lens2 = xr.open_mfdataset(lens2_fil)
             has_lens = True
         else:
