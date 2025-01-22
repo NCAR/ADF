@@ -76,6 +76,7 @@ def create_climo_files(adf, clobber=False, search=None):
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
 
     #Extract simulation years:
+    #TODO, make this an option to be different from the time series start and end year?
     start_year = adf.climo_yrs["syears"]
     end_year   = adf.climo_yrs["eyears"]
 
