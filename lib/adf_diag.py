@@ -714,19 +714,41 @@ class AdfDiag(AdfWeb):
                         ts_outfil_str
                     ]
 
-                    # Step 3: Create the ncatted command to remove the history attribute
+                    # Step 3a: Optional, add additional variables to clm2.h0 files 
+                    cmd_add_clm_h0_fields = [
+                        "ncks", "-A", "-v", "area,landfrac,landmask",
+                        hist_files[0],
+                        ts_outfil_str
+                    ]
+
+                    # Step 3b: Optional, add additional variables to clm2.h1 files 
+                    cmd_add_clm_h1_fields = [
+                        "ncrcat", "-A", "-v", "pfts1d_ixy,pfts1d_jxy,pfts1d_itype_veg,lat,lon",
+                        hist_files,
+                        ts_outfil_str
+                    ]
+
+                     # Step 3c: Create the ncatted command to remove the history attribute
                     cmd_remove_history = [
                         "ncatted", "-O", "-h",
                         "-a", "history,global,d,,",
                         ts_outfil_str
                     ]
-
+                    
+                    
                     # Add to command list for use in multi-processing pool:
                     # -----------------------------------------------------
                     # generate time series files
                     list_of_commands.append(cmd)
                     # Add global attributes: user, original hist file loc(s) and all filenames
                     list_of_ncattend_commands.append(cmd_ncatted)
+
+                    # TODO, add some logic to control if these are done
+                    # add time invariant information to clm2.h0 fields
+                    list_of_hist_commands.append(cmd_add_clm_h0_fields)
+                    # add time varrying information to clm2.h1 fields
+                    #list_of_hist_commands.append(cmd_add_clm_h1_fields)
+
                     # Remove the `history` attr that gets tacked on (for clean up)
                     # NOTE: this may not be best practice, but it the history attr repeats
                     #       the files attrs so the global attrs become obtrusive...
