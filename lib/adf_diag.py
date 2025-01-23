@@ -75,9 +75,17 @@ except ImportError:
     print("Please install module, e.g. 'pip install uxarray'.")
     sys.exit(1)
 
-# Check if "xesfm" is present in python path:
+# Check if "esmpy" is present in python path:
 try:
-    import xesmf
+    import esmpy as esmpy
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install esmpy'.")
+    sys.exit(1)
+
+# Check if "xesmf" is present in python path:
+try:
+    import xesmf as xesmf
 except ImportError:
     print("xesmf module does not exist in python path.")
     print("Please install module, e.g. 'pip install xesmf'.")
