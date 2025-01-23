@@ -1,5 +1,6 @@
 from pathlib import Path
 import xarray as xr
+import uxarray as ux
 
 import warnings # use to warn user about missing files
 
@@ -185,15 +186,22 @@ class AdfData:
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
 
 
-    def load_climo_file(self, case, variablename):
-        """Return Dataset for climo of variablename"""
+    def load_climo_file(self, case, variablename, grid='regular'):
+        """
+        Return Dataset for climo of variablename
+        uses grid flag to determine if reading in a regular or unstructured grid
+        returns a xarry or uxarray dataset, respectively
+        """
         fils = self.get_climo_file(case, variablename)
         if not fils:
             warnings.warn(f"WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
             return None
-        return self.load_dataset(fils)
-    
+        if grid == 'regular':
+            return self.load_dataset(fils)
+        elif grid == 'unstructured':
+            return self.load_ux_dataset(fils)
 
+    
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific case."""
         a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
@@ -296,6 +304,8 @@ class AdfData:
 
     # DataSet and DataArray load
     #---------------------------
+    # TODO, make uxarray options fo all of these fuctions.  
+    # What's the most robust way to handle this?
 
     # Load DataSet
     def load_dataset(self, fils):
