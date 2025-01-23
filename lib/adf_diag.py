@@ -67,6 +67,22 @@ except ImportError:
     print("Please install module, e.g. 'pip install Cartopy'.")
     sys.exit(1)
 
+# Check if "uxarray" is present in python path:
+try:
+    import uxarray as ux
+except ImportError:
+    print("uxarray module does not exist in python path.")
+    print("Please install module, e.g. 'pip install uxarray'.")
+    sys.exit(1)
+
+# Check if "xesfm" is present in python path:
+try:
+    import xesmf
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install xesmf'.")
+    sys.exit(1)
+
 # pylint: enable=unused-import
 
 # +++++++++++++++++++++++++++++
