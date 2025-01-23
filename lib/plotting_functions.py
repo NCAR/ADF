@@ -409,6 +409,58 @@ def spatial_average(indata, weights=None, spatial_dims=None):
 
     return weighted.mean(dim=spatial_dims, keep_attrs=True)
 
+# TODO, maybe just adapt the spatial average above?
+# TODO, should there be some unit conversions for this defined in a variable dictionary?
+def spatial_average_lnd(indata, weights, spatial_dims=None):
+    """Compute spatial average.
+
+    Parameters
+    ----------
+    indata : xr.DataArray
+        input data
+    weights xr.DataArray
+        weights (area * landfrac)
+    spatial_dims : list, optional
+        list of dimensions to average, see Notes for default behavior
+
+    Returns
+    -------
+    xr.DataArray
+        weighted average of `indata`
+
+    Notes
+    -----
+    weights are required
+    
+    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
+    Will average over `ncol` if present, and then will check for `lat` and `lon`.
+    When none of those three are found, raise an AdfError.        
+    """
+    import warnings
+
+    #Apply weights to input data:
+    weighted = indata*weights
+
+    # we want to average over all non-time dimensions
+    if spatial_dims is None:
+        if 'lndgrid' in indata.dims:
+            spatial_dims = ['lndgrid']
+        else:
+            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or 
+                                                                   ('lon' in dimname.lower()))]
+
+    if not spatial_dims:
+        #Scripts using this function likely expect the horizontal dimensions
+        #to be removed via the application of the mean. So in order to avoid
+        #possibly unexpected behavior due to arrays being incorrectly dimensioned
+        #(which could be difficult to debug) the ADF should die here:
+        emsg = "spatial_average: No spatial dimensions were identified,"
+        emsg += " so can not perform average."
+        raise AdfError(emsg)
+
+    
+    return weighted.sum(dim=spatial_dims, keep_attrs=True)
+
 
 def wgt_rmse(fld1, fld2, wgt):
     """Calculate the area-weighted RMSE.
