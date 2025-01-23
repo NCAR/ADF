@@ -162,6 +162,38 @@ def load_dataset(fils):
     #End if
 #End def
 
+def load_ux_dataset(fils, mesh=None):
+    """
+    This method exists to get an uxarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    ux.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    if mesh == None:
+        mesh = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'
+        warnings.warn(f"No mesh file provided, using defaults ne30pg3 mesh file")
+        
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return ux.open_mfdataset(mesh, fils)
+    else:
+        return ux.open_dataset(mesh, fils[0])
+    #End if
+#End def
+
+
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""
 
