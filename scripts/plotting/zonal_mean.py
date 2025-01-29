@@ -176,7 +176,21 @@ def zonal_mean(adfobj):
             continue
 
         #Check zonal mean dimensions
-        has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
+        valdims = pf.zm_validate_dims(odata)
+        if valdims is not None:
+            has_lat_ref, has_lev_ref = valdims
+        else:
+            has_lat_ref, has_lev_ref = False, False
+        # End if
+
+        # check if there is a lat dimension:
+        # if not, skip test cases and move to next variable
+        if not has_lat_ref:
+            print(
+                f"Variable named {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
+            )
+            continue
+        # End if
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
@@ -197,11 +211,34 @@ def zonal_mean(adfobj):
 
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
-            has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
+            # check data dimensions:
+            valdims = pf.zm_validate_dims(mdata)
+            if valdims is not None:
+                has_lat, has_lev = valdims
+            else:
+                has_lat, has_lev = False, False
+            # End if
 
+            # check if there is a lat dimension:
+            if not has_lat:
+                print(
+                    f"Variable named {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                )
+                continue
+            # End if
+
+            #Check if reference file has vertical levels
             #Notify user of level dimension:
             if has_lev:
                 print(f"\t   {var} has lev dimension.")
+
+            #Check to make sure each case has vertical levels if one of the cases does
+            if (has_lev) and (not has_lev_ref):
+                print(f"Error: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
+                continue
+            if (has_lev_ref) and (not has_lev):
+                print(f"Error: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
+                continue
 
             #
             # Seasonal Averages
@@ -238,11 +275,6 @@ def zonal_mean(adfobj):
                 if has_lev:
                     #Set the file name for log-pressure plots
                     plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
-
-                    #Check if reference file has vertical levels
-                    if not has_lev_ref:
-                        print(f"Error: expecting lev for both case: {has_lev} and ref: {has_lev_ref}")
-                        continue
                 #End if
 
                 #Create plots

@@ -209,6 +209,9 @@ def global_latlon_vect_map(adfobj):
         else:
             #Set "data_var" for consistent use below:
             data_var = [var, var_pair]
+
+            # reference (baseline) name
+            base_name = adfobj.data.ref_case_label
         #End if
 
         #Notify user of variable being plotted:
@@ -259,6 +262,22 @@ def global_latlon_vect_map(adfobj):
             uodata = uodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
             vodata = vodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
 
+            #Check zonal mean dimensions
+            valdims = pf.zm_validate_dims(uodata)
+            if valdims is not None:
+                has_lat_ref, has_lev_ref = valdims
+            else:
+                has_lat_ref, has_lev_ref = False, False
+            # End if
+
+            # check if there is a lat dimension:
+            if not has_lat_ref:
+                print(
+                    f"Variable named {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                )
+                continue
+            # End if
+
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
 
@@ -308,7 +327,19 @@ def global_latlon_vect_map(adfobj):
                 vmdata = vmdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
 
                 #Check dimensions:
-                has_lat, has_lev = pf.zm_validate_dims(umdata)  # assumes will work for both mdata & odata
+                valdims = pf.zm_validate_dims(umdata)  # assumes will work for both mdata & odata
+                if valdims is not None:
+                    has_lat, has_lev = valdims
+                else:
+                    has_lat, has_lev = False, False
+
+                # check if there is a lat dimension:
+                if not has_lat:
+                    print(
+                        f"Variable named {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    )
+                    continue
+                # End if
 
                 # update units
                 # NOTE: looks like our climo files don't have all their metadata
@@ -328,7 +359,7 @@ def global_latlon_vect_map(adfobj):
                     #If observations/baseline CAM have the correct
                     #dimensions, does the input CAM run have correct
                     #dimensions as well?
-                    if has_lev:
+                    if has_lev_ref:
                         has_dims_cam = pf.lat_lon_validate_dims(umdata.isel(lev=0))
                     else:
                         has_dims_cam = pf.lat_lon_validate_dims(umdata)
