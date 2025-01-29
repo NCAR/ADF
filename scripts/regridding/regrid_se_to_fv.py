@@ -7,7 +7,7 @@ import xesmf
 import numpy as np
 
 def make_se_regridder(weight_file, s_data, d_data,
-                      Method='coservative' 
+                      Method='coservative'
                       ):
     weights = xr.open_dataset(weight_file)
     in_shape = weights.src_grid_dims.load().data
@@ -31,9 +31,9 @@ def make_se_regridder(weight_file, s_data, d_data,
             "lon": ("lon", weights.xc_b.data.reshape(out_shape)[0, :]),
         }
     )
-    # Hard code masks for now
-    s_mask = xr.DataArray(s_data.data.reshape(in_shape[0],in_shape[1]), dims=("lat", "lon"))    
-    dummy_in['mask']= s_mask                
+    # Hard code masks for now, not sure this does anything?
+    s_mask = xr.DataArray(s_data.data.reshape(in_shape[0],in_shape[1]), dims=("lat", "lon"))
+    dummy_in['mask']= s_mask
     
     d_mask = xr.DataArray(d_data.values, dims=("lat", "lon"))  
     dummy_out['mask']= d_mask                

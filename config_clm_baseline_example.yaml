@@ -1,9 +1,9 @@
 #==============================
-#config_cam_baseline_example.yaml
+#config_clm_baseline_example.yaml
 
-#This is the main CAM diagnostics config file
-#for doing comparisons of a CAM run against
-#another CAM run, or a CAM baseline simulation.
+#This is the main CAM/CLM diagnostics config file
+#for doing comparisons of a CAM or CLM run against
+#another run, or baseline simulation.
 
 #Currently, if one is on NCAR's Casper or
 #Cheyenne machine, then only the diagnostic output
@@ -184,6 +184,7 @@ diag_cam_climo:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
 
     #TEM diagnostics
+    #TODO, this isn't needed for land, but may be a helpful way to think about looking at CLM h1 files
     #---------------
     #TEM history file number
     #If missing or blank, ADF will default to h4
@@ -462,6 +463,8 @@ time_averaging_scripts:
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
+#TODO, this needs to  be modified for a land model workflow
+#This is not the regridding script wwieder made for land
 regridding_scripts:
     - regrid_and_vert_interp
 
@@ -471,7 +474,7 @@ analysis_scripts:
     - amwg_table
     #- aerosol_gas_tables
 
-#List of plotting scripts being used.
+      #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
     - global_unstructured_latlon_map
@@ -490,6 +493,7 @@ plotting_scripts:
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+#TODO, round this out with more variables for alpha land diags
 diag_var_list:
     - ELAI
     - GPP
