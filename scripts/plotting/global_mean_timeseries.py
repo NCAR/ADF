@@ -123,7 +123,8 @@ def global_mean_timeseries(adfobj):
         skip_var = False
         for case_idx,case_name in enumerate(adfobj.data.case_names):
             ## SPECIAL SECTION -- CESM2 LENS DATA:
-            if (syear_cases[case_idx] and syear_baseline) > 1800:
+            #Check if case years are close to LENS, if not don't plot the LENS data
+            if (syear_cases[case_idx] > 1800) and ((syear_baseline > 1800) or (adfobj.compare_obs)):
                 lens2_data = Lens2Data(
                     field
                 )  # Provides access to LENS2 dataset when available (class defined below)
@@ -286,7 +287,7 @@ class Lens2Data:
 def make_plot(field, case_ts, lens2=None, label=None, ref_ts_da=None):
     """plot yearly values of ref_ts_da"""
     fig, ax = plt.subplots()
-    
+
     # Plot reference/baseline if available
     if type(ref_ts_da) != NoneType:
         ax.plot(ref_ts_da.year, ref_ts_da, label=label)
@@ -312,6 +313,7 @@ def make_plot(field, case_ts, lens2=None, label=None, ref_ts_da=None):
         ax.axhline(y=0, color="lightgray", linestyle="-", linewidth=1)
     ax.set_title(field, loc="left")
 
+    ax.set_xlim(min(cdata.year), max(cdata.year))
     # Force x-axis to use only integer labels
     ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
 
