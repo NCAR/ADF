@@ -1,4 +1,4 @@
-# List of ideas for SWEG hackathon:
+# List of ideas for SEWG hackathon:
 ### Simple / busy work
 - Identify list of default variables in `config_clm_baseline_example.yml`
 - Adapt list of variables in `adf/lib/ldf_variable_defaults.yml` (plotting controls for list above)
