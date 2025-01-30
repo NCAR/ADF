@@ -255,7 +255,7 @@ class AdfInfo(AdfConfig):
                 #Grab first possible hist string, just looking for years of run
                 base_hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
-                print(f"Checking history files in '{starting_location}'")
+                print(f"Checking history files in '{starting_location}'\n")
                 file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
 
                 #Check if the history file location exists
@@ -449,7 +449,7 @@ class AdfInfo(AdfConfig):
 
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
-                print(f"Checking history files in '{starting_location}'")
+                print(f"Checking history files in '{starting_location}'\n")
 
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
 
@@ -541,7 +541,7 @@ class AdfInfo(AdfConfig):
             #Go ahead and make the diag plot location if it doesn't exist already
             diag_location = Path(plot_loc)
             if not diag_location.is_dir():
-                print(f"\t    {diag_location} not found, making new directory")
+                print(f"\t    {diag_location} not found, making new directory/n")
                 diag_location.mkdir(parents=True)
         #End for
 

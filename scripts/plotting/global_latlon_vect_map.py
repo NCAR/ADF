@@ -302,9 +302,9 @@ def global_latlon_vect_map(adfobj):
                 elif len(umclim_fils) == 1:
                     umclim_ds = xr.open_dataset(umclim_fils[0])
                 else:
-                    print("WARNING: Did not find any regridded climo files. Will try to skip.")
-                    print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
-                    print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    print("\t WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print(f"\t INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"\t INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
                     continue
                 #End if
 

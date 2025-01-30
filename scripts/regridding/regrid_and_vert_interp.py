@@ -141,7 +141,7 @@ def regrid_and_vert_interp(adf):
     for case_idx, case_name in enumerate(case_names):
 
         #Notify user of model case being processed:
-        print(f"\t Regridding case '{case_name}' :")
+        print(f"\n\t Regridding case '{case_name}' :")
 
         #Set case climo data path:
         mclimo_loc  = Path(input_climo_locs[case_idx])

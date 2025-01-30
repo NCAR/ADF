@@ -85,7 +85,7 @@ def global_mean_timeseries(adfobj):
             # check if this is a "2-d" varaible:
             if has_lev_ref:
                 print(
-                    f"Variable named {field} has a lev dimension for '{base_name}', which does not work with this script."
+                    f"\t Variable named {field} has a lev dimension for '{base_name}', which does not work with this script."
                 )
                 continue
             # End if
@@ -93,7 +93,7 @@ def global_mean_timeseries(adfobj):
             # check if there is a lat dimension:
             if not has_lat_ref:
                 print(
-                    f"Variable named {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                    f"\t Variable named {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
                 )
                 continue
             # End if
@@ -129,7 +129,7 @@ def global_mean_timeseries(adfobj):
                     field
                 )  # Provides access to LENS2 dataset when available (class defined below)
             else:
-                print(f"Some model years for '{field}' are outside LENS years, will skip plotting LENS data for clarity boi")
+                print(f"\t ** Some model years for '{field}' are outside LENS years, will skip plotting LENS data for clarity")
                 lens2_data = None
             # End if - LENS
 
@@ -155,7 +155,7 @@ def global_mean_timeseries(adfobj):
             # If 3-d variable, notify user, flag and move to next test case
             if has_lev_case:
                 print(
-                    f"Variable named {field} has a lev dimension for '{case_name}', which does not work with this script."
+                    f"\t Variable named {field} has a lev dimension for '{case_name}', which does not work with this script."
                 )
 
                 skip_var = True
@@ -165,7 +165,7 @@ def global_mean_timeseries(adfobj):
             # check if there is a lat dimension:
             if not has_lat_case:
                 print(
-                    f"Variable named {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    f"\t Variable named {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
                 continue
             # End if
@@ -220,7 +220,7 @@ def conditional_save(adfobj, plot_name, fig, verbose=None):
     elif not adfobj.get_basic_info("redo_plot") and plot_name.is_file():
         # Case 2: Keep old plot, do not save new plot
         if verbose:
-            print("plot file detected, redo is false, so keep existing file.")
+            print("\t - plot file detected, redo is false, so keep existing file.")
     else:
         warnings.warn(
             f"Conditional save found unknown condition. File will not be written: {plot_name}"
@@ -249,12 +249,12 @@ def get_plot_loc(adfobj, verbose=None):
         else:
             if verbose:
                 print(
-                    f"Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}"
+                    f"\t Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}"
                 )
             plot_loc = Path(plot_location[0])
     else:
         plot_loc = Path(plot_location)
-    print(f"Determined plot location: {plot_loc}")
+    print(f"\t Determined plot location: {plot_loc}")
     return plot_loc
 ######
 
@@ -277,7 +277,7 @@ class Lens2Data:
             lens2 = xr.open_mfdataset(lens2_fil)
             has_lens = True
         else:
-            warnings.warn(f"Time Series: Did not find LENS2 file for {self.field}.")
+            warnings.warn(f"\t - Time Series: Did not find LENS2 file for {self.field}.")
             has_lens = False
             lens2 = None
         return has_lens, lens2
