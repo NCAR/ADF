@@ -154,6 +154,8 @@ def create_climo_files(adf, clobber=False, search=None):
         #Loop over CAM output variables:
         list_of_arguments = []
         for var in var_list:
+            # Notify user of new climo file:
+            print(f"\t - climatology for {var}")
 
             # Create name of climatology output file (which includes the full path)
             # and check whether it is there (don't do computation if we don't want to overwrite):
@@ -172,8 +174,8 @@ def create_climo_files(adf, clobber=False, search=None):
             #If no files exist, try to move to next variable. --> Means we can not proceed with this variable,
             # and it'll be problematic later unless there are multiple hist file streams and the variable is in the others
             if not ts_files:
-                errmsg = f"\n\t Time series files for variable '{var}' not found.  Script will continue to next variable."
-                print(f"\nThe input location searched was: {input_location}. The glob pattern was {ts_filenames}.")
+                errmsg = f"\t  **Time series files for variable '{var}' not found.  Script will continue to next variable."
+                print(f"\t   The input location searched was: {input_location}. The glob pattern was {ts_filenames}.")
                 #  end_diag_script(errmsg) # Previously we would kill the run here.
                 warnings.warn(errmsg)
                 continue

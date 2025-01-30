@@ -118,7 +118,7 @@ class AdfData:
     def load_timeseries_dataset(self, fils):
         """Return DataSet from time series file(s) and assign time to midpoint of interval"""
         if (len(fils) == 0):
-            warnings.warn("Input file list is empty.")
+            warnings.warn("\t Input file list is empty.")
             return None
         elif (len(fils) > 1):
             ds = xr.open_mfdataset(fils, decode_times=False)
@@ -157,7 +157,7 @@ class AdfData:
         """
         fils = self.get_ref_timeseries_file(field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find time series file(s), variable: {field}")
+            warnings.warn(f"\t WARNING: Did not find time series file(s), variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
@@ -189,7 +189,7 @@ class AdfData:
         """Return Dataset for climo of variablename"""
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            warnings.warn(f"WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
+            warnings.warn(f"\t WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
             return None
         return self.load_dataset(fils)
     
@@ -239,7 +239,7 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
@@ -249,7 +249,7 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
         return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
@@ -273,7 +273,7 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
@@ -283,7 +283,7 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
@@ -301,7 +301,7 @@ class AdfData:
     def load_dataset(self, fils):
         """Return xarray DataSet from file(s)"""
         if (len(fils) == 0):
-            warnings.warn("Input file list is empty.")
+            warnings.warn("\t Input file list is empty.")
             return None
         elif (len(fils) > 1):
             ds = xr.open_mfdataset(fils, combine='by_coords')
