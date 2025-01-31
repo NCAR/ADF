@@ -30,7 +30,7 @@ def qbo(adfobj):
 
     """
     #Notify user that script has started:
-    msg = "\n   Generating qbo plots..."
+    msg = "\n  Generating qbo plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Extract relevant info from the ADF:
@@ -106,7 +106,7 @@ def qbo(adfobj):
     bad_idxs = []
     for idx, dat in enumerate(casedat):
         if 'U' not in dat.variables:
-            warnings.warn(f"QBO: case {case_names[idx]} contains no 'U' field, skipping...")
+            warnings.warn(f"\t    WARNING: Case {case_names[idx]} contains no 'U' field, skipping...")
             bad_idxs.append(idx)
         #End if
     #End for
@@ -119,7 +119,13 @@ def qbo(adfobj):
     #End if
 
     #----Calculate the zonal mean
-    casedatzm = [ casedat[i].U.mean("lon") for i in range(0,ncases,1) ]
+    casedatzm = []
+    for i in range(0,ncases,1):
+        has_lon = pf.validate_dims("U", ['lon'])
+        if not has_lon:
+            print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_loc[i]}', cannot continue to plot.")
+        else:
+            casedatzm.append(casedat[i].U.mean("lon"))
 
     #----Calculate the 5S-5N average
     casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]
