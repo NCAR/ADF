@@ -80,13 +80,16 @@ diag_basic_info:
     #isn't specified in the variable defaults file.
     obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
+    #Location where CAM climatology files are stored:
+    cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
+
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_climo_regrid_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo/regrid
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
     #that already exist in "cam_regrid_loc":
-    cam_overwrite_regrid: true
+    cam_overwrite_regrid: false
 
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /glade/derecho/scratch/${user}/ADF/plots
@@ -480,7 +483,7 @@ analysis_scripts:
       #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-    #- global_unstructured_latlon_map
+    - global_unstructured_latlon_map
     #- global_mean_timeseries
     #- global_latlon_vect_map
     #- zonal_mean
