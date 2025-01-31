@@ -1932,6 +1932,24 @@ RESTOM:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+SNOWDP:
+  colormap: "Blues"
+  contour_levels_range: [-150, 50, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-20, 20, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_cre_sw_mon"
+  obs_scale_factor: 1
+  obs_add_offset: 0
+  category: "TOA energy flux"
+
 SWCF:
   colormap: "Blues"
   contour_levels_range: [-150, 50, 10]

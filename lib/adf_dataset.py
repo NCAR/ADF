@@ -1,5 +1,6 @@
 from pathlib import Path
 import xarray as xr
+import uxarray as ux
 
 import warnings # use to warn user about missing files
 
@@ -47,7 +48,7 @@ class AdfData:
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
         # paths 
-        self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
+        self.model_rgrid_loc = adfobj.get_basic_info("cam_climo_regrid_loc", required=True)
 
         # variables (and info for unit transform)
         # use self.adf.diag_var_list and self.adf.self.adf.variable_defaults
@@ -185,15 +186,30 @@ class AdfData:
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
 
 
-    def load_climo_file(self, case, variablename):
-        """Return Dataset for climo of variablename"""
+    def load_climo_dataset(self, case, field):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_climo_file(case, field)
+        if not fils:
+            warnings.warn(f"WARNING: Did not find climo file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_dataset(fils)
+
+    def load_climo_file(self, case, variablename, grid='regular'):
+        """
+        Return Dataset for climo of variablename
+        uses grid flag to determine if reading in a regular or unstructured grid
+        returns a xarry or uxarray dataset, respectively
+        """
         fils = self.get_climo_file(case, variablename)
         if not fils:
             warnings.warn(f"WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
             return None
-        return self.load_dataset(fils)
-    
+        if grid == 'regular':
+            return self.load_dataset(fils)
+        elif grid == 'unstructured':
+            return self.load_ux_dataset(fils)
 
+    
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific case."""
         a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
@@ -209,6 +225,15 @@ class AdfData:
         fils = self.get_reference_climo_file(variablename)
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
 
+    def load_reference_climo_dataset(self, case, field):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_reference_climo_file(self, field)
+        if not fils:
+            warnings.warn(f"WARNING: Did not find climo file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_dataset(fils)
+
+
     def get_reference_climo_file(self, var):
         """Return a list of files to be used as reference (aka baseline) for variable var."""
         if self.adf.compare_obs:
@@ -223,14 +248,13 @@ class AdfData:
 
     #------------------
 
-    
     # Regridded files
     #------------------
 
     # Test case(s)
     def get_regrid_file(self, case, field):
         """Return list of test regridded files"""
-        model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
+        model_rg_loc = Path(self.adf.get_basic_info("cam_climo_regrid_loc", required=True))
         rlbl = self.ref_labels[field]  # rlbl = "reference label" = the name of the reference data that defines target grid
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
@@ -264,7 +288,7 @@ class AdfData:
             else:
                 fils = []
         else:
-            model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
+            model_rg_loc = Path(self.adf.get_basic_info("cam_climo_regrid_loc", required=True))
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
 
@@ -296,6 +320,8 @@ class AdfData:
 
     # DataSet and DataArray load
     #---------------------------
+    # TODO, make uxarray options fo all of these fuctions.  
+    # What's the most robust way to handle this?
 
     # Load DataSet
     def load_dataset(self, fils):
@@ -310,7 +336,8 @@ class AdfData:
             if not Path(sfil).is_file():
                 warnings.warn(f"Expecting to find file: {sfil}")
                 return None
-            ds = xr.open_dataset(sfil)
+            mesh = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'
+            ds = ux.open_dataset(mesh, sfil)
         if ds is None:
             warnings.warn(f"invalid data on load_dataset")
         return ds

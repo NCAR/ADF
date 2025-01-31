@@ -99,6 +99,7 @@ import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 import matplotlib.cm as cm
+import uxarray as ux  #need npl 2024a or later
 
 from adf_diag import AdfDiag
 from adf_base import AdfError
@@ -160,6 +161,38 @@ def load_dataset(fils):
         return xr.open_dataset(fils[0])
     #End if
 #End def
+
+def load_ux_dataset(fils, mesh=None):
+    """
+    This method exists to get an uxarray Dataset from input file information that can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    ux.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+    """
+    if mesh == None:
+        mesh = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'
+        warnings.warn(f"No mesh file provided, using defaults ne30pg3 mesh file")
+        
+    if len(fils) == 0:
+        warnings.warn(f"Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return ux.open_mfdataset(mesh, fils)
+    else:
+        return ux.open_dataset(mesh, fils[0])
+    #End if
+#End def
+
 
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""
@@ -408,6 +441,58 @@ def spatial_average(indata, weights=None, spatial_dims=None):
 
     return weighted.mean(dim=spatial_dims, keep_attrs=True)
 
+# TODO, maybe just adapt the spatial average above?
+# TODO, should there be some unit conversions for this defined in a variable dictionary?
+def spatial_average_lnd(indata, weights, spatial_dims=None):
+    """Compute spatial average.
+
+    Parameters
+    ----------
+    indata : xr.DataArray
+        input data
+    weights xr.DataArray
+        weights (area * landfrac)
+    spatial_dims : list, optional
+        list of dimensions to average, see Notes for default behavior
+
+    Returns
+    -------
+    xr.DataArray
+        weighted average of `indata`
+
+    Notes
+    -----
+    weights are required
+    
+    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
+    Will average over `ncol` if present, and then will check for `lat` and `lon`.
+    When none of those three are found, raise an AdfError.        
+    """
+    import warnings
+
+    #Apply weights to input data:
+    weighted = indata*weights
+
+    # we want to average over all non-time dimensions
+    if spatial_dims is None:
+        if 'lndgrid' in indata.dims:
+            spatial_dims = ['lndgrid']
+        else:
+            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or 
+                                                                   ('lon' in dimname.lower()))]
+
+    if not spatial_dims:
+        #Scripts using this function likely expect the horizontal dimensions
+        #to be removed via the application of the mean. So in order to avoid
+        #possibly unexpected behavior due to arrays being incorrectly dimensioned
+        #(which could be difficult to debug) the ADF should die here:
+        emsg = "spatial_average: No spatial dimensions were identified,"
+        emsg += " so can not perform average."
+        raise AdfError(emsg)
+
+    
+    return weighted.sum(dim=spatial_dims, keep_attrs=True)
+
 
 def wgt_rmse(fld1, fld2, wgt):
     """Calculate the area-weighted RMSE.
@@ -429,7 +514,8 @@ def wgt_rmse(fld1, fld2, wgt):
     Notes:
     ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
     """
-    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
+    wgt.fillna(0)
+    assert len(fld1.shape) <= 2,     "Input fields must have less than two dimensions."
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     # in case these fields are in dask arrays, compute them now.
     if hasattr(fld1, "compute"):
@@ -540,6 +626,12 @@ def seasonal_mean(data, season=None, is_climo=None):
             # CLIMO file: try to determine which dimension is month
             has_time = False
             if isinstance(data, xr.DataArray):
+                has_time = 'time' in data.dims
+                if not has_time:
+                    if "month" in data.dims:
+                        data = data.rename({"month":"time"})
+                        has_time = True
+            if isinstance(data, ux.UxDataset):
                 has_time = 'time' in data.dims
                 if not has_time:
                     if "month" in data.dims:
@@ -1377,7 +1469,205 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     plt.close()
 
 
-#
+###
+
+def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
+                                   case_climo_yrs, baseline_climo_yrs,
+                                   mdlfld, obsfld, diffld, pctld, wgt,
+                                   obs=False, projection='global',**kwargs):
+
+    """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
+
+    Parameters
+    ----------
+    wks : str or Path
+        output file path
+    case_nickname : str
+        short name for case
+    base_nickname : str
+        short name for base case
+    case_climo_yrs : list
+        list of years in case climatology, used for annotation
+    baseline_climo_yrs : list
+        list of years in base case climatology, used for annotation
+    mdlfld : uxarray.DataArray
+        input data for case, needs units and long name attrubutes
+    obsfld : uxarray.DataArray
+        input data for base case, needs units and long name attrubutes 
+    diffld : uxarray.DataArray
+        input difference data, needs units and long name attrubutes
+    pctld : uxarray.DataArray
+        input percent difference data, needs units and long name attrubutes
+    wgt : uxarray.DataArray
+        weights assumed to be (area*landfrac)/(area*landfrac).sum()
+    kwargs : dict, optional
+        variable-specific options, See Notes
+
+    Notes
+    -----
+    kwargs expected to be a variable-specific section,
+    possibly provided by an ADF Variable Defaults YAML file.
+    Currently it is inspected for:
+    - colormap -> str, name of matplotlib colormap
+    - contour_levels -> list of explict values or a tuple: (min, max, step)
+    - diff_colormap
+    - diff_contour_levels
+    - tiString -> str, Title String
+    - tiFontSize -> int, Title Font Size
+    - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
+        + Organize these by the mpl function. In this function (`plot_map_and_save`)
+          we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
+          ```
+           mpl:
+             subplots:
+               figsize: (3, 9)
+             contourf:
+               levels: 15
+               cmap: Blues
+             colorbar:
+               shrink: 0.4
+          ```
+        + This is experimental, and if you find yourself doing much with this, you probably should write a new plotting script that does not rely on this module.
+    When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
+    """
+    
+    # prepare info for plotting
+    wrap_fields = (mdlfld, obsfld, diffld, pctld)
+    area_avg = [global_average(x, wgt) for x in wrap_fields]
+
+    # TODO Check this is correct, weighted rmse uses xarray weighted function
+    #d_rmse = wgt_rmse(a, b, wgt)  
+    d_rmse = (np.sqrt(((diffld**2)*wgt).sum())).values.item()
+
+    # We should think about how to do plot customization and defaults.
+    # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
+    if 'tiString' in kwargs:
+        tiString = kwargs.pop("tiString")
+    else:
+        tiString = ''
+        
+    if 'tiFontSize' in kwargs:
+        tiFontSize = kwargs.pop('tiFontSize')
+    else:
+        tiFontSize = 8
+        
+    #generate a dictionary of contour plot settings:
+    cp_info = prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
+    
+    if projection == 'global':
+        transform = ccrs.PlateCarree()
+        proj = ccrs.PlateCarree()
+        figsize= (14, 7)
+    elif projection == 'polar':
+        transform = ccrs.NorthPolarStereo()
+        proj = ccrs.NorthPolarStereo()
+        figsize = (8, 8)
+        
+    #nice formatting for tick labels
+    from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+    lon_formatter = LongitudeFormatter(number_format='0.0f',
+                                    degree_symbol='',
+                                    dateline_direction_label=False)
+    lat_formatter = LatitudeFormatter(number_format='0.0f',
+                                  degree_symbol='')
+
+    # create figure object
+    fig, axs = plt.subplots(2,2,
+        figsize=figsize,
+        facecolor="w",
+        constrained_layout=True,
+        subplot_kw=dict(projection=proj),
+        **cp_info['subplots_opt']
+    )
+    axs=axs.flatten()
+    
+    # Loop over data arrays to make plots
+    for i, a in enumerate(wrap_fields):
+        if i == len(wrap_fields)-2:
+            levels = cp_info['levelsdiff']
+            cmap = cp_info['cmapdiff']
+            norm = cp_info['normdiff']
+        elif i == len(wrap_fields)-1:
+            levels = cp_info['levelspctdiff']
+            cmap = cp_info['cmappct']
+            norm = cp_info['pctnorm']
+        else:
+            levels = cp_info['levels1']
+            cmap = cp_info['cmap1']
+            norm = cp_info['norm1']
+    
+        levs = np.unique(np.array(levels))
+    
+        #configure for polycollection plotting
+        #TODO, would be nice to have levels set from the info, above
+        ac = a.to_polycollection(projection=proj)
+        #ac.norm(norm)
+        ac.set_cmap(cmap)
+        ac.set_antialiased(False)
+        ac.set_transform(transform)
+        ac.set_clim(vmin=levels[0],vmax=levels[-1])
+        axs[i].add_collection(ac)
+        if i > 0:
+            cbar = plt.colorbar(ac, ax=axs[i], orientation='vertical', 
+                                pad=0.05, shrink=0.8, **cp_info['colorbar_opt'])
+            #TODO keep variable attributes on dataarrays
+            #cbar.set_label(wrap_fields[i].attrs['units'])
+        #Set stats: area_avg
+        axs[i].set_title(f"Mean: {area_avg[i].item():5.2f}\nMax: {wrap_fields[i].max().item():5.2f}\nMin: {wrap_fields[i].min().item():5.2f}", 
+                     loc='right', fontsize=tiFontSize)
+   
+    # Custom setting for each subplot
+    for a in axs:
+        a.coastlines()
+        if projection=='global':
+            a.set_global()
+            a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
+            a.set_xticks(np.linspace(-180, 120, 6), crs=proj)
+            a.set_yticks(np.linspace(-90, 90, 7), crs=proj)
+            a.tick_params('both', length=5, width=1.5, which='major')
+            a.tick_params('both', length=5, width=1.5, which='minor')
+            a.xaxis.set_major_formatter(lon_formatter)
+            a.yaxis.set_major_formatter(lat_formatter)
+        elif projection == 'polar':
+            a.set_extent([-180, 180, 50, 90], ccrs.PlateCarree())
+            # __Follow the cartopy gallery example to make circular__:
+            # Compute a circle in axes coordinates, which we can use as a boundary
+            # for the map. We can pan/zoom as much as we like - the boundary will be
+            # permanently circular.
+            theta = np.linspace(0, 2*np.pi, 100)
+            center, radius = [0.5, 0.5], 0.5
+            verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+            circle = mpl.path.Path(verts * radius + center)
+            a.set_boundary(circle, transform=a.transAxes)
+            a.gridlines(draw_labels=False, crs=ccrs.PlateCarree(), 
+                        lw=1, color="gray",y_inline=True, 
+                        xlocs=range(-180,180,90), ylocs=range(0,90,10))
+    
+    st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
+    st.set_y(0.85)
+
+    #Set plot titles
+    case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+    axs[0].set_title(case_title, loc='left', fontsize=tiFontSize)
+    if obs:
+        obs_var = kwargs["obs_var_name"]
+        obs_title = kwargs["obs_file"][:-3]
+        base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
+        axs[1].set_title(base_title, loc='left', fontsize=tiFontSize)
+    else:
+        base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        axs[1].set_title(base_title, loc='left', fontsize=tiFontSize)
+    axs[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
+    axs[2].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
+    axs[3].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
+        
+    fig.savefig(wks, bbox_inches='tight', dpi=300)
+    
+    #Close plots:
+    plt.close()
+    
+## End of plot_unstructured_map_and_save
+
 #  -- vertical interpolation code --
 #
 
@@ -1650,7 +1940,7 @@ def zm_validate_dims(fld):
     if not has_lat:
         return None
     else:
-        return has_lat, has_lev
+        return has_lev
 
 def _plot_line(axobject, xdata, ydata, color, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""

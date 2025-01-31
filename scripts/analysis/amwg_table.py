@@ -90,6 +90,7 @@ def amwg_table(adf):
 
     # in future, provide option to do multiple domains
     # They use 4 pre-defined domains:
+    # NOTE, this is likely not as critical for LMWG_table, and won't work we'll with unstructured data
     domains = {"global": (0, 360, -90, 90),
                "tropics": (0, 360, -20, 20),
                "southern": (0, 360, -90, -20),
@@ -206,7 +207,7 @@ def amwg_table(adf):
             #Load model variable data from file:
             ds = pf.load_dataset(ts_files)
             data = ds[var]
-
+            weights = ds.landfrac * ds.area
             #Extract units string, if available:
             if hasattr(data, 'units'):
                 unit_str = data.units
@@ -259,8 +260,9 @@ def amwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = pf.spatial_average(data)  # changes data "in place"
-
+                # data = pf.spatial_average(data)  # changes data "in place"
+                data = pf.spatial_average_lnd(data,weights) # hard code for land
+                # TODO, make this optional for lmwg_tables of amwg_table
             # In order to get correct statistics, average to annual or seasonal
             data = pf.annual_mean(data, whole_years=True, time_name='time')
 
@@ -362,7 +364,7 @@ def _get_row_vals(data):
 
 def _df_comp_table(adf, output_location, case_names):
     import pandas as pd
-
+    # TODO, make this output an option for LMWG or AMWG table
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
 
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
