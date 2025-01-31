@@ -190,14 +190,14 @@ def amwg_table(adf):
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
-                errmsg = f"Time series files for variable '{var}' not found.  Script will continue to next variable."
+                errmsg = f"  WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable."
                 warnings.warn(errmsg)
                 continue
             #End if
 
             #TEMPORARY:  For now, make sure only one file exists:
             if len(ts_files) != 1:
-                errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
+                errmsg =  "  WARNING: Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for the variable '{var}', so it will be skipped."
                 print(errmsg)
                 continue
@@ -215,7 +215,7 @@ def amwg_table(adf):
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
-                print(f"\t    ** Variable '{var}' has a vertical dimension, "+\
+                print(f"\t    WARNING: Variable '{var}' has a vertical dimension, "+\
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
@@ -239,11 +239,11 @@ def amwg_table(adf):
                         data = pf.mask_land_or_ocean(data, ofrac, use_nan=True)
                         #data = var_tmp
                     else:
-                        print(f"OCNFRAC not found, unable to apply mask to '{var}'")
+                        print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
                     #End if
                 else:
                     #Currently only an ocean mask is supported, so print warning here:
-                    wmsg = "Currently the only variable mask option is 'ocean',"
+                    wmsg = "\t    WARNING: Currently the only variable mask option is 'ocean',"
                     wmsg += f"not '{var_default_dict['mask'].lower()}'"
                     print(wmsg)
                 #End if

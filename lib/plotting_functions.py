@@ -152,7 +152,7 @@ def load_dataset(fils):
     When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
     """
     if len(fils) == 0:
-        warnings.warn(f"\t WARNING: Input file list is empty.")
+        warnings.warn(f"\t    WARNING: Input file list is empty.")
         return None
     elif len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
