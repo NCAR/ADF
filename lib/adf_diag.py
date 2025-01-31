@@ -757,10 +757,7 @@ class AdfDiag(AdfWeb):
         # End cases loop
 
         # Notify user that script has ended:
-        #print("  ...CAM time series file generation has finished successfully.")
-
-    # Notify user that script has ended:
-    print("  ...CAM time series file generation has finished successfully.")
+        print("  ...CAM time series file generation has finished successfully.")
 
     #########
 
