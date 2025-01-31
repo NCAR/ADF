@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'wwieder'
+user: 'slevis'
 
 
 #This first set of variables specify basic info used by all diagnostic runs:
@@ -80,8 +80,11 @@ diag_basic_info:
     #isn't specified in the variable defaults file.
     obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
+    #Location where CAM climatology files are stored:
+    cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
+
     #Location where re-gridded and interpolated CAM climatology files are stored:
-    cam_regrid_loc: /glade/derecho/scratch/${user}/ADF/regrid
+    cam_climo_regrid_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo/regrid
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
@@ -345,6 +348,9 @@ diag_cam_baseline_climo:
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
 
+    #Location where re-gridded and interpolated CAM climatology files are stored:
+    cam_climo_regrid_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/climo/regrid
+
     #TEM diagnostics
     #---------------
     #TEM history file number
@@ -466,7 +472,7 @@ time_averaging_scripts:
 #TODO, this needs to  be modified for a land model workflow
 #This is not the regridding script wwieder made for land
 regridding_scripts:
-    - regrid_and_vert_interp
+    - regrid_wrapper
 
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
@@ -478,11 +484,11 @@ analysis_scripts:
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
     - global_unstructured_latlon_map
-    - global_mean_timeseries
+    #- global_mean_timeseries
     #- global_latlon_vect_map
     #- zonal_mean
     #- meridional_mean
-    - polar_map
+    #- polar_map
     #- cam_taylor_diagram
     #- qbo
     #- ozone_diagnostics

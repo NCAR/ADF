@@ -48,7 +48,7 @@ class AdfData:
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
         # paths 
-        self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
+        self.model_rgrid_loc = adfobj.get_basic_info("cam_climo_regrid_loc", required=True)
 
         # variables (and info for unit transform)
         # use self.adf.diag_var_list and self.adf.self.adf.variable_defaults
@@ -231,14 +231,13 @@ class AdfData:
 
     #------------------
 
-    
     # Regridded files
     #------------------
 
     # Test case(s)
     def get_regrid_file(self, case, field):
         """Return list of test regridded files"""
-        model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
+        model_rg_loc = Path(self.adf.get_basic_info("cam_climo_regrid_loc", required=True))
         rlbl = self.ref_labels[field]  # rlbl = "reference label" = the name of the reference data that defines target grid
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
@@ -272,7 +271,7 @@ class AdfData:
             else:
                 fils = []
         else:
-            model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
+            model_rg_loc = Path(self.adf.get_basic_info("cam_climo_regrid_loc", required=True))
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
 
@@ -320,7 +319,8 @@ class AdfData:
             if not Path(sfil).is_file():
                 warnings.warn(f"Expecting to find file: {sfil}")
                 return None
-            ds = xr.open_dataset(sfil)
+            mesh = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'
+            ds = ux.open_dataset(mesh, sfil)
         if ds is None:
             warnings.warn(f"invalid data on load_dataset")
         return ds

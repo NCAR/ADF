@@ -183,7 +183,7 @@ def global_unstructured_latlon_map(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_grid_da(base_name, var)
+        odata = adfobj.data.load_reference_climo_da(base_name, var)
 
         if odata is None:
             dmsg = f"No regridded test file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
@@ -192,8 +192,7 @@ def global_unstructured_latlon_map(adfobj):
 
         o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
         if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
-            print(f"\t = skipping global map for {var} as REFERENCE does not have both lat and lon")
-            continue
+            print(f"\t = Unstructured grid, so global map for {var} does not have lat and lon")
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
@@ -209,24 +208,21 @@ def global_unstructured_latlon_map(adfobj):
                 print("    {} not found, making new directory".format(plot_loc))
                 plot_loc.mkdir(parents=True)
 
-            #Load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            #Load climo model files:
+            mdata = adfobj.data.load_climo_da(case_name, var)
+            area = adfobj.data.load_climo_da(case_name, 'area')  # THIS AND NEXT LINE DO NOT WORK, YET
+            landfrac = adfobj.data.load_climo_da(case_name, 'landfrac')
 
-            #Skip this variable/case if the regridded climo file doesn't exist:
+            #Skip this variable/case if the climo file doesn't exist:
             if mdata is None:
-                dmsg = f"No regridded test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
+                dmsg = f"No climo file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
 
             #Determine dimensions of variable:
             has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
             if (not has_dims['has_lat']) or (not has_dims['has_lon']):
-                print(f"\t = skipping global map for {var} for case {case_name} as it does not have both lat and lon")
-                continue
-            else: # i.e., has lat&lon
-                if (has_dims['has_lev']) and (not pres_levs):
-                    print(f"\t - skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
-                    continue
+                print(f"\t = Unstructured grid, so global map for {var} for case {case_name} does not have lat and lon")
 
             # Check output file. If file does not exist, proceed.
             # If file exists:
@@ -234,15 +230,10 @@ def global_unstructured_latlon_map(adfobj):
             #   if redo_plot is false: add to website and move on
             doplot = {}
 
-            if not has_dims['has_lev']:
-                for s in seasons:
-                    plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
-                    doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon")
-            else:
-                for pres in pres_levs:
-                    for s in seasons:
-                        plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
-                        doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon")
+            for s in seasons:
+                plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
+                doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon")
+
             if all(value is None for value in doplot.values()):
                 print(f"All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
                 continue
@@ -276,11 +267,14 @@ def global_unstructured_latlon_map(adfobj):
                     # percent change
                     pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
-                    pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
-                                            [syear_cases[case_idx],eyear_cases[case_idx]],
-                                            [syear_baseline,eyear_baseline],
-                                            mseasons[s], oseasons[s], dseasons[s], pseasons[s],
-                                            obs=adfobj.compare_obs, **vres)
+                    # calculate weights
+                    wts = area * landfrac / (area * landfrac).sum()
+
+                    pf.plot_unstructured_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
+                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                      [syear_baseline,eyear_baseline],
+                                                      mseasons[s], oseasons[s], dseasons[s], pseasons[s], wts,
+                                                      obs=adfobj.compare_obs, **vres)
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
