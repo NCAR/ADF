@@ -121,7 +121,7 @@ def qbo(adfobj):
     #----Calculate the zonal mean
     casedatzm = []
     for i in range(0,ncases,1):
-        has_lon = pf.validate_dims("U", ['lon'])
+        has_lon = pf.validate_dims(casedat[i].U, ['lon'])
         if not has_lon:
             print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_loc[i]}', cannot continue to plot.")
         else:
