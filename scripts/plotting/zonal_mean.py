@@ -44,7 +44,7 @@ def zonal_mean(adfobj):
 
     #Notify user that script has started:
     msg = "\n  Generating zonal mean plots..."
-    print(f"{msg}\n{'-' * len(msg)}")
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     var_list = adfobj.diag_var_list
 
