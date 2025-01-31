@@ -42,7 +42,9 @@ def zonal_mean(adfobj):
           method to infer what the user wants. 
     """
 
-    print("\n  Generating zonal mean plots...")
+    #Notify user that script has started:
+    msg = "\n   Generating zonal mean plots..."
+    print(f"{msg}\n{'-' * len(msg)}")
 
     var_list = adfobj.diag_var_list
 

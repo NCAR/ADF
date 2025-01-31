@@ -328,7 +328,8 @@ class AdfDiag(AdfWeb):
         """
 
         #Notify user that script has started:
-        print("\n  Calculating CAM time series...")
+        msg = "\n  Calculating CAM time series..."
+        print(f"{msg}\n{'-' * len(msg)}")
 
         global call_ncrcat
 

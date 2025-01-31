@@ -541,7 +541,7 @@ class AdfInfo(AdfConfig):
             #Go ahead and make the diag plot location if it doesn't exist already
             diag_location = Path(plot_loc)
             if not diag_location.is_dir():
-                print(f"\t INFO: Diagnostic Plot Location: {diag_location} not found, making new directory")
+                print(f"\n\tINFO: Diagnostic Plot Location: {diag_location} not found, making new directory")
                 diag_location.mkdir(parents=True)
         #End for
 

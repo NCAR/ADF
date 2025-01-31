@@ -93,7 +93,8 @@ def global_latlon_map(adfobj):
     """
 
     #Notify user that script has started:
-    print("\n  Generating lat/lon maps...")
+    msg = "\n   Generating lat/lon maps..."
+    print(f"{msg}\n{'-' * len(msg)}")
 
     #
     # Use ADF api to get all necessary information

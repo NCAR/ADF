@@ -46,7 +46,8 @@ def global_latlon_vect_map(adfobj):
     # - make plot
 
     #Notify user that script has started:
-    print("\n  Generating lat/lon vector maps...")
+    msg = "\n   Generating lat/lon vector maps..."
+    print(f"{msg}\n{'-' * len(msg)}")
 
     #
     # Use ADF api to get all necessary information

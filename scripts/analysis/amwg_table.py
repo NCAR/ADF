@@ -97,6 +97,10 @@ def amwg_table(adf):
 
     # and then in time it is DJF JJA ANN
 
+    #Notify user that script has started:
+    msg = "\n   Calculating AMWG variable tables..."
+    print(f"{msg}\n{'-' * len(msg)}")
+
     # within each domain and season
     # the result is just a table of
     # VARIABLE-NAME, RUN VALUE, OBS VALUE, RUN-OBS, RMSE
@@ -140,7 +144,7 @@ def amwg_table(adf):
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
     else:
-        print("AMWG table doesn't currently work with obs, so obs table won't be created.")
+        print("\t WARNING: AMWG table doesn't currently work with obs, so obs table won't be created.")
     #End if
 
     #-----------------------------------------
@@ -164,7 +168,7 @@ def amwg_table(adf):
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
 
         #Notify user that script has started:
-        print(f"\n  Calculating AMWG variable table for '{case_name}'...")
+        print(f"\n  Creating table for '{case_name}'...")
 
         #Create output file name:
         output_csv_file = output_location / f"amwg_table_{case_name}.csv"
@@ -197,7 +201,7 @@ def amwg_table(adf):
 
             #TEMPORARY:  For now, make sure only one file exists:
             if len(ts_files) != 1:
-                errmsg =  "  WARNING: Currently the AMWG table script can only handle one time series file per variable."
+                errmsg =  "\t    WARNING: Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for the variable '{var}', so it will be skipped."
                 print(errmsg)
                 continue

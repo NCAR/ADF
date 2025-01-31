@@ -30,7 +30,8 @@ def tape_recorder(adfobj):
         since a defualt set of obs are already being compared against in the tape recorder.
     """
     #Notify user that script has started:
-    print("\n  Generating tape recorder plots...")
+    msg = "\n   Generating tape recorder plots..."
+    print(f"{msg}\n{'-' * len(msg)}")
 
     #Special ADF variable which contains the output paths for plots:
     plot_location = adfobj.plot_location

@@ -32,7 +32,8 @@ def global_mean_timeseries(adfobj):
     """
 
     #Notify user that script has started:
-    print("\n  Generating global mean time series plots...")
+    msg = "\n   Generating global mean time series plots..."
+    print(f"{msg}\n{'-' * len(msg)}")
 
     # Gather ADF configurations
     plot_loc = get_plot_loc(adfobj)
