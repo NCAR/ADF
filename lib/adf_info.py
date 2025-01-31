@@ -218,24 +218,24 @@ class AdfInfo(AdfConfig):
                 #History file path isn't needed if user is running ADF directly on time series.
                 #So make sure start and end year are specified:
                 if syear_baseline is None:
-                    msg = f"No given start year for {data_name}, "
+                    msg = f"\t - No given start year for {data_name}, "
                     msg += f"using first found year: {found_syear_baseline}"
                     print(msg)
                     syear_baseline = found_syear_baseline
                 if syear_baseline not in found_yr_range:
-                    msg = f"Given start year '{syear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {found_syear_baseline}\n"
+                    msg = f"\t - Given start year '{syear_baseline}' is not in current dataset "
+                    msg += f"{data_name}, using first found year: {found_syear_baseline}"
                     print(msg)
                     syear_baseline = found_syear_baseline
 
                 if eyear_baseline is None:
-                    msg = f"No given end year for {data_name}, "
+                    msg = f"\t - No given end year for {data_name}, "
                     msg += f"using last found year: {found_eyear_baseline}"
                     print(msg)
                     eyear_baseline = found_eyear_baseline
                 if eyear_baseline not in found_yr_range:
-                    msg = f"Given end year '{eyear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {found_eyear_baseline}\n"
+                    msg = f"\t - Given end year '{eyear_baseline}' is not in current dataset "
+                    msg += f"{data_name}, using first found year: {found_eyear_baseline}"
                     print(msg)
                     eyear_baseline = found_eyear_baseline
             # End if
@@ -255,7 +255,7 @@ class AdfInfo(AdfConfig):
                 #Grab first possible hist string, just looking for years of run
                 base_hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
-                print(f"Checking history files in '{starting_location}'\n")
+                print(f"\tChecking history files in '{starting_location}'")
                 file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
 
                 #Check if the history file location exists
@@ -301,24 +301,24 @@ class AdfInfo(AdfConfig):
                 #Check if start or end year is missing. If so then just assume it is the
                 #start or end of the entire available model data.
                 if syear_baseline is None:
-                    msg = f"No given start year for {data_name}, "
+                    msg = f"\t - No given start year for {data_name}, "
                     msg += f"using first found year: {base_found_syr}"
                     print(msg)
                     syear_baseline = base_found_syr
                 if syear_baseline not in base_climo_yrs:
-                    msg = f"Given start year '{syear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {base_climo_yrs[0]}\n"
+                    msg = f"\t - Given start year '{syear_baseline}' is not in current dataset "
+                    msg += f"{data_name}, using first found year: {base_climo_yrs[0]}"
                     print(msg)
                     syear_baseline = base_found_syr
 
                 if eyear_baseline is None:
-                    msg = f"No given end year for {data_name}, "
+                    msg = f"\t - No given end year for {data_name}, "
                     msg += f"using last found year: {base_found_eyr}"
                     print(msg)
                     eyear_baseline = base_found_eyr
                 if eyear_baseline not in base_climo_yrs:
-                    msg = f"Given end year '{eyear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using last found year: {base_climo_yrs[-1]}\n"
+                    msg = f"\t - Given end year '{eyear_baseline}' is not in current dataset "
+                    msg += f"{data_name}, using last found year: {base_climo_yrs[-1]}"
                     print(msg)
                     eyear_baseline = base_found_eyr
 
@@ -449,7 +449,7 @@ class AdfInfo(AdfConfig):
 
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
-                print(f"Checking history files in '{starting_location}'\n")
+                print(f"\tChecking history files in '{starting_location}'")
 
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
 
@@ -541,7 +541,7 @@ class AdfInfo(AdfConfig):
             #Go ahead and make the diag plot location if it doesn't exist already
             diag_location = Path(plot_loc)
             if not diag_location.is_dir():
-                print(f"\t    {diag_location} not found, making new directory/n")
+                print(f"\tDiagnostic Plot Location: {diag_location} not found, making new directory")
                 diag_location.mkdir(parents=True)
         #End for
 

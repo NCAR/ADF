@@ -327,6 +327,9 @@ class AdfDiag(AdfWeb):
         Generate time series versions of the CAM history file data.
         """
 
+        #Notify user that script has started:
+        print("\n  Calculating CAM time series...")
+
         global call_ncrcat
 
         def call_ncrcat(cmd):
@@ -378,7 +381,7 @@ class AdfDiag(AdfWeb):
         for case_idx, case_name in enumerate(case_names):
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
-                emsg = " Configuration file indicates time series files have been pre-computed"
+                emsg = "\tNOTE: Configuration file indicates time series files have been pre-computed"
                 emsg += f" for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 continue
@@ -405,7 +408,7 @@ class AdfDiag(AdfWeb):
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
 
-                print(f"\n  Processing time series for {case_type_string} {case_name}, {hist_str} files:")
+                print(f"\n\t Processing time series for {case_type_string} {case_name}, {hist_str} files:")
                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
                     emsg = (
                         f"No history *{hist_str}.*.nc files found in '{starting_location}'."
@@ -415,7 +418,7 @@ class AdfDiag(AdfWeb):
                 # End if
 
                 # Notify user that script has started:
-                print(f"\n  Writing time series files to {ts_dir}")
+                print(f"\n\t Writing time series files to:\n\t{ts_dir}")
 
                 # Create empty list:
                 files_list = []
@@ -754,7 +757,10 @@ class AdfDiag(AdfWeb):
         # End cases loop
 
         # Notify user that script has ended:
-        print("  ...CAM time series file generation has finished successfully.")
+        #print("  ...CAM time series file generation has finished successfully.")
+
+    # Notify user that script has ended:
+    print("  ...CAM time series file generation has finished successfully.")
 
     #########
 

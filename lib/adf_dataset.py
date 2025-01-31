@@ -320,7 +320,7 @@ class AdfData:
         """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
         ds = self.load_dataset(fils)
         if ds is None:
-            warnings.warn(f"WARNING: Load failed for {variablename}")
+            warnings.warn(f"\t WARNING: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
         scale_factor = kwargs.get('scale_factor', 1)
