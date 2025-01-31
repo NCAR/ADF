@@ -230,7 +230,7 @@ def zonal_mean(adfobj):
             #Check if reference file has vertical levels
             #Notify user of level dimension:
             if has_lev:
-                print(f"\t   {var} has lev dimension.")
+                print(f"\t    INFO: {var} has lev dimension.")
 
             #Check to make sure each case has vertical levels if one of the cases does
             if (has_lev) and (not has_lev_ref):

@@ -199,7 +199,7 @@ def meridional_mean(adfobj):
 
                 #Notify user of level dimension:
                 if validate_lat_lev['has_lev']:
-                    print(f"\t   {var} has lev dimension.")
+                    print(f"\t    INFO: {var} has lev dimension.")
                     has_lev = True
                 else:
                     has_lev = False

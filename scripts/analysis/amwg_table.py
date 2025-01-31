@@ -190,7 +190,7 @@ def amwg_table(adf):
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
-                errmsg = f"  WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable."
+                errmsg = f"\t    WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable."
                 warnings.warn(errmsg)
                 continue
             #End if
