@@ -118,7 +118,7 @@ class AdfData:
     def load_timeseries_dataset(self, fils):
         """Return DataSet from time series file(s) and assign time to midpoint of interval"""
         if (len(fils) == 0):
-            warnings.warn("\t Input file list is empty.")
+            warnings.warn("\t WARNING: Input file list is empty.")
             return None
         elif (len(fils) > 1):
             ds = xr.open_mfdataset(fils, decode_times=False)

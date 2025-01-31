@@ -418,23 +418,23 @@ class AdfInfo(AdfConfig):
                 #History file path isn't needed if user is running ADF directly on time series.
                 #So make sure start and end year are specified:
                 if syear is None:
-                    msg = f"\t - No given start year for {case_name}, "
+                    msg = f"\t WARNING: No given start year for {case_name}, "
                     msg += f"using first found year: {found_syear}"
                     print(msg)
                     syear = found_syear
                 if syear not in found_yr_range:
-                    msg = f"\t - Given start year '{syear}' is not in current dataset "
+                    msg = f"\t WARNING: Given start year '{syear}' is not in current dataset "
                     msg += f"{case_name}, using first found year: {found_syear}\n"
                     print(msg)
                     syear = found_syear
                 #End if
                 if eyear is None:
-                    msg = f"\t - No given end year for {case_name}, "
+                    msg = f"\t WARNING: No given end year for {case_name}, "
                     msg += f"using last found year: {found_eyear}"
                     print(msg)
                     eyear = found_eyear
                 if eyear not in found_yr_range:
-                    msg = f"\t - Given end year '{eyear}' is not in current dataset "
+                    msg = f"\t WARNING: Given end year '{eyear}' is not in current dataset "
                     msg += f"{case_name}, using last found year: {found_eyear}\n"
                     print(msg)
                     eyear = found_eyear

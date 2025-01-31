@@ -188,7 +188,7 @@ def global_latlon_vect_map(adfobj):
                 #Extract target variable name:
                 data_var = [var_obs_dict[var]["obs_var"]]
             else:
-                dmsg = f"No obs found for variable `{var}`, lat/lon vector map plotting skipped."
+                dmsg = f"\t    WARNING: No obs found for variable `{var}`, lat/lon vector map plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
             #End if
@@ -201,7 +201,7 @@ def global_latlon_vect_map(adfobj):
                 #Extract target variable name:
                 data_var.append(var_obs_dict[var_pair]["obs_var"])
             else:
-                dmsg = f"No obs found for variable `{var}`, lat/lon vector map plotting skipped."
+                dmsg = f"\t    WARNING: No obs found for variable `{var}`, lat/lon vector map plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
             #End if
@@ -236,9 +236,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(uoclim_fils[0])
                 uoclim_ds = xr.open_dataset(sfil)
             else:
-                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
+                print("\t    ERROR: Did not find any oclim_fils. Will try to skip.")
+                print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t    INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
                 continue
             #End if
 
@@ -248,9 +248,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(voclim_fils[0])
                 voclim_ds = xr.open_dataset(sfil)
             else:
-                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
+                print("\t    ERROR: Did not find any oclim_fils. Will try to skip.")
+                print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t    INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
                 continue
             #End if
 
@@ -273,7 +273,7 @@ def global_latlon_vect_map(adfobj):
             # check if there is a lat dimension:
             if not has_lat_ref:
                 print(
-                    f"\t - WARNING: Variable '{var}' is missing a lat dimension for '{base_name}', cannot continue to plot."
+                    f"\t    WARNING: Variable '{var}' is missing a lat dimension for '{base_name}', cannot continue to plot."
                 )
                 continue
             # End if
@@ -302,9 +302,9 @@ def global_latlon_vect_map(adfobj):
                 elif len(umclim_fils) == 1:
                     umclim_ds = xr.open_dataset(umclim_fils[0])
                 else:
-                    print("\t WARNING: Did not find any regridded climo files. Will try to skip.")
-                    print(f"\t INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
-                    print(f"\t INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    print("\t    WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print(f"\t    INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"\t    INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
                     continue
                 #End if
 
@@ -314,7 +314,7 @@ def global_latlon_vect_map(adfobj):
                     vmclim_ds = xr.open_dataset(vmclim_fils[0])
                 else:
                     #The vector pair was never processed, so skip varaible:
-                    print(f"\t Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
+                    print(f"\t    WARNING: Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
                     continue
                 #End if
 

@@ -142,19 +142,19 @@ def zonal_mean(adfobj):
     #Loop over variables:
     for var in var_list:
         if var not in adfobj.data.ref_var_nam:
-            dmsg = f"\t WARNING: No obs found for variable `{var}`, zonal mean plotting skipped."
+            dmsg = f"\t    WARNING: No obs found for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             print(dmsg)
             continue
 
         #Notify user of variable being plotted:
-        print(f"\t - zonal mean plots for {var}")
+        print(f"\t    zonal mean plots for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
             #If found then notify user, assuming debug log is enabled:
-            adfobj.debug_log(f"\t INFO: zonal_mean: Found variable defaults for {var}")
+            adfobj.debug_log(f"\t    INFO: zonal_mean: Found variable defaults for {var}")
 
         else:
             vres = {}
@@ -171,7 +171,7 @@ def zonal_mean(adfobj):
 
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
-            dmsg = f"\t WARNING: No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
+            dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             continue
 
@@ -187,7 +187,7 @@ def zonal_mean(adfobj):
         # if not, skip test cases and move to next variable
         if not has_lat_ref:
             print(
-                f"\t - WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
             )
             continue
         # End if
@@ -205,7 +205,7 @@ def zonal_mean(adfobj):
             mdata = adfobj.data.load_regrid_da(case_name, var)
 
             if mdata is None:
-                dmsg = f"\t WARNING: No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
+                dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
 
@@ -222,7 +222,7 @@ def zonal_mean(adfobj):
             # check if there is a lat dimension:
             if not has_lat:
                 print(
-                    f"\t - WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
                 continue
             # End if
@@ -234,10 +234,10 @@ def zonal_mean(adfobj):
 
             #Check to make sure each case has vertical levels if one of the cases does
             if (has_lev) and (not has_lev_ref):
-                print(f"\t - WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
+                print(f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
                 continue
             if (has_lev_ref) and (not has_lev):
-                print(f"\t - WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
+                print(f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
                 continue
 
             #
@@ -259,7 +259,7 @@ def zonal_mean(adfobj):
                 #
 
                 # difference: each entry should be (lat, lon) or (plev, lat, lon)
-                # dseasons[s] = mseasons[s] - oseasons[s]
+                # dseasons[s] = mseasons[s]    oseasons[s]
                 # difference will be calculated in plot_zonal_mean_and_save;
                 # because we can let any pressure-level interpolation happen there
                 # This could be re-visited for efficiency or improved code structure.

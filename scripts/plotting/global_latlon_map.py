@@ -149,7 +149,7 @@ def global_latlon_map(adfobj):
             continue        
 
         #Notify user of variable being plotted:
-        print("\t - lat/lon maps for {}".format(var))
+        print(f"\t - lat/lon maps for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
@@ -180,13 +180,13 @@ def global_latlon_map(adfobj):
         odata = adfobj.data.load_reference_regrid_da(base_name, var)
 
         if odata is None:
-            dmsg = f"No regridded test file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
+            dmsg = f"\t    WARNING: No regridded test file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
             adfobj.debug_log(dmsg)
             continue
 
         o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
         if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
-            print(f"\t WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
+            print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
             continue
 
         #Loop over model cases:
@@ -200,7 +200,7 @@ def global_latlon_map(adfobj):
 
             #Check if plot output directory exists, and if not, then create it:
             if not plot_loc.is_dir():
-                print("    {} not found, making new directory".format(plot_loc))
+                print(f"    {plot_loc} not found, making new directory")
                 plot_loc.mkdir(parents=True)
 
             #Load re-gridded model files:
@@ -208,18 +208,18 @@ def global_latlon_map(adfobj):
 
             #Skip this variable/case if the regridded climo file doesn't exist:
             if mdata is None:
-                dmsg = f"No regridded test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
+                dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
 
             #Determine dimensions of variable:
             has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
             if (not has_dims['has_lat']) or (not has_dims['has_lon']):
-                print(f"\t WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
+                print(f"\t    WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
                 continue
             else: # i.e., has lat&lon
                 if (has_dims['has_lev']) and (not pres_levs):
-                    print(f"\t WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
+                    print(f"\t    WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
                     continue
 
             # Check output file. If file does not exist, proceed.
@@ -238,7 +238,7 @@ def global_latlon_map(adfobj):
                         plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
                         doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon")
             if all(value is None for value in doplot.values()):
-                print(f"\t INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
+                print(f"\t    INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
                 continue
 
             #Create new dictionaries:
@@ -289,7 +289,7 @@ def global_latlon_map(adfobj):
                     #have been interpolated to the standard reference
                     #pressure levels:
                     if (not (pres in mdata['lev'])) or (not (pres in odata['lev'])):
-                        print(f"\t WARNING: plot_press_levels value '{pres}' not present in {var} [test: {(pres in mdata['lev'])}, ref: {pres in odata['lev']}], so skipping.")
+                        print(f"\t    WARNING: plot_press_levels value '{pres}' not present in {var} [test: {(pres in mdata['lev'])}, ref: {pres in odata['lev']}], so skipping.")
                         continue
 
                     #Loop over seasons:

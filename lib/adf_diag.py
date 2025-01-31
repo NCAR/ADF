@@ -621,7 +621,7 @@ class AdfDiag(AdfWeb):
                         # Lastly, raise error if the variable is not a derived quanitity
                         # but is also not in the history file(s)
                         else:
-                            msg = f"\t WARNING: {var} is not in the file {hist_files[0]} "
+                            msg = f"\t    WARNING: {var} is not in the file {hist_files[0]} "
                             msg += "nor can it be derived.\n"
                             msg += "\t  ** No time series will be generated."
                             print(msg)
@@ -667,7 +667,7 @@ class AdfDiag(AdfWeb):
 
                             if "PS" in hist_file_var_list:
                                 ncrcat_var_list = ncrcat_var_list + ",PS"
-                                print(f"\t   INFO: Adding PS to file for '{var}'")
+                                print(f"\t    INFO: Adding PS to file for '{var}'")
                             else:
                                 wmsg = "WARNING: PS not found in history file."
                                 wmsg += " It might be needed at some point."
@@ -1521,7 +1521,7 @@ def _load_dataset(fils):
     warnings.formatwarning = my_formatwarning
 
     if len(fils) == 0:
-        warnings.warn("\t WARNING: Input file list is empty.")
+        warnings.warn("\t    WARNING: Input file list is empty.")
         return None
     if len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
