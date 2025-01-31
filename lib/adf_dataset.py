@@ -186,6 +186,14 @@ class AdfData:
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
 
 
+    def load_climo_dataset(self, case, field):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_climo_file(case, field)
+        if not fils:
+            warnings.warn(f"WARNING: Did not find climo file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_dataset(fils)
+
     def load_climo_file(self, case, variablename, grid='regular'):
         """
         Return Dataset for climo of variablename
@@ -216,6 +224,15 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_reference_climo_file(variablename)
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
+
+    def load_reference_climo_dataset(self, case, field):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_reference_climo_file(self, field)
+        if not fils:
+            warnings.warn(f"WARNING: Did not find climo file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_dataset(fils)
+
 
     def get_reference_climo_file(self, var):
         """Return a list of files to be used as reference (aka baseline) for variable var."""

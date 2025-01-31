@@ -631,6 +631,12 @@ def seasonal_mean(data, season=None, is_climo=None):
                     if "month" in data.dims:
                         data = data.rename({"month":"time"})
                         has_time = True
+            if isinstance(data, ux.UxDataset):
+                has_time = 'time' in data.dims
+                if not has_time:
+                    if "month" in data.dims:
+                        data = data.rename({"month":"time"})
+                        has_time = True
             if not has_time:
                 # this might happen if a pure numpy array gets passed in
                 # --> assumes ordered January to December.
@@ -1604,7 +1610,8 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
         if i > 0:
             cbar = plt.colorbar(ac, ax=axs[i], orientation='vertical', 
                                 pad=0.05, shrink=0.8, **cp_info['colorbar_opt'])
-            cbar.set_label(wrap_fields[i].attrs['units'])
+            #TODO keep variable attributes on dataarrays
+            #cbar.set_label(wrap_fields[i].attrs['units'])
         #Set stats: area_avg
         axs[i].set_title(f"Mean: {area_avg[i].item():5.2f}\nMax: {wrap_fields[i].max().item():5.2f}\nMin: {wrap_fields[i].min().item():5.2f}", 
                      loc='right', fontsize=tiFontSize)

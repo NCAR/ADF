@@ -184,6 +184,7 @@ def global_unstructured_latlon_map(adfobj):
 
         # Gather reference variable data
         odata = adfobj.data.load_reference_climo_da(base_name, var)
+        #odata = odata[var] # now just read in the data array, but don't modify anything
 
         if odata is None:
             dmsg = f"No regridded test file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
@@ -209,9 +210,11 @@ def global_unstructured_latlon_map(adfobj):
                 plot_loc.mkdir(parents=True)
 
             #Load climo model files:
-            mdata = adfobj.data.load_climo_da(case_name, var)
-            area = adfobj.data.load_climo_da(case_name, 'area')  # THIS AND NEXT LINE DO NOT WORK, YET
-            landfrac = adfobj.data.load_climo_da(case_name, 'landfrac')
+            mdata = adfobj.data.load_climo_dataset(case_name, var) # read in dataset for area & landfrac
+            area = mdata.area.isel(time=0)
+            landfrac = mdata.landfrac.isel(time=0)
+            mdata = mdata[var] # now just read in the data array
+            odata.attrs = mdata.attrs # copy attributes back to base case
 
             #Skip this variable/case if the climo file doesn't exist:
             if mdata is None:
@@ -476,7 +479,7 @@ def aod_latlon(adfobj):
 
     for case in test_case_names:
         #Load re-gridded model files:
-        ds_case = adfobj.data.load_climo_da(case, var)
+        ds_case = adfobj.data.load_climo_dataset(case, var)
 
         #Skip this variable/case if the climo file doesn't exist:
         if ds_case is None:
