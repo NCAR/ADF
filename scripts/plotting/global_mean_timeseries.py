@@ -294,6 +294,9 @@ def make_plot(field, case_ts, lens2=None, label=None, ref_ts_da=None):
     # Plot reference/baseline if available
     if type(ref_ts_da) != NoneType:
         ax.plot(ref_ts_da.year, ref_ts_da, label=label)
+    else:
+        f"\t    WARNING: Variable {field} has a data."
+        return fig, ax
     for c, cdata in case_ts.items():
         ax.plot(cdata.year, cdata, label=c)
     if lens2:
