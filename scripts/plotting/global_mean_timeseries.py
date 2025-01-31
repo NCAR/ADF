@@ -280,7 +280,7 @@ class Lens2Data:
             lens2 = xr.open_mfdataset(lens2_fil)
             has_lens = True
         else:
-            warnings.warn(f"    WARNING: Did not find LENS2 file for {self.field}.")
+            warnings.warn(f"\t    WARNING: Did not find LENS2 file for {self.field}.")
             has_lens = False
             lens2 = None
         return has_lens, lens2
