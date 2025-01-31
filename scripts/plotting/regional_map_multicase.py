@@ -57,7 +57,7 @@ def regional_map_multicase(adfobj):
     """
 
     # Notify user that script has started:
-    msg = "\n   Generating regional contour plots ..."
+    msg = "\n  Generating regional contour plots ..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # We need to know:

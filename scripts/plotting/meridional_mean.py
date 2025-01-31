@@ -22,7 +22,7 @@ def meridional_mean(adfobj):
     """
 
     #Notify user that script has started:
-    msg = "\n   Generating meridional mean plots..."
+    msg = "\n  Generating meridional mean plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Extract needed quantities from ADF object:

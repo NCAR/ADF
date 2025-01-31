@@ -32,7 +32,7 @@ def global_mean_timeseries(adfobj):
     """
 
     #Notify user that script has started:
-    msg = "\n   Generating global mean time series plots..."
+    msg = "\n  Generating global mean time series plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Gather ADF configurations
@@ -280,7 +280,7 @@ class Lens2Data:
             lens2 = xr.open_mfdataset(lens2_fil)
             has_lens = True
         else:
-            warnings.warn(f"\t - Time Series: Did not find LENS2 file for {self.field}.")
+            warnings.warn(f"    WARNING: Did not find LENS2 file for {self.field}.")
             has_lens = False
             lens2 = None
         return has_lens, lens2

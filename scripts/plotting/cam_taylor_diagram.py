@@ -34,7 +34,7 @@ warnings.formatwarning = my_formatwarning
 def cam_taylor_diagram(adfobj):
 
     #Notify user that script has started:
-    msg = "\n   Generating Taylor Diagrams..."
+    msg = "\n  Generating Taylor Diagrams..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Taylor diagrams currently don't work for model to obs comparison

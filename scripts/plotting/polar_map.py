@@ -17,7 +17,7 @@ def polar_map(adfobj):
     [based on global_latlon_map.py]
     """
     #Notify user that script has started:
-    msg = "\n   Generating polar maps..."
+    msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #

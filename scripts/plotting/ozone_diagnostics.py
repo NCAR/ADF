@@ -109,7 +109,7 @@ def my_formatwarning(msg, *args, **kwargs):
 warnings.formatwarning = my_formatwarning
 
 #Notify user that script has started:
-msg = "\n   Generating ozone plots..."
+msg = "\n  Generating ozone plots..."
 print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
 #-----------------------------------------------------------------------------------------

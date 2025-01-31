@@ -28,7 +28,7 @@ def tem(adf):
     """
 
     #Notify user that script has started:
-    msg = "\n   Generating TEM plots..."
+    msg = "\n  Generating TEM plots..."
     print(f"{msg}\n{'-' * len(msg)}")
 
     #Special ADF variable which contains the output paths for
