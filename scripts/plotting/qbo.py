@@ -31,7 +31,7 @@ def qbo(adfobj):
     """
     #Notify user that script has started:
     msg = "\n   Generating qbo plots..."
-    print(f"{msg}\n{'-' * len(msg)}")
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Extract relevant info from the ADF:
     case_names = adfobj.get_cam_info('cam_case_name', required=True)

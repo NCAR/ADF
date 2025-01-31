@@ -31,7 +31,7 @@ def tape_recorder(adfobj):
     """
     #Notify user that script has started:
     msg = "\n   Generating tape recorder plots..."
-    print(f"{msg}\n{'-' * len(msg)}")
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Special ADF variable which contains the output paths for plots:
     plot_location = adfobj.plot_location

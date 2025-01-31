@@ -35,7 +35,7 @@ def cam_taylor_diagram(adfobj):
 
     #Notify user that script has started:
     msg = "\n   Generating Taylor Diagrams..."
-    print(f"{msg}\n{'-' * len(msg)}")
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Taylor diagrams currently don't work for model to obs comparison
     # If compare_obs is set to True, then skip this script:

@@ -99,7 +99,7 @@ def amwg_table(adf):
 
     #Notify user that script has started:
     msg = "\n   Calculating AMWG variable tables..."
-    print(f"{msg}\n{'-' * len(msg)}")
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # within each domain and season
     # the result is just a table of

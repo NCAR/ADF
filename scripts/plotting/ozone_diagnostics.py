@@ -110,7 +110,7 @@ warnings.formatwarning = my_formatwarning
 
 #Notify user that script has started:
 msg = "\n   Generating ozone plots..."
-print(f"{msg}\n{'-' * len(msg)}")
+print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
 #-----------------------------------------------------------------------------------------
 #Lookup pertinent region info
