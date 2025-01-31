@@ -377,7 +377,7 @@ def spatial_average(indata, weights=None, spatial_dims=None):
                 warnings.warn("area variable being used to generated normalized weights.")
                 weights = indata['area'] / indata['area'].sum()
             else:
-                warnings.warn("We need a way to get area variable. Using equal weights.")
+                warnings.warn("\t  We need a way to get area variable. Using equal weights.")
                 weights = xr.DataArray(1.)
             weights.name = "weights"
         else:

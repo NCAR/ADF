@@ -106,7 +106,7 @@ class AdfData:
     def get_ref_timeseries_file(self, field):
         """Return list of reference time series files"""
         if self.adf.compare_obs:
-            warnings.warn("ADF does not currently expect observational time series files.")
+            warnings.warn("\t WARNING: ADF does not currently expect observational time series files.")
             return None
         else:
             ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
@@ -125,11 +125,11 @@ class AdfData:
         else:
             sfil = str(fils[0])
             if not Path(sfil).is_file():
-                warnings.warn(f"Expecting to find file: {sfil}")
+                warnings.warn(f"\t WARNING: Expecting to find file: {sfil}")
                 return None
             ds = xr.open_dataset(sfil, decode_times=False)
         if ds is None:
-            warnings.warn(f"invalid data on load_dataset")
+            warnings.warn(f"\t WARNING: invalid data on load_dataset")
         # assign time to midpoint of interval (even if it is already)
         if 'time_bnds' in ds:
             t = ds['time_bnds'].mean(dim='nbnd')
@@ -140,7 +140,7 @@ class AdfData:
             t.attrs = ds['time'].attrs
             ds = ds.assign_coords({'time':t})
         else:
-            warnings.warn("Timeseries file does not have time bounds info.")
+            warnings.warn("\t INFO: Timeseries file does not have time bounds info.")
         return xr.decode_cf(ds)
 
     def load_timeseries_da(self, case, variablename):
@@ -301,18 +301,18 @@ class AdfData:
     def load_dataset(self, fils):
         """Return xarray DataSet from file(s)"""
         if (len(fils) == 0):
-            warnings.warn("\t Input file list is empty.")
+            warnings.warn("\t WARNING: Input file list is empty.")
             return None
         elif (len(fils) > 1):
             ds = xr.open_mfdataset(fils, combine='by_coords')
         else:
             sfil = str(fils[0])
             if not Path(sfil).is_file():
-                warnings.warn(f"Expecting to find file: {sfil}")
+                warnings.warn(f"\t WARNING: Expecting to find file: {sfil}")
                 return None
             ds = xr.open_dataset(sfil)
         if ds is None:
-            warnings.warn(f"invalid data on load_dataset")
+            warnings.warn(f"\t WARNING: invalid data on load_dataset")
         return ds
 
     # Load DataArray

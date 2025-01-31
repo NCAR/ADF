@@ -71,7 +71,7 @@ def global_mean_timeseries(adfobj):
         # Check to see if this field is available
         if ref_ts_da is None:
             print(
-                f"\t Variable named {field} for case '{base_name}' provides Nonetype. Skipping this variable"
+                f"\t WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
             )
         else:
             # check data dimensions:
@@ -85,7 +85,7 @@ def global_mean_timeseries(adfobj):
             # check if this is a "2-d" varaible:
             if has_lev_ref:
                 print(
-                    f"\t Variable named {field} has a lev dimension for '{base_name}', which does not work with this script."
+                    f"\t WARNING: Variable {field} has a lev dimension for '{base_name}', which does not work with this script."
                 )
                 continue
             # End if
@@ -93,7 +93,7 @@ def global_mean_timeseries(adfobj):
             # check if there is a lat dimension:
             if not has_lat_ref:
                 print(
-                    f"\t Variable named {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                    f"\t WARNING: Variable {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
                 )
                 continue
             # End if
@@ -129,7 +129,7 @@ def global_mean_timeseries(adfobj):
                     field
                 )  # Provides access to LENS2 dataset when available (class defined below)
             else:
-                print(f"\t ** Some model years for '{field}' are outside LENS years, will skip plotting LENS data for clarity")
+                print(f"\t ** Some model years for {field} are outside LENS years, will skip plotting LENS data for clarity")
                 lens2_data = None
             # End if - LENS
 
@@ -137,7 +137,7 @@ def global_mean_timeseries(adfobj):
 
             if c_ts_da is None:
                 print(
-                    f"\t Variable named {field} for case '{case_name}' provides Nonetype. Skipping this variable"
+                    f"\t WARNING: Variable {field} for case '{case_name}' provides Nonetype. Skipping this variable"
                 )
                 skip_var = True
                 continue
@@ -155,7 +155,7 @@ def global_mean_timeseries(adfobj):
             # If 3-d variable, notify user, flag and move to next test case
             if has_lev_case:
                 print(
-                    f"\t Variable named {field} has a lev dimension for '{case_name}', which does not work with this script."
+                    f"\t WARNING: Variable {field} has a lev dimension for '{case_name}', which does not work with this script."
                 )
 
                 skip_var = True
@@ -165,7 +165,7 @@ def global_mean_timeseries(adfobj):
             # check if there is a lat dimension:
             if not has_lat_case:
                 print(
-                    f"\t Variable named {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    f"\t WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
                 continue
             # End if

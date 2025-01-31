@@ -381,7 +381,7 @@ def regrid_and_vert_interp(adf):
                         save_to_nc(tgdata_interp, interp_bl_file)
                     #End if
                 else:
-                    print("\t Regridded file already exists, so skipping...")
+                    print("\t INFO: Regridded file already exists, so skipping...")
                 #End if (file check)
             #End do (target list)
         #End do (variable list)

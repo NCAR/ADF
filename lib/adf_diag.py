@@ -667,7 +667,7 @@ class AdfDiag(AdfWeb):
 
                             if "PS" in hist_file_var_list:
                                 ncrcat_var_list = ncrcat_var_list + ",PS"
-                                print("\t   Adding PS to file")
+                                print(f"\t   INFO: Adding PS to file for '{var}'")
                             else:
                                 wmsg = "WARNING: PS not found in history file."
                                 wmsg += " It might be needed at some point."

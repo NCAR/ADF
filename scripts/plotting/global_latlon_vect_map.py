@@ -273,7 +273,7 @@ def global_latlon_vect_map(adfobj):
             # check if there is a lat dimension:
             if not has_lat_ref:
                 print(
-                    f"Variable named {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                    f"\t - WARNING: Variable '{var}' is missing a lat dimension for '{base_name}', cannot continue to plot."
                 )
                 continue
             # End if
@@ -289,7 +289,7 @@ def global_latlon_vect_map(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("\t    {} not found, making new directory".format(plot_loc))
+                    print(f"\t {plot_loc} not found, making new directory")
                     plot_loc.mkdir(parents=True)
                 #End if
 
@@ -336,7 +336,7 @@ def global_latlon_vect_map(adfobj):
                 # check if there is a lat dimension:
                 if not has_lat:
                     print(
-                        f"Variable named {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                        f"\t -  {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
                     )
                     continue
                 # End if

@@ -304,7 +304,7 @@ def polar_map(adfobj):
                     # check if there is a lat dimension:
                     if not has_lat:
                         print(
-                            f"Variable named {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                            f"\t - WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
                         )
                         continue
                     # End if
@@ -319,7 +319,7 @@ def polar_map(adfobj):
                     # check if there is a lat dimension:
                     if not has_lat_ref:
                         print(
-                            f"Variable named {var} is missing a lat dimension for '{data_name}', cannot continue to plot."
+                            f"\t - WARNING: Variable {var} is missing a lat dimension for '{data_name}', cannot continue to plot."
                         )
                         continue
 

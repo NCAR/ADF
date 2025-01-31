@@ -186,7 +186,7 @@ def global_latlon_map(adfobj):
 
         o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
         if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
-            print(f"\t = skipping global map for {var} as REFERENCE does not have both lat and lon")
+            print(f"\t WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
             continue
 
         #Loop over model cases:
@@ -215,11 +215,11 @@ def global_latlon_map(adfobj):
             #Determine dimensions of variable:
             has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
             if (not has_dims['has_lat']) or (not has_dims['has_lon']):
-                print(f"\t = skipping global map for {var} for case {case_name} as it does not have both lat and lon")
+                print(f"\t WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
                 continue
             else: # i.e., has lat&lon
                 if (has_dims['has_lev']) and (not pres_levs):
-                    print(f"\t - skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
+                    print(f"\t WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
                     continue
 
             # Check output file. If file does not exist, proceed.
@@ -238,7 +238,7 @@ def global_latlon_map(adfobj):
                         plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
                         doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon")
             if all(value is None for value in doplot.values()):
-                print(f"All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
+                print(f"\t INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
                 continue
 
             #Create new dictionaries:
@@ -289,7 +289,7 @@ def global_latlon_map(adfobj):
                     #have been interpolated to the standard reference
                     #pressure levels:
                     if (not (pres in mdata['lev'])) or (not (pres in odata['lev'])):
-                        print(f"plot_press_levels value '{pres}' not present in {var} [test: {(pres in mdata['lev'])}, ref: {pres in odata['lev']}], so skipping.")
+                        print(f"\t WARNING: plot_press_levels value '{pres}' not present in {var} [test: {(pres in mdata['lev'])}, ref: {pres in odata['lev']}], so skipping.")
                         continue
 
                     #Loop over seasons:
@@ -444,7 +444,7 @@ def aod_latlon(adfobj):
     file_mod08_m3 = os.path.join(obs_dir, 'MOD08_M3_192x288_AOD_2001-2020_climo.nc')
 
     if (not Path(file_merra2).is_file()) or (not Path(file_mod08_m3).is_file()):
-        print("\t  ** AOD Panel plots not made, missing MERRA2 and/or MODIS file")
+        print("\t  WARNING: AOD Panel plots not made, missing MERRA2 and/or MODIS file")
         return
 
     ds_merra2 = xr.open_dataset(file_merra2)
@@ -480,7 +480,7 @@ def aod_latlon(adfobj):
 
         #Skip this variable/case if the climo file doesn't exist:
         if ds_case is None:
-            dmsg = f"No test climo file for {case} for variable `{var}`, global lat/lon plots skipped."
+            dmsg = f"\t WARNING: No test climo file for {case} for variable `{var}`, global lat/lon plots skipped."
             adfobj.debug_log(dmsg)
             continue
         else:
@@ -498,7 +498,7 @@ def aod_latlon(adfobj):
                 case_lat = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lat values don't match between obs and '{case}'\n"                    
+                err_msg += f"\t WARNING: The lat values don't match between obs and '{case}'\n"                    
                 err_msg += f"\t  - {case} lat shape: {case_lat_shape} and "
                 err_msg += f"obs lat shape: {obs_lat_shape}"
                 adfobj.debug_log(err_msg)
@@ -510,7 +510,7 @@ def aod_latlon(adfobj):
                 case_lon = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lon values don't match between obs and '{case}'\n"
+                err_msg += f"\t WARNING: The lon values don't match between obs and '{case}'\n"
                 err_msg += f"\t  - {case} lon shape: {case_lon_shape} and "
                 err_msg += f"obs lon shape: {obs_lon_shape}"
                 adfobj.debug_log(err_msg)
@@ -547,7 +547,7 @@ def aod_latlon(adfobj):
         # Gather reference variable data
         ds_base = adfobj.data.load_reference_climo_da(base_name, var)
         if ds_base is None:
-            dmsg = f"No baseline climo file for {base_name} for variable `{var}`, global lat/lon plots skipped."
+            dmsg = f"\t WARNING: No baseline climo file for {base_name} for variable `{var}`, global lat/lon plots skipped."
             adfobj.debug_log(dmsg)
         else:
             # Round lat/lons so they match obs
@@ -564,7 +564,7 @@ def aod_latlon(adfobj):
                 base_lat = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lat values don't match between obs and '{base_name}'\n"                    
+                err_msg += f"\t WARNING: The lat values don't match between obs and '{base_name}'\n"                    
                 err_msg += f"\t  - {base_name} lat shape: {base_lat_shape} and "
                 err_msg += f"obs lat shape: {obs_lat_shape}"
                 adfobj.debug_log(err_msg)
@@ -576,7 +576,7 @@ def aod_latlon(adfobj):
                 base_lon = True
             else:
                 err_msg = "AOD 4-panel plot:\n"
-                err_msg += f"\t The lon values don't match between obs and '{base_name}'\n"
+                err_msg += f"\t WARNING: The lon values don't match between obs and '{base_name}'\n"
                 err_msg += f"\t  - {base_name} lon shape: {base_lon_shape} and "
                 err_msg += f"obs lon shape: {obs_lon_shape}"
                 adfobj.debug_log(err_msg)
@@ -792,7 +792,7 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
         if field.ndim > 2:
             print(f"Required 2d lat/lon coordinates, got {field.ndim}d")
             emg = "AOD panel plot:\n"
-            emg += f"\t Too many dimensions for {case_name}. Needs 2 (lat/lon) but got {field.ndim}"
+            emg += f"\t WARNING: Too many dimensions for {case_name}. Needs 2 (lat/lon) but got {field.ndim}"
             adfobj.debug_log(emg)
             print(f"{emg} ")
             return
