@@ -485,7 +485,7 @@ class AdfInfo(AdfConfig):
                 #  $CASE.cam.h#.YYYY<other date info>.nc
                 case_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
                 if not case_climo_yrs:
-                    msg = f"No climo years found in {cam_hist_locs[case_idx]}, "
+                    msg = f"\t ERROR: No climo years found in {cam_hist_locs[case_idx]}, "
                     raise AdfError(msg)
                 case_climo_yrs = sorted(np.unique(case_climo_yrs))
 
@@ -495,23 +495,23 @@ class AdfInfo(AdfConfig):
                 #Check if start or end year is missing.  If so then just assume it is the
                 #start or end of the entire available model data.
                 if syear is None:
-                    msg = f"No given start year for {case_name}, "
+                    msg = f"\t WARNING: No given start year for {case_name}, "
                     msg += f"using first found year: {case_found_syr}"
                     print(msg)
                     syear = case_found_syr
                 if syear not in case_climo_yrs:
-                    msg = f"Given start year '{syear}' is not in current dataset "
+                    msg = f"\t WARNING: Given start year '{syear}' is not in current dataset "
                     msg += f"{case_name}, using first found year: {case_climo_yrs[0]}\n"
                     print(msg)
                     syear = case_found_syr
                 #End if
                 if eyear is None:
-                    msg = f"No given end year for {case_name}, "
+                    msg = f"\t WARNING: No given end year for {case_name}, "
                     msg += f"using last found year: {case_found_eyr}"
                     print(msg)
                     eyear = case_found_eyr
                 if eyear not in case_climo_yrs:
-                    msg = f"Given end year '{eyear}' is not in current dataset "
+                    msg = f"\t WARNING: Given end year '{eyear}' is not in current dataset "
                     msg += f"{case_name}, using last found year: {case_climo_yrs[-1]}\n"
                     print(msg)
                     eyear = case_found_eyr
@@ -541,7 +541,7 @@ class AdfInfo(AdfConfig):
             #Go ahead and make the diag plot location if it doesn't exist already
             diag_location = Path(plot_loc)
             if not diag_location.is_dir():
-                print(f"\tDiagnostic Plot Location: {diag_location} not found, making new directory")
+                print(f"\t INFO: Diagnostic Plot Location: {diag_location} not found, making new directory")
                 diag_location.mkdir(parents=True)
         #End for
 
@@ -847,7 +847,7 @@ class AdfInfo(AdfConfig):
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
-            errmsg = f"Time series directory '{input_ts_loc}' not found.  Script is exiting."
+            errmsg = f"\t ERROR: Time series directory '{input_ts_loc}' not found.  Script is exiting."
             raise AdfError(errmsg)
 
         # Search for first available variable in var_list to get a time series file to read

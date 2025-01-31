@@ -1521,7 +1521,7 @@ def _load_dataset(fils):
     warnings.formatwarning = my_formatwarning
 
     if len(fils) == 0:
-        warnings.warn("\t Input file list is empty.")
+        warnings.warn("\t WARNING: Input file list is empty.")
         return None
     if len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')

@@ -289,7 +289,7 @@ def polar_map(adfobj):
                                                             season=s, plot_type=hemi_type)
 
                     else: #mdata dimensions check
-                        print(f"\t - skipping polar map for {var} as it doesn't have only lat/lon dims.")
+                        print(f"\t WARNING: skipping polar map for {var} as it doesn't have only lat/lon dims.")
                     #End if (dimensions check)
 
                 elif pres_levs: #Is the user wanting to interpolate to a specific pressure level?
@@ -304,7 +304,7 @@ def polar_map(adfobj):
                     # check if there is a lat dimension:
                     if not has_lat:
                         print(
-                            f"\t - WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                            f"\t WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
                         )
                         continue
                     # End if
@@ -319,7 +319,7 @@ def polar_map(adfobj):
                     # check if there is a lat dimension:
                     if not has_lat_ref:
                         print(
-                            f"\t - WARNING: Variable {var} is missing a lat dimension for '{data_name}', cannot continue to plot."
+                            f"\t WARNING: Variable {var} is missing a lat dimension for '{data_name}', cannot continue to plot."
                         )
                         continue
 
@@ -335,7 +335,7 @@ def polar_map(adfobj):
                             #pressure levels:
                             if not (pres in mclim_ds['lev']):
                                 #Move on to the next pressure level:
-                                print(f"plot_press_levels value '{pres}' not a standard reference pressure, so skipping.")
+                                print(f"\t WARNING: plot_press_levels value '{pres}' not a standard reference pressure, so skipping.")
                                 continue
                             #End if
 
@@ -408,11 +408,11 @@ def polar_map(adfobj):
                             #End for (seasons)
                         #End for (pressure level)
                     else:
-                        print(f"\t - variable '{var}' has no vertical dimension but is not just time/lat/lon, so skipping.")
+                        print(f"\t WARNING: variable '{var}' has no vertical dimension but is not just time/lat/lon, so skipping.")
                     #End if (has_lev)
 
                 else: #odata dimensions check
-                    print(f"\t - skipping polar map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
+                    print(f"\t WARNING: skipping polar map for {var} as it has more than lat/lon dims, but no pressure levels were provided")
                 #End if (dimensions check and pressure levels)
             #End for (case loop)
         #End for (obs/baseline loop)
