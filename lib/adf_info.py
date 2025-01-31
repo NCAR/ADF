@@ -290,7 +290,7 @@ class AdfInfo(AdfConfig):
                 #  $CASE.cam.h#.YYYY<other date info>.nc
                 base_climo_yrs = [int(str(i).partition(f"{base_hist_str}.")[2][0:4]) for i in file_list]
                 if not base_climo_yrs:
-                    msg = f"No climo years found in {baseline_hist_locs}, "
+                    msg = f"\t ERROR: No climo years found in {baseline_hist_locs}, "
                     raise AdfError(msg)
 
                 base_climo_yrs = sorted(np.unique(base_climo_yrs))
@@ -301,23 +301,23 @@ class AdfInfo(AdfConfig):
                 #Check if start or end year is missing. If so then just assume it is the
                 #start or end of the entire available model data.
                 if syear_baseline is None:
-                    msg = f"\t - No given start year for {data_name}, "
+                    msg = f"\t WARNING: No given start year for {data_name}, "
                     msg += f"using first found year: {base_found_syr}"
                     print(msg)
                     syear_baseline = base_found_syr
                 if syear_baseline not in base_climo_yrs:
-                    msg = f"\t - Given start year '{syear_baseline}' is not in current dataset "
+                    msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current dataset "
                     msg += f"{data_name}, using first found year: {base_climo_yrs[0]}"
                     print(msg)
                     syear_baseline = base_found_syr
 
                 if eyear_baseline is None:
-                    msg = f"\t - No given end year for {data_name}, "
+                    msg = f"\t WARNING: No given end year for {data_name}, "
                     msg += f"using last found year: {base_found_eyr}"
                     print(msg)
                     eyear_baseline = base_found_eyr
                 if eyear_baseline not in base_climo_yrs:
-                    msg = f"\t - Given end year '{eyear_baseline}' is not in current dataset "
+                    msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current dataset "
                     msg += f"{data_name}, using last found year: {base_climo_yrs[-1]}"
                     print(msg)
                     eyear_baseline = base_found_eyr
