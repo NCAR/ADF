@@ -149,6 +149,9 @@ class AdfData:
         """
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_timeseries_file(case, variablename)
+        if not fils:
+            warnings.warn(f"\t    WARNING: Did not find case time series file(s), variable: {variablename}")
+            return None
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
     
     def load_reference_timeseries_da(self, field):
@@ -157,7 +160,7 @@ class AdfData:
         """
         fils = self.get_ref_timeseries_file(field)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find time series file(s), variable: {field}")
+            warnings.warn(f"\t    WARNING: Did not find reference time series file(s), variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field

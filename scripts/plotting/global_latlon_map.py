@@ -143,14 +143,14 @@ def global_latlon_map(adfobj):
 
     # probably want to do this one variable at a time:
     for var in var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - lat/lon maps for {var}")
+
         if var not in adfobj.data.ref_var_nam:
             dmsg = f"\t    WARNING: No reference data found for variable `{var}`, global lat/lon mean plotting skipped."
             adfobj.debug_log(dmsg)
             print(dmsg)
-            continue        
-
-        #Notify user of variable being plotted:
-        print(f"\t - lat/lon maps for {var}")
+            continue
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:

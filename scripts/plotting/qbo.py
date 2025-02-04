@@ -126,6 +126,16 @@ def qbo(adfobj):
             print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_loc[i]}', cannot continue to plot.")
         else:
             casedatzm.append(casedat[i].U.mean("lon"))
+    if len(casedatzm) == 0:
+        print(f"\t  WARNING: No available cases found, exiting script.")
+        exitmsg = "\tNo QBO plots will be made."
+        print(exitmsg)
+        return
+    if len(casedatzm) != ncases:
+        print(f"\t  WARNING: Number of available cases does not match number of cases. Will exit script for now.")
+        exitmsg = "\tNo QBO plots will be made."
+        print(exitmsg)
+        return
 
     #----Calculate the 5S-5N average
     casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]

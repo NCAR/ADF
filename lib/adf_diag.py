@@ -548,6 +548,25 @@ class AdfDiag(AdfWeb):
                     # Notify user of new time series file:
                     print(f"\t - time series for {var}")
 
+                    # Create full path name, file name template:
+                    # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
+                    ts_outfil_str = (
+                        ts_dir
+                        + os.sep
+                        + ".".join([case_name, hist_str, var, time_string, "nc"])
+                    )
+
+                    # Check if clobber is true for file
+                    if Path(ts_outfil_str).is_file():
+                        if overwrite_ts[case_idx]:
+                            Path(ts_outfil_str).unlink()
+                        else:
+                            #msg = f"[{__name__}] Warning: '{var}' file was found "
+                            msg = f"\t    INFO: '{var}' file was found "
+                            msg += "and overwrite is False. Will use existing file."
+                            print(msg)
+                            continue
+
                     # Set error messages for printing/debugging
                     # Derived variable, but missing constituent list
                     constit_errmsg = f"create time series for {case_name}:"
@@ -622,25 +641,18 @@ class AdfDiag(AdfWeb):
                         # Lastly, raise error if the variable is not a derived quanitity
                         # but is also not in the history file(s)
                         else:
-                            msg = f"\t    WARNING: {var} is not in the file {hist_files[0]} "
-                            msg += "nor can it be derived.\n"
-                            msg += "\t  ** No time series will be generated."
+                            msg = f"\t    WARNING: {var} is not in the history file for case '{case_name}' "
+                            msg += "nor can it be derived. Script will continue to next variable."
                             print(msg)
+                            logmsg = f"create time series for {case_name}:"
+                            logmsg += f"\n {var} is not in the file {hist_files[0]} "
+                            self.debug_log(logmsg)
                             continue
                         # End if
                     # End if (var in var_diag_list)
 
                     # Check if variable has a "lev" dimension according to first file:
                     has_lev = bool("lev" in hist_file_ds[var].dims or "ilev" in hist_file_ds[var].dims)
-
-                    # Create full path name, file name template:
-                    # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
-
-                    ts_outfil_str = (
-                        ts_dir
-                        + os.sep
-                        + ".".join([case_name, hist_str, var, time_string, "nc"])
-                    )
 
                     # Check if files already exist in time series directory:
                     ts_file_list = glob.glob(ts_outfil_str)
@@ -1167,7 +1179,7 @@ class AdfDiag(AdfWeb):
 
             # Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
-                ermsg = f"\t   ** Not all constituent files present; {var} cannot be calculated."
+                ermsg = f"\t    WARNING: Not all constituent files present; {var} cannot be calculated."
                 ermsg += f" Please remove {var} from 'diag_var_list' or find the "
                 ermsg += "relevant CAM files.\n"
                 print(ermsg)
@@ -1201,7 +1213,7 @@ class AdfDiag(AdfWeb):
                     if overwrite:
                         Path(derived_file).unlink()
                     else:
-                        msg = f"[{__name__}] Warning: '{var}' file was found "
+                        msg = f"\t    INFO: '{var}' file was found "
                         msg += "and overwrite is False. Will use existing file."
                         print(msg)
                         continue
@@ -1233,9 +1245,9 @@ class AdfDiag(AdfWeb):
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
                         ds_pmid_done = True
                         if not ds_pmid:
-                            errmsg = "Missing necessary files for dry air density"
+                            errmsg = "\t    WARNING: Missing necessary files for dry air density"
                             errmsg += " (rho) calculation.\n"
-                            errmsg += "Please make sure 'PMID' is in the CAM run"
+                            errmsg += "\t     Please make sure 'PMID' is in the CAM run"
                             errmsg += " for aerosol calculations"
                             print(errmsg)
                             continue
@@ -1243,9 +1255,9 @@ class AdfDiag(AdfWeb):
                         ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
                         ds_t_done = True
                         if not ds_t:
-                            errmsg = "Missing necessary files for dry air density"
+                            errmsg = "\t    WARNING: Missing necessary files for dry air density"
                             errmsg += " (rho) calculation.\n"
-                            errmsg += "Please make sure 'T' is in the CAM run"
+                            errmsg += "\t     Please make sure 'T' is in the CAM run"
                             errmsg += " for aerosol calculations"
                             print(errmsg)
                             continue

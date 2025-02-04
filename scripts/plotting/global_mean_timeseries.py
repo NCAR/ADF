@@ -73,9 +73,11 @@ def global_mean_timeseries(adfobj):
 
         # Check to see if this field is available
         if ref_ts_da is None:
-            print(
-                f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
-            )
+            if not adfobj.compare_obs:
+                print(
+                    f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
+                )
+            continue
         else:
             # check data dimensions:
             valdims = pf.zm_validate_dims(ref_ts_da)
@@ -125,16 +127,6 @@ def global_mean_timeseries(adfobj):
 
         skip_var = False
         for case_idx,case_name in enumerate(adfobj.data.case_names):
-            ## SPECIAL SECTION -- CESM2 LENS DATA:
-            #Check if case years are close to LENS, if not don't plot the LENS data
-            if (syear_cases[case_idx] > 1800) and ((syear_baseline > 1800) or (adfobj.compare_obs)):
-                lens2_data = Lens2Data(
-                    field
-                )  # Provides access to LENS2 dataset when available (class defined below)
-            else:
-                print(f"\t ** Some model years for {field} are outside LENS years, will skip plotting LENS data for clarity")
-                lens2_data = None
-            # End if - LENS
 
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
@@ -170,6 +162,7 @@ def global_mean_timeseries(adfobj):
                 print(
                     f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
+                skip_var = True
                 continue
             # End if
 
@@ -180,6 +173,17 @@ def global_mean_timeseries(adfobj):
         # If this case is 3-d or missing variable, then break the loop and go to next variable
         if skip_var:
             continue
+
+        ## SPECIAL SECTION -- CESM2 LENS DATA:
+        #Check if case years are close to LENS, if not don't plot the LENS data
+        if (syear_cases[case_idx] > 1800) and ((syear_baseline > 1800) or (adfobj.compare_obs)):
+            lens2_data = Lens2Data(
+                field
+            )  # Provides access to LENS2 dataset when available (class defined below)
+        else:
+            print(f"\t ** Some model years for {field} are outside LENS years, will skip plotting LENS data for clarity")
+            lens2_data = None
+        # End if - LENS
 
         # Plot the timeseries
         fig, ax = make_plot(
@@ -280,7 +284,7 @@ class Lens2Data:
             lens2 = xr.open_mfdataset(lens2_fil)
             has_lens = True
         else:
-            warnings.warn(f"\t    WARNING: Did not find LENS2 file for {self.field}.")
+            warnings.warn(f"\t    INFO: Did not find LENS2 file for {self.field}.")
             has_lens = False
             lens2 = None
         return has_lens, lens2

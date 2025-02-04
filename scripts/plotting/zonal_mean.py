@@ -143,14 +143,14 @@ def zonal_mean(adfobj):
     #
     #Loop over variables:
     for var in var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - zonal mean plots for {var}")
+
         if var not in adfobj.data.ref_var_nam:
-            dmsg = f"\t    WARNING: No obs found for variable `{var}`, zonal mean plotting skipped."
+            dmsg = f"\t    WARNING: No reference data found for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             print(dmsg)
             continue
-
-        #Notify user of variable being plotted:
-        print(f"\t - zonal mean plots for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:

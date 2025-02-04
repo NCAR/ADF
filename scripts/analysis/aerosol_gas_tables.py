@@ -99,7 +99,7 @@ def aerosol_gas_tables(adfobj):
 
     #Notify user that script has started:
     msg = "\n   Calculating chemistry/aerosol budget tables..."
-    print(f"{msg}\n{'-' * len(msg)}")
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Inputs
     #-------

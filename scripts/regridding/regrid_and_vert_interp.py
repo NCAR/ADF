@@ -142,7 +142,7 @@ def regrid_and_vert_interp(adf):
     for case_idx, case_name in enumerate(case_names):
 
         #Notify user of model case being processed:
-        print(f"\n\t Regridding case '{case_name}' :")
+        print(f"\t Regridding case '{case_name}' :")
 
         #Set case climo data path:
         mclimo_loc  = Path(input_climo_locs[case_idx])
@@ -219,7 +219,7 @@ def regrid_and_vert_interp(adf):
                         #Combine all target files together into a single data set:
                         tclim_ds = xr.open_mfdataset(tclim_fils, combine='by_coords')
                     elif len(tclim_fils) == 0:
-                        print(f"\t - regridding {var} failed, no file. Continuing to next variable.")
+                        print(f"\t    WARNING: regridding {var} failed, no climo file for case '{target}'. Continuing to next variable.")
                         continue
                     else:
                         #Open single file as new xarray dataset:
@@ -233,8 +233,9 @@ def regrid_and_vert_interp(adf):
                         #Combine all cam files together into a single data set:
                         mclim_ds = xr.open_mfdataset(mclim_fils, combine='by_coords')
                     elif len(mclim_fils) == 0:
-                        wmsg = f"\t - Unable to find climo file for '{var}'."
-                        wmsg += " Continuing to next variable."
+                        #wmsg = f"\t    WARNING: Unable to find climo file for '{var}'."
+                        #wmsg += " Continuing to next variable."
+                        wmsg= f"\t    WARNING: regridding {var} failed, no climo file for case '{case_name}'. Continuing to next variable."
                         print(wmsg)
                         continue
                     else:
@@ -277,11 +278,11 @@ def regrid_and_vert_interp(adf):
                                 var_tmp = pf.mask_land_or_ocean(var_tmp,ofrac)
                                 rgdata_interp[var] = var_tmp
                             else:
-                                print(f"OCNFRAC not found, unable to apply mask to '{var}'")
+                                print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
                             #End if
                         else:
                             #Currently only an ocean mask is supported, so print warning here:
-                            wmsg = "Currently the only variable mask option is 'ocean',"
+                            wmsg = "\t    WARNING: Currently the only variable mask option is 'ocean',"
                             wmsg += f"not '{var_default_dict['mask'].lower()}'"
                             print(wmsg)
                         #End if
@@ -360,7 +361,7 @@ def regrid_and_vert_interp(adf):
                                     ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
                                     tgdata_interp[var] = ts_tmp
                                 else:
-                                    wmsg = "OCNFRAC not found in target,"
+                                    wmsg = "\t    WARNING: OCNFRAC not found in target,"
                                     wmsg += f" unable to apply mask to '{var}'"
                                     print(wmsg)
                                 #End if
@@ -382,7 +383,7 @@ def regrid_and_vert_interp(adf):
                         save_to_nc(tgdata_interp, interp_bl_file)
                     #End if
                 else:
-                    print("\t INFO: Regridded file already exists, so skipping...")
+                    print("\t    INFO: Regridded file already exists, so skipping...")
                 #End if (file check)
             #End do (target list)
         #End do (variable list)
