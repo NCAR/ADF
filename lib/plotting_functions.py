@@ -1647,10 +1647,7 @@ def zm_validate_dims(fld):
         return None
     validate = validate_dims(fld, ['lev','lat'])
     has_lev, has_lat = validate['has_lev'], validate['has_lat']
-    if not has_lat:
-        return None
-    else:
-        return has_lat, has_lev
+    return has_lat, has_lev
 
 def _plot_line(axobject, xdata, ydata, color, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""

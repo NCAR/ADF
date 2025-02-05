@@ -146,12 +146,6 @@ def global_latlon_map(adfobj):
         #Notify user of variable being plotted:
         print(f"\t - lat/lon maps for {var}")
 
-        if var not in adfobj.data.ref_var_nam:
-            dmsg = f"\t    WARNING: No reference data found for variable `{var}`, global lat/lon mean plotting skipped."
-            adfobj.debug_log(dmsg)
-            print(dmsg)
-            continue
-
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
@@ -175,7 +169,13 @@ def global_latlon_map(adfobj):
         if not adfobj.compare_obs:
             base_name = adfobj.data.ref_case_label
         else:
-            base_name = adfobj.data.ref_labels[var]
+            if var not in adfobj.data.ref_var_nam:
+                dmsg = f"\t    WARNING: No obs data found for variable `{var}`, global lat/lon mean plotting skipped."
+                adfobj.debug_log(dmsg)
+                print(dmsg)
+                continue
+            else:
+                base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
         odata = adfobj.data.load_reference_regrid_da(base_name, var)

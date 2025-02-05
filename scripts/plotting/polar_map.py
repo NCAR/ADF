@@ -125,7 +125,7 @@ def polar_map(adfobj):
                 #Extract target variable name:
                 data_var = var_obs_dict[var]["obs_var"]
             else:
-                dmsg = f"\t    WARNING: No obs found for variable `{var}`, polar map plotting skipped."
+                dmsg = f"\t    WARNING: No obs found for variable `{var}`, polar map skipped."
                 adfobj.debug_log(dmsg)
                 continue
         else:
@@ -161,9 +161,9 @@ def polar_map(adfobj):
            
             oclim_ds = pf.load_dataset(oclim_fils)
             if oclim_ds is None:
-                print("\t    WARNING: Did not find any oclim_fils. Will try to skip.")
+                print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
                 print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t    INFO: The glob is: {data_src}_{var}_*.nc")
+                print(f"\t      The glob is: {data_src}_{var}_*.nc")
                 continue
 
             #Loop over model cases:
@@ -185,9 +185,9 @@ def polar_map(adfobj):
 
                 mclim_ds = pf.load_dataset(mclim_fils)
                 if mclim_ds is None:
-                    print("\t  any regridded climo files. Will try to skip.")
+                    print("\t    WARNING: Did not find any regridded test climo files. Will try to skip.")
                     print(f"\t    INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
-                    print(f"\t    INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    print(f"\t      The glob is: {data_src}_{case_name}_{var}_*.nc")
                     continue
                 #End if
 
@@ -301,11 +301,7 @@ def polar_map(adfobj):
                 elif pres_levs: #Is the user wanting to interpolate to a specific pressure level?
 
                     #Check that case inputs have the correct dimensions (including "lev"):
-                    valdims = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
-                    if valdims is not None:
-                        has_lat, has_lev = valdims
-                    else:
-                        has_lat, has_lev = False, False
+                    has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
 
                     # check if there is a lat dimension:
                     if not has_lat:
@@ -316,11 +312,7 @@ def polar_map(adfobj):
                     # End if
 
                     #Check that case inputs have the correct dimensions (including "lev"):
-                    valdims_ref = pf.zm_validate_dims(odata)
-                    if valdims_ref is not None:
-                        has_lat_ref, has_lev_ref = valdims_ref
-                    else:
-                        has_lat_ref, has_lev_ref = False, False
+                    has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
 
                     # check if there is a lat dimension:
                     if not has_lat_ref:

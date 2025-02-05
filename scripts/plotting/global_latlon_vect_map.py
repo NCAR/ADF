@@ -170,12 +170,6 @@ def global_latlon_vect_map(adfobj):
         #Notify user of variable being plotted:
         print(f"\t - lat/lon vector maps for {var},{var_pair}")
 
-        if var not in adfobj.data.ref_var_nam:
-            dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map plotting skipped."
-            adfobj.debug_log(dmsg)
-            print(dmsg)
-            continue
-
         #Add variables to "skipped vars" set:
         skip_vars.add(var)
         skip_vars.add(var_pair)
@@ -187,6 +181,11 @@ def global_latlon_vect_map(adfobj):
 
         #Determine observations to compare against:
         if adfobj.compare_obs:
+            if var not in adfobj.data.ref_var_nam:
+                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
+                adfobj.debug_log(dmsg)
+                print(dmsg)
+                continue
             #Check if obs exist for the variable:
             if var in var_obs_dict:
                 #Note: In the future these may all be lists, but for
@@ -198,7 +197,7 @@ def global_latlon_vect_map(adfobj):
                 #Extract target variable name:
                 data_var = [var_obs_dict[var]["obs_var"]]
             else:
-                dmsg = f"\t    WARNING: No reference found for variable `{var}`, lat/lon vector map plotting skipped."
+                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
                 adfobj.debug_log(dmsg)
                 print(dmsg)
                 continue
@@ -212,7 +211,7 @@ def global_latlon_vect_map(adfobj):
                 #Extract target variable name:
                 data_var.append(var_obs_dict[var_pair]["obs_var"])
             else:
-                dmsg = f"\t    WARNING: No reference found for variable `{var}`, lat/lon vector map plotting skipped."
+                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
                 adfobj.debug_log(dmsg)
                 print(dmsg)
                 continue
@@ -245,9 +244,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(uoclim_fils[0])
                 uoclim_ds = xr.open_dataset(sfil)
             else:
-                print("\t    WARNING: Did not find any oclim_fils. Will try to skip.")
+                print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
                 print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t    INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
+                print(f"\t      The glob is: {data_src}_{data_var[0]}_*.nc")
                 continue
             #End if
 
@@ -257,9 +256,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(voclim_fils[0])
                 voclim_ds = xr.open_dataset(sfil)
             else:
-                print("\t    WARNING: Did not find any oclim_fils. Will try to skip.")
+                print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
                 print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t    INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
+                print(f"\t      The glob is: {data_src}_{data_var[1]}_*.nc")
                 continue
             #End if
 
@@ -272,12 +271,7 @@ def global_latlon_vect_map(adfobj):
             vodata = vodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
 
             #Check zonal mean dimensions
-            valdims = pf.zm_validate_dims(uodata)
-            if valdims is not None:
-                has_lat_ref, has_lev_ref = valdims
-            else:
-                has_lat_ref, has_lev_ref = False, False
-            # End if
+            has_lat_ref, has_lev_ref = pf.zm_validate_dims(uodata)
 
             # check if there is a lat dimension:
             if not has_lat_ref:
@@ -311,9 +305,9 @@ def global_latlon_vect_map(adfobj):
                 elif len(umclim_fils) == 1:
                     umclim_ds = xr.open_dataset(umclim_fils[0])
                 else:
-                    print("\t    WARNING: Did not find any regridded climo files. Will try to skip.")
+                    print("\t    WARNING: Did not find any regridded test climo files. Will try to skip.")
                     print(f"\t    INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
-                    print(f"\t    INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    print(f"\t      The glob is: {data_src}_{case_name}_{var}_*.nc")
                     continue
                 #End if
 
@@ -336,11 +330,7 @@ def global_latlon_vect_map(adfobj):
                 vmdata = vmdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
 
                 #Check dimensions:
-                valdims = pf.zm_validate_dims(umdata)  # assumes will work for both mdata & odata
-                if valdims is not None:
-                    has_lat, has_lev = valdims
-                else:
-                    has_lat, has_lev = False, False
+                has_lat, has_lev = pf.zm_validate_dims(umdata)
 
                 # check if there is a lat dimension:
                 if not has_lat:
