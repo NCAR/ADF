@@ -100,7 +100,7 @@ def adf_histogram(adfobj):
         skip_make_plot = []
         for var in var_list:
             for s in seasons:
-                plot_name = plot_loc / f"{var}_{s}_{plot_name_string}.{plot_type}"
+                plot_name = plot_loc / f"{var}_{s}_{plot_name_string}_Mean.{plot_type}"
                 plot_exists = plot_name.is_file()
                 print(
                     f"Projected file name: {plot_name.name}. Exists: {plot_exists}"
@@ -202,7 +202,7 @@ def adf_histogram(adfobj):
                     ha='right',             # Horizontal alignment: right
                     va='bottom')            # Vertical alignment: bottom
 
-            plot_name = plot_loc / f"{var}_{season}_{plot_name_string}.{plot_type}"
+            plot_name = plot_loc / f"{var}_{season}_{plot_name_string}_Mean.{plot_type}"
             fig.savefig(plot_name, bbox_inches='tight', dpi=72)
             plt.close(fig)
             adfobj.add_website_data(
@@ -211,7 +211,7 @@ def adf_histogram(adfobj):
                 None,
                 season=season,
                 multi_case=True,
-                plot_type="Histogram",
+                plot_type=plot_name_string,
             )
             print(f"\t Saved {var} Histogram for {season}: {plot_name.name}")
 
