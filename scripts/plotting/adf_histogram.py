@@ -44,7 +44,7 @@ use_time_series = True
 
 add_dimension_annotation = True  # will print the dimensions of the input data on the plot
 
-redo_histogram_files = False
+redo_histogram_files = True
 
 if use_time_series:
     plot_name_string = "GlobalHistogramTS"
