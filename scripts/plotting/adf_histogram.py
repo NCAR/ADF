@@ -205,6 +205,14 @@ def adf_histogram(adfobj):
             plot_name = plot_loc / f"{var}_{season}_{plot_name_string}.{plot_type}"
             fig.savefig(plot_name, bbox_inches='tight', dpi=72)
             plt.close(fig)
+            adfobj.add_website_data(
+                plot_name,
+                var,
+                None,
+                season=season,
+                multi_case=True,
+                plot_type="Histogram",
+            )
             print(f"\t Saved {var} Histogram for {season}: {plot_name.name}")
 
 def make_histograms(data, land, vres):
