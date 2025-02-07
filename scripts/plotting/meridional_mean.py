@@ -22,7 +22,8 @@ def meridional_mean(adfobj):
     """
 
     #Notify user that script has started:
-    print("\n  Generating meridional mean plots...")
+    msg = "\n  Generating meridional mean plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -102,6 +103,8 @@ def meridional_mean(adfobj):
 
     #Loop over variables:
     for var in var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - meridional mean plots for {var}")
 
         if adfobj.compare_obs:
             #Check if obs exist for the variable:
@@ -123,9 +126,6 @@ def meridional_mean(adfobj):
             #Set "data_var" for consistent use below:
             data_var = var
         #End if
-
-        #Notify user of variable being plotted:
-        print(f"\t - meridional mean plots for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
@@ -199,7 +199,7 @@ def meridional_mean(adfobj):
 
                 #Notify user of level dimension:
                 if validate_lat_lev['has_lev']:
-                    print(f"\t   {var} has lev dimension.")
+                    print(f"\t    INFO: {var} has lev dimension.")
                     has_lev = True
                 else:
                     has_lev = False
