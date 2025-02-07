@@ -69,7 +69,7 @@ class AdfData:
             self.ref_var_nam = {v: self.adf.var_obs_dict[v]['obs_var'] for v in self.adf.var_obs_dict}
             self.ref_case_label = "Obs"
             if not self.adf.var_obs_dict:
-                warnings.warn("\t WARNING: reference is observations, but no observations found to plot against.")
+                warnings.warn("\t    WARNING: reference is observations, but no observations found to plot against.")
         else:
             self.ref_var_loc = {}
             self.ref_var_nam = {}
@@ -106,7 +106,7 @@ class AdfData:
     def get_ref_timeseries_file(self, field):
         """Return list of reference time series files"""
         if self.adf.compare_obs:
-            warnings.warn("ADF does not currently expect observational time series files.")
+            warnings.warn("\t    WARNING: ADF does not currently expect observational time series files.")
             return None
         else:
             ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
@@ -118,18 +118,18 @@ class AdfData:
     def load_timeseries_dataset(self, fils):
         """Return DataSet from time series file(s) and assign time to midpoint of interval"""
         if (len(fils) == 0):
-            warnings.warn("Input file list is empty.")
+            warnings.warn("\t    WARNING: Input file list is empty.")
             return None
         elif (len(fils) > 1):
             ds = xr.open_mfdataset(fils, decode_times=False)
         else:
             sfil = str(fils[0])
             if not Path(sfil).is_file():
-                warnings.warn(f"Expecting to find file: {sfil}")
+                warnings.warn(f"\t    WARNING: Expecting to find file: {sfil}")
                 return None
             ds = xr.open_dataset(sfil, decode_times=False)
         if ds is None:
-            warnings.warn(f"invalid data on load_dataset")
+            warnings.warn(f"\t    WARNING: invalid data on load_dataset")
         # assign time to midpoint of interval (even if it is already)
         if 'time_bnds' in ds:
             t = ds['time_bnds'].mean(dim='nbnd')
@@ -140,7 +140,7 @@ class AdfData:
             t.attrs = ds['time'].attrs
             ds = ds.assign_coords({'time':t})
         else:
-            warnings.warn("Timeseries file does not have time bounds info.")
+            warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")
         return xr.decode_cf(ds)
 
     def load_timeseries_da(self, case, variablename):
@@ -149,6 +149,9 @@ class AdfData:
         """
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_timeseries_file(case, variablename)
+        if not fils:
+            warnings.warn(f"\t    WARNING: Did not find case time series file(s), variable: {variablename}")
+            return None
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
     
     def load_reference_timeseries_da(self, field):
@@ -157,7 +160,7 @@ class AdfData:
         """
         fils = self.get_ref_timeseries_file(field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find time series file(s), variable: {field}")
+            warnings.warn(f"\t    WARNING: Did not find reference time series file(s), variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
@@ -189,7 +192,7 @@ class AdfData:
         """Return Dataset for climo of variablename"""
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            warnings.warn(f"WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
+            warnings.warn(f"\t    WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
             return None
         return self.load_dataset(fils)
     
@@ -239,7 +242,7 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
@@ -249,7 +252,7 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
         return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
@@ -273,7 +276,7 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t    WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
@@ -283,7 +286,7 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn(f"\t    WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
@@ -301,18 +304,18 @@ class AdfData:
     def load_dataset(self, fils):
         """Return xarray DataSet from file(s)"""
         if (len(fils) == 0):
-            warnings.warn("Input file list is empty.")
+            warnings.warn("\t    WARNING: Input file list is empty.")
             return None
         elif (len(fils) > 1):
             ds = xr.open_mfdataset(fils, combine='by_coords')
         else:
             sfil = str(fils[0])
             if not Path(sfil).is_file():
-                warnings.warn(f"Expecting to find file: {sfil}")
+                warnings.warn(f"\t    WARNING: Expecting to find file: {sfil}")
                 return None
             ds = xr.open_dataset(sfil)
         if ds is None:
-            warnings.warn(f"invalid data on load_dataset")
+            warnings.warn(f"\t    WARNING: invalid data on load_dataset")
         return ds
 
     # Load DataArray
@@ -320,7 +323,7 @@ class AdfData:
         """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
         ds = self.load_dataset(fils)
         if ds is None:
-            warnings.warn(f"WARNING: Load failed for {variablename}")
+            warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
         scale_factor = kwargs.get('scale_factor', 1)

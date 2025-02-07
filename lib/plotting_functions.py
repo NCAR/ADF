@@ -154,7 +154,7 @@ def load_dataset(fils):
     """
 
     if len(fils) == 0:
-        warnings.warn(f"Input file list is empty.")
+        warnings.warn(f"\t    WARNING: Input file list is empty.")
         return None
     elif len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
@@ -428,7 +428,7 @@ def spatial_average(indata, weights=None, spatial_dims=None):
                 warnings.warn("area variable being used to generated normalized weights.")
                 weights = indata['area'] / indata['area'].sum()
             else:
-                warnings.warn("We need a way to get area variable. Using equal weights.")
+                warnings.warn("\t  We need a way to get area variable. Using equal weights.")
                 weights = xr.DataArray(1.)
             weights.name = "weights"
         else:
@@ -1694,10 +1694,7 @@ def zm_validate_dims(fld):
         return None
     validate = validate_dims(fld, ['lev','lat'])
     has_lev, has_lat = validate['has_lev'], validate['has_lat']
-    if not has_lat:
-        return None
-    else:
-        return has_lat, has_lev
+    return has_lat, has_lev
 
 def _plot_line(axobject, xdata, ydata, color, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""

@@ -33,8 +33,10 @@ def tem(adf):
 
     """
 
-    # Notify user that script has started:
-    print("\n  Generating TEM plots ...")
+    #Notify user that script has started:
+    msg = "\n  Generating TEM plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
+
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:

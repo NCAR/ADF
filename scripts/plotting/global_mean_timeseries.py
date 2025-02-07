@@ -9,8 +9,10 @@ from pathlib import Path
 from types import NoneType
 import warnings  # use to warn user about missing files.
 import xarray as xr
+import numpy as np
 import matplotlib.pyplot as plt
 import plotting_functions as pf
+import matplotlib.ticker as ticker
 
 
 def my_formatwarning(msg, *args, **kwargs):
@@ -31,7 +33,8 @@ def global_mean_timeseries(adfobj):
     """
 
     #Notify user that script has started:
-    print("\n  Generating global mean time series plots...")
+    msg = "\n  Generating global mean time series plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Gather ADF configurations
     plot_loc = get_plot_loc(adfobj)
@@ -41,9 +44,8 @@ def global_mean_timeseries(adfobj):
 
     # Loop over variables
     for field in adfobj.diag_var_list:
-        #Remove unneccasry vairbale from plotting
-        if field == "PMID":
-            continue
+        #Notify user of variable being plotted:
+        print(f"\t - time series plot for {field}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if field in res:
@@ -57,36 +59,45 @@ def global_mean_timeseries(adfobj):
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
 
+        base_name = adfobj.data.ref_case_label
+
         # Check to see if this field is available
         if ref_ts_da is None:
-            print(
-                f"\t Variable named {field} provides Nonetype. Skipping this variable"
-            )
-            validate_dims = True
+            if not adfobj.compare_obs:
+                print(
+                    f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
+                )
+            continue
         else:
-            validate_dims = False
+            # check data dimensions:
+            has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
+
+            # check if this is a "2-d" varaible:
+            if has_lev_ref:
+                print(
+                    f"\t    WARNING: Variable {field} has a lev dimension for '{base_name}', which does not work with this script."
+                )
+                continue
+            # End if
+            
+            # check if there is a lat dimension:
+            if not has_lat_ref:
+                print(
+                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                )
+                continue
+            # End if
+
             # reference time series global average
             ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
-
-            # check if this is a "2-d" varaible:
-            has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
-            if has_lev_ref:
-                print(
-                    f"Variable named {field} has a lev dimension, which does not work with this script."
-                )
-                continue
-
-
-        ## SPECIAL SECTION -- CESM2 LENS DATA:
-        lens2_data = Lens2Data(
-            field
-        )  # Provides access to LENS2 dataset when available (class defined below)
+        # End if
 
         # Loop over model cases:
         case_ts = {}  # dictionary of annual mean, global mean time series
+
         # use case nicknames instead of full case names if supplied:
         labels = {
             case_name: nickname if nickname else case_name
@@ -97,31 +108,41 @@ def global_mean_timeseries(adfobj):
         ref_label = (
             adfobj.data.ref_nickname
             if adfobj.data.ref_nickname
-            else adfobj.data.ref_case_label
+            else base_name
         )
 
         skip_var = False
         for case_name in adfobj.data.case_names:
+
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
             if c_ts_da is None:
                 print(
-                    f"\t Variable named {field} provides Nonetype. Skipping this variable"
+                    f"\t    WARNING: Variable {field} for case '{case_name}' provides Nonetype. Skipping this variable"
                 )
                 skip_var = True
                 continue
-
-            # If no reference, we still need to check if this is a "2-d" varaible:
-            if validate_dims:
-                has_lat_ref, has_lev_ref = pf.zm_validate_dims(c_ts_da)
             # End if
 
+            # If no reference, we still need to check if this is a "2-d" varaible:
+            # check data dimensions:
+            has_lat_case, has_lev_case = pf.zm_validate_dims(c_ts_da)
+
             # If 3-d variable, notify user, flag and move to next test case
-            if has_lev_ref:
+            if has_lev_case:
                 print(
-                    f"Variable named {field} has a lev dimension for '{case_name}', which does not work with this script."
+                    f"\t    WARNING: Variable {field} has a lev dimension for '{case_name}', which does not work with this script."
                 )
 
+                skip_var = True
+                continue
+            # End if
+
+            # check if there is a lat dimension:
+            if not has_lat_case:
+                print(
+                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                )
                 skip_var = True
                 continue
             # End if
@@ -134,6 +155,11 @@ def global_mean_timeseries(adfobj):
         if skip_var:
             continue
 
+        lens2_data = Lens2Data(
+                field
+            )  # Provides access to LENS2 dataset when available (class defined below)
+
+        ## SPECIAL SECTION -- CESM2 LENS DATA:
         # Plot the timeseries
         fig, ax = make_plot(
             case_ts, lens2_data, label=adfobj.data.ref_nickname, ref_ts_da=ref_ts_da
@@ -176,7 +202,7 @@ def conditional_save(adfobj, plot_name, fig, verbose=None):
     elif not adfobj.get_basic_info("redo_plot") and plot_name.is_file():
         # Case 2: Keep old plot, do not save new plot
         if verbose:
-            print("plot file detected, redo is false, so keep existing file.")
+            print("\t - plot file detected, redo is false, so keep existing file.")
     else:
         warnings.warn(
             f"Conditional save found unknown condition. File will not be written: {plot_name}"
@@ -205,12 +231,12 @@ def get_plot_loc(adfobj, verbose=None):
         else:
             if verbose:
                 print(
-                    f"Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}"
+                    f"\t Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}"
                 )
             plot_loc = Path(plot_location[0])
     else:
         plot_loc = Path(plot_location)
-    print(f"Determined plot location: {plot_loc}")
+    print(f"\t Determined plot location: {plot_loc}")
     return plot_loc
 ######
 
@@ -223,14 +249,17 @@ class Lens2Data:
         self.has_lens, self.lens2 = self._include_lens()
 
     def _include_lens(self):
-        lens2_fil = Path(
-            f"/glade/campaign/cgd/cas/islas/CESM_DATA/LENS2/global_means/annualmeans/{self.field}_am_LENS2_first50.nc"
+        lens2_path = Path(
+            f"/glade/campaign/cgd/cas/islas/CESM_DATA/LENS2/global_means/annualmeans/"
         )
-        if lens2_fil.is_file():
+
+        lens2_fil = sorted(lens2_path.glob(f"{self.field}_*LENS2*first50*nc"))
+        if lens2_fil:
+            lens2_fil = lens2_fil[0]
             lens2 = xr.open_mfdataset(lens2_fil)
             has_lens = True
         else:
-            warnings.warn(f"Time Series: Did not find LENS2 file for {self.field}.")
+            warnings.warn(f"\t    INFO: Did not find LENS2 file for {self.field}.")
             has_lens = False
             lens2 = None
         return has_lens, lens2
@@ -239,14 +268,21 @@ class Lens2Data:
 
 def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     """plot yearly values of ref_ts_da"""
-    field = lens2.field  # this will be defined even if no LENS2 data
     fig, ax = plt.subplots()
-    
+
     # Plot reference/baseline if available
     if type(ref_ts_da) != NoneType:
         ax.plot(ref_ts_da.year, ref_ts_da, label=label)
-    for c, cdata in case_ts.items():
+    else:
+        return fig, ax
+    for idx, (c, cdata) in enumerate(case_ts.items()):
         ax.plot(cdata.year, cdata, label=c)
+        # Force the plot axis to always plot the test case years
+        if idx == 0:
+            syr = min(cdata.year)
+            eyr = max(cdata.year)
+
+    field = lens2.field  # this will be defined even if no LENS2 data
     if lens2.has_lens:
         lensmin = lens2.lens2[field].min("M")  # note: "M" is the member dimension
         lensmax = lens2.lens2[field].max("M")
@@ -264,6 +300,12 @@ def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     if ymin < 0 < ymax:
         ax.axhline(y=0, color="lightgray", linestyle="-", linewidth=1)
     ax.set_title(field, loc="left")
+
+    # Set the x-axis limits to the first test case climo years
+    ax.set_xlim(syr, eyr)
+    # Force x-axis to use only integer labels
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+
     ax.set_xlabel("YEAR")
     # Place the legend
     ax.legend(

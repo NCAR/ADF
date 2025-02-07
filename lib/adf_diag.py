@@ -327,6 +327,10 @@ class AdfDiag(AdfWeb):
         Generate time series versions of the CAM history file data.
         """
 
+        #Notify user that script has started:
+        msg = "\n  Calculating CAM time series..."
+        print(f"{msg}\n  {'-' * (len(msg)-3)}")
+
         global call_ncrcat
 
         def call_ncrcat(cmd):
@@ -378,7 +382,7 @@ class AdfDiag(AdfWeb):
         for case_idx, case_name in enumerate(case_names):
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
-                emsg = " Configuration file indicates time series files have been pre-computed"
+                emsg = "\tNOTE: Configuration file indicates time series files have been pre-computed"
                 emsg += f" for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 continue
@@ -415,7 +419,7 @@ class AdfDiag(AdfWeb):
                 # End if
 
                 # Notify user that script has started:
-                print(f"\n  Writing time series files to {ts_dir}")
+                print(f"\n\t Writing time series files to:\n\t{ts_dir}")
 
                 # Create empty list:
                 files_list = []
@@ -544,6 +548,25 @@ class AdfDiag(AdfWeb):
                     # Notify user of new time series file:
                     print(f"\t - time series for {var}")
 
+                    # Create full path name, file name template:
+                    # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
+                    ts_outfil_str = (
+                        ts_dir
+                        + os.sep
+                        + ".".join([case_name, hist_str, var, time_string, "nc"])
+                    )
+
+                    # Check if clobber is true for file
+                    if Path(ts_outfil_str).is_file():
+                        if overwrite_ts[case_idx]:
+                            Path(ts_outfil_str).unlink()
+                        else:
+                            #msg = f"[{__name__}] Warning: '{var}' file was found "
+                            msg = f"\t    INFO: '{var}' file was found "
+                            msg += "and overwrite is False. Will use existing file."
+                            print(msg)
+                            continue
+
                     # Set error messages for printing/debugging
                     # Derived variable, but missing constituent list
                     constit_errmsg = f"create time series for {case_name}:"
@@ -618,25 +641,18 @@ class AdfDiag(AdfWeb):
                         # Lastly, raise error if the variable is not a derived quanitity
                         # but is also not in the history file(s)
                         else:
-                            msg = f"WARNING: {var} is not in the file {hist_files[0]} "
-                            msg += "nor can it be derived.\n"
-                            msg += "\t  ** No time series will be generated."
+                            msg = f"\t    WARNING: {var} is not in the history file for case '{case_name}' "
+                            msg += "nor can it be derived. Script will continue to next variable."
                             print(msg)
+                            logmsg = f"create time series for {case_name}:"
+                            logmsg += f"\n {var} is not in the file {hist_files[0]} "
+                            self.debug_log(logmsg)
                             continue
                         # End if
                     # End if (var in var_diag_list)
 
                     # Check if variable has a "lev" dimension according to first file:
                     has_lev = bool("lev" in hist_file_ds[var].dims or "ilev" in hist_file_ds[var].dims)
-
-                    # Create full path name, file name template:
-                    # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
-
-                    ts_outfil_str = (
-                        ts_dir
-                        + os.sep
-                        + ".".join([case_name, hist_str, var, time_string, "nc"])
-                    )
 
                     # Check if files already exist in time series directory:
                     ts_file_list = glob.glob(ts_outfil_str)
@@ -664,7 +680,7 @@ class AdfDiag(AdfWeb):
 
                             if "PS" in hist_file_var_list:
                                 ncrcat_var_list = ncrcat_var_list + ",PS"
-                                print("Adding PS to file")
+                                print(f"\t    INFO: Adding PS to file for '{var}'")
                             else:
                                 wmsg = "WARNING: PS not found in history file."
                                 wmsg += " It might be needed at some point."
@@ -700,9 +716,6 @@ class AdfDiag(AdfWeb):
                     #cmd_ncatted = ["ncatted", "-O", "-a", f"adf_user,global,a,c,{self.user}", ts_outfil_str]
                     # Step 1: Convert Path objects to strings and concatenate the list of historical files into a single string
                     hist_files_str = ', '.join(str(f.name) for f in hist_files)
-                    #3parent
-                    #hist_locs = []
-                    #for f in hist_files:
                     hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
 
                     # Step 2: Create the ncatted command to add both global attributes
@@ -1166,7 +1179,7 @@ class AdfDiag(AdfWeb):
 
             # Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
-                ermsg = f"\t   ** Not all constituent files present; {var} cannot be calculated."
+                ermsg = f"\t    WARNING: Not all constituent files present; {var} cannot be calculated."
                 ermsg += f" Please remove {var} from 'diag_var_list' or find the "
                 ermsg += "relevant CAM files.\n"
                 print(ermsg)
@@ -1200,7 +1213,7 @@ class AdfDiag(AdfWeb):
                     if overwrite:
                         Path(derived_file).unlink()
                     else:
-                        msg = f"[{__name__}] Warning: '{var}' file was found "
+                        msg = f"\t    INFO: '{var}' file was found "
                         msg += "and overwrite is False. Will use existing file."
                         print(msg)
                         continue
@@ -1232,9 +1245,9 @@ class AdfDiag(AdfWeb):
                         ds_pmid = _load_dataset(glob.glob(os.path.join(ts_dir, "*.PMID.*"))[0])
                         ds_pmid_done = True
                         if not ds_pmid:
-                            errmsg = "Missing necessary files for dry air density"
+                            errmsg = "\t    WARNING: Missing necessary files for dry air density"
                             errmsg += " (rho) calculation.\n"
-                            errmsg += "Please make sure 'PMID' is in the CAM run"
+                            errmsg += "\t     Please make sure 'PMID' is in the CAM run"
                             errmsg += " for aerosol calculations"
                             print(errmsg)
                             continue
@@ -1242,9 +1255,9 @@ class AdfDiag(AdfWeb):
                         ds_t = _load_dataset(glob.glob(os.path.join(ts_dir, "*.T.*"))[0])
                         ds_t_done = True
                         if not ds_t:
-                            errmsg = "Missing necessary files for dry air density"
+                            errmsg = "\t    WARNING: Missing necessary files for dry air density"
                             errmsg += " (rho) calculation.\n"
-                            errmsg += "Please make sure 'T' is in the CAM run"
+                            errmsg += "\t     Please make sure 'T' is in the CAM run"
                             errmsg += " for aerosol calculations"
                             print(errmsg)
                             continue
@@ -1521,7 +1534,7 @@ def _load_dataset(fils):
     warnings.formatwarning = my_formatwarning
 
     if len(fils) == 0:
-        warnings.warn("Input file list is empty.")
+        warnings.warn("\t    WARNING: Input file list is empty.")
         return None
     if len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
