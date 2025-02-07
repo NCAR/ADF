@@ -1,14 +1,12 @@
 #Import standard modules:
-from ast import AsyncFunctionDef
 from pathlib import Path
 import numpy as np
 import xarray as xr
 import warnings  # use to warn user about missing files.
 import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter
 import matplotlib as mpl
-import matplotlib.cm as cm
-import pandas as pd
+import metpy.calc.thermo as thermo
+from metpy.units import units
 
 import plotting_functions as pf
 
@@ -36,7 +34,6 @@ def tem(adf):
     #Notify user that script has started:
     msg = "\n  Generating TEM plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
-
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
@@ -261,10 +258,8 @@ def tem(adf):
                         wgt_denom_base = (od_ones*weights_base).groupby("time.season").sum(dim="time").sel(season=s)
                         oseasons = oseasons / wgt_denom_base
 
+                # Derive zonal mean temp from potential temp
                 if var == "thzm":
-                    import metpy.calc.thermo as thermo
-                    from metpy.units import units
-
                     path = input_ts_locs[idx]
                     ds_pmid = xr.open_dataset(f"{path}{case_name}.cam.h0.PMID.{start_year}01-{end_year}12.nc")
 
@@ -308,7 +303,6 @@ def tem(adf):
                 norm = cp_info['norm1']
                 cmap = cp_info['cmap1']
                 clevs_diff = np.unique(np.array(cp_info['levelsdiff']))
-
 
                 # mesh for plots:
                 lat = mseasons['zalat']
