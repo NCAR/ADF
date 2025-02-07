@@ -162,7 +162,7 @@ def global_mean_timeseries(adfobj):
         ## SPECIAL SECTION -- CESM2 LENS DATA:
         # Plot the timeseries
         fig, ax = make_plot(
-            field, case_ts, lens2_data, label=adfobj.data.ref_nickname, ref_ts_da=ref_ts_da
+            case_ts, lens2_data, label=adfobj.data.ref_nickname, ref_ts_da=ref_ts_da
         )
 
         unit = vres.get("new_unit","[-]")
@@ -266,7 +266,7 @@ class Lens2Data:
 ######
 
 
-def make_plot(field, case_ts, lens2, label=None, ref_ts_da=None):
+def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     """plot yearly values of ref_ts_da"""
     fig, ax = plt.subplots()
 
@@ -274,7 +274,6 @@ def make_plot(field, case_ts, lens2, label=None, ref_ts_da=None):
     if type(ref_ts_da) != NoneType:
         ax.plot(ref_ts_da.year, ref_ts_da, label=label)
     else:
-        f"\t    WARNING: Variable {field} has no data."
         return fig, ax
     for idx, (c, cdata) in enumerate(case_ts.items()):
         ax.plot(cdata.year, cdata, label=c)
