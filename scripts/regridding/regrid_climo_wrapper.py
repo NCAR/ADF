@@ -1,7 +1,7 @@
 #Import standard modules:
 import xarray as xr
 
-def regrid_wrapper(adf):
+def regrid_climo_wrapper(adf):
 
     """
     This funtion regrids the test cases to the same horizontal
@@ -17,7 +17,7 @@ def regrid_wrapper(adf):
     target_list      -> List of target data sets CAM could be regridded to
     taget_loc        -> Location of target files that CAM will be regridded to
     overwrite_regrid -> Logical to determine if already existing re-gridded
-                        files will be overwritten. Specified by "cam_overwrite_regrid"
+                        files will be overwritten. Specified by "cam_overwrite_climo_regrid"
     """
 
     #Import necessary modules:
@@ -39,7 +39,7 @@ def regrid_wrapper(adf):
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
-    overwrite_regrid = adf.get_basic_info("cam_overwrite_regrid", required=True)
+    overwrite_regrid = adf.get_basic_info("cam_overwrite_climo_regrid", required=True)
     output_loc       = adf.get_basic_info("cam_climo_regrid_loc", required=True)
     var_list         = adf.diag_var_list
     var_defaults     = adf.variable_defaults

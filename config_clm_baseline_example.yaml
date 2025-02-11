@@ -86,10 +86,15 @@ diag_basic_info:
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_climo_regrid_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo/regrid
 
+    #Location where re-gridded and interpolated timeseries files are stored:
+    cam_ts_regrid_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts/regrid
+
+
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
-    #that already exist in "cam_regrid_loc":
-    cam_overwrite_regrid: false
+    #that already exist in "cam_climo_regrid_loc" or "cam_ts_regrid_loc":
+    cam_overwrite_climo_regrid: true
+    cam_overwrite_ts_regrid: true
 
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /glade/derecho/scratch/${user}/ADF/plots
@@ -351,6 +356,9 @@ diag_cam_baseline_climo:
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_climo_regrid_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/climo/regrid
 
+    #Location where re-gridded and interpolated timeseries files are stored:
+    cam_ts_regrid_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts/regrid
+
     #TEM diagnostics
     #---------------
     #TEM history file number
@@ -469,10 +477,9 @@ time_averaging_scripts:
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
-#TODO, this needs to  be modified for a land model workflow
-#This is not the regridding script wwieder made for land
 regridding_scripts:
-    - regrid_wrapper
+    - regrid_climo_wrapper
+    - regrid_ts_wrapper
 
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
@@ -483,7 +490,7 @@ analysis_scripts:
       #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-    - global_unstructured_latlon_map
+    #- global_unstructured_latlon_map
     #- global_mean_timeseries
     #- global_latlon_vect_map
     #- zonal_mean
