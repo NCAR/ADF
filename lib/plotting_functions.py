@@ -1558,7 +1558,7 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
         transform = ccrs.PlateCarree()
         proj = ccrs.PlateCarree()
         figsize= (14, 7)
-    elif projection == 'polar':
+    elif projection == 'arctic':
         transform = ccrs.NorthPolarStereo()
         proj = ccrs.NorthPolarStereo()
         figsize = (8, 8)
@@ -1628,7 +1628,7 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
             a.tick_params('both', length=5, width=1.5, which='minor')
             a.xaxis.set_major_formatter(lon_formatter)
             a.yaxis.set_major_formatter(lat_formatter)
-        elif projection == 'polar':
+        elif projection == 'arctic':
             a.set_extent([-180, 180, 50, 90], ccrs.PlateCarree())
             # __Follow the cartopy gallery example to make circular__:
             # Compute a circle in axes coordinates, which we can use as a boundary

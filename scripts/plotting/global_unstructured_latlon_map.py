@@ -209,12 +209,14 @@ def global_unstructured_latlon_map(adfobj):
                 print("    {} not found, making new directory".format(plot_loc))
                 plot_loc.mkdir(parents=True)
 
-            #Load climo model files:
-            mdata = adfobj.data.load_climo_dataset(case_name, var) # read in dataset for area & landfrac
+            #Load climo model files: TODO, this is kind of clunky, but functional
+            # read in dataset for area & landfrac
+            mdata = adfobj.data.load_climo_dataset(case_name, var) 
             area = mdata.area.isel(time=0)
             landfrac = mdata.landfrac.isel(time=0)
-            mdata = mdata[var] # now just read in the data array
-            odata.attrs = mdata.attrs # copy attributes back to base case
+            # now read in mdata as a data array to get scale_factor
+            mdata = adfobj.data.load_climo_da(case_name, var)
+            #odata.attrs = mdata.attrs # copy attributes back to base case
 
             #Skip this variable/case if the climo file doesn't exist:
             if mdata is None:
