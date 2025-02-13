@@ -99,6 +99,7 @@ import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 import matplotlib.cm as cm
+import matplotlib.ticker as ticker
 
 from adf_diag import AdfDiag
 from adf_base import AdfError
@@ -110,6 +111,8 @@ def my_formatwarning(msg, *args, **kwargs):
     """Issue `msg` as warning."""
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
+
+from shapely.errors import GEOSException  # Import shapely
 
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
@@ -451,6 +454,26 @@ def wgt_rmse(fld1, fld2, wgt):
 
 
 #######
+
+def coslat_average(darray, lat1, lat2):
+    """
+    Calculate the weighted average for an [:,lat] array over the region
+    lat1 to lat2
+    """
+
+    # flip latitudes if they are decreasing
+    if (darray.lat[0] > darray.lat[darray.lat.size -1]):
+        print("flipping latitudes")
+        darray = darray.sortby('lat')
+
+    region = darray.sel(lat=slice(lat1, lat2))
+    weights=np.cos(np.deg2rad(region.lat))
+    regionw = region.weighted(weights)
+    regionm = regionw.mean("lat")
+
+    return regionm
+#######
+
 # Time-weighted averaging
 
 def annual_mean(data, whole_years=False, time_name='time'):
@@ -485,7 +508,7 @@ def annual_mean(data, whole_years=False, time_name='time'):
         data_to_avg = data.isel(time=slice(first_january,last_december+1)) # PLUS 1 BECAUSE SLICE DOES NOT INCLUDE END POINT
     else:
         data_to_avg = data
-    date_range_string = f"{data_to_avg['time'][0]} -- {data_to_avg['time'][-1]}"
+    date_range_string = f"{data_to_avg['time'].values[0]} -- {data_to_avg['time'].values[-1]}"
 
     # this provides the normalized monthly weights in each year
     # -- do it for each year to allow for non-standard calendars (360-day)
@@ -603,6 +626,41 @@ def domain_stats(data, domain):
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
 
+
+
+
+
+
+
+
+from functools import wraps
+
+# Define the decorator
+def safe_execution_decorator(fallback=None):
+    """
+    A decorator to handle specified exceptions in a block of code.
+
+    Parameters:
+        fallback: The value to return if an exception is caught.
+
+    Returns:
+        The decorated function.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except (GEOSException, ValueError, TypeError) as e:
+                print(f"Caught exception: {type(e).__name__}: {e}")
+                return fallback
+        return wrapper
+    return decorator
+
+
+
+
+
 def make_polar_plot(wks, case_nickname, base_nickname,
                     case_climo_yrs, baseline_climo_yrs,
                     d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.DataArray]=None,pctchange:Optional[xr.DataArray]=None,
@@ -648,6 +706,21 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         + `diff_colormap`
         + `units`
     """
+
+    # Create a function for plotting on a specific axis
+    @safe_execution_decorator(fallback=None)
+    def plot_on_axis(ax, lons, lats, data, cmap, norm, levels):
+        """Plot data on a given axis with error handling."""
+        img = ax.contourf(lons, lats, data, transform=ccrs.PlateCarree(), cmap=cmap, norm=norm, levels=levels)
+        
+        #ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm,
+        #                        levels=levelspctdiff,
+        #                        #transform_first=True
+        #                        )
+        
+        return img
+
+
     if difference is None:
         dif = d2 - d1
     else:
@@ -661,6 +734,14 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
     pct = pct.where(np.isfinite(pct), np.nan)
     pct = pct.fillna(0.0)
+
+    """if hemisphere.upper() == "NH":
+        proj = ccrs.NorthPolarStereo()
+    elif hemisphere.upper() == "SH":
+        proj = ccrs.SouthPolarStereo()
+    else:
+        raise AdfError(f'[make_polar_plot] hemisphere not specified, must be NH or SH; hemisphere set as {hemisphere}')"""
+
 
     if hemisphere.upper() == "NH":
         proj = ccrs.NorthPolarStereo()
@@ -691,7 +772,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
     d2_cyclic, _ = add_cyclic_point(d2, coord=d2.lon)  # since we can take difference, assume same longitude coord.
     dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
-    pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
+    pct_cyclic, plon_cyclic = add_cyclic_point(pct, coord=pct.lon)
 
     # -- deal with optional plotting arguments that might provide variable-dependent choices
 
@@ -759,6 +840,8 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
     if max(np.abs(levelsdiff)) > 10*absmaxdif:
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+    if max(np.abs(levelspctdiff)) > 10*absmaxpct:
+        levelspctdiff = np.linspace(-1*absmaxpct, absmaxpct, 12)
     
     
     #End if
@@ -779,7 +862,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     #End if
 
     # -- end options
-
+    no_cbar = False
     lons, lats = np.meshgrid(lon_cyclic, d1.lat)
 
     fig = plt.figure(figsize=(10,10))
@@ -803,18 +886,88 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     else:
         img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
         img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-
+    
+    #plons, plats = np.meshgrid(plon_cyclic, pct.lat)
+    #img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm, levels=levelspctdiff)
     if len(levs_pctdiff) < 2:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=pctnorm, transform_first=True)
+        #img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=pctnorm)
         ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
     else:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm, levels=levelspctdiff, transform_first=True)
+        # Test plotting on the first axis
+        img3 = plot_on_axis(ax3, lons, lats, pct_cyclic, cmap=cmappct, norm=pctnorm, levels=levelspctdiff)
+        # Handle missing plots with fallback messages
+        if img3 is None:
+            ax3.cla()
+            ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
+        else:
+            cb_pct_ax = inset_axes(ax3,
+                        width="5%",  # width = 5% of parent_bbox width
+                        height="90%",  # height : 90%
+                        loc='lower left',
+                        bbox_to_anchor=(1.05, 0.05, 1, 1),
+                        bbox_transform=ax3.transAxes,
+                        borderpad=0,
+                        ) 
+                
+
+            fig.colorbar(img3, cax=cb_pct_ax)
+    """else:
+        #pct_cyclic = xr.DataArray(pct_cyclic)
+        #print("\nasdasdadssadasd",xr.DataArray(pct_cyclic).isel(dim_0=0).isel(dim_1=0))
+        #pct_cyclic = pct_cyclic.where(pct_cyclic > 0, 0)
+        #pct_cyclic = pct_cyclic.where(pct_cyclic < 100, 100)
+        pct_cyclic = pct_cyclic.clip(min=-100, max=100)
+        #print("\nasdasdadssadasd",pct_cyclic.isel(dim_0=0).isel(dim_1=0))
+        #print("QWTF",pct_cyclic,"\n")
+        #img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm, levels=levelspctdiff)
+        #plons, plats = np.meshgrid(plon_cyclic, pct.lat)
+        try:
+            img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm,
+                                levels=levelspctdiff,
+                                #transform_first=True
+                                )
+
+            
+            cb_pct_ax = inset_axes(ax3,
+                    width="5%",  # width = 5% of parent_bbox width
+                    height="90%",  # height : 90%
+                    loc='lower left',
+                    bbox_to_anchor=(1.05, 0.05, 1, 1),
+                    bbox_transform=ax3.transAxes,
+                    borderpad=0,
+                    ) 
+            
+
+            fig.colorbar(img3, cax=cb_pct_ax)
+
+        except (GEOSException, ValueError, TypeError) as e:
+            print(f"YEAH BOI Caught exception: {type(e).__name__}: {e}")
+            ax3.cla()
+            #img3 = ax3.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w")
+            ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
+            no_cbar = True"""
 
     if len(levs_diff) < 2:
         img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
         ax4.text(0.4, 0.4, empty_message, transform=ax4.transAxes, bbox=props)
     else:
-        img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
+        #img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
+        # Test plotting on the first axis
+        img4 = plot_on_axis(ax4, lons, lats, dif_cyclic, cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
+        if img4 is None:
+            ax4.cla()
+            ax4.text(0.4, 0.4, empty_message, transform=ax4.transAxes, bbox=props)
+        else:
+            cb_diff_ax = inset_axes(ax4,
+                        width="5%",  # width = 5% of parent_bbox width
+                        height="90%",  # height : 90%
+                        loc='lower left',
+                        bbox_to_anchor=(1.05, 0.05, 1, 1),
+                        bbox_transform=ax4.transAxes,
+                        borderpad=0,
+                        )
+
+            fig.colorbar(img4, cax=cb_diff_ax)
         
     #Set Main title for subplots:
     st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
@@ -838,7 +991,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     ax2.text(-0.2, -0.10, f"Mean: {d2_region_mean:5.2f}\nMax: {d2_region_max:5.2f}\nMin: {d2_region_min:5.2f}", transform=ax2.transAxes)
 
     ax3.text(-0.2, -0.10, f"Mean: {pct_region_mean:5.2f}\nMax: {pct_region_max:5.2f}\nMin: {pct_region_min:5.2f}", transform=ax3.transAxes)
-    ax3.set_title("Test % diff Baseline", loc='left', fontsize=8)
+    ax3.set_title("$\mathbf{Test % diff Baseline}", loc='left', fontsize=8)
 
     ax4.text(-0.2, -0.10, f"Mean: {dif_region_mean:5.2f}\nMax: {dif_region_max:5.2f}\nMin: {dif_region_min:5.2f}", transform=ax4.transAxes)
     ax4.set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
@@ -874,27 +1027,28 @@ def make_polar_plot(wks, case_nickname, base_nickname,
                     )
     fig.colorbar(img1, cax=cb_mean_ax)
     
-    cb_pct_ax = inset_axes(ax3,
+    """cb_pct_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
                     height="90%",  # height : 90%
                     loc='lower left',
                     bbox_to_anchor=(1.05, 0.05, 1, 1),
                     bbox_transform=ax3.transAxes,
                     borderpad=0,
-                    )  
+                    ) """ 
 
-    cb_diff_ax = inset_axes(ax4,
+    """cb_diff_ax = inset_axes(ax4,
                     width="5%",  # width = 5% of parent_bbox width
                     height="90%",  # height : 90%
                     loc='lower left',
                     bbox_to_anchor=(1.05, 0.05, 1, 1),
                     bbox_transform=ax4.transAxes,
                     borderpad=0,
-                    )      
-                    
-    fig.colorbar(img3, cax=cb_pct_ax)
-    
-    fig.colorbar(img4, cax=cb_diff_ax)
+                    )  """    
+    """if not no_cbar:
+        fig.colorbar(img3, cax=cb_pct_ax)"""
+    #fig.colorbar(img3, cax=cb_pct_ax)
+
+    #fig.colorbar(img4, cax=cb_diff_ax)
 
     # Save files
     fig.savefig(wks, bbox_inches='tight', dpi=300)
@@ -1325,7 +1479,8 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     # set rmse title:
     ax[3].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
     ax[3].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
-    ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
+    #ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
+    ax[2].set_title("$\mathbf{Test % diff Baseline}", loc='left', fontsize=tiFontSize)
 
     for a in ax:
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
@@ -1688,11 +1843,31 @@ def _zonal_plot_line(ax, lat, data, color, **kwargs):
     #
     # annotate
     #
-    ax.set_xlabel("LATITUDE")
+    ax.set_xlabel("LATITUDE",fontsize=6)
     if hasattr(data, "units"):
         ax.set_ylabel("{units}".format(units=getattr(data,"units")))
     elif "units" in kwargs:
         ax.set_ylabel("{units}".format(kwargs["units"]))
+    data_min = np.min(data)
+    data_max = np.max(data)
+    buffer = 0.05 * (data_max - data_min)  # Add 5% buffer based on data range
+
+    ax.set_ylim([data_min - buffer, data_max + buffer])
+    #ax.set_ylim([np.max(data), np.min(data)])
+    # Force 5 major ticks on both axes
+    #ax.xaxis.set_major_locator(ticker.MaxNLocator(5))
+    #ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
+    # Force at least 5 ticks on the y-axis
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(min_n_ticks=5))
+
+
+    # Change tick label font size
+    ax.tick_params(axis='y', which='major', labelsize=6)  # Major ticks
+    ax.tick_params(axis='y', which='minor', labelsize=4)  # Minor ticks
+
+    # Change tick label font size
+    ax.tick_params(axis='x', which='major', labelsize=6)  # Major ticks
+    #ax.tick_params(axis='both', which='minor', labelsize=10)  # Minor ticks
     return ax
 
 def _zonal_plot_preslat(ax, lat, lev, data, **kwargs):
@@ -2014,6 +2189,17 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         tiFontSize = 8
     #End if
 
+    if "units" in kwargs:
+        units = kwargs['units']
+        #ax[1].set_ylabel(f"[{kwargs['units']}]")
+        #ax[-1].set_ylabel(f"[{kwargs['units']}]")
+    else:
+        units = "-"
+
+    # Set colorbar padding from plot
+    cbar_pad = 0.01
+    cbar_title_pad = 4.0
+
     #Set plot titles
     case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
@@ -2056,8 +2242,29 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         else:
             img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
             img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
-            fig.colorbar(img0, ax=ax[0], location='right',**cp_info['colorbar_opt'])
-            fig.colorbar(img1, ax=ax[1], location='right',**cp_info['colorbar_opt'])
+            cbar0 = fig.colorbar(img0, ax=ax[0], location='right', pad=cbar_pad ,**cp_info['colorbar_opt'])
+
+            # Set a label for the colorbar
+            cbar0.set_label(units, fontsize=6)
+            # Force colorbar labels to scientific notation with exponent on top
+            cbar0.formatter = ticker.ScalarFormatter()
+            cbar0.formatter.set_powerlimits((-2, 2))  # Scientific notation for values smaller than 0.01 or greater than 100
+            cbar0.update_ticks()
+            # Control the position of the scientific notation label
+            offset_text = cbar0.ax.yaxis.offsetText
+            #offset_text.set_fontsize(10)  # Adjust font size if needed
+            offset_text.set_position((cbar_title_pad, -0.05))  # Adjust the position (x, y) as needed
+            
+            cbar1 = fig.colorbar(img1, ax=ax[1], location='right', pad=cbar_pad ,**cp_info['colorbar_opt'])
+            cbar1.set_label(units, fontsize=6)
+            # Force colorbar labels to scientific notation with exponent on top
+            cbar1.formatter = ticker.ScalarFormatter()
+            cbar1.formatter.set_powerlimits((-2, 2))  # Scientific notation for values smaller than 0.01 or greater than 100
+            cbar1.update_ticks()
+            # Control the position of the scientific notation label
+            offset_text = cbar1.ax.yaxis.offsetText
+            #offset_text.set_fontsize(10)  # Adjust font size if needed
+            offset_text.set_position((cbar_title_pad, -0.05))  # Adjust the position (x, y) as needed
         #End if
 
         if len(levs_diff) < 2:
@@ -2065,19 +2272,38 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
             ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
         else:
             img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],levels=cp_info['levelsdiff'],**cp_info['contourf_opt'])
-            fig.colorbar(img2, ax=ax[2], location='right',**cp_info['diff_colorbar_opt'])
+            cbar2 = fig.colorbar(img2, ax=ax[2], location='right', pad=cbar_pad ,**cp_info['diff_colorbar_opt'])
+            cbar2.set_label(units, fontsize=6)
+            # Force colorbar labels to scientific notation with exponent on top
+            cbar2.formatter = ticker.ScalarFormatter()
+            cbar2.formatter.set_powerlimits((-2, 2))  # Scientific notation for values smaller than 0.01 or greater than 100
+            cbar2.update_ticks()
+            # Control the position of the scientific notation label
+            offset_text = cbar2.ax.yaxis.offsetText
+            #offset_text.set_fontsize(10)  # Adjust font size if needed
+            offset_text.set_position((cbar_title_pad, -0.05))  # Adjust the position (x, y) as needed
             
         if len(levs_pct_diff) < 2:
             img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3])
             ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
         else:
             img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
-            fig.colorbar(img3, ax=ax[3], location='right',**cp_info['pct_colorbar_opt'])
+            cbar3 = fig.colorbar(img3, ax=ax[3], location='right', pad=cbar_pad ,**cp_info['pct_colorbar_opt'])
+            cbar3.set_label(units, fontsize=6)
+            # Force colorbar labels to scientific notation with exponent on top
+            cbar3.formatter = ticker.ScalarFormatter()
+            cbar3.formatter.set_powerlimits((-2, 2))  # Scientific notation for values smaller than 0.01 or greater than 100
+            cbar3.update_ticks()
+            # Control the position of the scientific notation label
+            offset_text = cbar3.ax.yaxis.offsetText
+            #offset_text.set_fontsize(10)  # Adjust font size if needed
+            offset_text.set_position((cbar_title_pad, -0.05))  # Adjust the position (x, y) as needed
 
         ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
         ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
-        ax[3].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
+        #ax[3].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
+        ax[3].set_title("$\mathbf{Test} - \mathbf{Baseline}$ "+" ($\mathbf{\% Diff}$)", loc='left', fontsize=tiFontSize)
 
 
         # style the plot:
@@ -2091,10 +2317,17 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
-        line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
+        #line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
+        #                color="#1f77b4") # #1f77b4 -> matplotlib standard blue
+        #"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        #test_label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+        test_label = "$\mathbf{Test}:$"+f"{case_nickname} - "+"$\mathbf{years}$"+f": {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+        line = Line2D([0], [0], label=test_label,
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
 
-        line2 = Line2D([0], [0], label=base_title,
+        base_label = "$\mathbf{Baseline}:$"+f"{base_nickname} - "+"$\mathbf{years}$"+f": {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        #"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        line2 = Line2D([0], [0], label=base_label,
                         color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
         azm = zonal_mean_xr(adata)
@@ -2112,20 +2345,32 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         #Set Main title for subplots:
         st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=15)
-        st.set_y(1.02)
+        st.set_y(1.00)
 
+        ax[0].set_ylabel(units, fontsize=5)
         zonal_plot(adata['lat'], azm, ax=ax[0],color="#1f77b4") # #1f77b4 -> matplotlib standard blue
         zonal_plot(bdata['lat'], bzm, ax=ax[0],color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
-        fig.legend(handles=[line,line2],bbox_to_anchor=(-0.15, 0.87, 1.05, .102),loc="right",
-                   borderaxespad=0.0,fontsize=6,frameon=False)
+        #bbox_to_anchor=(0, 1)
+        #bbox_to_anchor=(-0.15, 0.87, 1.05, .102)
+
+        fig.legend(handles=[line,line2],
+                   #bbox_to_anchor=(-0.15, 0.87, 1.05, .102),
+                   loc="upper left",
+                   borderaxespad=0.0,fontsize=5,frameon=False,
+                   bbox_to_anchor=(.125, 0.922), bbox_transform=fig.transFigure,
+                   labelspacing=0.2)
 
         zonal_plot(adata['lat'], diff, ax=ax[1], color="k")
-        ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=10)
+        ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=5, pad=-10)
+        ax[1].set_ylabel(units, fontsize=5)
         
         zonal_plot(adata['lat'], pct, ax=ax[2], color="k")
-        ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=10,fontweight="bold")
-
+        #ax[2].set_title("$\mathbf{\% Diff}$ "+" ($\mathbf{Test} - \mathbf{Baseline}$)", loc='left', fontsize=6)
+        ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$ "+" ($\mathbf{\% Diff}$)", loc='left', fontsize=5, pad=-10)
+        #ax[2].set_title("Test % Diff Baseline", loc='left', fontweight="bold", fontsize=5)
+        #ax[2].set_title("Test - Baseline (% Diff)", loc='left', fontweight="bold", fontsize=5)
+        #$\mathbf{
         for a in ax:
             try:
                 a.label_outer()
@@ -2133,6 +2378,9 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                 pass
             #End except
         #End for
+
+        # Finally, adjust space between subplots
+        plt.subplots_adjust(hspace=0.3)  # Increase this value for more space
     #End if
 
     #Write the figure to provided workspace/file:
@@ -2304,7 +2552,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
             img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
             ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
         else:
-            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
+            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],transform_first=True,**cp_info['contourf_opt'])
             cb3 = fig.colorbar(img3, ax=ax[3], location='right',**cp_info['colorbar_opt'])
 
         #Set plot titles
