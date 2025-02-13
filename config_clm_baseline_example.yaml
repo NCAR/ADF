@@ -93,8 +93,8 @@ diag_basic_info:
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
     #that already exist in "cam_climo_regrid_loc" or "cam_ts_regrid_loc":
-    cam_overwrite_climo_regrid: true
-    cam_overwrite_ts_regrid: true
+    cam_overwrite_climo_regrid: false
+    cam_overwrite_ts_regrid: false
 
     #Location where diagnostic plots are stored:
     cam_diag_plot_loc: /glade/derecho/scratch/${user}/ADF/plots
@@ -102,7 +102,8 @@ diag_basic_info:
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
     #Uncomment and change path for custom variable defaults file
-    #defaults_file: /some/path/to/defaults/file.yaml
+    #TODO, make a land default path
+    defaults_file: /glade/u/home/wwieder/python/adf/lib/ldf_variable_defaults.yaml
 
     #Vertical pressure levels (in hPa) on which to plot 3-D variables
     #when using horizontal (e.g. lat/lon) map projections.
@@ -147,13 +148,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_beta04.BLT1850.ne30_t232_wgx3.121
+    cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.122
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '121'
+    case_nickname: '122'
 
     #Location of CAM history (h0) files:
     #Example test files
@@ -166,12 +167,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 10
+    start_year: 20
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 14
+    end_year: 40
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -311,13 +312,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_beta04.BLT1850.ne30_t232_wgx3.120
+    cam_case_name: b.e30_beta04.BLT1850.ne30_t232_wgx3.121
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '120'
+    case_nickname: '121'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -329,12 +330,12 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 10
+    start_year: 20
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 14
+    end_year: 40
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -490,7 +491,8 @@ analysis_scripts:
       #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-    #- global_unstructured_latlon_map
+    - global_unstructured_latlon_map
+    - global_unstructured_latlon_arctic_map
     #- global_mean_timeseries
     #- global_latlon_vect_map
     #- zonal_mean
@@ -510,9 +512,11 @@ plotting_scripts:
 diag_var_list:
     - ELAI
     - GPP
+    - NPP
     - FSDS
     - ALTMAX
-
+    - ET
+    - TOTRUNOFF
 #<Add more variables here.>
 # MDTF recommended variables
 #    - FLUT

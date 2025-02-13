@@ -180,7 +180,7 @@ SNOWDP: # snow height
 
 TOTRUNOFF: # total liquid runoff
   category: "Hydrology"
-  derivable_from: ["QRONOFF","QRUNOFF_ICE"] #TODO, check accuracy
+  derivable_from: ["QRUNOFF","QRUNOFF_ICE"] #TODO, check accuracy
   colormap: "Blues"
 #+++++++++++
 # Category: Vegetation
