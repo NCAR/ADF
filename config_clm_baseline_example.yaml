@@ -129,6 +129,7 @@ diag_basic_info:
     #If set to true, then redo all plots even if they already exist.
     #If set to false, then if a plot is found it will be skipped:
     redo_plot: false
+    # TODO, seems to redo plots anyway "NOTE: redo_plot is set to False" plotting continues...
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:

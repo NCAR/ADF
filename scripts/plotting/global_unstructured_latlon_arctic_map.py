@@ -44,7 +44,7 @@ warnings.formatwarning = my_formatwarning
 
 #########
 
-def global_unstructured_latlon_map(adfobj):
+def global_unstructured_latlon_arctic_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
@@ -276,7 +276,7 @@ def global_unstructured_latlon_map(adfobj):
 
                     # calculate weights
                     wts = area * landfrac / (area * landfrac).sum()
-
+                    # TODO, set plot_name and web_category correctly here
                     pf.plot_unstructured_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                                       [syear_cases[case_idx],eyear_cases[case_idx]],
                                                       [syear_baseline,eyear_baseline],
