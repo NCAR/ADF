@@ -1,0 +1,297 @@
+#==============================
+#config_cam_baseline.yaml
+
+#This is the main CAM diagnostics config file
+#for doing comparisons of a CAM run against
+#another CAM run, or a CAM baseline simulation.
+
+#Currently, if one is on NCAR's Casper or
+#Cheyenne machine, then only the diagnostic output
+#paths are needed, at least to perform a quick test
+#run (these are indicated with "MUST EDIT" comments).
+#Running these diagnostics on a different machine,
+#or with a different, non-example simulation, will
+#require additional modifications.
+#
+#Config file Keywords:
+#--------------------
+#
+#1.  Using ${xxx} will substitute that text with the
+#    variable referenced by xxx. For example:
+#
+#    cam_case_name: cool_run
+#    cam_climo_loc: /some/where/${cam_case_name}
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/cool_run
+#
+#    Please note that currently this will only work if the
+#    variable only exists in one location in the file.
+#
+#2.  Using ${<top_level_section>.xxx} will do the same as
+#    keyword 1 above, but specifies which sub-section the
+#    variable is coming from, which is necessary for variables
+#    that are repeated in different subsections.  For example:
+#
+#    diag_basic_info:
+#      cam_climo_loc:  /some/where/${diag_cam_climo.start_year}
+#
+#    diag_cam_climo:
+#      start_year: 1850
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/1850
+#
+#Finally, please note that for both 1 and 2 the keywords must be lowercase.
+#This is because future developments will hopefully use other keywords
+#that are uppercase. Also please avoid using periods (".") in variable
+#names, as this will likely cause issues with the current file parsing
+#system.
+#--------------------
+
+##==============================
+
+#This first set of variables specify basic info used by all diagnostic runs:
+diag_basic_info:
+    user: 'richling'
+    diag_loc: /glade/derecho/scratch/${user}/adf-output/${diag_cam_climo.cam_case_name}_vs_${diag_cam_baseline_climo.cam_case_name}
+
+    exp_hist_loc: /glade/work/richling/ADF/adf-tutorials/data
+
+    climo_loc: ${diag_loc/}climo
+    ts_loc: ${diag_loc}/timeseries
+
+    #Is this a model vs observations comparison?
+    #If "false" or missing, then a model-model comparison is assumed:
+    compare_obs: false
+
+    #Generate HTML website (assumed false if missing):
+    #Note:  The website files themselves will be located in the path
+    #specified by "cam_diag_plot_loc", under the "<diag_run>/website" subdirectory,
+    #where "<diag_run>" is the subdirectory created for this particular diagnostics run
+    #(usually "case_vs_obs_XXX" or "case_vs_baseline_XXX").
+    create_html: true
+
+    #Location of observational datasets:
+    #Note: this only matters if "compare_obs" is true and the path
+    #isn't specified in the variable defaults file.
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
+
+    #Location where re-gridded CAM climatology files are stored:
+    cam_regrid_loc: ${diag_loc}/regrid/
+
+    #Overwrite CAM re-gridded files?
+    #If false, or missing, then regridding will be skipped for regridded variables
+    #that already exist in "cam_regrid_loc":
+    cam_overwrite_regrid: true
+
+    #Location where diagnostic plots are stored:
+    cam_diag_plot_loc: ${diag_loc}diag-plot/
+
+    #Use default variable plot settings?
+    #If "true", then variable-specific plotting attributes as defined in
+    #ADF/lib/adf_variable_defaults.yaml will be used:
+    use_defaults: true
+
+    #Location of ADF variable plotting defaults YAML file:
+    #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
+    #Uncomment and change path for custom variable defaults file
+    #defaults_file: /some/path/to/defaults/file.yaml
+
+    #Vertical pressure levels (in hPa) on which to plot 3-D variables
+    #when using horizontal (e.g. lat/lon) map projections.
+    #If this config option is missing, then no 3-D variables will be plotted on
+    #horizontal maps.  Please note too that pressure levels must currently match
+    #what is available in the observations file in order to be plotted in a
+    #model vs obs run:
+    plot_press_levels: [200,850]
+
+    #Longitude line on which to center all lat/lon maps.
+    #If this config option is missing then the central
+    #longitude will default to 180 degrees E.
+    central_longitude: 180
+
+    #Number of processors on which to run the ADF.
+    #If this config variable isn't present then
+    #the ADF defaults to one processor.  Also, if
+    #you set it to "*" then it will default
+    #to all of the processors available on a
+    #single node/machine:
+    num_procs: 8
+
+    #If set to true, then redo all plots even if they already exist.
+    #If set to false, then if a plot is found it will be skipped:
+    redo_plot: false
+    
+    
+
+
+#This second set of variables provides info for the CAM simulation(s) being diagnosed:
+diag_cam_climo:
+    hist_str: cam.h0a
+
+    #Calculate climatologies?
+    #If false, neither the climatology or time-series files will be created:
+    calc_cam_climo: true
+
+    #Overwrite CAM climatology files?
+    #If false, or not prsent, then already existing climatology files will be skipped:
+    cam_overwrite_climo: false
+
+    #Name of CAM case (or CAM run name):
+    cam_case_name: b.e30_beta04.BLT1850.ne30_t232_wgx3.121
+    
+    case_nickname: 
+
+    #Location of CAM history (h0) files:
+    cam_hist_loc: ${exp_hist_loc}/${diag_cam_climo.cam_case_name}/
+
+    #Location of CAM climatologies: 
+    cam_climo_loc: ${climo_loc}/${diag_cam_climo.cam_case_name}/${diag_cam_climo.yrs}/
+
+    #model year when time series files should start:
+    #Note:  Leaving this entry blank will make time series
+    #       start at earliest available year.
+    start_year: 50
+
+    #model year when time series files should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    end_year: 59
+
+    yrs: yrs_${diag_cam_climo.start_year}_${diag_cam_climo.end_year}
+
+    #Do time series files need to be generated?
+    #If True, then diagnostics assumes that model files are already time series.
+    #If False, or if simply not present, then diagnostics will attempt to create
+    #time series files from history (time-slice) files:
+    calc_cam_ts: true
+
+    #Save interim time series files?
+    #WARNING:  This can take up a significant amount of space:
+    cam_ts_save: true
+
+    #Overwrite time series files, if found?
+    #If set to false, then time series creation will be skipped if files are found:
+    cam_overwrite_ts: false
+
+    #Location where time series files are (or will be) stored:
+    cam_ts_loc: ${ts_loc}/${diag_cam_climo.cam_case_name}/${diag_cam_climo.yrs}/
+
+    #----------------------
+
+
+#This third set of variables provide info for the CAM baseline climatologies.
+#This only matters if "compare_obs" is false:
+diag_cam_baseline_climo:
+    hist_str: cam.h0
+
+    #Calculate cam baseline climatologies?
+    #If false, neither the climatology or time-series files will be created:
+    calc_cam_climo: true
+
+    #Overwrite CAM climatology files?
+    #If false, or not present, then already existing climatology files will be skipped:
+    cam_overwrite_climo: false
+
+    #Name of CAM baseline case:
+    cam_case_name: b.e21.B1850.f09_g17.CMIP6-piControl.001
+    
+    case_nickname: CMIP6-piControl
+
+    #Location of CAM baseline history (h0) files:
+    #cam_hist_loc: #/glade/derecho/scratch/hannay/archive/${diag_cam_baseline_climo.cam_case_name}/atm/hist
+
+    #Location of baseline CAM climatologies:
+    cam_climo_loc: ${climo_loc}${diag_cam_baseline_climo.cam_case_name}/${diag_cam_baseline_climo.yrs}/
+
+    #model year when time series files should start:
+    #Note:  Leaving this entry blank will make time series
+    #       start at earliest available year.
+    start_year: 50
+
+    #model year when time series files should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    end_year: 59
+
+    yrs: yrs_${diag_cam_baseline_climo.start_year}_${diag_cam_baseline_climo.end_year}
+
+    #Do time series files need to be generated?
+    #If True, then diagnostics assumes that model files are already time series.
+    #If False, or if simply not present, then diagnostics will attempt to create
+    #time series files from history (time-slice) files:
+    calc_cam_ts: false
+
+    #Save interim time series files for baseline run?
+    #WARNING:  This can take up a significant amount of space:
+    #cam_ts_save: true
+
+    #Overwrite baseline time series files, if found?
+    #If set to false, then time series creation will be skipped if files are found:
+    #cam_overwrite_ts: false
+
+    #Location where time series files are (or will be) stored:
+    #cam_ts_loc: ${ts_loc}${diag_cam_baseline_climo.cam_case_name}/${diag_cam_baseline_climo.yrs}/
+
+    cam_ts_loc: /glade/campaign/collections/cmip/CMIP6/timeseries-cmip6/b.e21.B1850.f09_g17.CMIP6-piControl.001/atm/proc/tseries/month_1/
+
+    #----------------------
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
+#These variables below only matter if you are using
+#a non-standard method, or are adding your own
+#diagnostic scripts.
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#Note:  If you want to pass arguments to a particular script, you can
+#do it like so (using the "averaging_example" script in this case):
+# - {averaging_example: {kwargs: {clobber: true}}}
+
+#Name of time-averaging scripts being used to generate climatologies.
+#These scripts must be located in "scripts/averaging":
+time_averaging_scripts:
+    - create_climo_files
+    #- create_TEM_files
+
+#Name of regridding scripts being used.
+#These scripts must be located in "scripts/regridding":
+regridding_scripts:
+    - regrid_and_vert_interp
+
+#List of analysis scripts being used.
+#These scripts must be located in "scripts/analysis":
+analysis_scripts:
+    - amwg_table
+    #- aerosol_gas_tables
+
+#List of plotting scripts being used.
+#These scripts must be located in "scripts/plotting":
+plotting_scripts:
+    - global_latlon_map
+    - zonal_mean
+    #- meridional_mean
+    - polar_map
+    - global_latlon_vect_map
+    - cam_taylor_diagram
+    - qbo
+    #- tem
+    - tape_recorder
+
+#List of CAM variables that will be processesd:
+#If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+diag_var_list:
+   - AODVISdn
+   - FLNT
+   - FSNT
+   - PRECT
+   - PSL
+   - Q
+   - SST
+   - TAUX
+   - TAUY
+   - U
+   - RESTOM
+
+#END OF FILE
