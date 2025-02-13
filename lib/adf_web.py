@@ -55,7 +55,7 @@ class _WebData:
     needed by the website generator.
     """
 
-    def __init__(self, web_data, web_name, case_name,
+    def __init__(self, web_data, web_name, case_name,ext="Mean",
                  category = None,
                  season = None,
                  non_season = False,
@@ -73,6 +73,7 @@ class _WebData:
         self.season     = season
         self.non_season = non_season
         self.plot_type  = plot_type
+        self.ext        = ext
         self.data_frame = data_frame
         self.html_file  = html_file
         self.asset_path = asset_path
@@ -193,7 +194,7 @@ class AdfWeb(AdfObs):
 
     #########
 
-    def add_website_data(self, web_data, web_name, case_name,
+    def add_website_data(self, web_data, web_name, case_name,ext="Mean",
                          category = None,
                          season = None,
                          non_season = False,
@@ -307,6 +308,7 @@ class AdfWeb(AdfObs):
                             season = season,
                             non_season = non_season,
                             plot_type = plot_type,
+                            ext = ext,
                             data_frame = data_frame,
                             html_file = html_file,
                             asset_path = asset_path,
@@ -552,7 +554,6 @@ class AdfWeb(AdfObs):
                 #Initialize Ordered Dictionary for season:
                 mean_html_info[ptype][category][var][season] = web_data.html_file.name
 
-
                 #Initialize Ordered Dictionary for non season kwarg:
                 if ptype not in non_seasons:
                     non_seasons[ptype] = OrderedDict()
@@ -626,7 +627,6 @@ class AdfWeb(AdfObs):
 
                 #Check if the mean plot type page exists for this case (or for multi-case):
                 mean_table_file = table_pages_dir / "mean_tables.html"
-
                 #Construct mean_table.html
                 mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
                 #Reuse the rend_kwarg_dict
@@ -635,7 +635,6 @@ class AdfWeb(AdfObs):
                 with open(mean_table_file, 'w', encoding='utf-8') as ofil:
                     ofil.write(mean_table_rndr)
                 #End with
-
             #End if (tables)
 
             else: #Plot image
@@ -654,20 +653,21 @@ class AdfWeb(AdfObs):
                     plot_types = plot_type_html
                 #End if
 
-                rend_kwarg_dict = {"title": main_title,
-                                   "var_title": web_data.name,
-                                   "season_title": web_data.season,
-                                   "case_name": web_data.case,
-                                   "case_yrs": case_yrs,
-                                   "base_name": data_name,
-                                   "baseline_yrs": baseline_yrs,
-                                   "plottype_title": web_data.plot_type,
-                                   "imgs": img_data,
-                                   "mydata": mean_html_info[web_data.plot_type],
-                                   "plot_types": plot_types,
-                                   "seasons": seasons,
-                                   "non_seasons": non_seasons[web_data.plot_type]}
 
+                rend_kwarg_dict = {"title": main_title,
+                                       "var_title": web_data.name,
+                                       "ext": web_data.ext,
+                                       "season_title": web_data.season,
+                                       "case_name": web_data.case,
+                                       "case_yrs": case_yrs,
+                                       "base_name": data_name,
+                                       "baseline_yrs": baseline_yrs,
+                                       "plottype_title": web_data.plot_type,
+                                       "imgs": img_data,
+                                       "mydata": mean_html_info[web_data.plot_type],
+                                       "plot_types": plot_types,
+                                       "seasons": seasons,
+                                       "non_seasons": non_seasons[web_data.plot_type]}
                 tmpl = jinenv.get_template('template.html')  #Set template
                 rndr = tmpl.render(rend_kwarg_dict) #The template rendered
 
