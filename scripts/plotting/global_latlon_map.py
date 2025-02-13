@@ -154,7 +154,6 @@ def global_latlon_map(adfobj):
 
             #Extract category (if available):
             web_category = vres.get("category", None)
-
         else:
             vres = {}
             web_category = None
@@ -178,7 +177,7 @@ def global_latlon_map(adfobj):
                 base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        odata = adfobj.data.load_reference_regrid_da(base_name, var, syear_baseline, eyear_baseline)
 
         if odata is None:
             dmsg = f"\t    WARNING: No regridded test file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
@@ -205,7 +204,7 @@ def global_latlon_map(adfobj):
                 plot_loc.mkdir(parents=True)
 
             #Load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            mdata = adfobj.data.load_regrid_da(case_name, var, eyear_cases[case_idx], eyear_cases[case_idx])
 
             #Skip this variable/case if the regridded climo file doesn't exist:
             if mdata is None:
@@ -232,12 +231,12 @@ def global_latlon_map(adfobj):
             if not has_dims['has_lev']:
                 for s in seasons:
                     plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
-                    doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon")
+                    doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon", "Mean")
             else:
                 for pres in pres_levs:
                     for s in seasons:
                         plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
-                        doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon")
+                        doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon", "Mean")
             if all(value is None for value in doplot.values()):
                 print(f"\t    INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
                 continue
@@ -279,7 +278,7 @@ def global_latlon_map(adfobj):
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
-                                            season=s, plot_type="LatLon")
+                                            season=s, plot_type="LatLon", ext="Mean")
 
             else: # => pres_levs has values, & we already checked that lev is in mdata (has_lev)
 
@@ -323,7 +322,7 @@ def global_latlon_map(adfobj):
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
-                                                season=s, plot_type="LatLon")
+                                                season=s, plot_type="LatLon", ext="Mean")
                     #End for (seasons)
                 #End for (pressure levels)
             #End if (plotting pressure levels)
@@ -339,7 +338,7 @@ def global_latlon_map(adfobj):
     print("  ...lat/lon maps have been generated successfully.")
 
 
-def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_plot, plot_type):
+def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_plot, plot_type, ext):
     """Check if output plot needs to be made or remade.
     
     Parameters
@@ -388,7 +387,7 @@ def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_p
         else:
             #Add already-existing plot to website (if enabled):
             adfobj.add_website_data(plot_name, var, case_name, category=web_category,
-                                    season=season, plot_type=plot_type)
+                                    season=season, plot_type=plot_type ,ext=ext)
             return False  # False tells caller that file exists and not to overwrite
     else:
         return True
@@ -427,6 +426,14 @@ def aod_latlon(adfobj):
     test_nicknames = adfobj.case_nicknames["test_nicknames"]
     base_nickname = adfobj.case_nicknames["base_nickname"]
     case_nicknames = test_nicknames + [base_nickname]
+
+    #Grab case years
+    syear_cases = adfobj.climo_yrs["syears"]
+    eyear_cases = adfobj.climo_yrs["eyears"]
+
+    #Grab baseline years (which may be empty strings if using Obs):
+    syears_baseline = adfobj.climo_yrs["syear_baseline"]
+    eyears_baseline = adfobj.climo_yrs["eyear_baseline"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -475,9 +482,9 @@ def aod_latlon(adfobj):
     #-----------------------
     ds_cases = []
 
-    for case in test_case_names:
+    for idx, case in enumerate(test_case_names):
         #Load re-gridded model files:
-        ds_case = adfobj.data.load_climo_da(case, var)
+        ds_case = adfobj.data.load_climo_da(case, var, syear_cases[idx], eyear_cases[idx])
 
         #Skip this variable/case if the climo file doesn't exist:
         if ds_case is None:
@@ -546,7 +553,7 @@ def aod_latlon(adfobj):
         base_name = adfobj.data.ref_case_label
     
         # Gather reference variable data
-        ds_base = adfobj.data.load_reference_climo_da(base_name, var)
+        ds_base = adfobj.data.load_reference_climo_da(base_name, var, syears_baseline, eyears_baseline)
         if ds_base is None:
             dmsg = f"\t WARNING: No baseline climo file for {base_name} for variable `{var}`, global lat/lon plots skipped."
             adfobj.debug_log(dmsg)
@@ -610,7 +617,7 @@ def aod_latlon(adfobj):
     # 4-Panel global lat/lon plots
     #-----------------------------
     # NOTE: This loops over all obs and available cases, so just
-    # make lists to keepo track of details for each case vs obs matchup
+    # make lists to keep track of details for each case vs obs matchup
     #   Plots:
     #      - Difference of seasonal avg of case minus seasonal avg of observation
     #      - Percent Difference of seasonal avg of case minus seasonal avg of observation
