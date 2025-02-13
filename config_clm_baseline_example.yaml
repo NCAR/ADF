@@ -493,7 +493,7 @@ analysis_scripts:
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
     - global_unstructured_latlon_map
-    - global_unstructured_latlon_arctic_map
+    - polar_ux_map
     #- global_mean_timeseries
     #- global_latlon_vect_map
     #- zonal_mean

@@ -24,7 +24,6 @@ import warnings  # use to warn user about missing files.
 # Import plotting modules:
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from cartopy.util import add_cyclic_point
@@ -44,7 +43,7 @@ warnings.formatwarning = my_formatwarning
 
 #########
 
-def global_unstructured_latlon_arctic_map(adfobj):
+def polar_ux_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model fields with continental overlays.
@@ -238,8 +237,8 @@ def global_unstructured_latlon_arctic_map(adfobj):
             doplot = {}
 
             for s in seasons:
-                plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
-                doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon")
+                plot_name = plot_loc / f"{var}_{s}_Arctic_Mean.{plot_type}"
+                doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "Arctic")
 
             if all(value is None for value in doplot.values()):
                 print(f"All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
@@ -255,7 +254,7 @@ def global_unstructured_latlon_arctic_map(adfobj):
 
                 #Loop over season dictionary:
                 for s in seasons:
-                    plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
+                    plot_name = plot_loc / f"{var}_{s}_Arctic_Mean.{plot_type}"
                     if doplot[plot_name] is None:
                         continue
 
@@ -287,7 +286,7 @@ def global_unstructured_latlon_arctic_map(adfobj):
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
-                                            season=s, plot_type="LatLon")
+                                            season=s, plot_type="Arctic")
 
             else: # => pres_levs has values, & we already checked that lev is in mdata (has_lev)
 
@@ -303,7 +302,7 @@ def global_unstructured_latlon_arctic_map(adfobj):
 
                     #Loop over seasons:
                     for s in seasons:
-                        plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
+                        plot_name = plot_loc / f"{var}_{pres}hpa_{s}_Arctic_Mean.{plot_type}"
                         if doplot[plot_name] is None:
                             continue
 
@@ -331,7 +330,7 @@ def global_unstructured_latlon_arctic_map(adfobj):
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
-                                                season=s, plot_type="LatLon")
+                                                season=s, plot_type="Arctic")
                     #End for (seasons)
                 #End for (pressure levels)
             #End if (plotting pressure levels)
@@ -706,171 +705,6 @@ def monthly_to_seasonal(ds,obs=False):
 
     return ds_season
 #######
-
-
-def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, case_name, case_num, types, symmetric=False):
-    """
-    Function to plot a panel plot of model vs observation difference and percent difference
-
-    This will be a 4-panel plot if model vs model run:
-        - Top left is test model minus obs
-        - Top right is baseline model minus obs
-        - Bottom left is test model minus obs percent difference
-        - Bottom right is baseline model minus obs percent difference
-    
-    This will be a 2-panel plot if model vs obs run:
-        - Top is test model minus obs
-        - Bottom is test model minus obs percent difference
-
-    NOTE: Individual plots of the panel plots will be created and saved to plotting location(s)
-          but will not be published to the webpage (if enabled)
-    """
-    #Set plot details:
-    # -- this should be set in basic_info_dict, but is not required
-    # -- So check for it, and default to png
-    basic_info_dict = adfobj.read_config_var("diag_basic_info")
-    file_type = basic_info_dict.get('plot_type', 'png')
-    plot_dir = adfobj.plot_location[0]
-
-    # check if existing plots need to be redone
-    redo_plot = adfobj.get_basic_info('redo_plot')
-
-    # Save the panel figure
-    plot_name = f'AOD_diff_{obs_name.replace(" ","_")}_{season}_LatLon_Mean.{file_type}'
-    plotfile = Path(plot_dir) / plot_name
-
-    # Check redo_plot. If set to True: remove old plot, if it already exists:
-    if (not redo_plot) and plotfile.is_file():
-        adfobj.debug_log(f"'{plotfile}' exists and clobber is false.")
-        #Add already-existing plot to website (if enabled):
-        adfobj.add_website_data(plotfile, f'AOD_diff_{obs_name.replace(" ","_")}', None,
-                            season=season, multi_case=True, plot_type="LatLon", category="4-Panel AOD Diags")
-
-        # Exit
-        return
-    else:
-        if plotfile.is_file():
-            plotfile.unlink()
-        # End if
-    # End if
-
-    # create figure:
-    fig = plt.figure(figsize=(7*case_num,10))
-    proj = ccrs.PlateCarree()
-
-    # LAYOUT WITH GRIDSPEC
-    plot_len = int(3*case_num)
-    gs = mpl.gridspec.GridSpec(2*case_num, plot_len, wspace=0.5, hspace=0.0)
-    gs.tight_layout(fig)
-
-    axs = []
-    for i in range(case_num):
-        start = i * 3
-        end = (i + 1) * 3
-        axs.append(plt.subplot(gs[0:case_num, start:end], projection=proj))
-        axs.append(plt.subplot(gs[case_num:, start:end], projection=proj))
-    # End for
-
-    # formatting for tick labels
-    lon_formatter = LongitudeFormatter(number_format='0.0f',
-                                        degree_symbol='',
-                                        dateline_direction_label=False)
-    lat_formatter = LatitudeFormatter(number_format='0.0f',
-                                        degree_symbol='')
-
-    # Loop over each data set
-    for i,field in enumerate(data):
-        # Set up sub plots for main panel plot
-        ind_fig, ind_ax = plt.subplots(1, 1, figsize=((7*case_num)/2,10/2),subplot_kw={'projection': proj})
-
-        lon_values = field.lon.values
-        lat_values = field.lat.values
-
-        # Get field plot paramters
-        plot_param = plot_params[i]
-
-        # Define plot levels
-        levels = np.linspace(
-            plot_param['range_min'], plot_param['range_max'],
-            plot_param['nlevel'], endpoint=True)
-        if 'augment_levels' in plot_param:
-            levels = sorted(np.append(
-                levels, np.array(plot_param['augment_levels'])))
-        # End if
-
-        if field.ndim > 2:
-            print(f"Required 2d lat/lon coordinates, got {field.ndim}d")
-            emg = "AOD panel plot:\n"
-            emg += f"\t Too many dimensions for {case_name}. Needs 2 (lat/lon) but got {field.ndim}"
-            adfobj.debug_log(emg)
-            print(f"{emg} ")
-            return
-        # End if
-
-        # Get data
-        field_values = field.values[:,:]
-        field_values, lon_values  = add_cyclic_point(field_values, coord=lon_values)
-        lon_mesh, lat_mesh = np.meshgrid(lon_values, lat_values)
-        field_mean = np.nanmean(field_values)
-
-        # Set plot details
-        extend_option = 'both' if symmetric else 'max'
-
-        if 'colormap' in plot_param:
-            cmap_option = plot_param['colormap'] if symmetric else plt.cm.turbo
-        else:
-            cmap_option = plt.cm.bwr if symmetric else plt.cm.turbo
-
-        img = axs[i].contourf(lon_mesh, lat_mesh, field_values,
-            levels, cmap=cmap_option, extend=extend_option,
-                              transform_first=True,
-            transform=ccrs.PlateCarree())
-        ind_img = ind_ax.contourf(lon_mesh, lat_mesh, field_values,
-            levels, cmap=cmap_option, extend=extend_option,
-                              transform_first=True,
-            transform=ccrs.PlateCarree())
-
-        axs[i].set_facecolor('gray')
-        ind_ax.set_facecolor('gray')
-        axs[i].coastlines()
-        ind_ax.coastlines()
-
-        # Set plot titles
-        axs[i].set_title(plot_titles[i] + ('  Mean %.2g' % field_mean),fontsize=10)
-        ind_ax.set_title(plot_titles[i] + ('  Mean %.2g' % field_mean),fontsize=10)
-
-        # Colorbar options
-        cbar = plt.colorbar(img, orientation='horizontal', pad=0.05)
-        ind_cbar = plt.colorbar(ind_img, orientation='horizontal', pad=0.05)
-
-        if 'ticks' in plot_param:
-            cbar.set_ticks(plot_param['ticks'])
-            ind_cbar.set_ticks(plot_param['ticks'])
-        if 'tick_labels' in plot_param:
-            cbar.ax.set_xticklabels(plot_param['tick_labels'])
-            ind_cbar.ax.set_xticklabels(plot_param['tick_labels'])
-        cbar.ax.tick_params(labelsize=6)
-
-        # Save the individual figure
-        pbase = f'AOD_{case_name[i]}_vs_{obs_name.replace(" ","_")}_{types[i].replace(" ","_")}'
-        ind_plotfile = f'{pbase}_{season}_LatLon_Mean.{file_type}'
-        ind_png_file = Path(plot_dir) / ind_plotfile
-        ind_fig.savefig(f'{ind_png_file}', bbox_inches='tight', dpi=300)
-        plt.close(ind_fig)
-    # End for
-
-    # Save the panel figure
-    plot_name = f'AOD_diff_{obs_name.replace(" ","_")}_{season}_LatLon_Mean.{file_type}'
-    plotfile = Path(plot_dir) / plot_name
-
-    # Save figure and add to website if applicable
-    fig.savefig(plotfile, bbox_inches='tight', dpi=300)
-    adfobj.add_website_data(plotfile, f'AOD_diff_{obs_name.replace(" ","_")}', None,
-                                season=season, multi_case=True, plot_type="LatLon", category="4-Panel AOD Diags")
-
-    # Close the figure
-    plt.close(fig)
-######
 
 
 def regrid_to_obs(adfobj, model_arr, obs_arr):

@@ -229,7 +229,7 @@ def global_unstructured_latlon_map(adfobj):
             if (not has_dims['has_lat']) or (not has_dims['has_lon']):
                 print(f"\t = Unstructured grid, so global map for {var} for case {case_name} does not have lat and lon")
 
-            # Check output file. If file does not exist, proceed.
+            # TODO Check output file. If file does not exist, proceed.
             # If file exists:
             #   if redo_plot is true: delete it now and make plot
             #   if redo_plot is false: add to website and move on

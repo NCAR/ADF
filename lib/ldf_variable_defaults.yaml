@@ -60,8 +60,8 @@
 #+++++++++++++
 # Available ADF Default Plot Types
 #+++++++++++++
-default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
-                  "NHPolar","SHPolar","TimeSeries","Special"]
+default_ptypes: ["Tables","LatLon","TimeSeries",
+                  "Arctic","RegionalClimo","RegionalTimeSeries","Special"]
 
 #+++++++++++++
 # Constants
