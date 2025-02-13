@@ -349,9 +349,9 @@ class AdfDiag(AdfWeb):
             # Use baseline settings, while converting them all
             # to lists:
             case_names = [self.get_baseline_info("cam_case_name", required=True)]
-            cam_ts_done = [self.get_baseline_info("cam_ts_done")]
-            cam_hist_locs = [self.get_baseline_info("cam_hist_loc")]
-            ts_dirs = [self.get_baseline_info("cam_ts_loc", required=True)]
+            calc_ts = [self.calc_ts["baseline"]]
+            cam_hist_locs = [self.hist_locs["baseline"]]
+            ts_dirs = [self.ts_locs["baseline"]]
             overwrite_ts = [self.get_baseline_info("cam_overwrite_ts")]
             start_years = [self.climo_yrs["syear_baseline"]]
             end_years = [self.climo_yrs["eyear_baseline"]]
@@ -361,9 +361,9 @@ class AdfDiag(AdfWeb):
         else:
             # Use test case settings, which are already lists:
             case_names = self.get_cam_info("cam_case_name", required=True)
-            cam_ts_done = self.get_cam_info("cam_ts_done")
-            cam_hist_locs = self.get_cam_info("cam_hist_loc")
-            ts_dirs = self.get_cam_info("cam_ts_loc", required=True)
+            calc_ts = self.calc_ts["test"]
+            cam_hist_locs = self.hist_locs["test"]
+            ts_dirs = self.ts_locs["test"]
             overwrite_ts = self.get_cam_info("cam_overwrite_ts")
             start_years = self.climo_yrs["syears"]
             end_years = self.climo_yrs["eyears"]
@@ -381,9 +381,17 @@ class AdfDiag(AdfWeb):
         # Loop over cases:
         for case_idx, case_name in enumerate(case_names):
             # Check if particular case should be processed:
-            if cam_ts_done[case_idx]:
+            print(calc_ts[case_idx], ts_dirs[case_idx],"\n")
+            if (not calc_ts[case_idx]) and (ts_dirs[case_idx]):
                 emsg = "\tNOTE: Configuration file indicates time series files have been pre-computed"
                 emsg += f" for case '{case_name}'.  Will rely on those files directly."
+                print(emsg)
+                continue
+            # End if
+            
+            if (not calc_ts[case_idx]) and (not ts_dirs[case_idx]):
+                emsg = f"\tNOTE: Configuration file indicates time series files for case '{case_name}'"
+                emsg += f" don't need to be used."
                 print(emsg)
                 continue
             # End if
@@ -473,7 +481,7 @@ class AdfDiag(AdfWeb):
                                 # Print a warning, and assume that no vertical
                                 # level information is needed.
                                 wmsg = (
-                                    "WARNING! Unable to determine the vertical coordinate"
+                                    "\t    WARNING: Unable to determine the vertical coordinate"
                                 )
                                 wmsg = " type from the 'lev' long name,"
                                 wmsg += f" which is:\n'{lev_long_name}'."
@@ -485,7 +493,7 @@ class AdfDiag(AdfWeb):
                             # End if
                         else:
                             # Print a warning, and assume hybrid levels (for now):
-                            wmsg = "WARNING!  No long name found for the 'lev' dimension,"
+                            wmsg = "\t    WARNING:  No long name found for the 'lev' dimension,"
                             wmsg += (
                                 " so no additional vertical coordinate information will be"
                             )
@@ -556,12 +564,20 @@ class AdfDiag(AdfWeb):
                         + ".".join([case_name, hist_str, var, time_string, "nc"])
                     )
 
+                    # Check if files already exist in time series directory:
+                    ts_file_list = glob.glob(ts_outfil_str)
+
+                    # If files exist, then check if over-writing is allowed:
+                    if ts_file_list:
+                        if not overwrite_ts[case_idx]:
+                            # If not, then simply skip this variable:
+                            continue
+
                     # Check if clobber is true for file
                     if Path(ts_outfil_str).is_file():
                         if overwrite_ts[case_idx]:
                             Path(ts_outfil_str).unlink()
                         else:
-                            #msg = f"[{__name__}] Warning: '{var}' file was found "
                             msg = f"\t    INFO: '{var}' file was found "
                             msg += "and overwrite is False. Will use existing file."
                             print(msg)
@@ -654,15 +670,6 @@ class AdfDiag(AdfWeb):
                     # Check if variable has a "lev" dimension according to first file:
                     has_lev = bool("lev" in hist_file_ds[var].dims or "ilev" in hist_file_ds[var].dims)
 
-                    # Check if files already exist in time series directory:
-                    ts_file_list = glob.glob(ts_outfil_str)
-
-                    # If files exist, then check if over-writing is allowed:
-                    if ts_file_list:
-                        if not overwrite_ts[case_idx]:
-                            # If not, then simply skip this variable:
-                            continue
-
                     # Variable list starts with just the variable
                     ncrcat_var_list = f"{var}"
 
@@ -682,7 +689,7 @@ class AdfDiag(AdfWeb):
                                 ncrcat_var_list = ncrcat_var_list + ",PS"
                                 print(f"\t    INFO: Adding PS to file for '{var}'")
                             else:
-                                wmsg = "WARNING: PS not found in history file."
+                                wmsg = "\t    WARNING: PS not found in history file."
                                 wmsg += " It might be needed at some point."
                                 print(wmsg)
                             # End if
@@ -696,9 +703,9 @@ class AdfDiag(AdfWeb):
                                 # PMID file to each one of those targets separately. -JN
                                 if "PMID" in hist_file_var_list:
                                     ncrcat_var_list = ncrcat_var_list + ",PMID"
-                                    print("Adding PMID to file")
+                                    print("\t    INFO: Adding PMID to file")
                                 else:
-                                    wmsg = "WARNING: PMID not found in history file."
+                                    wmsg = "\t    WARNING: PMID not found in history file."
                                     wmsg += " It might be needed at some point."
                                     print(wmsg)
                                 # End if PMID
@@ -760,6 +767,34 @@ class AdfDiag(AdfWeb):
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_hist_commands)
 
+                # Loop over the created time series files again and fix the time if necessary
+                #NOTE: There is no solution to do this with NCO operators, but there is with CDO operators.
+                #      We can switch to using CDO, but it would require the user to have/load CDO as well.
+                fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
+                for fil in fils:
+                    ts_ds = xr.open_dataset(fil, decode_times=False)
+                    if 'time_bnds' in ts_ds:
+                        ts_ds.time_bnds.attrs['units'] = ts_ds.time.attrs['units']
+                        ts_ds.time_bnds.attrs['calendar'] = ts_ds.time.attrs['calendar']
+                        time = ts_ds['time']
+                        time = xr.DataArray(ts_ds['time_bnds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
+                        ts_ds['time'] = time
+                        ts_ds.assign_coords(time=time)
+                        ts_ds_fixed = xr.decode_cf(ts_ds)
+
+                        # Add attribute note of time change
+                        attrs_dict = {
+                            "adf_timeseries_info": "Time series files have been computed using 'ncrcat'",
+                            "adf_note": "The time values have been modified to middle of month"
+                        }
+                        ts_ds_fixed = ts_ds_fixed.assign_attrs(attrs_dict)
+
+                        # Save to a temporary file
+                        temp_file_path = fil + ".tmp"
+                        ts_ds_fixed.to_netcdf(temp_file_path)
+                        # Replace the original file with the modified file
+                        os.replace(temp_file_path, fil)
+
                 if vars_to_derive:
                     self.derive_variables(
                         res=res, hist_str=hist_str, vars_to_derive=vars_to_derive,
@@ -788,7 +823,7 @@ class AdfDiag(AdfWeb):
         """
 
         # Extract climatology calculation config options:
-        calc_climo = self.get_cam_info("calc_cam_climo")
+        calc_climo = self.climo_locs["test"]
 
         # Check if climo calculation config option is a list:
         if isinstance(calc_climo, list):
@@ -799,7 +834,7 @@ class AdfDiag(AdfWeb):
         # Next check if a baseline simulation is being used
         # and no other model cases need climatologies calculated:
         if not self.compare_obs and not calc_climo:
-            calc_bl_climo = self.get_baseline_info("calc_cam_climo")
+            calc_bl_climo = self.calc_climos["baseline"]
 
             # Check if baseline climo calculation config option is a list,
             # although it really never should be:
@@ -1534,7 +1569,7 @@ def _load_dataset(fils):
     warnings.formatwarning = my_formatwarning
 
     if len(fils) == 0:
-        warnings.warn("\t    WARNING: Input file list is empty.")
+        warnings.warn("Input file list is empty.")
         return None
     if len(fils) > 1:
         return xr.open_mfdataset(fils, combine='by_coords')
