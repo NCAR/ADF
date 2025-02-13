@@ -177,6 +177,11 @@ class AdfInfo(AdfConfig):
             #Set the baseline years to empty strings:
             syear_baseline = ""
             eyear_baseline = ""
+            self.__baseline_hist_loc = None
+            self.__calc_baseline_ts = True
+            self.__input_climo_baseline = None
+            self.__input_ts_baseline = None
+            self.__calc_base_climo = True
         else:
             #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
@@ -193,55 +198,85 @@ class AdfInfo(AdfConfig):
             eyear_baseline = self.get_baseline_info('end_year')
 
             #Get climo years for verification or assignment if missing
-            baseline_hist_locs = self.get_baseline_info('cam_hist_loc')
+            baseline_hist_loc = self.get_baseline_info('cam_hist_loc')
+            self.__baseline_hist_loc = baseline_hist_loc
+            #base_hist_loc = [baseline_hist_loc]
 
             # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
             baseline_hist_str = self.get_baseline_info("hist_str")
+            self.__base_hist_str = baseline_hist_str
 
             #Check if any time series files are pre-made
-            baseline_ts_done   = self.get_baseline_info("cam_ts_done")
+            calc_baseline_ts   = self.get_baseline_info("calc_cam_ts")
+            if calc_baseline_ts is None:
+                calc_baseline_ts = False
+            #self.__calc_baseline_ts = {data_name:calc_baseline_ts}
+            self.__calc_baseline_ts = calc_baseline_ts
+
+            input_ts_baseline = self.get_baseline_info("cam_ts_loc")
+            if input_ts_baseline == "None":
+                input_ts_baseline = None
+            #self.__input_ts_baseline = {data_name:input_ts_baseline}
+            self.__input_ts_baseline = input_ts_baseline
+
+            calc_base_climo   = self.get_baseline_info("calc_cam_climo")
+            if calc_base_climo is None:
+                calc_base_climo = False
+            #self.__calc_base_climo = {data_name:calc_base_climo}
+            self.__calc_base_climo = calc_base_climo
+            #self.__calc_base_climo
+
+            input_climo_baseline = self.get_baseline_info("cam_climo_loc")
+            if input_climo_baseline == "None":
+                input_climo_baseline = None
+            #self.__input_ts_baseline = {data_name:input_ts_baseline}
+            self.__input_climo_baseline = input_climo_baseline
+
+            #self.__calc_baseline_climo = {data_name:input_ts_baseline}
 
             #Check if time series files already exist,
             #if so don't rely on climo years from history location
-            if baseline_ts_done:
-                baseline_hist_locs = None
+            #if baseline_ts_done:
+            #if (not calc_baseline_ts) and (input_ts_baseline):
+            if not calc_baseline_ts:
+                baseline_hist_loc = [None]
 
-                #Grab baseline time series file location
-                input_ts_baseline = self.get_baseline_info("cam_ts_loc", required=True)
-                input_ts_loc = Path(input_ts_baseline)
+                if input_ts_baseline is not None:
+                    #Grab baseline time series file location
+                    input_ts_loc = Path(input_ts_baseline)
 
-                #Get years from pre-made timeseries file(s)
-                found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(
-                    input_ts_loc, data_name)
-                found_yr_range = np.arange(found_syear_baseline,found_eyear_baseline,1)
+                    #Get years from pre-made timeseries file(s)
+                    found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(
+                        input_ts_loc, data_name)
+                    found_yr_range = np.arange(found_syear_baseline,found_eyear_baseline,1)
 
-                #History file path isn't needed if user is running ADF directly on time series.
-                #So make sure start and end year are specified:
-                if syear_baseline is None:
-                    msg = f"\t WARNING: No given start year for {data_name}, "
-                    msg += f"using first found year: {found_syear_baseline}"
-                    print(msg)
-                    syear_baseline = found_syear_baseline
-                if syear_baseline not in found_yr_range:
-                    msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {found_syear_baseline}"
-                    print(msg)
-                    syear_baseline = found_syear_baseline
+                    #History file path isn't needed if user is running ADF directly on time series.
+                    #So make sure start and end year are specified:
+                    if syear_baseline is None:
+                        msg = f"\t WARNING: No given start year for {data_name}, "
+                        msg += f"using first found year: {found_syear_baseline}"
+                        print(msg)
+                        syear_baseline = found_syear_baseline
+                    if syear_baseline not in found_yr_range:
+                        msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current dataset "
+                        msg += f"{data_name}, using first found year: {found_syear_baseline}\n"
+                        print(msg)
+                        syear_baseline = found_syear_baseline
 
-                if eyear_baseline is None:
-                    msg = f"\t WARNING: No given end year for {data_name}, "
-                    msg += f"using last found year: {found_eyear_baseline}"
-                    print(msg)
-                    eyear_baseline = found_eyear_baseline
-                if eyear_baseline not in found_yr_range:
-                    msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {found_eyear_baseline}"
-                    print(msg)
-                    eyear_baseline = found_eyear_baseline
+                    if eyear_baseline is None:
+                        msg = f"\t WARNING: No given end year for {data_name}, "
+                        msg += f"using last found year: {found_eyear_baseline}"
+                        print(msg)
+                        eyear_baseline = found_eyear_baseline
+                    if eyear_baseline not in found_yr_range:
+                        msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current dataset "
+                        msg += f"{data_name}, using first found year: {found_eyear_baseline}\n"
+                        print(msg)
+                        eyear_baseline = found_eyear_baseline
             # End if
 
             # Check if history file path exists:
-            if any(baseline_hist_locs):
+            if any(baseline_hist_loc):
                 #Check if user provided
                 if not baseline_hist_str:
                     baseline_hist_str = ['cam.h0a']
@@ -254,7 +289,7 @@ class AdfInfo(AdfConfig):
 
                 #Grab first possible hist string, just looking for years of run
                 base_hist_str = baseline_hist_str[0]
-                starting_location = Path(baseline_hist_locs)
+                starting_location = Path(baseline_hist_loc)
                 print(f"\tChecking history files in '{starting_location}'")
                 file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
 
@@ -290,7 +325,7 @@ class AdfInfo(AdfConfig):
                 #  $CASE.cam.h#.YYYY<other date info>.nc
                 base_climo_yrs = [int(str(i).partition(f"{base_hist_str}.")[2][0:4]) for i in file_list]
                 if not base_climo_yrs:
-                    msg = f"\t ERROR: No climo years found in {baseline_hist_locs}, "
+                    msg = f"\t ERROR: No climo years found in {baseline_hist_loc}, "
                     raise AdfError(msg)
 
                 base_climo_yrs = sorted(np.unique(base_climo_yrs))
@@ -374,9 +409,6 @@ class AdfInfo(AdfConfig):
             eyears = [None]*len(case_names)
         #End if
 
-        #Extract cam history files location:
-        cam_hist_locs = self.get_cam_info('cam_hist_loc')
-
         #Get cleaned nested list of hist_str for test case(s) (component.hist_num, eg cam.h0)
         cam_hist_str = self.__cam_climo_info.get('hist_str', None)
 
@@ -389,11 +421,71 @@ class AdfInfo(AdfConfig):
         #Initialize CAM history string nested list
         self.__hist_str = hist_str
 
-        #Check if using pre-made ts files
-        cam_ts_done   = self.get_cam_info("cam_ts_done")
+        #Grab case history file location(s)
+        ##################################################################
+        cam_hist_locs = self.get_cam_info("cam_hist_loc")
+        if cam_hist_locs is None:
+            cam_hist_locs = [None]*len(case_names)
+        """else:
+            #Check if any time series files are pre-made
+            if len(cam_hist_locs) == len(case_names):
+                print("We have a problem, the number of locs does not match the number of cases!")
+                #adf.error thingy"""
+        self.__test_hist_locs = cam_hist_locs
+
+
+        #Check if time series files need to be calculated
+        ##################################################################
+        calc_test_ts = self.get_cam_info("calc_cam_ts")
+        if calc_test_ts is None:
+            calc_test_ts = [False]*len(case_names)
+        """else:
+            #Check if any time series files are pre-made
+            if len(calc_test_ts) == len(case_names):
+                print("We have a problem, the number of locs does not match the number of cases!")
+                #adf.error thingy"""
+        self.__calc_test_ts = calc_test_ts
+
 
         #Grab case time series file location(s)
-        input_ts_locs = self.get_cam_info("cam_ts_loc", required=True)
+        ##################################################################
+        test_ts_locs = self.get_cam_info("cam_ts_loc")
+        if test_ts_locs is None:
+            test_ts_locs = [None]*len(case_names)
+        """else:
+            #Check if any time series files are pre-made
+            if len(test_ts_locs) == len(case_names):
+                print("We have a problem, the number of locs does not match the number of cases!")
+                #adf.error thingy"""
+        self.__test_ts_locs = test_ts_locs
+
+
+        #Check if climatology files need to be calculated
+        ##################################################################
+        calc_test_climo = self.get_cam_info("calc_cam_climo")
+        if calc_test_climo is None:
+            calc_test_climo = [False]*len(case_names)
+        """else:
+            #Check if any time series files are pre-made
+            if len(calc_test_climo) == len(case_names):
+                print("We have a problem, the number of locs does not match the number of cases!")
+                #adf.error thingy"""
+        self.__calc_test_climo = calc_test_climo
+
+
+        #Grab case climatology file location(s)
+        ##################################################################
+        #input_ts_locs = self.get_cam_info("cam_ts_loc", required=True)
+        test_climo_locs = self.get_cam_info("cam_climo_loc")
+        if test_climo_locs is None:
+            test_climo_locs = [None]*len(case_names)
+        """else:
+            #Check if any time series files are pre-made
+            if len(test_climo_locs) != len(case_names):
+                print("We have a problem, the number of locs does not match the number of cases!")
+                #adf.error thingy"""
+        self.__test_climo_locs = test_climo_locs
+
 
         #Loop over cases:
         syears_fixed = []
@@ -403,41 +495,44 @@ class AdfInfo(AdfConfig):
             syear = syears[case_idx]
             eyear = eyears[case_idx]
 
-            #Check if time series files exist, if so don't rely on climo years
-            if cam_ts_done[case_idx]:
+            if not calc_test_ts[case_idx]:
                 cam_hist_locs[case_idx] = None
 
-                #Grab case time series file location
-                input_ts_loc = Path(input_ts_locs[case_idx])
-                print(f"Checking existing time-series files in {input_ts_loc}")
+                if test_ts_locs[case_idx]:
+                    test_ts_loc = test_ts_locs[case_idx]
 
-                #Get years from pre-made timeseries file(s)
-                found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)
-                found_yr_range = np.arange(found_syear,found_eyear,1)
+                    #Grab case time series file location
+                    input_ts_loc = Path(test_ts_loc)
+                    print(f"Checking existing time-series files in {input_ts_loc}")
 
-                #History file path isn't needed if user is running ADF directly on time series.
-                #So make sure start and end year are specified:
-                if syear is None:
-                    msg = f"\t WARNING: No given start year for {case_name}, "
-                    msg += f"using first found year: {found_syear}"
-                    print(msg)
-                    syear = found_syear
-                if syear not in found_yr_range:
-                    msg = f"\t WARNING: Given start year '{syear}' is not in current dataset "
-                    msg += f"{case_name}, using first found year: {found_syear}\n"
-                    print(msg)
-                    syear = found_syear
-                #End if
-                if eyear is None:
-                    msg = f"\t WARNING: No given end year for {case_name}, "
-                    msg += f"using last found year: {found_eyear}"
-                    print(msg)
-                    eyear = found_eyear
-                if eyear not in found_yr_range:
-                    msg = f"\t WARNING: Given end year '{eyear}' is not in current dataset "
-                    msg += f"{case_name}, using last found year: {found_eyear}\n"
-                    print(msg)
-                    eyear = found_eyear
+                    #Get years from pre-made timeseries file(s)
+                    found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)
+                    found_yr_range = np.arange(found_syear,found_eyear,1)
+
+                    #History file path isn't needed if user is running ADF directly on time series.
+                    #So make sure start and end year are specified:
+                    if syear is None:
+                        msg = f"\t WARNING: No given start year for {case_name}, "
+                        msg += f"using first found year: {found_syear}"
+                        print(msg)
+                        syear = found_syear
+                    if syear not in found_yr_range:
+                        msg = f"\t WARNING: Given start year '{syear}' is not in current dataset "
+                        msg += f"{case_name}, using first found year: {found_syear}\n"
+                        print(msg)
+                        syear = found_syear
+                    #End if
+                    if eyear is None:
+                        msg = f"\t WARNING: No given end year for {case_name}, "
+                        msg += f"using last found year: {found_eyear}"
+                        print(msg)
+                        eyear = found_eyear
+                    if eyear not in found_yr_range:
+                        msg = f"\t WARNING: Given end year '{eyear}' is not in current dataset "
+                        msg += f"{case_name}, using last found year: {found_eyear}\n"
+                        print(msg)
+                        eyear = found_eyear
+                    #End if
                 #End if
             #End if
 
@@ -728,6 +823,66 @@ class AdfInfo(AdfConfig):
             base_hist_strs = ""
         hist_strs = {"test_hist_str":cam_hist_strs, "base_hist_str":base_hist_strs}
         return hist_strs
+
+    
+    @property
+    def hist_locs(self):
+        """Return the test case and baseline nicknames to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        test_hist_locs = copy.copy(self.__test_hist_locs)
+        baseline_hist_loc = self.__baseline_hist_loc
+
+        return {"test":test_hist_locs,"baseline":baseline_hist_loc}
+
+
+    @property
+    def calc_ts(self):
+        """Return the test case and baseline nicknames to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        calc_test_tss = copy.copy(self.__calc_test_ts)
+        calc_baseline_ts = self.__calc_baseline_ts
+
+        return {"test":calc_test_tss,"baseline":calc_baseline_ts}
+
+
+    @property
+    def ts_locs(self):
+        """Return the test case and baseline nicknames to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        test_ts_locs = copy.copy(self.__test_ts_locs)
+        baseline_ts_loc = self.__input_ts_baseline
+
+        return {"test":test_ts_locs,"baseline":baseline_ts_loc}
+
+    
+    @property
+    def calc_climos(self):
+        """Return the test case and baseline nicknames to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        calc_test_climo = copy.copy(self.__calc_test_climo)
+        calc_base_climo = self.__calc_base_climo
+
+        return {"test":calc_test_climo,"baseline":calc_base_climo}
+
+
+    @property
+    def climo_locs(self):
+        """Return the test case and baseline nicknames to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        test_climo_locs = copy.copy(self.__test_climo_locs)
+        baseline_climo_loc = self.__input_climo_baseline
+
+        return {"test":test_climo_locs,"baseline":baseline_climo_loc}
 
     #########
 
