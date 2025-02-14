@@ -132,6 +132,10 @@ def amwg_table(adf):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
 
+    #Grab case years
+    syear_cases = adf.climo_yrs["syears"]
+    eyear_cases = adf.climo_yrs["eyears"]
+
     #Check if a baseline simulation is also being used:
     if not adf.get_basic_info("compare_obs"):
         #Extract CAM baseline variaables:
@@ -140,6 +144,13 @@ def amwg_table(adf):
 
         case_names.append(baseline_name)
         input_ts_locs.append(input_ts_baseline)
+
+        #Grab baseline years (which may be empty strings if using Obs):
+        syear_baseline = adf.climo_yrs["syear_baseline"]
+        eyear_baseline = adf.climo_yrs["eyear_baseline"]
+
+        syear_cases.append(syear_baseline)
+        eyear_cases.append(eyear_baseline)
 
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
@@ -169,6 +180,11 @@ def amwg_table(adf):
 
         #Notify user that script has started:
         print(f"\n  Creating table for '{case_name}'...")
+        if eyear_cases[case_idx]-syear_cases[case_idx] < 1:
+            calc_stats = False
+            print("\t INFO: Looks like there is only one year of data, will skip statistics and just add means to table")
+        else:
+            calc_stats = True
 
         #Create output file name:
         output_csv_file = output_location / f"amwg_table_{case_name}.csv"
@@ -268,18 +284,19 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = pf.annual_mean(data, whole_years=True, time_name='time')
 
-            # create a dataframe:
+            # Set values for columns
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                     'standard error', '95% CI', 'trend', 'trend p-value']
-
-            # These get written to our output file:
-            stats_list = _get_row_vals(data)
-            row_values = [var, unit_str] + stats_list
+            if not calc_stats:
+                row_values = [var, unit_str] + [data.data.mean()] + ["-","-","-","-","-","-"]
+            else:
+                stats_list = _get_row_vals(data)
+                row_values = [var, unit_str] + stats_list
 
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
 
-            # Add entries to Pandas structure:
+            # Add entries to Pandas structure and create a dataframe:
             df = pd.DataFrame(dfentries)
 
             # Check if the output CSV file exists,

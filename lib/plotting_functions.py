@@ -1218,7 +1218,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
     # get statistics (from non-wrapped)
     fields = (mdlfld, obsfld, diffld, pctld)
-    area_avg = [global_average(x, wgt) for x in fields]
+    [spatial_average(x, weights=wgt, spatial_dims=None) for x in fields]
 
     d_rmse = wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
 
