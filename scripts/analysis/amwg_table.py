@@ -180,7 +180,7 @@ def amwg_table(adf):
 
         #Notify user that script has started:
         print(f"\n  Creating table for '{case_name}'...")
-        if eyear_cases[case_idx]-syear_cases[case_idx] < 1:
+        if eyear_cases[case_idx]-syear_cases[case_idx] == 0:
             calc_stats = False
             print("\t INFO: Looks like there is only one year of data, will skip statistics and just add means to table")
         else:
