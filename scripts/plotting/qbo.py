@@ -33,14 +33,35 @@ def qbo(adfobj):
     msg = "\n  Generating qbo plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
+    adfds = adfobj.data
+
     #Extract relevant info from the ADF:
-    case_names = adfobj.get_cam_info('cam_case_name', required=True)
-    case_loc = adfobj.get_cam_info('cam_ts_loc', required=True)
-    base_name = adfobj.get_baseline_info('cam_case_name')
-    base_loc = adfobj.get_baseline_info('cam_ts_loc')
+    test_case_names = adfobj.get_cam_info('cam_case_name', required=True)
+    case_loc = adfobj.ts_locs["test"]
+    if case_loc is None:
+        print("\tNo time series locations found for any test cases")
+        case_loc = []
+
+    # Gather obs data location
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
+
+    # Plot location
     plot_locations = adfobj.plot_location
     plot_type = adfobj.get_basic_info('plot_type')
+
+    # Extract simulation years:
+    start_years = adfobj.climo_yrs["syears"]
+    end_years   = adfobj.climo_yrs["eyears"]
+    if not case_loc:
+        exitmsg = "WARNING: No time series files in any case directory."
+        exitmsg += " No QBO plots will be made."
+        print(exitmsg)
+        logmsg = "create qbo:"
+        logmsg += f"\n Tape recorder plots require monthly mean h0 time series files."
+        logmsg += f"\n None were found for any case. Please check the time series paths."
+        adfobj.debug_log(logmsg)
+        #End QBO plotting script:
+        return
 
     #Grab all case nickname(s)
     test_nicknames = adfobj.case_nicknames["test_nicknames"]
@@ -89,18 +110,36 @@ def qbo(adfobj):
             plot_loc_amp.unlink()
     #End if
 
-    #Check if model vs model run, and if so, append baseline to case lists:
-    if not adfobj.compare_obs:
-        case_loc.append(base_loc)
-        case_names.append(base_name)
-    #End if
-
     #----Read in the OBS (ERA5, 5S-5N average already
     obs = xr.open_dataset(obsdir+"/U_ERA5_5S_5N_1979_2019.nc").U_5S_5N
 
     #----Read in the case data and baseline
-    ncases = len(case_loc)
-    casedat = [pf.load_dataset(sorted(Path(case_loc[i]).glob(f"{case_names[i]}.*.U.*.nc"))) for i in range(0,ncases,1)]
+    casedat = []
+    case_names = []
+    ncases = 0
+
+    # Loop over test case data
+    for i in range(0,len(case_loc),1): 
+        if case_loc[i]:
+            cam_ts_data = adfds.load_timeseries_da(test_case_names[i], "U", start_years[i], end_years[i])
+            if cam_ts_data:
+                casedat.append(cam_ts_data)
+                case_names.append(test_case_names[i])
+                ncases += 1    
+    # Get baseline data if applicable
+    if not adfobj.compare_obs:
+        base_name = adfobj.get_baseline_info('cam_case_name')
+        #base_loc = adfobj.ts_locs["baseline"]
+        #Extract baseline years:
+        bl_syr = adfobj.climo_yrs["syear_baseline"]
+        bl_eyr = adfobj.climo_yrs["eyear_baseline"]
+        ref_ts_data = adfds.load_reference_timeseries_da("U", bl_syr, bl_eyr)
+        if ref_ts_data:
+            ncases += 1
+            case_names.append(base_name)
+            casedat.append(ref_ts_data)
+        else:
+            print("No ts data")
 
     #Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []
@@ -119,6 +158,8 @@ def qbo(adfobj):
     #End if
 
     #----Calculate the zonal mean
+    #casedatzm = [ casedat[i].U.mean("lon") for i in range(0,ncases,1) ]
+    #casedatzm = [ casedat[i].mean("lon") for i in range(0,ncases,1) ]
     casedatzm = []
     for i in range(0,ncases,1):
         has_dims = pf.validate_dims(casedat[i].U, ['lon'])
@@ -153,6 +194,9 @@ def qbo(adfobj):
     x1, x2, y1, y2 = plotpos()
     ax = plotqbotimeseries(fig, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')
 
+
+    print("case_names",case_names,len(case_names))
+    print(ncases)
     casecount=0
     for icase in range(0,ncases,1):
         if (icase < 11 ): # only only going to work with 12 panels currently
