@@ -198,7 +198,7 @@ class AdfData:
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific case."""
         #a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
-        climo_locs = self.adf.climo_locs.test
+        climo_locs = self.adf.climo_locs["test"]
         caseindex = (self.case_names).index(case) # the entry for specified case
         model_cl_loc = Path(climo_locs[caseindex])
         return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
