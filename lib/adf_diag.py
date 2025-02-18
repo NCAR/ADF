@@ -102,6 +102,18 @@ from adf_dataset import AdfData
 # Helper functions
 #################
 
+def set_warning_filter(enable=True):
+    """Enable or disable filtering of print statements containing 'WARNING'."""
+    original_print = builtins.print
+
+    def filtered_print(*args, **kwargs):
+        message = " ".join(map(str, args))
+        if enable and "WARNING" in message:
+            return  # Skip printing warnings
+        original_print(*args, **kwargs)
+
+    builtins.print = filtered_print if enable else original_print
+
 
 def construct_index_info(page_dict, fnam, opf):
     """
@@ -377,6 +389,8 @@ class AdfDiag(AdfWeb):
 
         # get info about variable defaults
         res = self.variable_defaults
+
+        print("AH",cam_hist_locs)
 
         # Loop over cases:
         for case_idx, case_name in enumerate(case_names):
@@ -1577,4 +1591,53 @@ def _load_dataset(fils):
         return xr.open_dataset(fils[0])
     #End if
 # End def
+
+
+
+
+
+
+
+
+import sys, builtins
+def set_warning_filter(enable=True):
+    """Enable or disable filtering of print statements containing 'WARNING'."""
+    original_print = builtins.print
+
+    def filtered_print(*args, **kwargs):
+        message = " ".join(map(str, args))
+        if enable and "WARNING" in message:
+            return  # Skip printing warnings
+        original_print(*args, **kwargs)
+
+    builtins.print = filtered_print if enable else original_print
+
+
+class SuppressWarningsPrint:
+    """Context manager to suppress print statements containing specific keywords."""
+        
+    def __init__(self, suppress=True, keywords=None):
+        """
+        Parameters:
+        - suppress (bool): Whether to suppress matching print statements.
+        - keywords (list): List of keywords to filter (default: ["INFO", "WARNING", "ERROR"]).
+        """
+        self.suppress = suppress
+        self.original_print = print  # Store the original print function
+        self.keywords = keywords if keywords is not None else ["INFO", "WARNING", "ERROR"]
+
+    def filtered_print(self, *args, **kwargs):
+        """Custom print function that filters out messages containing specified keywords."""
+        message = " ".join(map(str, args))
+        if not self.suppress or not any(keyword in message for keyword in self.keywords):
+            self.original_print(*args, **kwargs)
+
+    def __enter__(self):
+        """Override the print function globally."""
+        if self.suppress:
+            sys.modules['builtins'].print = self.filtered_print
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Restore the original print function."""
+        sys.modules['builtins'].print = self.original_print
 ########
