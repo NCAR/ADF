@@ -13,6 +13,9 @@ import xarray as xr  # module-level import so all functions can get to it.
 
 import multiprocessing as mp
 
+#Import ADF-specific modules:
+import plotting_functions as pf
+
 def get_time_slice_by_year(time, startyear, endyear):
     if not hasattr(time, 'dt'):
         print("Warning: get_time_slice_by_year requires the `time` parameter to be an xarray time coordinate with a dt accessor. Returning generic slice (which will probably fail).")
@@ -26,7 +29,9 @@ def get_time_slice_by_year(time, startyear, endyear):
 ##############
 #Main function
 ##############
-
+#adf.set_warning_filter
+from adf_diag import set_warning_filter
+set_warning_filter(enable=True)  # Suppress warnings
 def create_climo_files(adf, clobber=False, search=None):
     """
     This is an example function showing
@@ -71,10 +76,23 @@ def create_climo_files(adf, clobber=False, search=None):
 
     #CAM simulation variables (These quantities are always lists):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
+    #input_ts_locs = adf.get_cam_info("cam_ts_loc")#, required=True
+    #output_locs   = adf.get_cam_info("cam_climo_loc")#, required=True
     output_locs = adf.climo_locs["test"]
+    #calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
+
+
+    #case_names = self.get_cam_info("cam_case_name", required=True)
     calc_climos = adf.calc_climos["test"]
+    #cam_hist_locs = self.get_cam_info("cam_hist_loc")
+    #ts_dirs = self.get_cam_info("cam_ts_loc", required=True)
     input_ts_locs = adf.ts_locs["test"]
+    #overwrite_ts = self.get_cam_info("cam_overwrite_ts")
+    #start_years = self.climo_yrs["syears"]
+    #end_years = self.climo_yrs["eyears"]
+    #case_type_string="case"
+    #hist_str_list = self.hist_string["test_hist_str"]
 
     #Extract simulation years:
     start_year = adf.climo_yrs["syears"]
@@ -96,11 +114,22 @@ def create_climo_files(adf, clobber=False, search=None):
     if not adf.get_basic_info("compare_obs"):
         #Extract CAM baseline variaables:
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
+        #input_ts_baseline = adf.get_baseline_info("cam_ts_loc")#, required=True
+        #output_bl_loc     = adf.get_baseline_info("cam_climo_loc")#, required=True
         output_bl_loc = adf.climo_locs["baseline"]
         #calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
         ovr_bl            = adf.get_baseline_info("cam_overwrite_climo")
+
+        multiple_baseline_ts = adf.get_baseline_info("cam_case_name", required=True)
         calc_bl_climos = adf.calc_climos["baseline"]
+        #cam_hist_locs = [self.get_baseline_info("cam_hist_loc")]
+        #ts_dirs = [self.get_baseline_info("cam_ts_loc", required=True)]
         input_ts_baseline = adf.ts_locs["baseline"]
+        #overwrite_ts = [self.get_baseline_info("cam_overwrite_ts")]
+        #start_years = [self.climo_yrs["syear_baseline"]]
+        #end_years = [self.climo_yrs["eyear_baseline"]]
+        #case_type_string = "baseline"
+        #hist_str_list = [self.hist_string["base_hist_str"]]
 
         #Extract baseline years:
         bl_syr = adf.climo_yrs["syear_baseline"]
@@ -157,6 +186,11 @@ def create_climo_files(adf, clobber=False, search=None):
             print(f"\t    {output_location} not found, making new directory")
             output_location.mkdir(parents=True)
 
+        # If we need to allow custom search, could put it into adf.data
+        # #Time series file search
+        # if search is None:
+        #     search = "{CASE}*{HIST_STR}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
+
         #Check model year bounds:
         syr, eyr = check_averaging_interval(start_year[case_idx], end_year[case_idx])
 
@@ -194,13 +228,14 @@ def create_climo_files(adf, clobber=False, search=None):
                 logmsg = f"climo file generation: The input location searched was: {input_location}. The glob pattern was {ts_files}."
                 #Write to debug log if enabled:
                 adf.debug_log(logmsg)
+                #  end_diag_script(errmsg) # Previously we would kill the run here.
                 continue
             if len(ts_files) > 1:
                 process_variable(adf, ts_files, syr, eyr, output_file)
             else:
                 nums.append("yup")
                 list_of_arguments.append((adf, ts_files, syr, eyr, output_file))
-            list_of_arguments.append((adf, ts_files, syr, eyr, output_file))
+            #list_of_arguments.append((adf, ts_files, syr, eyr, output_file))
 
 
         #End of var_list loop
@@ -208,7 +243,12 @@ def create_climo_files(adf, clobber=False, search=None):
         if len(nums) > 0: 
             # Parallelize the computation using multiprocessing pool:
             with mp.Pool(processes=number_of_cpu) as p:
-                p.starmap(process_variable, list_of_arguments)
+                result = p.starmap(process_variable, list_of_arguments)
+            
+
+        ## Parallelize the computation using multiprocessing pool:
+        #with mp.Pool(processes=number_of_cpu) as p:
+        #    result = p.starmap(process_variable, list_of_arguments)
 
     #End of model case loop
     #----------------------
@@ -225,6 +265,7 @@ def process_variable(adf, ts_files, syr, eyr, output_file):
     Compute and save the climatology file.
     '''
     #Read in files via xarray (xr):
+    #cam_ts_data = pf.load_dataset(ts_files)
     cam_ts_data = adf.data.load_dataset(ts_files)
 
     # Exit function if data array is None
@@ -239,7 +280,7 @@ def process_variable(adf, ts_files, syr, eyr, output_file):
             "adf_climo_yrs": f"{syr}-{eyr}",
             "adf_climo_generation_source": "Climo file was generated by xarray 'groupby' and averaged over time dimension",
             "climatology_info": "'time' dimension is actually in months (1-12)",
-            #"xarray_time_slice_values": f"Subset includes time values: {actual_time_values[0]} to {actual_time_values[-1]}",
+            #"xarray_slice_climo_yrs": f"{actual_time_values[0]}-{actual_time_values[-1]}",
             "time_series_files": ts_files_str,
         }
 
@@ -257,11 +298,12 @@ def process_variable(adf, ts_files, syr, eyr, output_file):
     #Retrieve the actual time values from the slice
     #NOTE: This is in place in case of premade climo files to make sure it is grabbing the correct time slice
     actual_time_values = cam_ts_data.time.values
-    attrs_dict["xarray_time_slice_values"] = actual_time_values
+    attrs_dict["xarray_time_slice_values"] = f"{actual_time_values[0]}-{actual_time_values[-1]}"
     msg = f"Checking to make sure dataarray is being sliced in the time dimension correctly: {actual_time_values}"
-
+    #print(msg)
     adf.debug_log(f"create_climo_files: {msg}")
     #Set a global attribute with the actual time values
+    #cam_ts_data.attrs["time_slice_values"] = f"Subset includes time values: {actual_time_values[0]} to {actual_time_values[-1]}"
 
     #Group time series values by month, and average those months together:
     cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')
@@ -272,10 +314,10 @@ def process_variable(adf, ts_files, syr, eyr, output_file):
     enc_c  = {xname: {'_FillValue': None} for xname in cam_climo_data.coords}
     enc    = {**enc_c, **enc_dv}
 
-    # Assign attributes to saved climo file
     cam_climo_data = cam_climo_data.assign_attrs(attrs_dict)
 
     #Output variable climatology to NetCDF-4 file:
+    print("output_file",output_file)
     cam_climo_data.to_netcdf(output_file, format='NETCDF4', encoding=enc)
     return 1  # All funcs return something. Could do error checking with this if needed.
 
