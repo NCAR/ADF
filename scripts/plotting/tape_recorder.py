@@ -33,15 +33,27 @@ def tape_recorder(adfobj):
     msg = "\n  Generating tape recorder plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
+    adfds = adfobj.data
+
     #Special ADF variable which contains the output paths for plots:
     plot_location = adfobj.plot_location
     plot_loc = Path(plot_location[0])
 
     #Grab test case name(s)
-    case_names = adfobj.get_cam_info('cam_case_name', required=True)
+    test_case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
     #Grab test case time series locs(s)
-    case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
+    #case_ts_locs = adfobj.get_cam_info("cam_ts_loc")
+    case_ts_locs = adfobj.ts_locs["test"]
+    if case_ts_locs is None:
+        print("\tNo time series locations found for any test cases")
+        case_ts_locs = [None]*len(test_case_names)
+        #return
+        #exit
+    """else:
+        for i,case_ts_loc in enumerate(case_ts_locs):
+            if case_ts_loc is None:
+                print(f"Case '{test_case_names[i]}' is missing time series location, skipping case boi! case_ts_loc: {case_ts_loc}")"""
 
     #Grab history strings:
     cam_hist_strs = adfobj.hist_string["test_hist_str"]
@@ -64,38 +76,9 @@ def tape_recorder(adfobj):
     #Grab test case nickname(s)
     test_nicknames = adfobj.case_nicknames['test_nicknames']
 
-    # CAUTION:
-    # "data" here refers to either obs or a baseline simulation,
-    # Until those are both treated the same (via intake-esm or similar)
-    # we will do a simple check and switch options as needed:
-    if not adfobj.get_basic_info("compare_obs"):
-
-        #Append all baseline objects to test case lists
-        data_name = adfobj.get_baseline_info("cam_case_name", required=True)
-        case_names = case_names + [data_name]
-        
-        data_ts_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
-        case_ts_locs = case_ts_locs+[data_ts_loc]
-
-        base_nickname = adfobj.case_nicknames['base_nickname']
-        test_nicknames = test_nicknames+[base_nickname]
-
-        data_start_year = adfobj.climo_yrs["syear_baseline"]
-        data_end_year = adfobj.climo_yrs["eyear_baseline"]
-        start_years = start_years+[data_start_year]
-        end_years = end_years+[data_end_year]
-
-        #Grab history string:
-        baseline_hist_strs = adfobj.hist_string["base_hist_str"]
-        # Filter the list to include only strings that are exactly in the substrings list
-        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
-        hist_strs = case_hist_strs + base_hist_strs
-    else:
-        hist_strs = case_hist_strs
-    #End if
-
+    #print("hist_strs",hist_strs,"\n")
     if not case_ts_locs:
-        exitmsg = "WARNING: No time series files in any case directory."
+        exitmsg = "\tWARNING: No time series files in any case directory."
         exitmsg += " No tape recorder plots will be made."
         print(exitmsg)
         logmsg = "create tape recorder:"
@@ -179,35 +162,191 @@ def tape_recorder(adfobj):
     #Loop over case(s) and start count at 2 to account for MLS and ERA5 plots above
     runname_LT=[]
     count=2
-    for idx,key in enumerate(test_nicknames):
-        # Search for files
-        ts_loc = Path(case_ts_locs[idx])
-        hist_str = hist_strs[idx]
-        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
-        dat = adfobj.data.load_timeseries_dataset(fils)
 
-        if not dat:
+    #for idx,key in enumerate(test_nicknames):
+        # Search for files
+    """if data_ts_loc:
+        ts_loc = Path(data_ts_loc)
+        hist_str = base_hist_strs
+        print("ts_loc",ts_loc,"\n")
+        print("ts_loc",hist_str,"\n")
+        print("ts_loc",var,"\n")
+        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        #dat = adfobj.data.load_timeseries_dataset(fils, start_years[idx], end_years[idx])
+        #dat = adfobj.data.load_da(fils, var, start_years[idx], end_years[idx], type="timeseries")
+        #dat = adfobj.data.load_timeseries_da(data_name, var, data_start_year, data_end_year)
+        dat = adfobj.data.load_reference_timeseries_da(var, data_start_year, data_end_year)
+        print("\n\n",type(dat),dat,"\n\n")
+        #if dat is NoneType:
+        #if not dat:
+        if not isinstance(dat, xr.DataArray):
             dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
             print(dmsg)
             adfobj.debug_log(dmsg)
-            continue
+            pass
 
         #Grab time slice based on requested years (if applicable)
-        dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+        #dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+        datzm = dat.mean('lon')
+        dat_tropics = cosweightlat(datzm, -10, 10)
+        #dat_tropics = cosweightlat(datzm[var], -10, 10)
+        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+        ax = plot_pre_mon(fig, dat_mon,
+                        plot_step, plot_min, plot_max, base_nickname,
+                        x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
+                        taxis='month',climo_yrs=f"{data_start_year}-{data_end_year}")
+        count=count+1
+        runname_LT.append(base_nickname)
+    else:
+        print(f"No time series files for test '{data_name}', skipping case.")"""
 
-        has_dims = pf.validate_dims(dat[var], ['lon'])
-        if not has_dims['has_lon']:
-            print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
+
+
+    for idx,key in enumerate(test_nicknames):
+        # Search for files
+        if case_ts_locs[idx]:
+            ts_loc = Path(case_ts_locs[idx])
+            hist_str = case_hist_strs[idx]
+            print("ts_loc",ts_loc,"\n")
+            print("ts_loc",hist_str,"\n")
+            print("ts_loc",var,"\n")
+            fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+            #dat = adfobj.data.load_timeseries_dataset(fils, start_years[idx], end_years[idx])
+            #dat = adfobj.data.load_da(fils, var, start_years[idx], end_years[idx], type="timeseries")
+            #dat = adfobj.data.load_timeseries_da(test_case_names[idx], var, start_years[idx], end_years[idx])
+            dat = adfds.load_timeseries_da(test_case_names[idx], var, start_years[idx], end_years[idx])
+            print("\n\n",type(dat),dat,"\n\n")
+            #if dat is NoneType:
+            #if not dat:
+            if not isinstance(dat, xr.DataArray):
+                dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+                print(dmsg)
+                adfobj.debug_log(dmsg)
+                continue
+
+            #Grab time slice based on requested years (if applicable)
+            #dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+            has_dims = pf.validate_dims(dat[var], ['lon'])
+            if not has_dims['has_lon']:
+                print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
+            else:
+                datzm = dat.mean('lon')
+                dat_tropics = cosweightlat(datzm, -10, 10)
+                #dat_tropics = cosweightlat(datzm[var], -10, 10)
+                dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+                ax = plot_pre_mon(fig, dat_mon,
+                                plot_step, plot_min, plot_max, key,
+                                x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
+                                taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
+                count=count+1
+                runname_LT.append(key)
         else:
+            print(f"No time series files for test '{test_case_names[idx]}', skipping case.")
+
+    
+    # CAUTION:
+    # "data" here refers to either obs or a baseline simulation,
+    # Until those are both treated the same (via intake-esm or similar)
+    # we will do a simple check and switch options as needed:
+    if not adfobj.get_basic_info("compare_obs"):
+
+        #Append all baseline objects to test case lists
+        data_name = adfobj.get_baseline_info("cam_case_name", required=True)
+        #case_names = test_case_names + [data_name]
+        
+        #data_ts_loc = adfobj.get_baseline_info("cam_ts_loc")
+        data_ts_loc = adfobj.ts_locs["baseline"]
+        #if data_ts_loc is None:
+        #    print("\tNo time series location found for baseline case")
+        #    case_ts_locs = case_ts_locs+[None]
+        #else:
+        #    case_ts_locs = case_ts_locs+[data_ts_loc]
+        print("case_ts_locs",data_ts_loc)
+
+        base_nickname = adfobj.case_nicknames['base_nickname']
+        #test_nicknames = test_nicknames+[base_nickname]
+
+        data_start_year = adfobj.climo_yrs["syear_baseline"]
+        data_end_year = adfobj.climo_yrs["eyear_baseline"]
+        #start_years = start_years+[data_start_year]
+        #end_years = end_years+[data_end_year]
+
+        #Grab history string:
+        baseline_hist_strs = adfobj.hist_string["base_hist_str"]
+        # Filter the list to include only strings that are exactly in the substrings list
+        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
+        #hist_strs = case_hist_strs + base_hist_strs
+        if data_ts_loc:
+            ts_loc = Path(data_ts_loc)
+            hist_str = base_hist_strs
+            print("ts_loc",ts_loc,"\n")
+            print("ts_loc",hist_str,"\n")
+            print("ts_loc",var,"\n")
+            fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+            #dat = adfobj.data.load_timeseries_dataset(fils, start_years[idx], end_years[idx])
+            #dat = adfobj.data.load_da(fils, var, start_years[idx], end_years[idx], type="timeseries")
+            #dat = adfobj.data.load_timeseries_da(data_name, var, data_start_year, data_end_year)
+            #dat = adfobj.data.load_reference_timeseries_da(var, data_start_year, data_end_year)
+            dat = adfds.load_reference_timeseries_da(var, data_start_year, data_end_year)
+            print("\n\n",type(dat),dat,"\n\n")
+            #if dat is NoneType:
+            #if not dat:
+            if not isinstance(dat, xr.DataArray):
+                dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+                print(dmsg)
+                adfobj.debug_log(dmsg)
+                pass
+
+            #Grab time slice based on requested years (if applicable)
+            #dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
             datzm = dat.mean('lon')
-            dat_tropics = cosweightlat(datzm[var], -10, 10)
+            dat_tropics = cosweightlat(datzm, -10, 10)
+            #dat_tropics = cosweightlat(datzm[var], -10, 10)
             dat_mon = dat_tropics.groupby('time.month').mean('time').load()
             ax = plot_pre_mon(fig, dat_mon,
-                            plot_step, plot_min, plot_max, key,
+                            plot_step, plot_min, plot_max, base_nickname,
                             x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
-                            taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
+                            taxis='month',climo_yrs=f"{data_start_year}-{data_end_year}")
             count=count+1
-            runname_LT.append(key)
+            runname_LT.append(base_nickname)
+        else:
+            print(f"No time series files for test '{data_name}', skipping case.")
+    #End if
+    """if data_ts_loc:
+        ts_loc = Path(data_ts_loc)
+        hist_str = base_hist_strs
+        print("ts_loc",ts_loc,"\n")
+        print("ts_loc",hist_str,"\n")
+        print("ts_loc",var,"\n")
+        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        #dat = adfobj.data.load_timeseries_dataset(fils, start_years[idx], end_years[idx])
+        #dat = adfobj.data.load_da(fils, var, start_years[idx], end_years[idx], type="timeseries")
+        #dat = adfobj.data.load_timeseries_da(data_name, var, data_start_year, data_end_year)
+        #dat = adfobj.data.load_reference_timeseries_da(var, data_start_year, data_end_year)
+        dat = adfds.load_reference_timeseries_da(var, data_start_year, data_end_year)
+        print("\n\n",type(dat),dat,"\n\n")
+        #if dat is NoneType:
+        #if not dat:
+        if not isinstance(dat, xr.DataArray):
+            dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            print(dmsg)
+            adfobj.debug_log(dmsg)
+            pass
+
+        #Grab time slice based on requested years (if applicable)
+        #dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+        datzm = dat.mean('lon')
+        dat_tropics = cosweightlat(datzm, -10, 10)
+        #dat_tropics = cosweightlat(datzm[var], -10, 10)
+        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+        ax = plot_pre_mon(fig, dat_mon,
+                        plot_step, plot_min, plot_max, base_nickname,
+                        x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
+                        taxis='month',climo_yrs=f"{data_start_year}-{data_end_year}")
+        count=count+1
+        runname_LT.append(base_nickname)
+    else:
+        print(f"No time series files for test '{data_name}', skipping case.")"""
 
     #Check to see if any cases were successful
     if not runname_LT:
@@ -539,7 +678,7 @@ def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, 
     ax.set_xticklabels([])
     ax.set_xticks(monticks2[1:13], minor=True)
     ax.set_xticklabels(['J','F','M','A','M','J','J','A','S','O','N','D'], minor=True, fontsize=14)
-    ax.set_title(expname, fontsize=16)
+    ax.set_title(expname, fontsize=9)
 
     return ax
 
