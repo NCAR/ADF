@@ -101,7 +101,7 @@ from adf_dataset import AdfData
 #################
 # Helper functions
 #################
-
+'''
 def set_warning_filter(enable=True):
     """Enable or disable filtering of print statements containing 'WARNING'."""
     original_print = builtins.print
@@ -113,6 +113,7 @@ def set_warning_filter(enable=True):
         original_print(*args, **kwargs)
 
     builtins.print = filtered_print if enable else original_print
+'''
 
 
 def construct_index_info(page_dict, fnam, opf):
@@ -1598,7 +1599,7 @@ def _load_dataset(fils):
 
 
 
-
+'''
 import sys, builtins
 def set_warning_filter(enable=True):
     """Enable or disable filtering of print statements containing 'WARNING'."""
@@ -1640,4 +1641,5 @@ class SuppressWarningsPrint:
     def __exit__(self, exc_type, exc_value, traceback):
         """Restore the original print function."""
         sys.modules['builtins'].print = self.original_print
+'''
 ########
