@@ -154,6 +154,7 @@ def global_latlon_map(adfobj):
 
             #Extract category (if available):
             web_category = vres.get("category", None)
+
         else:
             vres = {}
             web_category = None
@@ -434,6 +435,9 @@ def aod_latlon(adfobj):
     #Grab baseline years (which may be empty strings if using Obs):
     syears_baseline = adfobj.climo_yrs["syear_baseline"]
     eyears_baseline = adfobj.climo_yrs["eyear_baseline"]
+
+    #syears = syear_cases + [adfobj.climo_yrs["syear_baseline"]]
+    #eyears = eyear_cases + [adfobj.climo_yrs["eyear_baseline"]]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
