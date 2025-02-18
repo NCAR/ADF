@@ -180,7 +180,7 @@ def create_climo_files(adf, clobber=False, search=None):
 
         #Check if climo directory exists, and if not, then create it:
         if not output_location.is_dir():
-            print(f"\t    {output_location} not found, making new directory")
+            print(f"\t   INFO: {output_location} not found, making new directory")
             output_location.mkdir(parents=True)
 
         # If we need to allow custom search, could put it into adf.data
