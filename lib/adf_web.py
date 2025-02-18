@@ -700,6 +700,7 @@ class AdfWeb(AdfObs):
             if web_data.case == 'multi-case':
                 plot_types = multi_plot_type_html
             else:
+                #case1 = web_data.case
                 plot_types = plot_type_html
             plot_types = plot_type_html
             #End if
