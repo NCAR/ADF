@@ -29,9 +29,6 @@ def get_time_slice_by_year(time, startyear, endyear):
 ##############
 #Main function
 ##############
-#adf.set_warning_filter
-from adf_diag import set_warning_filter
-set_warning_filter(enable=True)  # Suppress warnings
 def create_climo_files(adf, clobber=False, search=None):
     """
     This is an example function showing
