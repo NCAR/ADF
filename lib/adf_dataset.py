@@ -463,4 +463,3 @@ class AdfData:
         def __exit__(self, exc_type, exc_value, traceback):
             """Restore the original print function."""
             sys.modules['builtins'].print = self.original_print
-
