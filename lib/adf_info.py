@@ -98,6 +98,10 @@ class AdfInfo(AdfConfig):
         # Get the current system user
         self.__user = getpass.getuser()
 
+        # Get warning verbose bool
+        #self.verbose = self.read_config_var("verbose")
+        self.__verbose = self.read_config_var("verbose")
+
         # Check if inputs are of the correct type:
         # -------------------------------------------
 
@@ -214,6 +218,7 @@ class AdfInfo(AdfConfig):
             self.__calc_baseline_ts = calc_baseline_ts
 
             input_ts_baseline = self.get_baseline_info("cam_ts_loc")
+            print("input_ts_baseline",input_ts_baseline,"\n")
             if input_ts_baseline == "None":
                 input_ts_baseline = None
             #self.__input_ts_baseline = {data_name:input_ts_baseline}
@@ -243,6 +248,7 @@ class AdfInfo(AdfConfig):
 
                 if input_ts_baseline is not None:
                     #Grab baseline time series file location
+                    #input_ts_baseline = self.get_baseline_info("cam_ts_loc", required=True)
                     input_ts_loc = Path(input_ts_baseline)
 
                     #Get years from pre-made timeseries file(s)
@@ -273,6 +279,9 @@ class AdfInfo(AdfConfig):
                         msg += f"{data_name}, using first found year: {found_eyear_baseline}\n"
                         print(msg)
                         eyear_baseline = found_eyear_baseline
+                #else:
+                    #self.__calc_baseline_climo = {data_name:False}
+                    #print(f"Ahhh, no time series are supplied/needed for {data_name}? Better be sure of this boi!")
             # End if
 
             # Check if history file path exists:
@@ -421,6 +430,8 @@ class AdfInfo(AdfConfig):
         #Initialize CAM history string nested list
         self.__hist_str = hist_str
 
+        print("hist_str",hist_str)
+
         #Grab case history file location(s)
         ##################################################################
         cam_hist_locs = self.get_cam_info("cam_hist_loc")
@@ -533,6 +544,8 @@ class AdfInfo(AdfConfig):
                         print(msg)
                         eyear = found_eyear
                     #End if
+                #else:
+                    #print(f"Ahhh, no time series are supplied/needed for {case_name}? Better be sure of this boi!")
                 #End if
             #End if
 
@@ -541,6 +554,9 @@ class AdfInfo(AdfConfig):
             if any(cam_hist_locs):
                 #Grab first possible hist string, just looking for years of run
                 hist_str = hist_str_case[0]
+                if isinstance(hist_str, list):
+                    print("this is a list, yeah?")
+                    hist_str = hist_str[0]
 
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
@@ -732,6 +748,12 @@ class AdfInfo(AdfConfig):
     def user(self):
         """Return the "user" name if requested."""
         return self.__user
+
+    # Create property needed to return "user" name to user:
+    @property
+    def verbose(self):
+        """Return the "user" name if requested."""
+        return self.__verbose
 
     # Create property needed to return "compare_obs" logical to user:
     @property
