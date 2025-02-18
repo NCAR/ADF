@@ -46,6 +46,7 @@ def zonal_mean(adfobj):
     msg = "\n  Generating zonal mean plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
+    #Variable list
     var_list = adfobj.diag_var_list
 
     #Special ADF variable which contains the output paths for
@@ -102,6 +103,22 @@ def zonal_mean(adfobj):
 
         #Loop over the variables for each season
         for var in var_list:
+
+
+            # Check res for any variable specific options that need to be used BEFORE going to the plot:
+            if var in res:
+                vres = res[var]
+                #If found then notify user, assuming debug log is enabled:
+                adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
+
+                #Extract category (if available):
+                web_category = vres.get("category", None)
+
+            else:
+                vres = {}
+                web_category = None
+            #End if
+
             for s in seasons:
                 #Check zonal log-p:
                 plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
@@ -111,7 +128,7 @@ def zonal_mean(adfobj):
                     logp_zonal_skip.append(plot_name_log)
                     #Continue to next iteration:
                     adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s,
-                                            plot_type="Zonal", category="Log-P")
+                                            plot_type="Zonal", category=web_category)#, category="Log-P"
                     pass
 
                 elif (redo_plot) and plot_name_log.is_file():
@@ -156,10 +173,13 @@ def zonal_mean(adfobj):
         if var in res:
             vres = res[var]
             #If found then notify user, assuming debug log is enabled:
-            adfobj.debug_log(f"\t    INFO: zonal_mean: Found variable defaults for {var}")
-
+            adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
+            
+            #Extract category (if available):
+            web_category = vres.get("category", None)
         else:
             vres = {}
+            web_category = None
         #End if
 
         # load reference data (observational or baseline)
@@ -169,7 +189,7 @@ def zonal_mean(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        odata = adfobj.data.load_reference_regrid_da(base_name, var, syear_baseline, eyear_baseline)
 
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
@@ -199,7 +219,7 @@ def zonal_mean(adfobj):
             plot_loc = Path(plot_locations[case_idx])
 
             # load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            mdata = adfobj.data.load_regrid_da(case_name, var, eyear_cases[case_idx], eyear_cases[case_idx])
 
             if mdata is None:
                 dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
@@ -251,7 +271,7 @@ def zonal_mean(adfobj):
                 #
 
                 # difference: each entry should be (lat, lon) or (plev, lat, lon)
-                # dseasons[s] = mseasons[s]    oseasons[s]
+                # dseasons[s] = mseasons[s] - oseasons[s]
                 # difference will be calculated in plot_zonal_mean_and_save;
                 # because we can let any pressure-level interpolation happen there
                 # This could be re-visited for efficiency or improved code structure.
@@ -267,6 +287,11 @@ def zonal_mean(adfobj):
                 if has_lev:
                     #Set the file name for log-pressure plots
                     plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
+
+                    #Check if reference file has vertical levels
+                    if not has_lev_ref:
+                        print(f"\t    Error: expecting lev for both case: {has_lev} and ref: {has_lev_ref}")
+                        continue
                 #End if
 
                 #Create plots
@@ -291,7 +316,7 @@ def zonal_mean(adfobj):
                                                         mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)
 
                     #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category="Log-P")
+                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal",category=web_category)
                 #End if
 
             #End for (seasons loop)
