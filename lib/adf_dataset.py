@@ -422,7 +422,7 @@ class AdfData:
 
 
 
-
+    '''
     def set_warning_filter(enable=True):
         """Enable or disable filtering of print statements containing 'WARNING'."""
         original_print = builtins.print
@@ -463,3 +463,4 @@ class AdfData:
         def __exit__(self, exc_type, exc_value, traceback):
             """Restore the original print function."""
             sys.modules['builtins'].print = self.original_print
+    '''
