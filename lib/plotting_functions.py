@@ -156,9 +156,23 @@ def load_dataset(fils):
         warnings.warn(f"Input file list is empty.")
         return None
     elif len(fils) > 1:
-        return xr.open_mfdataset(fils, combine='by_coords')
+        ds = xr.open_mfdataset(fils, combine='by_coords')
     else:
-        return xr.open_dataset(fils[0])
+        ds = xr.open_dataset(fils[0])
+
+    # assign time to midpoint of interval (even if it is already)
+    if 'time_bnds' in ds:
+        t = ds['time_bnds'].mean(dim='nbnd')
+        t.attrs = ds['time'].attrs
+        ds = ds.assign_coords({'time':t})
+    elif 'time_bounds' in ds:
+        t = ds['time_bounds'].mean(dim='hist_interval')
+        t.attrs = ds['time'].attrs
+        ds = ds.assign_coords({'time':t})
+    else:
+        warnings.warn("Timeseries file does not have time bounds info.")
+    return xr.decode_cf(ds)
+
     #End if
 #End def
 
