@@ -8,7 +8,7 @@ import warnings  # use to warn user about missing files.
 try:
     import scipy.stats as stats # for easy linear regression and testing
 except ImportError:
-    print("Scipy module does not exist in python path, but is needed for amwg_table.")
+    print("Scipy module does not exist in python path, but is needed for lmwg_table.")
     print("Please install module, e.g. 'pip install scipy'.")
     sys.exit(1)
 #End except
@@ -16,7 +16,7 @@ except ImportError:
 try:
     import pandas as pd
 except ImportError:
-    print("Pandas module does not exist in python path, but is needed for amwg_table.")
+    print("Pandas module does not exist in python path, but is needed for lmwg_table.")
     print("Please install module, e.g. 'pip install pandas'.")
     sys.exit(1)
 #End except
@@ -24,7 +24,7 @@ except ImportError:
 #Import ADF-specific modules:
 import plotting_functions as pf
 
-def amwg_table(adf):
+def lmwg_table(adf):
 
     """
     Main function goes through series of steps:
@@ -90,6 +90,7 @@ def amwg_table(adf):
 
     # in future, provide option to do multiple domains
     # They use 4 pre-defined domains:
+    # NOTE, this is likely not as critical for LMWG_table, and won't work we'll with unstructured data
     domains = {"global": (0, 360, -90, 90),
                "tropics": (0, 360, -20, 20),
                "southern": (0, 360, -90, -20),
@@ -205,14 +206,28 @@ def amwg_table(adf):
 
             #Load model variable data from file:
             ds = pf.load_dataset(ts_files)
+            weights = ds.landfrac * ds.area
             data = ds[var]
 
-            #Extract units string, if available:
+            #Extract defaults for variable:
+            var_default_dict = var_defaults.get(var, {})
+            scale_factor = var_default_dict.get('scale_factor', 1)
+            scale_factor_table = var_default_dict.get('scale_factor_table', 1)
+            add_offset = var_default_dict.get('add_offset', 0)
+            # could require this for each variable?
+            avg_method = var_default_dict.get('avg_method', 'mean')
+            if avg_method == 'mean':
+                weights = weights/weights.sum()
+
+            # get units for variable (do this before doing math)
+            data.attrs['units'] = var_default_dict.get("new_unit", data.attrs.get('units', 'none'))
+            data.attrs['units'] = var_default_dict.get("table_unit", data.attrs.get('units', 'none'))
             if hasattr(data, 'units'):
-                unit_str = data.units
+                unit_str = data.attrs['units']
             else:
                 unit_str = '--'
 
+            data = data * scale_factor * scale_factor_table
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
                 print(f"\t    ** Variable '{var}' has a vertical dimension, "+\
@@ -220,9 +235,6 @@ def amwg_table(adf):
                 #Skip this variable and move to the next variable in var_list:
                 continue
             #End if
-
-            #Extract defaults for variable:
-            var_default_dict = var_defaults.get(var, {})
 
             #Check if variable should be masked:
             if 'mask' in var_default_dict:
@@ -259,8 +271,9 @@ def amwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = pf.spatial_average(data)  # changes data "in place"
-
+                # data = pf.spatial_average(data)  # changes data "in place"
+                data = pf.spatial_average_lnd(data,weights) # hard code for land
+                # TODO, make this optional for lmwg_tables of amwg_table
             # In order to get correct statistics, average to annual or seasonal
             data = pf.annual_mean(data, whole_years=True, time_name='time')
 
@@ -362,7 +375,7 @@ def _get_row_vals(data):
 
 def _df_comp_table(adf, output_location, case_names):
     import pandas as pd
-
+    # TODO, make this output an option for LMWG or AMWG table
     output_csv_file_comp = output_location / "amwg_table_comp.csv"
 
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * *

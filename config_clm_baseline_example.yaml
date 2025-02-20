@@ -149,13 +149,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.122
+    cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.123
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '122'
+    case_nickname: '123'
 
     #Location of CAM history (h0) files:
     #Example test files
@@ -168,12 +168,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 20
+    start_year: 25
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 40
+    end_year: 44
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -313,13 +313,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_beta04.BLT1850.ne30_t232_wgx3.121
+    cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.122
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '121'
+    case_nickname: '122'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -331,12 +331,12 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 20
+    start_year: 25
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 40
+    end_year: 44
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -486,7 +486,7 @@ regridding_scripts:
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
-    - amwg_table
+    - lmwg_table
     #- aerosol_gas_tables
 
       #List of plotting scripts being used.
@@ -511,13 +511,17 @@ plotting_scripts:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 #TODO, round this out with more variables for alpha land diags
 diag_var_list:
+    - TSA
+    - PREC
     - ELAI
     - GPP
-    - NPP
-    - FSDS
-    - ALTMAX
+#    - NPP
+#    - FSDS
+#    - ALTMAX
     - ET
     - TOTRUNOFF
+    - DSTFLXT
+    - MEG_isoprene  
 #<Add more variables here.>
 # MDTF recommended variables
 #    - FLUT
