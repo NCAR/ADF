@@ -494,7 +494,7 @@ analysis_scripts:
 plotting_scripts:
     - global_unstructured_latlon_map
     - polar_ux_map
-    #- global_mean_timeseries
+    - global_mean_timeseries_lnd
     #- global_latlon_vect_map
     #- zonal_mean
     #- meridional_mean
@@ -515,9 +515,10 @@ diag_var_list:
     - PREC
     - ELAI
     - GPP
-#    - NPP
-#    - FSDS
-#    - ALTMAX
+    - NPP
+    - TOTVEGC
+    - FSDS
+    - ALTMAX
     - ET
     - TOTRUNOFF
     - DSTFLXT

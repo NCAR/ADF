@@ -22,7 +22,7 @@ def my_formatwarning(msg, *args, **kwargs):
 warnings.formatwarning = my_formatwarning
 
 
-def global_mean_timeseries(adfobj):
+def global_mean_timeseries_lnd(adfobj):
     """
     load time series file, calculate global mean, annual mean
     for each case
@@ -49,10 +49,50 @@ def global_mean_timeseries(adfobj):
             adfobj.debug_log(f"global_mean_timeseries: Found variable defaults for {field}")
         else:
             vres = {}
-        #End if
+        
+        # Extract variables:
+        # including a simpler way to get a dataset timeseries
+        baseline_name     = adfobj.get_baseline_info("cam_case_name", required=True)
+        input_ts_baseline = Path(adfobj.get_baseline_info("cam_ts_loc", required=True))
+        # TODO hard wired for single case name:
+        case_name = adfobj.get_cam_info("cam_case_name", required=True)[0]
+        input_ts_case = Path(adfobj.get_cam_info("cam_ts_loc", required=True)[0])
+        
+        #Create list of time series files present for variable:
+        baseline_ts_filenames = f'{baseline_name}.*.{field}.*nc'
+        baseline_ts_files = sorted(input_ts_baseline.glob(baseline_ts_filenames))
+        case_ts_filenames = f'{case_name}.*.{field}.*nc'
+        case_ts_files = sorted(input_ts_case.glob(case_ts_filenames))
 
-        # reference time series (DataArray)
-        ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
+        ref_ts_ds = pf.load_dataset(baseline_ts_files)
+        weights = ref_ts_ds.landfrac * ref_ts_ds.area
+        ref_ts_da= ref_ts_ds[field]
+        
+        c_ts_ds = pf.load_dataset(case_ts_files)
+        c_weights = c_ts_ds.landfrac * c_ts_ds.area
+        c_ts_da= c_ts_ds[field]
+
+        #Extract category (if available):
+        web_category = vres.get("category", None)
+        
+        # get variable defaults  
+        scale_factor = vres.get('scale_factor', 1)
+        scale_factor_table = vres.get('scale_factor_table', 1)
+        add_offset = vres.get('add_offset', 0)
+        avg_method = vres.get('avg_method', 'mean')
+        if avg_method == 'mean':
+            weights = weights/weights.sum()
+            c_weights = c_weights/c_weights.sum()
+        # get units for variable 
+        ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))
+        ref_ts_da.attrs['units'] = vres.get("table_unit", ref_ts_da.attrs.get('units', 'none'))
+        units = ref_ts_da.attrs['units']
+
+        # scale for plotting, if needed
+        ref_ts_da = ref_ts_da * scale_factor * scale_factor_table
+        ref_ts_da.attrs['units'] = units
+        c_ts_da = c_ts_da * scale_factor * scale_factor_table
+        c_ts_da.attrs['units'] = units
 
         # Check to see if this field is available
         if ref_ts_da is None:
@@ -63,19 +103,21 @@ def global_mean_timeseries(adfobj):
         else:
             validate_dims = False
             # reference time series global average
-            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+            # TODO, make this more general for land?
+            ref_ts_da_ga = pf.spatial_average_lnd(ref_ts_da, weights=weights)
+            c_ts_da_ga = pf.spatial_average_lnd(c_ts_da, weights=c_weights)
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
+            c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
 
             # check if this is a "2-d" varaible:
-            has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
+            has_lev_ref = pf.zm_validate_dims(ref_ts_da)
             if has_lev_ref:
                 print(
                     f"Variable named {field} has a lev dimension, which does not work with this script."
                 )
                 continue
-
 
         ## SPECIAL SECTION -- CESM2 LENS DATA:
         lens2_data = Lens2Data(
@@ -99,7 +141,7 @@ def global_mean_timeseries(adfobj):
 
         skip_var = False
         for case_name in adfobj.data.case_names:
-            c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
+            #c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
             if c_ts_da is None:
                 print(
@@ -124,8 +166,7 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # Gather spatial avg for test case
-            c_ts_da_ga = pf.spatial_average(c_ts_da)
-            case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga)
+            case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
 
         # If this case is 3-d or missing variable, then break the loop and go to next variable
         if skip_var:
@@ -136,8 +177,7 @@ def global_mean_timeseries(adfobj):
             case_ts, lens2_data, label=adfobj.data.ref_nickname, ref_ts_da=ref_ts_da
         )
 
-        unit = vres.get("new_unit","[-]")
-        ax.set_ylabel(getattr(ref_ts_da,"unit", unit)) # add units
+        ax.set_ylabel(getattr(ref_ts_da,"unit", units)) # add units
         plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
 
         conditional_save(adfobj, plot_name, fig)
