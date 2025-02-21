@@ -225,7 +225,7 @@ def process_variable(adf, ts_files, syr, eyr, output_file):
         cam_ts_data['time'] = time
         cam_ts_data.assign_coords(time=time)
         cam_ts_data = xr.decode_cf(cam_ts_data)
-
+    print(cam_ts_data)
 
     #Extract data subset using provided year bounds:
     tslice = get_time_slice_by_year(cam_ts_data.time, int(syr), int(eyr))

@@ -146,7 +146,7 @@ diag_cam_climo:
 
     #Overwrite CAM climatology files?
     #If false, or not prsent, then already existing climatology files will be skipped:
-    cam_overwrite_climo: false
+    cam_overwrite_climo: true
 
     #Name of CAM case (or CAM run name):
     cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.123
@@ -310,7 +310,7 @@ diag_cam_baseline_climo:
 
     #Overwrite CAM climatology files?
     #If false, or not present, then already existing climatology files will be skipped:
-    cam_overwrite_climo: false
+    cam_overwrite_climo: true
 
     #Name of CAM baseline case:
     cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.122
