@@ -95,6 +95,8 @@ def regrid_and_vert_interp(adf):
         ps_idx = var_list.index("PS")
         var_list.pop(ps_idx)
         var_list.insert(0,"PS")
+    else:
+        var_list.insert(0,"PS")
     #End if
 
     #Regrid target variables (either obs or a baseline run):
