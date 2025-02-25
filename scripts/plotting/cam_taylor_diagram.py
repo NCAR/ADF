@@ -43,6 +43,19 @@ def cam_taylor_diagram(adfobj):
         print("\tTaylor diagrams don't work when doing model vs obs, so Taylor diagrams will be skipped.")
         return
 
+    taylor_var_set = {'U','PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 'RELHUM', 'T'}
+
+    """#Check if the variables needed for the Taylor diags are present,
+    #If not then skip this script:
+    taylor_var_set = {'U', 'PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 'RELHUM', 'T'}
+    if not taylor_var_set.issubset(adfobj.diag_var_list) or \
+       (not ('PRECT' in adfobj.diag_var_list) and (not ('PRECL' in adfobj.diag_var_list) or not ('PRECC' in adfobj.diag_var_list))):
+        print("\tThe Taylor Diagrams require the variables: ")
+        print("\tU, PSL, SWCF, LWCF, PRECT (or PRECL and PRECC), LANDFRAC, TREFHT, TAUX, RELHUM,T")
+        print("\tSome variables are missing so Taylor diagrams will be skipped.")
+        return
+    #End if"""
+
     # Extract needed quantities from ADF object:
     # -----------------------------------------
     # Case names:
@@ -58,26 +71,7 @@ def cam_taylor_diagram(adfobj):
 
     case_climo_loc = adfobj.get_cam_info('cam_climo_loc', required=True)
 
-    # ADF variable which contains the output path for plots and tables:
-    plot_location = adfobj.plot_location
-    if not plot_location:
-        plot_location = adfobj.get_basic_info("cam_diag_plot_loc")
-    if isinstance(plot_location, list):
-        for pl in plot_location:
-            plpth = Path(pl)
-            #Check if plot output directory exists, and if not, then create it:
-            if not plpth.is_dir():
-                print(f"\t    {pl} not found, making new directory")
-                plpth.mkdir(parents=True)
-        if len(plot_location) == 1:
-            plot_loc = Path(plot_location[0])
-        else:
-            print(f"Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}")
-            plot_loc = Path(plot_location[0])
-    else:
-        plot_loc = Path(plot_location)
-
-    # CAUTION:
+     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
@@ -112,16 +106,59 @@ def cam_taylor_diagram(adfobj):
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
-    #Check if the variables needed for the Taylor diags are present,
-    #If not then skip this script:
-    taylor_var_set = {'U', 'PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 'RELHUM', 'T'}
-    if not taylor_var_set.issubset(adfobj.diag_var_list) or \
-       (not ('PRECT' in adfobj.diag_var_list) and (not ('PRECL' in adfobj.diag_var_list) or not ('PRECC' in adfobj.diag_var_list))):
-        print("\tThe Taylor Diagrams require the variables: ")
-        print("\tU, PSL, SWCF, LWCF, PRECT (or PRECL and PRECC), LANDFRAC, TREFHT, TAUX, RELHUM,T")
-        print("\tSome variables are missing so Taylor diagrams will be skipped.")
-        return
-    #End if
+    #Check if the variables needed for the Taylor diags are present, if not, skip this script
+    found_ref_vars = []
+    ref_path = Path(data_loc)
+    for var in taylor_var_set:
+        ref_var = sorted(ref_path.glob(f"*_{var}_climo*"))
+        if not ref_var:
+            print(f"Variable '{var}' is missing '{data_name}' climo file, so Taylor diagrams will be skipped.")
+            found_ref_vars.append(ref_var)
+            return
+    if len(found_ref_vars) == len(taylor_var_set):
+        prect = sorted(ref_path.glob(f"*_PRECT_climo*"))
+        if not prect:
+            precc = sorted(ref_path.glob(f"*_PRECC_climo*"))
+            precl = sorted(ref_path.glob(f"*_PRECL_climo*"))
+        if (not precl) or (not precc):
+            print(f"Variable 'PRECT' is missing '{data_name}' climo file, so Taylor diagrams will be skipped.")
+            return
+
+    found_test_vars = []
+    case_path = Path(case_climo_loc[0])
+    for var in taylor_var_set:
+        case_var = sorted(case_path.glob(f"*_{var}_climo*"))
+        if not case_var:
+            print(f"Variable '{var}' is missing '{case_names[0]}' climo file, so Taylor diagrams will be skipped.")
+            found_test_vars.append(case_var)
+            return
+    if len(found_test_vars) == len(taylor_var_set):
+        prect = sorted(case_path.glob(f"*_PRECT_climo*"))
+        if not prect:
+            precc = sorted(case_path.glob(f"*_PRECC_climo*"))
+            precl = sorted(case_path.glob(f"*_PRECL_climo*"))
+        if (not precl) or (not precc):
+            print(f"Variable 'PRECT' is missing '{case_names[0]}' climo file, so Taylor diagrams will be skipped.")
+            return
+
+    # ADF variable which contains the output path for plots and tables:
+    plot_location = adfobj.plot_location
+    if not plot_location:
+        plot_location = adfobj.get_basic_info("cam_diag_plot_loc")
+    if isinstance(plot_location, list):
+        for pl in plot_location:
+            plpth = Path(pl)
+            #Check if plot output directory exists, and if not, then create it:
+            if not plpth.is_dir():
+                print(f"\t    {pl} not found, making new directory")
+                plpth.mkdir(parents=True)
+        if len(plot_location) == 1:
+            plot_loc = Path(plot_location[0])
+        else:
+            print(f"Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}")
+            plot_loc = Path(plot_location[0])
+    else:
+        plot_loc = Path(plot_location)
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
@@ -330,7 +367,9 @@ def get_var_at_plev(adf, casename, location, variable, plev):
 
 
 def get_u_at_plev(adf, casename, location):
-    return get_var_at_plev(adf, casename, location, "U", 300)
+    plev_var = get_var_at_plev(adf, casename, location, "U", 300)
+
+    return plev_var
 
 
 def get_vertical_average(adf, casename, location, varname):
@@ -415,7 +454,8 @@ def _retrieve(adfobj, variable, casename, location, return_dataset=False):
     if variable not in v_to_derive:
         fils = sorted(Path(location).glob(f"{casename}*_{variable}_*.nc"))
         if len(fils) == 0:
-            raise ValueError(f"something went wrong for variable: {variable}")
+            #raise ValueError(f"something went wrong for variable: {variable}")
+            da = None
         elif len(fils) > 1:
             ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces?
         else:
