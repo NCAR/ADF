@@ -243,6 +243,9 @@ def amwg_table(adf):
     
         #Loop over CAM output variables:
         for var in var_list:
+            #Notify users of variable being added to table:
+            print(f"\t - Variable '{var}' being added to table")
+
             is_climo = False # default to time series
             #Generate input file path:
             if input_locs[case_idx]:
@@ -256,7 +259,7 @@ def amwg_table(adf):
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not files:
                 # Try for climo files:
-                msg = f"\t    INFO: Time series files for variable '{var}' not found.  Checking on climo files."
+                msg = f"\t    INFO: Time series files for variable '{var}' in {case_name} not found.  Checking on climo files."
                 print(msg)
                 filenames = f'{case_name}_{var}_climo.nc'
                 try_input_location = Path(input_climo_locs[case_idx])
@@ -266,7 +269,7 @@ def amwg_table(adf):
                     print(errmsg)
                     continue
                 else:
-                    print(f"\t    INFO: User supplied climo files for {var} in {case_name}, will make only global mean (no other stats) for each variable. Thanks and have a nice day.")
+                    print(f"\t         - User supplied climo files for {var}, will make only global mean (no other stats).")
                     files = try_files
                     input_location = try_input_location
                     is_climo = True
@@ -278,9 +281,6 @@ def amwg_table(adf):
                 raise AdfError(errmsg)
             #Write to debug log if enabled:
             adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
-
-            #Notify users of variable being added to table:
-            print(f"\t - Variable '{var}' being added to table")
 
             #Load model variable data from file:
             ds = pf.load_dataset(files)
