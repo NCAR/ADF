@@ -101,8 +101,8 @@ from adf_dataset import AdfData
 #################
 # Helper functions
 #################
-'''
-def set_warning_filter(enable=True):
+
+'''def set_warning_filter(enable=True):
     """Enable or disable filtering of print statements containing 'WARNING'."""
     original_print = builtins.print
 
@@ -112,8 +112,7 @@ def set_warning_filter(enable=True):
             return  # Skip printing warnings
         original_print(*args, **kwargs)
 
-    builtins.print = filtered_print if enable else original_print
-'''
+    builtins.print = filtered_print if enable else original_print'''
 
 
 def construct_index_info(page_dict, fnam, opf):
@@ -838,7 +837,7 @@ class AdfDiag(AdfWeb):
         """
 
         # Extract climatology calculation config options:
-        calc_climo = self.climo_locs["test"]
+        calc_climo = self.calc_climos["test"]
 
         # Check if climo calculation config option is a list:
         if isinstance(calc_climo, list):
@@ -846,7 +845,7 @@ class AdfDiag(AdfWeb):
             calc_climo = any(calc_climo)
         # End if
 
-        # Next check if a baseline simulation is being used
+        """# Next check if a baseline simulation is being used
         # and no other model cases need climatologies calculated:
         if not self.compare_obs and not calc_climo:
             calc_bl_climo = self.calc_climos["baseline"]
@@ -860,8 +859,21 @@ class AdfDiag(AdfWeb):
         else:
             # Just set to False:
             calc_bl_climo = False
+        # End if"""
+
+
+
+        calc_bl_climo = self.calc_climos["baseline"]
+
+        # Check if baseline climo calculation config option is a list,
+        # although it really never should be:
+        if isinstance(calc_bl_climo, list):
+            # If so, then check if any of the entries are "True":
+            calc_bl_climo = any(calc_bl_climo)
         # End if
 
+        print("calc_bl_climo",calc_bl_climo)
+        print("calc_climo",calc_climo)
         # Check if a user wants any climatologies to be calculated:
         if calc_climo or calc_bl_climo:
             # If so, then extract names of time-averaging scripts:
@@ -1599,8 +1611,8 @@ def _load_dataset(fils):
 
 
 
-'''
-import sys, builtins
+
+'''import sys, builtins
 def set_warning_filter(enable=True):
     """Enable or disable filtering of print statements containing 'WARNING'."""
     original_print = builtins.print
@@ -1640,6 +1652,5 @@ class SuppressWarningsPrint:
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Restore the original print function."""
-        sys.modules['builtins'].print = self.original_print
-'''
+        sys.modules['builtins'].print = self.original_print'''
 ########
