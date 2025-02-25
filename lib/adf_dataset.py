@@ -3,6 +3,9 @@ import sys, builtins
 from pathlib import Path
 import xarray as xr
 
+import adf_base as adfBase
+print(dir(adfBase))
+
 import warnings # use to warn user about missing files
 
 def my_formatwarning(msg, *args, **kwargs):
@@ -100,10 +103,13 @@ class AdfData:
         #ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True) # list of paths (could be multiple cases)
         ts_locs = self.adf.ts_locs["test"]
         caseindex = (self.case_names).index(case)
-        ts_loc = Path(ts_locs[caseindex])
-        ts_filenames = f'{case}.*.{field}.*nc'
-        ts_files = sorted(ts_loc.glob(ts_filenames))
-        return ts_files
+        if ts_locs[caseindex]:
+            ts_loc = Path(ts_locs[caseindex])
+            ts_filenames = f'{case}.*.{field}.*nc'
+            ts_files = sorted(ts_loc.glob(ts_filenames))
+            return ts_files
+        else:
+            return []
 
     # Reference case (baseline/obs)
     def get_ref_timeseries_file(self, field):
@@ -113,10 +119,13 @@ class AdfData:
             return None
         else:
             #ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
-            ts_loc = Path(self.adf.ts_locs["baseline"])
-            ts_filenames = f'{self.ref_case_label}.*.{field}.*nc'
-            ts_files = sorted(ts_loc.glob(ts_filenames))
-            return ts_files
+            if self.adf.ts_locs["baseline"]:
+                ts_loc = Path(self.adf.ts_locs["baseline"])
+                ts_filenames = f'{self.ref_case_label}.*.{field}.*nc'
+                ts_files = sorted(ts_loc.glob(ts_filenames))
+                return ts_files
+            else:
+                return []
 
     '''# NOT CURRENTLY USED ANYWHERE
     def load_timeseries_dataset(self, fils, syr, eyr):
@@ -162,15 +171,18 @@ class AdfData:
         return xr.decode_cf(ds)'''
 
 
-    def load_timeseries_da(self, case, variablename, syr, eyr):
+    def load_timeseries_da(self, case, variablename, syr, eyr, **kwargs):
         """Return DataArray from time series file(s).
            Uses defaults file to convert units.
         """
-        add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_timeseries_file(case, variablename)
-        return self.load_da(fils, variablename, syr, eyr, type="timeseries", add_offset=add_offset, scale_factor=scale_factor)
+        if not fils:
+            warnings.warn(f"\t    WARNING: Did not find test time series file(s), variable: {variablename}")
+            return None
+        add_offset, scale_factor = self.get_value_converters(case, variablename)
+        return self.load_da(fils, variablename, syr, eyr, type="timeseries", add_offset=add_offset, scale_factor=scale_factor, **kwargs)
     
-    def load_reference_timeseries_da(self, field, syr, eyr):
+    def load_reference_timeseries_da(self, field, syr, eyr, **kwargs):
         """Return a DataArray time series to be used as reference 
           (aka baseline) for variable field.
         """
@@ -187,7 +199,7 @@ class AdfData:
         else:
             add_offset, scale_factor = self.get_value_converters(self.ref_case_label, field)
 
-        return self.load_da(fils, field, syr, eyr, type="timeseries", add_offset=add_offset, scale_factor=scale_factor)
+        return self.load_da(fils, field, syr, eyr, type="timeseries", add_offset=add_offset, scale_factor=scale_factor, **kwargs)
 
 
     #------------------
@@ -202,8 +214,12 @@ class AdfData:
         #a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
         climo_locs = self.adf.climo_locs["test"]
         caseindex = (self.case_names).index(case) # the entry for specified case
-        model_cl_loc = Path(climo_locs[caseindex])
-        return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
+        if climo_locs[caseindex]:
+            model_cl_loc = Path(climo_locs[caseindex])
+            fils = sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
+            if fils:
+                return fils
+            return []
 
 
     def load_climo_da(self, case, variablename, syr, eyr):
@@ -323,6 +339,7 @@ class AdfData:
     def load_dataset(self, fils):
         """Return xarray DataSet from file(s)"""
         if (len(fils) == 0):
+        #if not fils:
             warnings.warn("\t    WARNING: Input file list is empty.")
             return None
         elif (len(fils) > 1):
@@ -363,8 +380,9 @@ class AdfData:
             da = da.isel(time=tslice)
             #Retrieve the actual time values from the slice
             actual_time_values = da.time.values
-            msg = "Checking to make sure dataarray is being sliced in the time dimension correctly: ",actual_time_values
-            self.debug_log(msg)
+            msg = "Checking if data array is being sliced in the time dimension correctly: ",actual_time_values
+            if "adfobj" in kwargs:
+                kwargs["adfobj"].debug_log(msg)
         scale_factor = kwargs.get('scale_factor', 1)
         add_offset = kwargs.get('add_offset', 0)
         da = da * scale_factor + add_offset
@@ -422,8 +440,8 @@ class AdfData:
 
 
 
-    '''
-    def set_warning_filter(enable=True):
+
+    '''def set_warning_filter(enable=True):
         """Enable or disable filtering of print statements containing 'WARNING'."""
         original_print = builtins.print
 
@@ -462,5 +480,5 @@ class AdfData:
 
         def __exit__(self, exc_type, exc_value, traceback):
             """Restore the original print function."""
-            sys.modules['builtins'].print = self.original_print
-    '''
+            sys.modules['builtins'].print = self.original_print'''
+
