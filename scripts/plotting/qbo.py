@@ -12,6 +12,9 @@ def my_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return str(msg) + '\n'
 
+#import warnings
+#warnings.simplefilter("error")  # Treat warnings as errors
+
 warnings.formatwarning = my_formatwarning
 
 def qbo(adfobj):
@@ -37,10 +40,11 @@ def qbo(adfobj):
 
     #Extract relevant info from the ADF:
     test_case_names = adfobj.get_cam_info('cam_case_name', required=True)
-    case_loc = adfobj.ts_locs["test"]
-    if case_loc is None:
-        print("\tNo time series locations found for any test cases")
-        case_loc = []
+    case_ts_locs = adfobj.ts_locs["test"]
+    ts_locs = case_ts_locs + [adfobj.ts_locs["baseline"]]
+    #if case_loc is None:
+    #    print("\tNo time series locations found for any test cases")
+    #    case_loc = []
 
     # Gather obs data location
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
@@ -52,7 +56,7 @@ def qbo(adfobj):
     # Extract simulation years:
     start_years = adfobj.climo_yrs["syears"]
     end_years   = adfobj.climo_yrs["eyears"]
-    if not case_loc:
+    if all(item is None for item in ts_locs):
         exitmsg = "WARNING: No time series files in any case directory."
         exitmsg += " No QBO plots will be made."
         print(exitmsg)
@@ -119,10 +123,11 @@ def qbo(adfobj):
     ncases = 0
 
     # Loop over test case data
-    for i in range(0,len(case_loc),1): 
-        if case_loc[i]:
-            cam_ts_data = adfds.load_timeseries_da(test_case_names[i], "U", start_years[i], end_years[i])
-            if cam_ts_data:
+    for i in range(0,len(case_ts_locs),1): 
+        if case_ts_locs[i]:
+            cam_ts_data = adfds.load_timeseries_da(test_case_names[i], "U", start_years[i], end_years[i], adfobj=adfobj)
+            #print("cam_ts_data",cam_ts_data)
+            if isinstance(cam_ts_data, xr.DataArray):
                 casedat.append(cam_ts_data)
                 case_names.append(test_case_names[i])
                 ncases += 1    
@@ -133,15 +138,15 @@ def qbo(adfobj):
         #Extract baseline years:
         bl_syr = adfobj.climo_yrs["syear_baseline"]
         bl_eyr = adfobj.climo_yrs["eyear_baseline"]
-        ref_ts_data = adfds.load_reference_timeseries_da("U", bl_syr, bl_eyr)
-        if ref_ts_data:
+        ref_ts_data = adfds.load_reference_timeseries_da("U", bl_syr, bl_eyr, adfobj=adfobj)
+        if isinstance(ref_ts_data, xr.DataArray):
             ncases += 1
             case_names.append(base_name)
             casedat.append(ref_ts_data)
-        else:
-            print("No ts data")
+        #else:
+        #    print("No ts data")
 
-    #Find indices for all case datasets that don't contain a zonal wind field (U):
+    """#Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []
     for idx, dat in enumerate(casedat):
         if 'U' not in dat.variables:
@@ -155,18 +160,18 @@ def qbo(adfobj):
         for bad_idx in bad_idxs:
             casedat.pop(bad_idx)
         #End for
-    #End if
+    #End if"""
 
     #----Calculate the zonal mean
     #casedatzm = [ casedat[i].U.mean("lon") for i in range(0,ncases,1) ]
     #casedatzm = [ casedat[i].mean("lon") for i in range(0,ncases,1) ]
     casedatzm = []
     for i in range(0,ncases,1):
-        has_dims = pf.validate_dims(casedat[i].U, ['lon'])
+        has_dims = pf.validate_dims(casedat[i], ['lon'])
         if not has_dims['has_lon']:
-            print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_loc[i]}', cannot continue to plot.")
+            print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_ts_locs[i]}', cannot continue to plot.")
         else:
-            casedatzm.append(casedat[i].U.mean("lon"))
+            casedatzm.append(casedat[i].mean("lon"))
     if len(casedatzm) == 0:
         print(f"\t  WARNING: No available cases found, exiting script.")
         exitmsg = "\tNo QBO plots will be made."
@@ -236,7 +241,10 @@ def qbo(adfobj):
     ax.plot(obsamp, -np.log10(obsamp.pre), color='black', linewidth=2, label='ERA5')
 
     for icase in range(0,ncases,1):
-        ax.plot(modamp[icase], -np.log10(modamp[icase].lev), linewidth=2, label=case_nicknames[icase])
+        #caseindex = (case_nicknames).index(case)
+        case_names[icase]
+        case_nicknames[icase]
+        ax.plot(modamp[icase], -np.log10(modamp[icase].lev), linewidth=2, label=case_names[icase])
 
     ax.legend(loc='upper left')
     fig.savefig(plot_loc_amp, bbox_inches='tight', facecolor='white')
@@ -263,8 +271,10 @@ def cosweightlat(darray, lat1, lat2):
     if (darray.lat[0] > darray.lat[darray.lat.size -1]):
         print("QBO: flipping latitudes")
         darray = darray.sortby('lat')
-
+    print("slice problems here? cosweightlat")
     region = darray.sel(lat=slice(lat1, lat2))
+    print("region",region.lat.values,"\n")
+    print("slice problems here? cosweightlat END")
     weights=np.cos(np.deg2rad(region.lat))
     regionw = region.weighted(weights)
     regionm = regionw.mean("lat")
@@ -301,7 +311,9 @@ def plotqbotimeseries(fig, dat, ny, x1, x2, y1, y2, title):
     """
 
     ax = fig.add_axes([x1, y1, (x2-x1), (y2-y1)])
+    print("slice problems here? plotqbotimeseries")
     datplot = dat.isel(time=slice(0,ny*12)).transpose()
+    print("slice problems here? plotqbotimeseries END")
     ci = 1 ; cmax=45
     nlevs = (cmax - (-1*cmax))/ci + 1
     clevs = np.arange(-1*cmax, cmax+ci, ci)
