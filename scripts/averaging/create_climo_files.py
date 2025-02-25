@@ -79,23 +79,12 @@ def create_climo_files(adf, clobber=False, search=None):
 
     #CAM simulation variables (These quantities are always lists):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
-    #input_ts_locs = adf.get_cam_info("cam_ts_loc")#, required=True
-    #output_locs   = adf.get_cam_info("cam_climo_loc")#, required=True
     output_locs = adf.climo_locs["test"]
-    #calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
 
-
-    #case_names = self.get_cam_info("cam_case_name", required=True)
     calc_climos = adf.calc_climos["test"]
-    #cam_hist_locs = self.get_cam_info("cam_hist_loc")
-    #ts_dirs = self.get_cam_info("cam_ts_loc", required=True)
     input_ts_locs = adf.ts_locs["test"]
     #overwrite_ts = self.get_cam_info("cam_overwrite_ts")
-    #start_years = self.climo_yrs["syears"]
-    #end_years = self.climo_yrs["eyears"]
-    #case_type_string="case"
-    #hist_str_list = self.hist_string["test_hist_str"]
 
     #Extract simulation years:
     start_year = adf.climo_yrs["syears"]
@@ -117,22 +106,12 @@ def create_climo_files(adf, clobber=False, search=None):
     if not adf.get_basic_info("compare_obs"):
         #Extract CAM baseline variaables:
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
-        #input_ts_baseline = adf.get_baseline_info("cam_ts_loc")#, required=True
-        #output_bl_loc     = adf.get_baseline_info("cam_climo_loc")#, required=True
         output_bl_loc = adf.climo_locs["baseline"]
-        #calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
         ovr_bl            = adf.get_baseline_info("cam_overwrite_climo")
 
-        #multiple_baseline_ts = adf.get_baseline_info("cam_case_name", required=True)
         calc_bl_climos = adf.calc_climos["baseline"]
-        #cam_hist_locs = [self.get_baseline_info("cam_hist_loc")]
-        #ts_dirs = [self.get_baseline_info("cam_ts_loc", required=True)]
         input_ts_baseline = adf.ts_locs["baseline"]
         #overwrite_ts = [self.get_baseline_info("cam_overwrite_ts")]
-        #start_years = [self.climo_yrs["syear_baseline"]]
-        #end_years = [self.climo_yrs["eyear_baseline"]]
-        #case_type_string = "baseline"
-        #hist_str_list = [self.hist_string["base_hist_str"]]
 
         #Extract baseline years:
         bl_syr = adf.climo_yrs["syear_baseline"]
@@ -246,12 +225,7 @@ def create_climo_files(adf, clobber=False, search=None):
         if len(nums) > 0: 
             # Parallelize the computation using multiprocessing pool:
             with mp.Pool(processes=number_of_cpu) as p:
-                result = p.starmap(process_variable, list_of_arguments)
-            
-
-        ## Parallelize the computation using multiprocessing pool:
-        #with mp.Pool(processes=number_of_cpu) as p:
-        #    result = p.starmap(process_variable, list_of_arguments)
+                _ = p.starmap(process_variable, list_of_arguments)
 
     #End of model case loop
     #----------------------
@@ -298,15 +272,14 @@ def process_variable(adf, ts_files, syr, eyr, output_file):
     #Extract data subset using provided year bounds:
     tslice = get_time_slice_by_year(cam_ts_data.time, int(syr), int(eyr))
     cam_ts_data = cam_ts_data.isel(time=tslice)
+
     #Retrieve the actual time values from the slice
     #NOTE: This is in place in case of premade climo files to make sure it is grabbing the correct time slice
     actual_time_values = cam_ts_data.time.values
     attrs_dict["xarray_time_slice_values"] = f"{actual_time_values[0]}-{actual_time_values[-1]}"
     msg = f"Checking if data array is being sliced in the time dimension correctly: {actual_time_values}"
-    #print(msg)
+
     adf.debug_log(f"create_climo_files: {msg}")
-    #Set a global attribute with the actual time values
-    #cam_ts_data.attrs["time_slice_values"] = f"Subset includes time values: {actual_time_values[0]} to {actual_time_values[-1]}"
 
     #Group time series values by month, and average those months together:
     cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')

@@ -200,18 +200,18 @@ def polar_map(adfobj):
 
                 # APPLY UNITS TRANSFORMATION IF SPECIFIED:
                 # NOTE: looks like our climo files don't have all their metadata
-                mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                #mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
                 # update units
                 mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
 
                 # Do the same for the baseline case if need be:
                 if not adfobj.compare_obs:
-                    odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                    #odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
                     # update units
                     odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
                 # or for observations.
-                else:
-                    odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
+                #else:
+                    #odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
                     # Note: assume obs are set to have same untis as model.
 
                 #Determine dimensions of variable:
@@ -334,7 +334,7 @@ def polar_map(adfobj):
                             #exists in the model data, which should already
                             #have been interpolated to the standard reference
                             #pressure levels:
-                            if not (pres in mclim_ds['lev']):
+                            if not (pres in mdata['lev']):
                                 #Move on to the next pressure level:
                                 print(f"\t    WARNING: plot_press_levels value '{pres}' not a standard reference pressure, so skipping.")
                                 continue

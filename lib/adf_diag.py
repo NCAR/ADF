@@ -390,12 +390,9 @@ class AdfDiag(AdfWeb):
         # get info about variable defaults
         res = self.variable_defaults
 
-        print("AH",cam_hist_locs)
-
         # Loop over cases:
         for case_idx, case_name in enumerate(case_names):
             # Check if particular case should be processed:
-            print(calc_ts[case_idx], ts_dirs[case_idx],"\n")
             if (not calc_ts[case_idx]) and (ts_dirs[case_idx]):
                 emsg = "\tNOTE: Configuration file indicates time series files have been pre-computed"
                 emsg += f" for case '{case_name}'.  Will rely on those files directly."
@@ -872,8 +869,6 @@ class AdfDiag(AdfWeb):
             calc_bl_climo = any(calc_bl_climo)
         # End if
 
-        print("calc_bl_climo",calc_bl_climo)
-        print("calc_climo",calc_climo)
         # Check if a user wants any climatologies to be calculated:
         if calc_climo or calc_bl_climo:
             # If so, then extract names of time-averaging scripts:

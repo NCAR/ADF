@@ -42,9 +42,6 @@ def qbo(adfobj):
     test_case_names = adfobj.get_cam_info('cam_case_name', required=True)
     case_ts_locs = adfobj.ts_locs["test"]
     ts_locs = case_ts_locs + [adfobj.ts_locs["baseline"]]
-    #if case_loc is None:
-    #    print("\tNo time series locations found for any test cases")
-    #    case_loc = []
 
     # Gather obs data location
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
@@ -126,7 +123,6 @@ def qbo(adfobj):
     for i in range(0,len(case_ts_locs),1): 
         if case_ts_locs[i]:
             cam_ts_data = adfds.load_timeseries_da(test_case_names[i], "U", start_years[i], end_years[i], adfobj=adfobj)
-            #print("cam_ts_data",cam_ts_data)
             if isinstance(cam_ts_data, xr.DataArray):
                 casedat.append(cam_ts_data)
                 case_names.append(test_case_names[i])
@@ -134,7 +130,6 @@ def qbo(adfobj):
     # Get baseline data if applicable
     if not adfobj.compare_obs:
         base_name = adfobj.get_baseline_info('cam_case_name')
-        #base_loc = adfobj.ts_locs["baseline"]
         #Extract baseline years:
         bl_syr = adfobj.climo_yrs["syear_baseline"]
         bl_eyr = adfobj.climo_yrs["eyear_baseline"]
@@ -143,24 +138,6 @@ def qbo(adfobj):
             ncases += 1
             case_names.append(base_name)
             casedat.append(ref_ts_data)
-        #else:
-        #    print("No ts data")
-
-    """#Find indices for all case datasets that don't contain a zonal wind field (U):
-    bad_idxs = []
-    for idx, dat in enumerate(casedat):
-        if 'U' not in dat.variables:
-            warnings.warn(f"\t    WARNING: Case {case_names[idx]} contains no 'U' field, skipping...")
-            bad_idxs.append(idx)
-        #End if
-    #End for
-
-    #Pare list down to cases that actually contain a zonal wind field (U):
-    if bad_idxs:
-        for bad_idx in bad_idxs:
-            casedat.pop(bad_idx)
-        #End for
-    #End if"""
 
     #----Calculate the zonal mean
     #casedatzm = [ casedat[i].U.mean("lon") for i in range(0,ncases,1) ]
@@ -199,9 +176,6 @@ def qbo(adfobj):
     x1, x2, y1, y2 = plotpos()
     ax = plotqbotimeseries(fig, obs, minny, x1[0], x2[0], y1[0], y2[0],'ERA5')
 
-
-    print("case_names",case_names,len(case_names))
-    print(ncases)
     casecount=0
     for icase in range(0,ncases,1):
         if (icase < 11 ): # only only going to work with 12 panels currently
@@ -271,10 +245,11 @@ def cosweightlat(darray, lat1, lat2):
     if (darray.lat[0] > darray.lat[darray.lat.size -1]):
         print("QBO: flipping latitudes")
         darray = darray.sortby('lat')
-    print("slice problems here? cosweightlat")
+    # Debug print statements for multiple ts files, need to find why there is a chunking warning
+    #print("slice problems here? cosweightlat")
     region = darray.sel(lat=slice(lat1, lat2))
-    print("region",region.lat.values,"\n")
-    print("slice problems here? cosweightlat END")
+    #print("region",region.lat.values,"\n")
+    #print("slice problems here? cosweightlat END")
     weights=np.cos(np.deg2rad(region.lat))
     regionw = region.weighted(weights)
     regionm = regionw.mean("lat")
@@ -311,9 +286,9 @@ def plotqbotimeseries(fig, dat, ny, x1, x2, y1, y2, title):
     """
 
     ax = fig.add_axes([x1, y1, (x2-x1), (y2-y1)])
-    print("slice problems here? plotqbotimeseries")
+    #print("slice problems here? plotqbotimeseries")
     datplot = dat.isel(time=slice(0,ny*12)).transpose()
-    print("slice problems here? plotqbotimeseries END")
+    #print("slice problems here? plotqbotimeseries END")
     ci = 1 ; cmax=45
     nlevs = (cmax - (-1*cmax))/ci + 1
     clevs = np.arange(-1*cmax, cmax+ci, ci)

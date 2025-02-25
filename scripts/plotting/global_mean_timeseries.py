@@ -71,10 +71,6 @@ def global_mean_timeseries(adfobj):
 
         # Check to see if this field is available
         if ref_ts_da is None:
-            #if not adfobj.compare_obs:
-            #    print(
-            #        f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
-            #    )
             continue
         else:
             # check data dimensions:
@@ -128,9 +124,6 @@ def global_mean_timeseries(adfobj):
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field, syr, eyr)
 
             if c_ts_da is None:
-                #print(
-                #    f"\t    WARNING: Variable {field} for case '{case_name}' provides Nonetype. Skipping this variable"
-                #)
                 skip_var = True
                 continue
             # End if
