@@ -45,11 +45,13 @@ def tape_recorder(adfobj):
     #Grab test case time series locs(s)
     #case_ts_locs = adfobj.get_cam_info("cam_ts_loc")
     case_ts_locs = adfobj.ts_locs["test"]
-    if case_ts_locs is None:
-        print("\tNo time series locations found for any test cases")
-        case_ts_locs = [None]*len(test_case_names)
-        #return
-        #exit
+    base_ts_loc = adfobj.ts_locs["baseline"]
+    ts_locs = case_ts_locs + [base_ts_loc]
+    #if case_ts_locs is None:
+    #    print("\tNo time series locations found for any test cases")
+    #    case_ts_locs = [None]*len(test_case_names)
+    #    #return
+    #    #exit
     """else:
         for i,case_ts_loc in enumerate(case_ts_locs):
             if case_ts_loc is None:
@@ -77,7 +79,7 @@ def tape_recorder(adfobj):
     test_nicknames = adfobj.case_nicknames['test_nicknames']
 
     #print("hist_strs",hist_strs,"\n")
-    if not case_ts_locs:
+    if all(item is None for item in ts_locs):
         exitmsg = "\tWARNING: No time series files in any case directory."
         exitmsg += " No tape recorder plots will be made."
         print(exitmsg)
@@ -207,15 +209,15 @@ def tape_recorder(adfobj):
         if case_ts_locs[idx]:
             ts_loc = Path(case_ts_locs[idx])
             hist_str = case_hist_strs[idx]
-            print("ts_loc",ts_loc,"\n")
-            print("ts_loc",hist_str,"\n")
-            print("ts_loc",var,"\n")
+            #print("ts_loc",ts_loc,"\n")
+            #print("ts_loc",hist_str,"\n")
+            #print("ts_loc",var,"\n")
             fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
             #dat = adfobj.data.load_timeseries_dataset(fils, start_years[idx], end_years[idx])
             #dat = adfobj.data.load_da(fils, var, start_years[idx], end_years[idx], type="timeseries")
             #dat = adfobj.data.load_timeseries_da(test_case_names[idx], var, start_years[idx], end_years[idx])
             dat = adfds.load_timeseries_da(test_case_names[idx], var, start_years[idx], end_years[idx])
-            print("\n\n",type(dat),dat,"\n\n")
+            #print("\n\n",type(dat),dat,"\n\n")
             #if dat is NoneType:
             #if not dat:
             if not isinstance(dat, xr.DataArray):
@@ -226,7 +228,8 @@ def tape_recorder(adfobj):
 
             #Grab time slice based on requested years (if applicable)
             #dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
-            has_dims = pf.validate_dims(dat[var], ['lon'])
+            #has_dims = pf.validate_dims(dat[var], ['lon'])
+            has_dims = pf.validate_dims(dat, ['lon'])
             if not has_dims['has_lon']:
                 print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
             else:
@@ -255,13 +258,13 @@ def tape_recorder(adfobj):
         #case_names = test_case_names + [data_name]
         
         #data_ts_loc = adfobj.get_baseline_info("cam_ts_loc")
-        data_ts_loc = adfobj.ts_locs["baseline"]
+        #data_ts_loc = adfobj.ts_locs["baseline"]
         #if data_ts_loc is None:
         #    print("\tNo time series location found for baseline case")
         #    case_ts_locs = case_ts_locs+[None]
         #else:
         #    case_ts_locs = case_ts_locs+[data_ts_loc]
-        print("case_ts_locs",data_ts_loc)
+        #print("case_ts_locs",data_ts_loc)
 
         base_nickname = adfobj.case_nicknames['base_nickname']
         #test_nicknames = test_nicknames+[base_nickname]
@@ -276,19 +279,19 @@ def tape_recorder(adfobj):
         # Filter the list to include only strings that are exactly in the substrings list
         base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
         #hist_strs = case_hist_strs + base_hist_strs
-        if data_ts_loc:
-            ts_loc = Path(data_ts_loc)
+        if base_ts_loc:
+            ts_loc = Path(base_ts_loc)
             hist_str = base_hist_strs
-            print("ts_loc",ts_loc,"\n")
-            print("ts_loc",hist_str,"\n")
-            print("ts_loc",var,"\n")
+            #print("ts_loc",ts_loc,"\n")
+            #print("ts_loc",hist_str,"\n")
+            #print("ts_loc",var,"\n")
             fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
             #dat = adfobj.data.load_timeseries_dataset(fils, start_years[idx], end_years[idx])
             #dat = adfobj.data.load_da(fils, var, start_years[idx], end_years[idx], type="timeseries")
             #dat = adfobj.data.load_timeseries_da(data_name, var, data_start_year, data_end_year)
             #dat = adfobj.data.load_reference_timeseries_da(var, data_start_year, data_end_year)
             dat = adfds.load_reference_timeseries_da(var, data_start_year, data_end_year)
-            print("\n\n",type(dat),dat,"\n\n")
+            #print("\n\n",type(dat),dat,"\n\n")
             #if dat is NoneType:
             #if not dat:
             if not isinstance(dat, xr.DataArray):
