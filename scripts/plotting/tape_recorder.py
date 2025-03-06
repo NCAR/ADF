@@ -30,7 +30,8 @@ def tape_recorder(adfobj):
         since a defualt set of obs are already being compared against in the tape recorder.
     """
     #Notify user that script has started:
-    print("\n  Generating tape recorder plots...")
+    msg = "\n  Generating tape recorder plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Special ADF variable which contains the output paths for plots:
     plot_location = adfobj.plot_location
@@ -193,19 +194,24 @@ def tape_recorder(adfobj):
 
         #Grab time slice based on requested years (if applicable)
         dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
-        datzm = dat.mean('lon')
-        dat_tropics = cosweightlat(datzm[var], -10, 10)
-        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
-        ax = plot_pre_mon(fig, dat_mon,
-                          plot_step, plot_min, plot_max, key,
-                          x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
-                          taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
-        count=count+1
-        runname_LT.append(key)
+
+        has_dims = pf.validate_dims(dat[var], ['lon'])
+        if not has_dims['has_lon']:
+            print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
+        else:
+            datzm = dat.mean('lon')
+            dat_tropics = cosweightlat(datzm[var], -10, 10)
+            dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+            ax = plot_pre_mon(fig, dat_mon,
+                            plot_step, plot_min, plot_max, key,
+                            x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
+                            taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
+            count=count+1
+            runname_LT.append(key)
 
     #Check to see if any cases were successful
     if not runname_LT:
-        msg = f"WARNING: No cases seem to be available, please check time series files for {var}."
+        msg = f"\t  WARNING: No cases seem to be available, please check time series files for {var}."
         msg += "\n\tNo tape recorder plots will be made."
         print(msg)
         #End tape recorder plotting script:

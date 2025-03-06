@@ -97,6 +97,10 @@ def amwg_table(adf):
 
     # and then in time it is DJF JJA ANN
 
+    #Notify user that script has started:
+    msg = "\n  Calculating AMWG variable tables..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
+
     # within each domain and season
     # the result is just a table of
     # VARIABLE-NAME, RUN VALUE, OBS VALUE, RUN-OBS, RMSE
@@ -128,6 +132,10 @@ def amwg_table(adf):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
 
+    #Grab case years
+    syear_cases = adf.climo_yrs["syears"]
+    eyear_cases = adf.climo_yrs["eyears"]
+
     #Check if a baseline simulation is also being used:
     if not adf.get_basic_info("compare_obs"):
         #Extract CAM baseline variaables:
@@ -137,10 +145,17 @@ def amwg_table(adf):
         case_names.append(baseline_name)
         input_ts_locs.append(input_ts_baseline)
 
+        #Grab baseline years (which may be empty strings if using Obs):
+        syear_baseline = adf.climo_yrs["syear_baseline"]
+        eyear_baseline = adf.climo_yrs["eyear_baseline"]
+
+        syear_cases.append(syear_baseline)
+        eyear_cases.append(eyear_baseline)
+
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
     else:
-        print("AMWG table doesn't currently work with obs, so obs table won't be created.")
+        print("\t WARNING: AMWG table doesn't currently work with obs, so obs table won't be created.")
     #End if
 
     #-----------------------------------------
@@ -164,7 +179,12 @@ def amwg_table(adf):
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
 
         #Notify user that script has started:
-        print(f"\n  Calculating AMWG variable table for '{case_name}'...")
+        print(f"\n  Creating table for '{case_name}'...")
+        if eyear_cases[case_idx]-syear_cases[case_idx] == 0:
+            calc_stats = False
+            print("\t INFO: Looks like there is only one year of data, will skip statistics and just add means to table")
+        else:
+            calc_stats = True
 
         #Create output file name:
         output_csv_file = output_location / f"amwg_table_{case_name}.csv"
@@ -190,14 +210,14 @@ def amwg_table(adf):
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
-                errmsg = f"Time series files for variable '{var}' not found.  Script will continue to next variable."
+                errmsg = f"\t    WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable."
                 warnings.warn(errmsg)
                 continue
             #End if
 
             #TEMPORARY:  For now, make sure only one file exists:
             if len(ts_files) != 1:
-                errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
+                errmsg =  "\t    WARNING: Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for the variable '{var}', so it will be skipped."
                 print(errmsg)
                 continue
@@ -215,7 +235,7 @@ def amwg_table(adf):
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
-                print(f"\t    ** Variable '{var}' has a vertical dimension, "+\
+                print(f"\t    WARNING: Variable '{var}' has a vertical dimension, "+\
                       "which is currently not supported for the AMWG Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
@@ -239,11 +259,11 @@ def amwg_table(adf):
                         data = pf.mask_land_or_ocean(data, ofrac, use_nan=True)
                         #data = var_tmp
                     else:
-                        print(f"OCNFRAC not found, unable to apply mask to '{var}'")
+                        print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
                     #End if
                 else:
                     #Currently only an ocean mask is supported, so print warning here:
-                    wmsg = "Currently the only variable mask option is 'ocean',"
+                    wmsg = "\t    WARNING: Currently the only variable mask option is 'ocean',"
                     wmsg += f"not '{var_default_dict['mask'].lower()}'"
                     print(wmsg)
                 #End if
@@ -264,18 +284,19 @@ def amwg_table(adf):
             # In order to get correct statistics, average to annual or seasonal
             data = pf.annual_mean(data, whole_years=True, time_name='time')
 
-            # create a dataframe:
+            # Set values for columns
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                     'standard error', '95% CI', 'trend', 'trend p-value']
-
-            # These get written to our output file:
-            stats_list = _get_row_vals(data)
-            row_values = [var, unit_str] + stats_list
+            if not calc_stats:
+                row_values = [var, unit_str] + [data.data.mean()] + ["-","-","-","-","-","-"]
+            else:
+                stats_list = _get_row_vals(data)
+                row_values = [var, unit_str] + stats_list
 
             # Format entries:
             dfentries = {c:[row_values[i]] for i,c in enumerate(cols)}
 
-            # Add entries to Pandas structure:
+            # Add entries to Pandas structure and create a dataframe:
             df = pd.DataFrame(dfentries)
 
             # Check if the output CSV file exists,

@@ -59,7 +59,8 @@ def create_climo_files(adf, clobber=False, search=None):
     from adf_base import AdfError
 
     #Notify user that script has started:
-    print("\n  Calculating CAM climatologies...")
+    msg = "\n  Calculating CAM climatologies..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Set up multiprocessing pool to parallelize writing climo files.
     number_of_cpu = adf.num_procs  # Get number of available processors from the ADF
@@ -125,7 +126,11 @@ def create_climo_files(adf, clobber=False, search=None):
             continue
 
         #Notify user of model case being processed:
-        print(f"\t Calculating climatologies for case '{case_name}' :")
+        print(f"\n\t Calculating climatologies for case '{case_name}' :")
+
+        is_baseline = False
+        if (not adf.get_basic_info("compare_obs")) and (case_name == baseline_name):
+            is_baseline = True
 
         #Create "Path" objects:
         input_location  = Path(input_ts_locs[case_idx])
@@ -144,9 +149,10 @@ def create_climo_files(adf, clobber=False, search=None):
             print(f"\t    {output_location} not found, making new directory")
             output_location.mkdir(parents=True)
 
-        #Time series file search
-        if search is None:
-            search = "{CASE}*{HIST_STR}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
+        # If we need to allow custom search, could put it into adf.data
+        # #Time series file search
+        # if search is None:
+        #     search = "{CASE}*{HIST_STR}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
 
         #Check model year bounds:
         syr, eyr = check_averaging_interval(start_year[case_idx], end_year[case_idx])
@@ -154,28 +160,37 @@ def create_climo_files(adf, clobber=False, search=None):
         #Loop over CAM output variables:
         list_of_arguments = []
         for var in var_list:
+            # Notify user of new climo file:
+            print(f"\t - climatology for {var}")
 
             # Create name of climatology output file (which includes the full path)
             # and check whether it is there (don't do computation if we don't want to overwrite):
             output_file = output_location / f"{case_name}_{var}_climo.nc"
             if (not clobber) and (output_file.is_file()):
-                print(f"\t    INFO: Found climo file and clobber is False, so skipping {var} and moving to next variable.")
+                msg = f"\t    INFO: '{var}' file was found "
+                msg += "and overwrite is False. Will use existing file."
+                print(msg)
                 continue
             elif (clobber) and (output_file.is_file()):
                 print(f"\t    INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
 
             #Create list of time series files present for variable:
             # Note that we hard-code for h0 because we only want to make climos of monthly output
-            ts_filenames = search.format(CASE=case_name, HIST_STR="h0", VARIABLE=var)
-            ts_files = sorted(list(input_location.glob(ts_filenames)))
+            if is_baseline:
+                ts_files = adf.data.get_ref_timeseries_file(var)
+            else:
+                ts_files = adf.data.get_timeseries_file(case_name, var)
 
             #If no files exist, try to move to next variable. --> Means we can not proceed with this variable,
             # and it'll be problematic later unless there are multiple hist file streams and the variable is in the others
             if not ts_files:
-                errmsg = "Time series files for variable '{}' not found.  Script will continue to next variable.".format(var)
-                print(f"The input location searched was: {input_location}. The glob pattern was {ts_filenames}.")
+                errmsg = f"\t    WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable.\n"
+                errmsg += f"\t      The input location searched was: {input_location}."
+                print(errmsg)
+                logmsg = f"climo file generation: The input location searched was: {input_location}. The glob pattern was {ts_files}."
+                #Write to debug log if enabled:
+                adf.debug_log(logmsg)
                 #  end_diag_script(errmsg) # Previously we would kill the run here.
-                warnings.warn(errmsg)
                 continue
 
             list_of_arguments.append((adf, ts_files, syr, eyr, output_file))
