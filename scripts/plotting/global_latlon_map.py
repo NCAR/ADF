@@ -238,7 +238,7 @@ def global_latlon_map(adfobj):
                     for s in seasons:
                         plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
                         doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon")
-            if all(value is None for value in doplot.values()):
+            if not any(value is None for value in doplot.values()):
                 print(f"\t    INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
                 continue
 
