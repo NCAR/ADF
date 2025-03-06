@@ -125,9 +125,14 @@ def adf_histogram(adfobj):
 
         # probably have to make sure no "lev" dim (but gets confused about other dimensions)
         da = load_ref_func(*get_load_args(adfobj, adfobj.data.ref_case_label, var))
+        if da is None:
+            print(f"failed to load {var} for {adfobj.data.ref_case_label}... skip")
+            continue
+
         if ("lev" in da.dims) or ("ilev" in da.dims):
             print(f"{var}: Looks like lev/ilev present... skip")
             continue
+        
         has_lat_lon = pf.lat_lon_validate_dims(da)
         if not has_lat_lon:
             print(f"INFO: {var} looks like it is on unstructured mesh. Has ncol: {'ncol' in da.dims}. Histogram does not need to regrid.")
@@ -151,6 +156,9 @@ def adf_histogram(adfobj):
             histogram_file_exists = hist_file.is_file()
             if (not histogram_file_exists) or (redo_histogram_files):
                 da = load_func(*get_load_args(adfobj, case_name, var))
+                if da is None:
+                    print(f"Failed to load {var} for {case_name}... skip")
+                    continue
                 if ("lev" in da.dims) or ("ilev" in da.dims):
                     print(f"{var}: Looks like lev/ilev present... skip")
                     continue
@@ -167,12 +175,18 @@ def adf_histogram(adfobj):
     print(f"HISTOGRAM PLOT LOCATION:\n{plot_loc}")
     for var in var_list:
         ref_hist_file = plot_loc / f"{adfobj.data.ref_case_label}_{var}_{plot_name_string}.nc"
+        if not ref_hist_file.is_file():
+            print(f"ERROR: histogram file not found for {var}, {adfobj.data.ref_case_label}... skip.")
+            continue
         ref_h_ds = xr.open_dataset(ref_hist_file)['histogram']
         add_annot = False
         if "input_dims" in ref_h_ds.attrs:
             add_annot = True
             annot = f"input dimensions: {ref_h_ds.attrs['input_dims']}"
         case_hist_files = [plot_loc / f"{case_name}_{var}_{plot_name_string}.nc" for case_name in adfobj.data.case_names]
+        if not all([f.is_file() for f in case_hist_files]):
+            print(f"ERROR: histogram files not found for {var}, {adfobj.data.case_names}... skip")
+            continue
         case_h_ds = {c: xr.open_dataset(case_hist_files[i])['histogram'] for i, c in enumerate(adfobj.data.case_names)}
 
         for season in seasons:
