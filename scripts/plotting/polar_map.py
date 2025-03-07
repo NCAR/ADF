@@ -34,9 +34,6 @@ def polar_map(adfobj):
     msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    #
-    # Use ADF api to get all necessary information
-    #
     var_list = adfobj.diag_var_list
     model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
@@ -51,28 +48,13 @@ def polar_map(adfobj):
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
 
-    # CAUTION:
-    # "data" here refers to either obs or a baseline simulation,
-    # Until those are both treated the same (via intake-esm or similar)
-    # we will do a simple check and switch options as needed:
+    # if doing comparison to obs, but no observations are found, quit
     if adfobj.get_basic_info("compare_obs"):
-        #Set obs call for observation details for plot titles
-        obs = True
-
-        #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
-
-        #If dictionary is empty, then  there are no observations to regrid to,
-        #so quit here:
         if not var_obs_dict:
             print("\t No observations found to plot against, so no polar maps will be generated.")
             return
-    else:
-        obs = False
-        data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
-        data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
-        data_loc  = model_rgrid_loc #Just use the re-gridded model data path
-    #End if
+
 
     #Grab baseline years (which may be empty strings if using Obs):
     syear_baseline = adfobj.climo_yrs["syear_baseline"]
@@ -97,12 +79,6 @@ def polar_map(adfobj):
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
-    #Set data path variables:
-    #-----------------------
-    mclimo_rg_loc = Path(model_rgrid_loc)
-    if not adfobj.compare_obs:
-        dclimo_loc  = Path(data_loc)
-    #-----------------------
 
     #Determine if user wants to plot 3-D variables on
     #pressure levels:
