@@ -217,13 +217,11 @@ def polar_map(adfobj):
                 has_lev = False
 
             if has_lev and pres_levs and plot.get('pressure'):
-                print("PRESSURE")
                 if not all(dim in mdata.dims for dim in ['lat', 'lev']):
                     continue
                 mdata = mdata.sel(lev=plot['pressure'])
                 odata_level = odata.sel(lev=plot['pressure'])
             else:
-                print(f"EXPECT 2D VARIABLE: {odata.shape}")
                 if not pf.lat_lon_validate_dims(mdata):
                     continue
 
