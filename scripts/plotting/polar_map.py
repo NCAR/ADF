@@ -35,7 +35,6 @@ def polar_map(adfobj):
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     var_list = adfobj.diag_var_list
-    model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
