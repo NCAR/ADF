@@ -100,25 +100,25 @@ def global_latlon_map(adfobj):
 
 
 def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot):
-        vres = adfobj.variable_defaults.get(var, {})
-        web_category = vres.get("category", None)
+    vres = adfobj.variable_defaults.get(var, {})
+    web_category = vres.get("category", None)
 
-        # For global maps, also set the central longitude:
-        # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
-        # otherwise defaults to 180
-        vres['central_longitude'] = pf.get_central_longitude(adfobj)
+    # For global maps, also set the central longitude:
+    # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
+    # otherwise defaults to 180
+    vres['central_longitude'] = pf.get_central_longitude(adfobj)
 
-        # Load reference data
-        odata = load_reference_data(adfobj, var)
-        if odata is None:
-            print(f"[global_latlon_map][process_variable] finds no reference data.")
-            return
+    # Load reference data
+    odata = load_reference_data(adfobj, var)
+    if odata is None:
+        print(f"[global_latlon_map][process_variable] finds no reference data.")
+        return
 
-        #Loop over model cases:
-        for case_idx, case_name in enumerate(adfobj.data.case_names):
-            process_case(adfobj, case_name, case_idx, var, odata, 
-                        seasons, pres_levs, plot_type, redo_plot,
-                        vres, web_category)
+    #Loop over model cases:
+    for case_idx, case_name in enumerate(adfobj.data.case_names):
+        process_case(adfobj, case_name, case_idx, var, odata, 
+                    seasons, pres_levs, plot_type, redo_plot,
+                    vres, web_category)
 
 
 
@@ -194,8 +194,8 @@ def process_seasonal_data(mdata, odata, season, weight_season=True):
         mseason = pf.seasonal_mean(mdata, season=season, is_climo=True)
         oseason = pf.seasonal_mean(odata, season=season, is_climo=True)
     else:
-        mseason = mdata.sel(time=seasons[s]).mean(dim='time')
-        oseason = odata.sel(time=seasons[s]).mean(dim='time')
+        mseason = mdata.sel(time=season).mean(dim='time')
+        oseason = odata.sel(time=season).mean(dim='time')
     
     # Calculate differences
     dseason = mseason - oseason
@@ -361,13 +361,14 @@ def check_existing_plots(adfobj, var, plot_loc, plot_type, case_name,
                                                redo_plot, "LatLon")
     return doplot
 
+
 def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
                     var, seasons, plot_loc, plot_type, doplot,
                     mseasons, oseasons, dseasons, pseasons,
                     syear_case, eyear_case, syear_baseline, eyear_baseline,
                     web_category, vres):
     """Process and generate 2D plots."""
-    for s in seasons:
+    for s in seasons.keys():
         plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
         if doplot[plot_name] is None:
             continue
@@ -402,7 +403,7 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
                   f"ref: {pres in odata['lev']}], so skipping.")
             continue
 
-        for s in seasons:
+        for s in seasons.keys():
             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
             if doplot[plot_name] is None:
                 continue
