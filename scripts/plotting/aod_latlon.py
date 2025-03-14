@@ -132,6 +132,7 @@ def process_model_cases(adfobj, var, obs_data):
     # Process each case
     processed_data = []
     for case_name in cases:
+        print(f"[process_model_cases] {case_name = }")
         # Load and process model data
         case_data = process_model_data(adfobj, case_name, var, ref_obs)
         if case_data is not None:
