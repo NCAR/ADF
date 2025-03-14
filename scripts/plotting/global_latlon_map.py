@@ -111,7 +111,8 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot):
         # Load reference data
         odata = load_reference_data(adfobj, var)
         if odata is None:
-            continue
+            print(f"[global_latlon_map][process_variable] finds no reference data.")
+            return
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
