@@ -398,6 +398,7 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
 
     # Generate each panel
     for i, field in enumerate(data):
+        print(f"DEBUGGING: {i = }, {field.shape = }")
         # Create individual plot
         ind_fig, ind_ax = plt.subplots(1, 1, figsize=((7*case_num)/2, 10/2),
                                       subplot_kw={'projection': ccrs.PlateCarree()})
@@ -408,7 +409,7 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
         lat_values = field.lat.values
         field_values, lon_values = add_cyclic_point(field_values, coord=lon_values)
         lon_mesh, lat_mesh = np.meshgrid(lon_values, lat_values)
-        field_mean = np.nanmean(field_values)
+        field_mean = np.nanmean(field_values) ## THIS IS THE INCORRECT AVERAGE TO USE
 
         # Set plot parameters
         plot_param = plot_params[i]
@@ -416,6 +417,8 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
                            plot_param['nlevel'], endpoint=True)
         if 'augment_levels' in plot_param:
             levels = sorted(np.append(levels, np.array(plot_param['augment_levels'])))
+
+        print(f"DEBUGGING: {levels = }")
 
         plot_config = plot_titles[i]
         title = f"{plot_config['title']} Mean {field_mean:.2g}"
