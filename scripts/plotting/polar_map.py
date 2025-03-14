@@ -126,28 +126,28 @@ def polar_map(adfobj):
 
             for s in seasons:
                 for hemi_type in ["NHPolar", "SHPolar"]:
-                    if pres_levs:
-                        if has_lev:
-                            for pres in pres_levs:
-                                plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
-                                info = {
-                                    'path': plot_name,
-                                    'var': f"{var}_{pres}hpa",
-                                    'case': case_name,
-                                    'case_idx': case_idx,
-                                    'season': s,
-                                    'type': hemi_type,
-                                    'pressure': pres,
-                                    'exists': plot_name.is_file()
-                                }
-                                plot_info.append(info)
-                                if not (redo_plot or not info['exists']):
-                                    adfobj.add_website_data(info['path'], info['var'],
-                                                        info['case'], category=web_category,
-                                                        season=s, plot_type=hemi_type)
-                                else:
-                                    all_plots_exist = False
-                    else:
+                    if pres_levs and has_lev: # 3-D variable & pressure levels specified
+                        print(f"POLAR: {pres_levs = }")
+                        for pres in pres_levs:
+                            plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
+                            info = {
+                                'path': plot_name,
+                                'var': f"{var}_{pres}hpa",
+                                'case': case_name,
+                                'case_idx': case_idx,
+                                'season': s,
+                                'type': hemi_type,
+                                'pressure': pres,
+                                'exists': plot_name.is_file()
+                            }
+                            plot_info.append(info)
+                            if (redo_plot is False) and info['exists']:
+                                adfobj.add_website_data(info['path'], info['var'],
+                                                    info['case'], category=web_category,
+                                                    season=s, plot_type=hemi_type)
+                            else:
+                                all_plots_exist = False
+                    elif (not has_lev): # 2-D variable
                         plot_name = plot_loc / f"{var}_{s}_{hemi_type}_Mean.{plot_type}"
                         info = {
                             'path': plot_name,
@@ -159,7 +159,7 @@ def polar_map(adfobj):
                             'exists': plot_name.is_file()
                         }
                         plot_info.append(info)
-                        if not (redo_plot or not info['exists']):
+                        if (redo_plot is False) and info['exists']:
                             adfobj.add_website_data(info['path'], info['var'],
                                                   info['case'], category=web_category,
                                                   season=s, plot_type=hemi_type)

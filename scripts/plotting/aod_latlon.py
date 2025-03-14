@@ -132,7 +132,6 @@ def process_model_cases(adfobj, var, obs_data):
     # Process each case
     processed_data = []
     for case_name in cases:
-        print(f"[process_model_cases] {case_name = }")
         # Load and process model data
         case_data = process_model_data(adfobj, case_name, var, ref_obs)
         if case_data is not None:
@@ -397,19 +396,20 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
         axs.append(plt.subplot(gs[case_num:, start:end], projection=ccrs.PlateCarree()))
 
     # Generate each panel
-    for i, field in enumerate(data):
-        print(f"DEBUGGING: {i = }, {field.shape = }")
+    for i, dataField in enumerate(data):
         # Create individual plot
         ind_fig, ind_ax = plt.subplots(1, 1, figsize=((7*case_num)/2, 10/2),
                                       subplot_kw={'projection': ccrs.PlateCarree()})
         
         # Prepare data
-        field_values = field.values[:,:]
-        lon_values = field.lon.values
-        lat_values = field.lat.values
-        field_values, lon_values = add_cyclic_point(field_values, coord=lon_values)
+        # field_values = field.values[:,:]
+        # lon_values = field.lon.values
+        lat_values = dataField.lat
+        field_values, lon_values = add_cyclic_point(dataField, coord=dataField.lon)
         lon_mesh, lat_mesh = np.meshgrid(lon_values, lat_values)
-        field_mean = np.nanmean(field_values) ## THIS IS THE INCORRECT AVERAGE TO USE
+
+        field_mean = np.nanmean(field_values) ## THIS IS PROBABLY THE INCORRECT AVERAGE TO USE
+        # field_mean = pf.spatial_average(dataField)
 
         # Set plot parameters
         plot_param = plot_params[i]
@@ -418,8 +418,6 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
         if 'augment_levels' in plot_param:
             levels = sorted(np.append(levels, np.array(plot_param['augment_levels'])))
 
-        print(f"DEBUGGING: {levels = }")
-
         plot_config = plot_titles[i]
         title = f"{plot_config['title']} Mean {field_mean:.2g}"
 
@@ -427,12 +425,12 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
         cmap_option = (plot_param.get('colormap', plt.cm.bwr) if symmetric 
                       else plot_param.get('colormap', plt.cm.turbo))
         extend_option = 'both' if symmetric else 'max'
-        
+
         for ax, is_panel in [(axs[i], True), (ind_ax, False)]:
-            print(f"DEBUGGING: {type(ax) = }, {is_panel = } //  {type(lon_mesh) = }, {lon_mesh.shape = } // {type(lat_mesh) = }, {lat_mesh.shape = } // {field_values.shape = }")
             img = ax.contourf(lon_mesh, lat_mesh, field_values,
                             levels, cmap=cmap_option, extend=extend_option,
-                            transform=ccrs.PlateCarree())
+                            transform=ccrs.PlateCarree(),
+                            transform_first=True)
             ax.set_facecolor('gray')
             ax.coastlines()
             ax.set_title(title, fontsize=10)

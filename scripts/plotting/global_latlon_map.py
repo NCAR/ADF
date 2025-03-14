@@ -238,9 +238,9 @@ def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_p
 
     Returns
     -------
-    int, None
-        Returns 1 if existing file is removed or no existing file.
-        Returns None if file exists and redo_plot is False
+    bool
+        Returns True if existing file is removed or no existing file, i.e. make the plot.
+        Returns False if file exists and redo_plot is False
 
     Notes
     -----
@@ -313,7 +313,7 @@ def process_plots(adfobj, mdata, odata, case_name, case_idx, var, seasons,
                                 case_name, seasons, pres_levs, 
                                 has_dims, web_category, redo_plot)
     
-    if not any(value is None for value in doplot.values()):
+    if not any(value for value in doplot.values()):
         print(f"\t    INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data.")
         return
 
