@@ -426,6 +426,7 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
         extend_option = 'both' if symmetric else 'max'
         
         for ax, is_panel in [(axs[i], True), (ind_ax, False)]:
+            print(f"DEBUGGING: {type(ax) = }, {is_panel = } //  {type(lon_mesh) = }, {lon_mesh.shape = } // {type(lat_mesh) = }, {lat_mesh.shape = } // {field_values.shape = }")
             img = ax.contourf(lon_mesh, lat_mesh, field_values,
                             levels, cmap=cmap_option, extend=extend_option,
                             transform=ccrs.PlateCarree())
