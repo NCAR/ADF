@@ -129,7 +129,8 @@ def load_reference_data(adfobj, var):
         if var not in adfobj.data.ref_var_nam:
             dmsg = f"\t    WARNING: No obs data found for variable `{var}`, global lat/lon mean plotting skipped."
             adfobj.debug_log(dmsg)
-            print(dmsg)                return None
+            print(dmsg)
+            return None
         base_name = adfobj.data.ref_labels[var]
 
     odata = adfobj.data.load_reference_regrid_da(base_name, var)
