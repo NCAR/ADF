@@ -15,13 +15,18 @@ from cartopy.util import add_cyclic_point
 
 import plotting_functions as pf
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class AODPlotConfig:
     """Configuration for AOD plots."""
     seasons: list = ('DJF', 'MAM', 'JJA', 'SON')
-    season_names: dict = {'DJF': 'Dec-Jan-Feb', 'MAM': 'Mar-Apr-May', 'JJA': 'Jun-Jul-Aug', 'SON': 'Sep-Oct-Nov'}
+    season_names: dict = field(default_factory=lambda: {
+        'DJF': 'Dec-Jan-Feb',
+        'MAM': 'Mar-Apr-May',
+        'JJA': 'Jun-Jul-Aug',
+        'SON': 'Sep-Oct-Nov'
+    })
     obs_sources: list = ('TERRA MODIS', 'MERRA2')
     var_name: str = 'AODVISdn'
 
