@@ -99,7 +99,7 @@ def global_latlon_map(adfobj):
     print("  ...lat/lon maps have been generated successfully.")
 
 
-def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot)
+def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot):
         vres = adfobj.variable_defaults.get(var, {})
         web_category = vres.get("category", None)
 
