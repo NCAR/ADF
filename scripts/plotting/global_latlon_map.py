@@ -18,7 +18,7 @@ import warnings
 
 # Import local modules:
 import plotting_functions as pf
-from .aod_latlon import aod_latlon
+from aod_latlon import aod_latlon 
 
 # Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
