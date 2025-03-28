@@ -27,7 +27,12 @@ def meridional_mean(adfobj):
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
+    #Variable list
     var_list = adfobj.diag_var_list
+    #Remove unneccasry vairbale from plotting
+    if "PMID" in var_list:
+        var_list.remove("PMID")
+
     model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
     #Special ADF variable which contains the output paths for
