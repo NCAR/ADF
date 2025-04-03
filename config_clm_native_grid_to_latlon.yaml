@@ -151,7 +151,6 @@ diag_cam_climo:
     # SE to FV regridding options
     # Leave these blank if not on the native grid
     #-----------------------------
-    native_grid: true
     # Weights file:
     weights_file: /glade/work/wwieder/map_ne30pg3_to_fv0.9x1.25_scripgrids_conserve_nomask_c250108.nc
     # Regridding method:
@@ -225,7 +224,6 @@ diag_cam_baseline_climo:
     # SE to FV regridding options
     # Leave these blank if not on the native grid
     #-----------------------------
-    native_grid: true
     # Weights file:
     weights_file: /glade/work/wwieder/map_ne30pg3_to_fv0.9x1.25_scripgrids_conserve_nomask_c250108.nc
     # Regridding method:
