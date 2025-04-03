@@ -84,7 +84,7 @@ diag_basic_info:
     obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
-    cam_regrid_loc: ${diag_loc}regrid/
+    cam_regrid_loc: /glade/derecho/scratch/${user}/ADF/regrid
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
@@ -92,7 +92,7 @@ diag_basic_info:
     cam_overwrite_regrid: false
 
     #Location where diagnostic plots are stored:
-    cam_diag_plot_loc: ${diag_loc}diag-plot/
+    cam_diag_plot_loc: /glade/derecho/scratch/${user}/ADF/plots
 
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
