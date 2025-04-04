@@ -173,7 +173,7 @@ diag_cam_climo:
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 44
+    end_year: 35
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -336,7 +336,7 @@ diag_cam_baseline_climo:
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 44
+    end_year: 35
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
