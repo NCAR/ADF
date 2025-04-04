@@ -97,7 +97,7 @@ diag_basic_info:
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
     #Uncomment and change path for custom variable defaults file
-    defaults_file: ldf_variable_defaults.yaml
+    defaults_file: lib/ldf_variable_defaults.yaml
 
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
@@ -256,7 +256,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
+    cam_ts_loc: /glade/derecho/scratch/${user}/ADF_LatLon/${diag_cam_baseline_climo.cam_case_name}/ts
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 #These variables below only matter if you are using
