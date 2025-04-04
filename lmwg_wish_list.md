@@ -12,11 +12,16 @@
 
 ### Development
 -[ ] Separate time bounds for time series and climo generation.
--[ ] Write python function to make regional timeseries or climo plots
--[ ] Check applicaiton of adf timeseries plots for land, 
+-[ ] *Top need* Write python function to make regional timeseries or climo plots
+-[ ] Check application of adf timeseries plots for land, 
   - this was working on wwieder/clm-test branch
--[x] Handle h1 files for PFT specific results
+-[ ] Handle h1 files for PFT specific results
+  - Need to convert notebook for unstructured data in to python fuction that uses upstream ADF workflow & adds plots to website
+  - also need unstructured example
 -[ ] Integrate observations!
+  - Populate datasets in central location (e.g. `/glade/campaign/cgd/amp/amwg/ADF_obs`), maybe this lives in a CUPiD observations home?
+  - Regrid to standard resolution(s), start with f09_t232
+  
 
 #
  

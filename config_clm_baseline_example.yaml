@@ -94,8 +94,7 @@ diag_basic_info:
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
     #Uncomment and change path for custom variable defaults file
-    #TODO, make a land default path
-    defaults_file: /glade/u/home/wwieder/python/adf/lib/ldf_variable_defaults.yaml
+    defaults_file: ldf_variable_defaults.yaml
 
     #Vertical pressure levels (in hPa) on which to plot 3-D variables
     #when using horizontal (e.g. lat/lon) map projections.
