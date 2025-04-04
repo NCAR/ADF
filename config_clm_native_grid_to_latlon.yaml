@@ -154,7 +154,7 @@ diag_cam_climo:
     # Weights file:
     weights_file: /glade/work/wwieder/map_ne30pg3_to_fv0.9x1.25_scripgrids_conserve_nomask_c250108.nc
     # Regridding method:
-    regrid_method: 'conservative'
+    regrid_method: 'coservative'
     # Lat/lon file:
     latlon_file: /glade/derecho/scratch/wwieder/ctsm5.3.018_SP_f09_t232_mask/run/ctsm5.3.018_SP_f09_t232_mask.clm2.h0.0001-01.nc
 
@@ -227,7 +227,7 @@ diag_cam_baseline_climo:
     # Weights file:
     weights_file: /glade/work/wwieder/map_ne30pg3_to_fv0.9x1.25_scripgrids_conserve_nomask_c250108.nc
     # Regridding method:
-    regrid_method: 'conservative'
+    regrid_method: 'coservative'
     # Lat/lon file:
     latlon_file: /glade/derecho/scratch/wwieder/ctsm5.3.018_SP_f09_t232_mask/run/ctsm5.3.018_SP_f09_t232_mask.clm2.h0.0001-01.nc
 
