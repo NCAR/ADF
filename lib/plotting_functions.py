@@ -900,7 +900,6 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         if unstructured:
             #configure for polycollection plotting
             #TODO, would be nice to have levels set from the info, above
-            print("AHHHHHH2",i,type(a), type(a.uxgrid))
             ac = a.to_polycollection(projection=proj)
             #ac.norm(norms[i])
             ac.set_cmap(cmap)
@@ -1423,11 +1422,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
             ac.set_transform(proj)
             ac.set_clim(vmin=levels[0],vmax=levels[-1])
             ax[i].add_collection(ac)
-            """if i > 0:
-                cbar = plt.colorbar(ac, ax=ax[i], orientation='vertical', 
-                                    pad=0.05, shrink=0.8, **cp_info['colorbar_opt'])
-                #TODO keep variable attributes on dataarrays
-                #cbar.set_label(wrap_fields[i].attrs['units'])"""
         # End if unstructured grid
 
         #ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
@@ -1444,7 +1438,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     # Custom setting for each subplot
     for a in ax:
         a.coastlines()
-        #if projection=='global':
         a.set_global()
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         a.set_xticks(np.linspace(-180, 120, 6), crs=proj)
