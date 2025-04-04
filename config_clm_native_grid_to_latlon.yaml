@@ -256,7 +256,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: ${ts_loc}${diag_cam_baseline_climo.cam_case_name}/${diag_cam_baseline_climo.yrs}/
+    cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
