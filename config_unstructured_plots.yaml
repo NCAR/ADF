@@ -97,7 +97,7 @@ diag_basic_info:
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
     #Uncomment and change path for custom variable defaults file
-    defaults_file: ldf_variable_defaults.yaml
+    defaults_file: lib/ldf_variable_defaults.yaml
 
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
