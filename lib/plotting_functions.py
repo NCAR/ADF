@@ -785,10 +785,10 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         pct = pctchange
         
     #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct_grid = pct.uxgrid
     pct_0 = pct.where(np.isfinite(pct), np.nan)
     pct_0 = pct_0.fillna(0.0)
     if isinstance(pct, ux.UxDataArray):
+        pct_grid = pct.uxgrid
         pct = ux.UxDataArray(pct_0,uxgrid=pct_grid)
     else:
         pct = pct_0
