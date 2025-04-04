@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'USER-NAME-NOT-SET'
+user: wwieder #'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -84,7 +84,7 @@ diag_basic_info:
     obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
-    cam_regrid_loc: /glade/derecho/scratch/${user}/ADF/regrid
+    cam_regrid_loc: /glade/derecho/scratch/${user}/ADF_LatLon/regrid
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
@@ -92,7 +92,7 @@ diag_basic_info:
     cam_overwrite_regrid: false
 
     #Location where diagnostic plots are stored:
-    cam_diag_plot_loc: /glade/derecho/scratch/${user}/ADF/plots
+    cam_diag_plot_loc: /glade/derecho/scratch/${user}/ADF_LatLon/plots
 
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
@@ -134,16 +134,16 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Location of CAM climatologies (to be created and then used by this script)
-    cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
+    cam_climo_loc: /glade/derecho/scratch/${user}/ADF_LatLon/${diag_cam_climo.cam_case_name}/climo
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.123
+    cam_case_name: b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.143
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '123'
+    case_nickname: '143'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/derecho/scratch/hannay/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
@@ -161,12 +161,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 25
+    start_year: 30
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 35
+    end_year: 40
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -184,7 +184,7 @@ diag_cam_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
+    cam_ts_loc: /glade/derecho/scratch/${user}/ADF_LatLon/${diag_cam_climo.cam_case_name}/ts
 
 
 #This third set of variables provide info for the CAM baseline climatologies.
@@ -206,16 +206,16 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Location of CAM climatologies (to be created and then used by this script)
-    cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/climo
+    cam_climo_loc: /glade/derecho/scratch/${user}/ADF_LatLon/${diag_cam_baseline_climo.cam_case_name}/climo
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_beta05.BLT1850.ne30_t232_wgx3.122
+    cam_case_name: b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.139
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '122'
+    case_nickname: '139'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -234,12 +234,12 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 25
+    start_year: 30
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 35
+    end_year: 40
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -257,7 +257,6 @@ diag_cam_baseline_climo:
 
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
-
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
 #These variables below only matter if you are using
@@ -294,13 +293,13 @@ plotting_scripts:
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
-    #- TSA
+    - TSA
     - PREC
     - ELAI
     - GPP
-#    - NPP
-#    - FSDS
-#    - ALTMAX
+    - NPP
+    - FSDS
+    - ALTMAX
     - ET
     - TOTRUNOFF
     - DSTFLXT
