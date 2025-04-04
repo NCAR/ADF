@@ -82,7 +82,7 @@ TSA:    # 2m air temperature
 
 PREC:   # RAIN + SNOW
   category: "Atmosphere"
-  colormap: "managua"
+  colormap: "coolwarm"
   derivable_from: ["RAIN","SNOW"]
   scale_factor: 86400
   add_offset: 0
@@ -174,7 +174,7 @@ ET: # latent heat: FCTR+FCEV+FGEV
 
 DSTFLXT: # total surface dust emission
   category: "Surface fluxes"
-  colormap: "Browns"
+  colormap: "Blues"
   diff_colormap: "BrBG_r"
   scale_factor: 86400
   add_offset: 0
@@ -190,7 +190,7 @@ DSTFLXT: # total surface dust emission
 
 MEG_isoprene: # total surface dust emission
   category: "Surface fluxes"
-  colormap: "Browns"
+  colormap: "Blues"
   diff_colormap: "BrBG_r"
   scale_factor: 86400
   add_offset: 0
