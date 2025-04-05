@@ -239,7 +239,7 @@ def process_variable(adf, ts_files, syr, eyr, output_file, comp):
     elif 'time_bounds' in cam_ts_data:
         time = cam_ts_data['time']
         if comp == "lnd":
-            if ('hist_interval' in ts_ds['time_bounds'].dims):
+            if ('hist_interval' in cam_ts_data['time_bounds'].dims):
                 dim = 'hist_interval'
             else:
                 dim = 'nbnd'
