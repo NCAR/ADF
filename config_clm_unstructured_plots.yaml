@@ -278,18 +278,18 @@ plotting_scripts:
     - global_mean_timeseries_lnd
     - polar_map
 
-#List of CAM variables that will be processesd:
-#If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+#List of variables that will be processesd:
+#Shorter list here, for efficiency of testing
 diag_var_list:
-    - TSA
+    #- TSA
     - PREC
     - ELAI
     - GPP
-    - NPP
-    - FSDS
-    - ALTMAX
+    #- NPP
+    #- FSDS
+    #- ALTMAX
     - ET
-    - TOTRUNOFF
+    #- TOTRUNOFF
     - DSTFLXT
     - MEG_isoprene 
 
