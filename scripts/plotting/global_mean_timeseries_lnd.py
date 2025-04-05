@@ -111,8 +111,8 @@ def global_mean_timeseries_lnd(adfobj):
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
             c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
 
-            # check if this is a "2-d" varaible:
-            has_lev_ref = pf.zm_validate_dims(ref_ts_da)
+            # check if variable has a lev dimension
+            has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
             if has_lev_ref:
                 print(
                     f"Variable named {field} has a lev dimension, which does not work with this script."
