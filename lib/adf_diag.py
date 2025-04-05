@@ -844,7 +844,12 @@ class AdfDiag(AdfWeb):
                             if ('time_bounds' in ts_ds):
                                 time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
                         if comp == "lnd":
-                            time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='hist_interval').values, dims=time.dims, attrs=time.attrs)
+                            # need greater flexibility given changes in clm history files over time
+                            if ('hist_interval' in ts_ds['time_bounds'].dims):
+                                time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='hist_interval').values, dims=time.dims, attrs=time.attrs)
+                            else:
+                                time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='nbnd').values, dims=time.dims, attrs=time.attrs)
+                        
                         ts_ds['time'] = time
                         ts_ds.assign_coords(time=time)
                         ts_ds_fixed = xr.decode_cf(ts_ds)
