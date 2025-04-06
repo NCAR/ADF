@@ -767,7 +767,7 @@ class AdfDiag(AdfWeb):
                         # Step 3a: Optional, add additional variables to clm2.h0 files
                         if  "h0" in hist_str:
                             cmd_add_clm_h0_fields = [
-                                "ncks", "-A", "-v", "area,landfrac,landmask",
+                                "ncks", "-A", "-C", "-v", "area,landfrac,landmask",
                                 hist_files[0],
                                 ts_outfil_str
                             ]
