@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: wwieder #'USER-NAME-NOT-SET'
+user: 'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -293,13 +293,13 @@ plotting_scripts:
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
-    - TSA
+    #- TSA
     - PREC
     - ELAI
     - GPP
-    - NPP
-    - FSDS
-    - ALTMAX
+    #- NPP
+    #- FSDS
+    #- ALTMAX
     - ET
     - TOTRUNOFF
     - DSTFLXT
