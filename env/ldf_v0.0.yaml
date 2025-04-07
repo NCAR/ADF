@@ -321,7 +321,7 @@ dependencies:
   - unicodedata2=15.1.0=py311h9ecbd09_1
   - uriparser=0.9.8=hac33072_0
   - urllib3=2.2.3=pyhd8ed1ab_0
-  - uxarray=2024.11.0=pyhd8ed1ab_0
+  - uxarray=2025.3.0
   - wayland=1.23.1=h3e06ad9_0
   - wcwidth=0.2.13=pyhd8ed1ab_0
   - webencodings=0.5.1=pyhd8ed1ab_2
