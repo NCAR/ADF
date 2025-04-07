@@ -188,7 +188,7 @@ DSTFLXT: # total surface dust emission
   avg_method: 'sum'
   table_unit: "Pg y$^{-1}"
 
-MEG_isoprene: # total surface dust emission
+MEG_isoprene: 
   category: "Surface fluxes"
   colormap: "Blues"
   diff_colormap: "BrBG_r"

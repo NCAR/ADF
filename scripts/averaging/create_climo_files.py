@@ -239,7 +239,10 @@ def process_variable(adf, ts_files, syr, eyr, output_file, comp):
     elif 'time_bounds' in cam_ts_data:
         time = cam_ts_data['time']
         if comp == "lnd":
-            dim = 'hist_interval'
+            if ('hist_interval' in cam_ts_data['time_bounds'].dims):
+                dim = 'hist_interval'
+            else:
+                dim = 'nbnd'
         if comp == "atm":
             dim = 'nbnd'
         # NOTE: force `load` here b/c if dask & time is cftime, throws a NotImplementedError:
