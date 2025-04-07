@@ -37,6 +37,8 @@ Detailed instructions for users and developers are availabe on this repository's
 
 This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example ADF diagnostic figures, all in their respective directories.
 
+If you get NCO failures at the generate timeseries stage that end up causing LDF to fail, see issue [#365](https://github.com/NCAR/ADF/issues/365) 
+
 When additional memory is needed sometimes need to run interactive session on casper:
 `execcasper -A P93300041 -l select=1:ncpus=4:mem=64GB`
 
