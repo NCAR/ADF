@@ -13,7 +13,7 @@ git remote add upstream https://github.com/<git_user_name>/ADF.git
 `git switch -c clm-diags origin/clm-diags`
 
 #### Set up your computing environment
-1. Create a conda environment. On NCAR's CISL machines (derecho and casper), these can be loaded by running the following on the command line:
+5. Create a conda environment. On NCAR's CISL machines (derecho and casper), these can be loaded by running the following on the command line:
 ```
 module load conda
 conda env create -f env/ldf_v0.0.yaml
@@ -22,22 +22,23 @@ conda activate ldf_v0.0
 
 **Note** This is somewhat redundant, as it's a clone of cupid-analysis, but land diagnostics need the latest version of uxarray (25.3.0), and this will prevent overwriting your other conda environments.
 
-Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running:
+Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running the following on the command line:
+
 ```
-module load nco/5.2.4
+module load nco
 ```
-on the command line.
-_Note_, I'm not sure specifying the nco version is critical, but it does seem to help get around an issues where nco errors seemed to prevent additiof area and landfrac onto timeseries files when using the default 5.3.1 version of NCO on casper.
 
 ## Running ADF diagnostics
 
-Detailed instructions for users and developers are availabe on this repository's [wiki](https://github.com/NCAR/ADF/wiki).
+Detailed instructions for users and developers are availabe on this repository's [wiki](https://github.com/NCAR/ADF/wiki). 
+
+You'll have to add your username to the appropriate config file, but after that, for a quick try of land diagnostics
 
 `./run_adf_diag config_clm_unstructured_plots.yaml`
 
 This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example ADF diagnostic figures, all in their respective directories.
 
-If you get NCO failures at the generate timeseries stage that end up causing LDF to fail, see issue [#365](https://github.com/NCAR/ADF/issues/365) 
+**NOTE:** If you get NCO failures at the generate timeseries stage that end up causing LDF to fail, see issue [#365](https://github.com/NCAR/ADF/issues/365) 
 
 When additional memory is needed sometimes need to run interactive session on casper:
 `execcasper -A P93300041 -l select=1:ncpus=4:mem=64GB`
@@ -77,3 +78,4 @@ For (2), the config yaml file will need some additional arguments:
   Example yaml file: `config_clm_native_grid_to_latlon.yaml`
 
   
+:
