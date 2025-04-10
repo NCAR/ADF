@@ -30,8 +30,11 @@ def global_mean_timeseries_lnd(adfobj):
     Include the CESM2 LENS result if it can be found.
     """
 
+    model_component = "lnd"
+
     #Notify user that script has started:
-    print("\n  Generating global mean time series plots...")
+    msg = "\n  Generating global mean time series plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Gather ADF configurations
     plot_loc = get_plot_loc(adfobj)
@@ -51,28 +54,45 @@ def global_mean_timeseries_lnd(adfobj):
             adfobj.debug_log(f"global_mean_timeseries: Found variable defaults for {field}")
         else:
             vres = {}
+        #End if
 
-        # Extract variables, get defaults, and scale for plotting
-        weights, ref_ts_da, c_weights, c_ts_da, units = _extract_and_scale_vars(adfobj, field, vres)
+        if model_component == "lnd":
+            # Extract variables, get defaults, and scale for plotting
+            weights, ref_ts_da, c_weights, c_ts_da, units = _extract_and_scale_vars(adfobj, field, vres)
+        else:
+            # reference time series (DataArray)
+            ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
+            weights = None
+            units = vres.get("new_unit","[-]")
 
         base_name = adfobj.data.ref_case_label
 
         # Check to see if this field is available
+        validate_dims = False
         if ref_ts_da is None:
-            print(
-                f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
-            )
-            validate_dims = True
-        else:
+            if model_component == "lnd":
+                print(
+                    f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
+                )
+                validate_dims = True
+            else:
+                if not adfobj.compare_obs:
+                    print(
+                        f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
+                    )
+                continue
+        elif model_component == "lnd":
             validate_dims = False
             # reference time series global average
             # TODO, make this more general for land?
             ref_ts_da_ga = pf.spatial_average(ref_ts_da, adfobj.model_component, weights=weights)
-            c_ts_da_ga = pf.spatial_average(c_ts_da, adfobj.model_component, weights=c_weights)
+            if model_component == "lnd":
+                c_ts_da_ga = pf.spatial_average(c_ts_da, adfobj.model_component, weights=c_weights)
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
-            c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+            if model_component == "lnd":
+                c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
 
             # check if variable has a lev dimension
             has_lev_case = pf.zm_validate_dims(ref_ts_da)[1]
@@ -81,6 +101,31 @@ def global_mean_timeseries_lnd(adfobj):
                     f"Variable named {field} has a lev dimension, which does not work with this script."
                 )
                 continue
+        else:
+            # check data dimensions:
+            has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
+
+            # check if this is a "2-d" varaible:
+            if has_lev_ref:
+                print(
+                    f"\t    WARNING: Variable {field} has a lev dimension for '{base_name}', which does not work with this script."
+                )
+                continue
+            # End if
+            
+            # check if there is a lat dimension:
+            if not has_lat_ref:
+                print(
+                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                )
+                continue
+            # End if
+
+            # reference time series global average
+            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+
+            # annually averaged
+            ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
 
         # Loop over model cases:
         case_ts = {}  # dictionary of annual mean, global mean time series
@@ -99,7 +144,8 @@ def global_mean_timeseries_lnd(adfobj):
 
         skip_var = False
         for case_name in adfobj.data.case_names:
-            #c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
+            if model_component != "lnd":
+                c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
             if c_ts_da is None:
                 print(
@@ -111,9 +157,12 @@ def global_mean_timeseries_lnd(adfobj):
 
             # If no reference, we still need to check if this is a "2-d" varaible:
             # check data dimensions:
-            if validate_dims:
+            if validate_dims or model_component != "lnd":
                 has_lat_case, has_lev_case = pf.zm_validate_dims(c_ts_da)
             # End if
+
+            if model_component != "lnd":
+                has_lat_case, has_lev_case = pf.zm_validate_dims(c_ts_da)
 
             # If 3-d variable, notify user, flag and move to next test case
             if has_lev_case:
@@ -125,8 +174,22 @@ def global_mean_timeseries_lnd(adfobj):
                 continue
             # End if
 
+            # check if there is a lat dimension:
+            if model_component != "lnd" and not has_lat_case:
+                print(
+                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                )
+                skip_var = True
+                continue
+            # End if
+
             # Gather spatial avg for test case
-            case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+            if model_component != "lnd":
+                c_ts_da_ga = pf.spatial_average(c_ts_da, model_component)
+                case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga)
+            else:
+                case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+            
 
         # If this case is 3-d or missing variable, then break the loop and go to next variable
         if skip_var:
