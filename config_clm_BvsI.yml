@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'wwieder' #'USER-NAME-NOT-SET'
+user: 'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
