@@ -271,8 +271,8 @@ def lmwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                # data = pf.spatial_average(data)  # changes data "in place"
-                data = pf.spatial_average_lnd(data,weights) # hard code for land
+                # data = pf.spatial_average(data, adf.model_component)  # changes data "in place"
+                data = pf.spatial_average(data, adf.model_component, weights=weights)
                 # TODO, make this optional for lmwg_tables of amwg_table
             # In order to get correct statistics, average to annual or seasonal
             data = pf.annual_mean(data, whole_years=True, time_name='time')

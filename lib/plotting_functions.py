@@ -15,7 +15,7 @@ get_central_longitude(*args)
     Determine central longitude for maps.
 global_average(fld, wgt, verbose=False)
     pure numpy global average.
-spatial_average(indata, weights=None, spatial_dims=None)
+spatial_average(indata, model_component, weights=None, spatial_dims=None)
     Compute spatial average
 wgt_rmse(fld1, fld2, wgt):
     Calculate the area-weighted RMSE.
@@ -38,7 +38,8 @@ plot_map_vect_and_save(wks, case_nickname, base_nickname,
     Plots a vector field on a map.
 plot_map_and_save(wks, case_nickname, base_nickname,
                       case_climo_yrs, baseline_climo_yrs,
-                      mdlfld, obsfld, diffld, **kwargs):
+                      mdlfld, obsfld, diffld, pctld,
+                      model_component, **kwargs):
     Map plots of `mdlfld`, `obsfld`, and their difference, `diffld`.
 pres_from_hybrid(psfc, hya, hyb, p0=100000.):
     Converts a hybrid level to a pressure
@@ -370,14 +371,17 @@ def global_average(fld, wgt, verbose=False):
     return np.ma.average(avg1)
 
 
-def spatial_average(indata, weights=None, spatial_dims=None):
+# TODO, should there be some unit conversions for this defined in a variable dictionary?
+def spatial_average(indata, model_component, weights=None, spatial_dims=None):
     """Compute spatial average.
 
     Parameters
     ----------
     indata : xr.DataArray
         input data
-    weights : np.ndarray or xr.DataArray, optional
+    model_component: str
+        the model component whose outputs are being plotted
+    weights : np.ndarray or xr.DataArray, optional (except required for model_component=="lnd")
         the weights to apply, see Notes for default behavior
     spatial_dims : list, optional
         list of dimensions to average, see Notes for default behavior
@@ -401,6 +405,9 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     import warnings
 
     if weights is None:
+        if model_component == "lnd":
+            raise RuntimeError("For model_component lnd, you must provide weights argument in spatial_average")
+
         #Calculate spatial weights:
         if 'lat' in indata.coords:
             weights = np.cos(np.deg2rad(indata.lat))
@@ -421,11 +428,13 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     #End if
 
     #Apply weights to input data:
-    weighted = indata.weighted(weights)
+    weighted = indata.weighted(weights.fillna(0))
 
     # we want to average over all non-time dimensions
     if spatial_dims is None:
-        if 'ncol' in indata.dims:
+        if model_component == 'lnd' and 'lndgrid' in indata.dims:
+            spatial_dims = ['lndgrid']
+        elif model_component != 'lnd' and 'ncol' in indata.dims:
             spatial_dims = ['ncol']
         else:
             spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or ('lon' in dimname.lower()))]
@@ -440,57 +449,6 @@ def spatial_average(indata, weights=None, spatial_dims=None):
         raise AdfError(emsg)
 
     return weighted.mean(dim=spatial_dims, keep_attrs=True)
-
-# TODO, maybe just adapt the spatial average above?
-# TODO, should there be some unit conversions for this defined in a variable dictionary?
-def spatial_average_lnd(indata, weights, spatial_dims=None):
-    """Compute spatial average.
-
-    Parameters
-    ----------
-    indata : xr.DataArray
-        input data
-    weights xr.DataArray
-        weights (area * landfrac)
-    spatial_dims : list, optional
-        list of dimensions to average, see Notes for default behavior
-
-    Returns
-    -------
-    xr.DataArray
-        weighted average of `indata`
-
-    Notes
-    -----
-    weights are required
-    
-    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
-    Will average over `ncol` if present, and then will check for `lat` and `lon`.
-    When none of those three are found, raise an AdfError.        
-    """
-    import warnings
-
-    #Apply weights to input data:
-    weighted = indata*weights
-
-    # we want to average over all non-time dimensions
-    if spatial_dims is None:
-        if 'lndgrid' in indata.dims:
-            spatial_dims = ['lndgrid']
-        else:
-            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or 
-                                                                   ('lon' in dimname.lower()))]
-    if not spatial_dims:
-        #Scripts using this function likely expect the horizontal dimensions
-        #to be removed via the application of the mean. So in order to avoid
-        #possibly unexpected behavior due to arrays being incorrectly dimensioned
-        #(which could be difficult to debug) the ADF should die here:
-        emsg = "spatial_average: No spatial dimensions were identified,"
-        emsg += " so can not perform average."
-        raise AdfError(emsg)
-
-    
-    return weighted.sum(dim=spatial_dims, keep_attrs=True)
 
 
 def wgt_rmse(fld1, fld2, wgt):
@@ -1255,8 +1213,8 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
 
 def plot_map_and_save(wks, case_nickname, base_nickname,
                       case_climo_yrs, baseline_climo_yrs,
-                      mdlfld, obsfld, diffld, pctld, unstructured=False,
-                      obs=False, **kwargs):
+                      mdlfld, obsfld, diffld, pctld, model_component,
+                      unstructured=False, obs=False, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
 
     Parameters
@@ -1279,6 +1237,8 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
         input difference data
     pctld : xarray.DataArray
         input percent difference data
+    model_component : str
+        the model component whose outputs are being plotted
     kwargs : dict, optional
         variable-specific options, See Notes
 
@@ -1330,7 +1290,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
         # get statistics (from non-wrapped)
         fields = (mdlfld, obsfld, pctld, diffld)
-        area_avg = [spatial_average(x, weights=wgt, spatial_dims=None) for x in fields]
+        area_avg = [spatial_average(x, model_component, weights=wgt, spatial_dims=None) for x in fields]
 
         d_rmse = wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
         # specify the central longitude for the plot

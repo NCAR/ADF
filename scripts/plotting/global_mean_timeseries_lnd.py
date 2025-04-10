@@ -104,8 +104,8 @@ def global_mean_timeseries_lnd(adfobj):
             validate_dims = False
             # reference time series global average
             # TODO, make this more general for land?
-            ref_ts_da_ga = pf.spatial_average_lnd(ref_ts_da, weights=weights)
-            c_ts_da_ga = pf.spatial_average_lnd(c_ts_da, weights=c_weights)
+            ref_ts_da_ga = pf.spatial_average(ref_ts_da, adfobj.model_component, weights=weights)
+            c_ts_da_ga = pf.spatial_average(c_ts_da, adfobj.model_component, weights=c_weights)
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
