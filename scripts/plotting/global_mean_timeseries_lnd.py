@@ -41,6 +41,8 @@ def global_mean_timeseries_lnd(adfobj):
 
     # Loop over variables
     for field in adfobj.diag_var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - time series plot for {field}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if field in res:
@@ -49,55 +51,16 @@ def global_mean_timeseries_lnd(adfobj):
             adfobj.debug_log(f"global_mean_timeseries: Found variable defaults for {field}")
         else:
             vres = {}
-        
-        # Extract variables:
-        # including a simpler way to get a dataset timeseries
-        baseline_name     = adfobj.get_baseline_info("cam_case_name", required=True)
-        input_ts_baseline = Path(adfobj.get_baseline_info("cam_ts_loc", required=True))
-        # TODO hard wired for single case name:
-        case_name = adfobj.get_cam_info("cam_case_name", required=True)[0]
-        input_ts_case = Path(adfobj.get_cam_info("cam_ts_loc", required=True)[0])
-        
-        #Create list of time series files present for variable:
-        baseline_ts_filenames = f'{baseline_name}.*.{field}.*nc'
-        baseline_ts_files = sorted(input_ts_baseline.glob(baseline_ts_filenames))
-        case_ts_filenames = f'{case_name}.*.{field}.*nc'
-        case_ts_files = sorted(input_ts_case.glob(case_ts_filenames))
 
-        ref_ts_ds = pf.load_dataset(baseline_ts_files)
-        weights = ref_ts_ds.landfrac * ref_ts_ds.area
-        ref_ts_da= ref_ts_ds[field]
-        
-        c_ts_ds = pf.load_dataset(case_ts_files)
-        c_weights = c_ts_ds.landfrac * c_ts_ds.area
-        c_ts_da= c_ts_ds[field]
+        # Extract variables, get defaults, and scale for plotting
+        weights, ref_ts_da, c_weights, c_ts_da, units = _extract_and_scale_vars(adfobj, field, vres)
 
-        #Extract category (if available):
-        web_category = vres.get("category", None)
-        
-        # get variable defaults  
-        scale_factor = vres.get('scale_factor', 1)
-        scale_factor_table = vres.get('scale_factor_table', 1)
-        add_offset = vres.get('add_offset', 0)
-        avg_method = vres.get('avg_method', 'mean')
-        if avg_method == 'mean':
-            weights = weights/weights.sum()
-            c_weights = c_weights/c_weights.sum()
-        # get units for variable 
-        ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))
-        ref_ts_da.attrs['units'] = vres.get("table_unit", ref_ts_da.attrs.get('units', 'none'))
-        units = ref_ts_da.attrs['units']
-
-        # scale for plotting, if needed
-        ref_ts_da = ref_ts_da * scale_factor * scale_factor_table
-        ref_ts_da.attrs['units'] = units
-        c_ts_da = c_ts_da * scale_factor * scale_factor_table
-        c_ts_da.attrs['units'] = units
+        base_name = adfobj.data.ref_case_label
 
         # Check to see if this field is available
         if ref_ts_da is None:
             print(
-                f"\t Variable named {field} provides Nonetype. Skipping this variable"
+                f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
             )
             validate_dims = True
         else:
@@ -112,17 +75,12 @@ def global_mean_timeseries_lnd(adfobj):
             c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
 
             # check if variable has a lev dimension
-            has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
-            if has_lev_ref:
+            has_lev_case = pf.zm_validate_dims(ref_ts_da)[1]
+            if has_lev_case:
                 print(
                     f"Variable named {field} has a lev dimension, which does not work with this script."
                 )
                 continue
-
-        ## SPECIAL SECTION -- CESM2 LENS DATA:
-        lens2_data = Lens2Data(
-            field
-        )  # Provides access to LENS2 dataset when available (class defined below)
 
         # Loop over model cases:
         case_ts = {}  # dictionary of annual mean, global mean time series
@@ -136,7 +94,7 @@ def global_mean_timeseries_lnd(adfobj):
         ref_label = (
             adfobj.data.ref_nickname
             if adfobj.data.ref_nickname
-            else adfobj.data.ref_case_label
+            else base_name
         )
 
         skip_var = False
@@ -145,20 +103,22 @@ def global_mean_timeseries_lnd(adfobj):
 
             if c_ts_da is None:
                 print(
-                    f"\t Variable named {field} provides Nonetype. Skipping this variable"
+                    f"\t    WARNING: Variable {field} for case '{case_name}' provides Nonetype. Skipping this variable"
+
                 )
                 skip_var = True
                 continue
 
             # If no reference, we still need to check if this is a "2-d" varaible:
+            # check data dimensions:
             if validate_dims:
-                has_lat_ref, has_lev_ref = pf.zm_validate_dims(c_ts_da)
+                has_lat_case, has_lev_case = pf.zm_validate_dims(c_ts_da)
             # End if
 
             # If 3-d variable, notify user, flag and move to next test case
-            if has_lev_ref:
+            if has_lev_case:
                 print(
-                    f"Variable named {field} has a lev dimension for '{case_name}', which does not work with this script."
+                    f"\t    WARNING: Variable {field} has a lev dimension for '{case_name}', which does not work with this script."
                 )
 
                 skip_var = True
@@ -172,6 +132,11 @@ def global_mean_timeseries_lnd(adfobj):
         if skip_var:
             continue
 
+        lens2_data = Lens2Data(
+                field
+            )  # Provides access to LENS2 dataset when available (class defined below)
+
+        ## SPECIAL SECTION -- CESM2 LENS DATA:
         # Plot the timeseries
         fig, ax = make_plot(
             case_ts, lens2_data, label=adfobj.data.ref_nickname, ref_ts_da=ref_ts_da
@@ -193,6 +158,56 @@ def global_mean_timeseries_lnd(adfobj):
 
     #Notify user that script has ended:
     print("  ... global mean time series plots have been generated successfully.")
+
+def _extract_and_scale_vars(adfobj, field, vres):
+    """
+    Extract variables, get defaults, and scale for plotting
+    """
+    # Extract variables:
+    # including a simpler way to get a dataset timeseries
+    baseline_name     = adfobj.get_baseline_info("cam_case_name", required=True)
+    input_ts_baseline = Path(adfobj.get_baseline_info("cam_ts_loc", required=True))
+    # TODO hard wired for single case name:
+    case_name = adfobj.get_cam_info("cam_case_name", required=True)[0]
+    input_ts_case = Path(adfobj.get_cam_info("cam_ts_loc", required=True)[0])
+
+    #Create list of time series files present for variable:
+    baseline_ts_filenames = f'{baseline_name}.*.{field}.*nc'
+    baseline_ts_files = sorted(input_ts_baseline.glob(baseline_ts_filenames))
+    case_ts_filenames = f'{case_name}.*.{field}.*nc'
+    case_ts_files = sorted(input_ts_case.glob(case_ts_filenames))
+
+    ref_ts_ds = pf.load_dataset(baseline_ts_files)
+    weights = ref_ts_ds.landfrac * ref_ts_ds.area
+    ref_ts_da= ref_ts_ds[field]
+
+    c_ts_ds = pf.load_dataset(case_ts_files)
+    c_weights = c_ts_ds.landfrac * c_ts_ds.area
+    c_ts_da= c_ts_ds[field]
+
+    #Extract category (if available):
+    web_category = vres.get("category", None)
+
+    # get variable defaults  
+    scale_factor = vres.get('scale_factor', 1)
+    scale_factor_table = vres.get('scale_factor_table', 1)
+    add_offset = vres.get('add_offset', 0)
+    avg_method = vres.get('avg_method', 'mean')
+    if avg_method == 'mean':
+        weights = weights/weights.sum()
+        c_weights = c_weights/c_weights.sum()
+    # get units for variable 
+    ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))
+    ref_ts_da.attrs['units'] = vres.get("table_unit", ref_ts_da.attrs.get('units', 'none'))
+    units = ref_ts_da.attrs['units']
+
+    # scale for plotting, if needed
+    ref_ts_da = ref_ts_da * scale_factor * scale_factor_table
+    ref_ts_da.attrs['units'] = units
+    c_ts_da = c_ts_da * scale_factor * scale_factor_table
+    c_ts_da.attrs['units'] = units
+
+    return weights,ref_ts_da,c_weights,c_ts_da,units
 
 
 # Helper/plotting functions
