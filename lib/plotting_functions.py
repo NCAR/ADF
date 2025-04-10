@@ -2326,7 +2326,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
 def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, log_p, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, obs=False, **kwargs):
 
     """This is the default zonal mean plot
 
@@ -2512,7 +2512,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
 def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, log_p, latbounds=None, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, latbounds=None, obs=False, **kwargs):
 
     """Default meridional mean plot
 
