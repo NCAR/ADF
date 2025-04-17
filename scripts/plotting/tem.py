@@ -89,9 +89,6 @@ def tem(adf):
     tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
     tem_base_loc = adf.get_baseline_info("cam_tem_loc")
 
-    print("tem_case_locs",tem_case_locs)
-    print("tem_base_loc",tem_base_loc)
-
     #If path not specified, skip TEM calculation?
     if tem_case_locs is None:
         print("\t 'cam_tem_loc' not found for test case(s) in config file, so no TEM plots will be generated.")
