@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'USER-NAME-NOT-SET'
+user: 'mdfowler'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -274,23 +274,79 @@ analysis_scripts:
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-    - global_latlon_map
-    - global_mean_timeseries_lnd
-    - polar_map
+    # - global_latlon_map
+    # - global_mean_timeseries_lnd
+    # - polar_map
+    - regional_climatology
 
 #List of variables that will be processesd:
 #Shorter list here, for efficiency of testing
 diag_var_list:
-    #- TSA
+    - TSA
     - PREC
     - ELAI
     - GPP
     #- NPP
     #- FSDS
     #- ALTMAX
+    - ALBD
     - ET
-    #- TOTRUNOFF
-    - DSTFLXT
-    - MEG_isoprene 
+    - RAIN
+    - SNOW
+    - TOTRUNOFF
+    - QOVER
+    - QDRAI
+    - QRGWL
+    - QSNOFRZ
+    - QSNOMELT
+    - QSNWCPICE
+    # - DSTFLXT
+    # - MEG_isoprene 
+
+region_list:
+    - Alaskan Arctic
+    - Canadian Arctic
+    - Greenland
+    - Russian Arctic
+    - Antarctica
+    - Alaska
+    - Northwest Canada
+    - Central Canada
+    - Eastern Canada
+    - Northern Europe
+    - Western Siberia
+    - Eastern Siberia
+    - Western U.S.
+    - Central U.S.
+    - Eastern U.S.
+    - Europe
+    - Mediterranean
+    - Central America
+    - Amazonia
+    - Central Africa
+    - Indonesia
+    - Brazil
+    - Sahel
+    - Southern Africa
+    - India
+    - Indochina
+    - Sahara Desert
+    - Arabian Peninsula
+    - Australia
+    # - Central Asia ## Broken... probably because there are two? 
+    - Mongolia
+    - Tibetan Plateau
+    # - Central Asia
+    # - NE China  # But why did this one break? 
+    # - Eastern China
+    # - Southern Asia
+    # - Sahara and Arabia
+    # - MedSea and MidEast
+    # - Tigris Euphrates
+    # - Polar
+    # - Lost Boreal Forest
+    
+
+
 
 #END OF FILE

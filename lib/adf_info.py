@@ -78,6 +78,8 @@ class AdfInfo(AdfConfig):
         #Add CAM climatology info to object:
         self.__cam_climo_info = self.read_config_var('diag_cam_climo', required=True)
 
+        
+
         #Expand CAM climo info variable strings:
         self.expand_references(self.__cam_climo_info)
 
@@ -133,6 +135,9 @@ class AdfInfo(AdfConfig):
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
+
+        #Initialize ADF variable list:
+        self.__region_list = self.read_config_var('region_list', required=True)
 
         #Case names:
         case_names = self.get_cam_info('cam_case_name', required=True)
@@ -779,6 +784,14 @@ class AdfInfo(AdfConfig):
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__diag_var_list)
+    
+    # Create property needed to return "region_list" list to user:
+    @property
+    def region_list(self):
+        """Return a copy of the "region_list" list to the user if requested."""
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable, as it is mutable and thus passed by reference:
+        return copy.copy(self.__region_list)
 
     # Create property needed to return "basic_info" expanded dictionary to user:
     @property
