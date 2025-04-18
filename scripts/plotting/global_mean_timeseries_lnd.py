@@ -58,7 +58,7 @@ def global_mean_timeseries_lnd(adfobj):
 
         if model_component == "lnd":
             # Extract variables, get defaults, and scale for plotting
-            weights, ref_ts_da, c_weights, c_ts_da, units = _extract_and_scale_vars(adfobj, field, vres)
+            weights, ref_ts_da, c_weights, c_ts_da, units, avg_method = _extract_and_scale_vars(adfobj, field, vres)
         else:
             # reference time series (DataArray)
             ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
@@ -85,9 +85,9 @@ def global_mean_timeseries_lnd(adfobj):
             validate_dims = False
             # reference time series global average
             # TODO, make this more general for land?
-            ref_ts_da_ga = pf.spatial_average_or_sum(ref_ts_da, weights=weights, model_component=adfobj.model_component, method="sum")
+            ref_ts_da_ga = pf.spatial_average_or_sum(ref_ts_da, weights=weights, model_component=adfobj.model_component, method=avg_method)
             if model_component == "lnd":
-                c_ts_da_ga = pf.spatial_average_or_sum(c_ts_da, weights=c_weights, model_component=adfobj.model_component, method="sum")
+                c_ts_da_ga = pf.spatial_average_or_sum(c_ts_da, weights=c_weights, model_component=adfobj.model_component, method=avg_method)
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
@@ -122,7 +122,7 @@ def global_mean_timeseries_lnd(adfobj):
             # End if
 
             # reference time series global average
-            ref_ts_da_ga = pf.spatial_average_or_sum(ref_ts_da, weights=None, spatial_dims=None, model_component=adfobj.model_component)
+            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None, model_component=adfobj.model_component)
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
@@ -185,7 +185,7 @@ def global_mean_timeseries_lnd(adfobj):
 
             # Gather spatial avg for test case
             if model_component != "lnd":
-                c_ts_da_ga = pf.spatial_average_or_sum(c_ts_da, model_component=model_component)
+                c_ts_da_ga = pf.spatial_average(c_ts_da, model_component=model_component)
                 case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga)
             else:
                 case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
@@ -267,7 +267,7 @@ def _extract_and_scale_vars(adfobj, field, vres):
     c_ts_da = c_ts_da * scale_factor * scale_factor_table
     c_ts_da.attrs['units'] = units
 
-    return weights,ref_ts_da,c_weights,c_ts_da,units
+    return weights,ref_ts_da,c_weights,c_ts_da,units,avg_method
 
 
 # Helper/plotting functions

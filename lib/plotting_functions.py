@@ -16,7 +16,11 @@ get_central_longitude(*args)
 global_average(fld, wgt, verbose=False)
     pure numpy global average.
 spatial_average_or_sum(indata, weights=None, spatial_dims=None, model_component=None, method="mean")
+    Compute spatial average or sum, depending on method
+spatial_average(indata, weights=None, spatial_dims=None, model_component=None)
     Compute spatial average
+spatial_sum(indata, weights=None, spatial_dims=None, model_component=None)
+    Compute spatial sum
 wgt_rmse(fld1, fld2, wgt):
     Calculate the area-weighted RMSE.
 annual_mean(data, whole_years=False, time_name='time'):
@@ -370,9 +374,22 @@ def global_average(fld, wgt, verbose=False):
 
     return np.ma.average(avg1)
 
+def spatial_average(*args, **kwargs):
+    """
+    Wrapper function for spatial_average_or_sum(..., method='mean')
+    """
+    return spatial_average_or_sum(*args, **kwargs, method="mean")
+
+def spatial_sum(*args, **kwargs):
+    """
+    Wrapper function for spatial_average_or_sum(..., method='sum')
+    """
+    return spatial_average_or_sum(*args, **kwargs, method="sum")
 
 # TODO, should there be some unit conversions for this defined in a variable dictionary?
-def spatial_average_or_sum(indata, weights=None, spatial_dims=None, model_component=None, method="mean"):
+def spatial_average_or_sum(
+    indata, weights=None, spatial_dims=None, model_component=None, method="mean"
+):
     """Compute spatial average.
 
     Parameters
@@ -1300,7 +1317,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
         # get statistics (from non-wrapped)
         fields = (mdlfld, obsfld, pctld, diffld)
-        area_avg = [spatial_average_or_sum(x, weights=wgt, spatial_dims=None) for x in fields]
+        area_avg = [spatial_average(x, weights=wgt, spatial_dims=None) for x in fields]
 
         d_rmse = wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
         # specify the central longitude for the plot
