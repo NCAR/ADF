@@ -137,7 +137,7 @@ def tem(adf):
 
     #Check to see if baseline/obs TEM file exists    
     if tem_base.is_file():
-        ds_base = xr.open_dataset(tem_base, decode_times=False)
+        ds_base = xr.open_dataset(tem_base)
     else:
         print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
         return
@@ -165,7 +165,7 @@ def tem(adf):
 
             #Grab the data for the TEM netCDF files
             if tem_case.is_file():
-                ds = xr.open_dataset(tem_case, decode_times=False)
+                ds = xr.open_dataset(tem_case)
             else:
                 print(f"\t'{tem_case}' does not exist. TEM plots will be skipped.")
                 return
