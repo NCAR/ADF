@@ -137,7 +137,7 @@ def tem(adf):
 
     #Check to see if baseline/obs TEM file exists
     if tem_base.is_file():
-        ds_base = xr.open_dataset(tem_base, decode_times=True)
+        ds_base = xr.open_dataset(tem_base, decode_times=False)
     else:
         print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
         return
@@ -181,6 +181,17 @@ def tem(adf):
             else:
                 print(f"\t'{tem_case}' does not exist. TEM plots will be skipped.")
                 return
+            if 'time_bnds' in ds:
+                t = ds['time_bnds'].mean(dim='nbnd')
+                t.attrs = ds['time'].attrs
+                ds = ds.assign_coords({'time':t})
+            elif 'time_bounds' in ds:
+                t = ds['time_bounds'].mean(dim='nbnd')
+                t.attrs = ds['time'].attrs
+                ds = ds.assign_coords({'time':t})
+            else:
+                warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")
+            ds = xr.decode_cf(ds)
 
             #Loop over season dictionary:
             for s in seasons:
