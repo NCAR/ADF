@@ -142,7 +142,7 @@ def tem(adf):
         print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
         return
 
-    if 'time_bnds' in ds_base:
+    """if 'time_bnds' in ds_base:
         t = ds_base['time_bnds'].mean(dim='nbnd')
         t.attrs = ds_base['time'].attrs
         ds_base = ds_base.assign_coords({'time':t})
@@ -151,7 +151,7 @@ def tem(adf):
         t.attrs = ds_base['time'].attrs
         ds_base = ds_base.assign_coords({'time':t})
     else:
-        warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")
+        warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")"""
     ds_base = xr.decode_cf(ds_base)
 
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
