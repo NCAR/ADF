@@ -15,7 +15,7 @@ get_central_longitude(*args)
     Determine central longitude for maps.
 global_average(fld, wgt, verbose=False)
     pure numpy global average.
-spatial_average(indata, model_component, weights=None, spatial_dims=None)
+spatial_average_or_sum(indata, weights=None, spatial_dims=None, model_component=None, method="mean")
     Compute spatial average
 wgt_rmse(fld1, fld2, wgt):
     Calculate the area-weighted RMSE.
@@ -372,7 +372,7 @@ def global_average(fld, wgt, verbose=False):
 
 
 # TODO, should there be some unit conversions for this defined in a variable dictionary?
-def spatial_average(indata, model_component, weights=None, spatial_dims=None):
+def spatial_average_or_sum(indata, weights=None, spatial_dims=None, model_component=None, method="mean"):
     """Compute spatial average.
 
     Parameters
@@ -385,6 +385,8 @@ def spatial_average(indata, model_component, weights=None, spatial_dims=None):
         the weights to apply, see Notes for default behavior
     spatial_dims : list, optional
         list of dimensions to average, see Notes for default behavior
+    method : str, optional
+        "mean" (default) for weighted mean, "sum" for weighted sum
 
     Returns
     -------
@@ -393,20 +395,26 @@ def spatial_average(indata, model_component, weights=None, spatial_dims=None):
 
     Notes
     -----
-    When `weights` is not provided, tries to find sensible values.
+    When `weights` is not provided, tries to find sensible values if `method=="mean"`, else errors.
     If there is a 'lat' dimension, use `cos(lat)`.
     If there is a 'ncol' dimension, looks for `area` in `indata`.
     Otherwise, set to equal weights.
 
     Makes an attempt to identify the spatial variables when `spatial_dims` is None.
-    Will average over `ncol` if present, and then will check for `lat` and `lon`.
+    Will operate over `ncol` if present, and then will check for `lat` and `lon`.
     When none of those three are found, raise an AdfError.
     """
     import warnings
 
-    if weights is None:
-        if model_component == "lnd":
-            raise RuntimeError("For model_component lnd, you must provide weights argument in spatial_average")
+    # Convert synonym
+    if method == "average":
+        method = "mean"
+
+    if weights is None and method == "mean":
+        if method != "mean":
+            raise NotImplementedError(
+                f"Decide whether/how to set default weights for method '{method}'"
+            )
 
         #Calculate spatial weights:
         if 'lat' in indata.coords:
@@ -444,10 +452,12 @@ def spatial_average(indata, model_component, weights=None, spatial_dims=None):
         #to be removed via the application of the mean. So in order to avoid
         #possibly unexpected behavior due to arrays being incorrectly dimensioned
         #(which could be difficult to debug) the ADF should die here:
-        emsg = "spatial_average: No spatial dimensions were identified,"
+        emsg = "spatial_average_or_sum: No spatial dimensions were identified,"
         emsg += " so can not perform average."
         raise AdfError(emsg)
 
+    if method == "sum":
+        return weighted.sum(dim=spatial_dims, keep_attrs=True)
     return weighted.mean(dim=spatial_dims, keep_attrs=True)
 
 
@@ -668,11 +678,11 @@ def domain_stats(data, domain, unstructured=False):
     Notes
     -----
     Currently assumes 'lat' is a dimension and uses `cos(lat)` as weight.
-    Should use `spatial_average`
+    Should use `spatial_average_or_sum`
 
     See Also
     --------
-    spatial_average
+    spatial_average_or_sum
 
     """
     if not unstructured:
@@ -1290,7 +1300,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
         # get statistics (from non-wrapped)
         fields = (mdlfld, obsfld, pctld, diffld)
-        area_avg = [spatial_average(x, model_component, weights=wgt, spatial_dims=None) for x in fields]
+        area_avg = [spatial_average_or_sum(x, weights=wgt, spatial_dims=None) for x in fields]
 
         d_rmse = wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
         # specify the central longitude for the plot

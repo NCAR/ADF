@@ -85,9 +85,9 @@ def global_mean_timeseries_lnd(adfobj):
             validate_dims = False
             # reference time series global average
             # TODO, make this more general for land?
-            ref_ts_da_ga = pf.spatial_average(ref_ts_da, adfobj.model_component, weights=weights)
+            ref_ts_da_ga = pf.spatial_average_or_sum(ref_ts_da, weights=weights, model_component=adfobj.model_component, method="sum")
             if model_component == "lnd":
-                c_ts_da_ga = pf.spatial_average(c_ts_da, adfobj.model_component, weights=c_weights)
+                c_ts_da_ga = pf.spatial_average_or_sum(c_ts_da, weights=c_weights, model_component=adfobj.model_component, method="sum")
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
@@ -122,7 +122,7 @@ def global_mean_timeseries_lnd(adfobj):
             # End if
 
             # reference time series global average
-            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+            ref_ts_da_ga = pf.spatial_average_or_sum(ref_ts_da, weights=None, spatial_dims=None, model_component=adfobj.model_component)
 
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
@@ -185,7 +185,7 @@ def global_mean_timeseries_lnd(adfobj):
 
             # Gather spatial avg for test case
             if model_component != "lnd":
-                c_ts_da_ga = pf.spatial_average(c_ts_da, model_component)
+                c_ts_da_ga = pf.spatial_average_or_sum(c_ts_da, model_component=model_component)
                 case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga)
             else:
                 case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
@@ -256,9 +256,6 @@ def _extract_and_scale_vars(adfobj, field, vres):
     scale_factor_table = vres.get('scale_factor_table', 1)
     add_offset = vres.get('add_offset', 0)
     avg_method = vres.get('avg_method', 'mean')
-    if avg_method == 'mean':
-        weights = weights/weights.sum()
-        c_weights = c_weights/c_weights.sum()
     # get units for variable 
     ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))
     ref_ts_da.attrs['units'] = vres.get("table_unit", ref_ts_da.attrs.get('units', 'none'))
