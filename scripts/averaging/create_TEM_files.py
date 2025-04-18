@@ -35,8 +35,10 @@ def create_TEM_files(adf):
     if "qbo" in adf.plotting_scripts:
         var_list = ['uzm','thzm','epfy','epfz','vtem','wtem',
                     'psitem','utendepfd','utendvtem','utendwtem']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM",
+                    "PSITEM","UTENDEPFD","UTENDVTEM","UTENDWTEM"]
     else:
-        var_list = ['uzm','thzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
 
     tem_locs = []
     
@@ -62,9 +64,9 @@ def create_TEM_files(adf):
         #End for
 
     #Set default to h4
-    hist_nums = adf.get_cam_info("tem_hist_str")
+    hist_nums = adf.get_cam_info("tem_hist_str")[0]
     if hist_nums is None:
-        hist_nums = ["h4"]*len(case_names)
+        hist_nums = ["h4a"]*len(case_names)
 
     #Get test case(s) tem over-write boolean and force to list if not by default
     overwrite_tem_cases = adf.get_cam_info("overwrite_tem")
@@ -154,7 +156,7 @@ def create_TEM_files(adf):
             #Set default to h4
             hist_num = adf.get_baseline_info("tem_hist_str")
             if hist_num is None:
-                hist_num = "h4"
+                hist_num = "h4a"
 
             #Extract baseline years (which may be empty strings if using Obs):
             syear_baseline = adf.climo_yrs["syear_baseline"]
@@ -200,8 +202,9 @@ def create_TEM_files(adf):
         #End if
 
         #Check if history files actually exist. If not then kill script:
-        hist_str = f"*{hist_nums[case_idx]}"
-        if not list(starting_location.glob(hist_str+'.*.nc')):
+        
+        hist_str = f"{hist_nums[case_idx]}"
+        if not list(starting_location.glob("*"+hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
             emsg += " Script is ending here."
             adf.end_diag_fail(emsg)
