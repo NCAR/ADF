@@ -114,11 +114,10 @@ def tem(adf):
 
     #Suggestion from Rolando, if QBO is being produced, add utendvtem and utendwtem?
     if "qbo" in adf.plotting_scripts:
-        var_list = ['uzm','thzm','epfy','epfz','vtem','wtem',
-                    'psitem','utendepfd','utendvtem','utendwtem']
-    #Otherwise keep it simple
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM",
+                    "PSITEM","UTENDEPFD","UTENDVTEM","UTENDWTEM"]
     else:
-        var_list = ['uzm','thzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
 
     #Baseline TEM location
     input_loc_idx = Path(tem_base_loc)
