@@ -135,12 +135,24 @@ def tem(adf):
     #Set full path for baseline/obs file
     tem_base = input_loc_idx / base_file_name
 
-    #Check to see if baseline/obs TEM file exists    
+    #Check to see if baseline/obs TEM file exists
     if tem_base.is_file():
-        ds_base = xr.open_dataset(tem_base)
+        ds_base = xr.open_dataset(tem_base, decode_times=True)
     else:
         print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
         return
+
+    if 'time_bnds' in ds_base:
+        t = ds_base['time_bnds'].mean(dim='nbnd')
+        t.attrs = ds_base['time'].attrs
+        ds_base = ds_base.assign_coords({'time':t})
+    elif 'time_bounds' in ds_base:
+        t = ds_base['time_bounds'].mean(dim='nbnd')
+        t.attrs = ds_base['time'].attrs
+        ds_base = ds_base.assign_coords({'time':t})
+    else:
+        warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")
+    ds_base = xr.decode_cf(ds_base)
 
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
 
