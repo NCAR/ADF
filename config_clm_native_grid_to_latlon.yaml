@@ -168,6 +168,16 @@ diag_cam_climo:
     #       end at latest available year.
     end_year: 40
 
+    #model year when climatology should start:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    #climo_start_year: 35
+
+    #model year when climatology should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    #climo_end_year: 40
+
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
     #If False, or if simply not present, then diagnostics will attempt to create
@@ -240,6 +250,16 @@ diag_cam_baseline_climo:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
     end_year: 40
+
+    #model year when climatology should start:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    #climo_start_year: 35
+
+    #model year when time series files should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    #climo_end_year: 40
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
