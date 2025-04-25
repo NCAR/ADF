@@ -2327,7 +2327,7 @@ lat_vs_month:
     nlat: 45
     levels: [190,221,2]
     #diff_levels: [-5,5.1,0.5]
-    cmap: 'RdBu_r'
+    #cmap: 'RdBu_r'
     title: "Cold Point Tropopause (CPT) Temps"
     tick_inter: 15
     units: "K"
@@ -2348,7 +2348,6 @@ lat_vs_month:
     tick_inter: 30
     units: "ppmv"
     plot_vert_levs: [90,100]
-    cmap: 'RdYlBu_r'
     diff_cmap: "bwr"
 
 # Comparison plots for SABER/MERRA2/SWOOSH
