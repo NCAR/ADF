@@ -2300,7 +2300,7 @@ aod_diags:
 # WACCM seasonal cycle plots
 #---------------------------
 waccm_seasonal_cycle:
-  calc_var_list: ['U','T','V','UU','VU','VT','OMEGAU','OMEGA','O3','Q','UTEND_VDIFF']
+  #calc_var_list: ['U','T','V','UU','VU','VT','OMEGAU','OMEGA','O3','Q','UTEND_VDIFF']
   calc_var_list: ['U','T','Q']
 
   merra2_vars: ['U','T','V','lat','lev']
