@@ -481,9 +481,7 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
     else:
         print(f"\t  ...Making zonal mean average file from history files for {case_name}")
         h0_lists = []
-        print("hist_loc",hist_loc,"\n","hist_str",hist_str,"\n")
-        #if case_name == "f.e30_beta02.FMTHIST.ne30.104.T4Sforcings":
-        #    hist_str = "cam.h2a"
+
         for yr in np.arange(int(syr),int(eyr)+1):
             #h0_lists.append(sorted(glob.glob(f'{hist_loc}*cam.h0.{yr}-*')))
             h0_lists.append(sorted(glob.glob(f'{hist_loc}/*{hist_str}.{yr}-*.nc')))
@@ -642,7 +640,6 @@ def time_mean(ncfile, data, time_avg, interval, is_climo=None, obs=False):
     try:
         month_length = data.time.dt.days_in_month
     except (AttributeError, TypeError):
-        print("Nah, nope workingn nope")
         # do our best to determine the temporal dimension and assign weights
         if not is_climo:
             raise ValueError("Non-climo file provided, but without a decoded time dimension.")
@@ -1100,9 +1097,6 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
                                )
 
             space = abs(diff_levs[-2]-diff_levs[-1])
-            print("space",space)
-            print("first",diff_levs[1])
-            print("last",diff_levs[-2]+space)
             cbar = fig.colorbar(cf, cax=axins, orientation="vertical", label='K', ticks=np.arange(diff_levs[1],diff_levs[-2]+space,3))
             cbar.ax.tick_params(axis='y', labelsize=8)
             # Set the font size for the colorbar label
@@ -1484,10 +1478,8 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
         contour_levels = np.arange(-35, 35, 2.5)
 
         plotdata = pf.coslat_average(case_data['U'],-10,10)
-        print("plotdata.shape",plotdata.shape)
         plotdata_clip = np.clip(np.abs(plotdata), None, 35)
         plotdata=np.sign(plotdata)*plotdata_clip
-        print("CLIPPED plotdata.shape",plotdata.shape)
 
         #TODO: this will need to be adjusted??
         #Curently this is finding (start_idx)th month and then going out 9 years
