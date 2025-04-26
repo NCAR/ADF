@@ -84,9 +84,13 @@ def create_climo_files(adf, clobber=False, search=None):
     start_year = adf.climo_yrs["syears"]
     end_year   = adf.climo_yrs["eyears"]
     if climo_start_year:
-        start_year = climo_start_year
+        if climo_start_year > end_year:
+            raise ValueError('Sorry, climo_start_year must be earlier than ts end year.')
+        start_year = max(climo_start_year, start_year)
     if climo_end_year:
-        end_year = climo_end_year
+        if climo_end_year < start_year:
+            raise ValueError('Sorry, climo_end_year must be later than ts start year.')
+        end_year = min(climo_end_year, end_year)
 
     comp = adf.model_component
     print("\ncomp",comp,"\n")
@@ -114,9 +118,13 @@ def create_climo_files(adf, clobber=False, search=None):
         bl_syr = adf.climo_yrs["syear_baseline"]
         bl_eyr = adf.climo_yrs["eyear_baseline"]
         if climo_baseline_start_year:
-            bl_syr = climo_baseline_start_year
+            if climo_baseline_start_year > bl_eyr:
+                raise ValueError('Sorry, climo_end_year must be later than ts start year.')
+            bl_syr = max(climo_baseline_start_year, bl_syr)
         if climo_baseline_end_year:
-            bl_eyr = climo_baseline_end_year
+            if climo_baseline_end_year < bl_syr:
+                raise ValueError('Sorry, climo_end_year must be later than ts start year.')
+            bl_eyr = min(climo_baseline_end_year, bl_eyr)
 
         #Append to case lists:
         case_names.append(baseline_name)
