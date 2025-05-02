@@ -60,8 +60,9 @@
 #+++++++++++++
 # Available Land Default Plot Types
 #+++++++++++++
+
 default_ptypes: ["Tables","LatLon","TimeSeries",
-                  "Arctic","RegionalClimo","RegionalTimeSeries","Special"]
+  "Arctic","RegionalClimo","RegionalTimeSeries","Special"]
 
 #+++++++++++++
 # Constants
@@ -213,14 +214,18 @@ MEG_isoprene:
 #+++++++++++
 FSNO: # fraction of ground covered by snow    
   category: "Hydrology"
+  diff_contour_range: [-50,50,10]
 
 
 H2OSNO: # SNOWICE + SNOWLIQ
   category: "Hydrology"
+  diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
 
 
 SNOWDP: # snow height
   category: "Hydrology"
+  contour_levels: [-15.,-10.,-5.,-1.,-0.5,-0.1,0.,0.1,0.5,1.,5.,10.,15.]
+  diff_contour_levels: [-10.,-5.,-1.,-0.5,-0.1,0.,0.1,0.5,1.,5.,10.]
 
 
 TOTRUNOFF: # total liquid runoff
@@ -230,6 +235,8 @@ TOTRUNOFF: # total liquid runoff
   scale_factor: 86400
   add_offset: 0
   new_unit: "mm d$^{-1}$"
+  contour_levels: [-0.1,0.,0.1,0.2,0.3,1.,2.,3.,]
+  diff_contour_range: [-1.,1.,0.1]
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -325,6 +332,27 @@ TOTSOMC_1m:
 
 TOTVEGC:
   category: "Carbon"
+
+
+#+++++++++++
+# Category: CROP
+#+++++++++++
+GRAINC_TO_FOOD: 
+  category: "Crop"
+  #contour_levels_range: [0., 3., 0.25]
+  diff_colormap: "PiYG"
+  #diff_contour_range: [-1.5, 1.5, 0.25]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  #pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
 
 
 #+++++++++++
