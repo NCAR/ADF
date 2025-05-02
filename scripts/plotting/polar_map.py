@@ -331,17 +331,18 @@ def polar_map(adfobj):
                                         #End if
                                     if comp == "lnd":
                                         hemi = hemi_type
+                                    # Exclude certain plots, this may get difficult
+                                    if var != 'GRAINC_TO_FOOD':
+                                        pf.make_polar_plot(plot_name, case_nickname, base_nickname,
+                                                           [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                           [syear_baseline,eyear_baseline],
+                                                           mseasons[s], oseasons[s], dseasons[s], pseasons[s],
+                                                           hemisphere=hemi, obs=obs, unstructured=unstructured,
+                                                           **vres)
 
-                                    pf.make_polar_plot(plot_name, case_nickname, base_nickname,
-                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                     [syear_baseline,eyear_baseline],
-                                                     mseasons[s], oseasons[s], dseasons[s], pseasons[s],
-                                                     hemisphere=hemi, obs=obs, unstructured=unstructured,
-                                                     **vres)
-
-                                    #Add plot to website (if enabled):
-                                    adfobj.add_website_data(plot_name, var, case_name, category=web_category,
-                                                            season=s, plot_type=hemi_type)
+                                        #Add plot to website (if enabled):
+                                        adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                                                season=s, plot_type=hemi_type)
 
                     else: #mdata dimensions check
                         print(f"\t    WARNING: skipping polar map for {var} as it doesn't have only lat/lon dims.")
