@@ -6,6 +6,8 @@ from datetime import date
 from pathlib import Path
 from glob import glob
 from itertools import chain
+#import metpy.calc.thermo as thermo
+#from metpy.units import units
 
 
 def create_TEM_files(adf):
@@ -25,6 +27,7 @@ def create_TEM_files(adf):
 
     #Grab h4 history files locations
     cam_hist_locs = adf.get_cam_info("cam_hist_loc", required=True)
+    cam_hist_strs = adf.hist_string["test_hist_str"]
 
     #Extract test case years
     start_years   = adf.climo_yrs["syears"]
@@ -33,10 +36,10 @@ def create_TEM_files(adf):
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
 
     if "qbo" in adf.plotting_scripts:
-        var_list = ['uzm','epfy','epfz','vtem','wtem',
-                    'psitem','utendepfd','utendvtem','utendwtem']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM",
+                    "PSITEM","UTENDEPFD","UTENDVTEM","UTENDWTEM"]
     else:
-        var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
 
     tem_locs = []
     
@@ -62,9 +65,9 @@ def create_TEM_files(adf):
         #End for
 
     #Set default to h4
-    hist_nums = adf.get_cam_info("tem_hist_str")
+    hist_nums = adf.get_cam_info("tem_hist_str")[0]
     if hist_nums is None:
-        hist_nums = ["h4"]*len(case_names)
+        hist_nums = ["h4a"]*len(case_names)
 
     #Get test case(s) tem over-write boolean and force to list if not by default
     overwrite_tem_cases = adf.get_cam_info("overwrite_tem")
@@ -113,13 +116,13 @@ def create_TEM_files(adf):
                 if not obs_file_path.is_file():
                     obs_data_loc = adf.get_basic_info("obs_data_loc")
                     obs_file_path = Path(obs_data_loc)/obs_file_path
-
                 #It's likely multiple TEM vars will come from one file, so check
                 #to see if it already exists from other vars.
                 if obs_file_path not in tem_obs_fils:
                     tem_obs_fils.append(obs_file_path)
 
-        ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
+        #ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
+        ds = xr.open_mfdataset(tem_obs_fils,decode_times=True, combine='by_coords')
         start_year = str(ds.time[0].values)[0:4]
         end_year = str(ds.time[-1].values)[0:4]
 
@@ -150,11 +153,12 @@ def create_TEM_files(adf):
     else:
         if tem_base_loc:
             cam_hist_locs.append(adf.get_baseline_info("cam_hist_loc", required=True))
+            cam_hist_strs.append(adf.hist_string["base_hist_str"])
 
             #Set default to h4
             hist_num = adf.get_baseline_info("tem_hist_str")
             if hist_num is None:
-                hist_num = "h4"
+                hist_num = "h4a"
 
             #Extract baseline years (which may be empty strings if using Obs):
             syear_baseline = adf.climo_yrs["syear_baseline"]
@@ -200,12 +204,15 @@ def create_TEM_files(adf):
         #End if
 
         #Check if history files actually exist. If not then kill script:
-        hist_str = f"*{hist_nums[case_idx]}"
-        if not list(starting_location.glob(hist_str+'.*.nc')):
+        
+        hist_str = f"{hist_nums[case_idx]}"
+        if not list(starting_location.glob("*"+hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
             emsg += " Script is ending here."
             adf.end_diag_fail(emsg)
         #End if
+
+        hist0_str = cam_hist_strs[case_idx]
 
         #Get full path and file for file name
         output_loc_idx = tem_locs[case_idx]
@@ -233,16 +240,39 @@ def create_TEM_files(adf):
             #Glob each set of years
             #NOTE: This will make a nested list
             hist_files = []
+            hist0_files = []
             for yr in np.arange(int(start_year),int(end_year)+1):
-
                 #Grab all leading zeros for climo year just in case
                 yr = f"{str(yr).zfill(4)}"
-                hist_files.append(glob(f"{starting_location}/{hist_str}.{yr}*.nc"))
+                hist_files.append(glob(f"{starting_location}/*{hist_str}.{yr}*.nc"))
+                hist0_files.append(glob(f"{starting_location}/*{hist0_str[0]}.{yr}*.nc"))
 
             #Flatten list of lists to 1d list
             hist_files = sorted(list(chain.from_iterable(hist_files)))
+            ds = xr.open_mfdataset(hist_files,decode_times=True, combine='by_coords')
+            
+            hist0_files = sorted(list(chain.from_iterable(hist0_files)))
+            ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='by_coords')
+            ds_h0 = ds_h0.rename({'lat': 'zalat'})
 
-            ds = xr.open_mfdataset(hist_files)
+            #Average time dimension over time bounds, if bounds exist:
+            if 'time_bnds' in ds_h0:
+                time_bounds_name = 'time_bnds'
+            elif 'time_bounds' in ds_h0:
+                time_bounds_name = 'time_bounds'
+            else:
+                time_bounds_name = None
+
+            if time_bounds_name:
+                time = ds_h0['time']
+                #NOTE: force `load` here b/c if dask & time is cftime,
+                #throws a NotImplementedError:
+
+                time = xr.DataArray(ds_h0[time_bounds_name].load().mean(dim='nbnd').values,
+                                    dims=time.dims, attrs=time.attrs)
+                ds_h0['time'] = time
+                ds_h0.assign_coords(time=time)
+                ds_h0 = xr.decode_cf(ds_h0)
 
             #iterate over the times in a dataset
             for idx,_ in enumerate(ds.time.values):
@@ -254,12 +284,41 @@ def create_TEM_files(adf):
                 #End if
             #End if
 
+            #Average time dimension over time bounds, if bounds exist:
+            if 'time_bnds' in ds:
+                time_bounds_name = 'time_bnds'
+            elif 'time_bounds' in ds:
+                time_bounds_name = 'time_bounds'
+            else:
+                time_bounds_name = None
+
+            if time_bounds_name:
+                time = ds['time']
+                #NOTE: force `load` here b/c if dask & time is cftime,
+                #throws a NotImplementedError:
+
+                time = xr.DataArray(ds[time_bounds_name].load().mean(dim='nbnd').values,
+                                    dims=time.dims, attrs=time.attrs)
+                dstem0['time'] = time
+                dstem0.assign_coords(time=time)
+                dstem0 = xr.decode_cf(dstem0)
+
+            # Step 1: Your standard latitudes
+            za_lats = dstem0.zalat.values
+
+            # Step 2: Interpolate ds2 to standard latitudes
+            ds_h0_lats = ds_h0.interp(zalat=za_lats)
+
+            zonal_mean_PS = ds_h0_lats['PS'].mean(dim='lon').compute()
+            zonal_mean_PMID = ds_h0_lats['PMID'].mean(dim='lon').compute()
+
             #Update the attributes
             dstem0.attrs = ds.attrs
             dstem0.attrs['created'] = str(date.today())
             dstem0['lev']=ds['lev']
+            dstem0['PS'] = zonal_mean_PS
+            dstem0['PMID'] = zonal_mean_PMID
 
-            # write output to a netcdf file
             dstem0.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
 
         #End if (file creation or over-write file)
@@ -423,6 +482,12 @@ def calc_tem(ds):
     vzm.attrs['long_name'] = 'Zonal-Mean meridional wind'
     vzm.attrs['units'] = 'm/s'
 
+    thzm.attrs['long_name'] = 'Zonal-Mean potential temperature'
+    thzm.attrs['units'] = 'K'
+
+    #tzm.attrs['long_name'] = 'Zonal-Mean temperature'
+    #tzm.attrs['units'] = 'K'
+
     epfy.attrs['long_name'] = 'northward component of E-P flux'
     epfy.attrs['units'] = 'm3/s2'
 
@@ -455,19 +520,28 @@ def calc_tem(ds):
     utendvtem.values = np.float32(utendvtem.values)
     utendwtem.values = np.float32(utendwtem.values)
 
+    #Average time dimension over time bounds, if bounds exist:
+    if 'time_bnds' in ds:
+        time_bounds_name = 'time_bnds'
+    elif 'time_bounds' in ds:
+        time_bounds_name = 'time_bounds'
+
     dstem = xr.Dataset(data_vars=dict(date = ds.date,
                                       datesec = ds.datesec,
-                                      time_bnds = ds.time_bnds,
-                                      uzm = uzm,
-                                      vzm = vzm,
-                                      epfy = epfy,
-                                      epfz = epfz,
-                                      vtem = vtem,
-                                      wtem = wtem,
-                                      psitem = psitem,
-                                      utendepfd = utendepfd,
-                                      utendvtem = utendvtem,
-                                      utendwtem = utendwtem
+                                      time_bnds = time_bounds_name,
+                                      hybm=ds.hybm,
+                                      hyam=ds.hyam,
+                                      UZM = uzm,
+                                      VZM = vzm,
+                                      THZM = thzm,
+                                      EPFY = epfy,
+                                      EPFZ = epfz,
+                                      VTEM = vtem,
+                                      WTEM = wtem,
+                                      PSITEM = psitem,
+                                      UTENDEPFD = utendepfd,
+                                      UTENDVTEM = utendvtem,
+                                      UTENDWTEM = utendwtem
                                       ))
 
     return dstem
