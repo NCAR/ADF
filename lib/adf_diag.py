@@ -880,6 +880,42 @@ class AdfDiag(AdfWeb):
 
     #########
 
+    def regrid_tem(self):
+        """
+        Re-grid CAM climatology files to observations
+        or baseline climatologies, in order to allow
+        for direct comparisons.
+
+        The actual regridding is done using the
+        scripts listed under "regridding_scripts"
+        as specified in the config file.  This is done
+        so that the user can specify the precise kinds
+        of re-gridding that are done (e.g. bilinear vs.
+        nearest-neighbor regridding).
+        """
+
+        # Extract names of re-gridding scripts:
+        regrid_func_names = self.__regridding_scripts  # this is a list of script names
+        # _OR_
+        # a **list** of dictionaries with
+        # script names as keys that hold
+        # kwargs(dict) and module(str)
+
+        if not regrid_func_names or all(
+            func_names is None for func_names in regrid_func_names
+        ):
+            print("\n  No regridding options provided, continue.")
+            return
+            # NOTE: if no regridding options provided, we should skip it, but
+            #       do we need to still copy (symlink?) files into the regrid directory?
+
+        # Run the listed scripts:
+        self.__diag_scripts_caller(
+            "regridding", regrid_func_names, log_section="regrid_tem"
+        )
+
+    #########
+
     def perform_analyses(self):
         """
         Performs statistical and other analyses as specified by the
