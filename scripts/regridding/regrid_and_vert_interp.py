@@ -4,7 +4,7 @@ import xarray as xr
 def regrid_and_vert_interp(adf):
 
     """
-    This funtion regrids the test cases to the same horizontal
+    This function regrids the test cases to the same horizontal
     grid as the observations or baseline climatology.  It then
     vertically interpolates the test case (and baseline case
     if need be) to match a default set of pressure levels, which
