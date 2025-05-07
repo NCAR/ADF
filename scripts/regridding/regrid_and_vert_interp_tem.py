@@ -31,6 +31,9 @@ def regrid_and_vert_interp_tem(adf):
     """
 
     #Import necessary modules:
+    import numpy as np
+    import plotting_functions as pf
+
     from pathlib import Path
 
     # regridding
@@ -43,8 +46,7 @@ def regrid_and_vert_interp_tem(adf):
     # - regrid one to the other (probably should be a choice)
 
     #Notify user that script has started:
-    msg = "\n  Regridding CAM TEM climatologies..."
-    print(f"{msg}\n  {'-' * (len(msg)-3)}")
+    print("\n  Regridding CAM TEM...")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -55,6 +57,8 @@ def regrid_and_vert_interp_tem(adf):
                     "PSITEM","UTENDEPFD","UTENDVTEM","UTENDWTEM","PS","PMID"]
     else:
         var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD","PS","PMID"]
+        var_cor_list = ["Uzm","THzm","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
+    var_defaults     = adf.variable_defaults
 
     #CAM simulation variables (these quantities are always lists):
     case_names = adf.get_cam_info("cam_case_name", required=True)
@@ -103,9 +107,7 @@ def regrid_and_vert_interp_tem(adf):
             print("\t No observations found to regrid to, so no re-gridding will be done.")
             return
         #End if
-
     else:
-
         #Extract model baseline variables:
         target_loc = adf.get_baseline_info("cam_tem_loc", required=True)
         target_list = [adf.get_baseline_info("cam_case_name", required=True)]
@@ -117,6 +119,7 @@ def regrid_and_vert_interp_tem(adf):
 
     #Set attributes dictionary for climo years to save in the file attributes
     base_climo_yrs_attr = f"{target_list[0]}: {syear_baseline}-{eyear_baseline}"
+
     #-----------------------------------------
 
     #Set output/target data path variables:
@@ -168,7 +171,7 @@ def regrid_and_vert_interp_tem(adf):
                     obs_data_loc = adf.get_basic_info("obs_data_loc")
                     obs_file_path = Path(res[var]["obs_file"])
                     obs_file_path = Path(obs_data_loc)/obs_file_path
-                    target_list = "ERA5"
+                    target_list = ["Obs"]
                 else:
                     dmsg = f"No obs found for variable `{var}`, regridding skipped."
                     adf.debug_log(dmsg)
@@ -186,8 +189,8 @@ def regrid_and_vert_interp_tem(adf):
                 adf.debug_log(f"regrid_example: regrid target = {target}")
 
                 #Determine regridded variable file name:
-                #regridded_file_loc = rgclimo_loc / f'{target}_{case_name}_{var}_regridded.nc'
                 rgclimo_tem_loc = rgclimo_loc / "tem"
+
                 #Check if re-gridded directory exists, and if not, then create it:
                 if not rgclimo_tem_loc.is_dir():
                     print(f"    {rgclimo_tem_loc} not found, making new directory")
@@ -250,6 +253,7 @@ def regrid_and_vert_interp_tem(adf):
                         #Open single file as new xarray dataset:
                         mclim_ds = xr.open_dataset(mclim_fils[0],decode_times=False)
                     #End if
+
                     mclim_ds = mclim_ds.rename({'zalat': 'lat'})
                     #Create keyword arguments dictionary for regridding function:
                     regrid_kwargs = {}
@@ -274,7 +278,6 @@ def regrid_and_vert_interp_tem(adf):
 
                     #Now vertically interpolate baseline (target) climatology,
                     #if applicable:
-
                     #Set interpolated baseline file name:
                     interp_bl_file = rgclimo_tem_loc / f'{target}.TEMdiag_regridded_baseline.nc'#.replace()
 
@@ -310,7 +313,6 @@ def regrid_and_vert_interp_tem(adf):
 
                         tgdata_interp = tgdata_interp.rename({'lat': 'zalat'})
                         tgdata_interps.append(tgdata_interp)
-
                     #End if
                 else:
                     print("\t Regridded file already exists, so skipping...")
@@ -318,6 +320,8 @@ def regrid_and_vert_interp_tem(adf):
             #End do (target list)
         #End do (variable list)
 
+        #Extract defaults for variable:
+        var_default_dict = var_defaults.get(var, {})
         if len(rgdata_interps) > 0:
             #Finally, write re-gridded data to output file:
             #Convert the list of Path objects to a list of strings
@@ -581,20 +585,22 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
 
     #Interpolate variable to default pressure levels:
     if has_lev:
-        import numpy as np
-
         new_levs = False
-        if regrid_dataset:
-            new_levs = True
-            new_levels = np.array(np.logspace(np.log10(1000), np.log10(min(regrid_dataset.lev.values)), num=30))*100
+        #if regrid_dataset:
+        #    import numpy as np
+        #    new_levs = True
+        #    new_levels = np.array(np.logspace(np.log10(1000), np.log10(min(regrid_dataset.lev.values)), num=30))*100
 
         if vert_coord_type == "hybrid":
             #Interpolate from hybrid sigma-pressure to the standard pressure levels:
-            if new_levs:
+            """if new_levs:
                 rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, new_levels=new_levels, \
                                             convert_to_mb=True)
             else:
                 rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
+                                            convert_to_mb=True)"""
+
+            rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
                                             convert_to_mb=True)
         elif vert_coord_type == "height":
             #Interpolate variable using mid-level pressure (PMID):
