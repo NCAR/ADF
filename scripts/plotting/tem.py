@@ -87,10 +87,9 @@ def tem(adf):
     redo_plot = adf.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
-    
 
     tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
-    #tem_base_loc = adf.get_baseline_info("cam_tem_loc")
+
     #Initialize list of input TEM file locations
     tem_locs = []
 
@@ -158,15 +157,12 @@ def tem(adf):
             base_file_name = f'{base_name}.TEMdiag_regridded_baseline.nc'
         else:
             base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
-        #base_file_name = f'{base_name}.TEMdiag_regridded_baseline.nc'
 
     #Baseline TEM location
     input_loc_idx = Path(tem_base_loc)
     
     #Set full path for baseline/obs file
     tem_base = input_loc_idx / base_file_name
-
-    print("tem_base FOR OBS",tem_base,"\n")
 
     #Check to see if baseline/obs TEM file exists    
     if tem_base.is_file():
@@ -175,13 +171,11 @@ def tem(adf):
         print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
         return
 
-    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
-
     #Loop over variables:
     for var in var_list:
 
         if (adf.compare_obs) and (var == "THZM" or var == "TZM"):
-            print("Obs case is missing potential temperature, so this variable will be skipped.")
+            print(f"Obs case is missing potential temperature, so variable '{var}' will be skipped.")
             continue
 
         #Notify user of variable being plotted:
@@ -327,7 +321,6 @@ def tem(adf):
                     T = temperature_from_potential_temperature(p, theta)
                     """
 
-                    #print("ds in plotting:",ds)
                     pmid = ds["PMID"].squeeze()
                     if regrid_tem_files == False:
                         pmid['time'] = xr.conventions.times.decode_cf_datetime(pmid.time, pmid.time.attrs['units'])
@@ -335,8 +328,6 @@ def tem(adf):
                     #Create array to avoid weighting missing values:
                     pmid_ones = xr.where(pmid.isnull(), 0.0, 1.0)
 
-                    #month_length = pmid.time.dt.days_in_month
-                    #weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
                     if s == 'ANN':
                         print(f"\t       INFO: deriving zonal mean temperature from potential temperature")
                         #Calculate annual weights (i.e. don't group by season):
@@ -360,8 +351,6 @@ def tem(adf):
                     mseasons.attrs['units'] = "K"
                     oseasons.attrs['units'] = "K"
 
-                    #print("mseasons in plotting:",mseasons)
-
                 if var == "UTENDEPFD":
                     mseasons = mseasons*1000
                     oseasons = oseasons*1000
@@ -376,7 +365,7 @@ def tem(adf):
                 if (mseasons.dims == oseasons.dims) and (mseasons.shape == oseasons.shape):
                     dseasons = mseasons-oseasons
                 else:
-                    print("Mismatched shape between model and baseline, will skip difference plots but still show the data?")
+                    #print("Mismatched shape between model and baseline, will skip difference plots but still show the data?")
                     dseasons = None
                 
                 #Gather contour plot options
@@ -487,11 +476,7 @@ def tem(adf):
                         a.set_ylabel('Pressure [hPa]', va='center', rotation='vertical')
                     if 'ylim' in vres:
                         y_lims = [float(lim) for lim in vres['ylim']]
-
-                        #print("y_lims",y_lims,"\n")
-                        #np.min(levs)
                         y_lims[-1]=prev_major_tick #np.min(levs)
-                        #print("y_lims",y_lims,"\n")
                         a.set_ylim(y_lims)
                     else:
                         a.set_ylim(a.get_ylim()[::-1])
@@ -504,11 +489,9 @@ def tem(adf):
 
                 #Variable plot title name
                 longname = vres["long_name"]
-
                 plt.suptitle(f'{longname}: {s}', fontsize=20, y=.97)
 
                 test_yrs = f"{start_year}-{end_year}"
-                
                 plot_title = "$\mathbf{Test}:$"+f"{test_nicknames[idx]}\nyears: {test_yrs}"
                 ax[0].set_title(plot_title, loc='left', fontsize=10)
 
