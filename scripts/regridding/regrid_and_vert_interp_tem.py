@@ -196,7 +196,7 @@ def regrid_and_vert_interp_tem(adf):
                     print(f"    {rgclimo_tem_loc} not found, making new directory")
                     rgclimo_tem_loc.mkdir(parents=True)
                 #End if
-                regridded_file_loc = rgclimo_tem_loc / f'{target}_{case_name}.TEMdiag_regridded.nc'#.replace()
+                regridded_file_loc = rgclimo_tem_loc / f'{target}_{case_name}.TEMdiag_regridded.nc'
 
                 #If surface or mid-level pressure, then save for potential use by other variables:
                 if var == "PS":
