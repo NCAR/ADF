@@ -46,7 +46,8 @@ def regrid_and_vert_interp_tem(adf):
     # - regrid one to the other (probably should be a choice)
 
     #Notify user that script has started:
-    print("\n  Regridding CAM TEM...")
+    msg = "\n  Regridding CAM TEM climatologies..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Extract needed quantities from ADF object:
     #-----------------------------------------
@@ -359,7 +360,7 @@ def regrid_and_vert_interp_tem(adf):
     #End do (case list)
 
     #Notify user that script has ended:
-    print("  ...CAM climatologies have been regridded successfully.")
+    print("  ...CAM TEM climatologies have been regridded successfully.")
 
 #################
 #Helper functions
