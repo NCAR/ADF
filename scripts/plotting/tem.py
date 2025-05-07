@@ -88,6 +88,9 @@ def tem(adf):
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
     
+
+    tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
+    #tem_base_loc = adf.get_baseline_info("cam_tem_loc")
     #Initialize list of input TEM file locations
     tem_locs = []
 
@@ -99,7 +102,8 @@ def tem(adf):
     if Path(f"{output_loc}/tem").is_dir():
         regrid_tem_files = True
         tem_case_locs = [f"{output_loc}/tem"]
-        tem_base_loc = f"{output_loc}/tem"
+        if not adf.compare_obs:
+            tem_base_loc = f"{output_loc}/tem"
     else:
         tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
         tem_base_loc = adf.get_baseline_info("cam_tem_loc")
@@ -143,17 +147,26 @@ def tem(adf):
         obs = True
         #Set TEM file for observations
         base_file_name = 'Obs.TEMdiag.nc'
-        input_loc_idx = Path(tem_locs[0])
+        if regrid_tem_files:
+            tem_base_loc = Path(adf.get_cam_info("cam_tem_loc",required=True)[0])
+        else:
+            tem_base_loc = Path(tem_locs[0])
     else:
         #Set TEM file for baseline
-        input_loc_idx = Path(tem_base_loc)
+        #input_loc_idx = Path(tem_base_loc)
         if regrid_tem_files:
             base_file_name = f'{base_name}.TEMdiag_regridded_baseline.nc'
         else:
             base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
+        #base_file_name = f'{base_name}.TEMdiag_regridded_baseline.nc'
+
+    #Baseline TEM location
+    input_loc_idx = Path(tem_base_loc)
     
     #Set full path for baseline/obs file
     tem_base = input_loc_idx / base_file_name
+
+    print("tem_base FOR OBS",tem_base,"\n")
 
     #Check to see if baseline/obs TEM file exists    
     if tem_base.is_file():
@@ -162,10 +175,12 @@ def tem(adf):
         print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
         return
 
+    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
+
     #Loop over variables:
     for var in var_list:
 
-        if (adf.compare_obs) and (var == "THZM"):
+        if (adf.compare_obs) and (var == "THZM" or var == "TZM"):
             print("Obs case is missing potential temperature, so this variable will be skipped.")
             continue
 
@@ -234,7 +249,8 @@ def tem(adf):
                     odata = ds_base["THZM"].squeeze()
                 else:
                     mdata = ds[var].squeeze()
-                    odata = ds_base[var].squeeze()
+                    if adf.compare_obs:
+                        odata = ds_base[var.lower()].squeeze()
                 if regrid_tem_files == False:
                     mdata['time'] = xr.conventions.times.decode_cf_datetime(mdata.time, mdata.time.attrs['units'])
                     odata['time'] = xr.conventions.times.decode_cf_datetime(odata.time, odata.time.attrs['units'])
@@ -344,7 +360,9 @@ def tem(adf):
                     mseasons.attrs['units'] = "K"
                     oseasons.attrs['units'] = "K"
 
-                if var == "utendepfd":
+                    #print("mseasons in plotting:",mseasons)
+
+                if var == "UTENDEPFD":
                     mseasons = mseasons*1000
                     oseasons = oseasons*1000
                 
@@ -378,7 +396,6 @@ def tem(adf):
                 prev_major_ticks.append(10 ** (np.floor(np.log10(np.min(mlevs)))))
                 prev_major_ticks.append(10 ** (np.floor(np.log10(np.min(olevs)))))
                 prev_major_tick = min(prev_major_ticks)
-
                 # Set padding for colorbar form axis
                 cmap_pad = 0.005
 
@@ -442,10 +459,10 @@ def tem(adf):
                 if (dseasons is None) or (len(dseasons.lev) == 0):
                     #Set empty message for comparison of cases with different vertical levels
                     #TODO: Work towards getting the vertical and horizontal interpolations!! - JR
-                    empty_message = "Missing Data"
+                    empty_message = "These have different vertical levels\nCan't compare cases currently"
                     props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
-                    prop_x = 0.5
-                    prop_y = 0.5
+                    prop_x = 0.18
+                    prop_y = 0.42
                     ax[2].text(prop_x, prop_y, empty_message,
                                     transform=ax[2].transAxes, bbox=props)
                 else:
