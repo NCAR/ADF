@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import yaml
 import xarray as xr
 import uxarray as ux
 import matplotlib.pyplot as plt
@@ -62,29 +63,34 @@ def regional_climatology(adfobj):
                                'QOVER', 'QDRAI','QRGWL','QSNOFRZ','QSNOMELT',
                                'QSNWCPICE','ALBD']
 
-    ## Open file containing regions of interest 
-    nc_reg_file = '/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/code/resources/region_definitions.nc'
-    regionDS    = xr.open_dataset(nc_reg_file)
-    region_names = [str(item).split('b')[1] for item in regionDS.PTITSTR.values]
+    # ## Open file containing regions of interest 
+    # nc_reg_file = '/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/code/resources/region_definitions.nc'
+    # regionDS    = xr.open_dataset(nc_reg_file)
+    # region_names = [str(item).split('b')[1] for item in regionDS.PTITSTR.values]
 
     ## Open observations YML here? 
 
-    # I want to get the indices that match the reqeusted regions now...
-    region_indexList = []
-    cleaned_candidates = [s.strip("'\"") for s in region_names]
-    cleaned_candidates = [s.strip(" ") for s in cleaned_candidates]
+    ## Read regions from yml file:
+    ymlFilename = 'lib/regions_lnd.yaml'
+    with open(ymlFilename, 'r') as file:
+        regions = yaml.safe_load(file)
 
-    # Fix some region names I've broken
-    cleaned_candidates = rename_region(cleaned_candidates, 'Western Si', 'Western Siberia')
-    cleaned_candidates = rename_region(cleaned_candidates, 'Eastern Si', 'Eastern Siberia')
-    cleaned_candidates = rename_region(cleaned_candidates, 'Ara', 'Arabian Peninsula')
-    cleaned_candidates = rename_region(cleaned_candidates, 'Sahara and Ara', 'Sahara and Arabia')
-    cleaned_candidates = rename_region(cleaned_candidates, 'Ti', 'Tibetan Plateau')
+    # # I want to get the indices that match the reqeusted regions now...
+    # region_indexList = []
+    # cleaned_candidates = [s.strip("'\"") for s in region_names]
+    # cleaned_candidates = [s.strip(" ") for s in cleaned_candidates]
 
-    for iReg in region_list: 
-        match_indices = [i for i, region in enumerate(cleaned_candidates) if iReg == region]
-        region_indexList = np.append(region_indexList, match_indices)
-    region_indexList =region_indexList.astype('int')
+    # # Fix some region names I've broken
+    # cleaned_candidates = rename_region(cleaned_candidates, 'Western Si', 'Western Siberia')
+    # cleaned_candidates = rename_region(cleaned_candidates, 'Eastern Si', 'Eastern Siberia')
+    # cleaned_candidates = rename_region(cleaned_candidates, 'Ara', 'Arabian Peninsula')
+    # cleaned_candidates = rename_region(cleaned_candidates, 'Sahara and Ara', 'Sahara and Arabia')
+    # cleaned_candidates = rename_region(cleaned_candidates, 'Ti', 'Tibetan Plateau')
+
+    # for iReg in region_list: 
+    #     match_indices = [i for i, region in enumerate(cleaned_candidates) if iReg == region]
+    #     region_indexList = np.append(region_indexList, match_indices)
+    # region_indexList =region_indexList.astype('int')
     
 
     # Extract variables:
@@ -122,11 +128,13 @@ def regional_climatology(adfobj):
             wgt = area * landfrac / (area * landfrac).sum()  
 
     # Loop over regions for selected variable 
-    for iReg in range(len(region_indexList)): 
-        regionDS_thisRg = regionDS.isel(region=region_indexList[iReg])
-
+    for iReg in range(len(region_list)): 
+        # regionDS_thisRg = regionDS.isel(region=region_indexList[iReg])
+        box_west, box_east, box_south, box_north = get_region_boundaries(regions, region_list[iReg])
         ## Set up figure 
-        fig,axs = plt.subplots(4,5, figsize=(15,10))
+        # fig,axs = plt.subplots(4,5, figsize=(15,10))
+        ## TODO: Make the plot size/number of subplots resopnsive to number of fields specified 
+        fig,axs = plt.subplots(4,4, figsize=(18,12))
         axs = axs.ravel()
         
         plt_counter = 1
@@ -138,13 +146,13 @@ def regional_climatology(adfobj):
             else:
                 # TODO: handle regular gridded case
                 base_var,wgt_sub  = getRegion_uxarray(uxgrid, base_data, field, wgt,
-                                        regionDS_thisRg.BOX_W.values, regionDS_thisRg.BOX_E.values, 
-                                        regionDS_thisRg.BOX_S.values, regionDS_thisRg.BOX_N.values)
+                                        box_west, box_east, 
+                                        box_south, box_north)
                 base_var_wgtd = np.sum(base_var * wgt_sub, axis=-1) / np.sum(wgt_sub)
             
                 case_var,wgt_sub = getRegion_uxarray(uxgrid, case_data, field, wgt,
-                                        regionDS_thisRg.BOX_W.values, regionDS_thisRg.BOX_E.values, 
-                                        regionDS_thisRg.BOX_S.values, regionDS_thisRg.BOX_N.values)
+                                        box_west, box_east, 
+                                        box_south, box_north)
                 case_var_wgtd = np.sum(case_var * wgt_sub, axis=-1) / np.sum(wgt_sub)
 
             ## Plot the map:
@@ -166,26 +174,32 @@ def regional_climatology(adfobj):
                 map_ax.coastlines()
                 map_ax.add_collection(collection)
                 map_ax.set_global()
-                map_ax.set_title(region_names[iReg]+'\n'+str(regionDS["BOXSTR"].values[iReg]))
                 # Add map extent selection
-                if ((regionDS_thisRg.BOX_S.values >= 30) & (regionDS_thisRg.BOX_E.values<=-5) ):
-                    map_ax.set_extent([-180, -5, 30, 90],crs=ccrs.PlateCarree())
-                elif ((regionDS_thisRg.BOX_S.values >= 30) & (regionDS_thisRg.BOX_E.values>=-5) ):
-                    map_ax.set_extent([-5, 179, 30, 90],crs=ccrs.PlateCarree())
-                elif ((regionDS_thisRg.BOX_S.values <= 30) & (regionDS_thisRg.BOX_S.values >= -30) & 
-                    (regionDS_thisRg.BOX_E.values<=-5) ):
-                    map_ax.set_extent([-180, -5, -30, 30],crs=ccrs.PlateCarree())
-                elif ((regionDS_thisRg.BOX_S.values <= 30) & (regionDS_thisRg.BOX_S.values >= -30) & 
-                    (regionDS_thisRg.BOX_E.values>=-5) ):
-                    map_ax.set_extent([-5, 179, -30, 30],crs=ccrs.PlateCarree())
-                elif ((regionDS_thisRg.BOX_S.values <= -30) & (regionDS_thisRg.BOX_S.values >= -60) &
-                    (regionDS_thisRg.BOX_E.values>=-5) ):
-                    map_ax.set_extent([-5, 179, -89, -30],crs=ccrs.PlateCarree())
-                elif ((regionDS_thisRg.BOX_S.values <= -30) & (regionDS_thisRg.BOX_S.values >= -60) &
-                    (regionDS_thisRg.BOX_E.values<=-5) ):
-                    map_ax.set_extent([-180, -5, -89, -30],crs=ccrs.PlateCarree())
-                elif ((regionDS_thisRg.BOX_S.values <= -60)):
-                    map_ax.set_extent([-180, 179, -89, -60],crs=ccrs.PlateCarree())
+                if region_list[iReg]=='N Hemisphere Land':
+                    map_ax.set_extent([-180, -3, 179, 90],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='Global':
+                    map_ax.set_extent([-180, -90, 179, 90],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='S Hemisphere Land':
+                    map_ax.set_extent([-180, -90, 179, 3],crs=ccrs.PlateCarree())
+                else: 
+                    if ((box_south >= 30) & (box_east<=-5) ):
+                        map_ax.set_extent([-180, -5, 30, 90],crs=ccrs.PlateCarree())
+                    elif ((box_south >= 30) & (box_east>=-5) ):
+                        map_ax.set_extent([-5, 179, 30, 90],crs=ccrs.PlateCarree())
+                    elif ((box_south <= 30) & (box_south >= -30) & 
+                        (box_east<=-5) ):
+                        map_ax.set_extent([-180, -5, -30, 30],crs=ccrs.PlateCarree())
+                    elif ((box_south <= 30) & (box_south >= -30) & 
+                        (box_east>=-5) ):
+                        map_ax.set_extent([-5, 179, -30, 30],crs=ccrs.PlateCarree())
+                    elif ((box_south <= -30) & (box_south >= -60) &
+                        (box_east>=-5) ):
+                        map_ax.set_extent([-5, 179, -89, -30],crs=ccrs.PlateCarree())
+                    elif ((box_south <= -30) & (box_south >= -60) &
+                        (box_east<=-5) ):
+                        map_ax.set_extent([-180, -5, -89, -30],crs=ccrs.PlateCarree())
+                    elif ((box_south <= -60)):
+                        map_ax.set_extent([-180, 179, -89, -60],crs=ccrs.PlateCarree())
 
                     
             ## Plot the timeseries 
@@ -201,6 +215,8 @@ def regional_climatology(adfobj):
                 
 
             plt_counter = plt_counter+1
+
+        fig.subplots_adjust(hspace=0.3, wspace=0.3)
 
         # Save out figure
         # fileFriendlyRegionName = 
@@ -250,16 +266,26 @@ def getRegion_uxarray(gridDS, varDS, varName, wgt, BOX_W, BOX_E, BOX_S, BOX_N):
     
     return domain_subset,wgt_subset
 
-def rename_region(DS, searchStr, replaceStr):
-    iReplace = np.where(np.asarray(DS)==searchStr)[0]
-    if len(iReplace)==1:
-        DS[int(iReplace)] = replaceStr
-    elif len(iReplace>1): 
-        # This happens with Tibetan Plateau; there are two defined
-        # Indices 31 and 35 
-        # Same values, but Box_W and Box_E are swapped.. going to keep the first
-        DS[int(iReplace[0])] = replaceStr
-        # print('Found more than one match for ',searchStr)
-        # print(iReplace)
+def get_region_boundaries(regions, region_name):
+    """Get the boundaries of a specific region."""
+    if region_name not in regions:
+        raise ValueError(f"Region '{region_name}' not found in regions dictionary")
+    
+    region = regions[region_name]
+    south, north = region['lat_bounds']
+    west, east = region['lon_bounds']
+    
+    return west, east, south, north
+# def rename_region(DS, searchStr, replaceStr):
+#     iReplace = np.where(np.asarray(DS)==searchStr)[0]
+#     if len(iReplace)==1:
+#         DS[int(iReplace)] = replaceStr
+#     elif len(iReplace>1): 
+#         # This happens with Tibetan Plateau; there are two defined
+#         # Indices 31 and 35 
+#         # Same values, but Box_W and Box_E are swapped.. going to keep the first
+#         DS[int(iReplace[0])] = replaceStr
+#         # print('Found more than one match for ',searchStr)
+#         # print(iReplace)
         
-    return DS
+#     return DS
