@@ -769,16 +769,6 @@ class AdfDiag(AdfWeb):
                     ]
 
                     if "clm" in hist_str:
-                        # Step 3a: Optional, add additional variables to clm2.h0 files
-                        if  "h0" in hist_str:
-                            cmd_add_clm_h0_fields = [
-                                "ncks", "-A", "-C", "-v", "area,landfrac,landmask",
-                                hist_files[0],
-                                ts_outfil_str
-                            ]
-                            # add time invariant information to clm2.h0 fields
-                            list_of_hist_commands.append(cmd_add_clm_h0_fields)
-
                         # Step 3b: Optional, add additional variables to clm2.h1 files
                         if  "h1" in hist_str:
                             cmd_add_clm_h1_fields = [
@@ -861,6 +851,13 @@ class AdfDiag(AdfWeb):
                             else:
                                 time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='nbnd').values,
                                                     dims=time.dims, attrs=time.attrs)
+
+                            # Optional, add additional variables to clm2.h0 files
+                            if "h0" in hist_str:
+                                ds = xr.open_dataset(hist_files[0], decode_times=False)
+                                ts_ds['area'] = ds.area
+                                ts_ds['landfrac'] = ds.landfrac
+                                ts_ds['landmask'] = ds.landmask
 
                         ts_ds['time'] = time
                         ts_ds.assign_coords(time=time)
