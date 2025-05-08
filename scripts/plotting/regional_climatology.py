@@ -176,11 +176,11 @@ def regional_climatology(adfobj):
                 map_ax.set_global()
                 # Add map extent selection
                 if region_list[iReg]=='N Hemisphere Land':
-                    map_ax.set_extent([-180, -3, 179, 90],crs=ccrs.PlateCarree())
+                    map_ax.set_extent([-180, 179, -3, 90],crs=ccrs.PlateCarree())
                 elif region_list[iReg]=='Global':
-                    map_ax.set_extent([-180, -90, 179, 90],crs=ccrs.PlateCarree())
+                    map_ax.set_extent([-180, 179, -89, 90],crs=ccrs.PlateCarree())
                 elif region_list[iReg]=='S Hemisphere Land':
-                    map_ax.set_extent([-180, -90, 179, 3],crs=ccrs.PlateCarree())
+                    map_ax.set_extent([-180, 179, -89, 3],crs=ccrs.PlateCarree())
                 else: 
                     if ((box_south >= 30) & (box_east<=-5) ):
                         map_ax.set_extent([-180, -5, 30, 90],crs=ccrs.PlateCarree())
