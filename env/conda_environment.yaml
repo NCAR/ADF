@@ -1,4 +1,4 @@
-name: adf_v0.11
+name: adf_v0.12
 channels:
   - conda-forge
   - defaults
@@ -14,4 +14,5 @@ dependencies:
   - xskillscore=0.0.5
   - geocat-comp=2022.08.0
   - python=3.11
-prefix: /glade/work/$USER/conda-envs/adf_v0.11
+  - xesmf=0.8.7
+prefix: /glade/work/$USER/conda-envs/adf_v0.12

@@ -40,7 +40,7 @@ If you are using conda on a non-CISL machine, then you can create and activate t
 
 ```
 conda env create -f env/conda_environment.yaml
-conda activate adf_v0.11
+conda activate adf_v0.12
 ```
 
 Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running:
