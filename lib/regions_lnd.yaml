@@ -11,7 +11,7 @@ N Hemisphere Land:
 S Hemisphere Land:
   lat_bounds: [-90, 0]
   lon_bounds: [-180, 180]
-Polar:	
+Polar:
   lat_bounds: [60, 90]
   lon_bounds: [-180, 180]
 Alaskan Arctic:
@@ -53,13 +53,13 @@ Eastern Siberia:
 Lost Boreal Forest:
   lat_bounds: [48, 56]
   lon_bounds: [95, 103]
-Western U.S.:
+Western US:
   lat_bounds: [30, 50]
   lon_bounds: [-130, -105]
-Central U.S.:
+Central US:
   lat_bounds: [30, 50]
   lon_bounds: [-105, -90]
-Eastern U.S.”
+Eastern US:
   lat_bounds: [30, 50]
   lon_bounds: [-90, -70]
 Europe:
@@ -77,7 +77,7 @@ Amazonia:
 Central Africa:
   lat_bounds: [-5, 5]
   lon_bounds: [10, 30]
-Indonesia:	
+Indonesia:
   lat_bounds: [-10, 10]
   lon_bounds: [90, 150]
 Brazil:
@@ -113,7 +113,7 @@ Mongolia:
 Tibetan Plateau:
   lat_bounds: [30, 40]
   lon_bounds: [80, 100]
-Central Asia:
+Central Asia 2:
   lat_bounds: [40, 50]
   lon_bounds: [40, 100]
 NE China:
