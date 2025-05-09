@@ -347,6 +347,7 @@ def global_latlon_map(adfobj):
                                             [syear_cases[case_idx],eyear_cases[case_idx]],
                                             [syear_baseline,eyear_baseline],
                                             mseasons[s], oseasons[s], dseasons[s], pseasons[s],
+                                            model_component=adfobj.model_component,
                                             obs=adfobj.compare_obs, unstructured=unstructured, **vres)
 
                     #Add plot to website (if enabled):
@@ -391,6 +392,7 @@ def global_latlon_map(adfobj):
                                                 [syear_baseline,eyear_baseline],
                                                 mseasons[s].sel(lev=pres), oseasons[s].sel(lev=pres), dseasons[s].sel(lev=pres),
                                                 pseasons[s].sel(lev=pres),
+                                                model_component=adfobj.model_component,
                                                 obs=adfobj.compare_obs, unstructured=unstructured, **vres)
 
                         #Add plot to website (if enabled):
