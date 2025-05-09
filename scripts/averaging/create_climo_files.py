@@ -76,10 +76,21 @@ def create_climo_files(adf, clobber=False, search=None):
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
+    # Get start and end year for climatology computation
+    climo_start_year = adf.get_cam_info("climo_start_year")
+    climo_end_year = adf.get_cam_info("climo_end_year")
 
     #Extract simulation years:
     start_year = adf.climo_yrs["syears"]
     end_year   = adf.climo_yrs["eyears"]
+    if climo_start_year:
+        if climo_start_year > end_year:
+            raise ValueError('Sorry, climo_start_year must be earlier than ts end year.')
+        start_year = max(climo_start_year, start_year)
+    if climo_end_year:
+        if climo_end_year < start_year:
+            raise ValueError('Sorry, climo_end_year must be later than ts start year.')
+        end_year = min(climo_end_year, end_year)
 
     comp = adf.model_component
     print("\ncomp",comp,"\n")
@@ -100,10 +111,20 @@ def create_climo_files(adf, clobber=False, search=None):
         output_bl_loc     = adf.get_baseline_info("cam_climo_loc", required=True)
         calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
         ovr_bl            = adf.get_baseline_info("cam_overwrite_climo")
+        climo_baseline_start_year = adf.get_baseline_info("climo_start_year")
+        climo_baseline_end_year = adf.get_baseline_info("climo_end_year")
 
         #Extract baseline years:
         bl_syr = adf.climo_yrs["syear_baseline"]
         bl_eyr = adf.climo_yrs["eyear_baseline"]
+        if climo_baseline_start_year:
+            if climo_baseline_start_year > bl_eyr:
+                raise ValueError('Sorry, climo_end_year must be later than ts start year.')
+            bl_syr = max(climo_baseline_start_year, bl_syr)
+        if climo_baseline_end_year:
+            if climo_baseline_end_year < bl_syr:
+                raise ValueError('Sorry, climo_end_year must be later than ts start year.')
+            bl_eyr = min(climo_baseline_end_year, bl_eyr)
 
         #Append to case lists:
         case_names.append(baseline_name)
@@ -246,7 +267,7 @@ def process_variable(adf, ts_files, syr, eyr, output_file, comp):
         if comp == "atm":
             dim = 'nbnd'
         # NOTE: force `load` here b/c if dask & time is cftime, throws a NotImplementedError:
-        time = xr.DataArray(cam_ts_data['time_bounds'].load().mean(dim=dim).values, 
+        time = xr.DataArray(cam_ts_data['time_bounds'].load().mean(dim=dim).values,
                             dims=time.dims, attrs=time.attrs)
         cam_ts_data['time'] = time
         cam_ts_data.assign_coords(time=time)

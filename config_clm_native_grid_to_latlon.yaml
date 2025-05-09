@@ -168,6 +168,16 @@ diag_cam_climo:
     #       end at latest available year.
     end_year: 40
 
+    #model year when climatology should start:
+    #Note:  Leaving this entry blank will make time series
+    #       start at the first available year
+    climo_start_year: 35
+
+    #model year when climatology should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    climo_end_year: 40
+
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
     #If False, or if simply not present, then diagnostics will attempt to create
@@ -241,6 +251,16 @@ diag_cam_baseline_climo:
     #       end at latest available year.
     end_year: 40
 
+    #model year when climatology should start:
+    #Note:  Leaving this entry blank will make time series
+    #       start at first available year.
+    climo_start_year: 35
+
+    #model year when time series files should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    climo_end_year: 40
+
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
     #If False, or if simply not present, then diagnostics will attempt to create
@@ -293,16 +313,16 @@ plotting_scripts:
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
-    #- TSA
-    - PREC
-    - ELAI
-    - GPP
+    - TSA
+    #- PREC
+    #- ELAI
+    #- GPP
     #- NPP
     #- FSDS
     #- ALTMAX
-    - ET
-    - TOTRUNOFF
-    - DSTFLXT
-    - MEG_isoprene 
+    #- ET
+    #- TOTRUNOFF
+    #- DSTFLXT
+    #- MEG_isoprene 
 
 #END OF FILE
