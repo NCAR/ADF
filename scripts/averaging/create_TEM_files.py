@@ -123,27 +123,31 @@ def create_TEM_files(adf):
 
         #ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
         ds = xr.open_mfdataset(tem_obs_fils,decode_times=True, combine='by_coords')
+        if "zalat" in ds.dims:
+            zm_name = "zalat"
+        if "zmlat" in ds.dims:
+            zm_name = "zalat"
         start_year = str(ds.time[0].values)[0:4]
         end_year = str(ds.time[-1].values)[0:4]
 
         #Update the attributes
         ds.attrs['created'] = str(date.today())
         ds['lev']=ds['level']
-        ds['zalat']=ds['lat']
+        ds[zm_name]=ds['lat']
 
         #Make a copy of obs data so we don't do anything bad
         ds_obs = ds.copy()
-        ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', 'zalat'), ds_obs.uzm.data),
-                                'epfy': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfy.data),
-                                'epfz': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfz.data),
-                                'vtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.vtem.data),
-                                'wtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.wtem.data),
-                                'psitem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.psitem.data),
-                                'utendepfd': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendepfd.data),
-                                'utendvtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendvtem.data),
-                                'utendwtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendwtem.data),
+        ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', zm_name), ds_obs.uzm.data),
+                                'epfy': xr.Variable(('time', 'lev', zm_name), ds_obs.epfy.data),
+                                'epfz': xr.Variable(('time', 'lev', zm_name), ds_obs.epfz.data),
+                                'vtem': xr.Variable(('time', 'lev', zm_name), ds_obs.vtem.data),
+                                'wtem': xr.Variable(('time', 'lev', zm_name), ds_obs.wtem.data),
+                                'psitem': xr.Variable(('time', 'lev', zm_name), ds_obs.psitem.data),
+                                'utendepfd': xr.Variable(('time', 'lev', zm_name), ds_obs.utendepfd.data),
+                                'utendvtem': xr.Variable(('time', 'lev', zm_name), ds_obs.utendvtem.data),
+                                'utendwtem': xr.Variable(('time', 'lev', zm_name), ds_obs.utendwtem.data),
                                 'lev': xr.Variable('lev', ds_obs.level.values),
-                                'zalat': xr.Variable('zalat', ds_obs.lat.values),
+                                'zmlat': xr.Variable(zm_name, ds_obs.lat.values),
                                 'time': xr.Variable('time', ds_obs.time.values)
                     })
 
@@ -253,7 +257,7 @@ def create_TEM_files(adf):
             
             hist0_files = sorted(list(chain.from_iterable(hist0_files)))
             ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='by_coords')
-            ds_h0 = ds_h0.rename({'lat': 'zalat'})
+            ds_h0 = ds_h0.rename({'lat': zm_name})
 
             #Average time dimension over time bounds, if bounds exist:
             if 'time_bnds' in ds_h0:
@@ -373,8 +377,11 @@ def calc_tem(ds):
     om = 7.29212e-5
     H = 7000.
     g0 = 9.80665
-
-    nlat = ds['zmlat'].size
+    if "zalat" in ds.dims:
+        zm_name = "zalat"
+    if "zmlat" in ds.dims:
+        zm_name = "zalat"
+    nlat = ds[zm_name].size
     nlev = ds['lev'].size
 
     latrad = np.radians(ds.zalat)

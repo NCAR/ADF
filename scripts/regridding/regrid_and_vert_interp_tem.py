@@ -237,7 +237,7 @@ def regrid_and_vert_interp_tem(adf):
                         #Open single file as new xarray dataset:
                         tclim_ds = xr.open_dataset(tclim_fils[0],decode_times=False)
                     #End if
-                    tclim_ds = tclim_ds.rename({'zalat': 'lat'})
+                    tclim_ds = tclim_ds.rename({'zmlat': 'lat'})
 
                     #Generate CAM climatology (climo) file list:
                     mclim_fils = sorted(mclimo_loc.glob(f"{case_name}.TEMdiag*.nc"))
@@ -255,7 +255,7 @@ def regrid_and_vert_interp_tem(adf):
                         mclim_ds = xr.open_dataset(mclim_fils[0],decode_times=False)
                     #End if
 
-                    mclim_ds = mclim_ds.rename({'zalat': 'lat'})
+                    mclim_ds = mclim_ds.rename({'zmlat': 'lat'})
                     #Create keyword arguments dictionary for regridding function:
                     regrid_kwargs = {}
 
@@ -274,7 +274,7 @@ def regrid_and_vert_interp_tem(adf):
                     if rgdata_interp is None:
                         continue
 
-                    rgdata_interp = rgdata_interp.rename({'lat': 'zalat'})
+                    rgdata_interp = rgdata_interp.rename({'lat': 'zmlat'})
                     rgdata_interps.append(rgdata_interp)
 
                     #Now vertically interpolate baseline (target) climatology,
@@ -312,7 +312,7 @@ def regrid_and_vert_interp_tem(adf):
                             continue
                         #End if
 
-                        tgdata_interp = tgdata_interp.rename({'lat': 'zalat'})
+                        tgdata_interp = tgdata_interp.rename({'lat': 'zmlat'})
                         tgdata_interps.append(tgdata_interp)
                     #End if
                 else:
