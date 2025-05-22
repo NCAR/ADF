@@ -315,7 +315,21 @@ def create_TEM_files(adf):
             za_lats = dstem[zm_name].values
 
             # Step 2: Interpolate ds2 to standard latitudes
-            ds_h0_lats = ds_h0.interp(zalat=za_lats)
+            # List of possible coordinate names
+            possible_lat_names = ['zalat', 'zmlat']
+
+            # Find the one that exists in the dataset
+            for name in possible_lat_names:
+                if name in ds_h0.coords:
+                    lat_coord_name = name
+                    break
+            else:
+                raise ValueError("No known latitude coordinate found in dataset.")
+
+            # Interpolate using dynamic coordinate name
+            ds_h0_lats = ds_h0.interp({lat_coord_name: za_lats})
+
+            #ds_h0_lats = ds_h0.interp(zalat=za_lats)
 
             zonal_mean_PS = ds_h0_lats['PS'].mean(dim='lon').compute()
             zonal_mean_PMID = ds_h0_lats['PMID'].mean(dim='lon').compute()
