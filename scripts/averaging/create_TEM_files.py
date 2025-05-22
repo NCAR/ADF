@@ -261,7 +261,7 @@ def create_TEM_files(adf):
                 zm_name = "zalat"
             if "zmlat" in ds_h0.dims:
                 zm_name = "zmlat"
-            ds_h0 = ds_h0.rename({'lat': zm_name})
+            #ds_h0 = ds_h0.rename({'lat': zm_name})
 
             #Average time dimension over time bounds, if bounds exist:
             if 'time_bnds' in ds_h0:
