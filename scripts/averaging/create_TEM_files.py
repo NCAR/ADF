@@ -257,6 +257,10 @@ def create_TEM_files(adf):
             
             hist0_files = sorted(list(chain.from_iterable(hist0_files)))
             ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='by_coords')
+            if "zalat" in ds_h0.dims:
+                zm_name = "zalat"
+            if "zmlat" in ds_h0.dims:
+                zm_name = "zalat"
             ds_h0 = ds_h0.rename({'lat': zm_name})
 
             #Average time dimension over time bounds, if bounds exist:
@@ -308,7 +312,7 @@ def create_TEM_files(adf):
                 dstem0 = xr.decode_cf(dstem0)
 
             # Step 1: Your standard latitudes
-            za_lats = dstem0.zalat.values
+            za_lats = dstem[zm_name].values
 
             # Step 2: Interpolate ds2 to standard latitudes
             ds_h0_lats = ds_h0.interp(zalat=za_lats)
