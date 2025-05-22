@@ -126,7 +126,7 @@ def create_TEM_files(adf):
         if "zalat" in ds.dims:
             zm_name = "zalat"
         if "zmlat" in ds.dims:
-            zm_name = "zalat"
+            zm_name = "zmlat"
         start_year = str(ds.time[0].values)[0:4]
         end_year = str(ds.time[-1].values)[0:4]
 
@@ -384,7 +384,7 @@ def calc_tem(ds):
     if "zalat" in ds.dims:
         zm_name = "zalat"
     if "zmlat" in ds.dims:
-        zm_name = "zalat"
+        zm_name = "zmlat"
     nlat = ds[zm_name].size
     nlev = ds['lev'].size
 
