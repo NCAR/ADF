@@ -374,7 +374,7 @@ def calc_tem(ds):
     H = 7000.
     g0 = 9.80665
 
-    nlat = ds['zalat'].size
+    nlat = ds['zmlat'].size
     nlev = ds['lev'].size
 
     latrad = np.radians(ds.zalat)
