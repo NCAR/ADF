@@ -402,7 +402,7 @@ def calc_tem(ds):
     nlat = ds[zm_name].size
     nlev = ds['lev'].size
 
-    latrad = np.radians(ds.zalat)
+    latrad = np.radians(ds[zm_name])
     coslat = np.cos(latrad)
     coslat2d = np.tile(coslat,(nlev,1))
 
