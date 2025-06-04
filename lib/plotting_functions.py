@@ -91,6 +91,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib as mpl
+import matplotlib.cm as cm
 import cartopy.crs as ccrs
 #nice formatting for tick labels
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
@@ -99,6 +100,7 @@ import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 import matplotlib.cm as cm
+from pathlib import Path
 
 from adf_diag import AdfDiag
 from adf_base import AdfError
@@ -129,7 +131,6 @@ seasons = {"ANN": np.arange(1,13,1),
             "SON": [9, 10, 11]
             }
 
-
 #################
 #HELPER FUNCTIONS
 #################
@@ -151,6 +152,7 @@ def load_dataset(fils):
     -----
     When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
     """
+
     if len(fils) == 0:
         warnings.warn(f"\t    WARNING: Input file list is empty.")
         return None
@@ -172,6 +174,36 @@ def use_this_norm():
             return mpl.colors.DivergingNorm, mplversion[0]
         else:
             return mpl.colors.TwoSlopeNorm, mplversion[0]
+
+
+def check_obs_file(adfobj, filepath):
+    """
+    Check whether provided obs file is in ADF defaults or a user supplied location
+
+    Usually the ADF takes care of this, but only for variables in the variable defaults yaml file.
+        - This is different since the object being called form variable defaults yaml file is plot related
+          not variable related, we need a check.
+
+      * If only file name is provided, we assume the file exists in the ADF default obs location
+      * If a full path and filename are provided, then the we assume it is a user supplied obs location
+
+    returns: full file path and name
+    """
+    
+    adf_obs_loc = Path(adfobj.get_basic_info("obs_data_loc"))
+    obs_filepath = adf_obs_loc / filepath.parts[-1]
+
+    #Check the file path structure
+    if str(filepath.parent) == ".":
+        if obs_filepath.exists():
+            return obs_filepath
+        else:
+            print(f"'{filepath.parts[-1]}' is not in the ADF obs default location, please check the spelling")
+            print("Or supply your own path to this file!")
+            return
+    else:
+        print(f"User is providing obs file: '{filepath}'")
+        return filepath
 
 
 def get_difference_colors(values):
@@ -304,6 +336,25 @@ def get_central_longitude(*args):
         return 180
     #End if
 
+#######
+
+def coslat_average(darray, lat1, lat2):
+    """
+    Calculate the weighted average for an [:,lat] array over the region
+    lat1 to lat2
+    """
+
+    # flip latitudes if they are decreasing
+    if (darray.lat[0] > darray.lat[darray.lat.size -1]):
+        print("flipping latitudes")
+        darray = darray.sortby('lat')
+
+    region = darray.sel(lat=slice(lat1, lat2))
+    weights=np.cos(np.deg2rad(region.lat))
+    regionw = region.weighted(weights)
+    regionm = regionw.mean("lat")
+
+    return regionm
 #######
 
 def global_average(fld, wgt, verbose=False):
@@ -759,8 +810,6 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
     if max(np.abs(levelsdiff)) > 10*absmaxdif:
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-    
-    
     #End if
     #-------------------------------
 
@@ -1237,7 +1286,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     #End if
 
     # generate dictionary of contour plot settings:
-    cp_info = prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
+    cp_info = prep_contour_plot(mdlfld, obsfld, diffld, **kwargs)
 
     # specify the central longitude for the plot
     central_longitude = kwargs.get('central_longitude', 180)
@@ -1347,7 +1396,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
                     borderpad=0,
                     )
     fig.colorbar(img[1], cax=cb_mean_ax, **cp_info['colorbar_opt'])
-    
 
     cb_pct_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
@@ -1375,7 +1423,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
     #Close plots:
     plt.close()
-
 
 #
 #  -- vertical interpolation code --
@@ -1796,7 +1843,7 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
         ax = _meridional_plot_line(ax, lon,  data, color, **kwargs)
         return ax
 
-def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
+def prep_contour_plot(adata, bdata, diffdata, **kwargs):
     """Preparation for making contour plots.
 
     Prepares for making contour plots of adata, bdata, diffdata, and pctdata, which is
@@ -1840,30 +1887,38 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
     if 'colormap' in kwargs:
         cmap1 = kwargs['colormap']
+        # Check if the colormap name exists in Matplotlib
+        if cmap1 not in plt.colormaps():
+            print(f"{cmap1} is not a matplotlib standard color map. Defaulting to 'coolwarm' for test/base plots")
+            cmap1 = 'coolwarm'
     else:
         cmap1 = 'coolwarm'
     #End if
 
-    if 'contour_levels' in kwargs:
+    if 'contour_levels' in kwargs: # list: Check if contours are specified as list
         levels1 = kwargs['contour_levels']
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+        # Check if any item in the list is a string
+        contains_string = any(isinstance(item, str) for item in levels1)
+        if contains_string:
+            levels1 = [float(item) for item in levels1]
+        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    elif 'contour_levels_range' in kwargs:
+    elif 'contour_levels_range' in kwargs: # arange: Check if the user wants to generate a list from start, stop, step
         assert len(kwargs['contour_levels_range']) == 3, \
         "contour_levels_range must have exactly three entries: min, max, step"
 
         levels1 = np.arange(*kwargs['contour_levels_range'])
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    else:
+    else: # linspace: Check if user wants to generate a list from start, stop, num_steps
         levels1 = np.linspace(minval, maxval, 12)
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
@@ -1889,17 +1944,29 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # Difference options -- Check in kwargs for colormap and levels
     if "diff_colormap" in kwargs:
         cmapdiff = kwargs["diff_colormap"]
+        # Check if the colormap name exists in Matplotlib
+        if cmapdiff not in plt.colormaps():
+            print(f"{cmapdiff} is not a matplotlib standard color map. Defaulting to 'PuOr_r' for difference plots")
+            cmapdiff = 'PuOr_r'
     else:
-        cmapdiff = 'coolwarm'
+        cmapdiff = "PuOr_r"
     #End if
 
     if "diff_contour_levels" in kwargs:
         levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
+        contains_string = any(isinstance(item, str) for item in levelsdiff)
+        if contains_string:
+            levelsdiff = [float(item) for item in levelsdiff]
     elif "diff_contour_range" in kwargs:
         assert len(kwargs['diff_contour_range']) == 3, \
         "diff_contour_range must have exactly three entries: min, max, step"
+        contains_string = any(isinstance(item, str) for item in kwargs['diff_contour_range'])
+        if contains_string:
+            levelsdiff_convert = [float(item) for item in kwargs['diff_contour_range']]
 
-        levelsdiff = np.arange(*kwargs['diff_contour_range'])
+            levelsdiff = np.arange(*levelsdiff_convert)
+        else:
+            levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
         absmaxdif = np.max(np.abs(diffdata))
@@ -1932,6 +1999,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
     else:
         normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
+    #End if
 
     subplots_opt = {}
     contourf_opt = {}
@@ -2039,7 +2107,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         pct = pct.fillna(0.0)
 
         # generate dictionary of contour plot settings:
-        cp_info = prep_contour_plot(azm, bzm, diff, pct, **kwargs)
+        cp_info = prep_contour_plot(azm, bzm, diff, **kwargs)
 
         # Generate zonal plot:
         fig, ax = plt.subplots(figsize=(10,10),nrows=4, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -2273,7 +2341,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
 
     if has_lev:
         # generate dictionary of contour plot settings:
-        cp_info = prep_contour_plot(adata, bdata, diff, pct, **kwargs)
+        cp_info = prep_contour_plot(adata, bdata, diff, **kwargs)
 
         # generate plot objects:
         fig, ax = plt.subplots(figsize=(10,10),nrows=4, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -2483,7 +2551,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
     else:
         dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
         cmap = mpl.cm.RdBu_r
-        
+
     img3 = ax3.contourf(xx, yy, diff.transpose(), cmap=cmap, norm=dnorm)
     if (coord1 == 'month') and (fld1.shape[0] ==12):
         ax3.set_xticks(np.arange(1,13))

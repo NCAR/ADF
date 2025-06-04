@@ -69,7 +69,7 @@
 # Available ADF Default Plot Types
 #+++++++++++++
 default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
-                  "NHPolar","SHPolar","TimeSeries","Special"]
+                  "NHPolar","SHPolar","TimeSeries","Special","WACCM"]
 
 #+++++++++++++
 # Constants
@@ -152,8 +152,6 @@ AODDUST:
   scale_factor: 1
   add_offset: 0
   new_unit: ""
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 AODVIS:
   category: "Aerosols"
@@ -164,8 +162,6 @@ AODVIS:
   scale_factor: 1
   add_offset: 0
   new_unit: ""
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 AODVISdn:
   category: "Aerosols"
@@ -179,44 +175,29 @@ AODVISdn:
   obs_file: "MOD08_M3_192x288_AOD_2001-2020_climo.nc"
   obs_name: "MODIS"
   obs_var_name: "AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 BURDENBC:
   category: "Aerosols"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 BURDENDUST:
   category: "Aerosols"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 BURDENPOM:
   category: "Aerosols"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 BURDENSEASALT:
   category: "Aerosols"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 BURDENSO4:
   category: "Aerosols"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 BURDENSOA:
   category: "Aerosols"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
 
 DMS:
   category: "Aerosols"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -225,7 +206,6 @@ SO2:
   category: "Aerosols"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -234,7 +214,6 @@ SOAG:
   category: "Aerosols"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -250,7 +229,6 @@ BC:
       label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["bc_a1", "bc_a4"]
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 POM:
@@ -264,7 +242,6 @@ POM:
       label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["pom_a1", "pom_a4"]
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 SO4:
@@ -279,7 +256,6 @@ SO4:
   category: "Aerosols"
   derivable_from: ["so4_a1", "so4_a2", "so4_a3"]
   derivable_from_cam_chem: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 SOA:
@@ -294,7 +270,6 @@ SOA:
   category: "Aerosols"
   derivable_from: ["soa_a1", "soa_a2"]
   derivable_from_cam_chem: ["soa1_a1", "soa2_a1", "soa3_a1", "soa4_a1", "soa5_a1", "soa1_a2", "soa2_a2", "soa3_a2", "soa4_a2", "soa5_a2"]
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 DUST:
@@ -310,7 +285,6 @@ DUST:
       label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["dst_a1", "dst_a2", "dst_a3"]
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 SeaSalt:
@@ -330,7 +304,6 @@ SeaSalt:
       ticks: [-10,8,6,4,2,0,-2,-4,-6,-8,-10]
   category: "Aerosols"
   derivable_from: ["ncl_a1", "ncl_a2", "ncl_a3"]
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   
 bc_a1:
@@ -339,7 +312,6 @@ bc_a1:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 bc_a4:
   category: "Aerosols"
@@ -347,7 +319,6 @@ bc_a4:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 dst_a1:
   category: "Aerosols"
@@ -355,7 +326,6 @@ dst_a1:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 dst_a2:
   category: "Aerosols"
@@ -363,7 +333,6 @@ dst_a2:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 dst_a3:
   category: "Aerosols"
@@ -371,7 +340,6 @@ dst_a3:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 ncl_a1:
   category: "Aerosols"
@@ -379,7 +347,6 @@ ncl_a1:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 ncl_a2:
   category: "Aerosols"
@@ -387,7 +354,6 @@ ncl_a2:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 ncl_a3:
   category: "Aerosols"
@@ -395,7 +361,6 @@ ncl_a3:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 num_a1:
   category: "Aerosols"
@@ -403,7 +368,6 @@ num_a1:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 num_a2:
   category: "Aerosols"
@@ -411,7 +375,6 @@ num_a2:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 num_a3:
   category: "Aerosols"
@@ -419,7 +382,6 @@ num_a3:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 num_a4:
   category: "Aerosols"
@@ -427,7 +389,6 @@ num_a4:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 num_a5:
   category: "Aerosols"
@@ -435,7 +396,6 @@ num_a5:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 pom_a1:
   category: "Aerosols"
@@ -443,7 +403,6 @@ pom_a1:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 pom_a4:
   category: "Aerosols"
@@ -451,7 +410,6 @@ pom_a4:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 so4_a1:
   category: "Aerosols"
@@ -459,7 +417,6 @@ so4_a1:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 so4_a2:
   category: "Aerosols"
@@ -467,7 +424,6 @@ so4_a2:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 so4_a3:
   category: "Aerosols"
@@ -475,7 +431,6 @@ so4_a3:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 soa_a1:
   category: "Aerosols"
@@ -483,7 +438,6 @@ soa_a1:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 soa_a2:
   category: "Aerosols"
@@ -491,7 +445,6 @@ soa_a2:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0e-9
   new_unit: "ug/kg"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 SAD_TROP:
   category: "Aerosols"
@@ -499,7 +452,6 @@ SAD_TROP:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0
   new_unit: "cm2/cm3"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 SAD_AERO:
   category: "Aerosols"
@@ -507,7 +459,6 @@ SAD_AERO:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0
   new_unit: "cm2/cm3"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 SAD_SULFC:
   category: "Aerosols"
@@ -515,7 +466,6 @@ SAD_SULFC:
   diff_colormap: "gist_ncar"
   scale_factor: 1.0
   new_unit: "cm2/cm3"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 #+++++++++++++++++
@@ -598,7 +548,6 @@ CO:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -606,7 +555,6 @@ CO01:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -614,7 +562,6 @@ CO02:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -622,7 +569,6 @@ CO03:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -630,7 +576,6 @@ CO04:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -638,7 +583,6 @@ CO05:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -646,7 +590,6 @@ CO06:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -654,7 +597,6 @@ CO07:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -662,7 +604,6 @@ CO08:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -670,7 +611,6 @@ CO09:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -678,7 +618,6 @@ CO10:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -686,7 +625,6 @@ CO11:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -694,7 +632,6 @@ CO12:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -702,7 +639,6 @@ CO13:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -710,7 +646,6 @@ O3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -718,7 +653,6 @@ N2O:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -726,7 +660,6 @@ HNO3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -734,7 +667,6 @@ NO:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000000.0
   new_unit: "pptv"
@@ -742,7 +674,6 @@ NO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000000.0
   new_unit: "pptv"
@@ -750,7 +681,6 @@ NOX:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000000.0
   new_unit: "pptv"
@@ -758,7 +688,6 @@ NOY:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000000.0
   new_unit: "pptv"
@@ -766,7 +695,6 @@ OH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000000.0
   new_unit: "pptv"
@@ -774,7 +702,6 @@ BIGALK:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -782,7 +709,6 @@ C2H4:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -790,7 +716,6 @@ C2H5O2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -798,7 +723,6 @@ C2H5OH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -806,7 +730,6 @@ C2H5OOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -814,7 +737,6 @@ C2H6:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -822,7 +744,6 @@ C3H6:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -830,7 +751,6 @@ C3H7O2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -838,7 +758,6 @@ C3H7OOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -846,7 +765,6 @@ C3H8:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -854,7 +772,6 @@ CCL4:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -862,7 +779,6 @@ CFC11:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -870,7 +786,6 @@ CFC113:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -878,7 +793,6 @@ CFC114:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -886,7 +800,6 @@ CFC115:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -894,7 +807,6 @@ CFC12:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -902,7 +814,6 @@ CH2O:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -910,7 +821,6 @@ CH3BR:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -918,7 +828,6 @@ CH3CCL3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -926,7 +835,6 @@ CH3CHO:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -934,7 +842,6 @@ CH3CL:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -942,7 +849,6 @@ CH3CO3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -950,7 +856,6 @@ CH3COCH3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -958,7 +863,6 @@ CH3COCHO:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -966,7 +870,6 @@ CH3COOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -974,7 +877,6 @@ CH3COOOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -982,7 +884,6 @@ CH3O2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -990,7 +891,6 @@ CH3OH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -998,7 +898,6 @@ CH3OOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1006,7 +905,6 @@ CH4:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1014,7 +912,6 @@ CHBR3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1022,7 +919,6 @@ CLO:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1030,7 +926,6 @@ CLONO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1038,7 +933,6 @@ CLOX:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1046,7 +940,6 @@ CLOY:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1055,7 +948,6 @@ CO2:
   #contour_levels_range: [300,450,10.0]
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000.0
   new_unit: "ppmv"
@@ -1063,7 +955,6 @@ E90:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1071,7 +962,6 @@ GLYALD:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1079,7 +969,6 @@ GLYOXAL:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1087,7 +976,6 @@ H2402:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1095,7 +983,6 @@ H2O2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1103,7 +990,6 @@ H2SO4:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1111,7 +997,6 @@ HCFC141B:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1119,7 +1004,6 @@ HCFC142B:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1127,7 +1011,6 @@ HCFC22:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1135,7 +1018,6 @@ HCL:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1143,7 +1025,6 @@ HCL_GAS:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1151,7 +1032,6 @@ HNO3_GAS:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1159,7 +1039,6 @@ HO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1167,7 +1046,6 @@ HO2NO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1175,7 +1053,6 @@ HOBR:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1183,7 +1060,6 @@ HYAC:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1191,7 +1067,6 @@ HYDRALD:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1199,7 +1074,6 @@ ISOP:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1207,7 +1081,6 @@ ISOPNO3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1215,7 +1088,6 @@ ISOPO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1223,7 +1095,6 @@ ISOPOOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1231,7 +1102,6 @@ MACR:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1239,7 +1109,6 @@ MACRO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1247,7 +1116,6 @@ MACROOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1255,7 +1123,6 @@ MVK:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1263,7 +1130,6 @@ N2O5:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1271,7 +1137,6 @@ NH3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1279,7 +1144,6 @@ NH4:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1287,7 +1151,6 @@ NO3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1295,7 +1158,6 @@ O3S:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1303,7 +1165,6 @@ OCLO:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1311,7 +1172,6 @@ OCS:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1319,7 +1179,6 @@ ONITR:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1327,7 +1186,6 @@ PAN:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1335,7 +1193,6 @@ POOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1343,7 +1200,6 @@ RO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1351,7 +1207,6 @@ ROOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1359,7 +1214,6 @@ SO3:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1367,7 +1221,6 @@ SOAE:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1375,7 +1228,6 @@ TERP:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1383,7 +1235,6 @@ XO2:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1391,7 +1242,6 @@ XOOH:
   category: "Composition"
   colormap: "jet"
   diff_colormap: "gist_ncar"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor: 1000000000.0
   new_unit: "ppbv"
@@ -1406,7 +1256,6 @@ CLDICE:
   obs_file: "CLDICE_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "CLDICE"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLDLIQ:
@@ -1414,7 +1263,6 @@ CLDLIQ:
   obs_file: "CLDLIQ_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "CLDLIQ"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLDTOT:
@@ -1429,7 +1277,6 @@ CLDTOT:
   obs_name: "ERAI"
   obs_var_name: "CLDTOT"
   category: "Clouds"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLDLOW:
@@ -1444,7 +1291,6 @@ CLDLOW:
   obs_name: "ERAI"
   obs_var_name: "CLDLOW"
   category: "Clouds"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLDHGH:
@@ -1459,7 +1305,6 @@ CLDHGH:
   obs_name: "ERAI"
   obs_var_name: "CLDHGH"
   category: "Clouds"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLDMED:
@@ -1474,7 +1319,6 @@ CLDMED:
   obs_name: "ERAI"
   obs_var_name: "CLDMED"
   category: "Clouds"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLOUD:
@@ -1489,7 +1333,6 @@ CLOUD:
     colorbar:
       label : "Percent"
   category: "Clouds"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CONCLD:
@@ -1512,7 +1355,6 @@ TGCLDLWP:
   obs_var_name: "TGCLDLWP"
   obs_scale_factor: 1000
   obs_add_offset: 0
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TGCLDIWP:
@@ -1532,7 +1374,6 @@ TGCLDIWP:
   obs_var_name: "TGCLDIWP"
   obs_scale_factor: 1000
   obs_add_offset: 0
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CCN3:
@@ -1570,7 +1411,6 @@ PRECC:
     colorbar:
       label : "mm/d"
   category: "Hydrologic cycle"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PRECL:
@@ -1585,7 +1425,6 @@ PRECL:
     colorbar:
       label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PRECSC:
@@ -1600,7 +1439,6 @@ PRECSC:
     colorbar:
       label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PRECSL:
@@ -1615,7 +1453,6 @@ PRECSL:
     colorbar:
       label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PRECT:
@@ -1634,7 +1471,6 @@ PRECT:
   obs_var_name: "PRECT"
   category: "Hydrologic cycle"
   derivable_from: ['PRECL','PRECC']
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 QFLX:
@@ -1665,7 +1501,6 @@ PSL:
   obs_file: "PSL_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "PSL"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PS:
@@ -1683,7 +1518,6 @@ PS:
   obs_file: "PS_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "PS"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TREFHT:
@@ -1707,7 +1541,6 @@ TS:
   obs_name: "ERAI"
   obs_var_name: "TS"
   category: "Surface variables"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 SST:
@@ -1726,17 +1559,14 @@ SST:
   obs_var_name: "TS"
   category: "Surface variables"
   mask: "ocean"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 U10:
   category: "Surface variables"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 Surface_Wind_Stress:
   category: "Surface variables"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TAUX:
@@ -1745,7 +1575,6 @@ TAUX:
   category: "Surface variables"
   scale_factor: -1
   add_offset: 0
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TAUY:
@@ -1754,22 +1583,18 @@ TAUY:
   category: "Surface variables"
   scale_factor: -1
   add_offset: 0
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 ICEFRAC:
   category: "Surface variables"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 OCNFRAC:
   category: "Surface variables"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 LANDFRAC:
   category: "Surface variables"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 #+++++++++++++++++
@@ -1788,7 +1613,6 @@ TMQ:
   obs_name: "ERAI"
   obs_var_name: "PREH2O"
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 RELHUM:
@@ -1806,7 +1630,6 @@ RELHUM:
   obs_name: "ERAI"
   obs_var_name: "RELHUM"
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 U:
@@ -1826,7 +1649,6 @@ U:
   vector_pair: "V"
   vector_name: "Wind"
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 V:
@@ -1846,7 +1668,6 @@ V:
   vector_pair: "U"
   vector_name: "Wind"
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 Q:
@@ -1854,7 +1675,6 @@ Q:
   obs_file: "Q_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "Q"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 T:
@@ -1862,7 +1682,6 @@ T:
   obs_file: "T_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "T"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 OMEGA:
@@ -1870,32 +1689,26 @@ OMEGA:
   obs_file: "OMEGA_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "OMEGA"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 OMEGA500:
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PINT:
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PMID:
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 Z3:
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 Wind:
   category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 #+++++++++++++++++
@@ -1904,12 +1717,10 @@ Wind:
 
 QRL:
   category: "Radiation"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 QRS:
   category: "Radiation"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 #+++++++++++++++++
@@ -1929,7 +1740,6 @@ RESTOM:
       label : "W m$^{-2}$"
   category: "TOA energy flux"
   derivable_from: ['FLNT','FSNT']
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 SWCF:
@@ -1949,7 +1759,6 @@ SWCF:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 LWCF:
@@ -1967,7 +1776,6 @@ LWCF:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FSUTOA:
@@ -1982,7 +1790,6 @@ FSUTOA:
     colorbar:
       label : "Wm$^{-2}$"
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FSNT:
@@ -2000,22 +1807,18 @@ FSNT:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "fsnt"
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FSNTC:
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FSNTOA:
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FLUT:
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FLNT:
@@ -2033,7 +1836,6 @@ FLNT:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_all_mon"
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FLNTC:
@@ -2051,7 +1853,6 @@ FLNTC:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_clr_t_mon"
   category: "TOA energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 #+++++++++++++++++
@@ -2060,12 +1861,10 @@ FLNTC:
 
 FSDS:
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FSDSC:
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FSNS:
@@ -2083,7 +1882,6 @@ FSNS:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_all_mon"
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FSNSC:
@@ -2101,7 +1899,6 @@ FSNSC:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_clr_t_mon"
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FLDS:
@@ -2119,22 +1916,18 @@ FLDS:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_lw_down_all_mon"
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FLNS:
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FLNSC:
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 SHFLX:
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 LHFLX:
@@ -2152,7 +1945,6 @@ LHFLX:
   obs_name: "ERAI"
   obs_var_name: "LHFLX"
   category: "Sfc energy flux"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 #+++++++++++++++++
@@ -2161,107 +1953,86 @@ LHFLX:
 
 CLDTOT_ISCCP:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLIMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLWMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 FISCCP1_COSP:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 ICE_ICLD_VISTAU:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 IWPMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 LIQ_ICLD_VISTAU:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 LWPMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 MEANCLDALB_ISCCP:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 MEANPTOP_ISCCP:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 MEANTAU_ISCCP:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 MEANTB_ISCCP:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 MEANTBCLR_ISCCP:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 PCTMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 REFFCLIMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 REFFCLWMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 SNOW_ICLD_VISTAU:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TAUTMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TAUWMODIS:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TOT_CLD_VISTAU:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TOT_ICLD_VISTAU:
   category: "COSP"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 
@@ -2279,96 +2050,167 @@ H2O:
     colorbar:
       label: "mol mol$^{-1}$"
   plot_log_pressure: True
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 OMEGAT:
   colormap: "PuOr_r"
   diff_colormap: "coolwarm"
   plot_log_pressure: True
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 #++++++++++++++
 # Category: TEM
 #++++++++++++++
-
-uzm:
-  ylim: [1e3,1]
+UZM:
+  colormap: "RdYlBu_r"
+  contour_levels_range: [-60,61,8]
+  diff_colormap: "bwr"
+  diff_contour_range: [-35,36,5]
+  ylim: [1e3,1e-1]
   units: m s-1
-  long_name: Zonal-Mean zonal wind
+  mpl:
+    colorbar:
+      #ticks: [-5,-1,-0.2,0.2,1,5]
+      label : "m/s"
+  long_name: Zonal mean zonal wind ($\bar{u}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "uzm"
 
-vzm:
-  ylim: [1e3,1]
+VZM:
+  ylim: [1e3,1e-1]
   units: m s-1
-  long_name: Zonal-Mean meridional wind
+  long_name: Zonal-Mean meridional wind ($\bar{v}$) 
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "vzm"
 
-epfy:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: northward component of the Eliassen–Palm flux
+THZM:
+  colormap: "Spectral_r"
+  contour_levels_range: [185,300,6]
+  diff_colormap: "bwr"
+  diff_contour_range: [-7,7.1,0.5]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "K"
+  long_name: Zonal mean potential temperature ($\bar{\theta}$)
+  obs_file: "TEM_ERA5.nc"
+  obs_name: "ERA5"
+  obs_var_name: "uzm"
+
+EPFY:
+  colormap: "RdYlBu_r"
+  contour_adjust: 1e7
+  contour_levels: [-5e7,-4e7,-3e7,-2e7,-1e7,-0.8e7,-0.6e7,-0.4e7,-0.2e7,-0.1e7,0,0.1e7,0.2e7,0.4e7,0.6e7,0.8e7,1e7,2e7,3e7,4e7,5e7]
+  non_linear_levels: True
+  diff_colormap: "bwr"
+  diff_contour_range: [-2e7,2.1e7,0.2e7]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "m3/s2"
+  long_name: EP Flux - meridional component ($F_{y}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "epfy"
 
-epfz:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: upward component of the Eliassen–Palm flux
+EPFZ:
+  colormap: "RdYlBu_r"
+  contour_adjust: 1e6
+  contour_levels: [-5e6,-4e6,-3e6,-2e6,-1e6,-0.8e6,-0.6e6,-0.4e6,-0.2e6,-0.1e6,0,0.1e6,0.2e6,0.4e6,0.6e6,0.8e6,1e6,2e6,3e6,4e6,5e6]
+  non_linear_levels: True
+  diff_colormap: "bwr"
+  diff_contour_range: [-1e5,1.1e5,0.1e5]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "m3/s2"
+  long_name: EP Flux - vertical component ($F_{z}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "epfz"
 
-vtem:
-  ylim: [1e2,1]
-  units: m/s
-  long_name: Transformed Eulerian mean northward wind
+VTEM:
+  colormap: "RdYlBu_r"
+  contour_levels: [-5,-4,-3,-2,-1,-0.8,-0.6,-0.4,-0.2,-0.1,0,0.1,0.2,0.4,0.6,0.8,1,2,3,4,5]
+  non_linear_levels: True
+  diff_colormap: "bwr"
+  diff_contour_range: [-2,2.1,0.2]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      ticks: [-5,-1,-0.2,0.2,1,5]
+      label : "m/s"
+  long_name: TEM meridional wind ($\bar{v}^{*}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "vtem"
 
-wtem:
-  ylim: [1e2,1]
-  units: m/s
-  long_name: Transformed Eulerian mean upward wind
+WTEM:
+  colormap: "RdYlBu_r"
+  contour_levels: [-2,-1.7,-1.4,-1.1,-0.8,-0.65,-0.5,-0.35,-0.2,-0.1,0,0.1,0.2,0.35,0.5,0.65,0.8,1.1,1.4,1.7,2]
+  scale_factor: 100
+  non_linear_levels: True
+  diff_colormap: "bwr"
+  diff_contour_range: [-2,2.1,0.2]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      ticks: [-2,-0.8,-0.2,0.2,0.8,2]
+      label : "cm/s"
+  units: cm/s
+  long_name: TEM vertical wind ($\bar{w}^{*}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "wtem"
 
-psitem:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: Transformed Eulerian mean mass stream function
+PSITEM:
+  colormap: "RdYlBu_r"
+  contour_levels: [-3e11,-2e11,-1e11,-0.8e11,-0.6e11,-0.4e11,-0.2e11,-0.1e11,0,0.1e11,0.2e11,0.4e11,0.6e11,0.8e11,1e11,2e11,3e11]
+  contour_adjust: 1e11
+  non_linear_levels: True
+  diff_colormap: "bwr"
+  diff_contour_range: [-5e9,5.1e9,.5e9]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "kg/s"
+  units: kg/s
+  long_name: TEM mass stream function ($\bar{\chi}^{*}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "psitem"
 
-utendepfd:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: tendency of eastward wind due to Eliassen-Palm flux divergence
+UTENDEPFD:
+  colormap: "RdYlBu_r"
+  contour_levels: [-0.3,-0.2,-0.1,-0.08,-0.06,-0.04,-0.02,-0.01,0,0.01,0.02,0.04,0.06,0.08,0.1,0.2,0.3]
+  non_linear_levels: True
+  diff_colormap: "bwr"
+  diff_contour_range: [-0.1,0.11,.01]
+  ylim: [1e3,1e-1]
+  mpl:
+    colorbar:
+      label : "mm/s2"
+  long_name: EP flux divergence ($\nabla \cdot F$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "utendepfd"
 
-utendvtem:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: tendency of eastward wind due to TEM northward wind advection and the coriolis term
+UTENDVTEM:
+  colormap: "RdYlBu_r"
+  diff_colormap: "bwr"
+  ylim: [1e3,1e-1]
+  long_name: EP flux divergence - meridional component ($F_{yy}$)
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "utendvtem"
 
-utendwtem:
-  ylim: [1e2,1]
-  units: m3 s−2
-  long_name: tendency of eastward wind due to TEM upward wind advection
+UTENDWTEM:
+  colormap: "RdYlBu_r"
+  diff_colormap: "bwr"
+  ylim: [1e3,1e-1]
+  long_name: EP flux divergence - vertical component ($F_{zz})
   obs_file: "TEM_ERA5.nc"
   obs_name: "ERA5"
   obs_var_name: "utendwtem"
@@ -2456,7 +2298,7 @@ aod_diags:
       range_max: 100
       range_min: -100
       nlevel: 21
-      colormap: "PuOr_r"
+      colormap: "bwr"
 
 #-----------
 
