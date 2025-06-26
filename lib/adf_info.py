@@ -242,6 +242,19 @@ class AdfInfo(AdfConfig):
             #if so don't rely on climo years from history location
             #if baseline_ts_done:
             #if (not calc_baseline_ts) and (input_ts_baseline):
+
+            if not baseline_hist_str:
+                baseline_hist_str = ['cam.h0a']
+            else:
+                #Make list if not already
+                if not isinstance(baseline_hist_str, list):
+                    baseline_hist_str = [baseline_hist_str]
+            #Initialize baseline history string list
+            self.__base_hist_str = baseline_hist_str
+
+            #Grab first possible hist string, just looking for years of run
+            base_hist_str = baseline_hist_str[0]
+
             if not calc_baseline_ts:
                 baseline_hist_loc = [None]
 
@@ -253,7 +266,7 @@ class AdfInfo(AdfConfig):
 
                     #Get years from pre-made timeseries file(s)
                     found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(
-                        input_ts_loc, data_name)
+                        input_ts_loc, data_name, base_hist_str)
                     found_yr_range = np.arange(found_syear_baseline,found_eyear_baseline,1)
 
                     #History file path isn't needed if user is running ADF directly on time series.
@@ -497,6 +510,8 @@ class AdfInfo(AdfConfig):
         syears_fixed = []
         eyears_fixed = []
         for case_idx, case_name in enumerate(case_names):
+            #Check if history file path exists:
+            hist_str_case = hist_str[case_idx]
 
             syear = syears[case_idx]
             eyear = eyears[case_idx]
@@ -512,7 +527,7 @@ class AdfInfo(AdfConfig):
                     print(f"Checking existing time-series files in {input_ts_loc}")
 
                     #Get years from pre-made timeseries file(s)
-                    found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)
+                    found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name, hist_str_case)
                     found_yr_range = np.arange(found_syear,found_eyear,1)
 
                     #History file path isn't needed if user is running ADF directly on time series.
@@ -544,8 +559,6 @@ class AdfInfo(AdfConfig):
                 #End if
             #End if
 
-            #Check if history file path exists:
-            hist_str_case = hist_str[case_idx]
             if any(cam_hist_locs):
                 #Grab first possible hist string, just looking for years of run
                 hist_str = hist_str_case[0]
@@ -1000,7 +1013,7 @@ class AdfInfo(AdfConfig):
     #########
 
     # Utility function to grab climo years from pre-made time series files:
-    def get_climo_yrs_from_ts(self, input_ts_loc, case_name):
+    def get_climo_yrs_from_ts(self, input_ts_loc, case_name, hstr):
         """
         Grab start and end climo years if none are specified in config file
         for pre-made time series file(s)
@@ -1026,7 +1039,7 @@ class AdfInfo(AdfConfig):
         # NOTE: it is assumed all the variables have the same dates!
         # Also, it is assumed that only h0 files should be climo-ed.
         for var in var_list:
-            ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var}.*nc"))
+            ts_files = sorted(input_location.glob(f"{case_name}*{hstr}*.{var}.*nc"))
             if ts_files:
                 break
             else:
