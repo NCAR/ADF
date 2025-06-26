@@ -1,20 +1,15 @@
-##################
-#Warnings function
-##################
-
+"""
+Module to create (monthly) climatology files.
+"""
 import warnings  # use to warn user about missing files.
+import multiprocessing as mp
+import numpy as np
+import xarray as xr  # module-level import so all functions can get to it.
+
 def my_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
-
-from uuid import int_
-from mypyc.ir.rtypes import optional_value_type
-from operator import truediv
-import numpy as np
-import xarray as xr  # module-level import so all functions can get to it.
-
-import multiprocessing as mp
 
 def get_time_slice_by_year(time, startyear, endyear):
     """
@@ -64,7 +59,7 @@ def create_climo_files(adf, clobber=False, search=None):
     adf
         the ADF object
     clobber : bool, optional
-        Overwrite existing climatology files if truediv.
+        Overwrite existing climatology files if true.
         Defaults to False (do not delete).
     search : str, optional
         optional string used as a template to find the time series files
