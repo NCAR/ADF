@@ -248,6 +248,7 @@ class AdfInfo(AdfConfig):
                 if input_ts_baseline is not None:
                     #Grab baseline time series file location
                     #input_ts_baseline = self.get_baseline_info("cam_ts_loc", required=True)
+                    print("BASELINE TS LOC",input_ts_baseline)
                     input_ts_loc = Path(input_ts_baseline)
 
                     #Get years from pre-made timeseries file(s)
