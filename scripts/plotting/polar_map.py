@@ -1,6 +1,5 @@
-from pathlib import Path  # python standard library
-
-# data loading / analysis
+"""Module to make polar stereographic maps."""
+from pathlib import Path
 import xarray as xr
 import numpy as np
 
@@ -8,11 +7,39 @@ import numpy as np
 import plotting_functions as pf
 
 def get_hemisphere(hemi_type):
-    """Helper function to convert plot type to hemisphere code."""
+    """Helper function to convert plot type to hemisphere code.
+    
+    Parameters
+    ----------
+    hemi_type : str
+        if `NHPolar` set NH, otherwise SH
+        
+    Returns
+    -------
+    str
+        NH or SH
+    """
     return "NH" if hemi_type == "NHPolar" else "SH"
 
-def process_seasonal_data(mdata, odata, season, vres):
-    """Helper function to calculate seasonal means and differences."""
+def process_seasonal_data(mdata, odata, season):
+    """Helper function to calculate seasonal means and differences.
+    Parameters
+    ----------
+    mdata : xarray.DataArray
+        test case data
+    odata : xarray.DataArray
+        reference case data
+    season : str
+        season (JJA, DJF, MAM, SON)
+
+    Returns
+    -------
+    mseason : xarray.DataArray
+    oseason : xarray.DataArray
+    dseason : xarray.DataArray
+    pseason : xarray.DataArray
+        Seasonal means for test, reference, difference, and percent difference    
+    """
     mseason = pf.seasonal_mean(mdata, season=season, is_climo=True)
     oseason = pf.seasonal_mean(odata, season=season, is_climo=True)
     
@@ -212,7 +239,7 @@ def polar_map(adfobj):
             mseason, oseason, dseason, pseason = process_seasonal_data(
                 mdata, 
                 use_odata,
-                plot['season'], vres
+                plot['season']
             )
 
             # Create plot
