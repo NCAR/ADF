@@ -1,17 +1,19 @@
-name: adf_v0.11
+name: adf_v0.13
 channels:
   - conda-forge
   - defaults
 dependencies:
-  - pyyaml=6.0
-  - scipy=1.10.0
-  - cartopy=0.21.1
-  - netcdf4=1.6.2
-  - xarray=2023.1.0
-  - matplotlib=3.6.3
-  - pandas=1.5.3
-  - pint=0.16   #GeoCAT doesn't work with newer versions
-  - xskillscore=0.0.5
-  - geocat-comp=2022.08.0
-  - python=3.11
-prefix: /glade/work/$USER/conda-envs/adf_v0.11
+  - pyyaml=6.0.2
+  - scipy=1.12.0
+  - cartopy=0.23.0
+  - netcdf4=1.6.5
+  - xarray=2024.1.1
+  - uxarray=2025.03.0
+  - matplotlib=3.9.4
+  - pandas=2.2.0
+  - pint=0.23
+  - xskillscore=0.0.24
+  - geocat-comp=2024.04.0
+  - python=3.12
+  - xesmf>=0.8.8
+prefix: /glade/work/$USER/conda-envs/adf_v0.13
