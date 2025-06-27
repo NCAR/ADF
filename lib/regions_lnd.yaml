@@ -1,0 +1,136 @@
+# Define regions with lists for boundaries of 
+#   - lat (-90 to 90)
+#   - lon (-180 to 180)
+
+Global:
+  lat_bounds: [-90, 90]
+  lon_bounds: [-180, 180]
+N Hemisphere Land:
+  lat_bounds: [0, 90]
+  lon_bounds: [-180, 180]
+S Hemisphere Land:
+  lat_bounds: [-90, 0]
+  lon_bounds: [-180, 180]
+Polar:
+  lat_bounds: [60, 90]
+  lon_bounds: [-180, 180]
+Alaskan Arctic:
+  lat_bounds: [66.5, 72] 
+  lon_bounds: [-170, -140]
+Canadian Arctic:
+  lat_bounds: [66.5, 90] 
+  lon_bounds: [-120, -60]
+Greenland:
+  lat_bounds: [60, 90] 
+  lon_bounds: [-60, -20]
+Russian Arctic:
+  lat_bounds: [66.5, 90]
+  lon_bounds: [70, 170]
+Antarctica:
+  lat_bounds: [-90, -65]
+  lon_bounds: [-180, 180]
+Alaska:
+  lat_bounds: [59, 66.5]
+  lon_bounds: [-170, -140]
+Northwest Canada:
+  lat_bounds: [55, 66.5]
+  lon_bounds: [-125, -100]
+Central Canada:
+  lat_bounds: [50, 62]
+  lon_bounds: [-100, -80]
+Eastern Canada:
+  lat_bounds: [50, 60]
+  lon_bounds: [-80, -55]
+Northern Europe:
+  lat_bounds: [60, 70]
+  lon_bounds: [5, 45]
+Western Siberia:
+  lat_bounds: [55, 66.5]
+  lon_bounds: [60, 90]
+Eastern Siberia:
+  lat_bounds: [50, 66.5]
+  lon_bounds: [90, 140]
+Lost Boreal Forest:
+  lat_bounds: [48, 56]
+  lon_bounds: [95, 103]
+Western US:
+  lat_bounds: [30, 50]
+  lon_bounds: [-130, -105]
+Central US:
+  lat_bounds: [30, 50]
+  lon_bounds: [-105, -90]
+Eastern US:
+  lat_bounds: [30, 50]
+  lon_bounds: [-90, -70]
+Europe:
+  lat_bounds: [45, 60]
+  lon_bounds: [-10, 30]
+Mediterranean:
+  lat_bounds: [34, 45]
+  lon_bounds: [-10, 30]
+Central America:
+  lat_bounds: [5, 16]
+  lon_bounds: [-95, -75]
+Amazonia:
+  lat_bounds: [-10, 0]
+  lon_bounds: [-70, -50]
+Central Africa:
+  lat_bounds: [-5, 5]
+  lon_bounds: [10, 30]
+Indonesia:
+  lat_bounds: [-10, 10]
+  lon_bounds: [90, 150]
+Brazil:
+  lat_bounds: [-23.5, -10]
+  lon_bounds: [-65, -30]
+Sahel:
+  lat_bounds: [6, 16]
+  lon_bounds: [-5, 15]
+Southern Africa:
+  lat_bounds: [-23.5, -5]
+  lon_bounds: [10, 40]
+India:
+  lat_bounds: [10, 23.5]
+  lon_bounds: [70, 90]
+Indochina:
+  lat_bounds: [10, 23.5]
+  lon_bounds: [90, 120]
+Sahara Desert:
+  lat_bounds: [16, 30]
+  lon_bounds: [-20, 30]
+Arabian Peninsula:
+  lat_bounds: [16, 30]
+  lon_bounds: [35, 60]
+Australia:
+  lat_bounds: [-30, -20]
+  lon_bounds: [110, 145]
+Central Asia:
+  lat_bounds: [35, 50]
+  lon_bounds: [55, 70]
+Mongolia:
+  lat_bounds: [40, 50]
+  lon_bounds: [85, 120]
+Tibetan Plateau:
+  lat_bounds: [30, 40]
+  lon_bounds: [80, 100]
+Central Asia 2:
+  lat_bounds: [40, 50]
+  lon_bounds: [40, 100]
+NE China:
+  lat_bounds: [40, 50]
+  lon_bounds: [100, 130]
+Eastern China:
+  lat_bounds: [30, 40]
+  lon_bounds: [100, 120]
+Southern Asia:
+  lat_bounds: [20, 30]
+  lon_bounds: [60, 120]
+Sahara and Arabia:
+  lat_bounds: [15, 30]
+  lon_bounds: [-15, 60]
+MedSea and MidEast:
+  lat_bounds: [30, 45]
+  lon_bounds: [-10, 60]
+Tigris Euphrates:
+  lat_bounds: [30, 40]
+  lon_bounds: [37, 50]

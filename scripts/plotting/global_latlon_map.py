@@ -104,6 +104,18 @@ def global_latlon_map(adfobj):
     #all generated plots and tables for each case:
     plot_locations = adfobj.plot_location
 
+    kwargs = {}
+
+    #
+    unstruct_plotting = adfobj.unstructured_plotting
+    print("unstruct_plotting", unstruct_plotting)
+    if unstruct_plotting:
+        kwargs["unstructured_plotting"] = unstruct_plotting
+        #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
+        #kwargs["mesh_file"] = mesh_file
+    else:
+        unstructured=False
+    print("kwargs", kwargs)
     #Grab case years
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
@@ -125,6 +137,9 @@ def global_latlon_map(adfobj):
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
+    comp = adfobj.model_component
+    unstructured = False
     #-----------------------------------------
 
     #Determine if user wants to plot 3-D variables on
@@ -177,17 +192,35 @@ def global_latlon_map(adfobj):
             else:
                 base_name = adfobj.data.ref_labels[var]
 
-        # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        if unstruct_plotting:
+            mesh_file = adfobj.mesh_files["baseline_mesh_file"]
+            kwargs["mesh_file"] = mesh_file
+            odata = adfobj.data.load_reference_climo_da(base_name, var, **kwargs)
+
+            unstruct_base = True
+            odataset = adfobj.data.load_reference_climo_dataset(base_name, var, **kwargs) 
+            area = odataset.area.isel(time=0)
+            landfrac = odataset.landfrac.isel(time=0)
+            # calculate weights
+            wgt_base = area * landfrac / (area * landfrac).sum()
+        else:
+            #odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+            odata = adfobj.data.load_reference_regrid_da(base_name, var)
+            if odata is None:
+                
+                dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
+                adfobj.debug_log(dmsg)
+                continue
+            o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
+            if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
+                print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
+                continue
 
         if odata is None:
-            dmsg = f"\t    WARNING: No regridded test file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
+            dmsg = f"\t    WARNING: No baseline file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
+            #dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, will"
             adfobj.debug_log(dmsg)
-            continue
-
-        o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
-        if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
-            print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
+            print(dmsg)
             continue
 
         #Loop over model cases:
@@ -204,25 +237,64 @@ def global_latlon_map(adfobj):
                 print(f"    {plot_loc} not found, making new directory")
                 plot_loc.mkdir(parents=True)
 
-            #Load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            if unstruct_plotting:
+                mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
+                kwargs["mesh_file"] = mesh_file
+                mdata = adfobj.data.load_climo_da(case_name, var, **kwargs)
 
+                unstruct_case = True
+                mdataset = adfobj.data.load_climo_dataset(case_name, var, **kwargs) 
+                area = mdataset.area.isel(time=0)
+                landfrac = mdataset.landfrac.isel(time=0)
+                # calculate weights
+                wgt = area * landfrac / (area * landfrac).sum()
+            else:
+                mdata = adfobj.data.load_regrid_da(case_name, var)
+                #Skip this variable/case if the regridded climo file doesn't exist:
+                if mdata is None:
+                    dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
+                    adfobj.debug_log(dmsg)
+                    continue
+                #Determine dimensions of variable:
+                has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
+                if (not has_dims['has_lat']) or (not has_dims['has_lon']):
+                    print(f"\t    WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
+                    continue
+                else: # i.e., has lat&lon
+                    if (has_dims['has_lev']) and (not pres_levs):
+                        print(f"\t    WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
+                        continue
             #Skip this variable/case if the regridded climo file doesn't exist:
             if mdata is None:
-                dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
+                dmsg = f"\t    WARNING: No test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
                 adfobj.debug_log(dmsg)
+                continue
+            has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
+            if (has_dims['has_lev']) and (not pres_levs):
+                print(f"\t    WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
                 continue
 
             #Determine dimensions of variable:
-            has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
-            if (not has_dims['has_lat']) or (not has_dims['has_lon']):
-                print(f"\t    WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
-                continue
-            else: # i.e., has lat&lon
-                if (has_dims['has_lev']) and (not pres_levs):
-                    print(f"\t    WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
-                    continue
+            if unstruct_plotting:
+                has_dims = {}
+                if len(wgt.n_face) == len(wgt_base.n_face):
+                    vres["wgt"] = wgt
+                    has_dims = {}
+                    has_dims['has_lev'] = False
+                else:
+                    print("The weights are different between test and baseline. Won't continue, eh.")
+                    return
 
+                if (not unstruct_case) and (unstruct_base):
+                    print("Base is unstructured but Test is lat/lon. Can't continue?")
+                    return
+                if (unstruct_case) and (not unstruct_base):
+                    print("Base is lat/lon but Test is unstructured. Can't continue?")
+                    return
+                if (unstruct_case) and (unstruct_base):
+                    unstructured=True
+                if (not unstruct_case) and (not unstruct_base):
+                    unstructured=False
             # Check output file. If file does not exist, proceed.
             # If file exists:
             #   if redo_plot is true: delete it now and make plot
@@ -275,7 +347,7 @@ def global_latlon_map(adfobj):
                                             [syear_cases[case_idx],eyear_cases[case_idx]],
                                             [syear_baseline,eyear_baseline],
                                             mseasons[s], oseasons[s], dseasons[s], pseasons[s],
-                                            obs=adfobj.compare_obs, **vres)
+                                            obs=adfobj.compare_obs, unstructured=unstructured, **vres)
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, category=web_category,
@@ -319,7 +391,7 @@ def global_latlon_map(adfobj):
                                                 [syear_baseline,eyear_baseline],
                                                 mseasons[s].sel(lev=pres), oseasons[s].sel(lev=pres), dseasons[s].sel(lev=pres),
                                                 pseasons[s].sel(lev=pres),
-                                                obs=adfobj.compare_obs, **vres)
+                                                obs=adfobj.compare_obs, unstructured=unstructured, **vres)
 
                         #Add plot to website (if enabled):
                         adfobj.add_website_data(plot_name, f"{var}_{pres}hpa", case_name, category=web_category,
