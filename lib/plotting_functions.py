@@ -304,6 +304,38 @@ def get_central_longitude(*args):
         return 180
     #End if
 
+
+def transform_coordinates_for_projection(proj, lon, lat):
+    """
+    Explicitly project coordinates using the projection object.
+    
+    Parameters
+    ----------
+    proj : cartopy.ccrs.CRS
+        projection object
+    lat : xarray.DataArray or numpy.ndarray
+        latitudes (in degrees)
+    lon :array.DataArray or numpy.ndarray
+        longitudes (in degrees)
+        
+    Returns
+    -------
+    x_proj : numpy.ndarray
+        array of projected longitudes
+    y_proj : numpy.ndarray
+        array of projected latitudes
+
+    Notes
+    -----
+    This is what cartopy's transform_first=True *should* be doing internally.
+    We find that it sometimes fails for polar plots, so do it with this manually.
+    This dramatically speeds up polar plots.    
+    """
+    lons, lats = np.meshgrid(lon, lat)
+    x_proj, y_proj, _ = proj.transform_points(ccrs.PlateCarree(), lons, lats).T # .T to unpack, .T again to get x,y,z arrays
+    return x_proj.T, y_proj.T
+
+
 #######
 
 def global_average(fld, wgt, verbose=False):
@@ -603,10 +635,18 @@ def domain_stats(data, domain):
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
 
-def make_polar_plot(wks, case_nickname, base_nickname,
-                    case_climo_yrs, baseline_climo_yrs,
-                    d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.DataArray]=None,pctchange:Optional[xr.DataArray]=None,
-                    domain:Optional[list]=None, hemisphere:Optional[str]=None, obs=False, **kwargs):
+def make_polar_plot(wks, case_nickname, 
+                    base_nickname,
+                    case_climo_yrs, 
+                    baseline_climo_yrs,
+                    d1:xr.DataArray, 
+                    d2:xr.DataArray, 
+                    difference:Optional[xr.DataArray]=None,
+                    pctchange:Optional[xr.DataArray]=None,
+                    domain:Optional[list]=None, 
+                    hemisphere:Optional[str]=None, 
+                    obs=False, 
+                    **kwargs):
 
     """Make a stereographic polar plot for the given data and hemisphere.
 
@@ -727,7 +767,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
             levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set levels for difference plot (with a symmetric color bar):
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        levelsdiff = np.linspace(-1*absmaxdif.data, absmaxdif.data, 12)
     #End if
     
     if "pct_diff_contour_levels" in kwargs:
@@ -758,7 +798,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     #End if
 
     if max(np.abs(levelsdiff)) > 10*absmaxdif:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        levelsdiff = np.linspace(-1*absmaxdif.data, absmaxdif.data, 12)
     
     
     #End if
@@ -779,8 +819,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     #End if
 
     # -- end options
-
-    lons, lats = np.meshgrid(lon_cyclic, d1.lat)
+    lons, lats = transform_coordinates_for_projection(proj, lon_cyclic, d1.lat) # Explicit coordinate transform
 
     fig = plt.figure(figsize=(10,10))
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
@@ -794,27 +833,28 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     levs_diff = np.unique(np.array(levelsdiff))
     levs_pctdiff = np.unique(np.array(levelspctdiff))
 
+    # BPM: removing `transform=ccrs.PlateCarree()` from contourf calls & transform_first=True
     if len(levs) < 2:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+        img1 = ax1.contourf(lons, lats, d1_cyclic, colors="w", norm=norm1)
         ax1.text(0.4, 0.4, empty_message, transform=ax1.transAxes, bbox=props)
 
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+        img2 = ax2.contourf(lons, lats, d2_cyclic, colors="w", norm=norm1)
         ax2.text(0.4, 0.4, empty_message, transform=ax2.transAxes, bbox=props)
     else:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), cmap=cmap1, norm=norm1, levels=levels1)
+        img1 = ax1.contourf(lons, lats, d1_cyclic, cmap=cmap1, norm=norm1, levels=levels1)
+        img2 = ax2.contourf(lons, lats, d2_cyclic, cmap=cmap1, norm=norm1, levels=levels1)
 
     if len(levs_pctdiff) < 2:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=pctnorm, transform_first=True)
+        img3 = ax3.contourf(lons, lats, pct_cyclic, colors="w", norm=pctnorm)
         ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
     else:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm, levels=levelspctdiff, transform_first=True)
+        img3 = ax3.contourf(lons, lats, pct_cyclic, cmap=cmappct, norm=pctnorm, levels=levelspctdiff)
 
     if len(levs_diff) < 2:
-        img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
+        img4 = ax4.contourf(lons, lats, dif_cyclic, colors="w", norm=dnorm)
         ax4.text(0.4, 0.4, empty_message, transform=ax4.transAxes, bbox=props)
     else:
-        img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
+        img4 = ax4.contourf(lons, lats, dif_cyclic, cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
         
     #Set Main title for subplots:
     st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
@@ -1905,7 +1945,6 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         absmaxdif = np.max(np.abs(diffdata.data))
         # set levels for difference plot:
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-
     # Percent Difference options -- Check in kwargs for colormap and levels
     if "pct_diff_colormap" in kwargs:
         cmappct = kwargs["pct_diff_colormap"]
@@ -1967,7 +2006,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
 def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, log_p, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, obs=False, **kwargs):
 
     """This is the default zonal mean plot
 
@@ -2145,7 +2184,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
 def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, latbounds=None, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, latbounds=None, obs=False, **kwargs):
 
     """Default meridional mean plot
 
@@ -2169,6 +2208,8 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         It must have the same dimensions and vertical levels as adata.
     has_lev : bool
         whether lev dimension is present
+    log_p : bool, optional
+        (Not implemented) use log(pressure) vertical axis
     latbounds : numbers.Number or slice, optional
         indicates latitude bounds to average over
         if it is a number, assume symmetric about equator,
