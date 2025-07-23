@@ -2167,7 +2167,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # determine levels & color normalization:
     minval    = np.min([np.min(adata), np.min(bdata)])
     maxval    = np.max([np.max(adata), np.max(bdata)])
-    absmaxdif = np.max(np.abs(diffdata))
+    absmaxdif = np.max(np.abs(diffdata.data))
     absmaxpct = np.max(np.abs(pctdata))
 
     # determine norm to use (deprecate this once minimum MPL version is high enough)
@@ -2237,7 +2237,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set a symmetric color bar for diff:
-        absmaxdif = np.max(np.abs(diffdata))
+        absmaxdif = np.max(np.abs(diffdata.data))
         # set levels for difference plot:
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
         
