@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'mdfowler'
+user: wwieder #'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -110,7 +110,7 @@ diag_basic_info:
     #you set it to "*" then it will default
     #to all of the processors available on a
     #single node/machine:
-    num_procs: 1
+    num_procs: 8
 
     #If set to true, then redo all plots even if they already exist.
     #If set to false, then if a plot is found it will be skipped:
@@ -137,13 +137,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.143
+    cam_case_name: b.e30_alpha06e.B1850C_LTso.ne30_t232_wgx3.156
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '143'
+    case_nickname: '156'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/derecho/scratch/hannay/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
@@ -154,12 +154,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 30
+    start_year: 122
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 40
+    end_year: 152
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -199,13 +199,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.139
+    cam_case_name: b.e30_alpha06e.B1850C_LTso.ne30_t232_wgx3.155
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '139'
+    case_nickname: '155'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -220,12 +220,12 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 30
+    start_year: 122
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 40
+    end_year: 152
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -259,25 +259,25 @@ diag_cam_baseline_climo:
 #Name of time-averaging scripts being used to generate climatologies.
 #These scripts must be located in "scripts/averaging":
 time_averaging_scripts:
-    - create_climo_files
+   - create_climo_files
 
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
 regridding_scripts:
-    #- regrid_and_vert_interp
+    - regrid_and_vert_interp
 
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
-    # - lmwg_table
+     - lmwg_table
 
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-    # - global_latlon_map
-    # - global_mean_timeseries_lnd
-    # - polar_map
-    - regional_climatology
+     - global_latlon_map
+     - global_mean_timeseries_lnd
+     - polar_map
+     - regional_climatology
 
 #List of variables that will be processesd:
 #Shorter list here, for efficiency of testing
@@ -294,25 +294,26 @@ diag_var_list:
     - RAIN
     - SNOW
     - TOTRUNOFF
-    - QOVER
-    - QDRAI
+    - TOTVEGC
+    #- QOVER
+    #- QDRAI
     - QRGWL
-    - QSNOFRZ
+    #- QSNOFRZ
     - QSNOMELT
-    - QSNWCPICE
+    #- QSNWCPICE
     # - DSTFLXT
     # - MEG_isoprene 
 
 region_list:
     - Global
-    - N Hemisphere Land
-    - S Hemisphere Land
+    #- N Hemisphere Land
+    #- S Hemisphere Land
     - Polar
     - Alaskan Arctic
     - Canadian Arctic
     - Greenland
     - Russian Arctic
-    - Antarctica
+    #- Antarctica
     - Alaska
     - Northwest Canada
     - Central Canada
@@ -334,14 +335,12 @@ region_list:
     - Southern Africa
     - India
     - Indochina
-    - Sahara Desert
-    - Arabian Peninsula
-    - Australia
-    - Central Asia ## Was Broken... probably because there were two? 
-    - Mongolia
-    - Tibetan Plateau
-    
-
+    #- Sahara Desert
+    #- Arabian Peninsula
+    #- Australia
+    #- Central Asia ## Was Broken... probably because there were two? 
+    #- Mongolia
+    #- Tibetan Plateau
 
 
 #END OF FILE

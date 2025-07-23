@@ -328,10 +328,16 @@ TOTECOSYSC_1m:
 
 TOTSOMC_1m:
   category: "Carbon"
+  scale_factor_table: 0.000000001  #g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC"
 
 
 TOTVEGC:
   category: "Carbon"
+  scale_factor_table: 0.000000001  #g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC"
 
 
 #+++++++++++

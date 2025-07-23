@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'USER-NAME-NOT-SET'
+user: wwieder #'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -102,7 +102,7 @@ diag_basic_info:
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
     #longitude will default to 180 degrees E.
-    central_longitude: 180
+    central_longitude: 0
 
     #Number of processors on which to run the ADF.
     #If this config variable isn't present then
@@ -287,12 +287,13 @@ diag_var_list:
     - PREC
     - ELAI
     - GPP
-    #- NPP
+    - NPP
     - FSDS
-    #- ALTMAX
+    - ALTMAX
     - ET
-    #- TOTRUNOFF
-    #- DSTFLXT
-    #- MEG_isoprene 
+    - GRAINC_TO_FOOD
+    - TOTRUNOFF
+    - DSTFLXT
+    - MEG_isoprene 
 
 #END OF FILE

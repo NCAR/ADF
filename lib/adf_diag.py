@@ -1366,6 +1366,8 @@ class AdfDiag(AdfWeb):
                 # NOTE: this will need to be changed when derived equations are more complex! - JR
                 if var == "RESTOM":
                     der_val = ds["FSNT"]-ds["FLNT"]
+                elif var == "ASA":
+                    der_val = ds["FSR"]/ds["FSDS"].where(ds["FSDS"]>0)
                 else:
                     # Loop through all constituents and sum
                     der_val = 0
