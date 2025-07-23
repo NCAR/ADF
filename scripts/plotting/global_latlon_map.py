@@ -158,7 +158,7 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
         return
 
     has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
-    if not pf.lat_lon_validate_dims(mdata):
+    if (not has_dims['has_lat']) or (not has_dims['has_lon']):
         print(f"\t    WARNING: Model data missing lat/lon dimensions")
         return
 
