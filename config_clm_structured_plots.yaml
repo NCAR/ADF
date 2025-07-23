@@ -123,7 +123,7 @@ diag_cam_climo:
     # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
     # Only affects timeseries as everything else uses the created timeseries 
     # Default: 
-    hist_str: clm2.h0
+    hist_str: clm2.h0a
 
     #Calculate climatologies?
     #If false, the climatology files will not be created:
@@ -137,13 +137,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: ctsm53026_UpLimDestMet_sturm_pSASU_test
+    cam_case_name: ctsm53062_f09_1850
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'Jordan + uldm=250'
+    case_nickname: '5.3.062_h0a'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
@@ -154,12 +154,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 140 
+    start_year: 1
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 160
+    end_year: 20
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -199,13 +199,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: ctsm53026_BNF_pSASU
+    cam_case_name: ctsm53061_f09_1850
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'ctsm53026_BNF_pSASU'
+    case_nickname: '5.3.061_h0'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -220,12 +220,12 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 140
+    start_year: 1
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 160
+    end_year: 20
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -297,4 +297,31 @@ diag_var_list:
     - DSTFLXT
     - MEG_isoprene 
 
-#END OF FILE
+region_list:
+  #- Global
+  #  - N Hemisphere Land
+  #  - S Hemisphere Land
+  #  - Polar
+  #  - Alaskan Arctic
+  #  - Canadian Arctic
+  #  - Greenland
+    - Russian Arctic
+  #  - Antarctica
+  #  - Alaska
+  #  - Northwest Canada
+  #  - Central Canada
+  #  - Eastern Canada
+  #  - Northern Europe
+  #  - Western Siberia
+  #  - Eastern Siberia
+  #  - Western US
+  #  - Central US
+  #  - Eastern US
+  #  - Europe
+  #  - Mediterranean
+  #  - Central America
+  #  - Amazonia
+  #  - Central Africa
+  #  - Indonesia
+  #  - Brazil
+
