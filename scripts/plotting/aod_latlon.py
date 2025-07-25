@@ -435,7 +435,8 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
             ax.coastlines()
             ax.set_title(title, fontsize=10)
 
-            cbar = plt.colorbar(img, orientation='horizontal', pad=0.05)
+            fig_to_use = ind_fig if not is_panel else fig
+            cbar = fig_to_use.colorbar(img, ax=ax, orientation='horizontal', pad=0.05)
             if 'ticks' in plot_param:
                 cbar.set_ticks(plot_param['ticks'])
             if 'tick_labels' in plot_param:
