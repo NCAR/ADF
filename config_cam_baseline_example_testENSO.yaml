@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'USER-NAME-NOT-SET'
+user: 'mdfowler'
 
 
 #This first set of variables specify basic info used by all diagnostic runs:
@@ -119,7 +119,7 @@ diag_basic_info:
 
     #If set to true, then redo all plots even if they already exist.
     #If set to false, then if a plot is found it will be skipped:
-    redo_plot: false
+    redo_plot: true
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
@@ -139,17 +139,18 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e23_alpha17f.BLT1850.ne30_t232.098
+    cam_case_name: b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.132
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: #cool nickname
+    case_nickname: '132'
 
     #Location of CAM history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/campaign/cgd/amp/amwg/ADF_test_cases/${diag_cam_climo.cam_case_name}
+    # cam_hist_loc: /glade/campaign/cgd/amp/amwg/ADF_test_cases/${diag_cam_climo.cam_case_name}
+    cam_hist_loc: /glade/derecho/scratch/hannay/archive//b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.132/atm/hist
 
     #Location of CAM climatologies (to be created and then used by this script)
     cam_climo_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/climo
@@ -157,12 +158,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 10
+    start_year: 2
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 14
+    end_year: 44
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -468,20 +469,21 @@ regridding_scripts:
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
     - amwg_table
+    - ENSO_acrossRuns
     #- aerosol_gas_tables
 
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
     - global_latlon_map
-    - global_latlon_vect_map
-    - zonal_mean
-    - meridional_mean
-    - polar_map
-    - cam_taylor_diagram
-    - qbo
-    - ozone_diagnostics
-    - MOPITT
+    # - global_latlon_vect_map
+    # - zonal_mean
+    # - meridional_mean
+    # - polar_map
+    # - cam_taylor_diagram
+    # - qbo
+    # - ozone_diagnostics
+    - enso_comparison_plots
     #- tape_recorder
     #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
@@ -507,7 +509,6 @@ diag_var_list:
     - FLNT
     - LANDFRAC
     - O3
-    - CO
 
 #<Add more variables here.>
 # MDTF recommended variables

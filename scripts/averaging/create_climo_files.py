@@ -1,19 +1,41 @@
-##################
-#Warnings function
-##################
-
+"""
+Module to create (monthly) climatology files.
+"""
 import warnings  # use to warn user about missing files.
+import multiprocessing as mp
+import numpy as np
+import xarray as xr  # module-level import so all functions can get to it.
+
 def my_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
 
-import numpy as np
-import xarray as xr  # module-level import so all functions can get to it.
-
-import multiprocessing as mp
-
 def get_time_slice_by_year(time, startyear, endyear):
+    """
+    Return slice object inclusive of specified start and end years.
+
+    Parameters
+    ----------
+    time
+        Time coordinate variable, expects xarray `dt` accessor.
+    startyear : int
+        The year to start the slice
+    endyear : int
+        The year to end the slice
+
+    Returns
+    -------
+    slice
+        slice object with start and end years specified;
+        if `dt` accessor is available values will be time indices
+
+    Notes
+    -----
+    When the `dt` accessor is not available, instead of indices
+    returns `slice(startyear, endyear)` and prints a warning
+    since this is unlikely to actually work.
+    """
     if not hasattr(time, 'dt'):
         print("Warning: get_time_slice_by_year requires the `time` parameter to be an xarray time coordinate with a dt accessor. Returning generic slice (which will probably fail).")
         return slice(startyear, endyear)
@@ -29,29 +51,37 @@ def get_time_slice_by_year(time, startyear, endyear):
 
 def create_climo_files(adf, clobber=False, search=None):
     """
-    This is an example function showing
-    how to set-up a time-averaging method
-    for calculating climatologies from
-    CAM time series files using
-    multiprocessing for parallelization.
+    Orchestrates production of monthly climatology files
+    from CAM time series files.
+
+    Parameters
+    ----------
+    adf
+        the ADF object
+    clobber : bool, optional
+        Overwrite existing climatology files if true.
+        Defaults to False (do not delete).
+    search : str, optional
+        optional string used as a template to find the time series files
+        using {CASE} and {VARIABLE} and otherwise an arbitrary shell-like globbing pattern:
+        example 1: provide the string "{CASE}.*.{VARIABLE}.*.nc" this is the default
+        example 2: maybe CASE is not necessary because post-process destroyed the info "post_process_text-{VARIABLE}.nc"
+        example 3: order does not matter "{VARIABLE}.{CASE}.*.nc"
+        Only CASE and VARIABLE are allowed because they are arguments to the averaging function
+
+    Notes
+    -----
+    No return value; produces netCDF files.
+
+    Uses multiprocessing for parallelization.
+
+    Calls local function `process_variable` for calculation.
 
     Description of needed inputs from ADF:
-
-    case_name    -> Name of CAM case provided by "cam_case_name"
-    input_ts_loc -> Location of CAM time series files provided by "cam_ts_loc"
-    output_loc   -> Location to write CAM climo files to, provided by "cam_climo_loc"
-    var_list     -> List of CAM output variables provided by "diag_var_list"
-
-    Optional keyword arguments:
-
-        clobber -> whether to overwrite existing climatology files. Defaults to False (do not delete).
-
-        search  -> optional; if supplied requires a string used as a template to find the time series files
-                using {CASE} and {VARIABLE} and otherwise an arbitrary shell-like globbing pattern:
-                example 1: provide the string "{CASE}.*.{VARIABLE}.*.nc" this is the default
-                example 2: maybe CASE is not necessary because post-process destroyed the info "post_process_text-{VARIABLE}.nc"
-                example 3: order does not matter "{VARIABLE}.{CASE}.*.nc"
-                Only CASE and VARIABLE are allowed because they are arguments to the averaging function
+        case_name    -> Name of CAM case provided by "cam_case_name"
+        input_ts_loc -> Location of CAM time series files provided by "cam_ts_loc"
+        output_loc   -> Location to write CAM climo files to, provided by "cam_climo_loc"
+        var_list     -> List of CAM output variables provided by "diag_var_list"
     """
 
     #Import necessary modules:
@@ -215,7 +245,20 @@ def create_climo_files(adf, clobber=False, search=None):
 #
 def process_variable(adf, ts_files, syr, eyr, output_file):
     '''
-    Compute and save the climatology file.
+    Compute and save the monthly climatology file.
+
+    Parameters
+    ----------
+    adf
+        The ADF object
+    ts_files : list
+        list of paths to time series files
+    syr : str
+        start year, with leading zeros if needed
+    eyr : str
+        end year, with leading zeros if needed
+    output_file : str or Path
+        file path for output climatology file
     '''
     #Read in files via xarray (xr):
     if len(ts_files) == 1:
@@ -259,6 +302,19 @@ def process_variable(adf, ts_files, syr, eyr, output_file):
 
 
 def check_averaging_interval(syear_in, eyear_in):
+    """
+    Parameters
+    ----------
+    syear_in
+        start year, should be convertible to int
+    eyear_in
+        end year, should be convertible to int
+
+    Returns
+    -------
+    tuple
+        (start_year, end_year) as str with leading zeros included if needed (4-digit)
+    """
     #For now, make sure year inputs are integers or None,
     #in order to allow for the zero additions done below:
     if syear_in:
