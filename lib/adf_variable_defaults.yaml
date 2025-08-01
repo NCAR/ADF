@@ -206,6 +206,9 @@ BURDENSO4:
   category: "Aerosols"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  obs_file: "BURDENSO4_CAMS_monthly_climo_1degree_200301-202412.nc"
+  obs_name: "CAMS"
+  obs_var_name: "BURDENSO4"
 
 BURDENSOA:
   category: "Aerosols"
