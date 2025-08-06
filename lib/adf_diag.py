@@ -1368,6 +1368,8 @@ class AdfDiag(AdfWeb):
                     der_val = ds["FSNT"]-ds["FLNT"]
                 elif var == "ASA":
                     der_val = ds["FSR"]/ds["FSDS"].where(ds["FSDS"]>0)
+                elif var == "RNET":
+                    der_val = ds["FSA"]-ds["FIRA"]
                 else:
                     # Loop through all constituents and sum
                     der_val = 0
