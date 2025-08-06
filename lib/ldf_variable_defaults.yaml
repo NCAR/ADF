@@ -117,6 +117,7 @@ FSDS: # atmospheric incident solar radiation
   category: "Atmosphere"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  new_unit: "W m$^{-2}$"
 
 WIND: # atmospheric air temperature
   category: "Atmosphere"
@@ -153,14 +154,6 @@ ASA: # all-sky albedo:FSR/FSDS
   new_unit: "% reflected"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
-
-FSDS: # Incoming shortwave radiation    
-  category: "Surface fluxes"
-  new_unit: "W m$^{-2}$"
-
-FLDS: # Incoming longwave radiation
-  category: "Surface fluxes"
-  new_unit: "W m$^{-2}$"
 
 FSA: # absorbed solar radiation    
   category: "Surface fluxes"
