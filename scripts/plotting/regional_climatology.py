@@ -59,14 +59,12 @@ def regional_climatology(adfobj):
     base_nickname = adfobj.get_baseline_info('case_nickname') 
 
     region_list = adfobj.region_list
-    regional_climo_var_list = ['GPP','ELAI','TSA','PREC','RAIN','SNOW', 'TOTRUNOFF',
-                               'QOVER', 'QDRAI','QRGWL','QSNOFRZ','QSNOMELT',
-                               'QSNWCPICE','ALBD']
-
-    # ## Open file containing regions of interest 
-    # nc_reg_file = '/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/code/resources/region_definitions.nc'
-    # regionDS    = xr.open_dataset(nc_reg_file)
-    # region_names = [str(item).split('b')[1] for item in regionDS.PTITSTR.values]
+    #TODO, make it easier for users decide on these?
+    regional_climo_var_list = ['TSA','PREC','ELAI',
+                               'FSDS','FLDS','ASA','RNET',
+                               'FSH','TOTRUNOFF','ET','SNOWDP',
+                               'TOTVEGC','GPP','NEE','BTRANMN',
+                               ]
 
     ## Open observations YML here? 
 
@@ -74,24 +72,6 @@ def regional_climatology(adfobj):
     ymlFilename = 'lib/regions_lnd.yaml'
     with open(ymlFilename, 'r') as file:
         regions = yaml.safe_load(file)
-
-    # # I want to get the indices that match the reqeusted regions now...
-    # region_indexList = []
-    # cleaned_candidates = [s.strip("'\"") for s in region_names]
-    # cleaned_candidates = [s.strip(" ") for s in cleaned_candidates]
-
-    # # Fix some region names I've broken
-    # cleaned_candidates = rename_region(cleaned_candidates, 'Western Si', 'Western Siberia')
-    # cleaned_candidates = rename_region(cleaned_candidates, 'Eastern Si', 'Eastern Siberia')
-    # cleaned_candidates = rename_region(cleaned_candidates, 'Ara', 'Arabian Peninsula')
-    # cleaned_candidates = rename_region(cleaned_candidates, 'Sahara and Ara', 'Sahara and Arabia')
-    # cleaned_candidates = rename_region(cleaned_candidates, 'Ti', 'Tibetan Plateau')
-
-    # for iReg in region_list: 
-    #     match_indices = [i for i, region in enumerate(cleaned_candidates) if iReg == region]
-    #     region_indexList = np.append(region_indexList, match_indices)
-    # region_indexList =region_indexList.astype('int')
-    
 
     # Extract variables:
     baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)

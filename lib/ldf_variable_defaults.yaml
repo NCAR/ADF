@@ -150,16 +150,31 @@ ASA: # all-sky albedo:FSR/FSDS
   colormap: "RdBu_r"
   diff_colormap: "BrBG"
   derivable_from: ["FSR", "FSDS"]
+  new_unit: "% reflected"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+FSDS: # Incoming shortwave radiation    
+  category: "Surface fluxes"
+  new_unit: "W m$^{-2}$"
+
+FLDS: # Incoming longwave radiation
+  category: "Surface fluxes"
+  new_unit: "W m$^{-2}$"
+
 FSA: # absorbed solar radiation    
   category: "Surface fluxes"
+  new_unit: "W m$^{-2}$"
 
 FSH: # sensible heat  
   category: "Surface fluxes"
+  new_unit: "W m$^{-2}$"
 
-
+RNET: # Net Radiation: FSA-FIRA
+  category: "Surface fluxes"
+  derivable_from: ["FSA", "FIRA"]
+  new_unit: "W m$^{-2}$"
+  
 ET: # latent heat: FCTR+FCEV+FGEV
   category: "Surface fluxes"
   derivable_from: ["FCTR","FCEV","FGEV"]
@@ -216,7 +231,6 @@ FSNO: # fraction of ground covered by snow
   category: "Hydrology"
   diff_contour_range: [-50,50,10]
 
-
 H2OSNO: # SNOWICE + SNOWLIQ
   category: "Hydrology"
   diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -226,7 +240,7 @@ SNOWDP: # snow height
   category: "Hydrology"
   contour_levels: [-15.,-10.,-5.,-1.,-0.5,-0.1,0.,0.1,0.5,1.,5.,10.,15.]
   diff_contour_levels: [-10.,-5.,-1.,-0.5,-0.1,0.,0.1,0.5,1.,5.,10.]
-
+  new_unit: "m"
 
 TOTRUNOFF: # total liquid runoff
   category: "Hydrology"
@@ -250,9 +264,9 @@ BTRANMN: # Transpiration beta factor
 ELAI: # exposed one-sided leaf area index
   category: "Vegetation"
   colormap: "gist_earth_r"
-  contour_levels_range: [0., 9., 1.0]
+  contour_levels_range: [0., 8., 1.0]
   diff_colormap: "PiYG"
-  diff_contour_range: [-3.,3.,0.5]
+  diff_contour_range: [-2.,2.,0.25]
 
 
 HTOP: # canopy top height
@@ -320,6 +334,37 @@ NPP: # Net Primary Production
   avg_method: 'sum'
   table_unit: "PgC y$^{-1}$"
 
+NEE: # Net Ecosystem Eschange
+  category: "Carbon"
+  diff_colormap: "PiYG"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+
+NBP: # Net Biome Production
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  diff_colormap: "PiYG"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+
 TOTECOSYSC_1m:
   category: "Carbon"
   scale_factor_table: 0.000000001  #g/m2 to Pg globally
@@ -331,7 +376,6 @@ TOTSOMC_1m:
   scale_factor_table: 0.000000001  #g/m2 to Pg globally
   avg_method: 'sum'
   table_unit: "PgC"
-
 
 TOTVEGC:
   category: "Carbon"
