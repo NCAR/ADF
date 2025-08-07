@@ -2322,6 +2322,71 @@ TOT_ICLD_VISTAU:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+CLDTOT_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDTOT_CAL"
+  category: "COSP"
+
+CLDHGH_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDHGH_CAL"
+  category: "COSP"
+
+CLDMED_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDMED_CAL"
+  category: "COSP"
+
+CLDLOW_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDLOW_CAL"
+  category: "COSP"
+
+CLD_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLD_CAL"
+  category: "COSP"
+
 
 #+++++++++++++++++
 # Category: Other
