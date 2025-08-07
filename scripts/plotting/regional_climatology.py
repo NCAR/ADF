@@ -89,13 +89,105 @@ def regional_climatology(adfobj):
     kwargs["mesh_file"] = mesh_file
     kwargs["unstructured_plotting"] = unstruct_plotting
 
+    #Determine local directory:
+    _adf_lib_dir = adfobj.get_basic_info("obs_data_loc")
+
+    #Determine whether to use adf defaults or custom:
+    _defaults_file = adfobj.get_basic_info('defaults_file')
+    if _defaults_file is None:
+        _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
+    else:
+        print(f"\n\t Not using ADF default variables yaml file, instead using {_defaults_file}\n")
+    #End if
+
+    #Open YAML file:
+    with open(_defaults_file, encoding='UTF-8') as dfil:
+        adfobj.__variable_defaults = yaml.load(dfil, Loader=yaml.SafeLoader)
+
+    _variable_defaults = adfobj.__variable_defaults
+
+    #-----------------------------------------
+    #Extract the "obs_data_loc" default observational data location:
+    obs_data_loc = adfobj.get_basic_info("obs_data_loc")
+
     base_data = {}
     case_data = {}
+    obs_data = {}
+
+    var_obs_dict = adfobj.var_obs_dict
+    
     # First, load all variable data once (instead of inside nested loops)
     for field in regional_climo_var_list:
         # Load the global climatology for this variable
         base_data[field] = adfobj.data.load_reference_climo_da(baseline_name, field, **kwargs)
         case_data[field] = adfobj.data.load_climo_da(case_name, field, **kwargs)
+        
+        if field in _variable_defaults:
+            # Extract variable-obs dictionary
+            default_var_dict = _variable_defaults[field]
+
+            #Check if an observations file is specified:
+            if "obs_file" in default_var_dict:
+                #Set found variable:
+                found = False
+
+                #Extract path/filename:
+                obs_file_path = Path(default_var_dict["obs_file"])
+
+                #Check if file exists:
+                if not obs_file_path.is_file():
+                    #If not, then check if it is in "obs_data_loc"
+                    if obs_data_loc:
+                        obs_file_path = Path(obs_data_loc)/obs_file_path
+
+                        if obs_file_path.is_file():
+                            found = True
+
+                else:
+                    #File was found:
+                    found = True
+                #End if
+
+                #If found, then set observations dataset and variable names:
+                if found:
+                    #Check if observations dataset name is specified:
+                    if "obs_name" in default_var_dict:
+                        obs_name = default_var_dict["obs_name"]
+                    else:
+                        #If not, then just use obs file name:
+                        obs_name = obs_file_path.name
+
+                    #Check if observations variable name is specified:
+                    if "obs_var_name" in default_var_dict:
+                        #If so, then set obs_var_name variable:
+                        obs_var_name = default_var_dict["obs_var_name"]
+                    else:
+                        #Assume observation variable name is the same ad model variable:
+                        obs_var_name = field
+                    #End if
+                    #Finally read in the obs!
+                    print(default_var_dict)
+                    obs_data = xr.open_mfdataset([default_var_dict["obs_file"]], combine="by_coords")
+                    print(obs_data)
+
+                else:
+                    #If not found, then print to log and skip variable:
+                    msg = f'''Unable to find obs file '{default_var_dict["obs_file"]}' '''
+                    msg += f"for variable '{field}'."
+                    adfobj.debug_log(msg)
+                    continue
+                #End if
+
+            else:
+                #No observation file was specified, so print
+                #to log and skip variable:
+                adfobj.debug_log(f"No observations file was listed for variable '{field}'.")
+                continue
+        else:
+            #Variable not in defaults file, so print to log and skip variable:
+            msg = f"Variable '{field}' not found in variable defaults file: `{_defaults_file}`"
+            adfobj.debug_log(msg)
+        #End if
 
         if type(base_data[field]) is type(None):
             print('Missing file for ', field)
