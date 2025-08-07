@@ -222,6 +222,8 @@ BURDENPOM:
   new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
+
 
 BURDENSEASALT:
   category: "Aerosols"
