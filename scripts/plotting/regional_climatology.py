@@ -200,7 +200,7 @@ def regional_climatology(adfobj):
 
         # Save out figure
         # fileFriendlyRegionName = 
-        plot_loc  = Path(plot_locations[0]) / f'RegionalClimo_{region_list[iReg]}_RegionalClimo_Mean.{plot_type}'
+        plot_loc = Path(plot_locations[0]) / f'{region_list[iReg]}_plot_RegionalClimo_Mean.{plot_type}'
         #Set path for variance figures:
         # plot_loc = Path(plot_locations[0]) / f'RegionalClimo_{region_list[iReg]}.{plot_type}'
         # print(plot_loc)
@@ -210,7 +210,7 @@ def regional_climatology(adfobj):
         if (not redo_plot) and plot_loc.is_file():
             #Add already-existing plot to website (if enabled):
             adfobj.debug_log(f"'{plot_loc}' exists and clobber is false.")
-            adfobj.add_website_data(plot_loc, "RegionalClimo", None, season=region_list[iReg], multi_case=True, non_season=True, plot_type = "RegionalClimo")
+            adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, non_season=True, plot_type = "RegionalClimo")
 
             #Continue to next iteration:
             return
@@ -222,7 +222,7 @@ def regional_climatology(adfobj):
         plt.close() 
 
         #Add plot to website (if enabled):
-        adfobj.add_website_data(plot_loc, "RegionalClimo", None, season=region_list[iReg], multi_case=True, non_season=True, plot_type = "RegionalClimo")
+        adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, non_season=True, plot_type = "RegionalClimo")
 
     return 
 
