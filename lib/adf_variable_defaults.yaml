@@ -185,33 +185,86 @@ AODVISdn:
 
 BURDENBC:
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
+  obs_file: "BURDENBC_MERRA2_monthly_climo_1degree_200001-202506.nc"
+  obs_var_name: "BURDENBC"
+  obs_name: "MERRA2"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 BURDENDUST:
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_contour_range: [-1000, 1100, 100]
+  diff_colormap: "RdBu_r"
+  obs_file: "BURDENDUST_CAMS_monthly_climo_1degree_200301-202412.nc"
+  obs_var_name: "BURDENDUST"
+  obs_name: "CAMS"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 BURDENPOM:
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
+
 
 BURDENSEASALT:
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
+  diff_contour_range: [-200, 200, 25]
+  diff_colormap: "RdBu_r"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  obs_file: "BURDENSEASALT_CAMS_monthly_climo_1degree_200301-202412.nc"
+  obs_var_name: "BURDENSEASALT"
+  obs_name: "CAMS"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 BURDENSO4:
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
+  obs_file: "BURDENSO4_CAMS_monthly_climo_1degree_200301-202412.nc"
+  obs_name: "CAMS"
+  obs_var_name: "BURDENSO4"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 BURDENSOA:
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
 
 DMS:
   category: "Aerosols"
