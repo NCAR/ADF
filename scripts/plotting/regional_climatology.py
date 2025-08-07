@@ -161,6 +161,8 @@ def regional_climatology(adfobj):
                     map_ax.set_extent([-180, 179, -89, 90],crs=ccrs.PlateCarree())
                 elif region_list[iReg]=='S Hemisphere Land':
                     map_ax.set_extent([-180, 179, -89, 3],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='Polar':
+                    map_ax.set_extent([-180, 179, 45, 90],crs=ccrs.PlateCarree())
                 else: 
                     if ((box_south >= 30) & (box_east<=-5) ):
                         map_ax.set_extent([-180, -5, 30, 90],crs=ccrs.PlateCarree())
@@ -256,16 +258,3 @@ def get_region_boundaries(regions, region_name):
     west, east = region['lon_bounds']
     
     return west, east, south, north
-# def rename_region(DS, searchStr, replaceStr):
-#     iReplace = np.where(np.asarray(DS)==searchStr)[0]
-#     if len(iReplace)==1:
-#         DS[int(iReplace)] = replaceStr
-#     elif len(iReplace>1): 
-#         # This happens with Tibetan Plateau; there are two defined
-#         # Indices 31 and 35 
-#         # Same values, but Box_W and Box_E are swapped.. going to keep the first
-#         DS[int(iReplace[0])] = replaceStr
-#         # print('Found more than one match for ',searchStr)
-#         # print(iReplace)
-        
-#     return DS
