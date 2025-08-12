@@ -110,11 +110,11 @@ diag_basic_info:
     #you set it to "*" then it will default
     #to all of the processors available on a
     #single node/machine:
-    num_procs: 1
+    num_procs: 8
 
     #If set to true, then redo all plots even if they already exist.
     #If set to false, then if a plot is found it will be skipped:
-    redo_plot: true
+    redo_plot: false
 
 #This second set of variables provides info for the CAM simulation(s) being diagnosed:
 diag_cam_climo:
@@ -137,13 +137,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: ctsm53062_f09_1850
+    cam_case_name: ctsm53065_54surfdata_PPEcal115_115_HIST
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '5.3.062_h0a'
+    case_nickname: 'PPE_115_HIST'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
@@ -154,12 +154,14 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1
+    start_year: 1850
+    climo_start_year: 2004
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 20
+    end_year: 2023
+    climo_end_year: 2023
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -199,17 +201,17 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: ctsm53061_f09_1850
+    cam_case_name: ctsm53041_54surfdata_PPEbaseline_101_HIST
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '5.3.061_h0'
+    case_nickname: 'PPE_101_HIST'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/derecho/scratch/slevis/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -220,12 +222,14 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1
+    start_year: 1850
+    climo_start_year: 2004
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 20
+    end_year: 2023
+    climo_end_year: 2023
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -277,6 +281,7 @@ plotting_scripts:
     - global_latlon_map
     - global_mean_timeseries_lnd
     - polar_map
+    - regional_climatology
 
 #List of variables that will be processesd:
 #Shorter list here, for efficiency of testing
@@ -284,44 +289,62 @@ diag_var_list:
     - TSA
     - PREC
     - ELAI
-    - GPP
-    - NPP
     - FSDS
-    - ALTMAX
+    - FLDS
+    - ASA
+    - RNET
+    - FSH
     - ET
-    - TOTRUNOFF
+    - QRUNOFF_TO_COUPLER 
     - SNOWDP
-    - H2OSNO
-    - FSNO
-    - GRAINC_TO_FOOD  
+    - TOTVEGC
+    - GPP
+    - NEE
+    - NPP
+    - NBP  
+    - BTRANMN
+    - TOTECOSYSC
+    - TOTSOMC_1m
+    - ALTMAX
+    - FAREA_BURNED
     - DSTFLXT
     - MEG_isoprene 
-
+      
 region_list:
-  #- Global
-  #  - N Hemisphere Land
-  #  - S Hemisphere Land
-  #  - Polar
-  #  - Alaskan Arctic
-  #  - Canadian Arctic
-  #  - Greenland
+    - Global
+    - N Hemisphere Land
+    #- S Hemisphere Land
+    - Polar
+    - Alaskan Arctic
+    - Canadian Arctic
+    #- Greenland
     - Russian Arctic
-  #  - Antarctica
-  #  - Alaska
-  #  - Northwest Canada
-  #  - Central Canada
-  #  - Eastern Canada
-  #  - Northern Europe
-  #  - Western Siberia
-  #  - Eastern Siberia
-  #  - Western US
-  #  - Central US
-  #  - Eastern US
-  #  - Europe
-  #  - Mediterranean
-  #  - Central America
-  #  - Amazonia
-  #  - Central Africa
-  #  - Indonesia
-  #  - Brazil
+    #- Antarctica
+    - Alaska
+    #- Northwest Canada
+    #- Central Canada
+    - Eastern Canada
+    - Northern Europe
+    - Western Siberia
+    - Eastern Siberia
+    - Western US
+    #- Central US
+    #- Eastern US
+    #- Europe
+    #- Mediterranean
+    #- Central America
+    - Amazonia
+    - Central Africa
+    - Indonesia
+    - Brazil
+    - Sahel
+    - Southern Africa
+    - India
+    #- Indochina
+    #- Sahara Desert
+    #- Arabian Peninsula
+    #- Australia
+    #- Central Asia ## Was Broken... probably because there were two? 
+    #- Mongolia
+    #- Tibetan Plateau
 
