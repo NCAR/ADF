@@ -114,7 +114,7 @@ class AdfObs(AdfInfo):
 
         #Extract the "obs_data_loc" default observational data location:
         obs_data_loc = self.get_basic_info("obs_data_loc")
-
+        print(obs_data_loc)
         #Loop over variable list:
         for var in self.diag_var_list:
 
