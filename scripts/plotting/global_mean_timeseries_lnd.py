@@ -112,10 +112,11 @@ def global_mean_timeseries_lnd(adfobj):
             c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
 
             # make cumulative sum plots for NBP
-            if field == 'NBP':
-                print(ref_ts_da)
-                ref_ts_da = ref_ts_da.cumsum()
-                c_ts_da = c_ts_da.cumsum()
+            #TODO, check this is working as expected
+            #if field == 'NBP':
+            #    print(ref_ts_da)
+            #    ref_ts_da = ref_ts_da.cumsum()
+            #    c_ts_da = c_ts_da.cumsum()
 
             # check if variable has a lev dimension
             has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
