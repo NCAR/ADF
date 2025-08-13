@@ -93,7 +93,7 @@ def global_mean_timeseries_lnd(adfobj):
         ref_ts_da.attrs['units'] = units
         c_ts_da = c_ts_da * scale_factor * scale_factor_table
         c_ts_da.attrs['units'] = units
-
+        
         # Check to see if this field is available
         if ref_ts_da is None:
             print(
@@ -110,6 +110,12 @@ def global_mean_timeseries_lnd(adfobj):
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
             c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+
+            # make cumulative sum plots for NBP
+            if field == 'NBP':
+                print(ref_ts_da)
+                ref_ts_da = ref_ts_da.cumsum()
+                c_ts_da = c_ts_da.cumsum()
 
             # check if variable has a lev dimension
             has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
