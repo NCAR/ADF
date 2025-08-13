@@ -332,7 +332,7 @@ def polar_map(adfobj):
                                     if comp == "lnd":
                                         hemi = hemi_type
                                     # Exclude certain plots, this may get difficult
-                                    if var != 'GRAINC_TO_FOOD':
+                                    if (var != 'GRAINC_TO_FOOD') or (var != 'DSTFLXT') or (var != 'MEG_isoprene') or (var != 'FAREA_BURNED'):
                                         pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                            [syear_cases[case_idx],eyear_cases[case_idx]],
                                                            [syear_baseline,eyear_baseline],
