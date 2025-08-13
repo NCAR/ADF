@@ -132,6 +132,9 @@ WIND: # atmospheric air temperature
 
 QBOT: # atmospheric specific humidity
   category: "Atmosphere"
+  scale_factor: 1
+  add_offset: 0
+  #new_unit: "W m$^{-2}$"
 
 TBOT:
   category: "Atmosphere"
@@ -165,9 +168,9 @@ ASA: # all-sky albedo:FSR/FSDS
   # TODO, Keith will clarify what obs to use and we'll also have to figure out grid weights for regional averaging
   ## First file has weights, but no clear variable for ASA
   # obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/T42_MODIS_ALLMONS_climo.070523.nc"
-  # obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/modisradweighted.nc" 
-  # obs_data: "MODIS"
-  # obs_var_name: "BRDALB"  #TODO
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/modisradweighted.nc" 
+  obs_data: "MODIS"
+  obs_var_name: "BRDALB" 
 
 FSA: # absorbed solar radiation    
   category: "Surface fluxes"
@@ -200,6 +203,33 @@ ET: # latent heat: FCTR+FCEV+FGEV
   obs_file: "/glade/campaign/cgd/tss/people/oleson/lnd_diag_data/obs_data/MR_LHF_0.9x1.25_ALLMONS_climo.nc"
   obs_name: "FLUXNET"
   obs_var_name: "LHF" #W m$^{-2}$  
+
+FCTR: # Canopy transpiration latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+      
+FCEV: # Canopy evaporation of latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+
+FGEV: # Ground evaporation latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"  
 
 DSTFLXT: # total surface dust emission
   category: "Surface fluxes"

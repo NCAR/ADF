@@ -291,6 +291,9 @@ diag_var_list:
     - RNET
     - FSH
     - ET
+    - FCTR
+    - FGEV
+    - FCEV
     - QRUNOFF_TO_COUPLER 
     - SNOWDP
     - TOTVEGC

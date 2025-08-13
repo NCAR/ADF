@@ -5,7 +5,6 @@ import xarray as xr
 import uxarray as ux
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-# import plotting_functions as pf
 import warnings  # use to warn user about missing files.
 
 def my_formatwarning(msg, *args, **kwargs):
@@ -77,9 +76,9 @@ def regional_climatology(adfobj):
     region_list = adfobj.region_list
     #TODO, make it easier for users decide on these?
     regional_climo_var_list = ['TSA','PREC','ELAI',
-                               'FSDS','FLDS','ASA','RNET',
-                               'FSH','QRUNOFF_TO_COUPLER','ET','SNOWDP',
-                               'TOTVEGC','GPP','NEE','BTRANMN',
+                               'FSDS','FLDS','QBOT','ASA',
+                               'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
+                               'GPP','BTRANMN','FCEV','FGEV',
                                ]
 
     ## Open observations YML here? 
@@ -209,6 +208,10 @@ def regional_climatology(adfobj):
                     #Finally read in the obs!
                     obs_data[field] = xr.open_mfdataset([default_var_dict["obs_file"]], combine="by_coords")
                     plot_obs[field] = True
+                    # Special handling for some variables:, NOT A GOOD HACK! 
+                    # TODO: improve this!
+                    if (field == 'ASA') and ('BRDALB' in obs_data[field].variables):
+                        obs_data[field]['BRDALB'] = obs_data[field]['BRDALB'].swap_dims({'lsmlat':'lat','lsmlon':'lon'})
 
                 else:
                     #If not found, then print to log and skip variable:
@@ -339,10 +342,11 @@ def regional_climatology(adfobj):
                 # print('Missing file for ', field)
                 continue
             else:
-                # TODO handle unit conversions correctly
-                if field == 'GPP':
-                    case_var_wgtd = case_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
-                    base_var_wgtd = base_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
+                # TODO handle unit conversions correctly, working for structured, but not unstructured yet
+                if unstruct_plotting == True:
+                    if (field == 'GPP') or (field == 'NEE') or (field == 'NBP'):
+                        case_var_wgtd = case_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
+                        base_var_wgtd = base_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
 
                 axs[plt_counter].plot(np.arange(12)+1, case_var_wgtd,
                                       label=case_nickname, linewidth=2)
@@ -353,6 +357,7 @@ def regional_climatology(adfobj):
                                           label=obs_name[field], color='black', linewidth=2)
                 axs[plt_counter].set_title(field)
                 axs[plt_counter].set_ylabel(base_data[field].units)
+                axs[plt_counter].set_xticks(np.arange(1, 13, 2))
                 axs[plt_counter].legend()
                 
 
@@ -434,8 +439,11 @@ def getRegion_xarray(varDS, varName,
     # TODO is there a less brittle way to do this?
     if (area is not None) and (landfrac is not None):
         weight = area * landfrac
-    elif 'weight' in varDS:
+    elif ('weight' in varDS) and ('datamask' in varDS):
         weight = varDS['weight'] * varDS['datamask']
+    elif ('weight' in varDS) and ('LANDFRAC' in varDS): 
+        #used for MODIS albedo product
+        weight = varDS['weight'] * varDS['LANDFRAC']
     elif 'area' in varDS and 'landfrac' in varDS:
         weight = varDS['area'] * varDS['landfrac']
     elif 'area' in varDS and 'landmask' in varDS:

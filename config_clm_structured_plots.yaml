@@ -292,9 +292,13 @@ diag_var_list:
     - FSDS
     - FLDS
     - ASA
+    - QBOT
     - RNET
     - FSH
     - ET
+    - FCTR
+    - FGEV
+    - FCEV
     - QRUNOFF_TO_COUPLER 
     - SNOWDP
     - TOTVEGC
