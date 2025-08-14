@@ -40,7 +40,7 @@ If you are using conda on a non-CISL machine, then you can create and activate t
 
 ```
 conda env create -f env/conda_environment.yaml
-conda activate adf_v0.11
+conda activate adf_v0.13
 ```
 
 Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running:
@@ -73,6 +73,11 @@ To run an example of the ADF diagnostics, simply download this repo, setup your 
 `./run_adf_diag config_cam_baseline_example.yaml`
 
 This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example ADF diagnostic figures, all in their respective directories.
+
+### ADF Tutorial/Demo
+
+Jupyter Book detailing the ADF including ADF basics, guided examples, quick runs, and references
+  - https://justin-richling.github.io/ADF-Tutorial/README.html
 
 ## Troubleshooting
 

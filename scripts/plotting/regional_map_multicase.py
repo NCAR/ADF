@@ -57,7 +57,8 @@ def regional_map_multicase(adfobj):
     """
 
     # Notify user that script has started:
-    print("\n  Generating regional contour plots ...")
+    msg = "\n  Generating regional contour plots ..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # We need to know:
     # - Variable to plot
@@ -110,6 +111,9 @@ def regional_map_multicase(adfobj):
     # LOOP OVER VARIABLES
     #
     for v in var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - regional plots for {v}")
+
         # the reference case
         data_to_plot = {}
         refcasetmp = _retrieve(
@@ -465,4 +469,3 @@ def simple_case_shortener(case_names):
         else:
             return [ele[i:] for ele in case_names]
     return case_names
-

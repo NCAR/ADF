@@ -15,7 +15,7 @@
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
-                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a></li>
+                    <li><a href=../{{ html_file }}> &nbsp; {{ type }}</a></li>
                   {% endfor %}
                 </ul>
               </li>
@@ -32,33 +32,48 @@
           </nav>
         </div><!--center-->
         <br>
-        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case1 }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
-        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ case2 }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
+        <h2 style="display:inline; color:black;"> Test Case: </h2><h2 style="display:inline;">{{ case_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ case_yrs }}</h2><br>
+        <h2 style="display:inline; color:black;"> Baseline Case: </h2><h2 style="display:inline;">{{ base_name }}</h2><h2 style="display:inline; color:black;"> - years: {{ baseline_yrs }}</h2>
       </div><!--screenFiller-->
     </div><!--header-->
 
     <div class="center">
-      <h1>{{ curr_type }} Plots</h1>
+      <h1>{{ plottype_title }} Plots</h1>
     </div>
 
     <div class="grid-container" >
       {% for category, var_seas in mydata.items() %}
       <div class="grid-item">
-        <div class="dropdown-vars">
+        <div class="dropdown-vars" style="position: relative; display: inline-block;">
           <h3 class="block">{{ category }}</h3>
             <div class="grid-container" style="column-gap: 5px; row-gap: 5px; padding:2px">
               {% for var_name, ptype_seas in var_seas.items() %}
-                <div class="grid-item-diag">
-                  <a href="../html_img/plot_page_{{ var_name }}_{{ curr_type }}.html"> {{var_name}} </a><br>
-                </div><!--grid-item2-->
-              {% endfor %}
+                {% if non_seasons[category][var_name] == False %}<!-- Check if these have traditional seasons, ANN, DJF, etc. -->
+                  {% for i,season in enumerate(ptype_seas.keys()) %}
+                      {% if i==0 %}<!-- Grab first available season to make as default -->
+                        <div class="grid-item-diag">
+                          <a href="../html_img/plot_page_{{ var_name }}_{{ season }}_{{ plottype_title }}_Mean.html"> {{var_name}} </a><br>
+                        </div><!--grid-item2-->
+                      {% endif %}
+                  {% endfor %}<!-- ptype_seas.keys() -->
+
+                {% else %}
+                  {% for season in ptype_seas.keys() %}
+                    {% if season == list(ptype_seas.keys())[0] %}
+                      <div class="grid-item-diag">
+                        <a href="../html_img/plot_page_{{ var_name }}_{{ season }}_{{ plottype_title }}_Mean.html"> {{var_name}} </a><br>
+                      </div><!--grid-item2-->
+                    {% endif %}
+                  {% endfor %}<!-- ptype_seas.keys() -->
+
+                {% endif %}<!--if non_season == False-->
+              {% endfor %}<!-- var_seas.items() -->
             </div><!--grid-container-->
             <script type="text/html"> </div></script>
         </div><!--dropdown-vars-->
       </div><!--grid-item-->
       {% endfor %}
     </div><!--grid-container-ptype-->
-
 
   </body>
 </html>

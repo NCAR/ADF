@@ -46,7 +46,8 @@ def global_latlon_vect_map(adfobj):
     # - make plot
 
     #Notify user that script has started:
-    print("\n  Generating lat/lon vector maps...")
+    msg = "\n  Generating lat/lon vector maps..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #
     # Use ADF api to get all necessary information
@@ -61,44 +62,40 @@ def global_latlon_vect_map(adfobj):
     #CAM simulation variables:
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
+    #Grab case years
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
-
-    #Grab test case nickname(s)
-    test_nicknames = adfobj.get_cam_info('case_nickname')
-    if test_nicknames == None:
-        test_nicknames = case_names
 
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
     # Until those are both treated the same (via intake-esm or similar)
     # we will do a simple check and switch options as needed:
     if adfobj.get_basic_info("compare_obs"):
+        #Set obs call for observation details for plot titles
+        obs = True
 
         #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
-        base_nickname = "Obs"
 
         #If dictionary is empty, then  there are no observations to regrid to,
         #so quit here:
         if not var_obs_dict:
             print("\t No observations found to plot against, so no vector maps will be generated.")
             return
-
     else:
+        obs = False
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
         data_loc  = model_rgrid_loc #Just use the re-gridded model data path
-
-        #Grab baseline case nickname
-        base_nickname = adfobj.get_baseline_info('case_nickname')
-        if base_nickname == None:
-            base_nickname = data_name
     #End if
 
-    #Extract baseline years (which may be empty strings if using Obs):
+    #Grab baseline years (which may be empty strings if using Obs):
     syear_baseline = adfobj.climo_yrs["syear_baseline"]
     eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
+
+    #Grab all case nickname(s)
+    test_nicknames = adfobj.case_nicknames["test_nicknames"]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -170,6 +167,9 @@ def global_latlon_vect_map(adfobj):
             continue
         #End if
 
+        #Notify user of variable being plotted:
+        print(f"\t - lat/lon vector maps for {var},{var_pair}")
+
         #Add variables to "skipped vars" set:
         skip_vars.add(var)
         skip_vars.add(var_pair)
@@ -181,6 +181,11 @@ def global_latlon_vect_map(adfobj):
 
         #Determine observations to compare against:
         if adfobj.compare_obs:
+            if var not in adfobj.data.ref_var_nam:
+                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
+                adfobj.debug_log(dmsg)
+                print(dmsg)
+                continue
             #Check if obs exist for the variable:
             if var in var_obs_dict:
                 #Note: In the future these may all be lists, but for
@@ -192,8 +197,9 @@ def global_latlon_vect_map(adfobj):
                 #Extract target variable name:
                 data_var = [var_obs_dict[var]["obs_var"]]
             else:
-                dmsg = f"No obs found for variable `{var}`, lat/lon vector map plotting skipped."
+                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
                 adfobj.debug_log(dmsg)
+                print(dmsg)
                 continue
             #End if
             #Check if obs exist for vector pair variable:
@@ -205,18 +211,19 @@ def global_latlon_vect_map(adfobj):
                 #Extract target variable name:
                 data_var.append(var_obs_dict[var_pair]["obs_var"])
             else:
-                dmsg = f"No obs found for variable `{var}`, lat/lon vector map plotting skipped."
+                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
                 adfobj.debug_log(dmsg)
+                print(dmsg)
                 continue
             #End if
 
         else:
             #Set "data_var" for consistent use below:
             data_var = [var, var_pair]
-        #End if
 
-        #Notify user of variable being plotted:
-        print(f"\t - lat/lon vector maps for {var},{var_pair}")
+            # reference (baseline) name
+            base_name = adfobj.data.ref_case_label
+        #End if
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
@@ -237,9 +244,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(uoclim_fils[0])
                 uoclim_ds = xr.open_dataset(sfil)
             else:
-                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t INFO: The glob is: {data_src}_{data_var[0]}_*.nc")
+                print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
+                print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t      The glob is: {data_src}_{data_var[0]}_*.nc")
                 continue
             #End if
 
@@ -249,9 +256,9 @@ def global_latlon_vect_map(adfobj):
                 sfil = str(voclim_fils[0])
                 voclim_ds = xr.open_dataset(sfil)
             else:
-                print("\t ERROR: Did not find any oclim_fils. Will try to skip.")
-                print(f"\t INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t INFO: The glob is: {data_src}_{data_var[1]}_*.nc")
+                print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
+                print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
+                print(f"\t      The glob is: {data_src}_{data_var[1]}_*.nc")
                 continue
             #End if
 
@@ -262,6 +269,17 @@ def global_latlon_vect_map(adfobj):
             #Convert units if requested (assumes units between model and data are the same):
             uodata = uodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
             vodata = vodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+
+            #Check zonal mean dimensions
+            has_lat_ref, has_lev_ref = pf.zm_validate_dims(uodata)
+
+            # check if there is a lat dimension:
+            if not has_lat_ref:
+                print(
+                    f"\t    WARNING: Variable '{var}' is missing a lat dimension for '{base_name}', cannot continue to plot."
+                )
+                continue
+            # End if
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
@@ -274,7 +292,7 @@ def global_latlon_vect_map(adfobj):
 
                 #Check if plot output directory exists, and if not, then create it:
                 if not plot_loc.is_dir():
-                    print("\t    {} not found, making new directory".format(plot_loc))
+                    print(f"\t {plot_loc} not found, making new directory")
                     plot_loc.mkdir(parents=True)
                 #End if
 
@@ -287,9 +305,9 @@ def global_latlon_vect_map(adfobj):
                 elif len(umclim_fils) == 1:
                     umclim_ds = xr.open_dataset(umclim_fils[0])
                 else:
-                    print("WARNING: Did not find any regridded climo files. Will try to skip.")
-                    print(f"INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
-                    print(f"INFO: The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    print("\t    WARNING: Did not find any regridded test climo files. Will try to skip.")
+                    print(f"\t    INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
+                    print(f"\t      The glob is: {data_src}_{case_name}_{var}_*.nc")
                     continue
                 #End if
 
@@ -299,7 +317,7 @@ def global_latlon_vect_map(adfobj):
                     vmclim_ds = xr.open_dataset(vmclim_fils[0])
                 else:
                     #The vector pair was never processed, so skip varaible:
-                    print(f"\t Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
+                    print(f"\t    WARNING: Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
                     continue
                 #End if
 
@@ -312,7 +330,15 @@ def global_latlon_vect_map(adfobj):
                 vmdata = vmdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
 
                 #Check dimensions:
-                has_lat, has_lev = pf.zm_validate_dims(umdata)  # assumes will work for both mdata & odata
+                has_lat, has_lev = pf.zm_validate_dims(umdata)
+
+                # check if there is a lat dimension:
+                if not has_lat:
+                    print(
+                        f"\t -  {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    )
+                    continue
+                # End if
 
                 # update units
                 # NOTE: looks like our climo files don't have all their metadata
@@ -332,7 +358,7 @@ def global_latlon_vect_map(adfobj):
                     #If observations/baseline CAM have the correct
                     #dimensions, does the input CAM run have correct
                     #dimensions as well?
-                    if has_lev:
+                    if has_lev_ref:
                         has_dims_cam = pf.lat_lon_validate_dims(umdata.isel(lev=0))
                     else:
                         has_dims_cam = pf.lat_lon_validate_dims(umdata)
@@ -391,6 +417,7 @@ def global_latlon_vect_map(adfobj):
                                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                                 if (not redo_plot) and plot_name.is_file():
                                     #Add already-existing plot to website (if enabled):
+                                    adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                                     adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
                                                             season=s, plot_type="LatLon_Vector")
 
@@ -416,7 +443,7 @@ def global_latlon_vect_map(adfobj):
                                                         [syear_baseline,eyear_baseline],lv,
                                                         umseasons[s], vmseasons[s],
                                                         uoseasons[s], voseasons[s],
-                                                        udseasons[s], vdseasons[s], **vres)
+                                                        udseasons[s], vdseasons[s], obs, **vres)
 
                                 #Add plot to website (if enabled):
                                 adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
@@ -444,6 +471,7 @@ def global_latlon_vect_map(adfobj):
                             redo_plot = adfobj.get_basic_info('redo_plot')
                             if (not redo_plot) and plot_name.is_file():
                                 #Add already-existing plot to website (if enabled):
+                                adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
                                 adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,
                                                         season=s, plot_type="LatLon_Vector")
 
@@ -469,7 +497,7 @@ def global_latlon_vect_map(adfobj):
                                                       [syear_baseline,eyear_baseline], None,
                                                       umseasons[s], vmseasons[s],
                                                       uoseasons[s], voseasons[s],
-                                                      udseasons[s], vdseasons[s], **vres)
+                                                      udseasons[s], vdseasons[s], obs, **vres)
 
                             #Add plot to website (if enabled):
                             adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,

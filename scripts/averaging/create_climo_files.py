@@ -1,17 +1,48 @@
-##################
-#Warnings function
-##################
-
+"""
+Module to create (monthly) climatology files.
+"""
 import warnings  # use to warn user about missing files.
+import multiprocessing as mp
+import numpy as np
+import xarray as xr  # module-level import so all functions can get to it.
+
 def my_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return str(msg) + '\n'
 warnings.formatwarning = my_formatwarning
 
+def get_time_slice_by_year(time, startyear, endyear):
+    """
+    Return slice object inclusive of specified start and end years.
 
-import xarray as xr  # module-level import so all functions can get to it.
+    Parameters
+    ----------
+    time
+        Time coordinate variable, expects xarray `dt` accessor.
+    startyear : int
+        The year to start the slice
+    endyear : int
+        The year to end the slice
 
-import multiprocessing as mp
+    Returns
+    -------
+    slice
+        slice object with start and end years specified;
+        if `dt` accessor is available values will be time indices
+
+    Notes
+    -----
+    When the `dt` accessor is not available, instead of indices
+    returns `slice(startyear, endyear)` and prints a warning
+    since this is unlikely to actually work.
+    """
+    if not hasattr(time, 'dt'):
+        print("Warning: get_time_slice_by_year requires the `time` parameter to be an xarray time coordinate with a dt accessor. Returning generic slice (which will probably fail).")
+        return slice(startyear, endyear)
+    start_time_index = np.argwhere((time.dt.year >= startyear).values).flatten().min()
+    end_time_index = np.argwhere((time.dt.year <= endyear).values).flatten().max()
+    return slice(start_time_index, end_time_index+1)
+
 
 
 ##############
@@ -20,29 +51,37 @@ import multiprocessing as mp
 
 def create_climo_files(adf, clobber=False, search=None):
     """
-    This is an example function showing
-    how to set-up a time-averaging method
-    for calculating climatologies from
-    CAM time series files using
-    multiprocessing for parallelization.
+    Orchestrates production of monthly climatology files
+    from CAM time series files.
+
+    Parameters
+    ----------
+    adf
+        the ADF object
+    clobber : bool, optional
+        Overwrite existing climatology files if true.
+        Defaults to False (do not delete).
+    search : str, optional
+        optional string used as a template to find the time series files
+        using {CASE} and {VARIABLE} and otherwise an arbitrary shell-like globbing pattern:
+        example 1: provide the string "{CASE}.*.{VARIABLE}.*.nc" this is the default
+        example 2: maybe CASE is not necessary because post-process destroyed the info "post_process_text-{VARIABLE}.nc"
+        example 3: order does not matter "{VARIABLE}.{CASE}.*.nc"
+        Only CASE and VARIABLE are allowed because they are arguments to the averaging function
+
+    Notes
+    -----
+    No return value; produces netCDF files.
+
+    Uses multiprocessing for parallelization.
+
+    Calls local function `process_variable` for calculation.
 
     Description of needed inputs from ADF:
-
-    case_name    -> Name of CAM case provided by "cam_case_name"
-    input_ts_loc -> Location of CAM time series files provided by "cam_ts_loc"
-    output_loc   -> Location to write CAM climo files to, provided by "cam_climo_loc"
-    var_list     -> List of CAM output variables provided by "diag_var_list"
-
-    Optional keyword arguments:
-
-        clobber -> whether to overwrite existing climatology files. Defaults to False (do not delete).
-
-        search  -> optional; if supplied requires a string used as a template to find the time series files
-                using {CASE} and {VARIABLE} and otherwise an arbitrary shell-like globbing pattern:
-                example 1: provide the string "{CASE}.*.{VARIABLE}.*.nc" this is the default
-                example 2: maybe CASE is not necessary because post-process destroyed the info "post_process_text-{VARIABLE}.nc"
-                example 3: order does not matter "{VARIABLE}.{CASE}.*.nc"
-                Only CASE and VARIABLE are allowed because they are arguments to the averaging function
+        case_name    -> Name of CAM case provided by "cam_case_name"
+        input_ts_loc -> Location of CAM time series files provided by "cam_ts_loc"
+        output_loc   -> Location to write CAM climo files to, provided by "cam_climo_loc"
+        var_list     -> List of CAM output variables provided by "diag_var_list"
     """
 
     #Import necessary modules:
@@ -50,7 +89,8 @@ def create_climo_files(adf, clobber=False, search=None):
     from adf_base import AdfError
 
     #Notify user that script has started:
-    print("\n  Calculating CAM climatologies...")
+    msg = "\n  Calculating CAM climatologies..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Set up multiprocessing pool to parallelize writing climo files.
     number_of_cpu = adf.num_procs  # Get number of available processors from the ADF
@@ -116,7 +156,11 @@ def create_climo_files(adf, clobber=False, search=None):
             continue
 
         #Notify user of model case being processed:
-        print(f"\t Calculating climatologies for case '{case_name}' :")
+        print(f"\n\t Calculating climatologies for case '{case_name}' :")
+
+        is_baseline = False
+        if (not adf.get_basic_info("compare_obs")) and (case_name == baseline_name):
+            is_baseline = True
 
         #Create "Path" objects:
         input_location  = Path(input_ts_locs[case_idx])
@@ -135,9 +179,10 @@ def create_climo_files(adf, clobber=False, search=None):
             print(f"\t    {output_location} not found, making new directory")
             output_location.mkdir(parents=True)
 
-        #Time series file search
-        if search is None:
-            search = "{CASE}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
+        # If we need to allow custom search, could put it into adf.data
+        # #Time series file search
+        # if search is None:
+        #     search = "{CASE}*{HIST_STR}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
 
         #Check model year bounds:
         syr, eyr = check_averaging_interval(start_year[case_idx], end_year[case_idx])
@@ -145,29 +190,40 @@ def create_climo_files(adf, clobber=False, search=None):
         #Loop over CAM output variables:
         list_of_arguments = []
         for var in var_list:
+            # Notify user of new climo file:
+            print(f"\t - climatology for {var}")
 
             # Create name of climatology output file (which includes the full path)
             # and check whether it is there (don't do computation if we don't want to overwrite):
             output_file = output_location / f"{case_name}_{var}_climo.nc"
             if (not clobber) and (output_file.is_file()):
-                print(f"\t    INFO: Found climo file and clobber is False, so skipping {var} and moving to next variable.")
+                msg = f"\t    INFO: '{var}' file was found "
+                msg += "and overwrite is False. Will use existing file."
+                print(msg)
                 continue
             elif (clobber) and (output_file.is_file()):
                 print(f"\t    INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
 
             #Create list of time series files present for variable:
-            ts_filenames = search.format(CASE=case_name, VARIABLE=var)
-            ts_files = sorted(list(input_location.glob(ts_filenames)))
+            # Note that we hard-code for h0 because we only want to make climos of monthly output
+            if is_baseline:
+                ts_files = adf.data.get_ref_timeseries_file(var)
+            else:
+                ts_files = adf.data.get_timeseries_file(case_name, var)
 
-            #If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
+            #If no files exist, try to move to next variable. --> Means we can not proceed with this variable,
+            # and it'll be problematic later unless there are multiple hist file streams and the variable is in the others
             if not ts_files:
-                errmsg = "Time series files for variable '{}' not found.  Script will continue to next variable.".format(var)
-                print(f"The input location searched was: {input_location}. The glob pattern was {ts_filenames}.")
+                errmsg = f"\t    WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable.\n"
+                errmsg += f"\t      The input location searched was: {input_location}."
+                print(errmsg)
+                logmsg = f"climo file generation: The input location searched was: {input_location}. The glob pattern was {ts_files}."
+                #Write to debug log if enabled:
+                adf.debug_log(logmsg)
                 #  end_diag_script(errmsg) # Previously we would kill the run here.
-                warnings.warn(errmsg)
                 continue
 
-            list_of_arguments.append((ts_files, syr, eyr, output_file))
+            list_of_arguments.append((adf, ts_files, syr, eyr, output_file))
 
 
         #End of var_list loop
@@ -187,9 +243,22 @@ def create_climo_files(adf, clobber=False, search=None):
 #
 # Local functions
 #
-def process_variable(ts_files, syr, eyr, output_file):
+def process_variable(adf, ts_files, syr, eyr, output_file):
     '''
-    Compute and save the climatology file.
+    Compute and save the monthly climatology file.
+
+    Parameters
+    ----------
+    adf
+        The ADF object
+    ts_files : list
+        list of paths to time series files
+    syr : str
+        start year, with leading zeros if needed
+    eyr : str
+        end year, with leading zeros if needed
+    output_file : str or Path
+        file path for output climatology file
     '''
     #Read in files via xarray (xr):
     if len(ts_files) == 1:
@@ -205,7 +274,8 @@ def process_variable(ts_files, syr, eyr, output_file):
         cam_ts_data.assign_coords(time=time)
         cam_ts_data = xr.decode_cf(cam_ts_data)
     #Extract data subset using provided year bounds:
-    cam_ts_data = cam_ts_data.sel(time=slice(syr, eyr))
+    tslice = get_time_slice_by_year(cam_ts_data.time, int(syr), int(eyr))
+    cam_ts_data = cam_ts_data.isel(time=tslice)
     #Group time series values by month, and average those months together:
     cam_climo_data = cam_ts_data.groupby('time.month').mean(dim='time')
     #Rename "months" to "time":
@@ -215,12 +285,36 @@ def process_variable(ts_files, syr, eyr, output_file):
     enc_c  = {xname: {'_FillValue': None} for xname in cam_climo_data.coords}
     enc    = {**enc_c, **enc_dv}
 
+    # Create a dictionary of attributes
+    # Convert the list to a string (join with commas)
+    ts_files_str = [str(path) for path in ts_files]
+    ts_files_str = ', '.join(ts_files_str)
+    attrs_dict = {
+        "adf_user": adf.user,
+        "climo_yrs": f"{syr}-{eyr}",
+        "time_series_files": ts_files_str,
+    }
+    cam_climo_data = cam_climo_data.assign_attrs(attrs_dict)
+
     #Output variable climatology to NetCDF-4 file:
     cam_climo_data.to_netcdf(output_file, format='NETCDF4', encoding=enc)
     return 1  # All funcs return something. Could do error checking with this if needed.
 
 
 def check_averaging_interval(syear_in, eyear_in):
+    """
+    Parameters
+    ----------
+    syear_in
+        start year, should be convertible to int
+    eyear_in
+        end year, should be convertible to int
+
+    Returns
+    -------
+    tuple
+        (start_year, end_year) as str with leading zeros included if needed (4-digit)
+    """
     #For now, make sure year inputs are integers or None,
     #in order to allow for the zero additions done below:
     if syear_in:

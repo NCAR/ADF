@@ -12,6 +12,7 @@ import sys
 import os
 import os.path
 import logging
+import glob
 
 #Set relevant path variables:
 _CURRDIR = os.path.abspath(os.path.dirname(__file__))
@@ -44,9 +45,12 @@ class AdfBaseTestRoutine(unittest.TestCase):
         Remove log files (if they exist).
         """
 
-        #Remove log file if it exists:
-        if os.path.exists("ADF_debug.log"):
-            os.remove("ADF_debug.log")
+        debug_list = glob.glob("ADF_debug*.log")
+
+        for dfile in debug_list:
+            #Remove log file if it exists:
+            if os.path.exists(dfile):
+                os.remove(dfile)
 
 
         #Close all log streams:
@@ -77,11 +81,14 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Create AdfBase object with debug setting:
         adf_test = AdfBase(debug=True)
 
+        #Grab debug log name
+        debug_fname = adf_test.debug_fname
+
         #Assert that new object is of the "AdfBase" class:
         self.assertIsInstance(adf_test, AdfBase)
 
-        #Assert that "ADF_debug.log" file exists in local directory:
-        self.assertTrue(os.path.exists("ADF_debug.log"))
+        #Assert that ADF debug log file exists in local directory:
+        self.assertTrue(os.path.exists(debug_fname))
 
     def test_AdfBase_bad_debug(self):
 
@@ -117,8 +124,11 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Call "debug_log" method:
         adf_test.debug_log("test")
 
+        #Grab debug log name
+        debug_fname = adf_test.debug_fname
+
         #Check that no log file exists:
-        self.assertFalse(os.path.exists("ADF_debug.log"))
+        self.assertFalse(os.path.exists(debug_fname))
 
     def test_AdfBase_debug_write(self):
 
@@ -131,17 +141,20 @@ class AdfBaseTestRoutine(unittest.TestCase):
         #Create AdfBase object with debug setting:
         adf_test = AdfBase(debug=True)
 
+        #Grab debug log name
+        debug_fname = adf_test.debug_fname
+
         #Call "debug_log" method:
         adf_test.debug_log("test")
 
         #Check that debug log exists:
-        self.assertTrue(os.path.exists("ADF_debug.log"))
+        self.assertTrue(os.path.exists(debug_fname))
 
         #If debug log exists, then open file:
-        if os.path.exists("ADF_debug.log"):
+        if os.path.exists(debug_fname):
 
             #Open log file:
-            with open("ADF_debug.log") as logfil:
+            with open(debug_fname) as logfil:
 
                 #Extract file contents:
                 log_text = logfil.read()
