@@ -80,12 +80,15 @@ def global_mean_timeseries_lnd(adfobj):
         scale_factor_table = vres.get('scale_factor_table', 1)
         add_offset = vres.get('add_offset', 0)
         avg_method = vres.get('avg_method', 'mean')
+
         if avg_method == 'mean':
             weights = weights/weights.sum()
             c_weights = c_weights/c_weights.sum()
+        
         # get units for variable 
         ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))
         ref_ts_da.attrs['units'] = vres.get("table_unit", ref_ts_da.attrs.get('units', 'none'))
+        ref_ts_da.attrs['units'] = vres.get("ts_unit", ref_ts_da.attrs.get('units', 'none'))
         units = ref_ts_da.attrs['units']
 
         # scale for plotting, if needed
@@ -110,6 +113,11 @@ def global_mean_timeseries_lnd(adfobj):
             # annually averaged
             ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
             c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+
+            # make cumulative sum plots for NBP
+            if avg_method == 'cumsum':
+                c_ts_da = c_ts_da.cumsum()
+                ref_ts_da = ref_ts_da.cumsum()
 
             # check if variable has a lev dimension
             has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
@@ -165,9 +173,11 @@ def global_mean_timeseries_lnd(adfobj):
                 continue
             # End if
 
-            # Gather spatial avg for test case
-            case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+            # Gather spatial avg for test case  This seems redundant, since it was done above?
+            # Just try using c_ts_da directly, instead of doing the calculation again...
+            case_ts[labels[case_name]] = c_ts_da
 
+        # End loop over cases   
         # If this case is 3-d or missing variable, then break the loop and go to next variable
         if skip_var:
             continue

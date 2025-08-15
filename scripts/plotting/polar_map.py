@@ -331,8 +331,15 @@ def polar_map(adfobj):
                                         #End if
                                     if comp == "lnd":
                                         hemi = hemi_type
+                                    
                                     # Exclude certain plots, this may get difficult
-                                    if var != 'GRAINC_TO_FOOD':
+                                    if (var == 'GRAINC_TO_FOOD'):
+                                        print("\t\t Skipping 'GRAINC_TO_FOOD' polar plots")
+                                        continue
+                                    elif (var == 'FAREA_BURNED') and (s == 'SON'):
+                                        print("\t\t Skipping FAREA_BURNED in SON plot")
+                                        continue
+                                    else: 
                                         pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                            [syear_cases[case_idx],eyear_cases[case_idx]],
                                                            [syear_baseline,eyear_baseline],

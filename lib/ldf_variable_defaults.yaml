@@ -82,7 +82,12 @@ TSA:    # 2m air temperature
   contour_levels_range: [250, 310, 10]
   diff_colormap: "coolwarm"
   pct_diff_colormap: "coolwarm"
-
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "K"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/WILLMOTT_ALLMONS_climo.nc"
+  obs_name: "WILMONT"
+  obs_var_name: "TSA" # K
 
 PREC:   # RAIN + SNOW
   category: "Atmosphere"
@@ -91,6 +96,9 @@ PREC:   # RAIN + SNOW
   scale_factor: 86400
   add_offset: 0
   new_unit: "mm d$^{-1}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/GPCPv2.3_ALLMONS_climo.nc"
+  obs_name: "GCPCv2.3"
+  obs_var_name: "PREC" #mm/d
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -124,6 +132,9 @@ WIND: # atmospheric air temperature
 
 QBOT: # atmospheric specific humidity
   category: "Atmosphere"
+  scale_factor: 1
+  add_offset: 0
+  #new_unit: "W m$^{-2}$"
 
 TBOT:
   category: "Atmosphere"
@@ -154,6 +165,12 @@ ASA: # all-sky albedo:FSR/FSDS
   new_unit: "% reflected"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  # TODO, Keith will clarify what obs to use and we'll also have to figure out grid weights for regional averaging
+  ## First file has weights, but no clear variable for ASA
+  # obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/T42_MODIS_ALLMONS_climo.070523.nc"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/modisradweighted.nc" 
+  obs_data: "MODIS"
+  obs_var_name: "BRDALB" 
 
 FSA: # absorbed solar radiation    
   category: "Surface fluxes"
@@ -183,6 +200,36 @@ ET: # latent heat: FCTR+FCEV+FGEV
       label : "W m$^{-2}$"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "BrBG"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/lnd_diag_data/obs_data/MR_LHF_0.9x1.25_ALLMONS_climo.nc"
+  obs_name: "FLUXNET"
+  obs_var_name: "LHF" #W m$^{-2}$  
+
+FCTR: # Canopy transpiration latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+      
+FCEV: # Canopy evaporation of latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+
+FGEV: # Ground evaporation latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"  
 
 DSTFLXT: # total surface dust emission
   category: "Surface fluxes"
@@ -248,6 +295,21 @@ TOTRUNOFF: # total liquid runoff
     colorbar:
       label : "mm d$^{-1}$"
   
+QRUNOFF_TO_COUPLER: # runoff to coupler
+  category: "Hydrology"
+  colormap: "Blues"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  contour_levels: [-0.1,0.,0.1,0.2,0.3,1.,2.,3.,]
+  diff_contour_range: [-1.,1.,0.1]
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/GRUN_ALLMONS_climo.nc"
+  obs_name: "GRUN"
+  obs_var_name: "RUNOFF" #mm/d 
+
 #+++++++++++
 # Category: Vegetation
 #+++++++++++
@@ -260,7 +322,11 @@ ELAI: # exposed one-sided leaf area index
   contour_levels_range: [0., 8., 1.0]
   diff_colormap: "PiYG"
   diff_contour_range: [-2.,2.,0.25]
-
+  new_unit: "m${-2}$ m${-2}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/MODIS_LAI_ALLMONS_climo.nc"
+  obs_name: "MODIS"
+  obs_var_name: "TLAI"  
+  
 
 HTOP: # canopy top height
   category: "Vegetation"
@@ -268,7 +334,10 @@ HTOP: # canopy top height
 
 TSAI: # total one-sided stem area index
   category: "Vegetation"
-
+  new_unit: "m${-2}$ m${-2}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/MODIS_LAI_ALLMONS_climo.nc"
+  obs_name: "MODIS"
+  obs_var_name: "TSAI"  
 
 #+++++++++++
 # Category: Carbon
@@ -290,6 +359,9 @@ GPP: # Gross Primary Production
   scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
   avg_method: 'sum'
   table_unit: "PgC y$^{-1}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/MR_GPP_0.9x1.25_ALLMONS_climo.nc"
+  obs_name: "FLUXNET"
+  obs_var_name: "GPP" #gC m$^{-2}$ d$^{-1}$  
 
 AR: # Autotrophic Respiration
   category: "Carbon"
@@ -355,8 +427,9 @@ NBP: # Net Biome Production
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PiYG"
   scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
-  avg_method: 'sum'
+  avg_method: 'cumsum' # in TS NBP is cum sum, table just uses sum implicitly (not mean)
   table_unit: "PgC y$^{-1}$"
+  ts_unit: "PgC" #global TS uses cumulative NBP in PgC
 
 TOTECOSYSC_1m:
   category: "Carbon"
