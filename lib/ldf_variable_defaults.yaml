@@ -427,8 +427,9 @@ NBP: # Net Biome Production
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PiYG"
   scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
-  avg_method: 'sum'
+  avg_method: 'cumsum' # in TS NBP is cum sum, table just uses sum implicitly (not mean)
   table_unit: "PgC y$^{-1}$"
+  ts_unit: "PgC" #global TS uses cumulative NBP in PgC
 
 TOTECOSYSC_1m:
   category: "Carbon"

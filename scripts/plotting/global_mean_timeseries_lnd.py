@@ -80,12 +80,15 @@ def global_mean_timeseries_lnd(adfobj):
         scale_factor_table = vres.get('scale_factor_table', 1)
         add_offset = vres.get('add_offset', 0)
         avg_method = vres.get('avg_method', 'mean')
+
         if avg_method == 'mean':
             weights = weights/weights.sum()
             c_weights = c_weights/c_weights.sum()
+        
         # get units for variable 
         ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))
         ref_ts_da.attrs['units'] = vres.get("table_unit", ref_ts_da.attrs.get('units', 'none'))
+        ref_ts_da.attrs['units'] = vres.get("ts_unit", ref_ts_da.attrs.get('units', 'none')) #only used for NBP
         units = ref_ts_da.attrs['units']
 
         # scale for plotting, if needed
@@ -93,7 +96,7 @@ def global_mean_timeseries_lnd(adfobj):
         ref_ts_da.attrs['units'] = units
         c_ts_da = c_ts_da * scale_factor * scale_factor_table
         c_ts_da.attrs['units'] = units
-        
+
         # Check to see if this field is available
         if ref_ts_da is None:
             print(
@@ -112,11 +115,9 @@ def global_mean_timeseries_lnd(adfobj):
             c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
 
             # make cumulative sum plots for NBP
-            #TODO, check this is working as expected
-            #if field == 'NBP':
-            #    print(ref_ts_da)
-            #    ref_ts_da = ref_ts_da.cumsum()
-            #    c_ts_da = c_ts_da.cumsum()
+            if avg_method == 'cumsum':
+                c_ts_da = c_ts_da.cumsum()
+                ref_ts_da = ref_ts_da.cumsum()
 
             # check if variable has a lev dimension
             has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
@@ -172,9 +173,11 @@ def global_mean_timeseries_lnd(adfobj):
                 continue
             # End if
 
-            # Gather spatial avg for test case
-            case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+            # Gather spatial avg for test case  This seems redundant, since it was done above?
+            # Just try using c_ts_da directly, instead of doing the calculation again...
+            case_ts[labels[case_name]] = c_ts_da
 
+        # End loop over cases   
         # If this case is 3-d or missing variable, then break the loop and go to next variable
         if skip_var:
             continue
@@ -283,6 +286,7 @@ class Lens2Data:
 
 def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     """plot yearly values of ref_ts_da"""
+    print(label)
     field = lens2.field  # this will be defined even if no LENS2 data
     fig, ax = plt.subplots()
     
