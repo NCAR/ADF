@@ -88,7 +88,7 @@ def global_mean_timeseries_lnd(adfobj):
         # get units for variable 
         ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))
         ref_ts_da.attrs['units'] = vres.get("table_unit", ref_ts_da.attrs.get('units', 'none'))
-        ref_ts_da.attrs['units'] = vres.get("ts_unit", ref_ts_da.attrs.get('units', 'none')) #only used for NBP
+        ref_ts_da.attrs['units'] = vres.get("ts_unit", ref_ts_da.attrs.get('units', 'none'))
         units = ref_ts_da.attrs['units']
 
         # scale for plotting, if needed
@@ -286,7 +286,6 @@ class Lens2Data:
 
 def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     """plot yearly values of ref_ts_da"""
-    print(label)
     field = lens2.field  # this will be defined even if no LENS2 data
     fig, ax = plt.subplots()
     
