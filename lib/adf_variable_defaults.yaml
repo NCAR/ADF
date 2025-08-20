@@ -297,10 +297,10 @@ BC:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: '$\\mu$g/m3'
   mpl:
     colorbar:
-      label : '$\mu$g/m3'
+      label : '$\\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["bc_a1", "bc_a4"]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -311,10 +311,10 @@ POM:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: '$\\mu$g/m3'
   mpl:
     colorbar:
-      label : '$\mu$g/m3'
+      label : '$\\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["pom_a1", "pom_a4"]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -325,10 +325,10 @@ SO4:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: '$\\mu$g/m3'
   mpl:
     colorbar:
-      label : '$\mu$g/m3'
+      label : '$\\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["so4_a1", "so4_a2", "so4_a3"]
   derivable_from_cam_chem: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
@@ -340,10 +340,10 @@ SOA:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: '$\\mu$g/m3'
   mpl:
     colorbar:
-      label : '$\mu$g/m3'
+      label : '$\\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["soa_a1", "soa_a2"]
   derivable_from_cam_chem: ["soa1_a1", "soa2_a1", "soa3_a1", "soa4_a1", "soa5_a1", "soa1_a2", "soa2_a2", "soa3_a2", "soa4_a2", "soa5_a2"]
@@ -357,10 +357,10 @@ DUST:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: '$\\mu$g/m3'
   mpl:
     colorbar:
-      label : '$\mu$g/m3'
+      label : '$\\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["dst_a1", "dst_a2", "dst_a3"]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -373,13 +373,13 @@ SeaSalt:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: '$\\mu$g/m3'
   mpl:
     colorbar:
-      label : '$\mu$g/m3'
+      label : '$\\mu$g/m3'
       ticks: [0.05,0.2,0.4,1,2,6,24,90]
     diff_colorbar:
-      label : '$\mu$g/m3'
+      label : '$\\mu$g/m3'
       ticks: [-10,8,6,4,2,0,-2,-4,-6,-8,-10]
   category: "Aerosols"
   derivable_from: ["ncl_a1", "ncl_a2", "ncl_a3"]
@@ -2255,29 +2255,22 @@ FISCCP1_COSP:
   category: "Clouds"
   obs_file: 'ISCCP_obs_data.nc'
   obs_name: "ISCCP"
+  obs_var_name: "n_pctaudist"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
+ISCCP_emd_centers:
+  category: "Clouds"
+  obs_file: 'ISCCP_emd-means_n_init5_centers_1.npy'
+
+ISCCP_euclidean_centers:
+  category: "Clouds"
+  obs_file: 'CS_qualitative_clusters.npy'
 
 ICE_ICLD_VISTAU:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
-
-ISCCP_emd_centers:
-  category: "Clouds"
-  obs_file: 'ISCCP_emd-means_n_init5_centers_1.npy'
-
-ISCCP_euclidean_centers:
-  category: "Clouds"
-  obs_file: 'CS_qualitative_clusters.npy'
-
-ISCCP_emd_centers:
-  category: "Clouds"
-  obs_file: 'ISCCP_emd-means_n_init5_centers_1.npy'
-
-ISCCP_euclidean_centers:
-  category: "Clouds"
-  obs_file: 'CS_qualitative_clusters.npy'
 
 IWPMODIS:
   category: "COSP"
@@ -2333,23 +2326,7 @@ MODIS_euclidean_centers:
 
 MODIS_emd_centers:
   category: "Clouds"
-  obs_file: 'MODIS_emd-means_n_init5_centers_1.np'
-
-MISR_euclidean_centers:
-  category: "Clouds"
-  obs_file: 'MISR_6C_weather_state_centers.npy'
-
-MISR_emd_centers:
-  category: "Clouds"
-  obs_file: 'MISR_emd-means_n_init5_centers_1.npy'
-
-MODIS_euclidean_centers:
-  category: "Clouds"
-  obs_file: 'MODIS_6C_weather_state_centers.npy'
-
-MODIS_emd_centers:
-  category: "Clouds"
-  obs_file: 'MODIS_emd-means_n_init5_centers_1.np'
+  obs_file: 'MODIS_emd-means_n_init5_centers_1.npy'
 
 PCTMODIS:
   category: "COSP"
