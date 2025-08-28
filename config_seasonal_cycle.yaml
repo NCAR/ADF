@@ -275,28 +275,7 @@ diag_cam_baseline_climo:
     #If set to false, then TEM creation will be skipped if files are found:
     overwrite_tem: false
 
-#This fourth set of variables provides settings for calling the Climate Variability
-# Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
-# run in background mode, likely completing after the ADF has completed.
-# If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
-# in the diag_var_list variable listing.
-# For more CVDP information: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/
-diag_cvdp_info:
-
-    # Run the CVDP on the listed run(s)?
-    cvdp_run: false
-
-    # CVDP code path, sets the location of the CVDP codebase
-    #  CGD systems path = /home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
-    #  CISL systems path = /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
-    #  github location = https://github.com/NCAR/CVDP-ncl
-    cvdp_codebase_loc: /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
-
-    # Location where cvdp codebase will be copied to and diagnostic plots will be stored
-    cvdp_loc: /glade/derecho/scratch/${user}/ADF/cvdp/
-
-    # tar up CVDP results?
-    cvdp_tar: false
+    #----------------------
 
 # This set of variables provides settings for calling NOAA's
 # Model Diagnostic Task Force (MDTF) diagnostic package.
