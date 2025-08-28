@@ -686,10 +686,6 @@ def time_mean(ncfile, data, time_avg, interval, is_climo=None, obs=False):
     return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
 ########
 
-
-
-
-
 def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dict, obs_ds_dict, time_avg, interval, comp_plots_dict, obs_cam_vars):
     """
 
@@ -1533,6 +1529,4 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
 
     fig.savefig(plot_name, bbox_inches='tight', dpi=300)
 
-
-
-
+########
