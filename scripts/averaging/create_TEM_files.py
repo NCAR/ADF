@@ -503,7 +503,6 @@ def calc_tem(ds):
     epfz = -1.*(H/p0)*epfz  # A14
     wtem = -1.*(H/pre)*wtem # A16
 
-    #
     # add long name and unit attributes to TEM diagnostics
     uzm.attrs['long_name'] = 'Zonal-Mean zonal wind'
     uzm.attrs['units'] = 'm/s'
@@ -513,9 +512,6 @@ def calc_tem(ds):
 
     thzm.attrs['long_name'] = 'Zonal-Mean potential temperature'
     thzm.attrs['units'] = 'K'
-
-    #tzm.attrs['long_name'] = 'Zonal-Mean temperature'
-    #tzm.attrs['units'] = 'K'
 
     epfy.attrs['long_name'] = 'northward component of E-P flux'
     epfy.attrs['units'] = 'm3/s2'
