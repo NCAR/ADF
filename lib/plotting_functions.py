@@ -868,8 +868,9 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
     #lons, lats = np.meshgrid(lon_cyclic, d1.lat)
 
-    fig = plt.figure(figsize=(10,10))
-    gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
+    # controling DPI makes uxplots look better
+    fig = plt.figure(figsize=(10,10), dpi=300)
+    gs = mpl.gridspec.GridSpec(2, 4, wspace=0.6)
 
     ax1 = plt.subplot(gs[0, :2], projection=proj)
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
@@ -898,15 +899,16 @@ def make_polar_plot(wks, case_nickname, base_nickname,
             norm = cp_info['norm1']
         if unstructured:
             #configure for polycollection plotting
-            #TODO, would be nice to have levels set from the info, above
-            ac = a.to_polycollection()
-            #ac.norm(norms[i])
-            ac.set_cmap(cmap)
-            ac.set_antialiased(False)
-            ac.set_transform(proj)
-            ac.set_clim(vmin=levels[0],vmax=levels[-1])
-            axs[i].add_collection(ac)
-            imgs.append(ac)
+            # TODO, would be nice to have levels set from the info, above
+            # raster approach should be faster
+            axs[i].set_global()
+            raster = a.to_raster(ax=axs[i])
+            img = axs[i].imshow(
+                raster, cmap=cmap, origin="lower", extent=axs[i].get_xlim() + axs[i].get_ylim()
+            )
+            img.set_clim(vmin=levels[0],vmax=levels[-1])
+            imgs.append(img)
+
         else:
             
             levs = np.unique(np.array(levels))
@@ -1363,8 +1365,9 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     # generate dictionary of contour plot settings:
     cp_info = prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
 
-    # create figure object
-    fig = plt.figure(figsize=(14,10))
+    # create figure object, 
+    # controling DPI improves raster plots for unstructured data, but it does slow things down 
+    fig = plt.figure(figsize=(14,8), dpi=300)
 
     # LAYOUT WITH GRIDSPEC
     gs = mpl.gridspec.GridSpec(3, 6, wspace=2.0,hspace=0.0) # 2 rows, 4 columns, but each map will take up 2 columns
@@ -1376,8 +1379,8 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     ax = [ax1,ax2,ax3,ax4]
 
     img = [] # contour plots
-    cs = []  # contour lines
-    cb = []  # color bars
+    cs = []  # contour lines, unused for now
+    cb = []  # color bars, unused for now
 
     # formatting for tick labels
     lon_formatter = LongitudeFormatter(number_format='0.0f',
@@ -1405,22 +1408,26 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
         if not unstructured:
             levs = np.unique(np.array(levels))
             if len(levs) < 2:
-                img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
+                img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),
+                                          transform_first=True))
                 ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
             else:
-                img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))
+                img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm,
+                                          transform=ccrs.PlateCarree(), transform_first=True,
+                                          **cp_info['contourf_opt']
+                                          ))
             #End if
         else:
-            #configure for polycollection plotting
+            #configure for raster plotting, polycollection was slower
             #TODO, would be nice to have levels set from the info, above
-            ac = a.to_polycollection()
-            img.append(ac)
-            #ac.norm(norm)
-            ac.set_cmap(cmap)
-            ac.set_antialiased(False)
-            ac.set_transform(proj)
-            ac.set_clim(vmin=levels[0],vmax=levels[-1])
-            ax[i].add_collection(ac)
+            ax[i].set_global()
+            raster = a.to_raster(ax=ax[i])
+            im = ax[i].imshow(
+                raster, cmap=cmap, origin="lower",
+                extent=ax[i].get_xlim() + ax[i].get_ylim()
+            )
+            im.set_clim(vmin=levels[0],vmax=levels[-1])
+            img.append(im)
         # End if unstructured grid
 
         #ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
@@ -1441,8 +1448,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
         a.spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         a.set_xticks(np.linspace(-180, 120, 6), crs=proj)
         a.set_yticks(np.linspace(-90, 90, 7), crs=proj)
-        a.tick_params('both', length=5, width=1.5, which='major')
-        a.tick_params('both', length=5, width=1.5, which='minor')
+        a.tick_params('both', length=5, width=1.5, which='both')
         a.xaxis.set_major_formatter(lon_formatter)
         a.yaxis.set_major_formatter(lat_formatter)
 
@@ -1466,6 +1472,13 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     ax[3].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
     ax[3].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
     ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
+
+    # Cosmetic adjustments to avoid label overlap
+    # also makes plots different sizes...
+    #ax[0].set_xticklabels([])
+    #ax[1].set_xticklabels([])
+    #ax[1].set_yticklabels([])
+    #ax[3].set_yticklabels([])
 
     # __COLORBARS__
     cb_mean_ax = inset_axes(ax2,
@@ -1507,9 +1520,9 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     plt.close()
 
 
-###
+### END plot_map_and_save
 
-
+# I don't think this is used anywhere and could likely be removed -WW
 def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
                                    case_climo_yrs, baseline_climo_yrs,
                                    mdlfld, obsfld, diffld, pctld, wgt,
@@ -1616,6 +1629,7 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
         facecolor="w",
         constrained_layout=True,
         subplot_kw=dict(projection=proj),
+        dpi=300,
         **cp_info['subplots_opt']
     )
     axs=axs.flatten()
@@ -1639,15 +1653,15 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
     
         #configure for polycollection plotting
         #TODO, would be nice to have levels set from the info, above
-        ac = a.to_polycollection(projection=proj)
-        #ac.norm(norm)
-        ac.set_cmap(cmap)
-        ac.set_antialiased(False)
-        ac.set_transform(transform)
-        ac.set_clim(vmin=levels[0],vmax=levels[-1])
-        axs[i].add_collection(ac)
+        axs[i].set_global()
+        raster = a.to_raster(ax=axs[i])
+        img = axs[i].imshow(
+            raster, cmap=cmap, origin="lower", extent=axs[i].get_xlim() + axs[i].get_ylim()
+        )
+        img.set_clim(vmin=levels[0],vmax=levels[-1])
+
         if i > 0:
-            cbar = plt.colorbar(ac, ax=axs[i], orientation='vertical', 
+            cbar = plt.colorbar(img, ax=axs[i], orientation='vertical',
                                 pad=0.05, shrink=0.8, **cp_info['colorbar_opt'])
             #TODO keep variable attributes on dataarrays
             #cbar.set_label(wrap_fields[i].attrs['units'])
