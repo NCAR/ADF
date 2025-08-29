@@ -1365,8 +1365,8 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     # generate dictionary of contour plot settings:
     cp_info = prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
 
-    # create figure object, 
-    # controling DPI improves raster plots for unstructured data, but it does slow things down 
+    # create figure object,
+    # controling DPI improves raster plots for unstructured data, but it does slow things down
     fig = plt.figure(figsize=(14,8), dpi=300)
 
     # LAYOUT WITH GRIDSPEC
