@@ -71,6 +71,7 @@ default_ptypes: ["Tables","LatLon","TimeSeries",
 #seconds per day :
 spd: 86400 
 diff_levs: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+pct_diff_contour_levels: [-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20]
 
 #+++++++++++++
 # Category: Atmosphere
@@ -82,6 +83,7 @@ TSA:    # 2m air temperature
   contour_levels_range: [250, 310, 10]
   diff_colormap: "coolwarm"
   pct_diff_colormap: "coolwarm"
+  pct_diff_contour_levels: [-3,-2,-1,-0.5,-0.2,-0.1,0,0.1,0.2,0.5,1,2,3]
   scale_factor: 1
   add_offset: 0
   new_unit: "K"
@@ -103,8 +105,8 @@ PREC:   # RAIN + SNOW
     colorbar:
       label : "mm d$^{-1}$"
   diff_colormap: "BrBG"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
 
 FLDS: # atmospheric longwave radiation
   category: "Atmosphere"
