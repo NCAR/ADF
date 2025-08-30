@@ -154,8 +154,8 @@ def regional_climatology(adfobj):
             #area_b = adfobj.data.load_reference_climo_da(baseline_name, 'area', **kwargs)
             #landfrac_b = adfobj.data.load_reference_climo_da(baseline_name, 'landfrac', **kwargs)
 
-            mdataset_base   = adfobj.data.load_reference_climo_dataset(baseline_name, field, **kwargs) 
-            area_b          = mdataset_base.area.isel(time=0) 
+            mdataset_base   = adfobj.data.load_reference_climo_dataset(baseline_name, field, **kwargs)
+            area_b          = mdataset_base.area.isel(time=0)
             landfrac_b      = mdataset_base.landfrac.isel(time=0)
  
             # calculate weights 
@@ -347,7 +347,7 @@ def regional_climatology(adfobj):
                 continue
             else:
                 # TODO handle unit conversions correctly, working for structured, but not unstructured yet
-                # using ldf_v0.0 and uxarrya 2025.03.0 this seems to be working as expected, 
+                # using ldf_v0.0 and uxarray 2025.03.0 this seems to be working as expected,
                 # TODO check results with updated uxarray 2025.06?
                 #if unstruct_plotting == True:
                 #    if (field == 'GPP') or (field == 'NEE') or (field == 'NBP'):
@@ -420,7 +420,7 @@ def getRegion_uxarray(gridDS, varDS, varName, area, landfrac, BOX_W, BOX_E, BOX_
     area_subset = area.isel(n_face=node_indices)
     landfrac_subset = landfrac.isel(n_face=node_indices)
     wgt_subset = area_subset * landfrac_subset  / (area_subset* landfrac_subset).sum() 
- 
+
     return domain_subset,wgt_subset
 
 def getRegion_xarray(varDS, varName,
