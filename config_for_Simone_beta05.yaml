@@ -1,0 +1,474 @@
+#==============================
+#config_cam_baseline.yaml
+
+#This is the main CAM diagnostics config file
+#for doing comparisons of a CAM run against
+#another CAM run, or a CAM baseline simulation.
+
+#Currently, if one is on NCAR's Casper or
+#Cheyenne machine, then only the diagnostic output
+#paths are needed, at least to perform a quick test
+#run (these are indicated with "MUST EDIT" comments).
+#Running these diagnostics on a different machine,
+#or with a different, non-example simulation, will
+#require additional modifications.
+#
+#Config file Keywords:
+#--------------------
+#
+#1.  Using ${xxx} will substitute that text with the
+#    variable referenced by xxx. For example:
+#
+#    cam_case_name: cool_run
+#    cam_climo_loc: /some/where/${cam_case_name}
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/cool_run
+#
+#    Please note that currently this will only work if the
+#    variable only exists in one location in the file.
+#
+#2.  Using ${<top_level_section>.xxx} will do the same as
+#    keyword 1 above, but specifies which sub-section the
+#    variable is coming from, which is necessary for variables
+#    that are repeated in different subsections.  For example:
+#
+#    diag_basic_info:
+#      cam_climo_loc:  /some/where/${diag_cam_climo.start_year}
+#
+#    diag_cam_climo:
+#      start_year: 1850
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/1850
+#
+#Finally, please note that for both 1 and 2 the keywords must be lowercase.
+#This is because future developments will hopefully use other keywords
+#that are uppercase. Also please avoid using periods (".") in variable
+#names, as this will likely cause issues with the current file parsing
+#system.
+#--------------------
+#
+##==============================
+
+#diag_loc: /glade/scratch/richling/adf-output/f.cam6_3_132.FMTHIST_ne30.taubgnd5.energy_front_off_rd_beta_1_vs_f.cam6_3_119.FMTHIST_ne30.r328_gamma0.33_soae.nudged_dst11.001/
+
+#climo_loc: /glade/scratch/richling/adf-output/ADF-data/climos/ #/glade/campaign/cgd/amp/amwg/climo/
+#ts_loc: /glade/scratch/richling/adf-output/ADF-data/timeseries/
+
+user: 'behroozr'
+
+#This first set of variables specify basic info used by all diagnostic runs:
+diag_basic_info:
+    # diag_loc: /glade/derecho/scratch/richling/adf-output/${diag_cam_climo.cam_case_name}_vs_${diag_cam_baseline_climo.cam_case_name}/
+
+    # climo_loc: /glade/derecho/scratch/richling/adf-output/ADF-data/climo/
+    # ts_loc: /glade/derecho/scratch/richling/adf-output/ADF-data/timeseries/
+
+    diag_loc: /glade/derecho/scratch/behroozr/Budgets/output_test/${diag_cam_climo.cam_case_name}_vs_${diag_cam_baseline_climo.cam_case_name}/
+
+    climo_loc: /glade/derecho/scratch/behroozr/Budgets//output_test/ADF-data/climo/
+    ts_loc: /glade/derecho/scratch/behroozr/Budgets/output_test/ADF-data/timeseries/
+
+
+    #History file string to match (eg. cam.h0 or ocn.pop.h.ecosys.nday1)
+    # Only affects timeseries as everything else uses timeseries
+    # Leave off trailing '.'
+    #Default: cam.h0
+    #hist_str: cam.h0a
+
+    #Is this a model vs observations comparison?
+    #If "false" or missing, then a model-model comparison is assumed:
+    compare_obs: false
+
+    #Generate HTML website (assumed false if missing):
+    #Note:  The website files themselves will be located in the path
+    #specified by "cam_diag_plot_loc", under the "<diag_run>/website" subdirectory,
+    #where "<diag_run>" is the subdirectory created for this particular diagnostics run
+    #(usually "case_vs_obs_XXX" or "case_vs_baseline_XXX").
+    create_html: true
+
+    #Location of observational datasets:
+    #Note: this only matters if "compare_obs" is true and the path
+    #isn't specified in the variable defaults file.
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
+
+    #Location where re-gridded CAM climatology files are stored:
+    cam_regrid_loc: ${diag_loc}regrid/
+
+    #Overwrite CAM re-gridded files?
+    #If false, or missing, then regridding will be skipped for regridded variables
+    #that already exist in "cam_regrid_loc":
+    cam_overwrite_regrid: false
+
+    #Location where diagnostic plots are stored:
+    cam_diag_plot_loc: ${diag_loc}diag-plot/
+
+    #Use default variable plot settings?
+    #If "true", then variable-specific plotting attributes as defined in
+    #ADF/lib/adf_variable_defaults.yaml will be used:
+    use_defaults: true
+
+    #Location of ADF variable plotting defaults YAML file
+    #if not using the one in ADF/lib:
+    #defaults_file: /some/path/to/defaults/file
+
+    #Vertical pressure levels (in hPa) on which to plot 3-D variables
+    #when using horizontal (e.g. lat/lon) map projections.
+    #If this config option is missing, then no 3-D variables will be plotted on
+    #horizontal maps:
+    plot_press_levels: [200,850]
+
+    #Apply monthly weights to seasonal averages.
+    #If False or missing, then all months are
+    #given the same weight:
+    weight_season: True
+
+    num_procs: 8
+
+    redo_plot: false
+    
+    
+
+
+
+
+
+
+
+#This second set of variables provides info for the CAM simulation(s) being diagnosed:
+diag_cam_climo:
+
+    #Calculate climatologies?
+    #If false, neither the climatology or time-series files will be created:
+    calc_cam_climo: true
+
+    #Overwrite CAM climatology files?
+    #If false, or not prsent, then already existing climatology files will be skipped:
+    cam_overwrite_climo: false
+
+    #Name of CAM case (or CAM run name):
+    #cam_case_name: f.cam6_3_153.FCMTnudged_climate_chemistry_ne30.factor_fix
+    #    case_nickname: f.cam6_3_153.FCMTnudged_climate_chemistry_ne30.factor_fix
+
+    #cam_case_name: f.cam6_3_160.FCMT_ne30.moving_mtn.002
+    #case_nickname: f.cam6_3_160.FCMT_ne30.moving_mtn.002
+    #start_year: 1996
+    #end_year: 1997
+
+    hist_str: cam.h0a
+    #hist_str: cam.h0
+
+
+    # cam_case_name: FCnudged_f09.mam.Jul9.1995_2020.001
+    # case_nickname: FCnudged_f09.mam.Jul9.1995_2020.001
+    # start_year: 2002
+    # end_year: 2019
+
+
+    # cam_case_name: FCnudged_f09.mam.mar27.2000_2021.001
+    # case_nickname: FCnudged_f09.mam.mar27.2000_2021.001
+    # start_year: 2002
+    # end_year: 2019
+
+    # cam_case_name: b.e22.BWSSP585cmip6ctsslh.f09_f09_mg17.cesm2.2_vsl03.present.CMIP_MLtracers_tagged.Halogensv002
+    # case_nickname: B_585P_ML
+    # start_year: 2016
+    # end_year: 2025
+
+    # cam_case_name: b.e22.BWSSP585cmip6ctsslh.f09_f09_mg17.cesm2.2_vsl03.future.CMIP_MLtracers_tagged.Halogensv002
+    # case_nickname: B_585F_ML
+    # start_year: 2090
+    # end_year: 2099
+
+    # cam_case_name: b.e22.BWSSP585cmip6ctsslh.f09_f09_mg17.cesm2.2_vsl03.future.CMIP_MLtracers_tagged.Halogensv001
+    # case_nickname: B_585F_Ord
+    # start_year: 2090
+    # end_year: 2099
+
+    cam_case_name: b.e22.BWSSP585cmip6ctsslh.f09_f09_mg17.cesm2.2_vsl03.future.CMIP_MLtracers_tagged.Halogensv001
+    case_nickname: B_585P_Ord
+    start_year: 2016
+    end_year: 2025
+
+    cam_case_name: f.e30_beta05.FCts4MTHIST.ne30_L93.cmip7.001
+    case_nickname: beta_05
+    start_year: 1980
+    end_year: 1980
+
+    # cam_case_name: f.e22.FCnudged.f09_f09_mg17.slh.2000.fire.ct.finn.mosaic_cams6.001
+    # case_nickname: Ben_FV
+    # start_year: 2003
+    # end_year: 2003
+
+    # cam_case_name: f.e30_alpha04a.FCts4MTHIST.ne30_L93.cmip7_old_volc
+    # case_nickname: beta_04
+    # start_year: 1980
+    # end_year: 1980
+    
+    # #cam_case_name: f.cam6_3_160.FMTHIST_ne30.moving_mtn.output.001
+    # #case_nickname: f.cam6_3_160.FMTHIST_ne30.moving_mtn.output.001
+    # #start_year: 1996
+    # #end_year: 2001
+
+
+
+
+
+    # #Location of CAM history (h0) files:
+    # #/glade/derecho/scratch/tilmes/archive/f.cam6_3_153.FCMTnudged_climate_chemistry_ne30.001/atm/hist
+    # #cam_hist_loc: /glade/derecho/scratch/tilmes/archive/${diag_cam_climo.cam_case_name}/atm/hist/
+    #cam_hist_loc: /glade/campaign/acom/acom-climate/UTLS/shawnh/archive/${diag_cam_climo.cam_case_name}/atm/hist/
+    #cam_hist_loc: /glade/campaign/acom/acom-weather/behroozr/VSLS/cases2024//${diag_cam_climo.cam_case_name}/atm/hist/
+    cam_hist_loc: /glade/derecho/scratch/shawnh/archive//${diag_cam_climo.cam_case_name}/atm/hist/
+    #cam_hist_loc: /glade/campaign/acom/acom-climate/UTLS/shawnh/archive/${diag_cam_climo.cam_case_name}/atm/hist/
+    #cam_hist_loc: /glade/campaign/acom/acom-da/Methane_simulations/f.e22.FCnudged.f09_f09_mg17.slh.2000.fire.ct.finn.mosaic_cams6.001/H0/
+
+    # cam_case_name: f.e22.FHIST.ne0np4.India07.ne30x1_ne30x1_mt12_cesm2.2_rel_bugFixed_noPATC
+    # case_nickname: f.e22.FHIST.ne0np4.India07.ne30x1_ne30x1_mt12_cesm2.2_rel_bugFixed_noPATC
+    # start_year: 2002
+    # end_year: 2002
+    # cam_hist_loc: /glade/campaign/acom/acom-weather/behroozr/India_Dust/Simulation2_${diag_cam_climo.cam_case_name}/atm/hist/
+    
+
+    #Location of CAM climatologies: 
+    cam_climo_loc: ${climo_loc}${diag_cam_climo.cam_case_name}/yrs_1995_2001/
+
+    #model year when time series files should start:
+    #Note:  Leaving this entry blank will make time series
+    #       start at earliest available year.
+    #start_year: 2001
+
+    #model year when time series files should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    #end_year: 2001
+
+    #Do time series files need to be generated?
+    #If True, then diagnostics assumes that model files are already time series.
+    #If False, or if simply not present, then diagnostics will attempt to create
+    #time series files from history (time-slice) files:
+    cam_ts_done: false
+
+    #Save interim time series files?
+    #WARNING:  This can take up a significant amount of space:
+    cam_ts_save: true
+
+    #Overwrite time series files, if found?
+    #If set to false, then time series creation will be skipped if files are found:
+    cam_overwrite_ts: false
+
+    #Location where time series files are (or will be) stored:
+    cam_ts_loc: ${ts_loc}${diag_cam_climo.cam_case_name}/yrs_1995_2001/
+
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    tem_hist_str: cam.h4
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    cam_tem_loc: /glade/scratch/${user}/${diag_cam_climo.cam_case_name}/tem/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    overwrite_tem: false
+
+
+#This third set of variables provide info for the CAM baseline climatologies.
+#This only matters if "compare_obs" is false:
+diag_cam_baseline_climo:
+
+    #Calculate cam baseline climatologies?
+    #If false, neither the climatology or time-series files will be created:
+    calc_cam_climo: true
+
+    #Overwrite CAM climatology files?
+    #If false, or not present, then already existing climatology files will be skipped:
+    cam_overwrite_climo: false
+    #hist_str: cam.h0a
+    hist_str: cam.h0
+
+    #Name of CAM baseline case:
+    cam_case_name: FCnudged_f09.mam.mar27.2000_2021.001
+    
+    case_nickname: FCnudged_f09.mam.mar27.2000_2021.001
+
+    #Location of CAM baseline history (h0) files:
+    #/glade/derecho/scratch/tilmes/archive/f.cam6_3_153.FCMTnudged_ne30.001/atm/hist
+    #cam_hist_loc: /glade/derecho/scratch/tilmes/archive/${diag_cam_baseline_climo.cam_case_name}/atm/hist/
+    cam_hist_loc: /glade/campaign/acom/acom-climate/UTLS/shawnh/archive/${diag_cam_baseline_climo.cam_case_name}/atm/hist/
+    
+
+    #Location of baseline CAM climatologies:
+    cam_climo_loc: ${climo_loc}${diag_cam_baseline_climo.cam_case_name}/yrs_1995_2001/
+
+    #model year when time series files should start:
+    #Note:  Leaving this entry blank will make time series
+    #       start at earliest available year.
+    start_year: 2002
+
+    #model year when time series files should end:
+    #Note:  Leaving this entry blank will make time series
+    #       end at latest available year.
+    end_year: 2002
+
+    #Do time series files need to be generated?
+    #If True, then diagnostics assumes that model files are already time series.
+    #If False, or if simply not present, then diagnostics will attempt to create
+    #time series files from history (time-slice) files:
+    cam_ts_done: false
+
+    #Save interim time series files for baseline run?
+    #WARNING:  This can take up a significant amount of space:
+    cam_ts_save: true
+
+    #Overwrite baseline time series files, if found?
+    #If set to false, then time series creation will be skipped if files are found:
+    cam_overwrite_ts: false
+
+    #Location where time series files are (or will be) stored:
+    cam_ts_loc: ${ts_loc}${diag_cam_baseline_climo.cam_case_name}/yrs_1995_2001/
+
+
+#This fourth set of variables provides settings for calling the Climate Variability
+# Diagnostics Package (CVDP). If cvdp_run is set to true the CVDP will be set up and
+# run in background mode, likely completing after the ADF has completed.
+# If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+# in the diag_var_list variable listing.
+# For more CVDP information: https://www.cesm.ucar.edu/working_groups/CVC/cvdp/
+diag_cvdp_info:
+
+    # Run the CVDP on the listed run(s)?
+    cvdp_run: false
+
+    # CVDP code path, sets the location of the CVDP codebase
+    #  CGD systems path = /home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+    #  CISL systems path = /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+    #  github location = https://github.com/NCAR/CVDP-ncl
+    cvdp_codebase_loc: /glade/u/home/asphilli/CESM-diagnostics/CVDP/Release/v5.2.0/
+
+    # Location where cvdp codebase will be copied to and diagnostic plots will be stored
+    cvdp_loc: ${diag_loc}
+
+    # tar up CVDP results?
+    #cvdp_tar: false
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
+#These variables below only matter if you are using
+#a non-standard method, or are adding your own
+#diagnostic scripts.
+#+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#Note:  If you want to pass arguments to a particular script, you can
+#do it like so (using the "averaging_example" script in this case):
+# - {averaging_example: {kwargs: {clobber: true}}}
+
+#Name of time-averaging scripts being used to generate climatologies.
+#These scripts must be located in "scripts/averaging":
+time_averaging_scripts:
+    - create_climo_files
+    #- create_TEM_files
+
+#Name of regridding scripts being used.
+#These scripts must be located in "scripts/regridding":
+regridding_scripts:
+    - regrid_and_vert_interp
+
+#List of analysis scripts being used.
+#These scripts must be located in "scripts/analysis":
+analysis_scripts:
+    - amwg_table
+
+#List of plotting scripts being used.
+#These scripts must be located in "scripts/plotting":
+plotting_scripts:
+    - global_latlon_map
+    - zonal_mean
+    - meridional_mean
+    - polar_map
+    - global_latlon_vect_map
+    - cam_taylor_diagram
+    - qbo
+    #- seasonal_cycle
+    #- tem
+    - tape_recorder
+
+#List of CAM variables that will be processesd:
+#If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+diag_var_list:
+   - AODDUSTdn
+   - AODVISdn
+   - CLDHGH
+   - CLDICE
+   - CLDLIQ
+   - CLDLOW
+   - CLDMED
+   - CLDTOT
+   - CLOUD
+   - FLNS
+   - FLNT
+   - FLNTC
+   - FSNS
+   - FSNT
+   - FSNTC
+   - LHFLX
+   - LWCF
+   - OMEGA500
+   - PBLH
+   - PRECL
+   - PRECT
+   - PRECSL
+   - PRECSC
+   - PRECC
+   - PS
+   - PSL
+   - QFLX
+   - Q
+   - RELHUM
+   - SHFLX
+   - SST
+   - SWCF
+   - T
+   - TAUX
+   - TAUY
+   - TGCLDIWP
+   - TGCLDLWP
+   - TMQ
+   - TREFHT
+   - TS
+   - U
+   - U10
+   - ICEFRAC
+   - OCNFRAC
+   - LANDFRAC
+   - RESTOM
+   - BC
+   - POM
+   - SO4
+   - SOA
+   - NH4HSO4
+   - DUST
+   - SeaSalt
+ 
+ 
+   
+
+#<Add more variables here.>
+
+# Options for TEM diagnostics (./averaging/create_TEM_files.py and ./plotting/temp.py)
+tem_info:
+    #Location where TEM files are stored:
+    #If path not specified or commented out, skip TEM calculation
+    #If no path, diagnostics wont run even if declared in averaging/plotting scripts below
+    tem_loc: /glade/scratch/richling/adf-output/ADF-data/TEM/
+
+    #TEM history file number
+    hist_num: h4
+    
+    overwrite_tem_case: false
+    overwrite_tem_base: false
+
+#END OF FILE

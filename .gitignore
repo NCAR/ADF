@@ -110,3 +110,14 @@ GitHub.sublime-settings
 !.vscode/launch.json 
 !.vscode/extensions.json 
 .history
+
+
+# ignore yaml files
+*.yaml
+
+#ignore other local gas-aerosol files
+scripts/analysis/aerosol_gas_tables_Tropopause_version0.py_Not_anymore!
+scripts/analysis/aerosol_gas_tables_Tropopause_version1.py
+scripts/analysis/aerosol_gas_tables_AllDefinitions.py
+scripts/analysis/aerosol_gas_tables_ADF.py_withO3trop
+

@@ -117,7 +117,7 @@ class AdfWeb(AdfObs):
 
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
-
+        print(case_names)
         #Also extract baseline case (if applicable), and append to case_names list:
         if not self.compare_obs:
             baseline_name = self.get_baseline_info('cam_case_name', required=True)
@@ -292,7 +292,9 @@ class AdfWeb(AdfObs):
             if self.num_cases > 1:
                 html_file = self.__case_web_paths['multi-case']["table_pages_dir"] / html_name
             else:
-                html_file = self.__case_web_paths[case_name]["table_pages_dir"] / html_name
+                #try:
+                    html_file = self.__case_web_paths[case_name]["table_pages_dir"] / html_name
+                #else
             #End if
             asset_path = None
         else:
