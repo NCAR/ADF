@@ -76,7 +76,7 @@ def regional_climatology(adfobj):
     region_list = adfobj.region_list
     #TODO, make it easier for users decide on these?
     regional_climo_var_list = ['TSA','PREC','ELAI',
-                               'FSDS','FLDS','QBOT','ASA',
+                               'FSDS','FLDS','SNOWDP','ASA',
                                'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
                                'GPP','TWS','FCEV','FGEV',
                                ]
@@ -242,7 +242,7 @@ def regional_climatology(adfobj):
     for iReg in range(len(region_list)):
         print(f"\n\t - Plotting regional climatology for: {region_list[iReg]}") 
         # regionDS_thisRg = regionDS.isel(region=region_indexList[iReg])
-        box_west, box_east, box_south, box_north = get_region_boundaries(regions, region_list[iReg])
+        box_west, box_east, box_south, box_north, region_category = get_region_boundaries(regions, region_list[iReg])
         ## Set up figure 
         ## TODO: Make the plot size/number of subplots resopnsive to number of fields specified 
         fig,axs = plt.subplots(4,4, figsize=(18,12))
@@ -384,7 +384,7 @@ def regional_climatology(adfobj):
             #Add already-existing plot to website (if enabled):
             adfobj.debug_log(f"'{plot_loc}' exists and clobber is false.")
             adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, 
-                                    non_season=True, plot_type = "RegionalClimo")
+                                     category=region_category, non_season=True, plot_type = "RegionalClimo")
 
             #Continue to next iteration:
             return
@@ -397,7 +397,7 @@ def regional_climatology(adfobj):
 
         #Add plot to website (if enabled):
         adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, 
-                                non_season=True, plot_type = "RegionalClimo")
+                                non_season=True, category=region_category, plot_type = "RegionalClimo")
 
     return 
 
@@ -480,5 +480,6 @@ def get_region_boundaries(regions, region_name):
     region = regions[region_name]
     south, north = region['lat_bounds']
     west, east = region['lon_bounds']
+    region_category = region['region_category'] if 'region_category' in region else None  
     
-    return west, east, south, north
+    return west, east, south, north, region_category
