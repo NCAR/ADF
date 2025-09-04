@@ -277,7 +277,6 @@ H2OSNO: # SNOWICE + SNOWLIQ
   category: "Hydrology"
   diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
 
-
 SNOWDP: # snow height
   category: "Hydrology"
   contour_levels: [-15.,-10.,-5.,-1.,-0.5,-0.1,0.,0.1,0.5,1.,5.,10.,15.]
@@ -297,6 +296,10 @@ TOTRUNOFF: # total liquid runoff
     colorbar:
       label : "mm d$^{-1}$"
   
+TWS: # Terrestrial water storage
+  category: "Hydrology"
+  colormap: "Blues"
+
 QRUNOFF_TO_COUPLER: # runoff to coupler
   category: "Hydrology"
   colormap: "Blues"
