@@ -64,7 +64,7 @@ class AdfBase:
         else:
             self.__debug_log = None
 
-        
+
 
     #########
 
