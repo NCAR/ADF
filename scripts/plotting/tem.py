@@ -245,6 +245,8 @@ def tem(adf):
                     mdata = ds[var].squeeze()
                     if adf.compare_obs:
                         odata = ds_base[var.lower()].squeeze()
+                    else:
+                        odata = ds_base[var].squeeze()
 
                 # APPLY UNITS TRANSFORMATION IF SPECIFIED:
                 # NOTE: looks like our climo files don't have all their metadata
