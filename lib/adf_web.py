@@ -22,13 +22,13 @@ file or pandas dataframe to the website.
 
 import os
 import os.path
-import markdown
-
 from pathlib import Path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
 #+++++++++++++++++++++++++++++++++++++++++++++++++
+
+import markdown
 
 #ADF modules:
 from adf_obs import AdfObs
@@ -359,12 +359,13 @@ class AdfWeb(AdfObs):
         #Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
 
+        case_sites = OrderedDict()
+
         #If there is more than one non-baseline case, then create new website directory:
         if self.num_cases > 1:
             main_site_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
             main_site_path = main_site_path / "main_website"
             main_site_path.mkdir(exist_ok=True)
-            case_sites = OrderedDict()
         else:
             main_site_path = "" #Set main_site_path to blank value
         #End if
