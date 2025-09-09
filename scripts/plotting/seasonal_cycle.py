@@ -116,16 +116,16 @@ def seasonal_cycle(adfobj):
 
     # Grab location of ADF default obs files
     adf_obs_loc = Path(adfobj.get_basic_info("obs_data_loc"))
-    #saber_filename = seas_cyc_res['saber_file']
-    saber_filename = "SABER_monthly_2002-2014.nc"
+    
+    saber_filename = seas_cyc_res['saber_file']
+    #saber_filename = "SABER_monthly_2002-2014.nc"
     saber_file = adf_obs_loc / saber_filename
+    
     merra_filename = seas_cyc_res['merra2_file']
     #merra_filename = "MERRA2_met_FAKESIES.nc"
     merra_file = adf_obs_loc / merra_filename
 
-
     if not adfobj.get_basic_info("compare_obs"):
-        obs = False
         data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
         data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
     
@@ -154,16 +154,10 @@ def seasonal_cycle(adfobj):
     else:
         print("\t ** The seasonal cycle plots currently don't work when comparing against obs. Exiting script.")
         return
-        #syear_cases = syear_cases + [""]
-        #eyear_cases = eyear_cases + [""]
-        #hist_strs = case_hist_strs
     # End if
 
     climo_yrs = [syear_cases, eyear_cases]
-    #climo_yrs["case"] = []
-    #climo_yrs["baseline"] = []
 
-    #var_list = adfobj.diag_var_list
     var_list = calc_var_list + ['lat','lev','time']
 
     # Set up creation of all CAM data dictionaries
@@ -328,9 +322,10 @@ def seasonal_cycle(adfobj):
     try:
         vert_levs = var_dict[var]["plot_vert_levs"]
     except:
-        errmsg = f"Missing 'plot_vert_levs' in variable defaults file for '{var}'\n"
-        errmsg += "Please add it to the yaml file under 'lat_vs_month'"
-        print(errmsg)
+        #errmsg = f"Missing 'plot_vert_levs' in variable defaults file for '{var}'\n"
+        #errmsg += "Please add it to the yaml file under 'lat_vs_month'"
+        #print(errmsg)
+        vert_levs = [90]
 
     for vert_lev in vert_levs:
         #Notify user of variable being plotted:
@@ -369,9 +364,10 @@ def seasonal_cycle(adfobj):
     try:
         vert_levs = var_dict[var]["plot_vert_levs"]
     except:
-        errmsg = f"Missing 'plot_vert_levs' in variable defaults file for '{var}'\n"
-        errmsg += "Please add it to the yaml file under 'lat_vs_month'"
-        print(errmsg)
+        #errmsg = f"Missing 'plot_vert_levs' in variable defaults file for '{var}'\n"
+        #errmsg += "Please add it to the yaml file under 'lat_vs_month'"
+        #print(errmsg)
+        vert_levs = [90, 100]
 
     for vert_lev in vert_levs:
         #Notify user of variable being plotted:
@@ -483,7 +479,6 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
         h0_lists = []
 
         for yr in np.arange(int(syr),int(eyr)+1):
-            #h0_lists.append(sorted(glob.glob(f'{hist_loc}*cam.h0.{yr}-*')))
             h0_lists.append(sorted(glob.glob(f'{hist_loc}/*{hist_str}.{yr}-*.nc')))
 
         h0_list = list(chain(*h0_lists))
@@ -496,12 +491,10 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
             "adf_user": adfobj.user,
             "climo_yrs": f"{syr}-{eyr}",
             "hist_loc":hist_loc,
-            #"time_series_files": ts_files_str,
         }
         waccm_zm = waccm_zm.assign_attrs(attrs_dict)
 
-        #Output variable climatology to NetCDF-4 file:
-        #cam_climo_data.to_netcdf(output_file, format='NETCDF4', encoding=enc)
+        #Output zonal mean climatology to NetCDF-4 file:
         waccm_zm.to_netcdf(zm_file)
 
     if return_ds:
@@ -963,8 +956,6 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
         title_ext = f"{slat}-{nlat}\u00b0N"
 
     nrows = 2
-
-    #fig = plt.figure(figsize=(ncols*7,nrows*5))
     fig = plt.figure(figsize=(casenum*4,nrows*5))
 
     for idx,case_name in enumerate(case_names):
@@ -1076,13 +1067,6 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
         local_title=f"{case_names[idx]}\n {delta_symbol} from MERRA2"
         plt.title(local_title, fontsize=font_size)
 
-        # Calculate the required wspace based on the length of titles
-        #title_lengths = [len(ax.get_title()) for ax in axs]
-        #max_title_length = max(title_lengths)
-        #required_wspace = .003 * max_title_length  # Adjust the multiplier as needed
-        #required_wspace = 0.
-        # Adjust the wspace dynamically
-        #plt.subplots_adjust(wspace=required_wspace)
         #Make colorbar on last plot only
         if idx == casenum-1:
             axins = inset_axes(ax,
@@ -1107,7 +1091,6 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
 ########
 
 
-#def cold_point_temp(var, var_dict, plot_name, case_names, case_runs, cases_monthly):
 def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, climo_yrs, case_runs, cases_monthly, vert_lev):
     """
     """
