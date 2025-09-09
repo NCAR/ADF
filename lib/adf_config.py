@@ -311,9 +311,14 @@ class AdfConfig(AdfBase):
         return copy.deepcopy(var)
 
     def config_dict(self):
+        
+        """
+        Return a copy of the entire config dictionary.
+        """
+
         config_dict = self.__config_dict
         return copy.copy(config_dict)
-    
+
     def get_git_info(self):
 
         """
@@ -346,7 +351,7 @@ class AdfConfig(AdfBase):
 
             # Remote URL
             remote_url = subprocess.run(['git', 'remote', 'get-url', 'origin'],
-                                        stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+                                      stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
             info['remote_url'] = remote_url
 
             # Repo name
