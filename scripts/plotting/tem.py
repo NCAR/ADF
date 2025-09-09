@@ -4,14 +4,10 @@ import numpy as np
 import xarray as xr
 import warnings  # use to warn user about missing files.
 import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter
 import matplotlib as mpl
-import matplotlib.cm as cm
-import pandas as pd
-from scipy.interpolate import RegularGridInterpolator
+
 import metpy.calc.thermo as thermo
 from metpy.units import units
-#import metpy.constants as mconst
 
 import plotting_functions as pf
 

@@ -31,9 +31,6 @@ def regrid_and_vert_interp_tem(adf):
     """
 
     #Import necessary modules:
-    import numpy as np
-    import plotting_functions as pf
-
     from pathlib import Path
 
     # regridding
@@ -321,8 +318,6 @@ def regrid_and_vert_interp_tem(adf):
             #End do (target list)
         #End do (variable list)
 
-        #Extract defaults for variable:
-        var_default_dict = var_defaults.get(var, {})
         if len(rgdata_interps) > 0:
             #Finally, write re-gridded data to output file:
             #Convert the list of Path objects to a list of strings
@@ -341,7 +336,6 @@ def regrid_and_vert_interp_tem(adf):
             rgdata_interp.close()  # bpm: we are completely done with this data
 
         if len(tgdata_interps) > 0:
-            
             # Convert the list to a string (join with commas or another separator)
             climatology_files_str = [str(path) for path in tclim_fils]
             climatology_files_str = ', '.join(climatology_files_str)
@@ -366,7 +360,7 @@ def regrid_and_vert_interp_tem(adf):
 #Helper functions
 #################
 
-def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, regrid_ofrac=False, **kwargs):
+def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, **kwargs):
 
     """
     Function that takes a variable from a model xarray
@@ -409,10 +403,6 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
 
     #Extract variable info from model data (and remove any degenerate dimensions):
     mdata = model_dataset[var_name].squeeze()
-    mdat_ofrac = None
-    #if regrid_ofrac:
-    #    if 'OCNFRAC' in model_dataset:
-    #        mdat_ofrac = model_dataset['OCNFRAC'].squeeze()
 
     #Check if variable has a vertical component:
     if 'lev' in mdata.dims or 'ilev' in mdata.dims:
@@ -552,8 +542,7 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
 
         #Regrid model data to match target grid:
         rgdata = regrid_data(mdata, tgrid, method=1)
-        if mdat_ofrac:
-            rgofrac = regrid_data(mdat_ofrac, tgrid, method=1)
+
         #Regrid surface pressure if need be:
         if has_lev:
             if not regridded_ps:
@@ -583,24 +572,10 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
     #End if
 
     #Vertical interpolation:
-
     #Interpolate variable to default pressure levels:
     if has_lev:
-        new_levs = False
-        #if regrid_dataset:
-        #    import numpy as np
-        #    new_levs = True
-        #    new_levels = np.array(np.logspace(np.log10(1000), np.log10(min(regrid_dataset.lev.values)), num=30))*100
-
         if vert_coord_type == "hybrid":
             #Interpolate from hybrid sigma-pressure to the standard pressure levels:
-            """if new_levs:
-                rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, new_levels=new_levels, \
-                                            convert_to_mb=True)
-            else:
-                rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
-                                            convert_to_mb=True)"""
-
             rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
                                             convert_to_mb=True)
         elif vert_coord_type == "height":
@@ -622,8 +597,6 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, r
 
     #Convert to xarray dataset:
     rgdata_interp = rgdata_interp.to_dataset()
-    if mdat_ofrac:
-        rgdata_interp['OCNFRAC'] = rgofrac
 
     #Add surface pressure to variable if a hybrid (just in case):
     if has_lev:
