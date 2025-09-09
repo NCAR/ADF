@@ -318,6 +318,8 @@ def create_TEM_files(adf):
             # Step 1: Your standard latitudes
             za_lats = dstem[zm_name].values
 
+            print("ds_h0",ds_h0)
+
             # Step 2: Interpolate ds2 to standard latitudes
             # List of possible coordinate names
             possible_lat_names = ['zalat', 'zmlat']
