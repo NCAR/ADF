@@ -733,7 +733,7 @@ class AdfWeb(AdfObs):
 
             #List of ADF default plot types
             avail_plot_types = res["default_ptypes"]
-           
+
             #Check if current plot type is in ADF default.
             #If not, add it so the index.html file can include it
             for ptype in plot_types.keys():
@@ -743,7 +743,7 @@ class AdfWeb(AdfObs):
 
             # External packages that can be run through ADF
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
-            
+
             #Construct index.html
             index_title = "AMP Diagnostics Prototype"
             index_tmpl = jinenv.get_template('template_index.html')
