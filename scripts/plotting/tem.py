@@ -134,11 +134,11 @@ def tem(adf):
     #Suggestion from Rolando, if QBO is being produced, add utendvtem and utendwtem?
     if "qbo" in adf.plotting_scripts:
         var_list = ['uzm', 'thzm', 'tzm', 'epfy','epfz','vtem','wtem',
-                    'psitem','utendepfd','utendvtem','utendwtem']
+                    'psitem','delf','utendvtem','utendwtem']
         var_list = [i.upper() for i in var_list]
     #Otherwise keep it simple
     else:
-        var_list = ['uzm','thzm', 'tzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        var_list = ['uzm','thzm', 'tzm','epfy','epfz','vtem','wtem','psitem','delf']
         var_list = [i.upper() for i in var_list]
 
     #Check if comparing against obs
@@ -229,7 +229,6 @@ def tem(adf):
                     adf.debug_log(f"'{plot_name}' exists and clobber is false.")
                     adf.add_website_data(plot_name, var, None, season=s, plot_type="WACCM",ext="SeasonalCycle_Mean",category="TEM",multi_case=True)
 
-                #plot_name = plot_loc / f"CPT_ANN_WACCM_SeasonalCycle_Mean.{plot_type}"
                 elif ((redo_plot) and plot_name.is_file()) or (not plot_name.is_file()):
                     if plot_name.is_file():
                         plot_name.unlink()
@@ -243,10 +242,12 @@ def tem(adf):
                     odata = ds_base["THZM"].squeeze()
                 else:
                     mdata = ds[var].squeeze()
+                    odata = ds_base[var].squeeze()
                     if adf.compare_obs:
                         odata = ds_base[var.lower()].squeeze()
-                    else:
-                        odata = ds_base[var].squeeze()
+                if regrid_tem_files == False:
+                    mdata['time'] = xr.conventions.times.decode_cf_datetime(mdata.time, mdata.time.attrs['units'])
+                    odata['time'] = xr.conventions.times.decode_cf_datetime(odata.time, odata.time.attrs['units'])
 
                 # APPLY UNITS TRANSFORMATION IF SPECIFIED:
                 # NOTE: looks like our climo files don't have all their metadata
@@ -263,10 +264,6 @@ def tem(adf):
                 else:
                     odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
                     # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit.
-
-                if regrid_tem_files == False:
-                    mdata['time'] = xr.conventions.times.decode_cf_datetime(mdata.time, mdata.time.attrs['units'])
-                    odata['time'] = xr.conventions.times.decode_cf_datetime(odata.time, odata.time.attrs['units'])
 
                 #Create array to avoid weighting missing values:
                 md_ones = xr.where(mdata.isnull(), 0.0, 1.0)
@@ -354,28 +351,52 @@ def tem(adf):
                     mseasons.attrs['units'] = "K"
                     oseasons.attrs['units'] = "K"
 
-                if var == "UTENDEPFD":
+                if var == "DELF":
                     mseasons = mseasons*1000
                     oseasons = oseasons*1000
-                
-                mlat = mseasons['zmlat']
+
+                if 'zmlat' in mseasons.dims:
+                    mseasons = mseasons.rename({"zmlat": "zalat"})
+                mlat = mseasons['zalat']
                 mlev = mseasons['lev']
 
-                olat = oseasons['zmlat']
+                if 'zmlat' in oseasons.dims:
+                    oseasons = oseasons.rename({"zmlat": "zalat"})
+                olat = oseasons['zalat']
                 olev = oseasons['lev']
 
+                #print(mseasons,"\n")
+                if 'lat' in mseasons.dims:
+                    mseasons = mseasons.isel(lat=0)
+                if 'lat' in oseasons.dims:
+                    oseasons = oseasons.isel(lat=0)
+
                 #difference: each entry should be (lat, lon)
-                if (mseasons.dims == oseasons.dims) and (mseasons.shape == oseasons.shape):
+                if mseasons.shape == oseasons.shape:
                     dseasons = mseasons-oseasons
                 else:
-                    #print("Mismatched shape between model and baseline, will skip difference plots but still show the data?")
                     dseasons = None
-                
+
                 #Gather contour plot options
                 cp_info = pf.prep_contour_plot(mseasons, oseasons, dseasons, **vres)
                 clevs = np.unique(np.array(cp_info['levels1']))
 
                 norm = cp_info['norm1']
+                '''if var == "THZ":
+                    from matplotlib.colors import PowerNorm
+
+                    #norm = PowerNorm(gamma=0.5, vmin=oseasons.min(), vmax=oseasons.max())  # gamma < 1 emphasizes low values
+                    from matplotlib.colors import TwoSlopeNorm
+
+                    norm = TwoSlopeNorm(vmin=214, vcenter=260, vmax=650)
+                """if var == "THZM":
+                    from matplotlib.colors import LogNorm
+
+                    #norm = PowerNorm(gamma=0.5, vmin=oseasons.min(), vmax=oseasons.max())  # gamma < 1 emphasizes low values
+                    norm = LogNorm(vmin=oseasons.min()+1e-2, vmax=oseasons.max())
+
+                    #plt.contourf(lat, pressure, temp, levels=levels, cmap='coolwarm', norm=norm)"""
+                '''
                 cmap = cp_info['cmap1']
                 clevs_diff = np.unique(np.array(cp_info['levelsdiff']))
 
@@ -402,9 +423,17 @@ def tem(adf):
                 ax = [ax1,ax2,ax3]
 
                 #Contour fill
-                img0 = ax[0].contourf(mlats, mlevs, mseasons, levels=clevs, norm=norm, cmap=cmap)
-                img1 = ax[1].contourf(olats, olevs, oseasons, levels=clevs, norm=norm, cmap=cmap)
-                    
+                """if var == "TZM":
+                    print("OUBJSNLKDKP")
+                    clevs = np.arange(180,301,5)
+                    img0 = ax[0].contourf(mlats, mlevs, mseasons, levels=clevs, cmap=cmap,extend="both")
+                    img1 = ax[1].contourf(olats, olevs, oseasons, levels=clevs, cmap=cmap,extend="both")
+                else:
+                    img0 = ax[0].contourf(mlats, mlevs, mseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")
+                    img1 = ax[1].contourf(olats, olevs, oseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")"""
+                print("\n\n\n WHOOOOA",mseasons,"\n\n\n")
+                img0 = ax[0].contourf(mlats, mlevs, mseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")
+                img1 = ax[1].contourf(olats, olevs, oseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")
                 #Add contours for highlighting
                 c0 = ax[0].contour(mlats,mlevs,mseasons,levels=clevs[::2], norm=norm,
                                     colors="k", linewidths=0.5)
@@ -479,16 +508,27 @@ def tem(adf):
                         a.set_ylabel('Pressure [hPa]', va='center', rotation='vertical')
                     if 'ylim' in vres:
                         y_lims = [float(lim) for lim in vres['ylim']]
-                        y_lims[-1]=prev_major_tick #np.min(levs)
+                        #y_lims[-1]=prev_major_tick #np.min(levs)
+                        print("y_lims",y_lims)
                         a.set_ylim(y_lims)
                     else:
                         a.set_ylim(a.get_ylim()[::-1])
 
                 # Format color bars
-                plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,**cp_info['colorbar_opt'])
+                """if var == "TZM":
+                    print("OUBJSNLKDKPasdasdasd")
+                    plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,extend="both")
+                else:
+                    plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,extend="both",**cp_info['colorbar_opt'])"""
+                plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,extend="both",**cp_info['colorbar_opt'])
                 # Remove the colorbar label for baseline
                 cp_info['colorbar_opt'].pop("label", None)
-                plt.colorbar(img0, ax=ax[0], location='right', pad=cmap_pad,**cp_info['colorbar_opt'])
+                """if var == "TZM":
+                    print("OUBJSNLKDKPasdasdasd")
+                    plt.colorbar(img0, ax=ax[0], location='right', pad=cmap_pad,extend="both")
+                else:
+                    plt.colorbar(img0, ax=ax[0], location='right', pad=cmap_pad,extend="both",**cp_info['colorbar_opt'])"""
+                plt.colorbar(img0, ax=ax[0], location='right', pad=cmap_pad,extend="both",**cp_info['colorbar_opt'])
 
                 #Variable plot title name
                 longname = vres["long_name"]

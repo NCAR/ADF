@@ -253,15 +253,17 @@ def create_TEM_files(adf):
 
             #Flatten list of lists to 1d list
             hist_files = sorted(list(chain.from_iterable(hist_files)))
-            ds = xr.open_mfdataset(hist_files,decode_times=True, combine='by_coords')
+            #ds = xr.open_mfdataset(hist_files,decode_times=True, combine='by_coords')
+            ds = xr.open_mfdataset(hist_files,decode_times=True, combine='nested', concat_dim='time')
+            
             
             hist0_files = sorted(list(chain.from_iterable(hist0_files)))
-            ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='by_coords')
+            ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='nested', concat_dim='time')
+
             if "zalat" in ds_h0.dims:
                 zm_name = "zalat"
             if "zmlat" in ds_h0.dims:
                 zm_name = "zmlat"
-            #ds_h0 = ds_h0.rename({'lat': zm_name})
 
             #Average time dimension over time bounds, if bounds exist:
             if 'time_bnds' in ds_h0:
@@ -285,9 +287,9 @@ def create_TEM_files(adf):
             #iterate over the times in a dataset
             for idx,_ in enumerate(ds.time.values):
                 if idx == 0:
-                    dstem0 = calc_tem(ds.squeeze().isel(time=idx))
+                    dstem0 = calc_tem(ds.squeeze().isel(time=idx), zm_name)
                 else:
-                    dstem = calc_tem(ds.squeeze().isel(time=idx))
+                    dstem = calc_tem(ds.squeeze().isel(time=idx), zm_name)
                     if "zalat" in dstem.dims:
                         zm_name = "zalat"
                     if "zmlat" in dstem.dims:
@@ -318,8 +320,6 @@ def create_TEM_files(adf):
             # Step 1: Your standard latitudes
             za_lats = dstem[zm_name].values
 
-            print("ds_h0",ds_h0)
-
             # Step 2: Interpolate ds2 to standard latitudes
             # List of possible coordinate names
             possible_lat_names = ['zalat', 'zmlat']
@@ -336,7 +336,6 @@ def create_TEM_files(adf):
             ds_h0_lats = ds_h0.interp({lat_coord_name: za_lats})
 
             #ds_h0_lats = ds_h0.interp(zalat=za_lats)
-
             zonal_mean_PS = ds_h0_lats['PS'].mean(dim='lon').compute()
             zonal_mean_PMID = ds_h0_lats['PMID'].mean(dim='lon').compute()
 
@@ -356,7 +355,7 @@ def create_TEM_files(adf):
 
 
 
-def calc_tem(ds):
+def calc_tem(ds, zm_name):
     """
     # calc_tem() function to calculate TEM diagnostics on CAM/WACCM output
     # This assumes the data have already been organized into zonal mean fluxes
@@ -401,10 +400,7 @@ def calc_tem(ds):
     om = 7.29212e-5
     H = 7000.
     g0 = 9.80665
-    if "zalat" in ds.dims:
-        zm_name = "zalat"
-    if "zmlat" in ds.dims:
-        zm_name = "zmlat"
+
     nlat = ds[zm_name].size
     nlev = ds['lev'].size
 
@@ -505,6 +501,7 @@ def calc_tem(ds):
     epfz = -1.*(H/p0)*epfz  # A14
     wtem = -1.*(H/pre)*wtem # A16
 
+    #
     # add long name and unit attributes to TEM diagnostics
     uzm.attrs['long_name'] = 'Zonal-Mean zonal wind'
     uzm.attrs['units'] = 'm/s'
@@ -514,6 +511,9 @@ def calc_tem(ds):
 
     thzm.attrs['long_name'] = 'Zonal-Mean potential temperature'
     thzm.attrs['units'] = 'K'
+
+    #tzm.attrs['long_name'] = 'Zonal-Mean temperature'
+    #tzm.attrs['units'] = 'K'
 
     epfy.attrs['long_name'] = 'northward component of E-P flux'
     epfy.attrs['units'] = 'm3/s2'
@@ -566,7 +566,7 @@ def calc_tem(ds):
                                       VTEM = vtem,
                                       WTEM = wtem,
                                       PSITEM = psitem,
-                                      UTENDEPFD = utendepfd,
+                                      DELF = utendepfd,
                                       UTENDVTEM = utendvtem,
                                       UTENDWTEM = utendwtem
                                       ))
