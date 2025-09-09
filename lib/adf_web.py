@@ -712,8 +712,7 @@ class AdfWeb(AdfObs):
             index_title = "AMP Diagnostics Prototype"
             run_info_html_file = self.__case_web_paths[web_data.case]['website_dir'] / "run_info.html"
             run_info_tmpl = jinenv.get_template('template_run_info.html')
-            run_info_rndr = run_info_tmpl.render(run_info=run_info_html,
-                                                 title=index_title,
+            run_info_rndr = run_info_tmpl.render(title=index_title,
                                             case_name=web_data.case,
                                             base_name=data_name,
                                             case_yrs=case_yrs,
