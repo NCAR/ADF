@@ -431,7 +431,7 @@ def tem(adf):
                 else:
                     img0 = ax[0].contourf(mlats, mlevs, mseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")
                     img1 = ax[1].contourf(olats, olevs, oseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")"""
-                print("\n\n\n WHOOOOA",mseasons,"\n\n\n")
+
                 img0 = ax[0].contourf(mlats, mlevs, mseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")
                 img1 = ax[1].contourf(olats, olevs, oseasons, levels=clevs, norm=norm, cmap=cmap,extend="both")
                 #Add contours for highlighting
