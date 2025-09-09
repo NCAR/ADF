@@ -2087,7 +2087,7 @@ VZM:
 
 THZM:
   colormap: "Spectral_r"
-  contour_levels_range: [260,1000,25]
+  contour_levels_range: [260,1001,50]
   diff_colormap: "bwr"
   diff_contour_range: [-50,50.1,2.5]
   ylim: [1e3,1e-1]
@@ -2102,7 +2102,7 @@ THZM:
 
 TZM:
   colormap: "Spectral_r"
-  contour_levels_range: [185,300,6]
+  contour_levels_range: [180,301,15]
   diff_colormap: "bwr"
   diff_contour_range: [-7,7.1,0.5]
   ylim: [1e3,1e-1]
@@ -2197,7 +2197,7 @@ PSITEM:
   obs_name: "ERA5"
   obs_var_name: "psitem"
 
-UTENDEPFD:
+DELF:
   colormap: "RdYlBu_r"
   contour_levels: [-0.3,-0.2,-0.1,-0.08,-0.06,-0.04,-0.02,-0.01,0,0.01,0.02,0.04,0.06,0.08,0.1,0.2,0.3]
   non_linear_levels: True
