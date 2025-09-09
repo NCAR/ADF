@@ -19,6 +19,8 @@ Currently this class does three things:
 import os.path
 import re
 import copy
+import os
+import subprocess
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -307,6 +309,60 @@ class AdfConfig(AdfBase):
         #without worrying about modifying the actual
         #config variables dictionary:
         return copy.deepcopy(var)
+
+    def config_dict(self):
+        config_dict = self.__config_dict
+        return copy.copy(config_dict)
+    
+    def get_git_info(self):
+
+        """
+        Gather currnet Git info during ADF run.
+
+        Returns:
+        --------
+        info : dict
+            Dictionary with the following keys:
+            - branch: Current Git branch name.
+            - commit: Current commit hash.
+            - remote_url: URL of the remote repository.
+            - repo_name: Name of the repository.
+            - is_dirty: Boolean indicating if there are uncommitted changes.
+        """
+
+        #Initialize empty dictionary:
+        info = {}
+
+        try:
+            # Current branch
+            branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+            info['branch'] = branch
+
+            # Commit hash
+            commit = subprocess.run(['git', 'rev-parse', 'HEAD'],
+                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+            info['commit'] = commit
+
+            # Remote URL
+            remote_url = subprocess.run(['git', 'remote', 'get-url', 'origin'],
+                                        stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+            info['remote_url'] = remote_url
+
+            # Repo name
+            info['repo_name'] = os.path.splitext(os.path.basename(remote_url))[0]
+
+            # Status
+            status = subprocess.run(['git', 'status', '--short'],
+                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+            info['is_dirty'] = bool(status)
+
+        except subprocess.CalledProcessError as e:
+            print("Git command failed:", e)
+            info = None
+
+        return info
+    #########
 
 #++++++++++++++++++++
 #End Class definition
