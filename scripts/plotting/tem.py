@@ -509,7 +509,7 @@ def tem(adf):
                     if 'ylim' in vres:
                         y_lims = [float(lim) for lim in vres['ylim']]
                         #y_lims[-1]=prev_major_tick #np.min(levs)
-                        print("y_lims",y_lims)
+                        #print("y_lims",y_lims)
                         a.set_ylim(y_lims)
                     else:
                         a.set_ylim(a.get_ylim()[::-1])
