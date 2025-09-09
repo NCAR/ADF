@@ -245,9 +245,6 @@ def tem(adf):
                     mdata = ds[var].squeeze()
                     if adf.compare_obs:
                         odata = ds_base[var.lower()].squeeze()
-                if regrid_tem_files == False:
-                    mdata['time'] = xr.conventions.times.decode_cf_datetime(mdata.time, mdata.time.attrs['units'])
-                    odata['time'] = xr.conventions.times.decode_cf_datetime(odata.time, odata.time.attrs['units'])
 
                 # APPLY UNITS TRANSFORMATION IF SPECIFIED:
                 # NOTE: looks like our climo files don't have all their metadata
@@ -264,6 +261,10 @@ def tem(adf):
                 else:
                     odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
                     # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit.
+
+                if regrid_tem_files == False:
+                    mdata['time'] = xr.conventions.times.decode_cf_datetime(mdata.time, mdata.time.attrs['units'])
+                    odata['time'] = xr.conventions.times.decode_cf_datetime(odata.time, odata.time.attrs['units'])
 
                 #Create array to avoid weighting missing values:
                 md_ones = xr.where(mdata.isnull(), 0.0, 1.0)
