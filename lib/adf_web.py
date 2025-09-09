@@ -158,7 +158,7 @@ class AdfWeb(AdfObs):
                 mdtf_path += f"_{syear[0]}_{eyear[0]}"
                 self.external_package_links['MDTF'] = mdtf_path
             #End if
-            
+
             #Add all relevant paths to dictionary for specific case:
             self.__case_web_paths[case_name] = {'website_dir': website_dir,
                                                 'img_pages_dir': img_pages_dir,
@@ -612,7 +612,7 @@ class AdfWeb(AdfObs):
                 if web_data.name == case1:
                     rend_kwarg_dict["disp_table_name"] = case1
                     rend_kwarg_dict["disp_table_html"] = table_html
-                
+
                 if web_data.name == "Case Comparison":
                     rend_kwarg_dict["disp_table_name"] = "Case Comparison"
                     rend_kwarg_dict["disp_table_html"] = table_html
@@ -697,7 +697,7 @@ class AdfWeb(AdfObs):
             index_html_file = \
                 self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
             print("index_html_file",index_html_file)
-            
+
             # Create run info web page
             run_info_md_file = \
                 self.__case_web_paths[web_data.case]['website_dir'] / self.run_info
@@ -718,7 +718,7 @@ class AdfWeb(AdfObs):
                                             case_yrs=case_yrs,
                                             baseline_yrs=baseline_yrs,
                                             plot_types=plot_types,
-                                            run_info=run_info_html_file)
+                                            run_info=run_info_html)
 
             with open(run_info_html_file, "w", encoding="utf-8") as htmlfile:
                 htmlfile.write(run_info_rndr)
@@ -756,7 +756,7 @@ class AdfWeb(AdfObs):
                                             avail_plot_types=avail_plot_types,
                                             avail_external_packages=avail_external_packages,
                                             external_package_links=self.external_package_links,
-                                            run_info=run_info_html_file)
+                                            run_info=run_info_html)
 
             #Write Mean diagnostics index HTML file:
             with open(index_html_file, 'w', encoding='utf-8') as ofil:
