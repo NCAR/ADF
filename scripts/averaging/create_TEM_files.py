@@ -121,12 +121,14 @@ def create_TEM_files(adf):
                 if obs_file_path not in tem_obs_fils:
                     tem_obs_fils.append(obs_file_path)
 
-        #ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
         ds = xr.open_mfdataset(tem_obs_fils,decode_times=True, combine='by_coords')
         if "zalat" in ds.dims:
             zm_name = "zalat"
-        if "zmlat" in ds.dims:
+        elif "zmlat" in ds.dims:
             zm_name = "zmlat"
+        else:
+            print("Something went wrong with the zonal mean lat coordinate")
+            return
         start_year = str(ds.time[0].values)[0:4]
         end_year = str(ds.time[-1].values)[0:4]
 
@@ -253,10 +255,8 @@ def create_TEM_files(adf):
 
             #Flatten list of lists to 1d list
             hist_files = sorted(list(chain.from_iterable(hist_files)))
-            #ds = xr.open_mfdataset(hist_files,decode_times=True, combine='by_coords')
             ds = xr.open_mfdataset(hist_files,decode_times=True, combine='nested', concat_dim='time')
-            
-            
+
             hist0_files = sorted(list(chain.from_iterable(hist0_files)))
             ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='nested', concat_dim='time')
 
@@ -264,6 +264,9 @@ def create_TEM_files(adf):
                 zm_name = "zalat"
             if "zmlat" in ds_h0.dims:
                 zm_name = "zmlat"
+            else:
+                print("Something went wrong with the zonal mean lat coordinate")
+                return
 
             #Average time dimension over time bounds, if bounds exist:
             if 'time_bnds' in ds_h0:
