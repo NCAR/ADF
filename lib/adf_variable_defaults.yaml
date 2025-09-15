@@ -2231,11 +2231,6 @@ CLWMODIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
-CLD_MISR:
-  category: "Clouds"
-  obs_file: 'MISR_obs_data.nc'
-  obs_name: "MISR"
-
 CLMODIS:
   category: "Clouds"
   obs_file: 'MODIS_obs_data.nc'
@@ -2245,11 +2240,6 @@ CLD_MISR:
   category: "Clouds"
   obs_file: 'MISR_obs_data.nc'
   obs_name: "MISR"
-
-CLMODIS:
-  category: "Clouds"
-  obs_file: 'MODIS_obs_data.nc'
-  obs_name: "MODIS"
 
 FISCCP1_COSP:
   category: "Clouds"
