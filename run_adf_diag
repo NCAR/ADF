@@ -145,6 +145,10 @@ if __name__ == "__main__":
     #Initalize CAM diagnostics object:
     diag = AdfDiag(config_yaml, debug=config_debug)
 
+    #Call the CVDP:
+    if diag.get_cvdp_info('cvdp_run'):
+       diag.setup_run_cvdp()
+
     #Create model time series.
     #Please note that this is an internal ADF function:
     diag.create_time_series()
@@ -152,10 +156,6 @@ if __name__ == "__main__":
     #Create model baseline time series (if needed):
     if not diag.compare_obs:
         diag.create_time_series(baseline=True)
-
-    #Call the CVDP:
-    if diag.get_cvdp_info('cvdp_run'):
-       diag.setup_run_cvdp()
 
     #Call the MDTF:
     if diag.get_mdtf_info('mdtf_run'):

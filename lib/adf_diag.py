@@ -1009,7 +1009,7 @@ class AdfDiag(AdfWeb):
         # end if
         if not os.path.isdir(cvdp_dir):
             shutil.copytree(
-                self.get_cvdp_info("cvdp_codebase_loc", required=True), cvdp_dir
+                self.get_cvdp_info("cvdp_codebase_loc"), cvdp_dir
             )
         # End if
 
