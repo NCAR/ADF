@@ -1,0 +1,21 @@
+CESM2 LENS 1001.001 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1001.001.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1021.002 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1021.002.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1041.003 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1041.003.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1061.004 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1061.004.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1081.005 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1081.005.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1101.006 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1101.006.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1121.007 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1121.007.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1141.008 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1141.008.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1161.009 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1161.009.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+CESM2 LENS 1181.010 | /glade/campaign/cgd/cesm/CESM2-LE/{atm,lnd,ocn,ice}/proc/tseries/month_1/{MOC,SNOWDP,TS,TREFHT,PSL,PRECT,aice}/b.e21.B{HIST,SSP370}cmip6.f09_g17.LE2-1181.010.{cam.h0,clm2.h0,pop.h,cice.h}* | 1950 | 2049
+
+CESM1 LENS #1 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.001.*.nc | 1950 | 2049
+CESM1 LENS #2 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.002.*.nc | 1950 | 2049
+CESM1 LENS #3 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.003.*.nc | 1950 | 2049
+CESM1 LENS #4 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.004.*.nc | 1950 | 2049
+CESM1 LENS #5 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.005.*.nc | 1950 | 2049
+CESM1 LENS #6 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.006.*.nc | 1950 | 2049
+CESM1 LENS #7 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.007.*.nc | 1950 | 2049
+CESM1 LENS #8 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.008.*.nc | 1950 | 2049
+CESM1 LENS #9 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.009.*.nc | 1950 | 2049
+CESM1 LENS #10 | /glade/campaign/cesm/collections/cesmLE/CESM-CAM5-BGC-LE/{atm,ice,lnd,ocn}/proc/tseries/monthly/*/b.e11.B*C5CNBDRD.f09_g16.010.*.nc | 1950 | 2049
