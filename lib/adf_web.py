@@ -22,12 +22,13 @@ file or pandas dataframe to the website.
 
 import os
 import os.path
-
 from pathlib import Path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
 #+++++++++++++++++++++++++++++++++++++++++++++++++
+
+import markdown
 
 #ADF modules:
 from adf_obs import AdfObs
@@ -157,7 +158,7 @@ class AdfWeb(AdfObs):
                 mdtf_path += f"_{syear[0]}_{eyear[0]}"
                 self.external_package_links['MDTF'] = mdtf_path
             #End if
-            
+
             #Add all relevant paths to dictionary for specific case:
             self.__case_web_paths[case_name] = {'website_dir': website_dir,
                                                 'img_pages_dir': img_pages_dir,
@@ -358,12 +359,13 @@ class AdfWeb(AdfObs):
         #Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
 
+        case_sites = OrderedDict()
+
         #If there is more than one non-baseline case, then create new website directory:
         if self.num_cases > 1:
             main_site_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
             main_site_path = main_site_path / "main_website"
             main_site_path.mkdir(exist_ok=True)
-            case_sites = OrderedDict()
         else:
             main_site_path = "" #Set main_site_path to blank value
         #End if
@@ -611,7 +613,7 @@ class AdfWeb(AdfObs):
                 if web_data.name == case1:
                     rend_kwarg_dict["disp_table_name"] = case1
                     rend_kwarg_dict["disp_table_html"] = table_html
-                
+
                 if web_data.name == "Case Comparison":
                     rend_kwarg_dict["disp_table_name"] = "Case Comparison"
                     rend_kwarg_dict["disp_table_html"] = table_html
@@ -695,6 +697,32 @@ class AdfWeb(AdfObs):
             #Also check if index page exists for this case:
             index_html_file = \
                 self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
+            print("index_html_file",index_html_file)
+
+            # Create run info web page
+            run_info_md_file = \
+                self.__case_web_paths[web_data.case]['website_dir'] / self.run_info
+            print("run_info_md_file",run_info_md_file)
+
+            # Read the markdown file
+            with open(run_info_md_file, "r", encoding="utf-8") as mdfile:
+                md_text = mdfile.read()
+
+            # Convert markdown to HTML
+            run_info_html = markdown.markdown(md_text)
+            index_title = "AMP Diagnostics Prototype"
+            run_info_html_file = self.__case_web_paths[web_data.case]['website_dir'] / "run_info.html"
+            run_info_tmpl = jinenv.get_template('template_run_info.html')
+            run_info_rndr = run_info_tmpl.render(title=index_title,
+                                            case_name=web_data.case,
+                                            base_name=data_name,
+                                            case_yrs=case_yrs,
+                                            baseline_yrs=baseline_yrs,
+                                            plot_types=plot_types,
+                                            run_info=run_info_html)
+
+            with open(run_info_html_file, "w", encoding="utf-8") as htmlfile:
+                htmlfile.write(run_info_rndr)
 
             #Re-et plot types list:
             if web_data.case == 'multi-case':
@@ -706,7 +734,7 @@ class AdfWeb(AdfObs):
 
             #List of ADF default plot types
             avail_plot_types = res["default_ptypes"]
-           
+
             #Check if current plot type is in ADF default.
             #If not, add it so the index.html file can include it
             for ptype in plot_types.keys():
@@ -716,7 +744,7 @@ class AdfWeb(AdfObs):
 
             # External packages that can be run through ADF
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
-            
+
             #Construct index.html
             index_title = "AMP Diagnostics Prototype"
             index_tmpl = jinenv.get_template('template_index.html')
@@ -728,7 +756,8 @@ class AdfWeb(AdfObs):
                                             plot_types=plot_types,
                                             avail_plot_types=avail_plot_types,
                                             avail_external_packages=avail_external_packages,
-                                            external_package_links=self.external_package_links)
+                                            external_package_links=self.external_package_links,
+                                            run_info=run_info_html)
 
             #Write Mean diagnostics index HTML file:
             with open(index_html_file, 'w', encoding='utf-8') as ofil:
