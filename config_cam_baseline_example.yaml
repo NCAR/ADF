@@ -475,12 +475,14 @@ analysis_scripts:
 plotting_scripts:
     - global_latlon_map
     - global_latlon_vect_map
+    - global_mean_timeseries
     - zonal_mean
     - meridional_mean
     - polar_map
     - cam_taylor_diagram
     - qbo
-    - ozone_diagnostics
+    #- ozone_diagnostics
+    #- seasonal_cycle
     #- tape_recorder
     #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
