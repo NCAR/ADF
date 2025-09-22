@@ -228,7 +228,9 @@ def find_landmask(adf, casename, location):
             hloc = adf.get_baseline_info('cam_hist_loc')
         hfils = Path(hloc).glob((f"*{casename}*.nc"))
         if not hfils:
-            raise IOError(f"No history files in expected location: {hloc}")
+            #raise IOError(f"No history files in expected location: {hloc}")
+            print(f"\t No history files in expected location: {hloc}. Taylor diagrams will be skipped.")
+            return
         k = 0
         for h in hfils:
             dstmp = xr.open_dataset(h)
@@ -238,7 +240,9 @@ def find_landmask(adf, casename, location):
             else:
                 k += 1
         else:
-            raise IOError(f"Checked {k} files, but did not find LANDFRAC in any of them.")
+            #raise IOError(f"Checked {k} files, but did not find LANDFRAC in any of them.")
+            print(f"\t Checked {k} files, but did not find LANDFRAC in any of them. Taylor diagrams will be skipped.")
+            return
     # should not reach past the `if` statement without returning landfrac or raising exception.
 
 def get_prect(casename, location, **kwargs):
@@ -249,14 +253,18 @@ def get_prect(casename, location, **kwargs):
         fils1 = sorted(Path(location).glob(f"{casename}*_PRECC_*.nc"))
         fils2 = sorted(Path(location).glob(f"{casename}*_PRECL_*.nc"))
         if (len(fils1) == 0) or (len(fils2) == 0):
-            raise IOError("Could not find PRECC or PRECL")
+            #raise IOError("Could not find PRECC or PRECL")
+            print(f"\t Could not find PRECC or PRECL. Taylor diagrams will be skipped.")
+            return
         else:
             if len(fils1) == 1:
                 precc = xr.open_dataset(fils1[0])['PRECC']
                 precl = xr.open_dataset(fils2[0])['PRECL']
                 prect = precc + precl
             else:
-                raise NotImplementedError("Need to deal with mult-file case.")
+                #raise NotImplementedError("Need to deal with mult-file case.")
+                print(f"\t Multiple files for variable: PRECC. Taylor diagrams will be skipped.")
+                return
     elif len(fils) > 1:
         prect = xr.open_mfdataset(fils)['PRECT'].load()  # do we ever expect climo files split into pieces?
     else:
@@ -267,7 +275,9 @@ def get_prect(casename, location, **kwargs):
 def get_tropical_land_precip(adf, casename, location, **kwargs):
     landfrac = find_landmask(adf, casename, location)
     if landfrac is None:
-        raise ValueError("\t No landfrac returned")
+        #raise ValueError("\t No landfrac returned")
+        print(f"\t No landfrac returned. Taylor diagrams will be skipped.")
+        return
     prect = get_prect(casename, location)
     # mask to only keep land locations
     prect = xr.DataArray(np.where(landfrac >= .95, prect, np.nan),
@@ -280,7 +290,9 @@ def get_tropical_land_precip(adf, casename, location, **kwargs):
 def get_tropical_ocean_precip(adf, casename, location, **kwargs):
     landfrac = find_landmask(adf, casename, location)
     if landfrac is None:
-        raise ValueError("No landfrac returned")
+        #raise ValueError("No landfrac returned")
+        print(f"\t No landfrac returned. Taylor diagrams will be skipped.")
+        return
     prect = get_prect(casename, location)
     # mask to only keep ocean locations
     prect = xr.DataArray(np.where(landfrac <= 0.05, prect, np.nan),
@@ -301,12 +313,16 @@ def get_surface_pressure(dset, casename, location):
         if (len(fils) == 0):
             emsg = f"Could not find PS. This is needed as a separate variable if"
             emsg += " reading time series files directly."
-            raise IOError(emsg)
+            #raise IOError(emsg)
+            print(f"\t {emsg}. Taylor diagrams will be skipped.")
+            return
         else:
             if len(fils) == 1:
                 ps_ds = xr.open_dataset(fils[0])
             else:
-                raise NotImplementedError("Need to deal with mult-file case.")
+                #raise NotImplementedError("Need to deal with mult-file case.")
+                print(f"\t Multiple files for variable: PS. Taylor diagrams will be skipped.")
+                return
         #End if
         ps = ps_ds['PS']
     #End if
@@ -337,12 +353,16 @@ def get_vertical_average(adf, casename, location, varname):
     '''Collect data from case and use `vertical_average` to get result.'''
     fils = sorted(Path(location).glob(f"{casename}*_{varname}_*.nc"))
     if (len(fils) == 0):
-        raise IOError(f"Could not find {varname}")
+        #raise IOError(f"Could not find {varname}")
+        print(f"\t Could not find {varname}. Taylor diagrams will be skipped.")
+        return
     else:
         if len(fils) == 1:
             ds = xr.open_dataset(fils[0])
         else:
-            raise NotImplementedError("Need to deal with mult-file case.")
+            #raise NotImplementedError("Need to deal with mult-file case.")
+            print(f"\t Multiple files for variable: {varname}. Taylor diagrams will be skipped.")
+            return
     # Try and extract surface pressure:
     ps = get_surface_pressure(ds, casename, location)
     # If the climo file is made by ADF, then hyam and hybm will be with VARIABLE:
@@ -363,7 +383,9 @@ def get_landt2m(adf, casename, location):
     """Gets TREFHT (T_2m) and removes non-land points."""
     fils = sorted(Path(location).glob(f"{casename}*_TREFHT_*.nc"))
     if len(fils) == 0:
-        raise IOError(f"TREFHT could not be found in the files.")
+        #raise IOError(f"TREFHT could not be found in the files.")
+        print(f"\t TREFHT could not be found in the files. Taylor diagrams will be skipped.")
+        return
     elif len(fils) > 1:
         t = xr.open_mfdataset(fils)['TREFHT'].load()  # do we ever expect climo files split into pieces?
     else:
@@ -380,7 +402,9 @@ def get_eqpactaux(adf, casename, location):
     """Gets zonal surface wind stress 5S to 5N."""
     fils = sorted(Path(location).glob(f"{casename}*_TAUX_*.nc"))
     if len(fils) == 0:
-        raise IOError(f"TAUX could not be found in the files.")
+        #raise IOError(f"TAUX could not be found in the files.")
+        print(f"\t TAUX could not be found in the files. Taylor diagrams will be skipped.")
+        return
     elif len(fils) > 1:
         taux = xr.open_mfdataset(fils)['TAUX'].load()  # do we ever expect climo files split into pieces?
     else:
@@ -398,7 +422,9 @@ def get_derive_func(fld):
     'EquatorialPacificStress': get_eqpactaux
     }
     if fld not in funcs:
-        raise ValueError(f"We do not have a method for variable: {fld}.")
+        #raise ValueError(f"We do not have a method for variable: {fld}.")
+        print(f"\t We do not have a method for variable: {fld}. Taylor diagrams will be skipped.")
+        return
     return funcs[fld]
 
 
@@ -415,7 +441,9 @@ def _retrieve(adfobj, variable, casename, location, return_dataset=False):
     if variable not in v_to_derive:
         fils = sorted(Path(location).glob(f"{casename}*_{variable}_*.nc"))
         if len(fils) == 0:
-            raise ValueError(f"something went wrong for variable: {variable}")
+            #raise ValueError(f"something went wrong for variable: {variable}")
+            print(f"\t Missing file for variable: {variable}. Taylor diagrams will be skipped.")
+            return
         elif len(fils) > 1:
             ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces?
         else:
