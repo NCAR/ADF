@@ -1384,7 +1384,7 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
     fig, axes = plt.subplot_mosaic(mos_str,figsize=(12,5*len(case_names)))
 
     y = 1.00
-    y_lims = [100,0.1]
+    y_lims = [100,1]
 
     contour_levels = np.arange(-35, 36, 2.5)
 
