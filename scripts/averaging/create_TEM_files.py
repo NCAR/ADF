@@ -127,7 +127,7 @@ def create_TEM_files(adf):
         elif "zmlat" in ds.dims:
             zm_name = "zmlat"
         else:
-            print("Something went wrong with the zonal mean lat coordinate")
+            print("Something went wrong with the zonal mean lat coordinate for Obs")
             return
         start_year = str(ds.time[0].values)[0:4]
         end_year = str(ds.time[-1].values)[0:4]
@@ -256,17 +256,17 @@ def create_TEM_files(adf):
             #Flatten list of lists to 1d list
             hist_files = sorted(list(chain.from_iterable(hist_files)))
             ds = xr.open_mfdataset(hist_files,decode_times=True, combine='nested', concat_dim='time')
-            
+
 
             hist0_files = sorted(list(chain.from_iterable(hist0_files)))
             ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='nested', concat_dim='time')
 
             if "zalat" in ds_h0.dims:
                 zm_name = "zalat"
-            if "zmlat" in ds_h0.dims:
+            elif "zmlat" in ds_h0.dims:
                 zm_name = "zmlat"
             else:
-                print("Something went wrong with the zonal mean lat coordinate")
+                print(f"Something went wrong with the zonal mean lat coordinate for {case_name}")
                 return
 
             #Average time dimension over time bounds, if bounds exist:
