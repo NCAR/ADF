@@ -109,7 +109,7 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
     msg = "\n   Calculating chemistry/aerosol budget tables..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    # Check which type of tables to be created, default to 'troposphere'
+    # Check which type of tables to be created, default to 'tropopause'
     if trop_val is None:
         trop_val = 'tropopause'
 
@@ -363,7 +363,6 @@ def list_files(adfobj, directory, start_year ,end_year, h_case):
 
     all_filenames = []
     for i in yrs:
-#        all_filenames.append(sorted(Path(directory).glob(f'*.{h_case}.{i}-*')))
         all_filenames.append(sorted(Path(directory).glob(f'*.{h_case}.{i:04d}*')))
 
     # Flattening the list of lists
@@ -492,7 +491,6 @@ def set_dic_SE(ListVars, ext1_SE,variables):
                    'soa5_a2'+ext1_SE:1}
 
     dic_SE['DMS']={'DMS'+ext1_SE:1}
-    #dic_SE['TROP_P']={'TROP_P'+ext1_SE:1}
 
 
     # automatic generation of dic_SE
@@ -972,7 +970,6 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
     msg = f"chem/aerosol tables:"
     msg += f"\n\t - needed variables for budget {needed_vars_tot}"
     adfobj.debug_log(msg)
-    print(msg)
 
     return Dic_crit,Dic_scn_var_comp,Tropospheric,tropospheric_method
 #####
