@@ -353,7 +353,7 @@ GPP: # Gross Primary Production
   contour_levels_range: [0., 12., 0.5]
   diff_colormap: "PiYG"
   diff_contour_range: [-4.,4.,0.5]
-  scale_factor: 86400
+  scale_factor: 86400  #seconds to days
   add_offset: 0
   new_unit: "gC m$^{-2}$ d$^{-1}$"
   mpl:
@@ -367,6 +367,26 @@ GPP: # Gross Primary Production
   obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/MR_GPP_0.9x1.25_ALLMONS_climo.nc"
   obs_name: "FLUXNET"
   obs_var_name: "GPP" #gC m$^{-2}$ d$^{-1}$  
+
+FPSN: # Photosynthesis umol CO2 m-2 s-1 -> gC/m2/2
+#TODO, make sure this works as expected
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 12., 0.5]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-4.,4.,0.5]
+  scale_factor: 7200000000 #86400/1.2e-5  #seconds to days, umol CO2 to gC
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/MR_GPP_0.9x1.25_ALLMONS_climo.nc"
+  obs_name: "FLUXNET"
+  obs_var_name: "GPP" #gC m$^{-2}$ d$^{-1}$  
+
 
 AR: # Autotrophic Respiration
   category: "Carbon"
