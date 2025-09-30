@@ -339,6 +339,10 @@ def polar_map(adfobj):
                                     elif (var == 'FAREA_BURNED') and (s == 'SON'):
                                         print("\t\t Skipping FAREA_BURNED in SON plot")
                                         continue
+                                    # not working for regular grids?
+                                    elif (var == 'NPP'):
+                                        print("\t\t Skipping NPP polar plot")
+                                        continue
                                     else: 
                                         pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                            [syear_cases[case_idx],eyear_cases[case_idx]],
