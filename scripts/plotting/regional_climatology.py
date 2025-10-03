@@ -288,24 +288,39 @@ def regional_climatology(adfobj):
                     obs_var_wgtd = np.sum(obs_var * wgt_sub, axis=(1,2)) #/ np.sum(wgt_sub) 
 
             ## Plot the map:
-            if plt_counter==1 and unstruct_plotting == True:
-                ## this only works for unstructured plotting:
+            if plt_counter==1:
                 ## Define region in first subplot
                 fig.delaxes(axs[0])
                 
                 transform  = ccrs.PlateCarree()
                 projection = ccrs.PlateCarree()
                 base_var_mask = base_var.isel(time=0)
-                base_var_mask[np.isfinite(base_var_mask)]=1
-                collection = base_var_mask.to_polycollection()
-                
-                collection.set_transform(transform)
-                collection.set_cmap('rainbow_r')
-                collection.set_antialiased(False)
-                map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
-                
-                map_ax.coastlines()
-                map_ax.add_collection(collection)
+
+                if unstruct_plotting == True:
+                    base_var_mask[np.isfinite(base_var_mask)]=1
+                    collection = base_var_mask.to_polycollection()
+                    
+                    collection.set_transform(transform)
+                    collection.set_cmap('rainbow_r')
+                    collection.set_antialiased(False)
+                    map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
+                    
+                    map_ax.coastlines()
+                    map_ax.add_collection(collection)
+                elif unstruct_plotting == False:
+                    base_var_mask = base_var_mask.copy()
+                    base_var_mask.values[np.isfinite(base_var_mask.values)] = 1
+                    
+                    map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
+                    map_ax.coastlines()
+                    
+                    # Plot using pcolormesh for structured grids
+                    im = map_ax.pcolormesh(base_var_mask.lon, base_var_mask.lat, 
+                                        base_var_mask.values,
+                                        transform=transform, 
+                                        cmap='rainbow_r',
+                                        shading='auto')
+
                 map_ax.set_global()
                 # Add map extent selection
                 if region_list[iReg]=='N Hemisphere Land':
@@ -459,11 +474,18 @@ def getRegion_xarray(varDS, varName,
         varDS = varDS[varName]
 
     # Subset the dataarray using the specified box 
-    domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N),
-                                       lon=slice(BOX_W, BOX_E))
-    weight_subset = weight.sel(lat=slice(BOX_S, BOX_N),
-                               lon=slice(BOX_W, BOX_E)) 
+    if BOX_W>BOX_E:
+        iLons = np.where((varDS.lon.values>=BOX_W) | (varDS.lon.values<=BOX_E) )[0]
+        domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N)).isel(lon=iLons)
+                        
+        weight_subset = weight.sel(lat=slice(BOX_S, BOX_N)).isel(lon=iLons) 
+    else:
+        domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N),
+                                           lon=slice(BOX_W, BOX_E))
+        weight_subset = weight.sel(lat=slice(BOX_S, BOX_N),
+                                   lon=slice(BOX_W, BOX_E)) 
     wgt_subset = weight_subset / weight_subset.sum() 
+    
     
     return domain_subset,wgt_subset
 
