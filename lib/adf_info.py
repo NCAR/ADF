@@ -612,82 +612,6 @@ class AdfInfo(AdfConfig):
         #Print number of processors being used to debug log (if requested):
         self.debug_log(f"ADF is running with {self.__num_procs} processors.")
 
-        active_env = self.get_active_conda_environment()
-        if not active_env:
-            active_env = "--"
-
-        # Gather ADF run env info
-        log_name = self.debug_fname()
-        #Create new path object from user-specified plot directory path:
-        plot_path = Path(self.plot_location[0])
-
-        #Create directory path where the website will be built:
-        website_dir = plot_path / "website"
-        Path(website_dir).mkdir(parents=True, exist_ok=True)
-
-        self.__run_info = f"{log_name}".replace("debug","run_info").replace(".log",".md")
-        run_info = f"{website_dir}/{self.__run_info}"
-
-        four_space = "&nbsp;&nbsp;&nbsp;&nbsp;"
-        two_space = "&nbsp;&nbsp;"
-        font_22 = "style='font-size:22px;'"
-        font_18 = "style='font-size:18px;'"
-        font_16 = "style='font-size:16px;'"
-
-        with open(run_info, "w") as f:
-            log_msg = "adf_info: ADF run info:"
-
-            # Gather config yaml file info
-            config_file_msg = "\nConfig file used:"
-            msg = f"{config_file_msg}\n{'-' * (len(config_file_msg))}\n  {config_file}\n"
-            log_msg += msg
-
-            f.write("<p style=color:black>")
-            f.write(f"<strong><a {font_22}>Config file used</a></strong></u><br>")
-            f.write(f"{two_space}<a {font_16}>{config_file}</a><br><br>")
-            config_msg = "\n  Config file options:"
-            msg = f"{config_msg}\n  {'- ' * (int(len(config_msg)/2)-1)}"
-            log_msg += msg
-
-            f.write(f"&nbsp;<u><a {font_18}>Config file options</a></u><br>")
-            for key,val in AdfConfig.config_dict(self).items():
-                if isinstance(val,dict):
-                    log_msg += f"\n  {key}:"
-                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
-                    for key2,val2 in val.items():
-                        log_msg += f"\n    {key2}: {val2}"
-                        f.write(f"{four_space}<a {font_16}><strong>{key2}:</strong> {val2}</a><br>")
-                elif isinstance(val,list):
-                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
-                    log_msg += f"\n  {key}:"
-                    for val2 in val:
-                        log_msg += f"\n    {val2}"
-                        f.write(f"{four_space}<a {font_16}>{val2}</a><br>")
-                else:
-                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a><br>")
-                    log_msg += f"\n  {key}: {val}"
-
-            # Gather Conda environment
-            conda_msg = "\nConda env used:"
-            msg = f"{conda_msg}\n{'-' * (len(conda_msg)-1)}\n"
-            log_msg += f"\n  {msg}"
-            f.write("\n")
-            f.write(f"<br><strong><a {font_22}>Conda env used</a></strong><br>")
-            f.write(f"<a {font_16}>{two_space}{active_env}</a>")
-            log_msg += f"  {active_env}"
-
-            # Gather Git info
-            git_info = self.get_git_info()
-            git_msg = "\nGit Info:"
-            msg = f"{git_msg}\n{'-' * (len(git_msg)-1)}\n"
-            log_msg += f"\n  {msg}"
-            f.write("\n")
-            f.write(f"<br><br><strong><a {font_22}>Git Info</a></strong><br>")
-            for key,val in git_info.items():
-                log_msg += f"  {key}: {val}\n"
-                f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a></><br>")
-            f.write("</p>")
-            self.debug_log(log_msg)
     #########
 
     def hist_str_to_list(self, conf_var, conf_val):
@@ -799,10 +723,6 @@ class AdfInfo(AdfConfig):
         hist_strs = {"test_hist_str":cam_hist_strs, "base_hist_str":base_hist_strs}
         return hist_strs
 
-    @property
-    def run_info(self):
-        run_info = self.__run_info
-        return run_info
 
     #########
 
@@ -971,28 +891,6 @@ class AdfInfo(AdfConfig):
 
         return syr, eyr
 
-    def get_active_conda_environment(self):
-        """
-        Utility function to get the name of the active conda environment.
-        
-        Returns:
-        --------
-        env_name (str or None): Name of the active conda environment, or None if not found.
-        """
-        env_name = None
-        try:
-            # Execute 'conda env list' and capture output
-            result = subprocess.run(['conda', 'env', 'list'],
-                                    capture_output=True, text=True, check=True)
-            output_lines = result.stdout.splitlines()
-            for line in output_lines:
-                # The active environment is marked with an asterisk (*)
-                if '*' in line.strip():
-                    # Extract the environment name (first part of the line)
-                    env_name = line.strip().split()[0]
-        except subprocess.CalledProcessError as e:
-            print(f"Error executing conda command: {e}")
-        return env_name
 
 #++++++++++++++++++++
 #End Class definition

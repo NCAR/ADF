@@ -340,14 +340,12 @@ class AdfConfig(AdfBase):
 
         try:
             # Current branch
-            branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            info['branch'] = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
                                     stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
-            info['branch'] = branch
 
             # Commit hash
-            commit = subprocess.run(['git', 'rev-parse', 'HEAD'],
+            info['commit'] = subprocess.run(['git', 'rev-parse', 'HEAD'],
                                     stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
-            info['commit'] = commit
 
             # Remote URL
             remote_url = subprocess.run(['git', 'remote', 'get-url', 'origin'],
@@ -357,16 +355,53 @@ class AdfConfig(AdfBase):
             # Repo name
             info['repo_name'] = os.path.splitext(os.path.basename(remote_url))[0]
 
-            # Status
-            status = subprocess.run(['git', 'status', '--short'],
-                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
-            info['is_dirty'] = bool(status)
+            # Check if any modified files in ADF directory
+            info['is_dirty'] = bool(subprocess.run(['git', 'status', '--short'],
+                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip())
 
         except subprocess.CalledProcessError as e:
             print("Git command failed:", e)
             info = None
 
         return info
+
+    def get_active_conda_environment(self):
+        """
+        Utility function to get the name of the active conda environment.
+        
+        Returns:
+        --------
+        env_name (str or None): Name of the active conda environment, or None if not found.
+        """
+        """env_name = None
+        try:
+            # Execute 'conda env list' and capture output
+            result = subprocess.run(['conda', 'env', 'list'],
+                                    capture_output=True, text=True, check=True)
+            output_lines = result.stdout.splitlines()
+            for line in output_lines:
+                # The active environment is marked with an asterisk (*)
+                if '*' in line.strip():
+                    # Extract the environment name (first part of the line)
+                    env_name = line.strip().split()[0]
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing conda command: {e}")
+        return env_name"""
+        # 'CONDA_DEFAULT_ENV' is the most reliable and direct way to get the env name.
+        env_name = os.environ.get('CONDA_DEFAULT_ENV')
+        if env_name:
+            return env_name
+
+        # As a fallback, we can derive the name from the 'CONDA_PREFIX' path.
+        # The environment name is the last part of the path.
+        env_path = os.environ.get('CONDA_PREFIX')
+        if env_path:
+            return os.path.basename(env_path)
+
+        # If neither are set, we are likely not in a conda environment.
+        return None
+
+    
     #########
 
 #++++++++++++++++++++

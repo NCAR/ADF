@@ -183,6 +183,27 @@ class AdfWeb(AdfObs):
                                                    'table_pages_dir': table_pages_dir,
                                                    'css_files_dir': css_files_dir}
         #End if
+        
+        # Gather ADF run env info
+        active_env = self.get_active_conda_environment()
+        if not active_env:
+            active_env = "--"
+
+        run_info = ''
+        if self.debug_log:
+            log_name = self.debug_fname
+            run_info = f"{log_name}".replace("debug","run_info").replace(".log",".md")
+            self.run_info = run_info
+            self._write_run_info_to_log(config_file, active_env)
+        #Do nothing if user is not requesting a website to be generated:
+        if self.create_html and self.debug_log:
+            plot_path = Path(self.plot_location[0])
+
+            #Create directory path where the website will be built:
+            website_dir = plot_path / "website"
+            Path(website_dir).mkdir(parents=True, exist_ok=True)
+            run_info = f"{website_dir}/{run_info}"
+            self._write_run_info_to_web(run_info, config_file, active_env)
 
     #########
 
@@ -193,6 +214,91 @@ class AdfWeb(AdfObs):
         return self.get_basic_info('create_html')
 
     #########
+    def _write_run_info_to_web(self, run_info, config_file, active_env):
+        """
+        If user requests webpage, then add run info to webpages table of contents
+        """
+        four_space = "&nbsp;&nbsp;&nbsp;&nbsp;"
+        two_space = "&nbsp;&nbsp;"
+        font_22 = "style='font-size:22px;'"
+        font_18 = "style='font-size:18px;'"
+        font_16 = "style='font-size:16px;'"
+
+        with open(run_info, "w") as f:
+
+            # Gather config yaml file info
+            f.write("<p style=color:black>")
+            f.write(f"<strong><a {font_22}>Config file used</a></strong></u><br>")
+            f.write(f"{two_space}<a {font_16}>{config_file}</a><br><br>")
+
+            f.write(f"&nbsp;<u><a {font_18}>Config file options</a></u><br>")
+            for key,val in self.config_dict().items():
+                if isinstance(val,dict):
+                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
+                    for key2,val2 in val.items():
+                        f.write(f"{four_space}<a {font_16}><strong>{key2}:</strong> {val2}</a><br>")
+                elif isinstance(val,list):
+                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
+                    for val2 in val:
+                        f.write(f"{four_space}<a {font_16}>{val2}</a><br>")
+                else:
+                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a><br>")
+
+            # Gather Conda environment
+            f.write("\n")
+            f.write(f"<br><strong><a {font_22}>Conda env used</a></strong><br>")
+            f.write(f"<a {font_16}>{two_space}{active_env}</a>")
+
+            # Gather Git info
+            git_info = self.get_git_info()
+            f.write("\n")
+            f.write(f"<br><br><strong><a {font_22}>Git Info</a></strong><br>")
+            for key,val in git_info.items():
+                f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a></><br>")
+            f.write("</p>")
+
+    def _write_run_info_to_log(self, config_file, active_env):
+
+        log_msg = "adf_info: ADF run info:"
+
+        # Gather config yaml file info
+        config_file_msg = "\nConfig file used:"
+        msg = f"{config_file_msg}\n{'-' * (len(config_file_msg))}\n  {config_file}\n"
+        log_msg += msg
+
+
+        config_msg = "\n  Config file options:"
+        msg = f"{config_msg}\n  {'- ' * (int(len(config_msg)/2)-1)}"
+        log_msg += msg
+
+        for key,val in self.config_dict().items():
+            if isinstance(val,dict):
+                log_msg += f"\n  {key}:"
+                for key2,val2 in val.items():
+                    log_msg += f"\n    {key2}: {val2}"
+            elif isinstance(val,list):
+                log_msg += f"\n  {key}:"
+                for val2 in val:
+                    log_msg += f"\n    {val2}"
+            else:
+                log_msg += f"\n  {key}: {val}"
+
+        # Gather Conda environment
+        conda_msg = "\nConda env used:"
+        msg = f"{conda_msg}\n{'-' * (len(conda_msg)-1)}\n"
+        log_msg += f"\n  {msg}"
+        log_msg += f"  {active_env}"
+
+        # Gather Git info
+        git_info = self.get_git_info()
+        git_msg = "\nGit Info:"
+        msg = f"{git_msg}\n{'-' * (len(git_msg)-1)}\n"
+        log_msg += f"\n  {msg}"
+
+        for key,val in git_info.items():
+            log_msg += f"  {key}: {val}\n"
+
+        self.debug_log(log_msg)
 
     def add_website_data(self, web_data, web_name, case_name,
                          category = None,
