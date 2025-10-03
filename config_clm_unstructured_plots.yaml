@@ -137,16 +137,16 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_beta06.B1850C_LTso.ne30_t232_wgx3.188
+    cam_case_name: b.e30_alpha07b_dev.B1850C_LTso.ne30_t232_wgx3.213
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '188'
+    case_nickname: '213'
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/derecho/scratch/gmarques/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/hannay/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -154,12 +154,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 76
-
+    start_year: 01
+    climo_start_year: 68
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 95
+    end_year: 88
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -199,13 +199,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_beta06.B1850C_LTso.ne30_t232_wgx3.179
+    cam_case_name: b.e30_alpha07b_dev.B1850C_LTso.ne30_t232_wgx3.198
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '179'
+    case_nickname: '198'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -220,12 +220,13 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 76
+    start_year: 01
+    climo_start_year: 128
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 95
+    end_year: 148
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -264,7 +265,7 @@ time_averaging_scripts:
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
 regridding_scripts:
-  #    - regrid_and_vert_interp
+  # - regrid_and_vert_interp
 
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
@@ -287,6 +288,7 @@ diag_var_list:
     - ELAI
     - FSDS
     - FLDS
+    - QBOT
     - ASA
     - RNET
     - FSH
@@ -296,27 +298,30 @@ diag_var_list:
     - FCEV
     - QRUNOFF_TO_COUPLER 
     - SNOWDP
+    - FPSN 
     - TOTVEGC
     - GPP
     - NEE
     - NPP
     - NBP  
+    - NPP_NUPTAKE
     - BTRANMN
     - TOTECOSYSC
     - TOTSOMC_1m
     - ALTMAX
     - FAREA_BURNED
-      
+    - TWS
+    - GRAINC_TO_FOOD  
 region_list:
     - Global
-    #- N Hemisphere Land
-    #- S Hemisphere Land
+    - N Hemisphere Land
+    - S Hemisphere Land
     - Polar
     - Alaskan Arctic
     - Canadian Arctic
     - Greenland
     - Russian Arctic
-    #- Antarctica
+    # - Antarctica
     - Alaska
     - Northwest Canada
     - Central Canada
@@ -340,7 +345,7 @@ region_list:
     - Indochina
     #- Sahara Desert
     #- Arabian Peninsula
-    #- Australia
+    - Australia
     #- Central Asia ## Was Broken... probably because there were two? 
     #- Mongolia
     #- Tibetan Plateau

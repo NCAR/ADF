@@ -47,8 +47,11 @@ def global_mean_timeseries_lnd(adfobj):
             vres = res[field]
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_mean_timeseries: Found variable defaults for {field}")
+            #Extract category (if available):
+            web_category = vres.get("category", None)
         else:
             vres = {}
+            web_category = None
         
         # Extract variables:
         # including a simpler way to get a dataset timeseries
@@ -199,7 +202,8 @@ def global_mean_timeseries_lnd(adfobj):
             season="ANN",
             multi_case=True,
             plot_type="TimeSeries",
-        )
+            category=web_category,        
+            )
 
     #Notify user that script has ended:
     print("  ... global mean time series plots have been generated successfully.")
