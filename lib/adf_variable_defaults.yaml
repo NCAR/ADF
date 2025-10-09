@@ -2508,7 +2508,7 @@ utendwtem:
 budget_tables:
   # INPUTS
   #list of the gaseous variables to be caculated.
-  GAS_VARIABLES: ['CH4','CH3CCL3', 'CO', 'O3', 'ISOP', 'MTERP', 'CH3OH', 'CH3COCH3']
+  GAS_VARIABLES: ['CH4','CH3CCL3', 'CO', 'O3', 'ISOP', 'MTERP', 'CH3OH', 'CH3COCH3','DMS','DMS_OASISS']
 
   # list of the aerosol variables to be caculated.
   AEROSOL_VARIABLES: ['AOD','SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
@@ -2546,7 +2546,10 @@ budget_tables:
         'DUST':168.0456,
         'CH3CCL3':133.4042,
         'CH3OH':32,
-        'CH3COCH3':58}
+        'CH3COCH3':58,
+        'DMS':62.136,
+        'DMS_OASISS':62.136,
+        'AOD':1}
 
   # Avogadro's Number
   AVO: 6.022e23

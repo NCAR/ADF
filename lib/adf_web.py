@@ -117,7 +117,6 @@ class AdfWeb(AdfObs):
 
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
-
         #Also extract baseline case (if applicable), and append to case_names list:
         if not self.compare_obs:
             baseline_name = self.get_baseline_info('cam_case_name', required=True)
