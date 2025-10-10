@@ -243,7 +243,7 @@ def make_histograms(data, land, vres):
         bins = np.arange(*vres['contour_levels_range'])
     else:
         print("WARNING: no sensible defaults found -- histogram will use 25 bins (bins may differ across cases)")
-        bins = np.linspace(data.min(), data.max(), 26)
+        bins = np.linspace(data.min().values, data.max().values, 26)
 
     # extend bins to catch all values
     hbins = np.insert(bins, 0, np.finfo(float).min)
