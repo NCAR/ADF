@@ -474,6 +474,26 @@ TOTVEGC:
   avg_method: 'sum'
   table_unit: "PgC"
 
+# C Isotopes
+C13_GPP_pm:
+  category: "Carbon"
+  derivable_from: ["C13_GPP","GPP"]
+  new_unit: "per mil PDB"  
+
+C14_GPP_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C14_GPP","GPP"]
+  new_unit: "per mil PDB"  
+
+C13_TOTVEGC_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C13_TOTVEGC","TOTVEGC"]
+  new_unit: "per mil PDB"  
+
+C14_TOTVEGC_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C14_TOTVEGC","TOTVEGC"]
+  new_unit: "per mil PDB"  
 
 #+++++++++++
 # Category: CROP

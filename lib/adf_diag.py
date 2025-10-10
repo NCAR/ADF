@@ -1374,6 +1374,34 @@ class AdfDiag(AdfWeb):
                     der_val = 100*ds["FSR"]/ds["FSDS"].where(ds["FSDS"]>0)
                 elif var == "RNET":
                     der_val = ds["FSA"]-ds["FIRA"]
+                elif var == "WUE":
+                    der_val = ds["GPP"]/ds["FCTR"].where(ds["FCTR"]>0)
+
+                # ----------------------------------------------------------------------------------
+                # Isotope-specific derived variables
+                # ----------------------------------------------------------------------------------
+                # NOTE:  del13C :  valid range = -40 to 0 per mil PDB
+                # formulas similar to Jain et al 1996 Tellus B 48B: 583-600
+                # as applied in land_diags /glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/code/shared/lnd_func.ncl
+                # TODO, this would be nice to avoid repeating for all isotopes enables variables
+                # TODO, check for accuracy of equations, neither as as in Jain et al 1996...
+                
+                elif var == "C13_GPP_pm":
+                    der_val = (((ds["C13_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / 0.01112) - 1.) * 1000.
+                    # Still getting wacky values in DJF when GPP is low
+                    # mask out values where der_val < -40
+                    der_val = der_val.where(der_val>-40.)
+
+                elif var == "C14_GPP_pm":
+                    der_val = (((ds["C14_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / 1.176e-12) - 1.)
+                
+                elif var == "C14_TOTVEGC_pm":
+                    der_val = (((ds["C14_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / 1.176e-12) - 1.)
+
+                elif var == "C13_TOTVEGC_pm":
+                    der_val = (((ds["C13_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / 0.01112) - 1.) * 1000.
+                    der_val = der_val.where(der_val>-40.)
+
                 else:
                     # Loop through all constituents and sum
                     der_val = 0
