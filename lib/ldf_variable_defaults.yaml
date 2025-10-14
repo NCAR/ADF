@@ -478,22 +478,53 @@ TOTVEGC:
 C13_GPP_pm:
   category: "Carbon"
   derivable_from: ["C13_GPP","GPP"]
-  new_unit: "per mil PDB"  
+  new_unit: "per mile PDB"  
 
 C14_GPP_pm: #TODO, check that calculations are correct 
   category: "Carbon"
   derivable_from: ["C14_GPP","GPP"]
-  new_unit: "per mil PDB"  
+  new_unit: "per mile"  
 
 C13_TOTVEGC_pm: #TODO, check that calculations are correct 
   category: "Carbon"
   derivable_from: ["C13_TOTVEGC","TOTVEGC"]
-  new_unit: "per mil PDB"  
+  new_unit: "per mile PDB"  
 
 C14_TOTVEGC_pm: #TODO, check that calculations are correct 
   category: "Carbon"
   derivable_from: ["C14_TOTVEGC","TOTVEGC"]
-  new_unit: "per mil PDB"  
+  new_unit: "per mile"  
+
+C13_TOTSOMC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTSOMC","TOTSOMC"]
+  new_unit: "per mile PDB"
+
+C14_TOTSOMC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTSOMC","TOTSOMC"]
+  new_unit: "per mile"
+
+C13_TOTECOSYSC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTECOSYSC","TOTECOSYSC"]
+  new_unit: "per mile PDB"
+
+C14_TOTECOSYSC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTECOSYSC","TOTECOSYSC"]
+  new_unit: "per mile"
+
+C13_TOTLITC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTLITC","TOTLITC"]
+  new_unit: "per mile PDB"
+
+C14_TOTLITC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTLITC","TOTLITC"]
+  new_unit: "per mile"
+
 
 #+++++++++++
 # Category: CROP

@@ -768,7 +768,8 @@ class AdfDiag(AdfWeb):
                         "ncatted", "-O",
                         "-a", "adf_user,global,a,c," + f"{self.user}",
                         "-a", "hist_file_locs,global,a,c," + f"{hist_locs_str}",
-                        "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
+                        # This list is too long and fails
+                        # "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
                         ts_outfil_str
                     ]
 
@@ -1357,6 +1358,10 @@ class AdfDiag(AdfWeb):
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
 
+                clmPDB = 0.0112372    # ratio of 13C/12C in Pee Dee Belemnite (C isotope standard) 
+                clm14C = 1e-12        # not accepted value of 1.176 x 10-12
+                min13C = -40.         # prevent wacky values when 12C stock or fluxes are very small
+                min14C = -400.        # arbitrary
                 # Check if clobber is true for file
                 if Path(derived_file).is_file():
                     if overwrite:
@@ -1384,23 +1389,40 @@ class AdfDiag(AdfWeb):
                 # formulas similar to Jain et al 1996 Tellus B 48B: 583-600
                 # as applied in land_diags /glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/code/shared/lnd_func.ncl
                 # TODO, this would be nice to avoid repeating for all isotopes enables variables
-                # TODO, check for accuracy of equations, neither as as in Jain et al 1996...
-                
+                # TODO, check for accuracy of equations, neither as as in Jain et al 1996...  
+                # Should they just be ((ratio sample - ratio standard) / ratio standard) * 1000 ?
+
                 elif var == "C13_GPP_pm":
-                    der_val = (((ds["C13_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / 0.01112) - 1.) * 1000.
-                    # Still getting wacky values in DJF when GPP is low
-                    # mask out values where der_val < -40
-                    der_val = der_val.where(der_val>-40.)
+                    der_val = (((ds["C13_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)
 
                 elif var == "C14_GPP_pm":
-                    der_val = (((ds["C14_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / 1.176e-12) - 1.)
+                    der_val = (((ds["C14_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / clm14C) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min14C)
                 
-                elif var == "C14_TOTVEGC_pm":
-                    der_val = (((ds["C14_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / 1.176e-12) - 1.)
+                elif var == "C13_NPP_pm":
+                    der_val = (((ds["C13_NPP"]/ds["NPP"].where(ds["NPP"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)
+
+                elif var == "C14_NPP_pm":
+                    der_val = (((ds["C14_NPP"]/ds["NPP"].where(ds["NPP"]>0)) / clm14C) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min14C)
 
                 elif var == "C13_TOTVEGC_pm":
-                    der_val = (((ds["C13_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / 0.01112) - 1.) * 1000.
-                    der_val = der_val.where(der_val>-40.)
+                    der_val = (((ds["C13_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)
+
+                elif var == "C14_TOTVEGC_pm":
+                    der_val = (((ds["C14_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / clm14C) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min14C)
+
+                elif var == "C13_TOTECOSYSC_pm":
+                    der_val = (((ds["C13_TOTECOSYSC"]/ds["TOTECOSYSC"].where(ds["TOTECOSYSC"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)              
+
+                elif var == "C14_TOTECOSYSC_pm":
+                    der_val = (((ds["C14_TOTECOSYSC"]/ds["TOTECOSYSC"].where(ds["TOTECOSYSC"]>0)) / clm14C) - 1.) * 1e3
+                    #der_val = der_val.where(der_val > min14C)
 
                 else:
                     # Loop through all constituents and sum
