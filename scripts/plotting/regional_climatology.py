@@ -255,7 +255,6 @@ def regional_climatology(adfobj):
             if type(base_data[field]) is type(None):
                 continue
             else:
-                # TODO: handle regular gridded case
                 if unstruct_plotting == True:
                     # uxarray output is time*nface, sum over nface
                     base_var,wgt_sub  = getRegion_uxarray(uxgrid, base_data, field, area_b, landfrac_b,
@@ -299,7 +298,6 @@ def regional_climatology(adfobj):
                 transform  = ccrs.PlateCarree()
                 projection = ccrs.PlateCarree()
                 base_var_mask = base_var.isel(time=0)
-                base_var_mask[np.isfinite(base_var_mask)]=1
 
                 if unstruct_plotting == True:
                     base_var_mask[np.isfinite(base_var_mask)]=1
@@ -315,10 +313,15 @@ def regional_climatology(adfobj):
                 elif unstruct_plotting == False:
                     base_var_mask = base_var_mask.copy()
                     base_var_mask.values[np.isfinite(base_var_mask.values)] = 1
-                    
+                    print(base_var_mask)
                     map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
                     map_ax.coastlines()
                     
+                    #print('debug mask.lon')
+                    #print(base_var_mask.lon)
+                    #print('debug mask.lat')
+                    #print(base_var_mask.lat)
+
                     # Plot using pcolormesh for structured grids
                     im = map_ax.pcolormesh(base_var_mask.lon, base_var_mask.lat, 
                                         base_var_mask.values,
@@ -326,15 +329,6 @@ def regional_climatology(adfobj):
                                         cmap='rainbow_r',
                                         shading='auto')
 
-                collection = base_var_mask.to_polycollection()
-                collection.set_transform(transform)
-                collection.set_cmap('rainbow_r')
-                collection.set_antialiased(False)
-                map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
-                
-                map_ax.coastlines()
-                map_ax.add_collection(collection)
-                map_ax.set_global()
                 # Add map extent selection
                 if region_list[iReg]=='N Hemisphere Land':
                     map_ax.set_extent([-180, 179, -3, 90],crs=ccrs.PlateCarree())
@@ -367,17 +361,9 @@ def regional_climatology(adfobj):
                     
             ## Plot the climatology: 
             if type(base_data[field]) is type(None):
-                # print('Missing file for ', field)
+                print('Missing file for ', field)
                 continue
             else:
-                # TODO handle unit conversions correctly, working for structured, but not unstructured yet
-                # using ldf_v0.0 and uxarray 2025.03.0 this seems to be working as expected,
-                # TODO check results with updated uxarray 2025.06?
-                #if unstruct_plotting == True:
-                #    if (field == 'GPP') or (field == 'NEE') or (field == 'NBP'):
-                #        case_var_wgtd = case_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
-                #        base_var_wgtd = base_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
-
                 axs[plt_counter].plot(np.arange(12)+1, case_var_wgtd,
                                       label=case_nickname, linewidth=2)
                 axs[plt_counter].plot(np.arange(12)+1, base_var_wgtd,
@@ -396,14 +382,9 @@ def regional_climatology(adfobj):
         fig.subplots_adjust(hspace=0.3, wspace=0.3)
 
         # Save out figure
-        # fileFriendlyRegionName = 
         plot_loc = Path(plot_locations[0]) / f'{region_list[iReg]}_plot_RegionalClimo_Mean.{plot_type}'
-        #Set path for variance figures:
-        # plot_loc = Path(plot_locations[0]) / f'RegionalClimo_{region_list[iReg]}.{plot_type}'
-        # print(plot_loc)
-        # plot_name = plot_loc+'RegionalClimo_'+region_names[iReg]+'.png'
 
-#        Check redo_plot. If set to True: remove old plots, if they already exist:
+        # Check redo_plot. If set to True: remove old plots, if they already exist:
         if (not redo_plot) and plot_loc.is_file():
             #Add already-existing plot to website (if enabled):
             adfobj.debug_log(f"'{plot_loc}' exists and clobber is false.")
@@ -462,8 +443,6 @@ def getRegion_xarray(varDS, varName,
 
     if varName not in varDS:
         varName = obs_var_name
-        #if varName == 'ELAI': varName = 'TLAI'  
-        #if varName == 'ET': varName = 'LHF'  
 
     # TODO is there a less brittle way to do this?
     if (area is not None) and (landfrac is not None):
@@ -488,12 +467,24 @@ def getRegion_xarray(varDS, varName,
         varDS = varDS[varName]
 
     # Subset the dataarray using the specified box 
-    domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N),
-                                       lon=slice(BOX_W, BOX_E))
-    weight_subset = weight.sel(lat=slice(BOX_S, BOX_N),
-                               lon=slice(BOX_W, BOX_E)) 
+    if BOX_W < BOX_E:
+        domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N),
+                                  lon=slice(BOX_W, BOX_E))
+        weight_subset = weight.sel(lat=slice(BOX_S, BOX_N),
+                                   lon=slice(BOX_W, BOX_E)) 
+
+    else:
+        # Use boolean indexing to select the region
+        # The parentheses are important due to operator precedence
+        west_of_0 = varDS.lon >= BOX_W
+        east_of_0 = varDS.lon <= BOX_E
+        domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N),
+                                  lon=(west_of_0 | east_of_0))
+        weight_subset = weight.sel(lat=slice(BOX_S, BOX_N),
+                                   lon=(west_of_0 | east_of_0))
+
     wgt_subset = weight_subset / weight_subset.sum() 
-    
+    weight_subset = weight.sel
     return domain_subset,wgt_subset
 
 def get_region_boundaries(regions, region_name):
