@@ -95,10 +95,18 @@ seasons = {"ANN": np.arange(1,13,1),
 #################
 
 
-def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
-                    case_climo_yrs, baseline_climo_yrs,
-                    d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.DataArray]=None,pctchange:Optional[xr.DataArray]=None,
-                    domain:Optional[list]=None, hemisphere:Optional[str]=None, obs=False, **kwargs):
+def make_polar_plot(wks, case_nickname, 
+                    base_nickname,
+                    case_climo_yrs, 
+                    baseline_climo_yrs,
+                    d1:xr.DataArray, 
+                    d2:xr.DataArray, 
+                    difference:Optional[xr.DataArray]=None,
+                    pctchange:Optional[xr.DataArray]=None,
+                    domain:Optional[list]=None, 
+                    hemisphere:Optional[str]=None, 
+                    obs=False, 
+                    **kwargs):
 
     """Make a stereographic polar plot for the given data and hemisphere.
 
@@ -193,7 +201,7 @@ def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
     absmaxdif = np.max(np.abs(dif))
     absmaxpct = np.max(np.abs(pct))
 
-    '''if 'colormap' in kwargs:
+    if 'colormap' in kwargs:
         cmap1 = kwargs['colormap']
     else:
         cmap1 = 'coolwarm'
@@ -210,7 +218,7 @@ def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
 
     if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
-        norm1, cmap1 = get_difference_colors(levels1)  # maybe these are better defaults if nothing else is known.
+        norm1, cmap1 = plot_utils.get_difference_colors(levels1)  # maybe these are better defaults if nothing else is known.
 
     if "diff_contour_levels" in kwargs:
         levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
@@ -219,7 +227,7 @@ def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
             levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
         # set levels for difference plot (with a symmetric color bar):
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        levelsdiff = np.linspace(-1*absmaxdif.data, absmaxdif.data, 12)
     #End if
     
     if "pct_diff_contour_levels" in kwargs:
@@ -250,7 +258,7 @@ def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
     #End if
 
     if max(np.abs(levelsdiff)) > 10*absmaxdif:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        levelsdiff = np.linspace(-1*absmaxdif.data, absmaxdif.data, 12)
     
     
     #End if
@@ -259,9 +267,9 @@ def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
     # Difference options -- Check in kwargs for colormap and levels
     if "diff_colormap" in kwargs:
         cmapdiff = kwargs["diff_colormap"]
-        dnorm, _ = get_difference_colors(levelsdiff)  # color map output ignored
+        dnorm, _ = plot_utils.get_difference_colors(levelsdiff)  # color map output ignored
     else:
-        dnorm, cmapdiff = get_difference_colors(levelsdiff)  
+        dnorm, cmapdiff = plot_utils.get_difference_colors(levelsdiff)  
         
     # Pct Difference options -- Check in kwargs for colormap and levels
     if "pct_diff_colormap" in kwargs:
@@ -270,64 +278,43 @@ def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
         cmappct = "PuOr_r"
     #End if
 
-    # -- end options'''
-
-    kwargs["adfobj"] = adfobj
-    cp_info = plot_utils.prep_contour_plot(d1, d2, dif, pct, **kwargs)
-
-    levelsdiff = cp_info['levelsdiff']
-    cmapdiff = cp_info['cmapdiff']
-    dnorm = cp_info['normdiff']
-
-    levelspctdiff = cp_info['levelspctdiff']
-    cmappct = cp_info['cmappct']
-    pctnorm = cp_info['pctnorm']
-
-    levels1 = cp_info['levels1']
-    cmap1 = cp_info['cmap1']
-    norm1 = cp_info['norm1']
-
-    lons, lats = np.meshgrid(lon_cyclic, d1.lat)
+    # -- end options
+    lons, lats = plot_utils.transform_coordinates_for_projection(proj, lon_cyclic, d1.lat) # Explicit coordinate transform
 
     fig = plt.figure(figsize=(10,10))
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
 
-    ax1 = plt.subplot(gs[0, :2], projection=proj, **cp_info['subplots_opt'])
-    ax2 = plt.subplot(gs[0, 2:], projection=proj, **cp_info['subplots_opt'])
-    ax3 = plt.subplot(gs[1, :2], projection=proj, **cp_info['subplots_opt'])
-    ax4 = plt.subplot(gs[1, 2:], projection=proj, **cp_info['subplots_opt'])
+    ax1 = plt.subplot(gs[0, :2], projection=proj)
+    ax2 = plt.subplot(gs[0, 2:], projection=proj)
+    ax3 = plt.subplot(gs[1, :2], projection=proj)
+    ax4 = plt.subplot(gs[1, 2:], projection=proj)
 
     levs = np.unique(np.array(levels1))
     levs_diff = np.unique(np.array(levelsdiff))
     levs_pctdiff = np.unique(np.array(levelspctdiff))
 
+    # BPM: removing `transform=ccrs.PlateCarree()` from contourf calls & transform_first=True
     if len(levs) < 2:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+        img1 = ax1.contourf(lons, lats, d1_cyclic, colors="w", norm=norm1)
         ax1.text(0.4, 0.4, empty_message, transform=ax1.transAxes, bbox=props)
 
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=norm1)
+        img2 = ax2.contourf(lons, lats, d2_cyclic, colors="w", norm=norm1)
         ax2.text(0.4, 0.4, empty_message, transform=ax2.transAxes, bbox=props)
     else:
-        img1 = ax1.contourf(lons, lats, d1_cyclic, transform=ccrs.PlateCarree(),
-                            cmap=cmap1, norm=norm1, levels=levels1, extend=cp_info["extend"]
-                            #**cp_info['contourf_opt']
-                            )
-        img2 = ax2.contourf(lons, lats, d2_cyclic, transform=ccrs.PlateCarree(),
-                            cmap=cmap1, norm=norm1, levels=levels1, extend=cp_info["extend"]
-                            #**cp_info['contourf_opt']
-                            )
+        img1 = ax1.contourf(lons, lats, d1_cyclic, cmap=cmap1, norm=norm1, levels=levels1)
+        img2 = ax2.contourf(lons, lats, d2_cyclic, cmap=cmap1, norm=norm1, levels=levels1)
 
     if len(levs_pctdiff) < 2:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=pctnorm, transform_first=True)
+        img3 = ax3.contourf(lons, lats, pct_cyclic, colors="w", norm=pctnorm)
         ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
     else:
-        img3 = ax3.contourf(lons, lats, pct_cyclic, transform=ccrs.PlateCarree(), cmap=cmappct, norm=pctnorm, levels=levelspctdiff, transform_first=True, extend=cp_info["extend"])
+        img3 = ax3.contourf(lons, lats, pct_cyclic, cmap=cmappct, norm=pctnorm, levels=levelspctdiff)
 
     if len(levs_diff) < 2:
-        img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), colors="w", norm=dnorm)
+        img4 = ax4.contourf(lons, lats, dif_cyclic, colors="w", norm=dnorm)
         ax4.text(0.4, 0.4, empty_message, transform=ax4.transAxes, bbox=props)
     else:
-        img4 = ax4.contourf(lons, lats, dif_cyclic, transform=ccrs.PlateCarree(), cmap=cmapdiff, norm=dnorm, levels=levelsdiff, extend=cp_info["extend_diff"])
+        img4 = ax4.contourf(lons, lats, dif_cyclic, cmap=cmapdiff, norm=dnorm, levels=levelsdiff)
         
     #Set Main title for subplots:
     st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
@@ -415,9 +402,10 @@ def make_polar_plot(adfobj, wks, case_nickname, base_nickname,
     # Close figures to avoid memory issues:
     plt.close(fig)
 
+
 #######
 
-def plot_map_vect_and_save(adfobj, wks, case_nickname, base_nickname,
+def plot_map_vect_and_save(wks, case_nickname, base_nickname,
                            case_climo_yrs, baseline_climo_yrs,
                            plev, umdlfld_nowrap, vmdlfld_nowrap,
                            uobsfld_nowrap, vobsfld_nowrap,
@@ -557,17 +545,11 @@ def plot_map_vect_and_save(adfobj, wks, case_nickname, base_nickname,
     # Generate vector plot:
     #  - contourf to show magnitude w/ colorbar
     #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
-    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree(),
-                        transform_first=True, #extend=cp_info["extend"]
-                        )
-    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip],
-               transform=ccrs.PlateCarree(), cmap='Reds')
+    img1 = ax1.contourf(lons, lats, mdl_mag, cmap='Greys', transform=ccrs.PlateCarree(), transform_first=True,)
+    ax1.quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
-    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree(),
-                        transform_first=True, #extend=cp_info["extend"]
-                        )
-    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip],
-               transform=ccrs.PlateCarree(), cmap='Reds')
+    img2 = ax2.contourf(lons, lats, obs_mag, cmap='Greys', transform=ccrs.PlateCarree(), transform_first=True)
+    ax2.quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip], transform=ccrs.PlateCarree(), cmap='Reds')
 
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
@@ -601,9 +583,9 @@ def plot_map_vect_and_save(adfobj, wks, case_nickname, base_nickname,
     #Set stats: area_avg
     ax[0].set_title(f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\nMax: {mdl_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
                        fontsize=tiFontSize)
-    ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
+    ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.max():5.2f}\nMin: {obs_mag.min():5.2f}", loc='right',
                        fontsize=tiFontSize)
-    ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}", loc='right',
+    ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {diff_mag.min():5.2f}", loc='right',
                        fontsize=tiFontSize)
 
     # set rmse title:
@@ -639,10 +621,7 @@ def plot_map_vect_and_save(adfobj, wks, case_nickname, base_nickname,
     fig.colorbar(img2, cax=cb_c2_ax)
 
     # Plot vector differences:
-    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), transform_first=True, norm=normdiff,
-                        cmap='PuOr', alpha=0.5,
-                        #extend=cp_info["extend_diff"]
-                        )
+    img3 = ax3.contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(), transform_first=True, norm=normdiff, cmap='PuOr', alpha=0.5)
     ax3.quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip], transform=ccrs.PlateCarree())
 
     # Add color bar to difference plot:
@@ -665,7 +644,7 @@ def plot_map_vect_and_save(adfobj, wks, case_nickname, base_nickname,
 
 #######
 
-def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
+def plot_map_and_save(wks, case_nickname, base_nickname,
                       case_climo_yrs, baseline_climo_yrs,
                       mdlfld, obsfld, diffld, pctld, obs=False, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
@@ -720,7 +699,6 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
         + This is experimental, and if you find yourself doing much with this, you probably should write a new plotting script that does not rely on this module.
     When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
     """
-    kwargs["adfobj"] = adfobj
 
     #nice formatting for tick labels
     from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
@@ -794,31 +772,21 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
             levels = cp_info['levelsdiff']
             cmap = cp_info['cmapdiff']
             norm = cp_info['normdiff']
-            extend = cp_info["extend_diff"]
         elif i == len(wrap_fields)-2:
             levels = cp_info['levelspctdiff']
             cmap = cp_info['cmappct']
             norm = cp_info['pctnorm']
-            extend = 'neither'
         else:
             levels = cp_info['levels1']
             cmap = cp_info['cmap1']
             norm = cp_info['norm1']
-            extend = cp_info["extend"]
 
         levs = np.unique(np.array(levels))
         if len(levs) < 2:
             img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
-            #print("******* GLOBAL LAT LON levels:",levels,"\n *******\n")
-            if mdlfld.name == "PRECT":
-                #print("cp_info['pct_colorbar_opt']",cp_info['pct_colorbar_opt'])
-                img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))#extend='max'
-            else:
-                img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True,
-                                          extend=extend,
-                                          **cp_info['contourf_opt']))
+            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
 
@@ -910,7 +878,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
     plt.close()
 
 
-
+#######
 
 def zonal_plot(lat, data, ax=None, color=None, **kwargs):
     """Make zonal plot
@@ -980,12 +948,11 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
         return ax
 
 
+#######
 
-
-
-def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
+def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, log_p, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, obs=False, **kwargs):
 
     """This is the default zonal mean plot
 
@@ -1022,7 +989,6 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                shrink: 0.4
           ```
     """
-    kwargs["adfobj"] = adfobj
 
     # style the plot:
     # We should think about how to do plot customization and defaults.
@@ -1045,8 +1011,8 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
     if has_lev:
 
         # calculate zonal average:
-        azm = utils.zonal_mean_xr(adata)
-        bzm = utils.zonal_mean_xr(bdata)
+        azm = plot_utils.zonal_mean_xr(adata)
+        bzm = plot_utils.zonal_mean_xr(bdata)
 
         # calculate difference:
         diff = azm - bzm
@@ -1059,7 +1025,6 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
 
         # generate dictionary of contour plot settings:
         cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
-        #print("zonal mean plot cmap:",cp_info['cmap1'])
 
         # Generate zonal plot:
         fig, ax = plt.subplots(figsize=(10,10),nrows=4, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -1074,12 +1039,8 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
             img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1])
             ax[1].text(0.4, 0.4, empty_message, transform=ax[1].transAxes, bbox=props)
         else:
-            img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=cp_info['norm1'],cmap=cp_info['cmap1'],
-                                     levels=cp_info['levels1'], extend=cp_info['extend'],
-                                     **cp_info['contourf_opt'])
-            img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=cp_info['norm1'],cmap=cp_info['cmap1'],
-                                     levels=cp_info['levels1'], extend=cp_info['extend'],
-                                     **cp_info['contourf_opt'])
+            img0, ax[0] = zonal_plot(adata['lat'], azm, ax=ax[0], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
+            img1, ax[1] = zonal_plot(bdata['lat'], bzm, ax=ax[1], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
             fig.colorbar(img0, ax=ax[0], location='right',**cp_info['colorbar_opt'])
             fig.colorbar(img1, ax=ax[1], location='right',**cp_info['colorbar_opt'])
         #End if
@@ -1088,19 +1049,14 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
             img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2])
             ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
         else:
-            img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],
-                                     levels=cp_info['levelsdiff'], extend=cp_info['extend_diff'],
-                                     **cp_info['contourf_opt'])
+            img2, ax[2] = zonal_plot(adata['lat'], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],levels=cp_info['levelsdiff'],**cp_info['contourf_opt'])
             fig.colorbar(img2, ax=ax[2], location='right',**cp_info['diff_colorbar_opt'])
             
         if len(levs_pct_diff) < 2:
             img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3])
             ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
         else:
-            img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],
-                                     levels=cp_info['levelspctdiff'],
-                                     #extend=cp_info['extend_pctdiff']
-                                     **cp_info['contourf_opt'])
+            img3, ax[3] = zonal_plot(adata['lat'], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
             fig.colorbar(img3, ax=ax[3], location='right',**cp_info['pct_colorbar_opt'])
 
         ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
@@ -1126,8 +1082,8 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         line2 = Line2D([0], [0], label=base_title,
                         color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
-        azm = utils.zonal_mean_xr(adata)
-        bzm = utils.zonal_mean_xr(bdata)
+        azm = plot_utils.zonal_mean_xr(adata)
+        bzm = plot_utils.zonal_mean_xr(bdata)
         diff = azm - bzm
         
         # calculate the percent change
@@ -1171,10 +1127,11 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
     plt.close()
 
 
+#######
 
-def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
+def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, latbounds=None, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, latbounds=None, obs=False, **kwargs):
 
     """Default meridional mean plot
 
@@ -1198,6 +1155,8 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         It must have the same dimensions and vertical levels as adata.
     has_lev : bool
         whether lev dimension is present
+    log_p : bool, optional
+        (Not implemented) use log(pressure) vertical axis
     latbounds : numbers.Number or slice, optional
         indicates latitude bounds to average over
         if it is a number, assume symmetric about equator,
@@ -1239,8 +1198,6 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                 shrink: 0.4
             ```
         """
-    kwargs["adfobj"] = adfobj
-
     # apply averaging:
     import numbers  # built-in; just checking on the latbounds input
     if latbounds is None:
@@ -1318,31 +1275,24 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
             img1, ax[1] = pltfunc(bdata[xdim], bdata, ax=ax[1])
             ax[1].text(0.4, 0.4, empty_message, transform=ax[1].transAxes, bbox=props)
         else:
-            img0, ax[0] = pltfunc(adata[xdim], adata, ax=ax[0], norm=cp_info['norm1'],cmap=cp_info['cmap1'],
-                                  levels=cp_info['levels1'], extend=cp_info['extend'],
-                                  **cp_info['contourf_opt'])
-            img1, ax[1] = pltfunc(bdata[xdim], bdata, ax=ax[1], norm=cp_info['norm1'],cmap=cp_info['cmap1'],
-                                  levels=cp_info['levels1'], extend=cp_info['extend'],
-                                  **cp_info['contourf_opt'])
-            cb0 = fig.colorbar(img0, ax=ax[0], location='right', **cp_info['colorbar_opt'])
-            cb1 = fig.colorbar(img1, ax=ax[1], location='right', **cp_info['colorbar_opt'])
+            img0, ax[0] = pltfunc(adata[xdim], adata, ax=ax[0], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
+            img1, ax[1] = pltfunc(bdata[xdim], bdata, ax=ax[1], norm=cp_info['norm1'],cmap=cp_info['cmap1'],levels=cp_info['levels1'],**cp_info['contourf_opt'])
+            cb0 = fig.colorbar(img0, ax=ax[0], location='right',**cp_info['colorbar_opt'])
+            cb1 = fig.colorbar(img1, ax=ax[1], location='right',**cp_info['colorbar_opt'])
         #End if
 
         if len(levs_diff) < 2:
             img2, ax[2] = pltfunc(adata[xdim], diff, ax=ax[2])
             ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
         else:
-            img2, ax[2] = pltfunc(adata[xdim], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],
-                                  levels=cp_info['levelsdiff'], extend=cp_info['extend_diff'],
-                                  **cp_info['contourf_opt'])
-            cb2 = fig.colorbar(img2, ax=ax[2], location='right', **cp_info['colorbar_opt'])
+            img2, ax[2] = pltfunc(adata[xdim], diff, ax=ax[2], norm=cp_info['normdiff'],cmap=cp_info['cmapdiff'],levels=cp_info['levelsdiff'],**cp_info['contourf_opt'])
+            cb2 = fig.colorbar(img2, ax=ax[2], location='right',**cp_info['colorbar_opt'])
             
         if len(levs_pctdiff) < 2:
             img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
             ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
         else:
-            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],
-                                  levels=cp_info['levelspctdiff'], **cp_info['contourf_opt'])
+            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3], norm=cp_info['pctnorm'],cmap=cp_info['cmappct'],levels=cp_info['levelspctdiff'],**cp_info['contourf_opt'])
             cb3 = fig.colorbar(img3, ax=ax[3], location='right',**cp_info['colorbar_opt'])
 
         #Set plot titles
@@ -1402,9 +1352,8 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
     #Close plots:
     plt.close()
 
-#
-#  -- zonal mean annual cycle --
-#
+
+#######
 
 def square_contour_difference(fld1, fld2, **kwargs):
     """Produce filled contours of fld1, fld2, and their difference with square axes.
