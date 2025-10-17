@@ -21,9 +21,6 @@ except ImportError:
     sys.exit(1)
 #End except
 
-#Import ADF-specific modules:
-import plotting_functions as pf
-
 def amwg_table(adf):
 
     """
