@@ -9,21 +9,21 @@ get_difference_colors(values)
     Provide a color norm and colormap assuming `values` is a difference field.
 get_central_longitude(*args)
     Determine central longitude for maps.
+meridional_plot_line(ax, lon, data, color, **kwargs)
+    Create line plot with longitude as the X-axis.
+zonal_plot_line(ax, lat, data, color, **kwargs)
+    Create line plot with latitude as the X-axis.
+zonal_plot_preslat(ax, lat, lev, data, **kwargs)
+    Create plot with latitude as the X-axis, and pressure as the Y-axis.
+meridional_plot_preslon(ax, lon, lev, data, **kwargs)
+    Create plot with longitude as the X-axis, and pressure as the Y-axis.
 
 Notes
 -----
-This module includes several "private" methods intended for internal use only.
+This module includes "private" methods intended for internal use only.
 
 _plot_line(axobject, xdata, ydata, color, **kwargs)
     Create a generic line plot
-meridional_plot_line
-
-zonal_plot_line
-
-zonal_plot_preslat
-
-meridional_plot_preslon
-
 """
 
 #import statements:
