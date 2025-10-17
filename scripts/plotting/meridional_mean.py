@@ -2,13 +2,10 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+
+import adf_utils as utils
 import warnings  # use to warn user about missing files.
-
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-
-warnings.formatwarning = my_formatwarning
+warnings.formatwarning = utils.my_formatwarning
 
 def meridional_mean(adfobj):
 
@@ -147,7 +144,7 @@ def meridional_mean(adfobj):
             else:
                 oclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{var}_baseline.nc"))
             #End if
-            oclim_ds = pf.load_dataset(oclim_fils)
+            oclim_ds = utils.load_dataset(oclim_fils)
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
@@ -165,7 +162,7 @@ def meridional_mean(adfobj):
 
                 # load re-gridded model files:
                 mclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
-                mclim_ds = pf.load_dataset(mclim_fils)
+                mclim_ds = utils.load_dataset(mclim_fils)
 
                 # stop if data is invalid:
                 if (oclim_ds is None) or (mclim_ds is None):
@@ -195,7 +192,7 @@ def meridional_mean(adfobj):
 
                 # determine whether it's 2D or 3D
                 # 3D triggers search for surface pressure
-                validate_lat_lev = pf.validate_dims(mdata, ['lat', 'lev']) # keys=> 'has_lat', 'has_lev', with T/F values
+                validate_lat_lev = utils.validate_dims(mdata, ['lat', 'lev']) # keys=> 'has_lat', 'has_lev', with T/F values
 
                 #Notify user of level dimension:
                 if validate_lat_lev['has_lev']:
@@ -229,8 +226,8 @@ def meridional_mean(adfobj):
                     elif (redo_plot) and plot_name.is_file():
                         plot_name.unlink()
 
-                    mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
-                    oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+                    mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
+                    oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
 
 
                     #Create new plot:

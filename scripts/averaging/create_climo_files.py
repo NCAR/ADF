@@ -1,15 +1,17 @@
 """
 Module to create (monthly) climatology files.
 """
+
+from adf_base import AdfError
+import adf_utils as utils
+
 import warnings  # use to warn user about missing files.
-import multiprocessing as mp
+warnings.formatwarning = utils.my_formatwarning
+
 import numpy as np
 import xarray as xr  # module-level import so all functions can get to it.
 
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-warnings.formatwarning = my_formatwarning
+import multiprocessing as mp
 
 def get_time_slice_by_year(time, startyear, endyear):
     """
@@ -86,7 +88,6 @@ def create_climo_files(adf, clobber=False, search=None):
 
     #Import necessary modules:
     from pathlib import Path
-    from adf_base import AdfError
 
     #Notify user that script has started:
     msg = "\n  Calculating CAM climatologies..."

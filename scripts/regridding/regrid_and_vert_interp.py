@@ -1,6 +1,7 @@
 """Driver for horizontal and vertical interpolation.
 """
 import xarray as xr
+import adf_utils as utils
 
 def regrid_and_vert_interp(adf):
 
@@ -28,8 +29,6 @@ def regrid_and_vert_interp(adf):
     """
 
     #Import necessary modules:
-    import numpy as np
-    import plotting_functions as pf
 
     from pathlib import Path
 
@@ -272,7 +271,7 @@ def regrid_and_vert_interp(adf):
                                 # apply ocean fraction mask to variable
                                 rgdata_interp['OCNFRAC'] = ofrac
                                 var_tmp = rgdata_interp[var]
-                                var_tmp = pf.mask_land_or_ocean(var_tmp,ofrac)
+                                var_tmp = utils.mask_land_or_ocean(var_tmp,ofrac)
                                 rgdata_interp[var] = var_tmp
                             else:
                                 print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
@@ -355,7 +354,7 @@ def regrid_and_vert_interp(adf):
                                     # mask the land in TS for global means
                                     tgdata_interp['OCNFRAC'] = ofrac
                                     ts_tmp = tgdata_interp[var]
-                                    ts_tmp = pf.mask_land_or_ocean(ts_tmp,ofrac)
+                                    ts_tmp = utils.mask_land_or_ocean(ts_tmp,ofrac)
                                     tgdata_interp[var] = ts_tmp
                                 else:
                                     wmsg = "\t    WARNING: OCNFRAC not found in target,"
@@ -621,11 +620,11 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
 
         if vert_coord_type == "hybrid":
             #Interpolate from hybrid sigma-pressure to the standard pressure levels:
-            rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
+            rgdata_interp = utils.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
                                            convert_to_mb=True)
         elif vert_coord_type == "height":
             #Interpolate variable using mid-level pressure (PMID):
-            rgdata_interp = pf.pmid_to_plev(rgdata, rg_pmid, convert_to_mb=True)
+            rgdata_interp = utils.pmid_to_plev(rgdata, rg_pmid, convert_to_mb=True)
         else:
             #The vertical coordinate type is un-recognized, so print warning and
             #skip vertical interpolation:
@@ -656,6 +655,7 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
     #Return dataset:
     return rgdata_interp
 
+#####
 
 def save_to_nc(tosave, outname, attrs=None, proc=None):
     """Saves xarray variable to new netCDF file
@@ -687,6 +687,7 @@ def save_to_nc(tosave, outname, attrs=None, proc=None):
         xo.attrs['Processing_info'] = f"Start from file {origname}. " + proc
     xo.to_netcdf(outname, format='NETCDF4', encoding=enc)
 
+#####
 
 def regrid_data(fromthis, tothis, method=1):
     """Regrid between lat-lon grids using various different methods
@@ -747,3 +748,6 @@ def regrid_data(fromthis, tothis, method=1):
         result = geocat.comp.linint2(fromthis, newlon, newlat, False)
         result.name = fromthis.name
         return result
+    #End if
+
+#####
