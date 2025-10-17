@@ -34,21 +34,6 @@ plot_meridional_mean_and_save
     meridioanl mean plot
 square_contour_difference
     Produce filled contours of fld1, fld2, and their difference with square axes.
-
-Notes
------
-This module includes several "private" methods intended for internal use only.
-
-_plot_line(axobject, xdata, ydata, color, **kwargs)
-    Create a generic line plot
-_meridional_plot_line
-
-_zonal_plot_line
-
-_zonal_plot_preslat
-
-_meridional_plot_preslon
-
 """
 
 #import statements:
