@@ -231,7 +231,7 @@ def meridional_mean(adfobj):
 
 
                     #Create new plot:
-                    pf.plot_meridional_mean_and_save(adfobj, plot_name, case_nickname, base_nickname,
+                    pf.plot_meridional_mean_and_save(plot_name, case_nickname, base_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],
                                                 [syear_baseline,eyear_baseline],
                                                 mseasons[s], oseasons[s], has_lev, latbounds=slice(-5,5), obs=obs, **vres)
