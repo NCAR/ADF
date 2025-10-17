@@ -18,10 +18,6 @@ plot_map_and_save(wks, case_nickname, base_nickname,
                       case_climo_yrs, baseline_climo_yrs,
                       mdlfld, obsfld, diffld, **kwargs):
     Map plots of `mdlfld`, `obsfld`, and their difference, `diffld`.
-
-zonal_mean_xr(fld)
-    Average over all dimensions except `lev` and `lat`.
-
 zonal_plot(lat, data, ax=None, color=None, **kwargs)
     Make a line plot or pressure-latitude plot of `data`.
 meridional_plot(lon, data, ax=None, color=None, **kwargs)
@@ -996,8 +992,8 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
     if has_lev:
 
         # calculate zonal average:
-        azm = plot_utils.zonal_mean_xr(adata)
-        bzm = plot_utils.zonal_mean_xr(bdata)
+        azm = utils.zonal_mean_xr(adata)
+        bzm = utils.zonal_mean_xr(bdata)
 
         # calculate difference:
         diff = azm - bzm
@@ -1067,8 +1063,8 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         line2 = Line2D([0], [0], label=base_title,
                         color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
-        azm = plot_utils.zonal_mean_xr(adata)
-        bzm = plot_utils.zonal_mean_xr(bdata)
+        azm = utils.zonal_mean_xr(adata)
+        bzm = utils.zonal_mean_xr(bdata)
         diff = azm - bzm
         
         # calculate the percent change
