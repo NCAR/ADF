@@ -313,7 +313,6 @@ def regional_climatology(adfobj):
                 elif unstruct_plotting == False:
                     base_var_mask = base_var_mask.copy()
                     base_var_mask.values[np.isfinite(base_var_mask.values)] = 1
-                    print(base_var_mask)
                     map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
                     map_ax.coastlines()
                     
