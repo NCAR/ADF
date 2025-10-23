@@ -522,6 +522,8 @@ class AdfDiag(AdfWeb):
 
                 # Intitialize list for NCO commands
                 list_of_commands = []
+                list_of_ncattend_commands = []
+                list_of_hist_commands = []
 
                 # Create copy of var list that can be modified for derivable variables
                 diag_var_list = self.diag_var_list
@@ -574,12 +576,12 @@ class AdfDiag(AdfWeb):
                     if has_lev and vert_coord_type:
                         # For now, only add these variables if using CAM:
                         if "cam" in hist_str:
-                            # PS may be in a different history file. If so, continue without error.
+                            # PS might be in a different history file. If so, continue w/o error.
                             ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
 
                             if "PS" in hist_file_var_list:
                                 ncrcat_var_list = ncrcat_var_list + ",PS"
-                                print("\t     Adding PS to file")
+                                print(f"\t    INFO: Adding PS to file for '{var}'")
                             else:
                                 wmsg = "WARNING: PS not found in history file."
                                 wmsg += " It might be needed at some point."
@@ -637,6 +639,12 @@ class AdfDiag(AdfWeb):
                     # -----------------------------------------------------
                     # generate time series files
                     list_of_commands.append(cmd)
+                    # Add global attributes: user, original hist file loc(s) and all filenames
+                    list_of_ncattend_commands.append(cmd_ncatted)
+                    # Remove the `history` attr that gets tacked on (for clean up)
+                    # NOTE: this may not be best practice, but it the history attr repeats
+                    #       the files attrs so the global attrs become obtrusive...
+                    list_of_hist_commands.append(cmd_remove_history)
                 # End variable loop
 
                 # Now run the "ncrcat" subprocesses in parallel:
@@ -1160,7 +1168,9 @@ class AdfDiag(AdfWeb):
         # Going to need a dict to translate.
         # Use cesm_freq_strings = freq_string_options.keys
         # and then freq = freq_string_option(freq_string_found)
-        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]
+        freq_string_cesm    = ["month", "day", "hour_6", "hour_3", "hour_1"]  #keys
+        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]           #values
+        freq_string_dict    = dict(zip(freq_string_cesm,freq_string_options)) #make dict
 
         hist_str_list = self.get_cam_info("hist_str")
         case_names = self.get_cam_info("cam_case_name", required=True)
@@ -1216,7 +1226,7 @@ class AdfDiag(AdfWeb):
                         continue
 
                     found_strings = [
-                        word for word in freq_string_options if word in dataset_freq
+                        word for word in freq_string_cesm if word in dataset_freq
                     ]
                     if len(found_strings) == 1:
                         if verbose > 2:
@@ -1231,7 +1241,7 @@ class AdfDiag(AdfWeb):
                     else:
                         if verbose > 0:
                             print(
-                                f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {dataset_freq}"
+                                f"WARNING: None of the frequency options {freq_string_cesm} are present in the time_period_freq attribute {dataset_freq}"
                             )
                             print(f"Skipping {adf_file}")
                             freq = "frequency_missing"
