@@ -12,6 +12,7 @@
             <nav role="navigation" class="primary-navigation">
             <ul>
               <li><a href="../index.html">Case Home</a></li>
+              <li><a href="../run_info.html">Case Setup Info</a></li>
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
@@ -42,13 +43,17 @@
     </div>
 
     <div style="width: 100%;">
-        <table class="big-table">
-          {% for case_name, html_file in amwg_tables.items() %}
-            <tr>
-              <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
-            </tr>
-          {% endfor %}
-        </table>
+      <table class="big-table">
+        {% for case_name, html_file in amwg_tables.items() %}
+          <tr>
+            <td><a id="amwg_table" href="{{ html_file }}">{{ case_name }}</a></td>
+          </tr>
+        {% endfor %}
+      </table><br>
+      
+      <!-- Main Table HTML -->
+        <h3>{{ disp_table_name }}</h3>
+        {{ disp_table_html }}
     </div>
 
   </body>

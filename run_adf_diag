@@ -145,6 +145,10 @@ if __name__ == "__main__":
     #Initalize CAM diagnostics object:
     diag = AdfDiag(config_yaml, debug=config_debug)
 
+    #Call the CVDP:
+    if diag.get_cvdp_info('cvdp_run'):
+       diag.setup_run_cvdp()
+
     #Create model time series.
     #Please note that this is an internal ADF function:
     diag.create_time_series()
@@ -153,13 +157,11 @@ if __name__ == "__main__":
     if not diag.compare_obs:
         diag.create_time_series(baseline=True)
 
-    #Call the CVDP:
-    if diag.get_cvdp_info('cvdp_run'):
-       diag.setup_run_cvdp()
-
     #Call the MDTF:
     if diag.get_mdtf_info('mdtf_run'):
-       diag.setup_run_mdtf()
+        mdtf_proc = diag.setup_run_mdtf()  #returns mdtf_proc for subprocess control
+    else:
+        mdtf_proc = None
 
     #Create model climatology (climo) files.
     #This call uses the "time_averaging_scripts" specified
@@ -193,6 +195,14 @@ if __name__ == "__main__":
     if diag.create_html:
         diag.create_website()
 
+    # Check if sub-processes are still running (CVDP, MDTF)
+    if mdtf_proc:
+        mdtf_status = mdtf_proc.wait(timeout=None)
+        if (mdtf_status != 0):
+            print(f"ERROR: MDTF finished with code {mdtf_status}")
+        else:
+            print("MDTF finished successfully")
+        
     #+++++++++++++++
     #End diag script
     #+++++++++++++++

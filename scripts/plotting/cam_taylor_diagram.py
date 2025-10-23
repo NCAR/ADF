@@ -20,21 +20,20 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.legend_handler import HandlerTuple
-from plotting_functions import pres_from_hybrid
+
+import adf_utils as utils
+
 import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-
-warnings.formatwarning = my_formatwarning
 #
 # --- Main Function Shares Name with Module: cam_taylor_diagram ---
 #
 def cam_taylor_diagram(adfobj):
 
     #Notify user that script has started:
-    print("\n  Generating Taylor Diagrams...")
+    msg = "\n  Generating Taylor Diagrams..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Taylor diagrams currently don't work for model to obs comparison
     # If compare_obs is set to True, then skip this script:
@@ -201,7 +200,7 @@ def cam_taylor_diagram(adfobj):
 
 def vertical_average(fld, ps, acoef, bcoef):
     """Calculate weighted vertical average using trapezoidal rule. Uses full column."""
-    pres = pres_from_hybrid(ps, acoef, bcoef)
+    pres = utils.pres_from_hybrid(ps, acoef, bcoef)
     # integral of del_pressure turns out to be just the average of the square of the boundaries:
     # -- assume lev is a coordinate and is nominally in pressure units
     maxlev = pres['lev'].max().item()

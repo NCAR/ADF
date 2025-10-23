@@ -3,13 +3,9 @@ import numpy as np
 import xarray as xr
 import plotting_functions as pf
 
+import adf_utils as utils
 import warnings  # use to warn user about missing files.
-
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-
-warnings.formatwarning = my_formatwarning
+warnings.formatwarning = utils.my_formatwarning
 
 def zonal_mean(adfobj):
 
@@ -42,7 +38,9 @@ def zonal_mean(adfobj):
           method to infer what the user wants. 
     """
 
-    print("\n  Generating zonal mean plots...")
+    #Notify user that script has started:
+    msg = "\n  Generating zonal mean plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     var_list = adfobj.diag_var_list
 
@@ -141,20 +139,20 @@ def zonal_mean(adfobj):
     #
     #Loop over variables:
     for var in var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - zonal mean plots for {var}")
+
         if var not in adfobj.data.ref_var_nam:
-            dmsg = f"No obs found for variable `{var}`, zonal mean plotting skipped."
+            dmsg = f"\t    WARNING: No reference data found for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             print(dmsg)
             continue
-
-        #Notify user of variable being plotted:
-        print(f"\t - zonal mean plots for {var}")
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
             #If found then notify user, assuming debug log is enabled:
-            adfobj.debug_log(f"zonal_mean: Found variable defaults for {var}")
+            adfobj.debug_log(f"\t    INFO: zonal_mean: Found variable defaults for {var}")
 
         else:
             vres = {}
@@ -171,12 +169,21 @@ def zonal_mean(adfobj):
 
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
-            dmsg = f"No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
+            dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             continue
 
         #Check zonal mean dimensions
-        has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
+        has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
+
+        # check if there is a lat dimension:
+        # if not, skip test cases and move to next variable
+        if not has_lat_ref:
+            print(
+                f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
+            )
+            continue
+        # End if
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
@@ -191,17 +198,35 @@ def zonal_mean(adfobj):
             mdata = adfobj.data.load_regrid_da(case_name, var)
 
             if mdata is None:
-                dmsg = f"No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
+                dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
                 adfobj.debug_log(dmsg)
                 continue
 
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
-            has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
+            # check data dimensions:
+            has_lat, has_lev = utils.zm_validate_dims(mdata)
 
+            # check if there is a lat dimension:
+            if not has_lat:
+                print(
+                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                )
+                continue
+            # End if
+
+            #Check if reference file has vertical levels
             #Notify user of level dimension:
             if has_lev:
-                print(f"\t   {var} has lev dimension.")
+                print(f"\t    INFO: {var} has lev dimension.")
+
+            #Check to make sure each case has vertical levels if one of the cases does
+            if (has_lev) and (not has_lev_ref):
+                print(f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
+                continue
+            if (has_lev_ref) and (not has_lev):
+                print(f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
+                continue
 
             #
             # Seasonal Averages
@@ -213,7 +238,7 @@ def zonal_mean(adfobj):
 
             #Loop over season dictionary:
             for s in seasons:
-                
+
                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                 # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                 # NOTE: Up to this point, nothing really differs from global_latlon_map,
@@ -222,14 +247,14 @@ def zonal_mean(adfobj):
                 #
 
                 # difference: each entry should be (lat, lon) or (plev, lat, lon)
-                # dseasons[s] = mseasons[s] - oseasons[s]
+                # dseasons[s] = mseasons[s]    oseasons[s]
                 # difference will be calculated in plot_zonal_mean_and_save;
                 # because we can let any pressure-level interpolation happen there
                 # This could be re-visited for efficiency or improved code structure.
 
                 #Seasonal Averages
-                mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
-                oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+                mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
+                oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
 
                 #Set the file name
                 plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
@@ -238,11 +263,6 @@ def zonal_mean(adfobj):
                 if has_lev:
                     #Set the file name for log-pressure plots
                     plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
-
-                    #Check if reference file has vertical levels
-                    if not has_lev_ref:
-                        print(f"Error: expecting lev for both case: {has_lev} and ref: {has_lev_ref}")
-                        continue
                 #End if
 
                 #Create plots

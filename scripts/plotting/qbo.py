@@ -1,18 +1,13 @@
 import xarray as xr
 import numpy as np
-import warnings # use to warn user about missing files
 from pathlib import Path
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap ## used to create custom colormaps
 import matplotlib.colors as mcolors
 import matplotlib as mpl
-import plotting_functions as pf
 
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-
-warnings.formatwarning = my_formatwarning
+import adf_utils as utils
+import warnings # use to warn user about missing files
+warnings.formatwarning = utils.my_formatwarning
 
 def qbo(adfobj):
     """
@@ -30,7 +25,8 @@ def qbo(adfobj):
 
     """
     #Notify user that script has started:
-    print("\n  Generating qbo plots...")
+    msg = "\n  Generating qbo plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Extract relevant info from the ADF:
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
@@ -99,13 +95,13 @@ def qbo(adfobj):
 
     #----Read in the case data and baseline
     ncases = len(case_loc)
-    casedat = [pf.load_dataset(sorted(Path(case_loc[i]).glob(f"{case_names[i]}.*.U.*.nc"))) for i in range(0,ncases,1)]
+    casedat = [utils.load_dataset(sorted(Path(case_loc[i]).glob(f"{case_names[i]}.*.U.*.nc"))) for i in range(0,ncases,1)]
 
     #Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []
     for idx, dat in enumerate(casedat):
         if 'U' not in dat.variables:
-            warnings.warn(f"QBO: case {case_names[idx]} contains no 'U' field, skipping...")
+            warnings.warn(f"\t    WARNING: Case {case_names[idx]} contains no 'U' field, skipping...")
             bad_idxs.append(idx)
         #End if
     #End for
@@ -118,7 +114,23 @@ def qbo(adfobj):
     #End if
 
     #----Calculate the zonal mean
-    casedatzm = [ casedat[i].U.mean("lon") for i in range(0,ncases,1) ]
+    casedatzm = []
+    for i in range(0,ncases,1):
+        has_dims = utils.validate_dims(casedat[i].U, ['lon'])
+        if not has_dims['has_lon']:
+            print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_loc[i]}', cannot continue to plot.")
+        else:
+            casedatzm.append(casedat[i].U.mean("lon"))
+    if len(casedatzm) == 0:
+        print(f"\t  WARNING: No available cases found, exiting script.")
+        exitmsg = "\tNo QBO plots will be made."
+        print(exitmsg)
+        return
+    if len(casedatzm) != ncases:
+        print(f"\t  WARNING: Number of available cases does not match number of cases. Will exit script for now.")
+        exitmsg = "\tNo QBO plots will be made."
+        print(exitmsg)
+        return
 
     #----Calculate the 5S-5N average
     casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]

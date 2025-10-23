@@ -12,6 +12,7 @@
             <nav role="navigation" class="primary-navigation">
             <ul>
               <li><a href="../index.html">Case Home</a></li>
+              <li><a href="../run_info.html">Case Setup Info</a></li>
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
@@ -48,13 +49,13 @@
           <h3 class="block">{{ category }}</h3>
             <div class="grid-container" style="column-gap: 5px; row-gap: 5px; padding:2px">
               {% for var_name, ptype_seas in var_seas.items() %}
-                {% if non_seasons[category][var_name] == False %}
-                  {% for season in ptype_seas.keys() %}
-                    {% if season=="ANN"%}
-                      <div class="grid-item-diag">
-                        <a href="../html_img/plot_page_{{ var_name }}_ANN_{{ plottype_title }}_Mean.html"> {{var_name}} </a><br>
-                      </div><!--grid-item2-->
-                    {% endif %}
+                {% if non_seasons[category][var_name] == False %}<!-- Check if these have traditional seasons, ANN, DJF, etc. -->
+                  {% for i,season in enumerate(ptype_seas.keys()) %}
+                      {% if i==0 %}<!-- Grab first available season to make as default -->
+                        <div class="grid-item-diag">
+                          <a href="../html_img/plot_page_{{ var_name }}_{{ season }}_{{ plottype_title }}_Mean.html"> {{var_name}} </a><br>
+                        </div><!--grid-item2-->
+                      {% endif %}
                   {% endfor %}<!-- ptype_seas.keys() -->
 
                 {% else %}

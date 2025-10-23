@@ -5,11 +5,8 @@ import matplotlib.colors as mcolors
 import matplotlib as mpl
 import xarray as xr
 import pandas as pd
-
-from dateutil.relativedelta import relativedelta
-import glob
 from pathlib import Path
-import plotting_functions as pf
+import adf_utils as utils
 
 def tape_recorder(adfobj):
     """
@@ -30,7 +27,8 @@ def tape_recorder(adfobj):
         since a defualt set of obs are already being compared against in the tape recorder.
     """
     #Notify user that script has started:
-    print("\n  Generating tape recorder plots...")
+    msg = "\n  Generating tape recorder plots..."
+    print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     #Special ADF variable which contains the output paths for plots:
     plot_location = adfobj.plot_location
@@ -164,7 +162,7 @@ def tape_recorder(adfobj):
 
     plot_step = 0.5e-7
     plot_min = 1.5e-6
-    plot_max = 3e-6
+    plot_max = 3.5e-6
 
     ax = plot_pre_mon(fig, mls, plot_step,plot_min,plot_max,'MLS',
                       x1[0],x2[0],y1[0],y2[0],cmap=cmap, paxis='lev',
@@ -193,19 +191,24 @@ def tape_recorder(adfobj):
 
         #Grab time slice based on requested years (if applicable)
         dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
-        datzm = dat.mean('lon')
-        dat_tropics = cosweightlat(datzm[var], -10, 10)
-        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
-        ax = plot_pre_mon(fig, dat_mon,
-                          plot_step, plot_min, plot_max, key,
-                          x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
-                          taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
-        count=count+1
-        runname_LT.append(key)
+
+        has_dims = utils.validate_dims(dat[var], ['lon'])
+        if not has_dims['has_lon']:
+            print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
+        else:
+            datzm = dat.mean('lon')
+            dat_tropics = cosweightlat(datzm[var], -10, 10)
+            dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+            ax = plot_pre_mon(fig, dat_mon,
+                            plot_step, plot_min, plot_max, key,
+                            x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
+                            taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
+            count=count+1
+            runname_LT.append(key)
 
     #Check to see if any cases were successful
     if not runname_LT:
-        msg = f"WARNING: No cases seem to be available, please check time series files for {var}."
+        msg = f"\t  WARNING: No cases seem to be available, please check time series files for {var}."
         msg += "\n\tNo tape recorder plots will be made."
         print(msg)
         #End tape recorder plotting script:
@@ -533,7 +536,7 @@ def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, 
     ax.set_xticklabels([])
     ax.set_xticks(monticks2[1:13], minor=True)
     ax.set_xticklabels(['J','F','M','A','M','J','J','A','S','O','N','D'], minor=True, fontsize=14)
-    ax.set_title(expname, fontsize=16)
+    ax.set_title(expname, fontsize=8)
 
     return ax
 

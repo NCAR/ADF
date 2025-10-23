@@ -12,6 +12,7 @@
             <nav role="navigation" class="primary-navigation">
             <ul>
               <li><a href="../index.html">Case Home</a></li>
+              <li><a href="../run_info.html">Case Setup Info</a></li>
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
@@ -56,9 +57,9 @@
               {% if non_seasons[category][var_name] == False %}
                 {% for season in seasons %}
                   {% if season in ptype_seas.keys() %}
-                      <div class="grid-item">
-                        <a href="../html_img/{{ ptype_seas[season] }}">{{ season }}</a>
-                      </div><!--grid-item-->
+                    <div class="grid-item">
+                      <a href="../html_img/{{ ptype_seas[season] }}">{{ season }}</a>
+                    </div><!--grid-item-->
                   {% else %}
                     <div class="grid-item-blocked">
                       <a-blocked>{{ season }}</a-blocked>
@@ -70,7 +71,7 @@
                   <div class="grid-item">
                     <a href="../html_img/{{ ptype_seas[season] }}">{{ season }}</a>
                   </div><!--grid-item-->
-                  {% endfor %}<!-- ptype_seas.keys() -->
+                {% endfor %}<!-- ptype_seas.keys() -->
               {% endif %}<!-- non_season -->
             {% endif %}<!-- var_name == var_title -->
           {% endfor %}<!-- var_seas.items() -->
