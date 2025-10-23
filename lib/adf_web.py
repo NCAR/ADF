@@ -22,12 +22,13 @@ file or pandas dataframe to the website.
 
 import os
 import os.path
-
 from pathlib import Path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
 #+++++++++++++++++++++++++++++++++++++++++++++++++
+
+import markdown
 
 #ADF modules:
 from adf_obs import AdfObs
@@ -117,7 +118,6 @@ class AdfWeb(AdfObs):
 
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
-
         #Also extract baseline case (if applicable), and append to case_names list:
         if not self.compare_obs:
             baseline_name = self.get_baseline_info('cam_case_name', required=True)
@@ -157,7 +157,7 @@ class AdfWeb(AdfObs):
                 mdtf_path += f"_{syear[0]}_{eyear[0]}"
                 self.external_package_links['MDTF'] = mdtf_path
             #End if
-            
+
             #Add all relevant paths to dictionary for specific case:
             self.__case_web_paths[case_name] = {'website_dir': website_dir,
                                                 'img_pages_dir': img_pages_dir,
@@ -182,6 +182,27 @@ class AdfWeb(AdfObs):
                                                    'table_pages_dir': table_pages_dir,
                                                    'css_files_dir': css_files_dir}
         #End if
+        
+        # Gather ADF run env info
+        active_env = self.get_active_conda_environment()
+        if not active_env:
+            active_env = "--"
+
+        run_info = ''
+        if self.debug_log:
+            log_name = self.debug_fname
+            run_info = f"{log_name}".replace("debug","run_info").replace(".log",".md")
+            self.run_info = run_info
+            self._write_run_info_to_log(config_file, active_env)
+        #Do nothing if user is not requesting a website to be generated:
+        if self.create_html and self.debug_log:
+            plot_path = Path(self.plot_location[0])
+
+            #Create directory path where the website will be built:
+            website_dir = plot_path / "website"
+            Path(website_dir).mkdir(parents=True, exist_ok=True)
+            run_info = f"{website_dir}/{run_info}"
+            self._write_run_info_to_web(run_info, config_file, active_env)
 
     #########
 
@@ -192,6 +213,91 @@ class AdfWeb(AdfObs):
         return self.get_basic_info('create_html')
 
     #########
+    def _write_run_info_to_web(self, run_info, config_file, active_env):
+        """
+        If user requests webpage, then add run info to webpages table of contents
+        """
+        four_space = "&nbsp;&nbsp;&nbsp;&nbsp;"
+        two_space = "&nbsp;&nbsp;"
+        font_22 = "style='font-size:22px;'"
+        font_18 = "style='font-size:18px;'"
+        font_16 = "style='font-size:16px;'"
+
+        with open(run_info, "w") as f:
+
+            # Gather config yaml file info
+            f.write("<p style=color:black>")
+            f.write(f"<strong><a {font_22}>Config file used</a></strong></u><br>")
+            f.write(f"{two_space}<a {font_16}>{config_file}</a><br><br>")
+
+            f.write(f"&nbsp;<u><a {font_18}>Config file options</a></u><br>")
+            for key,val in self.config_dict().items():
+                if isinstance(val,dict):
+                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
+                    for key2,val2 in val.items():
+                        f.write(f"{four_space}<a {font_16}><strong>{key2}:</strong> {val2}</a><br>")
+                elif isinstance(val,list):
+                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
+                    for val2 in val:
+                        f.write(f"{four_space}<a {font_16}>{val2}</a><br>")
+                else:
+                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a><br>")
+
+            # Gather Conda environment
+            f.write("\n")
+            f.write(f"<br><strong><a {font_22}>Conda env used</a></strong><br>")
+            f.write(f"<a {font_16}>{two_space}{active_env}</a>")
+
+            # Gather Git info
+            git_info = self.get_git_info()
+            f.write("\n")
+            f.write(f"<br><br><strong><a {font_22}>Git Info</a></strong><br>")
+            for key,val in git_info.items():
+                f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a></><br>")
+            f.write("</p>")
+
+    def _write_run_info_to_log(self, config_file, active_env):
+
+        log_msg = "adf_info: ADF run info:"
+
+        # Gather config yaml file info
+        config_file_msg = "\nConfig file used:"
+        msg = f"{config_file_msg}\n{'-' * (len(config_file_msg))}\n  {config_file}\n"
+        log_msg += msg
+
+
+        config_msg = "\n  Config file options:"
+        msg = f"{config_msg}\n  {'- ' * (int(len(config_msg)/2)-1)}"
+        log_msg += msg
+
+        for key,val in self.config_dict().items():
+            if isinstance(val,dict):
+                log_msg += f"\n  {key}:"
+                for key2,val2 in val.items():
+                    log_msg += f"\n    {key2}: {val2}"
+            elif isinstance(val,list):
+                log_msg += f"\n  {key}:"
+                for val2 in val:
+                    log_msg += f"\n    {val2}"
+            else:
+                log_msg += f"\n  {key}: {val}"
+
+        # Gather Conda environment
+        conda_msg = "\nConda env used:"
+        msg = f"{conda_msg}\n{'-' * (len(conda_msg)-1)}\n"
+        log_msg += f"\n  {msg}"
+        log_msg += f"  {active_env}"
+
+        # Gather Git info
+        git_info = self.get_git_info()
+        git_msg = "\nGit Info:"
+        msg = f"{git_msg}\n{'-' * (len(git_msg)-1)}\n"
+        log_msg += f"\n  {msg}"
+
+        for key,val in git_info.items():
+            log_msg += f"  {key}: {val}\n"
+
+        self.debug_log(log_msg)
 
     def add_website_data(self, web_data, web_name, case_name,
                          category = None,
@@ -347,20 +453,24 @@ class AdfWeb(AdfObs):
             self.end_diag_fail(emsg)
         #End except
 
-        #Make a jinja function that mimics python list object. This will allow for
-        # the use of 'list' in the html rendering.
+        #Make jinja functions that mimics python functions.
+        #  - This will allow for the use of 'list' in the html rendering.
         def jinja_list(seas_list):
             return list(seas_list)
+        #   - This will allow for the use of 'enumerate' in the html rendering.
+        def jinja_enumerate(arg):
+            return enumerate(arg)
 
         #Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
+
+        case_sites = OrderedDict()
 
         #If there is more than one non-baseline case, then create new website directory:
         if self.num_cases > 1:
             main_site_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
             main_site_path = main_site_path / "main_website"
             main_site_path.mkdir(exist_ok=True)
-            case_sites = OrderedDict()
         else:
             main_site_path = "" #Set main_site_path to blank value
         #End if
@@ -604,6 +714,15 @@ class AdfWeb(AdfObs):
                                   "table_html": table_html,
                                   "multi_head": False}
                 rend_kwarg_dict["plot_types"] = multi_plot_type_html
+
+                if web_data.name == case1:
+                    rend_kwarg_dict["disp_table_name"] = case1
+                    rend_kwarg_dict["disp_table_html"] = table_html
+
+                if web_data.name == "Case Comparison":
+                    rend_kwarg_dict["disp_table_name"] = "Case Comparison"
+                    rend_kwarg_dict["disp_table_html"] = table_html
+
                 table_tmpl = jinenv.get_template('template_table.html')
                 table_rndr = table_tmpl.render(rend_kwarg_dict)
 
@@ -614,18 +733,16 @@ class AdfWeb(AdfObs):
 
                 #Check if the mean plot type page exists for this case (or for multi-case):
                 mean_table_file = table_pages_dir / "mean_tables.html"
-                if not mean_table_file.exists():
-                    #Construct mean_table.html
-                    mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
-                    #Reuse the rend_kwarg_dict, but ignore certain keys
-                    #since all others are the same
-                    new_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'table_name', 'table_html'}}
-                    mean_table_rndr = mean_table_tmpl.render(new_dict)
-                    #Write mean diagnostic tables HTML file:
-                    with open(mean_table_file, 'w', encoding='utf-8') as ofil:
-                        ofil.write(mean_table_rndr)
-                    #End with
-                #End if
+
+                #Construct mean_table.html
+                mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
+                #Reuse the rend_kwarg_dict
+                mean_table_rndr = mean_table_tmpl.render(rend_kwarg_dict)
+                #Write mean diagnostic tables HTML file:
+                with open(mean_table_file, 'w', encoding='utf-8') as ofil:
+                    ofil.write(mean_table_rndr)
+                #End with
+
             #End if (tables)
 
             else: #Plot image
@@ -645,18 +762,19 @@ class AdfWeb(AdfObs):
                 #End if
 
                 rend_kwarg_dict = {"title": main_title,
-                                       "var_title": web_data.name,
-                                       "season_title": web_data.season,
-                                       "case_name": web_data.case,
-                                       "case_yrs": case_yrs,
-                                       "base_name": data_name,
-                                       "baseline_yrs": baseline_yrs,
-                                       "plottype_title": web_data.plot_type,
-                                       "imgs": img_data,
-                                       "mydata": mean_html_info[web_data.plot_type],
-                                       "plot_types": plot_types,
-                                       "seasons": seasons,
-                                       "non_seasons": non_seasons[web_data.plot_type]}
+                                   "var_title": web_data.name,
+                                   "season_title": web_data.season,
+                                   "case_name": web_data.case,
+                                   "case_yrs": case_yrs,
+                                   "base_name": data_name,
+                                   "baseline_yrs": baseline_yrs,
+                                   "plottype_title": web_data.plot_type,
+                                   "imgs": img_data,
+                                   "mydata": mean_html_info[web_data.plot_type],
+                                   "plot_types": plot_types,
+                                   "seasons": seasons,
+                                   "non_seasons": non_seasons[web_data.plot_type]}
+
                 tmpl = jinenv.get_template('template.html')  #Set template
                 rndr = tmpl.render(rend_kwarg_dict) #The template rendered
 
@@ -671,10 +789,9 @@ class AdfWeb(AdfObs):
                 #Construct individual plot type mean_diag html files
                 mean_tmpl = jinenv.get_template('template_mean_diag.html')
 
-                #Remove keys from main dictionary for this html page
-                templ_rend_kwarg_dict = {k: rend_kwarg_dict[k] for k in rend_kwarg_dict.keys() - {'imgs', 'var_title', 'season_title'}}
-                templ_rend_kwarg_dict["list"] = jinja_list
-                mean_rndr = mean_tmpl.render(templ_rend_kwarg_dict)
+                rend_kwarg_dict["enumerate"] = jinja_enumerate
+                rend_kwarg_dict["list"] = jinja_list
+                mean_rndr = mean_tmpl.render(rend_kwarg_dict)
 
                 #Write mean diagnostic plots HTML file:
                 with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
@@ -686,6 +803,30 @@ class AdfWeb(AdfObs):
             index_html_file = \
                 self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
 
+            # Create run info web page
+            run_info_md_file = \
+                self.__case_web_paths[web_data.case]['website_dir'] / self.run_info
+
+            # Read the markdown file
+            with open(run_info_md_file, "r", encoding="utf-8") as mdfile:
+                md_text = mdfile.read()
+
+            # Convert markdown to HTML
+            run_info_html = markdown.markdown(md_text)
+            index_title = "CAM Diagnostics"
+            run_info_html_file = self.__case_web_paths[web_data.case]['website_dir'] / "run_info.html"
+            run_info_tmpl = jinenv.get_template('template_run_info.html')
+            run_info_rndr = run_info_tmpl.render(title=index_title,
+                                            case_name=web_data.case,
+                                            base_name=data_name,
+                                            case_yrs=case_yrs,
+                                            baseline_yrs=baseline_yrs,
+                                            plot_types=plot_types,
+                                            run_info=run_info_html)
+
+            with open(run_info_html_file, "w", encoding="utf-8") as htmlfile:
+                htmlfile.write(run_info_rndr)
+
             #Re-et plot types list:
             if web_data.case == 'multi-case':
                 plot_types = multi_plot_type_html
@@ -696,7 +837,7 @@ class AdfWeb(AdfObs):
 
             #List of ADF default plot types
             avail_plot_types = res["default_ptypes"]
-            
+
             #Check if current plot type is in ADF default.
             #If not, add it so the index.html file can include it
             for ptype in plot_types.keys():
@@ -706,9 +847,9 @@ class AdfWeb(AdfObs):
 
             # External packages that can be run through ADF
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
-            
+
             #Construct index.html
-            index_title = "AMP Diagnostics Prototype"
+            index_title = "CAM Diagnostics"
             index_tmpl = jinenv.get_template('template_index.html')
             index_rndr = index_tmpl.render(title=index_title,
                                             case_name=web_data.case,
@@ -718,7 +859,8 @@ class AdfWeb(AdfObs):
                                             plot_types=plot_types,
                                             avail_plot_types=avail_plot_types,
                                             avail_external_packages=avail_external_packages,
-                                            external_package_links=self.external_package_links)
+                                            external_package_links=self.external_package_links,
+                                            run_info=run_info_html)
 
             #Write Mean diagnostics index HTML file:
             with open(index_html_file, 'w', encoding='utf-8') as ofil:

@@ -357,7 +357,7 @@ class AdfDiag(AdfWeb):
             case_names = self.get_cam_info("cam_case_name", required=True)
             cam_ts_done = self.get_cam_info("cam_ts_done")
             cam_hist_locs = self.get_cam_info("cam_hist_loc")
-            ts_dir = self.get_cam_info("cam_ts_loc", required=True)
+            ts_dirs = self.get_cam_info("cam_ts_loc", required=True)
             overwrite_ts = self.get_cam_info("cam_overwrite_ts")
             start_years = self.climo_yrs["syears"]
             end_years = self.climo_yrs["eyears"]
@@ -380,8 +380,8 @@ class AdfDiag(AdfWeb):
 
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
-                emsg = "\tConfiguration file indicates time series files have been pre-computed."
-                emsg += f" Will rely on those files directly."
+                emsg = "\tNOTE: Configuration file indicates time series files have been pre-computed"
+                emsg += f" for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 continue
             # End if
@@ -400,6 +400,9 @@ class AdfDiag(AdfWeb):
                 self.end_diag_fail(emsg)
             # End if
 
+            # Extract time series file location
+            ts_dir = ts_dirs[case_idx]
+
             # Check if history files actually exist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
@@ -412,6 +415,9 @@ class AdfDiag(AdfWeb):
                     emsg += " Script is ending here."
                     self.end_diag_fail(emsg)
                 # End if
+
+                # Notify user that script has started:
+                print(f"\n\t Writing time series files to:\n\t{ts_dir}")
 
                 # Create empty list:
                 files_list = []
@@ -495,7 +501,7 @@ class AdfDiag(AdfWeb):
 
                 # Check if time series directory exists, and if not, then create it:
                 # Use pathlib to create parent directories, if necessary.
-                Path(ts_dir[case_idx]).mkdir(parents=True, exist_ok=True)
+                Path(ts_dir).mkdir(parents=True, exist_ok=True)
 
                 # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
                 first_file_split = str(hist_files[0]).split(".")
@@ -512,6 +518,8 @@ class AdfDiag(AdfWeb):
 
                 # Intitialize list for NCO commands
                 list_of_commands = []
+                list_of_ncattend_commands = []
+                list_of_hist_commands = []
 
                 # Create copy of var list that can be modified for derivable variables
                 diag_var_list = self.diag_var_list
@@ -573,12 +581,12 @@ class AdfDiag(AdfWeb):
                     if has_lev and vert_coord_type:
                         # For now, only add these variables if using CAM:
                         if "cam" in hist_str:
-                            # PS may be in a different history file. If so, continue without error.
+                            # PS might be in a different history file. If so, continue w/o error.
                             ncrcat_var_list = ncrcat_var_list + ",hyam,hybm,hyai,hybi"
 
                             if "PS" in hist_file_var_list:
                                 ncrcat_var_list = ncrcat_var_list + ",PS"
-                                print("\t     Adding PS to file")
+                                print(f"\t    INFO: Adding PS to file for '{var}'")
                             else:
                                 wmsg = "WARNING: PS not found in history file."
                                 wmsg += " It might be needed at some point."
@@ -610,8 +618,38 @@ class AdfDiag(AdfWeb):
                         + ["-o", ts_outfil_str]
                     )
 
+                    # Example ncatted command (you can modify it with the specific attribute changes you need)
+                    #cmd_ncatted = ["ncatted", "-O", "-a", f"adf_user,global,a,c,{self.user}", ts_outfil_str]
+                    # Step 1: Convert Path objects to strings and concatenate the list of historical files into a single string
+                    hist_files_str = ', '.join(str(f.name) for f in hist_files)
+                    hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
+
+                    # Step 2: Create the ncatted command to add both global attributes
+                    cmd_ncatted = [
+                        "ncatted", "-O",
+                        "-a", "adf_user,global,a,c," + f"{self.user}",
+                        "-a", "hist_file_locs,global,a,c," + f"{hist_locs_str}",
+                        "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
+                        ts_outfil_str
+                    ]
+
+                    # Step 3: Create the ncatted command to remove the history attribute
+                    cmd_remove_history = [
+                        "ncatted", "-O", "-h",
+                        "-a", "history,global,d,,",
+                        ts_outfil_str
+                    ]
+
                     # Add to command list for use in multi-processing pool:
+                    # -----------------------------------------------------
+                    # generate time series files
                     list_of_commands.append(cmd)
+                    # Add global attributes: user, original hist file loc(s) and all filenames
+                    list_of_ncattend_commands.append(cmd_ncatted)
+                    # Remove the `history` attr that gets tacked on (for clean up)
+                    # NOTE: this may not be best practice, but it the history attr repeats
+                    #       the files attrs so the global attrs become obtrusive...
+                    list_of_hist_commands.append(cmd_remove_history)
                 # End variable loop
 
                 # Now run the "ncrcat" subprocesses in parallel:
@@ -865,9 +903,11 @@ class AdfDiag(AdfWeb):
         else:
             cvdp_dir = self.get_cvdp_info("cvdp_loc", required=True) + case_names[0]
         # end if
+
+        cvdp_dir = os.path.abspath(cvdp_dir)
         if not os.path.isdir(cvdp_dir):
             shutil.copytree(
-                self.get_cvdp_info("cvdp_codebase_loc", required=True), cvdp_dir
+                self.get_cvdp_info("cvdp_codebase_loc"), cvdp_dir
             )
         # End if
 
@@ -1009,6 +1049,7 @@ class AdfDiag(AdfWeb):
         """
         Create MDTF directory tree, generate input settings jsonc file
         Submit MDTF diagnostics.
+        Returns mdtf_proc for sub-process control (waits for it to finish in run_adf_diag)
 
         """
 
@@ -1085,19 +1126,21 @@ class AdfDiag(AdfWeb):
         if copy_files_only:
             print("\t ...Copy files only. NOT Running MDTF")
             print(f"\t    Command: {mdtf_exe} Log: {mdtf_log}")
+            return 0
         else:
             print(
                 f"\t ...Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}"
             )
             print(f"Running MDTF in background. Command: {mdtf_exe} Log: {mdtf_log}")
             with open(mdtf_log, "w", encoding="utf-8") as subout:
-                _ = subprocess.Popen(
+                mdtf_proc_var = subprocess.Popen(
                     [mdtf_exe],
                     shell=True,
                     stdout=subout,
                     stderr=subout,
                     close_fds=True,
                 )
+            return mdtf_proc_var
 
     def move_tsfiles_for_mdtf(self, verbose):
         """
@@ -1115,7 +1158,9 @@ class AdfDiag(AdfWeb):
         # Going to need a dict to translate.
         # Use cesm_freq_strings = freq_string_options.keys
         # and then freq = freq_string_option(freq_string_found)
-        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]
+        freq_string_cesm    = ["month", "day", "hour_6", "hour_3", "hour_1"]  #keys
+        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]           #values
+        freq_string_dict    = dict(zip(freq_string_cesm,freq_string_options)) #make dict
 
         hist_str_list = self.get_cam_info("hist_str")
         case_names = self.get_cam_info("cam_case_name", required=True)
@@ -1171,7 +1216,7 @@ class AdfDiag(AdfWeb):
                         continue
 
                     found_strings = [
-                        word for word in freq_string_options if word in dataset_freq
+                        word for word in freq_string_cesm if word in dataset_freq
                     ]
                     if len(found_strings) == 1:
                         if verbose > 2:
@@ -1186,12 +1231,13 @@ class AdfDiag(AdfWeb):
                     else:
                         if verbose > 0:
                             print(
-                                f"WARNING: None of the frequency options {freq_string_options} are present in the time_period_freq attribute {dataset_freq}"
+                                f"WARNING: None of the frequency options {freq_string_cesm} are present in the time_period_freq attribute {dataset_freq}"
                             )
                             print(f"Skipping {adf_file}")
                             freq = "frequency_missing"
                         continue
-                    freq = found_strings[0]
+                    freq = freq_string_dict.get(found_strings[0])
+                    print(f"Translated {found_strings[0]} to {freq}")
 
                     #
                     # Destination file is MDTF directory and name structure
