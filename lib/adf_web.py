@@ -803,12 +803,10 @@ class AdfWeb(AdfObs):
             #Also check if index page exists for this case:
             index_html_file = \
                 self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
-            print("index_html_file",index_html_file)
 
             # Create run info web page
             run_info_md_file = \
                 self.__case_web_paths[web_data.case]['website_dir'] / self.run_info
-            print("run_info_md_file",run_info_md_file)
 
             # Read the markdown file
             with open(run_info_md_file, "r", encoding="utf-8") as mdfile:
@@ -816,7 +814,7 @@ class AdfWeb(AdfObs):
 
             # Convert markdown to HTML
             run_info_html = markdown.markdown(md_text)
-            index_title = "AMP Diagnostics Prototype"
+            index_title = "CAM Diagnostics"
             run_info_html_file = self.__case_web_paths[web_data.case]['website_dir'] / "run_info.html"
             run_info_tmpl = jinenv.get_template('template_run_info.html')
             run_info_rndr = run_info_tmpl.render(title=index_title,
