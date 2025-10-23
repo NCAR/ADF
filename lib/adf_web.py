@@ -717,7 +717,7 @@ class AdfWeb(AdfObs):
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
             
             #Construct index.html
-            index_title = "AMP Diagnostics Prototype"
+            index_title = "CAM Diagnostics"
             index_tmpl = jinenv.get_template('template_index.html')
             index_rndr = index_tmpl.render(title=index_title,
                                             case_name=web_data.case,
