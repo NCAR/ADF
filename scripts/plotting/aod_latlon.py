@@ -8,12 +8,10 @@ import xesmf as xe
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
 import cartopy.crs as ccrs
-from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from cartopy.util import add_cyclic_point
 
-import plotting_functions as pf
+import adf_utils as utils
 
 from dataclasses import dataclass, field
 
@@ -409,7 +407,7 @@ def aod_panel_latlon(adfobj, plot_titles, plot_params, data, season, obs_name, c
         lon_mesh, lat_mesh = np.meshgrid(lon_values, lat_values)
 
         field_mean = np.nanmean(field_values) ## THIS IS PROBABLY THE INCORRECT AVERAGE TO USE
-        # field_mean = pf.spatial_average(dataField)
+        # field_mean = utils.spatial_average(dataField)
 
         # Set plot parameters
         plot_param = plot_params[i]
@@ -481,11 +479,11 @@ def monthly_to_seasonal(ds, obs=False):
             if '_n' not in varname:  # Skip count variables
                 var_data = ds[varname]
                 for s in seasons:
-                    dataarrays.append(pf.seasonal_mean(var_data, season=s, is_climo=True))
+                    dataarrays.append(utils.seasonal_mean(var_data, season=s, is_climo=True))
     else:
         # Handle single DataArray
         for s in seasons:
-            dataarrays.append(pf.seasonal_mean(ds, season=s, is_climo=True))
+            dataarrays.append(utils.seasonal_mean(ds, season=s, is_climo=True))
 
     # Combine seasonal means
     ds_seasonal = xr.concat(dataarrays, dim='season')
