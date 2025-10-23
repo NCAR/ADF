@@ -1,4 +1,4 @@
-name: adf_v0.13
+name: adf_v1.0.0
 channels:
   - conda-forge
   - defaults
