@@ -384,8 +384,8 @@ class AdfDiag(AdfWeb):
 
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
-                emsg = "\tNOTE: Configuration file indicates time series files have been pre-computed"
-                emsg += f" for case '{case_name}'.  Will rely on those files directly."
+                emsg = "\tNOTE: Configuration file indicates time series files have been "
+                emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 continue
             # End if
@@ -536,6 +536,25 @@ class AdfDiag(AdfWeb):
                     # Notify user of new time series file:
                     print(f"\t - time series for {var}")
 
+                    # Create full path name, file name template:
+                    # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
+                    ts_outfil_str = (
+                        ts_dir
+                        + os.sep
+                        + ".".join([case_name, hist_str, var, time_string, "nc"])
+                    )
+
+                    # Check if clobber is true for file
+                    if Path(ts_outfil_str).is_file():
+                        if overwrite_ts[case_idx]:
+                            Path(ts_outfil_str).unlink()
+                        else:
+                            #msg = f"[{__name__}] Warning: '{var}' file was found "
+                            msg = f"\t    INFO: '{var}' file was found "
+                            msg += "and overwrite is False. Will use existing file."
+                            print(msg)
+                            continue
+
                     # Initialize list for constituents if variable is derivable
                     constit_list = []
 
@@ -615,7 +634,8 @@ class AdfDiag(AdfWeb):
 
                     # Example ncatted command (you can modify it with the specific attribute changes you need)
                     #cmd_ncatted = ["ncatted", "-O", "-a", f"adf_user,global,a,c,{self.user}", ts_outfil_str]
-                    # Step 1: Convert Path objects to strings and concatenate the list of historical files into a single string
+                    # Step 1: Convert Path objects to strings and concatenate the list of 
+                    # historical files into a single string
                     hist_files_str = ', '.join(str(f.name) for f in hist_files)
                     hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
 
@@ -656,7 +676,8 @@ class AdfDiag(AdfWeb):
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_ncattend_commands)
 
-                # Run ncatted command to remove history attribute after the global attributes are set
+                # Run ncatted command to remove history attribute
+                # after the global attributes are set
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_hist_commands)
 
@@ -666,7 +687,7 @@ class AdfDiag(AdfWeb):
                         constit_dict=constit_dict, ts_dir=ts_dir
                     )
                 # End with
-                
+
                 # Finally, run through the derived variables if applicable
                 if constit_dict:
                     for der_var, constit_list in constit_dict.items():
@@ -1074,8 +1095,8 @@ class AdfDiag(AdfWeb):
 
         #
         # Create a dict with all the case info needed for MDTF case_list
-        #     Note that model and convention are hard-coded to CESM because that's all we expect here
-        #     This could be changed by inputing them into ADF with other MDTF-specific variables
+        #   Note that model and convention are hard-coded to CESM because that's all we expect here
+        #     - This could be changed by inputing them into ADF with other MDTF-specific variables
         #
         case_list_keys = ["CASENAME", "FIRSTYR", "LASTYR", "model", "convention"]
 
@@ -1131,7 +1152,9 @@ class AdfDiag(AdfWeb):
         #
         # Submit the MDTF script in background mode, send output to mdtf.out file
         #
-        mdtf_log = "mdtf.out" # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+        mdtf_log = "mdtf.out"
+        # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+
         mdtf_exe = mdtf_codebase + os.sep + "mdtf -f " + mdtf_input_settings_filename
         if copy_files_only:
             print("\t ...Copy files only. NOT Running MDTF")
@@ -1200,17 +1223,21 @@ class AdfDiag(AdfWeb):
                     elif len(adf_file_list) > 1:
                         if verbose > 0:
                             print(
-                                f"WARNING: found multiple timeseries files {adf_file_list}. Continuing with best guess; suggest cleaning up multiple dates in ts dir"
+                                f"""WARNING: found multiple timeseries files {adf_file_list}.
+                                 Continuing with best guess; suggest cleaning up multiple 
+                                    dates in ts dir"""
                             )
                     else:
                         if verbose > 1:
                             print(
-                                f"WARNING: No files matching {case_name}.{hist_str}.{var} found in {adf_file_str}. Skipping"
+                                f"""WARNING: No files matching {case_name}.{hist_str}.{var}
+                                     found in {adf_file_str}. Skipping"""
                             )
                         continue  # skip this case/hist_str/var file
                     adf_file = adf_file_list[0]
 
-                    # If freq is not set, it means we just started this hist_str. So check the first ADF file to find it
+                    # If freq is not set, it means we just started this hist_str. 
+                    # So check the first ADF file to find it
                     hist_file_ds = xr.open_dataset(
                         adf_file, decode_cf=False, decode_times=False
                     )
@@ -1221,7 +1248,8 @@ class AdfDiag(AdfWeb):
                     else:
                         if verbose > 0:
                             print(
-                                f"WARNING: Necessary 'time_period_freq' attribute missing from {adf_file}. Skipping file."
+                                f"""WARNING: Necessary 'time_period_freq' attribute missing
+                                 from {adf_file}. Skipping file."""
                             )
                         continue
 
@@ -1236,12 +1264,14 @@ class AdfDiag(AdfWeb):
                     elif len(found_strings) > 1:
                         if verbose > 0:
                             print(
-                                f"WARNING: Found dataset_freq {dataset_freq} matches multiple string possibilities:{', '.join(found_strings)}"
+                                f"""WARNING: Found dataset_freq {dataset_freq} matches multiple
+                                 string possibilities:{', '.join(found_strings)}"""
                             )
                     else:
                         if verbose > 0:
                             print(
-                                f"WARNING: None of the frequency options {freq_string_cesm} are present in the time_period_freq attribute {dataset_freq}"
+                                f"""WARNING: None of the frequency options {freq_string_cesm} are
+                                 present in the time_period_freq attribute {dataset_freq}"""
                             )
                             print(f"Skipping {adf_file}")
                             freq = "frequency_missing"
