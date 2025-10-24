@@ -378,9 +378,12 @@ class AdfDiag(AdfWeb):
 
         # Loop over cases:
         for case_idx, case_name in enumerate(case_names):
+            # Extract time series file location
+            ts_dir = ts_dirs[case_idx]
+
             # Notify user that script has started:
             print(f"\n  Generating CAM time series files for '{case_name}'...")
-            print(f"\n    Writing time series files to {ts_dir[case_idx]}")
+            print(f"\n    Writing time series files to {ts_dir}")
 
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
@@ -403,9 +406,6 @@ class AdfDiag(AdfWeb):
                 emsg += f" '{starting_location}' not found.  Script is ending here."
                 self.end_diag_fail(emsg)
             # End if
-
-            # Extract time series file location
-            ts_dir = ts_dirs[case_idx]
 
             # Check if history files actually exist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]
@@ -679,7 +679,7 @@ class AdfDiag(AdfWeb):
                 if constit_dict:
                     for der_var, constit_list in constit_dict.items():
                         derive_variable(self, case_name, der_var, res,
-                                        ts_dir[case_idx], constit_list)
+                                        ts_dir, constit_list)
             # End for hist_str
         # End cases loop
 
