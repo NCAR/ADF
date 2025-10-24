@@ -632,14 +632,12 @@ class AdfDiag(AdfWeb):
                         + ["-o", ts_outfil_str]
                     )
 
-                    # Example ncatted command (you can modify it with the specific attribute changes you need)
-                    #cmd_ncatted = ["ncatted", "-O", "-a", f"adf_user,global,a,c,{self.user}", ts_outfil_str]
-                    # Step 1: Convert Path objects to strings and concatenate the list of 
+                    # Convert Path objects to strings and concatenate the list of 
                     # historical files into a single string
                     hist_files_str = ', '.join(str(f.name) for f in hist_files)
                     hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
 
-                    # Step 2: Create the ncatted command to add both global attributes
+                    # Create the ncatted command to add both global attributes
                     cmd_ncatted = [
                         "ncatted", "-O",
                         "-a", "adf_user,global,a,c," + f"{self.user}",
@@ -648,7 +646,7 @@ class AdfDiag(AdfWeb):
                         ts_outfil_str
                     ]
 
-                    # Step 3: Create the ncatted command to remove the history attribute
+                    # Create the ncatted command to remove the history attribute
                     cmd_remove_history = [
                         "ncatted", "-O", "-h",
                         "-a", "history,global,d,,",
@@ -670,7 +668,6 @@ class AdfDiag(AdfWeb):
                 # Now run the "ncrcat" subprocesses in parallel:
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_commands)
-                # End with
 
                 # Run ncatted commands after ncrcat is done
                 with mp.Pool(processes=self.num_procs) as mpool:
@@ -680,13 +677,6 @@ class AdfDiag(AdfWeb):
                 # after the global attributes are set
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_hist_commands)
-
-                if vars_to_derive:
-                    self.derive_variables(
-                        res=res, hist_str=hist_str, vars_to_derive=vars_to_derive,
-                        constit_dict=constit_dict, ts_dir=ts_dir
-                    )
-                # End with
 
                 # Finally, run through the derived variables if applicable
                 if constit_dict:
