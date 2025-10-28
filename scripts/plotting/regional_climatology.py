@@ -78,7 +78,7 @@ def regional_climatology(adfobj):
     regional_climo_var_list = ['TSA','PREC','ELAI',
                                'FSDS','FLDS','SNOWDP','ASA',
                                'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
-                               'GPP','TWS','FCEV','FGEV',
+                               'GPP','TWS','FCEV','FAREA_BURNED',
                                ]
 
     ## Open observations YML here? 
