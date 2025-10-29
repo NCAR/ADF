@@ -121,6 +121,11 @@ def regional_climatology(adfobj):
 
     _variable_defaults = adfobj.__variable_defaults
 
+    ## Read regions from yml file:
+    ymlFilename = _adf_lib_dir/'regions_lnd.yaml'
+    with open(ymlFilename, 'r') as file:
+        regions = yaml.safe_load(file)
+
     #-----------------------------------------
     #Extract the "obs_data_loc" default observational data location:
     obs_data_loc = adfobj.get_basic_info("obs_data_loc")
