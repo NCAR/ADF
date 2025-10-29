@@ -109,6 +109,7 @@ def regional_climatology(adfobj):
 
     #Determine whether to use adf defaults or custom:
     _defaults_file = adfobj.get_basic_info('defaults_file')
+    # Note this won't work if no defaults_file is given
     if _defaults_file is None:
         _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
     else:
@@ -122,7 +123,7 @@ def regional_climatology(adfobj):
     _variable_defaults = adfobj.__variable_defaults
 
     ## Read regions from yml file:
-    ymlFilename = _adf_lib_dir/'regions_lnd.yaml'
+    ymlFilename = adfobj.get_basic_info("regions_file")
     with open(ymlFilename, 'r') as file:
         regions = yaml.safe_load(file)
 
@@ -344,21 +345,21 @@ def regional_climatology(adfobj):
                     map_ax.set_extent([-180, 179, 45, 90],crs=ccrs.PlateCarree())
                 else: 
                     if ((box_south >= 30) & (box_east<=-5) ):
-                        map_ax.set_extent([-180, -5, 30, 90],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-180, 0, 30, 90],crs=ccrs.PlateCarree())
                     elif ((box_south >= 30) & (box_east>=-5) ):
-                        map_ax.set_extent([-5, 179, 30, 90],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-10, 179, 30, 90],crs=ccrs.PlateCarree())
                     elif ((box_south <= 30) & (box_south >= -30) & 
                         (box_east<=-5) ):
-                        map_ax.set_extent([-180, -5, -30, 30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-180, 0, -30, 30],crs=ccrs.PlateCarree())
                     elif ((box_south <= 30) & (box_south >= -30) & 
                         (box_east>=-5) ):
-                        map_ax.set_extent([-5, 179, -30, 30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-10, 179, -30, 30],crs=ccrs.PlateCarree())
                     elif ((box_south <= -30) & (box_south >= -60) &
                         (box_east>=-5) ):
-                        map_ax.set_extent([-5, 179, -89, -30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-10, 179, -89, -30],crs=ccrs.PlateCarree())
                     elif ((box_south <= -30) & (box_south >= -60) &
                         (box_east<=-5) ):
-                        map_ax.set_extent([-180, -5, -89, -30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-180, 0, -89, -30],crs=ccrs.PlateCarree())
                     elif ((box_south <= -60)):
                         map_ax.set_extent([-180, 179, -89, -60],crs=ccrs.PlateCarree())
                 # End if for plotting map extent
