@@ -71,6 +71,7 @@ default_ptypes: ["Tables","LatLon","TimeSeries",
 #seconds per day :
 spd: 86400 
 diff_levs: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+pct_diff_contour_levels: [-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20]
 
 #+++++++++++++
 # Category: Atmosphere
@@ -82,6 +83,7 @@ TSA:    # 2m air temperature
   contour_levels_range: [250, 310, 10]
   diff_colormap: "coolwarm"
   pct_diff_colormap: "coolwarm"
+  pct_diff_contour_levels: [-3,-2,-1,-0.5,-0.2,-0.1,0,0.1,0.2,0.5,1,2,3]
   scale_factor: 1
   add_offset: 0
   new_unit: "K"
@@ -103,8 +105,8 @@ PREC:   # RAIN + SNOW
     colorbar:
       label : "mm d$^{-1}$"
   diff_colormap: "BrBG"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
 
 FLDS: # atmospheric longwave radiation
   category: "Atmosphere"
@@ -275,7 +277,6 @@ H2OSNO: # SNOWICE + SNOWLIQ
   category: "Hydrology"
   diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
 
-
 SNOWDP: # snow height
   category: "Hydrology"
   contour_levels: [-15.,-10.,-5.,-1.,-0.5,-0.1,0.,0.1,0.5,1.,5.,10.,15.]
@@ -295,6 +296,10 @@ TOTRUNOFF: # total liquid runoff
     colorbar:
       label : "mm d$^{-1}$"
   
+TWS: # Terrestrial water storage
+  category: "Hydrology"
+  colormap: "Blues"
+
 QRUNOFF_TO_COUPLER: # runoff to coupler
   category: "Hydrology"
   colormap: "Blues"
@@ -348,7 +353,7 @@ GPP: # Gross Primary Production
   contour_levels_range: [0., 12., 0.5]
   diff_colormap: "PiYG"
   diff_contour_range: [-4.,4.,0.5]
-  scale_factor: 86400
+  scale_factor: 86400  #seconds to days
   add_offset: 0
   new_unit: "gC m$^{-2}$ d$^{-1}$"
   mpl:
@@ -362,6 +367,26 @@ GPP: # Gross Primary Production
   obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/MR_GPP_0.9x1.25_ALLMONS_climo.nc"
   obs_name: "FLUXNET"
   obs_var_name: "GPP" #gC m$^{-2}$ d$^{-1}$  
+
+FPSN: # Photosynthesis umol CO2 m-2 s-1 -> gC/m2/2
+#TODO, make sure this works as expected
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 12., 0.5]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-4.,4.,0.5]
+  scale_factor: 7200000000 #86400/1.2e-5  #seconds to days, umol CO2 to gC
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/MR_GPP_0.9x1.25_ALLMONS_climo.nc"
+  obs_name: "FLUXNET"
+  obs_var_name: "GPP" #gC m$^{-2}$ d$^{-1}$  
+
 
 AR: # Autotrophic Respiration
   category: "Carbon"
@@ -448,6 +473,57 @@ TOTVEGC:
   scale_factor_table: 0.000000001  #g/m2 to Pg globally
   avg_method: 'sum'
   table_unit: "PgC"
+
+# C Isotopes
+C13_GPP_pm:
+  category: "Carbon"
+  derivable_from: ["C13_GPP","GPP"]
+  new_unit: "per mile PDB"  
+
+C14_GPP_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C14_GPP","GPP"]
+  new_unit: "per mile"  
+
+C13_TOTVEGC_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C13_TOTVEGC","TOTVEGC"]
+  new_unit: "per mile PDB"  
+
+C14_TOTVEGC_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C14_TOTVEGC","TOTVEGC"]
+  new_unit: "per mile"  
+
+C13_TOTSOMC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTSOMC","TOTSOMC"]
+  new_unit: "per mile PDB"
+
+C14_TOTSOMC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTSOMC","TOTSOMC"]
+  new_unit: "per mile"
+
+C13_TOTECOSYSC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTECOSYSC","TOTECOSYSC"]
+  new_unit: "per mile PDB"
+
+C14_TOTECOSYSC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTECOSYSC","TOTECOSYSC"]
+  new_unit: "per mile"
+
+C13_TOTLITC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTLITC","TOTLITC"]
+  new_unit: "per mile PDB"
+
+C14_TOTLITC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTLITC","TOTLITC"]
+  new_unit: "per mile"
 
 
 #+++++++++++

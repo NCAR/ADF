@@ -76,9 +76,9 @@ def regional_climatology(adfobj):
     region_list = adfobj.region_list
     #TODO, make it easier for users decide on these?
     regional_climo_var_list = ['TSA','PREC','ELAI',
-                               'FSDS','FLDS','QBOT','ASA',
+                               'FSDS','FLDS','SNOWDP','ASA',
                                'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
-                               'GPP','BTRANMN','FCEV','FGEV',
+                               'GPP','TWS','FCEV','FAREA_BURNED',
                                ]
 
     ## Open observations YML here? 
@@ -109,6 +109,7 @@ def regional_climatology(adfobj):
 
     #Determine whether to use adf defaults or custom:
     _defaults_file = adfobj.get_basic_info('defaults_file')
+    # Note this won't work if no defaults_file is given
     if _defaults_file is None:
         _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
     else:
@@ -120,6 +121,11 @@ def regional_climatology(adfobj):
         adfobj.__variable_defaults = yaml.load(dfil, Loader=yaml.SafeLoader)
 
     _variable_defaults = adfobj.__variable_defaults
+
+    ## Read regions from yml file:
+    ymlFilename = adfobj.get_basic_info("regions_file")
+    with open(ymlFilename, 'r') as file:
+        regions = yaml.safe_load(file)
 
     #-----------------------------------------
     #Extract the "obs_data_loc" default observational data location:
@@ -145,14 +151,18 @@ def regional_climatology(adfobj):
             print('Missing file for ', field)
             continue
         else:
+            # get area and landfrac for base and case climo datasets
             mdataset      = adfobj.data.load_climo_dataset(case_name, field, **kwargs) 
-            area          = mdataset.area.isel(time=0) # drop time dimension to avoid confusion
-            landfrac      = mdataset.landfrac.isel(time=0)
+            area_c        = mdataset.area.isel(time=0) # drop time dimension to avoid confusion
+            landfrac_c    = mdataset.landfrac.isel(time=0)
             # Redundant, but we'll do this for consistency:
             # TODO, won't handle loadling the basecase this way
-            #mdataset_base      = adfobj.data.load_climo_dataset(baseline_name, field, **kwargs) 
-            #area_base          = mdataset_base.area.isel(time=0) 
-            #landfrac_base      = mdataset_base.landfrac.isel(time=0)
+            #area_b = adfobj.data.load_reference_climo_da(baseline_name, 'area', **kwargs)
+            #landfrac_b = adfobj.data.load_reference_climo_da(baseline_name, 'landfrac', **kwargs)
+
+            mdataset_base   = adfobj.data.load_reference_climo_dataset(baseline_name, field, **kwargs)
+            area_b          = mdataset_base.area.isel(time=0)
+            landfrac_b      = mdataset_base.landfrac.isel(time=0)
  
             # calculate weights 
             # WW: 1) should actual weight calculation be done after subsetting to region?
@@ -238,7 +248,7 @@ def regional_climatology(adfobj):
     for iReg in range(len(region_list)):
         print(f"\n\t - Plotting regional climatology for: {region_list[iReg]}") 
         # regionDS_thisRg = regionDS.isel(region=region_indexList[iReg])
-        box_west, box_east, box_south, box_north = get_region_boundaries(regions, region_list[iReg])
+        box_west, box_east, box_south, box_north, region_category = get_region_boundaries(regions, region_list[iReg])
         ## Set up figure 
         ## TODO: Make the plot size/number of subplots resopnsive to number of fields specified 
         fig,axs = plt.subplots(4,4, figsize=(18,12))
@@ -251,15 +261,14 @@ def regional_climatology(adfobj):
             if type(base_data[field]) is type(None):
                 continue
             else:
-                # TODO: handle regular gridded case
                 if unstruct_plotting == True:
                     # uxarray output is time*nface, sum over nface
-                    base_var,wgt_sub  = getRegion_uxarray(uxgrid, base_data, field, area, landfrac,
+                    base_var,wgt_sub  = getRegion_uxarray(uxgrid, base_data, field, area_b, landfrac_b,
                                                         box_west, box_east, 
                                                         box_south, box_north)
                     base_var_wgtd = np.sum(base_var * wgt_sub, axis=-1) # WW not needed?/ np.sum(wgt_sub)
                 
-                    case_var,wgt_sub = getRegion_uxarray(uxgrid, case_data, field, area, landfrac,
+                    case_var,wgt_sub = getRegion_uxarray(uxgrid, case_data, field, area_c, landfrac_c,
                                                         box_west, box_east, 
                                                         box_south, box_north)
                     case_var_wgtd = np.sum(case_var * wgt_sub, axis=-1) #/ np.sum(wgt_sub)
@@ -269,13 +278,13 @@ def regional_climatology(adfobj):
                     base_var, wgt_sub = getRegion_xarray(base_data[field], field,
                                             box_west, box_east, 
                                             box_south, box_north,
-                                            area, landfrac)
+                                            area_b, landfrac_b)
                     base_var_wgtd = np.sum(base_var * wgt_sub, axis=(1,2))
 
                     case_var, wgt_sub = getRegion_xarray(case_data[field], field,
                                             box_west, box_east, 
                                             box_south, box_north,
-                                            area, landfrac)
+                                            area_c, landfrac_c)
                     case_var_wgtd = np.sum(case_var * wgt_sub, axis=(1,2))                
 
                 # Read in observations, if available
@@ -321,7 +330,6 @@ def regional_climatology(adfobj):
                                         cmap='rainbow_r',
                                         shading='auto')
 
-                map_ax.set_global()
                 # Add map extent selection
                 if region_list[iReg]=='N Hemisphere Land':
                     map_ax.set_extent([-180, 179, -3, 90],crs=ccrs.PlateCarree())
@@ -333,36 +341,30 @@ def regional_climatology(adfobj):
                     map_ax.set_extent([-180, 179, 45, 90],crs=ccrs.PlateCarree())
                 else: 
                     if ((box_south >= 30) & (box_east<=-5) ):
-                        map_ax.set_extent([-180, -5, 30, 90],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-180, 0, 30, 90],crs=ccrs.PlateCarree())
                     elif ((box_south >= 30) & (box_east>=-5) ):
-                        map_ax.set_extent([-5, 179, 30, 90],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-10, 179, 30, 90],crs=ccrs.PlateCarree())
                     elif ((box_south <= 30) & (box_south >= -30) & 
                         (box_east<=-5) ):
-                        map_ax.set_extent([-180, -5, -30, 30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-180, 0, -30, 30],crs=ccrs.PlateCarree())
                     elif ((box_south <= 30) & (box_south >= -30) & 
                         (box_east>=-5) ):
-                        map_ax.set_extent([-5, 179, -30, 30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-10, 179, -30, 30],crs=ccrs.PlateCarree())
                     elif ((box_south <= -30) & (box_south >= -60) &
                         (box_east>=-5) ):
-                        map_ax.set_extent([-5, 179, -89, -30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-10, 179, -89, -30],crs=ccrs.PlateCarree())
                     elif ((box_south <= -30) & (box_south >= -60) &
                         (box_east<=-5) ):
-                        map_ax.set_extent([-180, -5, -89, -30],crs=ccrs.PlateCarree())
+                        map_ax.set_extent([-180, 0, -89, -30],crs=ccrs.PlateCarree())
                     elif ((box_south <= -60)):
                         map_ax.set_extent([-180, 179, -89, -60],crs=ccrs.PlateCarree())
                 # End if for plotting map extent
                     
             ## Plot the climatology: 
             if type(base_data[field]) is type(None):
-                # print('Missing file for ', field)
+                print('Missing file for ', field)
                 continue
             else:
-                # TODO handle unit conversions correctly, working for structured, but not unstructured yet
-                if unstruct_plotting == True:
-                    if (field == 'GPP') or (field == 'NEE') or (field == 'NBP'):
-                        case_var_wgtd = case_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
-                        base_var_wgtd = base_var_wgtd * 3600 * 24 #convert gC/m2/s to gC/m2/day
-
                 axs[plt_counter].plot(np.arange(12)+1, case_var_wgtd,
                                       label=case_nickname, linewidth=2)
                 axs[plt_counter].plot(np.arange(12)+1, base_var_wgtd,
@@ -381,19 +383,14 @@ def regional_climatology(adfobj):
         fig.subplots_adjust(hspace=0.3, wspace=0.3)
 
         # Save out figure
-        # fileFriendlyRegionName = 
         plot_loc = Path(plot_locations[0]) / f'{region_list[iReg]}_plot_RegionalClimo_Mean.{plot_type}'
-        #Set path for variance figures:
-        # plot_loc = Path(plot_locations[0]) / f'RegionalClimo_{region_list[iReg]}.{plot_type}'
-        # print(plot_loc)
-        # plot_name = plot_loc+'RegionalClimo_'+region_names[iReg]+'.png'
 
-#        Check redo_plot. If set to True: remove old plots, if they already exist:
+        # Check redo_plot. If set to True: remove old plots, if they already exist:
         if (not redo_plot) and plot_loc.is_file():
             #Add already-existing plot to website (if enabled):
             adfobj.debug_log(f"'{plot_loc}' exists and clobber is false.")
             adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, 
-                                    non_season=True, plot_type = "RegionalClimo")
+                                     category=region_category, non_season=True, plot_type = "RegionalClimo")
 
             #Continue to next iteration:
             return
@@ -406,7 +403,7 @@ def regional_climatology(adfobj):
 
         #Add plot to website (if enabled):
         adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, 
-                                non_season=True, plot_type = "RegionalClimo")
+                                non_season=True, category=region_category, plot_type = "RegionalClimo")
 
     return 
 
@@ -429,8 +426,7 @@ def getRegion_uxarray(gridDS, varDS, varName, area, landfrac, BOX_W, BOX_E, BOX_
     area_subset = area.isel(n_face=node_indices)
     landfrac_subset = landfrac.isel(n_face=node_indices)
     wgt_subset = area_subset * landfrac_subset  / (area_subset* landfrac_subset).sum() 
-    # area_subset   = varDS['area'].isel(n_face=node_indices)
-    # lf_subset     = varDS['landfrac'].isel(n_face=node_indices)    
+
     return domain_subset,wgt_subset
 
 def getRegion_xarray(varDS, varName,
@@ -448,8 +444,6 @@ def getRegion_xarray(varDS, varName,
 
     if varName not in varDS:
         varName = obs_var_name
-        #if varName == 'ELAI': varName = 'TLAI'  
-        #if varName == 'ET': varName = 'LHF'  
 
     # TODO is there a less brittle way to do this?
     if (area is not None) and (landfrac is not None):
@@ -474,19 +468,24 @@ def getRegion_xarray(varDS, varName,
         varDS = varDS[varName]
 
     # Subset the dataarray using the specified box 
-    if BOX_W>BOX_E:
-        iLons = np.where((varDS.lon.values>=BOX_W) | (varDS.lon.values<=BOX_E) )[0]
-        domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N)).isel(lon=iLons)
-                        
-        weight_subset = weight.sel(lat=slice(BOX_S, BOX_N)).isel(lon=iLons) 
-    else:
+    if BOX_W < BOX_E:
         domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N),
-                                           lon=slice(BOX_W, BOX_E))
+                                  lon=slice(BOX_W, BOX_E))
         weight_subset = weight.sel(lat=slice(BOX_S, BOX_N),
                                    lon=slice(BOX_W, BOX_E)) 
+
+    else:
+        # Use boolean indexing to select the region
+        # The parentheses are important due to operator precedence
+        west_of_0 = varDS.lon >= BOX_W
+        east_of_0 = varDS.lon <= BOX_E
+        domain_subset = varDS.sel(lat=slice(BOX_S, BOX_N),
+                                  lon=(west_of_0 | east_of_0))
+        weight_subset = weight.sel(lat=slice(BOX_S, BOX_N),
+                                   lon=(west_of_0 | east_of_0))
+
     wgt_subset = weight_subset / weight_subset.sum() 
-    
-    
+    weight_subset = weight.sel
     return domain_subset,wgt_subset
 
 def get_region_boundaries(regions, region_name):
@@ -497,5 +496,6 @@ def get_region_boundaries(regions, region_name):
     region = regions[region_name]
     south, north = region['lat_bounds']
     west, east = region['lon_bounds']
+    region_category = region['region_category'] if 'region_category' in region else None  
     
-    return west, east, south, north
+    return west, east, south, north, region_category

@@ -339,19 +339,33 @@ def global_latlon_map(adfobj):
 
                     # difference: each entry should be (lat, lon)
                     dseasons[s] = mseasons[s] - oseasons[s]
-                    
+
                     # percent change
                     pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
 
-                    pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
-                                            [syear_cases[case_idx],eyear_cases[case_idx]],
-                                            [syear_baseline,eyear_baseline],
-                                            mseasons[s], oseasons[s], dseasons[s], pseasons[s],
-                                            obs=adfobj.compare_obs, unstructured=unstructured, **vres)
+                    # If redo_plot set to True: remove old plot, if it already exists:
+                    if (not redo_plot) and plot_name.is_file():
+                         #Add already-existing plot to website (if enabled):
+                         adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
+                         adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                                 season=s, plot_type="LatLon")
 
-                    #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name, var, case_name, category=web_category,
-                                            season=s, plot_type="LatLon")
+                         #Continue to next iteration:
+                         continue
+                    else:
+                        if plot_name.is_file():
+                            plot_name.unlink()
+
+                        pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
+                                             [syear_cases[case_idx],eyear_cases[case_idx]],
+                                             [syear_baseline,eyear_baseline],
+                                             mseasons[s], oseasons[s], dseasons[s], pseasons[s],
+                                             obs=adfobj.compare_obs, unstructured=unstructured, **vres)
+
+                        #Add plot to website (if enabled):
+                        adfobj.add_website_data(plot_name, var, case_name, category=web_category,
+                                                season=s, plot_type="LatLon")
+                    # end if redo_plot
 
             else: # => pres_levs has values, & we already checked that lev is in mdata (has_lev)
 

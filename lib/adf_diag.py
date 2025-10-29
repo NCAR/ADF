@@ -744,6 +744,10 @@ class AdfDiag(AdfWeb):
                         # End if cam
                     # End if has_lev
 
+                    # Optional, add additional time varying variables to clm2.h1 files
+                    if ("clm" in hist_str) and ("h1" in hist_str):
+                        ncrcat_var_list = ncrcat_var_list + ",pfts1d_wtgcell,pfts1d_wtlunit,pfts1d_wtcol"
+                    
                     cmd = (
                         ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
                         + hist_files
@@ -764,23 +768,12 @@ class AdfDiag(AdfWeb):
                         "ncatted", "-O",
                         "-a", "adf_user,global,a,c," + f"{self.user}",
                         "-a", "hist_file_locs,global,a,c," + f"{hist_locs_str}",
-                        "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
+                        # This list is too long and fails
+                        # "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
                         ts_outfil_str
                     ]
 
-                    if "clm" in hist_str:
-                        # Step 3b: Optional, add additional variables to clm2.h1 files
-                        if  "h1" in hist_str:
-                            cmd_add_clm_h1_fields = [
-                                "ncrcat", "-A", "-v", 
-                                "pfts1d_ixy,pfts1d_jxy,pfts1d_itype_veg,lat,lon",
-                                hist_files,
-                                ts_outfil_str
-                            ]
-                            # add time varrying information to clm2.h1 fields
-                            list_of_hist_commands.append(cmd_add_clm_h1_fields)
-
-                     # Step 3c: Create the ncatted command to remove the history attribute
+                    # Step 3c: Create the ncatted command to remove the history attribute
                     cmd_remove_history = [
                         "ncatted", "-O", "-h",
                         "-a", "history,global,d,,",
@@ -858,7 +851,19 @@ class AdfDiag(AdfWeb):
                                 ts_ds['area'] = ds.area
                                 ts_ds['landfrac'] = ds.landfrac
                                 ts_ds['landmask'] = ds.landmask
-
+                            # Optional, add additional variables to clm2.h1 files
+                            # Note: this is currently set up for PFT output
+                            if "h1" in hist_str:
+                                ds = xr.open_dataset(hist_files[0], decode_times=False)
+                                ts_ds['pfts1d_ixy'] = ds.pfts1d_ixy
+                                ts_ds['pfts1d_jxy'] = ds.pfts1d_jxy
+                                ts_ds['pfts1d_gi'] = ds.pfts1d_gi
+                                ts_ds['pfts1d_li'] = ds.pfts1d_li
+                                ts_ds['pfts1d_ci'] = ds.pfts1d_li
+                                ts_ds['pfts1d_itype_veg'] = ds.pfts1d_itype_veg
+                                ts_ds['pfts1d_itype_col'] = ds.pfts1d_itype_col
+                                ts_ds['pfts1d_itype_lunit'] = ds.pfts1d_itype_lunit
+                                ts_ds['pfts1d_active'] = ds.pfts1d_active
                         ts_ds['time'] = time
                         ts_ds.assign_coords(time=time)
                         ts_ds_fixed = xr.decode_cf(ts_ds)
@@ -1353,6 +1358,10 @@ class AdfDiag(AdfWeb):
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
 
+                clmPDB = 0.0112372    # ratio of 13C/12C in Pee Dee Belemnite (C isotope standard) 
+                clm14C = 1e-12        # not accepted value of 1.176 x 10-12
+                min13C = -40.         # prevent wacky values when 12C stock or fluxes are very small
+                min14C = -400.        # arbitrary
                 # Check if clobber is true for file
                 if Path(derived_file).is_file():
                     if overwrite:
@@ -1370,6 +1379,51 @@ class AdfDiag(AdfWeb):
                     der_val = 100*ds["FSR"]/ds["FSDS"].where(ds["FSDS"]>0)
                 elif var == "RNET":
                     der_val = ds["FSA"]-ds["FIRA"]
+                elif var == "WUE":
+                    der_val = ds["GPP"]/ds["FCTR"].where(ds["FCTR"]>0)
+
+                # ----------------------------------------------------------------------------------
+                # Isotope-specific derived variables
+                # ----------------------------------------------------------------------------------
+                # NOTE:  del13C :  valid range = -40 to 0 per mil PDB
+                # formulas similar to Jain et al 1996 Tellus B 48B: 583-600
+                # as applied in land_diags /glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/code/shared/lnd_func.ncl
+                # TODO, this would be nice to avoid repeating for all isotopes enables variables
+                # TODO, check for accuracy of equations, neither as as in Jain et al 1996...  
+                # Should they just be ((ratio sample - ratio standard) / ratio standard) * 1000 ?
+
+                elif var == "C13_GPP_pm":
+                    der_val = (((ds["C13_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)
+
+                elif var == "C14_GPP_pm":
+                    der_val = (((ds["C14_GPP"]/ds["GPP"].where(ds["GPP"]>0)) / clm14C) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min14C)
+                
+                elif var == "C13_NPP_pm":
+                    der_val = (((ds["C13_NPP"]/ds["NPP"].where(ds["NPP"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)
+
+                elif var == "C14_NPP_pm":
+                    der_val = (((ds["C14_NPP"]/ds["NPP"].where(ds["NPP"]>0)) / clm14C) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min14C)
+
+                elif var == "C13_TOTVEGC_pm":
+                    der_val = (((ds["C13_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)
+
+                elif var == "C14_TOTVEGC_pm":
+                    der_val = (((ds["C14_TOTVEGC"]/ds["TOTVEGC"].where(ds["TOTVEGC"]>0)) / clm14C) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min14C)
+
+                elif var == "C13_TOTECOSYSC_pm":
+                    der_val = (((ds["C13_TOTECOSYSC"]/ds["TOTECOSYSC"].where(ds["TOTECOSYSC"]>0)) / clmPDB) - 1.) * 1e3
+                    der_val = der_val.where(der_val > min13C)              
+
+                elif var == "C14_TOTECOSYSC_pm":
+                    der_val = (((ds["C14_TOTECOSYSC"]/ds["TOTECOSYSC"].where(ds["TOTECOSYSC"]>0)) / clm14C) - 1.) * 1e3
+                    #der_val = der_val.where(der_val > min14C)
+
                 else:
                     # Loop through all constituents and sum
                     der_val = 0
