@@ -330,7 +330,6 @@ def regional_climatology(adfobj):
                                         cmap='rainbow_r',
                                         shading='auto')
 
-                map_ax.set_global()
                 # Add map extent selection
                 if region_list[iReg]=='N Hemisphere Land':
                     map_ax.set_extent([-180, 179, -3, 90],crs=ccrs.PlateCarree())
