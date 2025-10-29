@@ -319,14 +319,10 @@ def regional_climatology(adfobj):
                 elif unstruct_plotting == False:
                     base_var_mask = base_var_mask.copy()
                     base_var_mask.values[np.isfinite(base_var_mask.values)] = 1
+                    
                     map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
                     map_ax.coastlines()
                     
-                    #print('debug mask.lon')
-                    #print(base_var_mask.lon)
-                    #print('debug mask.lat')
-                    #print(base_var_mask.lat)
-
                     # Plot using pcolormesh for structured grids
                     im = map_ax.pcolormesh(base_var_mask.lon, base_var_mask.lat, 
                                         base_var_mask.values,
@@ -334,6 +330,7 @@ def regional_climatology(adfobj):
                                         cmap='rainbow_r',
                                         shading='auto')
 
+                map_ax.set_global()
                 # Add map extent selection
                 if region_list[iReg]=='N Hemisphere Land':
                     map_ax.set_extent([-180, 179, -3, 90],crs=ccrs.PlateCarree())
