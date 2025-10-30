@@ -81,13 +81,6 @@ def regional_climatology(adfobj):
                                'GPP','TWS','FCEV','FAREA_BURNED',
                                ]
 
-    ## Open observations YML here? 
-
-    ## Read regions from yml file:
-    ymlFilename = 'lib/regions_lnd.yaml'
-    with open(ymlFilename, 'r') as file:
-        regions = yaml.safe_load(file)
-
     # Extract variables:
     baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)
     input_climo_baseline = Path(adfobj.get_baseline_info("cam_climo_loc", required=True))
