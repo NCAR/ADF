@@ -555,9 +555,6 @@ class AdfDiag(AdfWeb):
                             print(msg)
                             continue
 
-                    # Initialize list for constituents if variable is derivable
-                    constit_list = []
-
                     # Check if current variable is not in history file(s)
                     if var not in hist_file_var_list:
                         # Let user know variable is not
