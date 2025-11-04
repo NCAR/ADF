@@ -157,7 +157,7 @@ class AdfWeb(AdfObs):
                 mdtf_path += f"_{syear[0]}_{eyear[0]}"
                 self.external_package_links['MDTF'] = mdtf_path
             #End if
-
+            
             #Add all relevant paths to dictionary for specific case:
             self.__case_web_paths[case_name] = {'website_dir': website_dir,
                                                 'img_pages_dir': img_pages_dir,
@@ -847,7 +847,7 @@ class AdfWeb(AdfObs):
 
             # External packages that can be run through ADF
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
-
+            
             #Construct index.html
             index_title = "CAM Diagnostics"
             index_tmpl = jinenv.get_template('template_index.html')
