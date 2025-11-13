@@ -196,7 +196,7 @@ def polar_map(adfobj):
             print(f"\t    Skipping {var} - all plots already exist")
             continue
 
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        odata = adfobj.data.load_reference_regrid_da(var)
         if odata is None:
             print(f"\t    WARNING: No reference data found for {var}")
             continue
