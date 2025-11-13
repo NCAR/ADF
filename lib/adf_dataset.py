@@ -118,7 +118,7 @@ class AdfData:
             return ts_files
 
 
-    def load_timeseries_dataset(self, fils):
+    def load_timeseries_dataset(self, fils, **kwargs):
         """Return DataSet from time series file(s) and assign time to midpoint of interval"""
         if (len(fils) == 0):
             warnings.warn("\t    WARNING: Input file list is empty.")
@@ -146,7 +146,7 @@ class AdfData:
             warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")
         return xr.decode_cf(ds)
 
-    def load_timeseries_da(self, case, variablename):
+    def load_timeseries_da(self, case, variablename, **kwargs):
         """Return DataArray from time series file(s).
            Uses defaults file to convert units.
         """
@@ -155,9 +155,9 @@ class AdfData:
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find case time series file(s), variable: {variablename}")
             return None
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
+        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor,**kwargs)
     
-    def load_reference_timeseries_da(self, field):
+    def load_reference_timeseries_da(self, field, **kwargs):
         """Return a DataArray time series to be used as reference 
           (aka baseline) for variable field.
         """
@@ -165,7 +165,7 @@ class AdfData:
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find reference time series file(s), variable: {field}")
             return None
-        #Change the variable name from CAM standard to what is
+        # Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
         if self.adf.compare_obs:
             field = self.ref_var_nam[field]
@@ -174,7 +174,7 @@ class AdfData:
         else:
             add_offset, scale_factor = self.get_value_converters(self.ref_case_label, field)
 
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
+        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor, **kwargs) 
 
 
     #------------------
@@ -305,7 +305,7 @@ class AdfData:
 
     #------------------
 
-
+    
     # DataSet and DataArray load
     #---------------------------
     # TODO, make uxarray options fo all of these fuctions.  
