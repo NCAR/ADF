@@ -157,7 +157,6 @@ class AdfData:
 
     # Climatology files
     #------------------
-
     # Test case(s)
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific test case."""
