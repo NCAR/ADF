@@ -145,6 +145,12 @@ class AdfData:
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find reference time series file(s), variable: {field}")
             return None
+        """
+        #Change the variable name from CAM standard to what is
+        # listed in variable defaults for this observation field
+        if self.adf.compare_obs:
+            field = self.ref_var_nam[field]
+        """
         return self.load_da(fils, field, case)
     #------------------
 
@@ -207,6 +213,10 @@ class AdfData:
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find climo file(s) for case: {case}, variable: {field}")
             return None
+        #Change the variable name from CAM standard to what is
+        # listed in variable defaults for this observation field
+        if self.adf.compare_obs:
+            field = self.ref_var_nam[field]
         return self.load_da(fils, field, case)
 
     #------------------
@@ -310,14 +320,14 @@ class AdfData:
         return ds
 
     # Load DataArray
-    def load_da(self, fils, variablename, case, type=None):
+    def load_da(self, fils, variablename, case):
         """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
         ds = self.load_dataset(fils)
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
-        units = da.attrs.get('units', 'none')
+        units = da.attrs.get('units', '--')
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         da = da * scale_factor + add_offset
         da.attrs['scale_factor'] = scale_factor
