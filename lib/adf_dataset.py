@@ -145,12 +145,10 @@ class AdfData:
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find reference time series file(s), variable: {field}")
             return None
-        """
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
         if self.adf.compare_obs:
             field = self.ref_var_nam[field]
-        """
         return self.load_da(fils, field, case)
     #------------------
 
