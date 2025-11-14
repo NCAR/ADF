@@ -1,10 +1,16 @@
+"""
+Use time series files to produce regional mean time series plots for LDF web site.
+
+"""
 from pathlib import Path
+from types import NoneType
 import numpy as np
 import yaml
 import xarray as xr
 import uxarray as ux
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+import plotting_functions as pf
 import warnings  # use to warn user about missing files.
 
 def my_formatwarning(msg, *args, **kwargs):
@@ -16,18 +22,15 @@ def my_formatwarning(msg, *args, **kwargs):
 warnings.formatwarning = my_formatwarning
 
 
-def regional_climatology(adfobj):
+def regional_timeseries(adfobj):
 
     """
-    load climo file, subset for each region and each var
+    load timeseries file, subset for each region and each var
+    calculate regional annual mean time series
     Make a combined plot, save it, add it to website.
 
-    NOTES (from Meg): There are still a lot of to-do's with this script! 
-    - convert region defintion netCDF file to a yml, read that in instead 
-    - increase number of variables that have a climo plotted; i've just 
-      added two, but left room for more in the subplots 
-    - check that all varaibles have climo files; likely to break otherwise
-    - add option so that this works with a structured grid too     # ...existing code...
+    TODO
+    - check that all varaibles have TS files; likely to break otherwise
     if found:
         #Check if observations dataset name is specified:
         if "obs_name" in default_var_dict:
@@ -44,14 +47,12 @@ def regional_climatology(adfobj):
         obs_data[field] = xr.open_mfdataset([str(obs_file_path)], combine="by_coords")
         plot_obs[field] = True
     # ...existing code...
-    - make sure that climo's are being plotted with the preferred units 
-    - add in observations (need to regrid/area weight)
-    - need to figure out how to display the figures on the website
+    - make sure that TS's are being plotted with the preferred units 
 
     """
 
     #Notify user that script has started:
-    print("\n  --- Generating regional climatology plots... ---")
+    print("\n  --- Generating regional time series plots... ---")
 
     # Gather ADF configurations
     # plot_loc = adfobj.get_basic_info('cam_diag_plot_loc')
@@ -74,19 +75,19 @@ def regional_climatology(adfobj):
     base_nickname = adfobj.get_baseline_info('case_nickname') 
 
     region_list = adfobj.region_list
-    #TODO, make it easier for users decide on these?
-    regional_climo_var_list = ['TSA','PREC','ELAI',
-                               'FSDS','FLDS','SNOWDP','ASA',
-                               'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
-                               'GPP','TWS','FCEV','FAREA_BURNED',
-                               ]
+    #TODO, make it easier for users decide on these by adding to yaml file
+    regional_ts_var_list = ['TSA','PREC','ELAI',
+                            'FSDS','FLDS','SNOWDP','ASA',
+                            'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
+                            'GPP','TWS','FCEV','FAREA_BURNED',
+                            ]
 
     # Extract variables:
     baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)
-    input_climo_baseline = Path(adfobj.get_baseline_info("cam_climo_loc", required=True))
+    input_ts_baseline = Path(adfobj.get_baseline_info("cam_ts_loc", required=True))
     # TODO hard wired for single case name:
     case_name        = adfobj.get_cam_info("cam_case_name", required=True)[0]
-    input_climo_case = Path(adfobj.get_cam_info("cam_climo_loc", required=True)[0]) 
+    input_ts_case = Path(adfobj.get_cam_info("cam_ts_loc", required=True)[0]) 
 
     # Get grid file 
     mesh_file = adfobj.mesh_files["baseline_mesh_file"]
@@ -134,34 +135,26 @@ def regional_climatology(adfobj):
     var_obs_dict = adfobj.var_obs_dict
     
     # First, load all variable data once (instead of inside nested loops)
-    for field in regional_climo_var_list:
-        # Load the global climatology for this variable
+    for field in regional_ts_var_list:
+        # Load the global time series for this variable
         # TODO unit conversions are not handled consistently here
-        base_data[field] = adfobj.data.load_reference_climo_da(baseline_name, field, **kwargs)
-        case_data[field] = adfobj.data.load_climo_da(case_name, field, **kwargs)
+        base_data[field] = adfobj.data.load_reference_timeseries_da(field, **kwargs)
+        case_data[field] = adfobj.data.load_timeseries_da(case_name, field, **kwargs)
 
         if type(base_data[field]) is type(None):
             print('Missing file for ', field)
             continue
         else:
-            # get area and landfrac for base and case climo datasets
-            mdataset      = adfobj.data.load_climo_dataset(case_name, field, **kwargs) 
-            area_c        = mdataset.area.isel(time=0) # drop time dimension to avoid confusion
-            landfrac_c    = mdataset.landfrac.isel(time=0)
-            # Redundant, but we'll do this for consistency:
-            # TODO, won't handle loadling the basecase this way
-            #area_b = adfobj.data.load_reference_climo_da(baseline_name, 'area', **kwargs)
-            #landfrac_b = adfobj.data.load_reference_climo_da(baseline_name, 'landfrac', **kwargs)
+            # get area and landfrac for base and case ts datasets
+            mdataset      = adfobj.data.load_timeseries_dataset(case_name, field, **kwargs) 
+            # TODO: check with for structured grids
+            area_c        = mdataset.area #.isel(time=0) # drop time dimension to avoid confusion
+            landfrac_c    = mdataset.landfrac #.isel(time=0)
 
-            mdataset_base   = adfobj.data.load_reference_climo_dataset(baseline_name, field, **kwargs)
-            area_b          = mdataset_base.area.isel(time=0)
-            landfrac_b      = mdataset_base.landfrac.isel(time=0)
+            mdataset_base   = adfobj.data.load_reference_timeseries_dataset(field, **kwargs)
+            area_b          = mdataset_base.area#.isel(time=0)
+            landfrac_b      = mdataset_base.landfrac#.isel(time=0)
  
-            # calculate weights 
-            # WW: 1) should actual weight calculation be done after subsetting to region?
-            #     2) Does this work as intended for different resolutions?
-            # wgt = area * landfrac # / (area * landfrac).sum()  
-
         #-----------------------------------------
         # Now, check if observations are to be plotted for this variable
         plot_obs[field] = False 
@@ -239,7 +232,7 @@ def regional_climatology(adfobj):
     #-----------------------------------------
     # Loop over regions for selected variable 
     for iReg in range(len(region_list)):
-        print(f"\n\t - Plotting regional climatology for: {region_list[iReg]}") 
+        print(f"\n\t - Plotting regional timeseries for: {region_list[iReg]}") 
         # regionDS_thisRg = regionDS.isel(region=region_indexList[iReg])
         box_west, box_east, box_south, box_north, region_category = get_region_boundaries(regions, region_list[iReg])
         ## Set up figure 
@@ -248,8 +241,8 @@ def regional_climatology(adfobj):
         axs = axs.ravel()
         
         plt_counter = 1
-        for field in regional_climo_var_list:
-            mdataset = adfobj.data.load_climo_dataset(case_name, field, **kwargs) 
+        for field in regional_ts_var_list:
+            mdataset = adfobj.data.load_timeseries_dataset(case_name, field, **kwargs) 
 
             if type(base_data[field]) is type(None):
                 continue
@@ -259,12 +252,16 @@ def regional_climatology(adfobj):
                     base_var,wgt_sub  = getRegion_uxarray(uxgrid, base_data, field, area_b, landfrac_b,
                                                         box_west, box_east, 
                                                         box_south, box_north)
-                    base_var_wgtd = np.sum(base_var * wgt_sub, axis=-1) # WW not needed?/ np.sum(wgt_sub)
-                
+                    base_var_wgtd = np.sum(base_var * wgt_sub, axis=-1)
+
                     case_var,wgt_sub = getRegion_uxarray(uxgrid, case_data, field, area_c, landfrac_c,
                                                         box_west, box_east, 
                                                         box_south, box_north)
-                    case_var_wgtd = np.sum(case_var * wgt_sub, axis=-1) #/ np.sum(wgt_sub)
+                    case_var_wgtd = np.sum(case_var * wgt_sub, axis=-1)
+
+                    # annually averaged
+                    base_var_ann = pf.annual_mean(base_var_wgtd, whole_years=True, time_name="time")                    
+                    case_var_ann = pf.annual_mean(case_var_wgtd, whole_years=True, time_name="time")
             
                 else:  # regular lat/lon grid
                     # xarray output is time*lat*lon, sum over lat/lon
@@ -279,6 +276,10 @@ def regional_climatology(adfobj):
                                             box_south, box_north,
                                             area_c, landfrac_c)
                     case_var_wgtd = np.sum(case_var * wgt_sub, axis=(1,2))                
+
+                    # annually averaged
+                    base_var_ann = pf.annual_mean(base_var_wgtd, whole_years=True, time_name="time")
+                    case_var_ann = pf.annual_mean(case_var_wgtd, whole_years=True, time_name="time")
 
                 # Read in observations, if available
                 if plot_obs[field] == True:
@@ -353,37 +354,37 @@ def regional_climatology(adfobj):
                         map_ax.set_extent([-180, 179, -89, -60],crs=ccrs.PlateCarree())
                 # End if for plotting map extent
                     
-            ## Plot the climatology: 
+            ## Plot the timeseries: 
             if type(base_data[field]) is type(None):
                 print('Missing file for ', field)
                 continue
             else:
-                axs[plt_counter].plot(np.arange(12)+1, case_var_wgtd,
-                                      label=case_nickname, linewidth=2)
-                axs[plt_counter].plot(np.arange(12)+1, base_var_wgtd,
+                # WW set time axis to years
+                axs[plt_counter].plot(base_var_ann.year, base_var_ann,
                                       label=base_nickname, linewidth=2)
-                if plot_obs[field] == True:
-                    axs[plt_counter].plot(np.arange(12)+1, obs_var_wgtd,
-                                          label=obs_name[field], color='black', linewidth=2)
+                axs[plt_counter].plot(case_var_ann.year, case_var_ann,
+                                      label=case_nickname, linewidth=2)
+                # TODO, reinstate obs plotting once obs TS files are available
+                # if plot_obs[field] == True:
+                #    axs[plt_counter].plot(np.arange(12)+1, obs_var_wgtd,
+                #                          label=obs_name[field], color='black', linewidth=2)
                 axs[plt_counter].set_title(field)
                 axs[plt_counter].set_ylabel(base_data[field].units)
-                axs[plt_counter].set_xticks(np.arange(1, 13, 2))
-                axs[plt_counter].legend()
-                
+                axs[plt_counter].legend()                
 
             plt_counter = plt_counter+1
 
         fig.subplots_adjust(hspace=0.3, wspace=0.3)
 
         # Save out figure
-        plot_loc = Path(plot_locations[0]) / f'{region_list[iReg]}_plot_RegionalClimo_Mean.{plot_type}'
+        plot_loc = Path(plot_locations[0]) / f'{region_list[iReg]}_plot_RegionalTimeSeries_Mean.{plot_type}'
 
         # Check redo_plot. If set to True: remove old plots, if they already exist:
         if (not redo_plot) and plot_loc.is_file():
             #Add already-existing plot to website (if enabled):
             adfobj.debug_log(f"'{plot_loc}' exists and clobber is false.")
             adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, 
-                                     category=region_category, non_season=True, plot_type = "RegionalClimo")
+                                     category=region_category, non_season=True, plot_type = "RegionalTimeSeries")
 
             #Continue to next iteration:
             return
@@ -396,11 +397,11 @@ def regional_climatology(adfobj):
 
         #Add plot to website (if enabled):
         adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, 
-                                non_season=True, category=region_category, plot_type = "RegionalClimo")
+                                non_season=True, category=region_category, plot_type = "RegionalTimeSeries")
 
     return 
 
-print("\n  --- Regional climatology plots generated successfully! ---")
+print("\n  --- Regional time series plots generated successfully! ---")
 
 def getRegion_uxarray(gridDS, varDS, varName, area, landfrac, BOX_W, BOX_E, BOX_S, BOX_N): 
     # Method 2: Filter mesh nodes based on coordinates
