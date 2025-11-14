@@ -137,7 +137,7 @@ def regional_climatology(adfobj):
     for field in regional_climo_var_list:
         # Load the global climatology for this variable
         # TODO unit conversions are not handled consistently here
-        base_data[field] = adfobj.data.load_reference_climo_da(baseline_name, field, **kwargs)
+        base_data[field] = adfobj.data.load_reference_climo_da(field, **kwargs)
         case_data[field] = adfobj.data.load_climo_da(case_name, field, **kwargs)
 
         if type(base_data[field]) is type(None):
@@ -153,7 +153,7 @@ def regional_climatology(adfobj):
             #area_b = adfobj.data.load_reference_climo_da(baseline_name, 'area', **kwargs)
             #landfrac_b = adfobj.data.load_reference_climo_da(baseline_name, 'landfrac', **kwargs)
 
-            mdataset_base   = adfobj.data.load_reference_climo_dataset(baseline_name, field, **kwargs)
+            mdataset_base   = adfobj.data.load_reference_climo_dataset(field, **kwargs)
             area_b          = mdataset_base.area.isel(time=0)
             landfrac_b      = mdataset_base.landfrac.isel(time=0)
  
