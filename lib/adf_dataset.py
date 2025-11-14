@@ -195,7 +195,7 @@ class AdfData:
         if fils:
             return fils
         return None
-    
+
     def load_reference_climo_dataset(self, field):
         """Return Dataset for reference (aka baseline) climo of field"""
         case = self.ref_case_label
