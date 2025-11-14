@@ -230,8 +230,8 @@ def regrid_and_vert_interp(adf):
 
                     #Write to debug log if enabled:
                     #adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
-                    
-                    tclim_ds = adf.data.load_reference_climo_dataset(target, var)
+                    print(var)
+                    tclim_ds = adf.data.load_reference_climo_dataset(var)
                     if tclim_ds is None:
                         print(f"\t    WARNING: regridding {var} failed, no climo file for case '{target}'. Continuing to next variable.")
                         continue

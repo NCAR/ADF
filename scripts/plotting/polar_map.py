@@ -179,17 +179,17 @@ def polar_map(adfobj):
             if unstruct_plotting:
                 mesh_file = adfobj.mesh_files["baseline_mesh_file"]
                 kwargs["mesh_file"] = mesh_file
-                odata = adfobj.data.load_reference_climo_da(data_name, data_var, **kwargs)
+                odata = adfobj.data.load_reference_climo_da(data_var, **kwargs)
                 #if ('ncol' in odata.dims) or ('lndgrid' in odata.dims):
                 if 1==1:
                     unstruct_base = True
-                    odataset = adfobj.data.load_reference_climo_dataset(data_name, data_var, **kwargs) 
+                    odataset = adfobj.data.load_reference_climo_dataset(data_var, **kwargs) 
                     area = odataset.area.isel(time=0)
                     landfrac = odataset.landfrac.isel(time=0)
                     # calculate weights
                     wgt_base = area * landfrac / (area * landfrac).sum()
             else:
-                odata = adfobj.data.load_reference_regrid_da(data_name, data_var, **kwargs)
+                odata = adfobj.data.load_reference_regrid_da(data_var, **kwargs)
             if odata is None:
                 print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
                 print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")

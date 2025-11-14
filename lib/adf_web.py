@@ -427,7 +427,7 @@ class AdfWeb(AdfObs):
         #End if
 
         #Set main title for website:
-        main_title = "CAM Diagnostics"
+        main_title = "CLM Diagnostics"
 
         #List of seasons
         seasons = ["ANN","DJF","MAM","JJA","SON"]
@@ -718,7 +718,7 @@ class AdfWeb(AdfObs):
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
             
             #Construct index.html
-            index_title = "AMP Diagnostics Prototype"
+            index_title = "CLM Diagnostics"
             index_tmpl = jinenv.get_template('template_index.html')
             index_rndr = index_tmpl.render(title=index_title,
                                             case_name=web_data.case,
@@ -768,7 +768,7 @@ class AdfWeb(AdfObs):
             #End for (model case loop)
 
             #Create multi-case site:
-            main_title = "ADF Diagnostics"
+            main_title = "CLM Diagnostics"
             main_tmpl = jinenv.get_template('template_multi_case_index.html')
             main_rndr = main_tmpl.render(title=main_title,
                             case_sites=case_sites,

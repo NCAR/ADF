@@ -60,11 +60,10 @@ def regrid_se_data_bilinear(regridder, data_to_regrid, comp_grid):
                          )
     return regridded
 
-def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
+def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid="lndgrid"):
     updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
     regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}) )
     return regridded
-
 
 
 def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid='ncol'):

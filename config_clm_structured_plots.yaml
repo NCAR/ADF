@@ -99,6 +99,9 @@ diag_basic_info:
     #Uncomment and change path for custom variable defaults file
     defaults_file: lib/ldf_variable_defaults.yaml
 
+    # location of land regions YAML file (only used in regional_climatology plots)
+    regions_file: lib/regions_lnd.yaml
+
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
     #longitude will default to 180 degrees E.
@@ -137,13 +140,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: ctsm53065_54surfdata_PPEcal115_115_HIST
+    cam_case_name: ctsm5.4.CMIP7_ciso_ctsm5.3.075_f09_124_HIST
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'PPE_115_HIST'
+    case_nickname: 'ctsm5.4_124_HIST'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
@@ -190,7 +193,7 @@ diag_cam_baseline_climo:
     # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
     # Only affects timeseries as everything else uses the created timeseries 
     # Default: 
-    hist_str: clm2.h0
+    hist_str: clm2.h0a
 
     #Calculate cam baseline climatologies?
     #If false, the climatology files will not be created:
@@ -201,13 +204,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: ctsm53041_54surfdata_PPEbaseline_101_HIST
+    cam_case_name: ctsm5.4_5.3.068_PPEcal115f09_118_HIST
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'PPE_101_HIST'
+    case_nickname: 'ctsm5.4_118_HIST'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -281,6 +284,7 @@ plotting_scripts:
     - global_latlon_map
     - global_mean_timeseries_lnd
     - polar_map
+    - regional_timeseries
     - regional_climatology
 
 #List of variables that will be processesd:
@@ -313,7 +317,13 @@ diag_var_list:
     - FAREA_BURNED
     - DSTFLXT
     - MEG_isoprene 
-      
+    - TWS
+    - GRAINC_TO_FOOD  
+    - C13_GPP_pm
+    - C13_TOTVEGC_pm
+    - C14_GPP_pm
+    - C14_TOTVEGC_pm
+
 region_list:
     - Global
     - N Hemisphere Land
@@ -321,22 +331,22 @@ region_list:
     - Polar
     - Alaskan Arctic
     - Canadian Arctic
-    #- Greenland
+    - Greenland
     - Russian Arctic
     #- Antarctica
     - Alaska
-    #- Northwest Canada
-    #- Central Canada
+    - Northwest Canada
+    - Central Canada
     - Eastern Canada
     - Northern Europe
     - Western Siberia
     - Eastern Siberia
     - Western US
-    #- Central US
-    #- Eastern US
-    #- Europe
-    #- Mediterranean
-    #- Central America
+    - Central US
+    - Eastern US
+    - Europe
+    - Mediterranean
+    - Central America
     - Amazonia
     - Central Africa
     - Indonesia
@@ -344,10 +354,10 @@ region_list:
     - Sahel
     - Southern Africa
     - India
-    #- Indochina
+    - Indochina
     #- Sahara Desert
-    #- Arabian Peninsula
-    #- Australia
+    - Arabian Peninsula
+    - Australia
     #- Central Asia ## Was Broken... probably because there were two? 
     #- Mongolia
     #- Tibetan Plateau

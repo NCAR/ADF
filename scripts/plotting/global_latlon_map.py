@@ -195,17 +195,16 @@ def global_latlon_map(adfobj):
         if unstruct_plotting:
             mesh_file = adfobj.mesh_files["baseline_mesh_file"]
             kwargs["mesh_file"] = mesh_file
-            odata = adfobj.data.load_reference_climo_da(base_name, var, **kwargs)
+            odata = adfobj.data.load_reference_climo_da(var, **kwargs)
 
             unstruct_base = True
-            odataset = adfobj.data.load_reference_climo_dataset(base_name, var, **kwargs) 
+            odataset = adfobj.data.load_reference_climo_dataset(var, **kwargs) 
             area = odataset.area.isel(time=0)
             landfrac = odataset.landfrac.isel(time=0)
             # calculate weights
             wgt_base = area * landfrac / (area * landfrac).sum()
         else:
-            #odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
-            odata = adfobj.data.load_reference_regrid_da(base_name, var)
+            odata = adfobj.data.load_reference_regrid_da(var)
             if odata is None:
                 
                 dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, global lat/lon mean plotting skipped."
@@ -632,7 +631,7 @@ def aod_latlon(adfobj):
         base_name = adfobj.data.ref_case_label
     
         # Gather reference variable data
-        ds_base = adfobj.data.load_reference_climo_da(base_name, var)
+        ds_base = adfobj.data.load_reference_climo_da(var)
         if ds_base is None:
             dmsg = f"\t WARNING: No baseline climo file for {base_name} for variable `{var}`, global lat/lon plots skipped."
             adfobj.debug_log(dmsg)
