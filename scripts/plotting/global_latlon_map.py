@@ -134,7 +134,7 @@ def load_reference_data(adfobj, var):
             return None
         base_name = adfobj.data.ref_labels[var]
 
-    odata = adfobj.data.load_reference_regrid_da(base_name, var)
+    odata = adfobj.data.load_reference_regrid_da(var)
     if odata is None:
         print(f"\t    WARNING: No reference data found for {var}")
         return None

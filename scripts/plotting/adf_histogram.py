@@ -109,7 +109,7 @@ def adf_histogram(adfobj):
     # output: variable(season, region, bin)
     
     # "reference case" first:
-    ref_land = load_ref_func(*get_load_args(adfobj, adfobj.data.ref_case_label, "LANDFRAC"))
+    ref_land = load_ref_func(*get_load_args(adfobj, "LANDFRAC"))
     for var in var_list:
 
         ref_hist_file = plot_loc / f"{adfobj.data.ref_case_label}_{var}_{plot_name_string}.nc"
@@ -122,7 +122,7 @@ def adf_histogram(adfobj):
             vres = {}
 
         # probably have to make sure no "lev" dim (but gets confused about other dimensions)
-        da = load_ref_func(*get_load_args(adfobj, adfobj.data.ref_case_label, var))
+        da = load_ref_func(*get_load_args(adfobj, var))
         if da is None:
             print(f"failed to load {var} for {adfobj.data.ref_case_label}... skip")
             continue
