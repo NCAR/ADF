@@ -866,7 +866,6 @@ class AdfWeb(AdfObs):
             with open(index_html_file, 'w', encoding='utf-8') as ofil:
                 ofil.write(index_rndr)
             #End with
-
         #End for (web data loop)
 
         #If this is a multi-case instance, then copy website to "main" directory:
