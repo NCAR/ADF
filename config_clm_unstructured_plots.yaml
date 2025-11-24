@@ -278,10 +278,11 @@ analysis_scripts:
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
-     - global_latlon_map
-     - global_mean_timeseries_lnd
-     - polar_map
-     - regional_climatology
+    - global_latlon_map
+    - global_mean_timeseries_lnd
+    - polar_map
+    - regional_climatology
+    - regional_timeseries
 
 #List of variables that will be processesd:
 #Shorter list here, for efficiency of testing
