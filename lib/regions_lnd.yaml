@@ -83,6 +83,10 @@ Eastern US:
   lat_bounds: [30, 50]
   lon_bounds: [-90, -70]
   region_category: Temperate 
+CONUS: 
+  lat_bounds: [25, 55]
+  lon_bounds: [-125, -70]
+  region_category: Temperate
 Europe:
   lat_bounds: [45, 60]
   lon_bounds: [-10, 30]
@@ -106,6 +110,10 @@ Central Africa:
 Indonesia:
   lat_bounds: [-10, 10]
   lon_bounds: [90, 150]
+  region_category: Tropical 
+S America:
+  lat_bounds:  [-30, 5]
+  lon_bounds: [-85, -35]
   region_category: Tropical 
 Brazil:
   lat_bounds: [-23.5, -10]

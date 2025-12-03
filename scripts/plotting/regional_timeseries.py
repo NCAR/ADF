@@ -79,15 +79,15 @@ def regional_timeseries(adfobj):
     regional_ts_var_list = ['TSA','PREC','ELAI',
                             'FSDS','FLDS','SNOWDP','ASA',
                             'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
-                            'GPP','TWS','FCEV','FAREA_BURNED',
+                            'GPP','TWS','SOILWATER_10CM','FAREA_BURNED',
                             ]
 
     # Extract variables:
-    baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)
-    input_ts_baseline = Path(adfobj.get_baseline_info("cam_ts_loc", required=True))
+    #baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)
+    #input_ts_baseline = Path(adfobj.get_baseline_info("cam_ts_loc", required=True))
     # TODO hard wired for single case name:
     case_name        = adfobj.get_cam_info("cam_case_name", required=True)[0]
-    input_ts_case = Path(adfobj.get_cam_info("cam_ts_loc", required=True)[0]) 
+    #input_ts_case = Path(adfobj.get_cam_info("cam_ts_loc", required=True)[0]) 
 
     # Get grid file 
     mesh_file = adfobj.mesh_files["baseline_mesh_file"]
@@ -132,7 +132,7 @@ def regional_timeseries(adfobj):
     obs_var_name = {}
     plot_obs = {}
 
-    var_obs_dict = adfobj.var_obs_dict
+    #var_obs_dict = adfobj.var_obs_dict
     
     # First, load all variable data once (instead of inside nested loops)
     for field in regional_ts_var_list:
@@ -333,6 +333,10 @@ def regional_timeseries(adfobj):
                     map_ax.set_extent([-180, 179, -89, 3],crs=ccrs.PlateCarree())
                 elif region_list[iReg]=='Polar':
                     map_ax.set_extent([-180, 179, 45, 90],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='CONUS':
+                    map_ax.set_extent([-140, -55, 10, 70],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='S America':
+                    map_ax.set_extent([-100, -20, -45, 20],crs=ccrs.PlateCarree())
                 else: 
                     if ((box_south >= 30) & (box_east<=-5) ):
                         map_ax.set_extent([-180, 0, 30, 90],crs=ccrs.PlateCarree())
@@ -370,7 +374,8 @@ def regional_timeseries(adfobj):
                 #                          label=obs_name[field], color='black', linewidth=2)
                 axs[plt_counter].set_title(field)
                 axs[plt_counter].set_ylabel(base_data[field].units)
-                axs[plt_counter].legend()                
+                if plt_counter == 3 or plt_counter == 7 or plt_counter ==11 or plt_counter ==15:
+                    axs[plt_counter].legend()                
 
             plt_counter = plt_counter+1
 

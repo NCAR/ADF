@@ -78,7 +78,7 @@ def regional_climatology(adfobj):
     regional_climo_var_list = ['TSA','PREC','ELAI',
                                'FSDS','FLDS','SNOWDP','ASA',
                                'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
-                               'GPP','TWS','FCEV','FAREA_BURNED',
+                               'GPP','TWS','SOILWATER_10CM','FAREA_BURNED',
                                ]
 
     # Extract variables:
@@ -332,6 +332,10 @@ def regional_climatology(adfobj):
                     map_ax.set_extent([-180, 179, -89, 3],crs=ccrs.PlateCarree())
                 elif region_list[iReg]=='Polar':
                     map_ax.set_extent([-180, 179, 45, 90],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='CONUS':
+                    map_ax.set_extent([-140, -55, 10, 70],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='S America':
+                    map_ax.set_extent([-100, -20, -45, 20],crs=ccrs.PlateCarree())
                 else: 
                     if ((box_south >= 30) & (box_east<=-5) ):
                         map_ax.set_extent([-180, 0, 30, 90],crs=ccrs.PlateCarree())
@@ -358,17 +362,18 @@ def regional_climatology(adfobj):
                 print('Missing file for ', field)
                 continue
             else:
-                axs[plt_counter].plot(np.arange(12)+1, case_var_wgtd,
-                                      label=case_nickname, linewidth=2)
                 axs[plt_counter].plot(np.arange(12)+1, base_var_wgtd,
                                       label=base_nickname, linewidth=2)
+                axs[plt_counter].plot(np.arange(12)+1, case_var_wgtd,
+                                      label=case_nickname, linewidth=2)
                 if plot_obs[field] == True:
                     axs[plt_counter].plot(np.arange(12)+1, obs_var_wgtd,
                                           label=obs_name[field], color='black', linewidth=2)
+                    axs[plt_counter].legend()
+
                 axs[plt_counter].set_title(field)
                 axs[plt_counter].set_ylabel(base_data[field].units)
                 axs[plt_counter].set_xticks(np.arange(1, 13, 2))
-                axs[plt_counter].legend()
                 
 
             plt_counter = plt_counter+1
@@ -437,6 +442,12 @@ def getRegion_xarray(varDS, varName,
 
     if varName not in varDS:
         varName = obs_var_name
+    
+    if varDS.lon.values.min() < 0:
+        # Convert lon to [0,360] if necessary
+        longitude = varDS['lon']
+        varDS = varDS.assign_coords(lon= (longitude + 180) % 360)
+        print(f"Converted lon to [0,360] for variable {varName}")
 
     # TODO is there a less brittle way to do this?
     if (area is not None) and (landfrac is not None):
@@ -455,7 +466,7 @@ def getRegion_xarray(varDS, varName,
             weight = weight * varDS['datamask']  
     else:
         raise ValueError("No valid weight, area, or landmask found in {varName} dataset.")
-    
+
     # check we have a data array for the variable
     if isinstance(varDS, xr.Dataset):
         varDS = varDS[varName]
@@ -478,7 +489,6 @@ def getRegion_xarray(varDS, varName,
                                    lon=(west_of_0 | east_of_0))
 
     wgt_subset = weight_subset / weight_subset.sum() 
-    weight_subset = weight.sel
     return domain_subset,wgt_subset
 
 def get_region_boundaries(regions, region_name):
