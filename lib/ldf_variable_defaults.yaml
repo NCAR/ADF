@@ -122,12 +122,18 @@ FLDS: # atmospheric longwave radiation
       label : "W m$^{-2}$"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/CERESed4.2-rlds_ALLMONS_climo.nc"
+  obs_name: "CERESed4.2"
+  obs_var_name: "rlds" #W/m2
 
 FSDS: # atmospheric incident solar radiation
   category: "Atmosphere"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   new_unit: "W m$^{-2}$"
+  obs_file: "/glade/campaign/cgd/tss/people/oleson/FROM_LMWG/diag/lnd_diag4.2/obs_data/CERESed4.2-rsds_ALLMONS_climo.nc"
+  obs_name: "CERESed4.2"
+  obs_var_name: "rsds" #W/m2
 
 WIND: # atmospheric air temperature
   category: "Atmosphere"
@@ -295,6 +301,10 @@ TOTRUNOFF: # total liquid runoff
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
+  
+SOILWATER_10CM: # soil liquid water + ice in top 10cm of soil 
+  category: "Hydrology"
+  colormap: "Blues"
   
 TWS: # Terrestrial water storage
   category: "Hydrology"

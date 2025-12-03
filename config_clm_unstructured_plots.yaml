@@ -140,16 +140,17 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: ctsm5.4.CMIP7_ciso_ctsm5.3.075_ne30_123_HIST_popDens
+    cam_case_name: b.e30_alpha07c_cesm.B1850C_LTso.ne30_t232_wgx3.247
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '123_popDens'
+    case_nickname: 'B_247'
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/${diag_cam_climo.cam_case_name}/lnd/hist/
+    # /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -157,12 +158,12 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1850
-    climo_start_year: 2004
+    start_year: 1
+    climo_start_year: 85
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 2023
+    end_year: 104
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -202,17 +203,18 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: ctsm5.4_5.3.068_PPEcal115_116_HIST
+    cam_case_name: b.e30_alpha07c_cesm.B1850C_LTso.ne30_t232_wgx3.234
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '116'
+    case_nickname: 'B_234'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
+    # /glade/derecho/scratch/wwieder/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -223,13 +225,13 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1850
-    climo_start_year: 2004
+    start_year: 1
+    climo_start_year: 61
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 2023
+    end_year: 80
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -313,9 +315,10 @@ diag_var_list:
     - TOTECOSYSC
     - TOTSOMC_1m
     - ALTMAX
-    - FAREA_BURNED
     - TWS
+    - SOILWATER_10CM
     - GRAINC_TO_FOOD  
+    - FAREA_BURNED
     #- C13_GPP_pm
     # - C13_TOTVEGC_pm
     #- C14_GPP_pm
@@ -341,12 +344,14 @@ region_list:
     - Western US
     - Central US
     - Eastern US
+    - CONUS
     - Europe
     - Mediterranean
     - Central America
     - Amazonia
     - Central Africa
     - Indonesia
+    - S America
     - Brazil
     - Sahel
     - Southern Africa
