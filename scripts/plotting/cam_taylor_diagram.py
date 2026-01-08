@@ -7,6 +7,8 @@ This module, for better or worse, provides both the computation and plotting fun
 It depends on an ADF instance to obtain the `climo` files.
 It is designed to have one "reference" case (could be observations) and arbitrary test cases.
 When multiple test cases are provided, they are plotted with different colors.
+
+NOTE: THIS IS A DRAFT REFACTORING TO ALLOW OBSERVATIONS (.b)
 '''
 #
 # --- imports and configuration ---
@@ -30,16 +32,9 @@ warnings.formatwarning = utils.my_formatwarning
 # --- Main Function Shares Name with Module: cam_taylor_diagram ---
 #
 def cam_taylor_diagram(adfobj):
-
-    #Notify user that script has started:
+    """Create Taylor diagrams for specified configuration."""
     msg = "\n  Generating Taylor Diagrams..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
-
-    # Taylor diagrams currently don't work for model to obs comparison
-    # If compare_obs is set to True, then skip this script:
-    if adfobj.compare_obs:
-        print("\tTaylor diagrams don't work when doing model vs obs, so Taylor diagrams will be skipped.")
-        return
 
     # Extract needed quantities from ADF object:
     # -----------------------------------------
@@ -53,8 +48,6 @@ def cam_taylor_diagram(adfobj):
 
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
-
-    case_climo_loc = adfobj.get_cam_info('cam_climo_loc', required=True)
 
     # ADF variable which contains the output path for plots and tables:
     plot_location = adfobj.plot_location
@@ -75,22 +68,11 @@ def cam_taylor_diagram(adfobj):
     else:
         plot_loc = Path(plot_location)
 
-    # CAUTION:
-    # "data" here refers to either obs or a baseline simulation,
-    # Until those are both treated the same (via intake-esm or similar)
-    # we will do a simple check and switch options as needed:
-    if adfobj.get_basic_info("compare_obs"):
-        data_name = "obs"  # does not get used, is just here as a placemarker
-        data_list = adfobj.read_config_var("obs_type_list")  # Double caution!
-        data_loc = adfobj.get_basic_info("obs_climo_loc", required=True)
-    else:
-        data_name = adfobj.get_baseline_info('cam_case_name', required=True)
-        data_list = data_name # should not be needed (?)
-        data_loc = adfobj.get_baseline_info("cam_climo_loc", required=True)
 
-        #Grab baseline case nickname
-        base_nickname = adfobj.case_nicknames["base_nickname"]
-    #End if
+    # reference data set(s) -- if comparing with obs, these are dicts.
+    data_name = adfobj.data.ref_case_label
+    data_loc = adfobj.data.ref_data_loc
+    base_nickname = adfobj.data.ref_nickname
 
     #Extract baseline years (which may be empty strings if using Obs):
     syear_baseline = adfobj.climo_yrs["syear_baseline"]
@@ -110,16 +92,24 @@ def cam_taylor_diagram(adfobj):
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
-    #Check if the variables needed for the Taylor diags are present,
-    #If not then skip this script:
+    # Check for required variables
     taylor_var_set = {'U', 'PSL', 'SWCF', 'LWCF', 'LANDFRAC', 'TREFHT', 'TAUX', 'RELHUM', 'T'}
-    if not taylor_var_set.issubset(adfobj.diag_var_list) or \
-       (not ('PRECT' in adfobj.diag_var_list) and (not ('PRECL' in adfobj.diag_var_list) or not ('PRECC' in adfobj.diag_var_list))):
-        print("\tThe Taylor Diagrams require the variables: ")
-        print("\tU, PSL, SWCF, LWCF, PRECT (or PRECL and PRECC), LANDFRAC, TREFHT, TAUX, RELHUM,T")
-        print("\tSome variables are missing so Taylor diagrams will be skipped.")
+    available_vars = set(adfobj.diag_var_list)
+    missing_vars = taylor_var_set - available_vars
+    # Check for precipitation (Needs PRECT OR both PRECL and PRECC)
+    has_prect = 'PRECT' in available_vars
+    has_precl_precc = {'PRECL', 'PRECC'}.issubset(available_vars)
+    if missing_vars or not (has_prect or has_precl_precc):
+        print("\tTaylor Diagrams skipped due to missing variables:")
+        if missing_vars:
+            print(f"\t - Missing: {', '.join(sorted(missing_vars))}")
+        if not (has_prect or has_precl_precc):
+            if not has_prect:
+                print("\t - Missing: PRECT (Alternative PRECL + PRECC also incomplete)")
+        print("\n\tFull requirement: U, PSL, SWCF, LWCF, LANDFRAC, TREFHT, TAUX, RELHUM, T,")
+        print("\tAND (PRECT OR both PRECL & PRECC)")
         return
-    #End if
+
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
@@ -138,8 +128,7 @@ def cam_taylor_diagram(adfobj):
     #
     # LOOP OVER SEASON
     #
-    for s in seasons:
-
+    for s in seasons.items():
         plot_name = plot_loc / f"TaylorDiag_{s}_Special_Mean.{plot_type}"
         print(f"\t - Plotting Taylor Diagram, {s}")
 
@@ -162,12 +151,24 @@ def cam_taylor_diagram(adfobj):
         # LOOP OVER VARIABLES
         #
         for v in var_list:
-            base_x = _retrieve(adfobj, v, data_name, data_loc) # get the baseline field
-            for casenumber, case in enumerate(case_names):     # LOOP THROUGH CASES
-                case_x = _retrieve(adfobj, v, case, case_climo_loc[casenumber])
+            # Load reference data (already regridded to target grid)
+            ref_data = _retrieve(adfobj, v, data_name)
+            if ref_data is None:
+                print(f"\t WARNING: No regridded reference data for {v} in {data_name}, skipping.")
+                continue
+            # ASSUMING `time` is 1-12, get the current season:
+            ref_data = ref_data.sel(time=s).mean(dim='time')
+
+            for casenumber, case in enumerate(case_names):
+                # Load test case data regridded to match reference grid
+                case_data = _retrieve(adfobj, v, case)
+                if case_data is None:
+                    print(f"\t WARNING: No regridded data for {v} in {case}, skipping.")
+                    continue
                 # ASSUMING `time` is 1-12, get the current season:
-                case_x = case_x.sel(time=seasons[s]).mean(dim='time')
-                result_by_case[case].loc[v] = taylor_stats_single(case_x, base_x)
+                case_data = case_data.sel(time=s).mean(dim='time')
+                # Now compute stats (grids are aligned)
+                result_by_case[case].loc[v] = taylor_stats_single(case_data, ref_data)
         #
         # -- PLOTTING (one per season) --
         #
@@ -208,65 +209,40 @@ def vertical_average(fld, ps, acoef, bcoef):
     dp_integrated = 0.5 * (pres.sel(lev=maxlev)**2 - pres.sel(lev=minlev)**2)
     levaxis = fld.dims.index('lev')  # fld needs to be a dataarray
     assert isinstance(levaxis, int), f'the axis called lev is not an integer: {levaxis}'
-    fld_integrated = np.trapz(fld * pres, x=pres, axis=levaxis)
+    fld_integrated = np.trapezoid(fld * pres, x=pres, axis=levaxis)
     return fld_integrated / dp_integrated
 
-def find_landmask(adf, casename, location):
-    # maybe it's in the climo files, but we might need to look in the history files:
-    landfrac_fils = list(Path(location).glob(f"{casename}*_LANDFRAC_*.nc"))
-    if landfrac_fils:
-        return xr.open_dataset(landfrac_fils[0])['LANDFRAC']
+def find_landmask(adf, casename):
+    try:
+        return _retrieve(adf, 'LANDFRAC', casename)
+    except Exception as e:
+        print(f"\t WARNING: Could not find LANDFRAC for {casename}: {e}")
+        return None
+
+def get_prect(adf, casename, **kwargs):
+    if casename == 'Obs':
+        return adf.data.load_reference_regrid_da('PRECT')
     else:
-        if casename in adf.get_cam_info('cam_case_name'):
-            # cases are in lists, so need to match them
-            caselist = adf.get_cam_info('cam_case_name')
-            hloc = adf.get_cam_info('cam_hist_loc')
-            hloc = hloc[caselist.index(casename)]
-        else:
-            hloc = adf.get_baseline_info('cam_hist_loc')
-        hfils = Path(hloc).glob((f"*{casename}*.nc"))
-        if not hfils:
-            raise IOError(f"No history files in expected location: {hloc}")
-        k = 0
-        for h in hfils:
-            dstmp = xr.open_dataset(h)
-            if 'LANDFRAC' in dstmp:
-                print(f"\tGood news, found LANDFRAC in history file")
-                return dstmp['LANDFRAC']
-            else:
-                k += 1
-        else:
-            raise IOError(f"Checked {k} files, but did not find LANDFRAC in any of them.")
-    # should not reach past the `if` statement without returning landfrac or raising exception.
+        # Try regridded PRECT first
+        prect = adf.data.load_regrid_da(casename, 'PRECT')
+        if prect is not None:
+            return prect
+        # Fallback: derive from PRECC + PRECL using regridded versions
+        print("\t Need to derive PRECT = PRECC + PRECL (using regridded data)")
+        precc = adf.data.load_regrid_da(casename, 'PRECC')
+        precl = adf.data.load_regrid_da(casename, 'PRECL')
+        if precc is None or precl is None:
+            print(f"\t WARNING: Could not derive PRECT for {casename} (missing PRECC or PRECL)")
+            return None
+        return precc + precl
 
-def get_prect(casename, location, **kwargs):
-    # look for prect first:
-    fils = sorted(Path(location).glob(f"{casename}*_PRECT_*.nc"))
-    if len(fils) == 0:
-        print("\t Need to derive PRECT = PRECC + PRECL")
-        fils1 = sorted(Path(location).glob(f"{casename}*_PRECC_*.nc"))
-        fils2 = sorted(Path(location).glob(f"{casename}*_PRECL_*.nc"))
-        if (len(fils1) == 0) or (len(fils2) == 0):
-            raise IOError("Could not find PRECC or PRECL")
-        else:
-            if len(fils1) == 1:
-                precc = xr.open_dataset(fils1[0])['PRECC']
-                precl = xr.open_dataset(fils2[0])['PRECL']
-                prect = precc + precl
-            else:
-                raise NotImplementedError("Need to deal with mult-file case.")
-    elif len(fils) > 1:
-        prect = xr.open_mfdataset(fils)['PRECT'].load()  # do we ever expect climo files split into pieces?
-    else:
-        prect = xr.open_dataset(fils[0])['PRECT']
-    return prect
-
-
-def get_tropical_land_precip(adf, casename, location, **kwargs):
-    landfrac = find_landmask(adf, casename, location)
+def get_tropical_land_precip(adf, casename, **kwargs):
+    landfrac = find_landmask(adf, casename)
     if landfrac is None:
-        raise ValueError("\t No landfrac returned")
-    prect = get_prect(casename, location)
+        return None
+    prect = get_prect(adf, casename)
+    if prect is None:
+        return None
     # mask to only keep land locations
     prect = xr.DataArray(np.where(landfrac >= .95, prect, np.nan),
                          dims=prect.dims,
@@ -275,11 +251,13 @@ def get_tropical_land_precip(adf, casename, location, **kwargs):
     return prect.sel(lat=slice(-30,30))
 
 
-def get_tropical_ocean_precip(adf, casename, location, **kwargs):
-    landfrac = find_landmask(adf, casename, location)
+def get_tropical_ocean_precip(adf, casename, **kwargs):
+    landfrac = find_landmask(adf, casename)
     if landfrac is None:
-        raise ValueError("No landfrac returned")
-    prect = get_prect(casename, location)
+        return None
+    prect = get_prect(adf, casename)
+    if prect is None:
+        return None
     # mask to only keep ocean locations
     prect = xr.DataArray(np.where(landfrac <= 0.05, prect, np.nan),
                          dims=prect.dims,
@@ -287,102 +265,103 @@ def get_tropical_ocean_precip(adf, casename, location, **kwargs):
                          attrs=prect.attrs)
     return prect.sel(lat=slice(-30,30))
 
-def get_surface_pressure(dset, casename, location):
 
-    #Find surface pressure (PS):
+def get_surface_pressure(adf, dset, casename):
     if 'PS' in dset.variables:
         #Just use surface pressure in climo file:
         ps = dset['PS']
     else:
-        #Check if surface pressure exists as a separate climo file:
-        fils = sorted(Path(location).glob(f"{casename}*_PS_*.nc"))
-        if (len(fils) == 0):
-            emsg = f"Could not find PS. This is needed as a separate variable if"
-            emsg += " reading time series files directly."
-            raise IOError(emsg)
+        if casename == 'Obs':
+            ps = adf.data.load_reference_regrid_da('PS')
         else:
-            if len(fils) == 1:
-                ps_ds = xr.open_dataset(fils[0])
-            else:
-                raise NotImplementedError("Need to deal with mult-file case.")
-        #End if
-        ps = ps_ds['PS']
-    #End if
-
-    #Return values:
+            ps = adf.data.load_regrid_da(casename, 'PS')    
+    if ps is None:
+        print(f"\t WARNING: Could not load PS for {casename}.")
+        return None    
     return ps
 
-def get_var_at_plev(adf, casename, location, variable, plev):
-    """
-    Get `variable` from the data and then interpolate it to isobaric level `plev` (units of hPa).
-    """
-    dset = _retrieve(adf, variable, casename, location, return_dataset=True)
 
-    # Try and extract surface pressure:
-    ps = get_surface_pressure(dset, casename, location)
+def get_var_at_plev(adf, casename, variable, plev):
+    if casename == 'Obs':
+        dset = adf.data.load_reference_regrid_da(variable)
+        if dset is None or 'lev' not in dset.dims:
+            print(f"\t WARNING: Obs data for {variable} lacks lev dimension or is unavailable.")
+            return None
+        return dset.sel(lev=plev, method='nearest') if dset is not None else None
+    else:
+        dset = adf.data.load_regrid_da(casename, variable)
+        if dset is None:
+            return None
+        ps = get_surface_pressure(adf, dset, casename)
+        if ps is None:
+            print(f"\t WARNING: Could not load PS for {variable} interpolation in {casename}")
+            return None
+        # Proceed with gc.interp_hybrid_to_pressure using regridded data
+        # (Assumes hyam/hybm are available in dset or can be loaded similarly)
+        vplev = gc.interp_hybrid_to_pressure(dset, ps, dset['hyam'], dset['hybm'],
+                                             new_levels=np.array([100. * plev]), lev_dim='lev')
+        return vplev.squeeze(drop=True).load()
 
-    vplev = gc.interp_hybrid_to_pressure(dset['U'], ps, dset['hyam'], dset['hybm'],
-                                         new_levels=np.array([100. * plev]), lev_dim='lev')
-    vplev = vplev.squeeze(drop=True).load()
-    return vplev
+
+def get_u_at_plev(adf, casename):
+    return get_var_at_plev(adf, casename, "U", 300)
 
 
-def get_u_at_plev(adf, casename, location):
-    return get_var_at_plev(adf, casename, location, "U", 300)
-
-
-def get_vertical_average(adf, casename, location, varname):
+def get_vertical_average(adf, casename, varname):
     '''Collect data from case and use `vertical_average` to get result.'''
-    fils = sorted(Path(location).glob(f"{casename}*_{varname}_*.nc"))
-    if (len(fils) == 0):
-        raise IOError(f"Could not find {varname}")
+    if casename == 'Obs':
+        ds = adf.data.load_reference_regrid_da(varname)
+        if ds is None or 'lev' not in ds.dims:
+            print(f"\t WARNING: Obs data for {varname} lacks lev dimension.")
+            return None
+        return ds.mean(dim='lev')
     else:
-        if len(fils) == 1:
-            ds = xr.open_dataset(fils[0])
-        else:
-            raise NotImplementedError("Need to deal with mult-file case.")
-    # Try and extract surface pressure:
-    ps = get_surface_pressure(ds, casename, location)
-    # If the climo file is made by ADF, then hyam and hybm will be with VARIABLE:
-    return vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'])
+        ds = adf.data.load_regrid_da(casename, varname)
+        if ds is None:
+            return None
+        # Try and extract surface pressure:
+        ps = get_surface_pressure(adf, ds, casename)
+        if ps is None:
+            print(f"\t WARNING: Could not load PS for {varname} interpolation in {casename}")
+            return None
+        # If the climo file is made by ADF, then hyam and hybm will be with VARIABLE:
+        return vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'])
 
 
-def get_virh(adf, casename, location, **kwargs):
+def get_virh(adf, casename, **kwargs):
     '''Calculate vertically averaged relative humidity.'''
-    return get_vertical_average(adf, casename, location, "RELHUM")
+    return get_vertical_average(adf, casename, "RELHUM")
 
 
-def get_vit(adf, casename, location, **kwargs):
+def get_vit(adf, casename, **kwargs):
     '''Calculate vertically averaged temperature.'''
-    return get_vertical_average(adf, casename, location, "T")
+    return get_vertical_average(adf, casename, "T")
 
-
-def get_landt2m(adf, casename, location):
-    """Gets TREFHT (T_2m) and removes non-land points."""
-    fils = sorted(Path(location).glob(f"{casename}*_TREFHT_*.nc"))
-    if len(fils) == 0:
-        raise IOError(f"TREFHT could not be found in the files.")
-    elif len(fils) > 1:
-        t = xr.open_mfdataset(fils)['TREFHT'].load()  # do we ever expect climo files split into pieces?
+def get_landt2m(adf, casename):
+    if casename == 'Obs':
+        t = adf.data.load_reference_regrid_da('TREFHT')
     else:
-        t = xr.open_dataset(fils[0])['TREFHT']
-    landfrac = find_landmask(adf, casename, location)
+        t = adf.data.load_regrid_da(casename, 'TREFHT')
+    if t is None:
+        return None
+    landfrac = find_landmask(adf, casename)
+    if landfrac is None:
+        return None
     t = xr.DataArray(np.where(landfrac >= .95, t, np.nan),
-                         dims=t.dims,
-                         coords=t.coords,
-                         attrs=t.attrs)  # threshold could be 1
+                     dims=t.dims, coords=t.coords, attrs=t.attrs)
     return t
 
 
-def get_eqpactaux(adf, casename, location):
+
+def get_eqpactaux(adf, casename):
     """Gets zonal surface wind stress 5S to 5N."""
-    fils = sorted(Path(location).glob(f"{casename}*_TAUX_*.nc"))
-    if len(fils) == 0:
-        raise IOError(f"TAUX could not be found in the files.")
-    elif len(fils) > 1:
-        taux = xr.open_mfdataset(fils)['TAUX'].load()  # do we ever expect climo files split into pieces?
+    if casename == 'Obs':
+        taux = adf.data.load_reference_regrid_da('TAUX')
     else:
-        taux = xr.open_dataset(fils[0])['TAUX']
+        taux = adf.data.load_regrid_da(casename, 'TAUX')
+    if taux is None:
+        print(f"\t WARNING: Could not load TAUX for {casename}")
+        return None
     return taux.sel(lat=slice(-5, 5))
 
 
@@ -396,39 +375,51 @@ def get_derive_func(fld):
     'EquatorialPacificStress': get_eqpactaux
     }
     if fld not in funcs:
-        raise ValueError(f"We do not have a method for variable: {fld}.")
+        print(f"We do not have a method for variable: {fld}.")
+        return None
     return funcs[fld]
 
 
-def _retrieve(adfobj, variable, casename, location, return_dataset=False):
-    """Custom function that retrieves a variable. Returns the variable as a DataArray.
-    kwarg:
-    return_dataset -> if true, return the dataset object, otherwise return the DataArray
-                      with `variable`
-                      This option allows get_u_at_plev to use _retrieve.
+def _retrieve(adfobj, variable, casename, return_dataset=False):
+    """Custom function that retrieves a variable using ADF loaders for grid consistency.
+    Returns the variable as a DataArray (or Dataset if return_dataset=True).
     """
-
     v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress',
-                'U300', 'ColumnRelativeHumidity', 'ColumnTemperature', 'Land2mTemperature']
-    if variable not in v_to_derive:
-        fils = sorted(Path(location).glob(f"{casename}*_{variable}_*.nc"))
-        if len(fils) == 0:
-            raise ValueError(f"something went wrong for variable: {variable}")
-        elif len(fils) > 1:
-            ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces?
-        else:
-            ds = xr.open_dataset(fils[0])
+                   'U300', 'ColumnRelativeHumidity', 'ColumnTemperature', 'Land2mTemperature']
+    
+    try:
+        if casename == 'Obs':
+            if variable not in v_to_derive:
+                da = adfobj.data.load_reference_regrid_da(variable)
+            else:
+                func = get_derive_func(variable)
+                if func is None:
+                    print(f"\t WARNING: No derivation function for {variable}.")
+                    return None
+                da = func(adfobj, 'Obs')  # No location needed
+        else:  # Model cases
+            if variable not in v_to_derive:
+                da = adfobj.data.load_regrid_da(casename, variable)
+            else:
+                func = get_derive_func(variable)
+                if func is None:
+                    print(f"\t WARNING: No derivation function for {variable}.")
+                    return None
+                da = func(adfobj, casename)  # No location needed
+        
+        if da is None:
+            print(f"\t WARNING: Could not load {variable} for {casename}.")
+            return None
+        
         if return_dataset:
-            da = ds
-        else:
-            da = ds[variable]
-    else:
-        func = get_derive_func(variable)
-        da = func(adfobj, casename, location)  # these ONLY return DataArray
-        if return_dataset:
-            da = da.to_dataset(name=variable)
-    return da
-
+            if not isinstance(da, xr.Dataset):
+                da = da.to_dataset(name=variable)
+        return da
+    
+    except Exception as e:
+        print(f"\t WARNING: Error retrieving {variable} for {casename}: {e}")
+        return None
+    
 
 def weighted_correlation(x, y, weights):
     # TODO: since we expect masked fields (land/ocean), need to allow for missing values (maybe works already?)
@@ -542,6 +533,8 @@ def plot_taylor_data(wks, df, **kwargs):
     k = 1
     for ndx, row in df.iterrows():
         # NOTE: ndx will be the DataFrame index, and we expect that to be the variable name
+        if np.isnan(row['corr']) or np.isnan(row['ratio']):
+            continue  # Skip plotting if data is missing
         theta = np.pi/2 - np.arccos(row['corr'])  # Transform DATA
         if use_bias:
             mk = marker_list[row['bias_digi']]
