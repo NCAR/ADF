@@ -126,7 +126,7 @@ def mask_land_or_ocean(arr, msk, use_nan=False):
         missing_value = -999.
     #End if
 
-    arr = xr.where(msk>=0.9,arr,missing_value)
+    arr = xr.where(msk>=0.9,arr,missing_value, keep_attrs=True)
     arr.attrs["missing_value"] = missing_value
     return(arr)
 
@@ -535,7 +535,7 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     #Temporary print statement to notify users to ignore warning messages.
     #This should be replaced by a debug-log stdout filter at some point:
     print("Please ignore the interpolation warnings that follow!")
-
+    
     #Apply GeoCAT hybrid->pressure interpolation:
     if new_levels is not None:
         data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,
@@ -559,10 +559,22 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     #Rename vertical dimension back to "lev" in order to work with
     #the ADF plotting functions:
     data_interp_rename = data_interp.rename({"plev": "lev"})
+    attrs = data_interp_rename.attrs.copy()
+    lev_orig = data_interp_rename["lev"]
+    lev_orig_attrs = lev_orig.attrs.copy()
 
     #Convert vertical dimension to mb/hPa, if requested:
     if convert_to_mb:
-        data_interp_rename["lev"] = data_interp_rename["lev"] / 100.0
+        lev_new = lev_orig / 100.0
+        lev_new.attrs = lev_orig_attrs
+        lev_new.name = "lev"
+        lev_new.attrs["units"] = "hPa"
+        lev_new.attrs["history"] = f"converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
+        data_interp_rename["lev"] = lev_new
+        data_interp_rename.attrs = attrs
+    else:
+        data_interp_rename.attrs['units'] = "Pa"
+        data_interp_rename.attrs['history'] = f"Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
 
     return data_interp_rename
 
@@ -678,6 +690,7 @@ def plev_to_plev(data, new_levels=None, convert_to_mb=False):
 
     # convert vertical dimension to mb/hPa, if requested:
     if convert_to_mb:
+        ## DEAL WITH METADATA BETTER HERE
         output["lev"] = output["lev"] / 100.0
     #End if
 

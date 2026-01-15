@@ -12,10 +12,13 @@ When multiple test cases are provided, they are plotted with different colors.
 #
 # --- imports and configuration ---
 #
+import os
 import sys
 import logging
 from pathlib import Path
+import warnings
 import numpy as np
+import numpy.typing as npt
 import xarray as xr
 import pandas as pd
 import geocat.comp as gc  # use geocat's interpolation
@@ -36,11 +39,29 @@ import adf_utils as utils
 
 logger = logging.getLogger(__name__)
 console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
 logger.setLevel(logging.DEBUG)
 logger.propagate = False
 
+
+from contextlib import redirect_stdout, contextmanager
+
+@contextmanager
+def silence_output():
+    sys.stdout.flush() # Flush Python's buffer
+    sys.stderr.flush()
+    with open(os.devnull, 'w') as devnull:
+        with redirect_stdout(devnull):
+            # Also catch the C-level stderr/stdout if possible
+            # This is the most robust way to silence C extensions
+            old_stdout_fd = os.dup(sys.stdout.fileno())
+            os.dup2(devnull.fileno(), sys.stdout.fileno())
+            try:
+                yield
+            finally:
+                os.dup2(old_stdout_fd, sys.stdout.fileno())
+                os.close(old_stdout_fd)
 
 def get_level_dim(dset):
     """Get the name of the level dimension in the dataset."""
@@ -114,21 +135,21 @@ def cam_taylor_diagram(adfobj):
     if missing_vars or not (has_prect or has_precl_precc):
         logger.warning("\tTaylor Diagrams skipped due to missing variables:")
         if missing_vars:
-            logger.warning(f"\t - Missing: {', '.join(sorted(missing_vars))}")
+            logger.warning(f"\t Missing: {', '.join(sorted(missing_vars))}")
         if not (has_prect or has_precl_precc):
             if not has_prect:
-                logger.warning("\t - Missing: PRECT (Alternative PRECL + PRECC also incomplete)")
+                logger.warning("\t Missing: PRECT (Alternative PRECL + PRECC also incomplete)")
         logger.info("\n\tFull requirement: U, PSL, SWCF, LWCF, LANDFRAC, TREFHT, TAUX, RELHUM, T,")
         logger.info("\tAND (PRECT OR both PRECL & PRECC)")
         return
 
 
     #Set seasonal ranges:
-    seasons = {"ANN": np.arange(1,13,1),
-               "DJF": [12, 1, 2],
-               "JJA": [6, 7, 8],
-               "MAM": [3, 4, 5],
-               "SON": [9, 10, 11]}
+    seasons = {"ANN": np.arange(1,13,1)}
+            #    "DJF": [12, 1, 2],
+            #    "JJA": [6, 7, 8],
+            #    "MAM": [3, 4, 5],
+            #    "SON": [9, 10, 11]}
 
     # TAYLOR PLOT VARIABLES:
     var_list = ['PSL', 'SWCF', 'LWCF',
@@ -166,7 +187,8 @@ def cam_taylor_diagram(adfobj):
             if ref_data is None:
                 logger.warning(f"\t WARNING: No regridded reference data for {v} in {data_name}, skipping.")
                 continue
-            ref_data = ref_data.sel(time=months).mean(dim='time').compute()
+            with silence_output():
+                ref_data = ref_data.sel(time=months).mean(dim='time').compute()
 
             for casenumber, case in enumerate(case_names):
                 # Load test case data regridded to match reference grid
@@ -208,21 +230,8 @@ def cam_taylor_diagram(adfobj):
 
 # --- DERIVED VARIABLES ---
 
-def vertical_average(fld, ps, acoef, bcoef, level_dim='lev'):
-    """Calculate weighted vertical average using trapezoidal rule. Uses full column."""
-    pres = utils.pres_from_hybrid(ps, acoef, bcoef)
-    # integral of del_pressure turns out to be just the average of the square of the boundaries:
-    # -- assume lev is a coordinate and is nominally in pressure units
-    maxlev = pres['lev'].max().item()
-    minlev = pres['lev'].min().item()
-    dp_integrated = 0.5 * (pres.sel(lev=maxlev)**2 - pres.sel(lev=minlev)**2)
-    levaxis = fld.dims.index(level_dim)  # fld needs to be a dataarray
-    assert isinstance(levaxis, int), f'the axis called {level_dim} is not an integer: {levaxis}'
-    fld_integrated = np.trapezoid(fld * pres, x=pres, axis=levaxis)
-    return fld_integrated / dp_integrated
 
 def find_landmask(adf, casename):
-    logger.debug(f"Finding landmask for {casename}")
     return _retrieve(adf, 'LANDFRAC', casename)
 
 
@@ -249,10 +258,12 @@ def regrid_to_target(adf, casename, source_da, target_da, method='conservative')
         return source_da
     
     logger.debug(f"Regridding from {source_da.lat.shape} x {source_da.lon.shape} to {target_da.lat.shape} x {target_da.lon.shape}")
-    
+
     # Create clean grids for xesmf
-    source_grid = _create_clean_grid(source_da)
-    target_grid = _create_clean_grid(target_da)
+    # source_grid = _create_clean_grid(source_da)
+    # target_grid = _create_clean_grid(target_da)
+    source_grid = _create_clean_grid(source_da.reset_coords(drop=True))
+    target_grid = _create_clean_grid(target_da.reset_coords(drop=True))
     
     # Manage weights files -- MULTI-CASE NEEDS TO KNOW CASENAME
     regrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
@@ -275,25 +286,34 @@ def regrid_to_target(adf, casename, source_da, target_da, method='conservative')
     target_grid_desc = f"{target_grid_type}_{len(target_da.lat)}_{len(target_da.lon)}" if target_grid_type == "structured" else f"{target_grid_type}_{len(target_da.ncol)}"
     
     weights_file = regrid_weights_dir / f"weights_{source_grid_desc}_to_{target_grid_desc}_{method}.nc"
-    
+    logger.debug(f">> Weights file: {weights_file}")
     if weights_file.exists():
         logger.debug(f"Using existing regridding weights file: {weights_file}")
-        regridder = xe.Regridder(source_grid, target_grid, method, weights=str(weights_file))
+        with silence_output():
+            logger.debug(">>Set up regridder from existing regridding weights file.")
+            regridder = xe.Regridder(source_grid, target_grid, method, weights=str(weights_file))     
+            logger.debug("<<Finished setting up regridder from existing regridding weights file.")
     else:
         logger.debug(f"Creating new regridding weights file: {weights_file}")
-        regridder = xe.Regridder(source_grid, target_grid, method)
-        regridder.to_netcdf(weights_file)
-    
-    regridded = regridder(source_da)
-    
+        with silence_output():
+            regridder = xe.Regridder(source_grid, target_grid, method)
+            regridder.to_netcdf(weights_file)
+    logger.debug("Exectute regridding on silent mode.") 
+    with silence_output():
+        # Also catch numpy floating point errors just in case
+        with np.errstate(invalid='ignore'):
+            regridded = regridder(source_da)
+
+    logger.debug("Returning regridded DataArray")
     return regridded
 
 
 def _create_clean_grid(da):
     """
     Creates a minimal, CF-compliant xarray Dataset for xesmf from a DataArray.
-    Adapted from regrid_and_vert_interp_2.py
+    Adapted from regrid_and_vert_interp.py
     """
+    logger.debug("STARTING _create_clean_grid")
     # Convert DataArray to Dataset if needed
     if isinstance(da, xr.DataArray):
         ds = da.to_dataset()
@@ -301,11 +321,16 @@ def _create_clean_grid(da):
         ds = da
 
     # Extract raw values
-    lat_centers = ds.lat.values
-    lon_centers = ds.lon.values
+    lat_centers = ds.lat.values.astype(np.float64)
+    lon_centers = ds.lon.values.astype(np.float64)
+
+    if np.any(np.isnan(lat_centers)) or np.any(np.isinf(lat_centers)):
+        logger.critical("Found NaNs or Infs in latitude centers!")
+        lat_centers = np.nan_to_num(lat_centers, nan=0.0, posinf=90.0, neginf=-90.0)
+
 
     # Clip to avoid ESMF range errors
-    lat_centers = np.clip(lat_centers, -90, 90)
+    lat_centers = np.clip(lat_centers, -89.999999, 89.999999)
 
     # Build basic Dataset
     clean_ds = xr.Dataset(
@@ -338,12 +363,12 @@ def _create_clean_grid(da):
         lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
 
         # Clip to avoid ESMF range errors
-        lat_v = np.clip(lat_v, -90, 90)
+        lat_v = np.clip(lat_v, -89.9999, 89.9999).astype(np.float64)
 
         # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
         clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
         clean_ds["lon_b"] = (["lon_f"], lon_v, {"units": "degrees_east"})
-
+    logger.debug("Returning clean_ds")
     return clean_ds
 
 def get_prect(adf, casename, **kwargs):
@@ -462,8 +487,9 @@ def get_var_at_plev(adf, casename, variable, plev):
         if ps is None:
             logger.warning(f"\t WARNING: Could not load PS for {variable} interpolation in {casename}")
             return None
-        # Proceed with gc.interp_hybrid_to_pressure using regridded data
-        vplev = gc.interp_hybrid_to_pressure(dset, ps, dset['hyam'], dset['hybm'],
+        with silence_output():
+            # Proceed with gc.interp_hybrid_to_pressure using regridded data
+            vplev = gc.interp_hybrid_to_pressure(dset, ps, dset['hyam'], dset['hybm'],
                                              new_levels=np.array([100. * plev]), lev_dim=level_dim)
         return vplev.squeeze(drop=True).load()
 
@@ -473,44 +499,81 @@ def get_u_at_plev(adf, casename):
 
 
 def get_vertical_average(adf, casename, varname):
-    '''Collect data from case and use `vertical_average` to get result.'''
+    '''Collect data and apply mass-weighted vertical averaging with interface support.
+    
+    NOTE: the height coordinate is not weighted by density, so is biased.
+    '''
     if casename == 'Obs':
-        ds = adf.data.load_reference_regrid_da(adf.data.ref_labels[varname], varname)
-        if ds is None:
-            logger.warning(f"\t WARNING: Obs data for {varname} is unavailable.")
-            return None
-        level_dim = get_level_dim(ds)
-        if level_dim is None:
-            logger.warning(f"\t WARNING: Obs data for {varname} lacks level dimension.")
-            return None
-        # For obs, assume already on pressure levels, just average
-        return ds.mean(dim=level_dim)
+        ds = adf.data.load_reference_regrid_dataset(adf.data.ref_labels[varname], varname)
     else:
-        ds = adf.data.load_regrid_da(casename, varname)
-        if ds is None:
-            return None
-        
-        # Check if data is already on pressure levels
-        if 'hyam' not in ds and 'hybm' not in ds:
-            # Assume already on pressure levels
-            level_dim = get_level_dim(ds)
-            if level_dim is not None:
-                return ds.mean(dim=level_dim)
-            else:
-                logger.warning(f"\t WARNING: No level dimension in regridded {varname} for {casename}")
-                return None
-        
-        # Data is on hybrid levels, need vertical averaging
-        level_dim = get_level_dim(ds)
-        if level_dim is None:
-            logger.warning(f"\t WARNING: No level dimension in regridded {varname} for {casename}")
-            return None
+        ds = adf.data.load_regrid_dataset(casename, varname)
+
+    if ds is None: return None
+    
+    level_dim = get_level_dim(ds)
+    if level_dim is None: return None
+
+    if 'hyai' in ds and 'hybi' in ds:
         ps = get_surface_pressure(adf, ds, casename)
-        if ps is None:
-            logger.warning(f"\t WARNING: Could not load PS for {varname} interpolation in {casename}")
-            return None
-        # If the climo file is made by ADF, then hyam and hybm will be with VARIABLE:
-        return vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'], level_dim)
+        p_int = utils.pres_from_hybrid(ps, ds['hyai'], ds['hybi'])
+        # diff returns one fewer element than p_int
+        # This represents the thickness of the layers BETWEEN interfaces
+        dp = abs(p_int.diff(dim=get_level_dim(p_int)))
+        
+        if level_dim == get_level_dim(p_int):
+            # Data is on interfaces (ilev). 
+            # interpolate the layer thicknesses (dp) back to the interface points.
+            weights = dp.rolling({level_dim: 2}, center=True).mean().fillna(0)
+        else:
+            # Data is on midpoints (lev). 
+            # Assign the dp calculated from interfaces to the lev dimension.
+            weights = dp.rename({get_level_dim(p_int): level_dim})
+            # Ensure coordinates match exactly for alignment
+            weights.coords[level_dim] = ds[level_dim]
+
+    elif 'hyam' in ds and 'hybm' in ds:
+        # Fallback for hybrid midpoints only
+        ps = get_surface_pressure(adf, ds, casename)
+        pres = utils.pres_from_hybrid(ps, ds['hyam'], ds['hybm'])
+        weights = calculate_thickness_approx(pres, dim=level_dim)
+
+    else:
+        # Pure Pressure, Height, or Obs
+        logger.debug("get_vertical_average: Pure Pressure, Height, or Obs")
+        weights = calculate_thickness_approx(ds[level_dim], dim=level_dim)
+
+    # Apply Weighted Average
+    return weighted_vertical_average(ds[varname], weights, dim=level_dim)
+
+
+def calculate_thickness_approx(coord, dim='lev'):
+    """Approximates thickness using centered differences between midpoints."""
+    if not isinstance(coord, (xr.DataArray, xr.Dataset)):
+        # If it's just a coordinate object, convert to DataArray
+        coord = xr.DataArray(coord, coords={dim: coord}, dims=[dim])
+    logger.debug(f"\t calculate_thickness_approx: {dim = }, max: {coord.max().item()}, min: {coord.min().item()}")
+
+    # (P_{k+1} - P_{k-1}) / 2
+    upper = coord.shift({dim: -1})
+    lower = coord.shift({dim: 1})
+    diff = abs(upper - lower) / 2.0
+    
+    # For the edges (top/bottom), we can't do centered differences.
+    # Take the distance to the only available neighbor.
+    edge_diff = abs(coord.diff(dim=dim))
+    
+    # Fill the NaNs at the start and end of the array
+    # bfill handles the first element, ffill handles the last
+    return diff.fillna(edge_diff.bfill(dim).ffill(dim))
+
+
+def weighted_vertical_average(da, weights, dim='lev'):
+    """Computes mass-weighted average: Σ(φ * Δp) / Σ(Δp)"""
+    # Ensure weights align with data (broadcasts PS if necessary)
+    weighted_field = da * weights
+    mask = da.notnull()
+    total_weight = weights.where(mask).sum(dim=dim)
+    return weighted_field.sum(dim=dim) / total_weight
 
 
 def get_virh(adf, casename, **kwargs):
@@ -522,7 +585,9 @@ def get_vit(adf, casename, **kwargs):
     '''Calculate vertically averaged temperature.'''
     return get_vertical_average(adf, casename, "T")
 
+
 def get_landt2m(adf, casename):
+    '''Get 2-meter temperature over land'''
     if casename == 'Obs':
         t = adf.data.load_reference_regrid_da(adf.data.ref_labels["TREFHT"], 'TREFHT')
     else:
@@ -544,7 +609,7 @@ def get_landt2m(adf, casename):
 
 
 def get_eqpactaux(adf, casename):
-    """Gets zonal surface wind stress 5S to 5N."""
+    """Get zonal surface wind stress 5°S to 5°N."""
     if casename == 'Obs':
         taux = adf.data.load_reference_regrid_da(adf.data.ref_labels["TAUX"], 'TAUX')
     else:
@@ -556,6 +621,7 @@ def get_eqpactaux(adf, casename):
 
 
 def get_derive_func(fld: str):
+    '''Provide the function name for derived variables.'''
     funcs = {'TropicalLandPrecip': get_tropical_land_precip,
     'TropicalOceanPrecip': get_tropical_ocean_precip,
     'U300': get_u_at_plev,
@@ -571,7 +637,7 @@ def get_derive_func(fld: str):
 
 
 def _retrieve(adfobj, variable, casename, return_dataset=False):
-    """Custom function that retrieves a variable using ADF loaders for grid consistency.
+    """Custom function that retrieves a variable using ADF loaders.
     Returns the variable as a DataArray (or Dataset if return_dataset=True).
     """
     v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress',
@@ -601,8 +667,8 @@ def _retrieve(adfobj, variable, casename, return_dataset=False):
     return da
 
 
-def weighted_correlation(x, y, weights):
-    # TODO: since we expect masked fields (land/ocean), need to allow for missing values (maybe works already?)
+def weighted_correlation(x: xr.DataArray, y: xr.DataArray, weights: npt.ArrayLike):
+    '''Calculate weighted correlation coefficient.'''
     mean_x = x.weighted(weights).mean()
     mean_y = y.weighted(weights).mean()
     dev_x = x - mean_x
@@ -613,14 +679,8 @@ def weighted_correlation(x, y, weights):
     return cov_xy / np.sqrt(cov_xx * cov_yy)
 
 
-def weighted_std(x, weights):
-    """Weighted standard deviation.
-    x -> xr.DataArray
-    weights -> array-like of weights, probably xr.DataArray
-    If weights is not the same shape as x, will use `broadcast_like` to
-    create weights array.
-    Returns the weighted standard deviation of the full x array.
-    """
+def weighted_std(x: xr.DataArray, weights: npt.ArrayLike):
+    """Calculate weighted standard deviation."""
     xshape = x.shape
     wshape = weights.shape
     if xshape != wshape:
@@ -637,12 +697,15 @@ def weighted_std(x, weights):
 
 def taylor_stats_single(casedata, refdata, w=True):
     """This replicates the basic functionality of 'taylor_stats' from NCL.
-    input:
+    PARAMTERS
+    ---------
         casedata : input data, DataArray
         refdata  : reference case data, DataArray
         w        : if true use cos(latitude) as spatial weight, if false assume uniform weight
-    returns:
-        pattern_correlation, ratio of standard deviation (case/ref), bias
+    RETURNS
+    -------
+        tuple: 
+            pattern correlation, ratio of standard deviation (case/ref), bias
     """
     lat = casedata.lat
     if w:
@@ -715,7 +778,7 @@ def plot_taylor_data(wks, df, **kwargs):
         # NOTE: ndx will be the DataFrame index, and we expect that to be the variable name
         if np.isnan(row['corr']) or np.isnan(row['ratio']):
             continue  # Skip plotting if data is missing
-        theta = np.pi/2 - np.arccos(row['corr'])  # Transform DATA
+        theta = np.pi/2 - np.arccos(np.clip(row['corr'], -1.0, 1.0))  # Transform DATA
         if use_bias:
             mk = marker_list[row['bias_digi']]
             mksz = marker_size[row['bias_digi']]

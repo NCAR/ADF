@@ -240,10 +240,20 @@ class AdfData:
         fils = self.get_reference_climo_file(variablename)
         ds = self.load_dataset(fils)
         vname = self.ref_var_nam[variablename]  # name of variable in the reference data
+        # Check if already transformed (via attribute or units)
+        # Check if already transformed (via attribute or units)
+        unit_match = ds[vname].attrs.get('units') == self.adf.variable_defaults[variablename].get('new_unit')
+        if ds[vname].attrs.get('transformed', False) or unit_match:
+            apply_scaling = False
         if not apply_scaling:
             add_offset = 0
             scale_factor = 1
+
+        attrs = ds[vname].attrs.copy()
         ds[vname] = ds[vname] * scale_factor + add_offset
+        ds[vname].attrs = attrs
+        if scale_factor != 1 or add_offset != 0:
+            ds[vname].attrs['transformed'] = True
         return ds
     
     def load_reference_climo_da(self, case, variablename, apply_scaling=True):
@@ -391,7 +401,7 @@ class AdfData:
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
-        da = (ds[variablename]).squeeze()
+        da = ds[variablename].squeeze()
         apply_scaling = kwargs.get('apply_scaling', True)
         if not apply_scaling:
             add_offset = 0
@@ -399,12 +409,16 @@ class AdfData:
         else:
             scale_factor = kwargs.get('scale_factor', 1)
             add_offset = kwargs.get('add_offset', 0)
+        attrs = da.attrs.copy()
         da = da * scale_factor + add_offset
-        if variablename in self.adf.variable_defaults:
-            vres = self.adf.variable_defaults[variablename]
-            da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
-        else:
-            da.attrs['units'] = 'none'
+        da.attrs = attrs
+
+        if scale_factor != 1 or add_offset != 0:
+            if variablename in self.adf.variable_defaults:
+                new_unit = self.adf.variable_defaults[variablename].get("new_unit")
+                if new_unit:
+                    da.attrs['units'] = new_unit
+                    da.attrs['transformed'] = True
         return da
 
     # Get variable conversion defaults, if applicable
@@ -434,7 +448,3 @@ class AdfData:
         return add_offset, scale_factor
 
     #------------------
-
-
-
-    
