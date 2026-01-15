@@ -336,6 +336,10 @@ def regional_climatology(adfobj):
                     map_ax.set_extent([-140, -55, 10, 70],crs=ccrs.PlateCarree())
                 elif region_list[iReg]=='S America':
                     map_ax.set_extent([-100, -20, -45, 20],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='East Asia':
+                    map_ax.set_extent([70, 145, 5, 55],crs=ccrs.PlateCarree())
+                elif region_list[iReg]=='Eurasia':
+                    map_ax.set_extent([20, 130, 10, 80],crs=ccrs.PlateCarree())
                 else: 
                     if ((box_south >= 30) & (box_east<=-5) ):
                         map_ax.set_extent([-180, 0, 30, 90],crs=ccrs.PlateCarree())

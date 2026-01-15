@@ -369,7 +369,7 @@ GPP: # Gross Primary Production
   mpl:
     colorbar:  
       label : "gC m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_contour_levels: [-200,-100,-75,-50,-25,-10,-5,0,5,10,25,50,75,100,200]
   pct_diff_colormap: "PiYG"
   scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
   avg_method: 'sum'
