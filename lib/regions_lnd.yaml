@@ -91,6 +91,14 @@ Europe:
   lat_bounds: [45, 60]
   lon_bounds: [-10, 30]
   region_category: Temperate 
+East Asia:
+  lat_bounds: [25, 45]
+  lon_bounds: [85, 120]
+  region_category: Temperate
+Eurasia:
+  lat_bounds: [15, 75]
+  lon_bounds: [30, 120]
+  region_category: Temperate
 Mediterranean:
   lat_bounds: [34, 45]
   lon_bounds: [-10, 30]
