@@ -39,9 +39,9 @@ import adf_utils as utils
 
 logger = logging.getLogger(__name__)
 console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.INFO)
 logger.addHandler(console_handler)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.propagate = False
 
 
