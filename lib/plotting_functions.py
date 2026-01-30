@@ -785,13 +785,14 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         pct = pctchange
         
     #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct_0 = pct.where(np.isfinite(pct), np.nan)
-    pct_0 = pct_0.fillna(0.0)
+    pct = pct.where(np.isfinite(pct), np.nan)
+    pct = pct.fillna(0.0)
+
     if isinstance(pct, ux.UxDataArray):
         pct_grid = pct.uxgrid
-        pct = ux.UxDataArray(pct_0,uxgrid=pct_grid)
+        pct = ux.UxDataArray(pct,uxgrid=pct_grid)
     else:
-        pct = pct_0
+        pct = pct
 
     if (hemisphere.upper() == "NH") or (hemisphere == "Arctic"):
         proj = ccrs.NorthPolarStereo()
@@ -2407,13 +2408,15 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         
         # calculate the percent change
         pct = (azm - bzm) / np.abs(bzm) * 100.0
+
         #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct_0 = pct.where(np.isfinite(pct), np.nan)
-        pct_0 = pct_0.fillna(0.0)
+        pct = pct.where(np.isfinite(pct), np.nan)
+        pct = pct.fillna(0.0)
+
         if isinstance(pct, ux.UxDataArray):
-            pct = ux.UxDataArray(pct_0)
+            pct = ux.UxDataArray(pct)
         else:
-            pct = pct_0
+            pct = pct
 
         # generate dictionary of contour plot settings:
         cp_info = prep_contour_plot(azm, bzm, diff, pct, **kwargs)
@@ -2481,12 +2484,12 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         # calculate the percent change
         pct = (azm - bzm) / np.abs(bzm) * 100.0
         #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct_0 = pct.where(np.isfinite(pct), np.nan)
-        pct_0 = pct_0.fillna(0.0)
+        pct = pct.where(np.isfinite(pct), np.nan)
+        pct = pct.fillna(0.0)
         if isinstance(pct, ux.UxDataArray):
-            pct = ux.UxDataArray(pct_0)
+            pct = ux.UxDataArray(pct)
         else:
-            pct = pct_0
+            pct = pct
         
         fig, ax = plt.subplots(nrows=3)
         ax = [ax[0],ax[1],ax[2]]
@@ -2636,12 +2639,12 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
     # calculate the percent change
     pct = (adata - bdata) / np.abs(bdata) * 100.0
     #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct_0 = pct.where(np.isfinite(pct), np.nan)
-    pct_0 = pct_0.fillna(0.0)
+    pct = pct.where(np.isfinite(pct), np.nan)
+    pct = pct.fillna(0.0)
     if isinstance(pct, ux.UxDataArray):
-        pct = ux.UxDataArray(pct_0)
+        pct = ux.UxDataArray(pct)
     else:
-        pct = pct_0
+        pct = pct
 
     # plot-controlling parameters:
     xdim = 'lon' # the name used for the x-axis dimension
@@ -2856,12 +2859,12 @@ def square_contour_difference(fld1, fld2, **kwargs):
     
     pct = (fld1 - fld2) / np.abs(fld2) * 100.0
     #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct_0 = pct.where(np.isfinite(pct), np.nan)
-    pct_0 = pct_0.fillna(0.0)
+    pct = pct.where(np.isfinite(pct), np.nan)
+    pct = pct.fillna(0.0)
     if isinstance(pct, ux.UxDataArray):
-        pct = ux.UxDataArray(pct_0)
+        pct = ux.UxDataArray(pct)
     else:
-        pct = pct_0
+        pct = pct
     
     ## USE A DIVERGING COLORMAP CENTERED AT ZERO
     ## Special case is when min > 0 or max < 0
