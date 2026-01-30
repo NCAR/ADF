@@ -133,23 +133,23 @@ diag_cam_climo:
     calc_cam_climo: true
 
     #Location of CAM climatologies (to be created and then used by this script)
-    cam_climo_loc: /glade/derecho/scratch/${user}/ADF_unstruct/${diag_cam_climo.cam_case_name}/climo
+    cam_climo_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_climo.cam_case_name}/lnd/proc/climo
 
     #Overwrite CAM climatology files?
     #If false, or not prsent, then already existing climatology files will be skipped:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: ctsm5.4.CMIP7_ciso_ctsm5.3.075_f09_124_HIST
+    cam_case_name: ctsm5.4.004_bgc_f09_Oversaturation_131b_HIST
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'ctsm5.4_124_HIST'
+    case_nickname: '131b_Oversat'
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -157,7 +157,7 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1850
+    start_year: 1994
     climo_start_year: 2004
 
     #model year when time series files should end:
@@ -182,7 +182,7 @@ diag_cam_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/derecho/scratch/${user}/ADF_unstruct/${diag_cam_climo.cam_case_name}/ts
+    cam_ts_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_climo.cam_case_name}/lnd/proc/ts
 
 
 #This third set of variables provide info for the CAM baseline climatologies.
@@ -204,28 +204,28 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: ctsm5.4_5.3.068_PPEcal115f09_118_HIST
+    cam_case_name: ctsm5.4.004_bgc_f09_131_HIST
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'ctsm5.4_118_HIST'
+    case_nickname: '131_HIST'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
 
     #Location of baseline CAM climatologies:
-    cam_climo_loc: /glade/derecho/scratch/${user}/ADF_unstruct/${diag_cam_baseline_climo.cam_case_name}/climo
+    cam_climo_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/proc/climo2
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1850
+    start_year: 1994
     climo_start_year: 2004
 
     #model year when time series files should end:
@@ -249,7 +249,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/derecho/scratch/${user}/ADF_unstruct/${diag_cam_baseline_climo.cam_case_name}/ts
+    cam_ts_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/proc/ts2
 
 
 
@@ -314,20 +314,21 @@ diag_var_list:
     - TOTECOSYSC
     - TOTSOMC_1m
     - ALTMAX
+    - TWS
+    - SOILWATER_10CM
     - FAREA_BURNED
     - DSTFLXT
     - MEG_isoprene 
-    - TWS
     - GRAINC_TO_FOOD  
-    - C13_GPP_pm
-    - C13_TOTVEGC_pm
-    - C14_GPP_pm
-    - C14_TOTVEGC_pm
+      #- C13_GPP_pm
+      #- C13_TOTVEGC_pm
+      #- C14_GPP_pm
+      #- C14_TOTVEGC_pm
 
 region_list:
     - Global
     - N Hemisphere Land
-    #- S Hemisphere Land
+    - S Hemisphere Land
     - Polar
     - Alaskan Arctic
     - Canadian Arctic
@@ -344,12 +345,16 @@ region_list:
     - Western US
     - Central US
     - Eastern US
+    - CONUS
     - Europe
+    - East Asia
+    - Eurasia 
     - Mediterranean
     - Central America
     - Amazonia
     - Central Africa
     - Indonesia
+    - S America
     - Brazil
     - Sahel
     - Southern Africa
