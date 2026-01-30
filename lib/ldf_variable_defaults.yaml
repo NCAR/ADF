@@ -142,7 +142,8 @@ QBOT: # atmospheric specific humidity
   category: "Atmosphere"
   scale_factor: 1
   add_offset: 0
-  #new_unit: "W m$^{-2}$"
+  new_unit: "kg kg{-1}$"
+  diff_contour_levels_range: [-5e-2, 5e-2, 5e-3]
 
 TBOT:
   category: "Atmosphere"
@@ -154,13 +155,63 @@ TREFMNAV: # daily minimum of average 2m temperature
   colormap: "OrRd"
   contour_levels_range: [250, 310, 10]
 
-
 TREFMXAV: # daily maximum of average 2m temperature
   category: "Atmosphere"
   colormap: "OrRd"
   contour_levels_range: [250, 310, 10]
 
+NDEP_TO_SMINN: # atmospheric N deposition to soil mineral N
+  category: "Atmosphere"
+  #colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  diff_contour_levels_range: [-5, 5, 5e-1]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gN m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gN m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.000365  #days to years, gN/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg N y$^{-1}$"
 
+BCDEP: # total BC deposition (dry+wet) from atmosphere
+  category: "Atmosphere"
+  #colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg m$^{-2}$ d$^{-1}$"
+  diff_contour_levels_range: [-2e-3, 2e-3, 5e-4]
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  #diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg y$^{-1}$"
+
+DSTDEP: # total dust deposition (dry+wet) from atmosphere
+  category: "Atmosphere"
+  colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg m$^{-2}$ d$^{-1}$"
+  diff_contour_levels_range: [-2e-3, 2e-3, 5e-4]
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.000365  #days to years, kg/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "Pg y$^{-1}$"
+  
 #+++++++++++
 # Category: Surface fluxes
 #+++++++++++
@@ -243,6 +294,7 @@ DSTFLXT: # total surface dust emission
   category: "Surface fluxes"
   colormap: "copper_r"
   diff_colormap: "BrBG_r"
+  diff_contour_range: [-2e-3, 2e-3, 5e-4]
   scale_factor: 86400
   add_offset: 0
   new_unit: "kg m$^{-2}$ d$^{-1}$"
@@ -270,6 +322,22 @@ MEG_isoprene:
   scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
   avg_method: 'sum'
   table_unit: "Tg y$^{-1}$"
+
+DSTFLXT: # total surface dust emission
+  category: "Surface fluxes"
+  colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.000365  #days to years, kg/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "Pg y$^{-1}$"
 
 
 #+++++++++++
