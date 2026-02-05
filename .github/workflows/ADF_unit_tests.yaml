@@ -10,6 +10,7 @@ on:
     branches:
       #Trigger workflow on push to any branch or branch heirarchy:
       - '**'
+  workflow_dispatch:
 
 jobs:
   #This job is designed to run all python unit tests whenever
