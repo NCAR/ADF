@@ -237,20 +237,55 @@ class AdfConfig(AdfBase):
         """
 
         #copy YAML config dictionary:
-        config_dict_copy = copy.copy(config_dict)
+        config_dict_copy = copy.deepcopy(config_dict)
+
+        #Recursively expand references
+        self.__expand_dict_refs(config_dict_copy)
+
+        #Update the original dict
+        config_dict.update(config_dict_copy)
+
+    def __expand_dict_refs(self, config_dict):
+
+        """
+        Recursive helper to expand references in nested dicts and lists.
+        """
 
         #Loop through dictionary:
-        for key, value in config_dict_copy.items():
+        for key, value in config_dict.items():
 
-            #Skip non-strings (as they won't contain a keyword):
-            if not isinstance(value, str):
-                continue
+            if isinstance(value, str):
+                #expand any keywords to their full values:
+                config_dict[key] = self.__expand_yaml_var_ref(value)
 
-            #expand any keywords to their full values:
-            new_value = self.__expand_yaml_var_ref(value)
+            elif isinstance(value, list):
+                #Handle lists recursively
+                for i, item in enumerate(value):
+                    if isinstance(item, str):
+                        value[i] = self.__expand_yaml_var_ref(item)
+                    elif isinstance(item, dict):
+                        self.__expand_dict_refs(item)
+                    elif isinstance(item, list):
+                        #Nested list, recurse
+                        self.__expand_list_refs(item)
 
-            #Set config variable to new, expanded value:
-            config_dict[key] = new_value
+            elif isinstance(value, dict):
+                #Recurse into nested dict
+                self.__expand_dict_refs(value)
+
+    def __expand_list_refs(self, config_list):
+
+        """
+        Recursive helper to expand references in lists.
+        """
+
+        for i, item in enumerate(config_list):
+            if isinstance(item, str):
+                config_list[i] = self.__expand_yaml_var_ref(item)
+            elif isinstance(item, dict):
+                self.__expand_dict_refs(item)
+            elif isinstance(item, list):
+                self.__expand_list_refs(item)
 
     #########
 

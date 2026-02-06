@@ -27,6 +27,8 @@ lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None, convert_to_mb=Fal
     Interpolate model hybrid levels to specified pressure levels.
 pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False)
     Interpolate `data` from hybrid-sigma levels to isobaric levels using provided mid-level pressures.
+plev_to_plev(data, new_levels=None, convert_to_mb=False)
+    Interpolate `data` from isobaric levels to new isobaric levels.
 zonal_mean_xr(fld)
     Average over all dimensions except `lev` and `lat`.
 validate_dims(fld, list_of_dims)
@@ -124,7 +126,7 @@ def mask_land_or_ocean(arr, msk, use_nan=False):
         missing_value = -999.
     #End if
 
-    arr = xr.where(msk>=0.9,arr,missing_value)
+    arr = xr.where(msk>=0.9,arr,missing_value, keep_attrs=True)
     arr.attrs["missing_value"] = missing_value
     return(arr)
 
@@ -502,7 +504,7 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
 
     Parameters
     ----------
-    data :
+    data : xarray.DataArray
     ps :
         surface pressure
     hyam, hybm :
@@ -533,7 +535,7 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     #Temporary print statement to notify users to ignore warning messages.
     #This should be replaced by a debug-log stdout filter at some point:
     print("Please ignore the interpolation warnings that follow!")
-
+    
     #Apply GeoCAT hybrid->pressure interpolation:
     if new_levels is not None:
         data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,
@@ -557,10 +559,22 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     #Rename vertical dimension back to "lev" in order to work with
     #the ADF plotting functions:
     data_interp_rename = data_interp.rename({"plev": "lev"})
+    attrs = data_interp_rename.attrs.copy()
+    lev_orig = data_interp_rename["lev"]
+    lev_orig_attrs = lev_orig.attrs.copy()
 
     #Convert vertical dimension to mb/hPa, if requested:
     if convert_to_mb:
-        data_interp_rename["lev"] = data_interp_rename["lev"] / 100.0
+        lev_new = lev_orig / 100.0
+        lev_new.attrs = lev_orig_attrs
+        lev_new.name = "lev"
+        lev_new.attrs["units"] = "hPa"
+        lev_new.attrs["history"] = f"converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
+        data_interp_rename["lev"] = lev_new
+        data_interp_rename.attrs = attrs
+    else:
+        data_interp_rename.attrs['units'] = "Pa"
+        data_interp_rename.attrs['history'] = f"Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
 
     return data_interp_rename
 
@@ -616,7 +630,72 @@ def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
     return output
 
 
+def plev_to_plev(data, new_levels=None, convert_to_mb=False):
+    """Interpolate data from isobaric levels to new isobaric levels.
 
+    Parameters
+    ----------
+    data : xarray.DataArray
+        field with a vertical pressure coordinate (e.g., 'lev', 'plev', 'pressure')
+    new_levels : optional
+        the output pressure levels (Pa), defaults to standard levels
+    convert_to_mb : bool, optional
+        flag to convert output to mb (i.e., hPa), defaults to False
+
+    Returns
+    -------
+    output : xarray.DataArray
+        `data` interpolated onto `new_levels`
+    """
+
+    # Try to identify the vertical coordinate name
+    vert_coord_names = ['lev', 'plev', 'pressure']
+    vert_coord = None
+    for name in vert_coord_names:
+        if name in data.dims:
+            vert_coord = name
+            break
+    
+    if vert_coord is None:
+        raise AdfError(f"plev_to_plev: Could not find a vertical coordinate in {vert_coord_names}.")
+
+    # determine pressure levels to interpolate to:
+    if new_levels is None:
+        pnew = 100.0 * np.array([1000, 925, 850, 700, 500, 400,
+                                 300, 250, 200, 150, 100, 70, 50,
+                                 30, 20, 10, 7, 5, 3, 2, 1])  # mandatory levels, converted to Pa
+    else:
+        pnew = new_levels
+    #End if
+
+    # save name of DataArray:
+    data_name = data.name
+    
+    # Create a pressure field that matches the data shape
+    p_mdl = data[vert_coord] * xr.ones_like(data)
+
+    # reshape data and pressure
+    zdims = [i for i in data.dims if i != vert_coord]
+    dstack = data.stack(z=zdims)
+    pstack = p_mdl.stack(z=zdims)
+    
+    # Need to transpose to (vert_coord, z)
+    dstack = dstack.transpose(vert_coord, 'z')
+    pstack = pstack.transpose(vert_coord, 'z')
+    
+    output = vert_remap(dstack.values, pstack.values, pnew)
+    output = xr.DataArray(output, name=data_name, dims=("lev", "z"),
+                          coords={"lev":pnew, "z":pstack['z']})
+    output = output.unstack()
+
+    # convert vertical dimension to mb/hPa, if requested:
+    if convert_to_mb:
+        ## DEAL WITH METADATA BETTER HERE
+        output["lev"] = output["lev"] / 100.0
+    #End if
+
+    #Return interpolated output:
+    return output
 
 def validate_dims(fld, list_of_dims):
     """Check if specified dimensions are in a DataArray.
