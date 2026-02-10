@@ -76,12 +76,18 @@ def regional_climatology(adfobj):
     region_list = adfobj.region_list
     #TODO, make it easier for users decide on these?
     regional_climo_var_list = ['TSA','PREC','ELAI',
-                               'FSDS','FLDS','SNOWDP','ASA',
-                               'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
-                               'GPP','TWS','SOILWATER_10CM','FAREA_BURNED',
+                               'FSDS','FLDS','GPP','ASA',
+                               'QRUNOFF_TO_COUPLER','ET','FCTR','FCEV',
+                               'SNOWDP','QBOT','SOILWATER_10CM','AREA_BURNED',
                                ]
 
-    # Extract variables:
+#    regional_climo_var_list = ['TSA','PREC','ELAI', 
+#                               'FSDS','FLDS','GPP','ASA',
+#                               'QRUNOFF_TO_COUPLER','ET','DSTDEP','NDEP',
+#                               'SNOWDP','QBOT','SOILWATER_10CM','BCDEP',
+#                               ]
+
+# Extract variables:
     baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)
     input_climo_baseline = Path(adfobj.get_baseline_info("cam_climo_loc", required=True))
     # TODO hard wired for single case name:
@@ -451,7 +457,7 @@ def getRegion_xarray(varDS, varName,
         # Convert lon to [0,360] if necessary
         longitude = varDS['lon']
         varDS = varDS.assign_coords(lon= (longitude + 180) % 360)
-        print(f"Converted lon to [0,360] for variable {varName}")
+        #print(f"Converted lon to [0,360] for variable {varName}")
 
     # TODO is there a less brittle way to do this?
     if (area is not None) and (landfrac is not None):

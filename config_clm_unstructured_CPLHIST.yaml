@@ -97,7 +97,7 @@ diag_basic_info:
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
     #Uncomment and change path for custom variable defaults file
-    defaults_file: lib/ldf_variable_defaults.yaml
+    defaults_file: lib/ldf_variable_cplhist.yaml
 
     # location of land regions YAML file (only used in regional_climatology plots)
     regions_file: lib/regions_lnd.yaml
@@ -113,7 +113,7 @@ diag_basic_info:
     #you set it to "*" then it will default
     #to all of the processors available on a
     #single node/machine:
-    num_procs: 8
+    num_procs: 16
 
     #If set to true, then redo all plots even if they already exist.
     #If set to false, then if a plot is found it will be skipped:
@@ -140,17 +140,16 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_alpha07c_cesm.B1850C_LTso.ne30_t232_wgx3.247
+    cam_case_name: CLM6_cesm30alpha08c_ne30pg3_CPLHIST_1850
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'B_247'
+    case_nickname: 'CPL_HIST'
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/${diag_cam_climo.cam_case_name}/lnd/hist/
-    # /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/oleson/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -159,11 +158,11 @@ diag_cam_climo:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
     start_year: 1
-    climo_start_year: 85
+    climo_start_year: 2
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 104
+    end_year: 3
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -203,18 +202,17 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_alpha07c_cesm.B1850C_LTso.ne30_t232_wgx3.234
+    cam_case_name: CAM7CLM6_cesm30alpha08c_ne30pg3_1850
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'B_234'
+    case_nickname: 'CAM7'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
-    # /glade/derecho/scratch/wwieder/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/oleson/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -226,12 +224,13 @@ diag_cam_baseline_climo:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
     start_year: 1
-    climo_start_year: 61
+    climo_start_year: 2
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 80
+    end_year: 3
+    climo_end_year: 3
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -270,7 +269,7 @@ time_averaging_scripts:
 #Name of regridding scripts being used.
 #These scripts must be located in "scripts/regridding":
 regridding_scripts:
-  #- regrid_and_vert_interp
+  # - regrid_and_vert_interp
 
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
@@ -289,40 +288,37 @@ plotting_scripts:
 #List of variables that will be processesd:
 #Shorter list here, for efficiency of testing
 diag_var_list:
-    - TSA
-    - TV
-    - PREC
-    - ELAI
-    - FSDS
-    - FLDS
-    - QBOT
-    - ASA
-    - RNET
-    - FSH
-    - ET
-    - FCTR
-    - FGEV
-    - FCEV
-    - QRUNOFF_TO_COUPLER 
-    - SNOWDP
-    - TOTVEGC
-    - GPP
-    - NEE
-    - NPP
-    - NBP  
-    - NPP_NUPTAKE
-    - BTRANMN
-    - TOTECOSYSC
-    - TOTSOMC_1m
-    - ALTMAX
-    - TWS
-    - SOILWATER_10CM
-    - GRAINC_TO_FOOD  
-    - FAREA_BURNED
-    #- C13_GPP_pm
-    # - C13_TOTVEGC_pm
-    #- C14_GPP_pm
-    #- C14_TOTVEGC_pm
+    - FSDSND
+    - FSDSVD
+    - FSDSNI
+    - FSDSVI
+    - RAIN_FROM_ATM
+    - SNOW_FROM_ATM
+    - FLDS_NOT_DOWNSCALED
+    - ZBOT
+    - Tair_from_atm
+    - Thair_from_atm
+    - QBOT_NOT_DOWNSCALED
+    - PBOT_NOT_DOWNSCALED
+    - Rho_from_atm
+    - PCO2
+    - UWIND
+    - VWIND
+    - BCPHIDRY
+    - BCPHODRY
+    - BCPHIWET
+    - OCPHIDRY
+    - OCPHODRY
+    - OCPHIWET
+    - DSTWET1
+    - DSTDRY1
+    - DSTWET2
+    - DSTDRY2
+    - DSTWET3
+    - DSTDRY3
+    - DSTWET4
+    - DSTDRY4
+    - ATM_TOPO
  
 region_list:
     - Global
@@ -347,7 +343,7 @@ region_list:
     - CONUS
     - Europe
     - East Asia
-    - Eurasia 
+    - Eurasia
     - Mediterranean
     - Central America
     - Amazonia
@@ -365,6 +361,5 @@ region_list:
     #- Central Asia ## Was Broken... probably because there were two? 
     #- Mongolia
     #- Tibetan Plateau
-
 
 #END OF FILE

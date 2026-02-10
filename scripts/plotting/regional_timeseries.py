@@ -76,11 +76,11 @@ def regional_timeseries(adfobj):
 
     region_list = adfobj.region_list
     #TODO, make it easier for users decide on these by adding to yaml file
-    regional_ts_var_list = ['TSA','PREC','ELAI',
-                            'FSDS','FLDS','SNOWDP','ASA',
-                            'FSH','QRUNOFF_TO_COUPLER','ET','FCTR',
-                            'GPP','TWS','SOILWATER_10CM','FAREA_BURNED',
-                            ]
+    regional_ts_var_list = ['TSA','PREC','ELAI', 
+                            'FSDS','FLDS','GPP','ASA',
+                            'QRUNOFF_TO_COUPLER','ET','FCTR','FCEV',
+                            'SNOWDP','QBOT','SOILWATER_10CM','AREA_BURNED',
+                           ]
 
     # Extract variables:
     #baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)

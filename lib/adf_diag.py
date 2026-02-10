@@ -1381,7 +1381,8 @@ class AdfDiag(AdfWeb):
                     der_val = ds["FSA"]-ds["FIRA"]
                 elif var == "WUE":
                     der_val = ds["GPP"]/ds["FCTR"].where(ds["FCTR"]>0)
-
+                elif var == "BURNED_AREA":
+                    der_val = ds["FAREA_BURNED"]*ds['area']*ds['landfrac']
                 # ----------------------------------------------------------------------------------
                 # Isotope-specific derived variables
                 # ----------------------------------------------------------------------------------
