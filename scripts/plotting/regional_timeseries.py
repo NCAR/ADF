@@ -79,7 +79,7 @@ def regional_timeseries(adfobj):
     regional_ts_var_list = ['TSA','PREC','ELAI', 
                             'FSDS','FLDS','GPP','ASA',
                             'QRUNOFF_TO_COUPLER','ET','FCTR','FCEV',
-                            'SNOWDP','QBOT','SOILWATER_10CM','FAREA_BURNED',
+                            'SNOWDP','QBOT','SOILWATER_10CM','AREA_BURNED',
                            ]
 
     # Extract variables:

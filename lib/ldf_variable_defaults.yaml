@@ -171,7 +171,7 @@ NDEP_TO_SMINN: # atmospheric N deposition to soil mineral N
   category: "Atmosphere"
   #colormap: "copper_r"
   diff_colormap: "BrBG_r"
-  diff_contour_range: [-5, 5, 5e-1]
+  diff_contour_range: [-5., 5, 0.5]
   scale_factor: 86400
   add_offset: 0
   new_unit: "gN m$^{-2}$ d$^{-1}$"
@@ -194,7 +194,7 @@ BCDEP: # total BC deposition (dry+wet) from atmosphere
   mpl:
     colorbar:
       label : "kg m$^{-2}$ d$^{-1}$"
-  diff_contour_range: [-2e-3, 2e-3, 5e-4]
+  diff_contour_range: [-0.002, 0.002, 0.0005]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
@@ -211,7 +211,7 @@ DSTDEP: # total dust deposition (dry+wet) from atmosphere
   mpl:
     colorbar:
       label : "kg m$^{-2}$ d$^{-1}$"
-  diff_contour_range: [-2e-3, 2e-3, 5e-4]
+  diff_contour_range: [-0.002, 0.002, 0.0005]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   scale_factor_table: 0.000365  #days to years, kg/m2 to Pg globally
@@ -302,7 +302,7 @@ DSTFLXT: # total surface dust emission
   category: "Surface fluxes"
   colormap: "copper_r"
   diff_colormap: "BrBG_r"
-  diff_contour_range: [-2e-3, 2e-3, 5e-4]
+  diff_contour_range: [-0.002, 0.002, 0.0005]
   scale_factor: 86400
   add_offset: 0
   new_unit: "kg m$^{-2}$ d$^{-1}$"
@@ -576,7 +576,9 @@ TOTVEGC:
   avg_method: 'sum'
   table_unit: "PgC"
 
+#+++++++++++
 # C Isotopes
+#+++++++++++
 C13_GPP_pm:
   category: "Carbon"
   derivable_from: ["C13_GPP","GPP"]
@@ -629,10 +631,10 @@ C14_TOTLITC_pm: #TODO, check that calculations are correct
 
 
 #+++++++++++
-# Category: CROP
+# Category: Misc
 #+++++++++++
 GRAINC_TO_FOOD: 
-  category: "Crop"
+  category: "Misc"
   #contour_levels_range: [0., 3., 0.25]
   diff_colormap: "PiYG"
   #diff_contour_range: [-1.5, 1.5, 0.25]
@@ -648,6 +650,26 @@ GRAINC_TO_FOOD:
   avg_method: 'sum'
   table_unit: "PgC y$^{-1}$"
 
+AREA_BURNED: 
+  category: "Misc"
+  derivable_from: ["FAREA_BURNED"]
+  colormap: "hot_r"
+  #contour_levels_range: [0., 3., 0.25]
+  diff_colormap: "PiYG"
+  #diff_contour_range: [-1.5, 1.5, 0.25]
+  scale_factor: 86400   # per second to per day
+  add_offset: 0
+  new_unit: "km$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "km$^{-2}$ d$^{-1}$"
+  #pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, km2 to 1e6 km2
+  avg_method: 'sum'
+  table_unit: "million km$^{-2} y$^{-1}$"
+
+
 
 #+++++++++++
 # Category: Soils
@@ -658,8 +680,8 @@ ALTMAX: # Active Layer Thickness
   diff_contour_levels: [-10,-5,-2,-1,-0.5,-0.2,-0.1,0.,0.1,0.2,0.5,1,2,5,10]
 
 
-SOILWATER_10CM: # soil liquid water + ice in top 10cm of soil
-  category: "Soils" # or hydrology?
+#SOILWATER_10CM: # soil liquid water + ice in top 10cm of soil
+#  category: "Soils" # or hydrology?
 
 TSOI_10CM: # Soil temperature, 0-10 cm   
   category: "Soils"
