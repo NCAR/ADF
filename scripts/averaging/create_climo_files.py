@@ -81,16 +81,16 @@ def create_climo_files(adf, clobber=False, search=None):
     climo_end_year = adf.get_cam_info("climo_end_year")
 
     #Extract simulation years:
-    start_year = adf.climo_yrs["syears"]
-    end_year   = adf.climo_yrs["eyears"]
+    ts_start_year = adf.ts_yrs["ts_syears"]
+    ts_end_year   = adf.ts_yrs["ts_eyears"]
     if climo_start_year:
-        if climo_start_year > end_year:
+        if climo_start_year > ts_end_year:
             raise ValueError('Sorry, climo_start_year must be earlier than ts end year.')
-        start_year = max(climo_start_year, start_year)
+        start_year = max(climo_start_year, ts_start_year)
     if climo_end_year:
-        if climo_end_year < start_year:
+        if climo_end_year < ts_end_year:
             raise ValueError('Sorry, climo_end_year must be later than ts start year.')
-        end_year = min(climo_end_year, end_year)
+        end_year = min(climo_end_year, ts_end_year)
 
     comp = adf.model_component
     print("\ncomp",comp,"\n")
@@ -115,8 +115,8 @@ def create_climo_files(adf, clobber=False, search=None):
         climo_baseline_end_year = adf.get_baseline_info("climo_end_year")
 
         #Extract baseline years:
-        bl_syr = adf.climo_yrs["syear_baseline"]
-        bl_eyr = adf.climo_yrs["eyear_baseline"]
+        bl_syr = adf.climo_yrs["climo_syear_baseline"]
+        bl_eyr = adf.climo_yrs["climo_eyear_baseline"]
         if climo_baseline_start_year:
             if climo_baseline_start_year > bl_eyr:
                 raise ValueError('Sorry, climo_end_year must be later than ts start year.')

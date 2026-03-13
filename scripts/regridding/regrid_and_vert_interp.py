@@ -79,8 +79,8 @@ def regrid_and_vert_interp(adf):
     case_methods = adf.latlon_regrid_method["test_regrid_method"]
 
     #Grab case years
-    syear_cases = adf.climo_yrs["syears"]
-    eyear_cases = adf.climo_yrs["eyears"]
+    syear_cases = adf.climo_yrs["climo_syears"]
+    eyear_cases = adf.climo_yrs["climo_eyears"]
 
     #Check if mid-level pressure, ocean fraction or land fraction exist
     #in the variable list:
@@ -135,8 +135,8 @@ def regrid_and_vert_interp(adf):
     #End if
 
     #Grab baseline years (which may be empty strings if using Obs):
-    syear_baseline = adf.climo_yrs["syear_baseline"]
-    eyear_baseline = adf.climo_yrs["eyear_baseline"]
+    syear_baseline = adf.climo_yrs["climo_syear_baseline"]
+    eyear_baseline = adf.climo_yrs["climo_eyear_baseline"]
 
     #Set attributes dictionary for climo years to save in the file attributes
     base_climo_yrs_attr = f"{target_list[0]}: {syear_baseline}-{eyear_baseline}"

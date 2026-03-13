@@ -374,14 +374,19 @@ class AdfWeb(AdfObs):
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
 
-        #Grab case climo years
-        syear_cases = self.climo_yrs["syears"]
-        eyear_cases = self.climo_yrs["eyears"]
+        #Grab case ts and climo years
+        ts_syear_cases = self.ts_yrs["ts_syears"]
+        ts_eyear_cases = self.ts_yrs["ts_eyears"]
+
+        climo_syear_cases = self.climo_yrs["climo_syears"]
+        climo_eyear_cases = self.climo_yrs["climo_eyears"]
 
         #Grab baseline years (which may be empty strings if using Obs):
-        syear_baseline = self.climo_yrs["syear_baseline"]
-        eyear_baseline = self.climo_yrs["eyear_baseline"]
+        ts_syear_baseline = self.ts_yrs["ts_syear_baseline"]
+        ts_eyear_baseline = self.ts_yrs["ts_eyear_baseline"]
 
+        climo_syear_baseline = self.climo_yrs["climo_syear_baseline"]
+        climo_eyear_baseline = self.climo_yrs["climo_eyear_baseline"]
         #Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "Obs"
@@ -390,11 +395,13 @@ class AdfWeb(AdfObs):
         else:
             data_name = self.get_baseline_info('cam_case_name', required=True)
 
-            baseline_yrs=f"{syear_baseline} - {eyear_baseline}"
+            baseline_ts_yrs=f"{ts_syear_baseline} - {ts_eyear_baseline}"
+            baseline_climo_yrs=f"{climo_syear_baseline} - {climo_eyear_baseline}"
         #End if
 
-        #Set climo years format for html file headers
-        case_yrs=f"{syear_cases[0]} - {eyear_cases[0]}"
+        #Set ts years format for html file headers
+        case_ts_yrs=f"{ts_syear_cases[0]} - {ts_eyear_cases[0]}"
+        case_climo_yrs=f"{climo_syear_cases[0]} - {climo_eyear_cases[0]}"
 
         #Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
@@ -599,9 +606,11 @@ class AdfWeb(AdfObs):
                 #Construct amwg_table.html
                 rend_kwarg_dict = {"title": main_title,
                                   "case_name": case1,
-                                  "case_yrs": case_yrs,
+                                  "case_ts_yrs": case_ts_yrs,
+                                  "case_climo_yrs": case_climo_yrs,
                                   "base_name": data_name,
-                                  "baseline_yrs": baseline_yrs,
+                                  "baseline_ts_yrs": baseline_ts_yrs,
+                                  "baseline_climo_yrs": baseline_climo_yrs,
                                   "amwg_tables": table_html_info,
                                   "table_name": web_data.name,
                                   "table_html": table_html,
@@ -658,9 +667,11 @@ class AdfWeb(AdfObs):
                                    "var_title": web_data.name,
                                    "season_title": web_data.season,
                                    "case_name": web_data.case,
-                                   "case_yrs": case_yrs,
+                                   "case_ts_yrs": case_ts_yrs,
+                                   "case_climo_yrs": case_climo_yrs,
                                    "base_name": data_name,
-                                   "baseline_yrs": baseline_yrs,
+                                   "baseline_ts_yrs": baseline_ts_yrs,
+                                   "baseline_climo_yrs": baseline_climo_yrs,
                                    "plottype_title": web_data.plot_type,
                                    "imgs": img_data,
                                    "mydata": mean_html_info[web_data.plot_type],
@@ -723,8 +734,10 @@ class AdfWeb(AdfObs):
             index_rndr = index_tmpl.render(title=index_title,
                                             case_name=web_data.case,
                                             base_name=data_name,
-                                            case_yrs=case_yrs,
-                                            baseline_yrs=baseline_yrs,
+                                            case_ts_yrs=case_ts_yrs,
+                                            case_climo_yrs=case_climo_yrs,
+                                            baseline_ts_yrs=baseline_ts_yrs,
+                                            baseline_climo_yrs=baseline_climo_yrs,
                                             plot_types=plot_types,
                                             avail_plot_types=avail_plot_types,
                                             avail_external_packages=avail_external_packages,
@@ -773,7 +786,8 @@ class AdfWeb(AdfObs):
             main_rndr = main_tmpl.render(title=main_title,
                             case_sites=case_sites,
                             base_name=data_name,
-                            baseline_yrs=baseline_yrs,
+                            baseline_ts_yrs=baseline_ts_yrs,
+                            baseline_climo_yrs=baseline_climo_yrs,
                             )
 
             #Write multi-case main HTML file:

@@ -48,8 +48,8 @@ def polar_map(adfobj):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
     #Grab case years
-    syear_cases = adfobj.climo_yrs["syears"]
-    eyear_cases = adfobj.climo_yrs["eyears"]
+    syear_cases = adfobj.climo_yrs["climo_syears"]
+    eyear_cases = adfobj.climo_yrs["climo_eyears"]
 
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
@@ -76,8 +76,8 @@ def polar_map(adfobj):
     #End if
 
     #Grab baseline years (which may be empty strings if using Obs):
-    syear_baseline = adfobj.climo_yrs["syear_baseline"]
-    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
+    syear_baseline = adfobj.climo_yrs["climo_syear_baseline"]
+    eyear_baseline = adfobj.climo_yrs["climo_eyear_baseline"]
 
     #Grab all case nickname(s)
     test_nicknames = adfobj.case_nicknames["test_nicknames"]
@@ -89,7 +89,7 @@ def polar_map(adfobj):
     if comp == "lnd":
         hemis = ["Arctic"]
         # Todo, give users control over making SH plots? Currently set off
-        #hemis = ["Arctic", "Antarctic"]
+        hemis = ["Arctic", "Antarctic"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.

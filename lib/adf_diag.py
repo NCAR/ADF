@@ -184,9 +184,9 @@ class AdfDiag(AdfWeb):
 
     def __init__(self, config_file, debug=False):
         """
-        Initalize ADF diagnostics object.
-        """
+        Initialize ADF diagnostics object.
 
+        """
         # Initialize Config/Base attributes:
         super().__init__(config_file, debug=debug)
 
@@ -379,8 +379,8 @@ class AdfDiag(AdfWeb):
             cam_hist_locs = [self.get_baseline_info("cam_hist_loc")]
             ts_dirs = [self.get_baseline_info("cam_ts_loc", required=True)]
             overwrite_ts = [self.get_baseline_info("cam_overwrite_ts")]
-            start_years = [self.climo_yrs["syear_baseline"]]
-            end_years = [self.climo_yrs["eyear_baseline"]]
+            start_years = [self.ts_yrs["ts_syear_baseline"]]
+            end_years = [self.ts_yrs["ts_eyear_baseline"]]
             case_type_string = "baseline"
             hist_str_list = [self.hist_string["base_hist_str"]]
 
@@ -394,8 +394,8 @@ class AdfDiag(AdfWeb):
             cam_hist_locs = self.get_cam_info("cam_hist_loc")
             ts_dirs = self.get_cam_info("cam_ts_loc", required=True)
             overwrite_ts = self.get_cam_info("cam_overwrite_ts")
-            start_years = self.climo_yrs["syears"]
-            end_years = self.climo_yrs["eyears"]
+            start_years = self.ts_yrs["ts_syears"]
+            end_years   = self.ts_yrs["ts_eyears"]
             case_type_string = "test"
             hist_str_list = self.hist_string["test_hist_str"]
 
@@ -1061,12 +1061,16 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
             # Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.climo_yrs["syear_baseline"]
-            eyear_baseline = self.climo_yrs["eyear_baseline"]
+            climo_syear_baseline = self.climo_yrs["climo_syear_baseline"]
+            climo_eyear_baseline = self.climo_yrs["climo_eyear_baseline"]
+            ts_syear_baseline = self.ts_yrs["ts_syear_baseline"]
+            ts_eyear_baseline = self.ts_yrs["ts_eyear_baseline"]
 
             # If years exist, then add them to the data_name string:
-            if syear_baseline and eyear_baseline:
-                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            if climo_syear_baseline and climo_eyear_baseline:
+                data_name += f"_{climo_syear_baseline}_{climo_eyear_baseline}"
+            if ts_syear_baseline and ts_eyear_baseline:
+                data_name += f"_{ts_syear_baseline}_{ts_eyear_baseline}"
             # End if
         # End if
 
@@ -1111,12 +1115,16 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
             # Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.climo_yrs["syear_baseline"]
-            eyear_baseline = self.climo_yrs["eyear_baseline"]
+            climo_syear_baseline = self.climo_yrs["climo_syear_baseline"]
+            climo_eyear_baseline = self.climo_yrs["climo_eyear_baseline"]
+            ts_syear_baseline = self.ts_yrs["ts_syear_baseline"]
+            ts_eyear_baseline = self.ts_yrs["ts_eyear_baseline"]
 
             # If years exist, then add them to the data_name string:
-            if syear_baseline and eyear_baseline:
-                data_name += f"_{syear_baseline}_{eyear_baseline}"
+            if climo_syear_baseline and climo_eyear_baseline:
+                data_name += f"_{climo_syear_baseline}_{climo_eyear_baseline}"
+            if ts_syear_baseline and ts_eyear_baseline:
+                data_name += f"_{ts_syear_baseline}_{ts_eyear_baseline}"
             # End if
         # End if
 
@@ -1509,15 +1517,15 @@ class AdfDiag(AdfWeb):
 
         # Casenames, paths and start/end years come through the ADF
         case_names = self.get_cam_info("cam_case_name", required=True)
-        start_years = self.climo_yrs["syears"]
-        end_years = self.climo_yrs["eyears"]
+        climo_start_years = self.climo_yrs["climo_syears"]
+        climo_end_years = self.climo_yrs["climo_eyears"]
 
         case_list_all = []
         for icase, case in enumerate(case_names):
             case_list_values = [
                 case,
-                start_years[icase],
-                end_years[icase],
+                climo_start_years[icase],
+                climo_end_years[icase],
                 "CESM",
                 "CESM",
             ]
