@@ -1,9 +1,9 @@
 #==============================
-#config_cam_baseline_example.yaml
+#config_noresm_default.yaml
+# modified from config_amwg_default_plots.yaml
 
-#This is the main CAM diagnostics config file
-#for doing comparisons of a CAM run against
-#another CAM run, or a CAM baseline simulation.
+# This config file contains the standard set of variables and plots used for
+# evaluating CAM simulations in the AMWG working group.
 
 #Currently, if one is on NCAR's Casper or
 #Cheyenne machine, then only the diagnostic output
@@ -52,7 +52,7 @@
 #names, as this will likely cause issues with the current file parsing
 #system.
 #--------------------
-user: 'your_user_name'
+user: 'USER-NAME-NOT-SET'
 #
 ##==============================
 #
@@ -89,10 +89,10 @@ diag_basic_info:
     #Location of observational datasets:
     #Note: this only matters if "compare_obs" is true and the path
     #isn't specified in the variable defaults file.
-    obs_data_loc: /projects/NS9560K/diagnostics/ADF/obs/
+    obs_data_loc: /nird/datalake/NS16000B/ADF-obs
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
-    cam_regrid_loc: /projects/NS2345K-datalake/adagj/ADFout/regrid
+    cam_regrid_loc: /scratch/${user}/noresm3/${diag_cam_climo.cam_case_name}/atm/proc/tseries/regrid
 
     #Overwrite CAM re-gridded files?
     #If false, or missing, then regridding will be skipped for regridded variables
@@ -100,7 +100,7 @@ diag_basic_info:
     cam_overwrite_regrid: false
 
     #Location where diagnostic plots are stored:
-    cam_diag_plot_loc: /projects/NS2345K-datalake/www/diagnostics/ADF/plots
+    cam_diag_plot_loc: /nird/datalake/NS2345K/www/diagnostics/ADF/${user}
 
     #Location of ADF variable plotting defaults YAML file:
     #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
@@ -149,12 +149,11 @@ diag_cam_climo:
 
     #Overwrite CAM climatology files?
     #If false, or not prsent, then already existing climatology files will be skipped:
-    #cam_overwrite_climo: true
-    cam_overwrite_climo: true
+    cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
     cam_case_name: n1850.ne30_tn14.hybrid_fatessp.20241219
-  
+
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
@@ -163,20 +162,20 @@ diag_cam_climo:
 
     #Location of CAM history (h0a) files:
     #Example test files
-    cam_hist_loc: /projects/NS9560K-datalake/noresm3/cases/${diag_cam_climo.cam_case_name}/atm/hist
+    cam_hist_loc: /nird/datalake/NS9560K/noresm3/cases/${diag_cam_climo.cam_case_name}/atm/hist
     
     #Location of CAM climatologies (to be created and then used by this script)
-    cam_climo_loc: /projects/NS2345K-datalake/adagj/ADFout/${diag_cam_climo.cam_case_name}/atm/climo
+    cam_climo_loc: /scratch/${user}/noresm3/${diag_cam_climo.cam_case_name}/atm/proc/climo
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1
+    start_year: 100
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 4
+    end_year: 110
     
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -187,16 +186,32 @@ diag_cam_climo:
     #Save interim time series files?
     #WARNING:  This can take up a significant amount of space,
     #          but will save processing time the next time
-    cam_ts_save: false
+    cam_ts_save: true
 
     #Overwrite time series files, if found?
     #If set to false, then time series creation will be skipped if files are found:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /projects/NS2345K-datalake/YOUR_NIRD_USERNAME/ADFout/${diag_cam_climo.cam_case_name}/atm/tseries
+    cam_ts_loc: /scratch/${user}/noresm3/${diag_cam_climo.cam_case_name}/atm/proc/tseries
                     
 #-------------------------------------------------------------------------------------
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    tem_hist_str: cam.h4
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    cam_tem_loc: /scratch/${user}/noresm3/ADF/${diag_cam_climo.cam_case_name}/tem/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    overwrite_tem: false
+
+    #----------------------
+
 #This third set of variables provide info for the CAM baseline climatologies.
 #-------------------------------------------------------------------------------------
 #This only matters if "compare_obs" is false:
@@ -206,7 +221,7 @@ diag_cam_baseline_climo:
     # eg. cam.h0 or ocn.pop.h.ecosys.nday1 or hist_str: [cam.h2,cam.h0]  
     # Only affects timeseries as everything else uses the created timeseries 
     # Default: 
-    hist_str: cam.h0a 
+    hist_str: cam.h0a
 
     #Calculate cam baseline climatologies?
     #If false, the climatology files will not be created:
@@ -214,7 +229,7 @@ diag_cam_baseline_climo:
 
     #Overwrite CAM climatology files?
     #If false, or not present, then already existing climatology files will be skipped:
-    cam_overwrite_climo: true
+    cam_overwrite_climo: false
 
     #Name of CAM baseline case:
     cam_case_name: n1850.ne30_tn14.hybrid_fatessp.20241204
@@ -227,10 +242,10 @@ diag_cam_baseline_climo:
 
     #Location of CAM baseline history (h0a) files:
     #Example test files
-    cam_hist_loc: /projects/NS9560K-datalake/noresm3/cases/${diag_cam_baseline_climo.cam_case_name}/atm/hist
+    cam_hist_loc: /nird/datalake/NS9560K/noresm3/cases/${diag_cam_baseline_climo.cam_case_name}/atm/hist
 
     #Location of baseline CAM climatologies:
-    cam_climo_loc: /projects/NS2345K-datalake/adagj/ADFout/${diag_cam_climo.cam_case_name}/atm/climo
+    cam_climo_loc: /scratch/${user}/noresm3/${diag_cam_baseline_climo.cam_case_name}/atm/proc/climo
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
@@ -250,14 +265,28 @@ diag_cam_baseline_climo:
 
     #Save interim time series files for baseline run?
     #WARNING:  This can take up a significant amount of space:
-    cam_ts_save: false
+    cam_ts_save: true
 
     #Overwrite baseline time series files, if found?
     #If set to false, then time series creation will be skipped if files are found:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /projects/NS2345K-datalake/YOUR_NIRD_USERNAME/ADFout/${diag_cam_climo.cam_case_name}/atm/tseries
+    cam_ts_loc: /scratch/${user}/diagnostics/ADF/${diag_cam_baseline_climo.cam_case_name}/atm/tseries
+
+    #TEM diagnostics
+    #---------------
+    #TEM history file number
+    #If missing or blank, ADF will default to h4
+    tem_hist_str: cam.h4
+
+    #Location where TEM files are stored:
+    #NOTE: If path not specified or commented out, TEM calculation/plots will be skipped!
+    cam_tem_loc: /scratch/${user}/${diag_cam_baseline_climo.cam_case_name}/tem/
+
+    #Overwrite TEM files, if found?
+    #If set to false, then TEM creation will be skipped if files are found:
+    overwrite_tem: false
 
 #-------------------------------------------------------------------------------------
 #This fourth set of variables provides settings for calling the Climate Variability
@@ -282,9 +311,68 @@ diag_cvdp_info:
     cvdp_loc: /glade/scratch/asphilli/ADF-Sandbox/cvdp/      #MUST EDIT!
 
     # tar up CVDP results?
-    cvdp_tar: false   # - global_latlon_vect_map
-    # - cam_taylor_diagram
-    # - qbo
+    cvdp_tar: false
+
+# This set of variables provides settings for calling NOAA's
+# Model Diagnostic Task Force (MDTF) diagnostic package.
+# https://github.com/NOAA-GFDL/MDTF-diagnostics
+#
+# If mdtf_run: true, the MDTF will be set up and 
+# run in background mode, likely completing after the ADF has completed.
+#
+# WARNING: This currently only runs on CASPER (not derecho)
+#
+# The variables required depend on the diagnostics (PODs) selected. 
+# AMWG-developed PODS and their required variables:
+#   (Note that PRECT can be computed from PRECC & PRECL)
+#  - MJO_suite: daily PRECT, FLUT, U850, U200, V200  (all required)
+#  - Wheeler-Kiladis Wavenumber Frequency Spectra: daily PRECT, FLUT, U200, U850, OMEGA500
+#              (will use what is available)
+#  - Blocking (Rich Neale):  daily OMEGA500
+#  - Precip Diurnal Cycle (Rich Neale): 3-hrly PRECT
+#
+# Many other diagnostics are available; see 
+# https://mdtf-diagnostics.readthedocs.io/en/main/sphinx/start_overview.html
+
+#
+diag_mdtf_info:
+    # Run the MDTF on the model cases
+    mdtf_run: false
+
+    # The file that will be written by ADF to input to MDTF. Call this whatever you want.
+    mdtf_input_settings_filename : mdtf_input.json   
+
+    ## MDTF code path, sets the location of the MDTF codebase and pre-compiled conda envs
+    #  CHANGE if you have any: your own MDTF code, installed conda envs and/or obs_data
+
+    mdtf_codebase_path : /glade/campaign/cgd/amp/amwg/mdtf                                                                                                                                 
+    mdtf_codebase_loc  : ${mdtf_codebase_path}/MDTF-diagnostics.v3.1.20230817.ADF
+    conda_root         : /glade/u/apps/opt/conda
+    conda_env_root     : ${mdtf_codebase_path}/miniconda2/envs.MDTFv3.1.20230412/
+    OBS_DATA_ROOT      : ${mdtf_codebase_path}/obs_data
+
+    # SET this to a writable dir. The ADF will place ts files here for the MDTF to read (adds the casename)
+    MODEL_DATA_ROOT     : ${diag_cam_climo.cam_ts_loc}/mdtf/inputdata/model     
+
+    # Choose diagnostics (PODs). Full list of available PODs: https://github.com/NOAA-GFDL/MDTF-diagnostics
+    pod_list      :  [ "MJO_suite" ]
+
+    # Intermediate/output file settings
+    make_variab_tar: false     # tar up MDTF results
+    save_ps : false     # save postscript figures in addition to bitmaps
+    save_nc : false      # save netCDF files of processed data (recommend true when starting with new model data)
+    overwrite: true     # overwrite results in OUTPUT_DIR; otherwise results will be saved under a unique name
+
+    # Settings used in debugging:
+    verbose  : 3       # Log verbosity level.
+    test_mode: false   # Set to true for framework test. Data is fetched but PODs are not run.
+    dry_run  : false   # Framework test. No external commands are run and no remote data is copied. Implies test_mode.
+
+    # Settings that shouldn't change in ADF implementation for now
+    data_type           : single_run # single_run or multi_run (only works with single right now)
+    data_manager        : Local_File # Fetch data or it is local?
+    environment_manager : Conda      # Manage dependencies
+
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -300,7 +388,7 @@ diag_cvdp_info:
 #Name of time-averaging scripts being used to generate climatologies.
 #These scripts must be located in "scripts/averaging":
 time_averaging_scripts:
-    - create_climo_files
+    - {create_climo_files: {kwargs: {clobber: false}}}
     #- create_TEM_files #To generate TEM files, please un-comment
 
 #Name of regridding scripts being used.
@@ -317,19 +405,21 @@ analysis_scripts:
 #These scripts must be located in "scripts/plotting":
 plotting_scripts:
     - global_mean_timeseries
-   # - global_latlon_map
-   # - zonal_mean
-   # - meridional_mean
-   # - polar_map
-   # - global_latlon_vect_map
-   # - cam_taylor_diagram
-   # - qbo
+    - global_latlon_map
+    - global_latlon_vect_map
+    - zonal_mean
+    - meridional_mean
+    - polar_map
+    - cam_taylor_diagram
+    - ozone_diagnostics
+    - qbo
    #- tape_recorder
    #- tem #To plot TEM, please un-comment fill-out the "tem_info" section below
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
 diag_var_list:
+    - AODDUST
     - AODVIS
     - cb_SULFATE
     - cb_isoprene
@@ -375,6 +465,7 @@ diag_var_list:
     - FSNTC
     - LHFLX
     - LWCF
+    - OMEGA500
     - PBLH
     - PRECT
     - PS
@@ -382,6 +473,7 @@ diag_var_list:
     - QFLX
     - RELHUM
     - SHFLX
+    - SST
     - SWCF
     - T
     - TAUX
@@ -393,15 +485,16 @@ diag_var_list:
     - TS
     - U
     - U10
-    # - ICEFRAC
-    # - OCNFRAC
-    # - LANDFRAC
-   # 2d fields
-   # - SFSO2     0       => 1.4e-10 kg/m2/s (SO2 surface flux)
-   # - WD_DMS   -4.5e-15 => 1.7e-22 kg/m2/s (vertical integrated wet deposition flux)
-   # - WD_SO2   -1.5e-10 => 3.8e-16 kg/m2/s (vertical integrated wet deposition flux)
-   # - DF_DMS   -4.5e-21 => 5.1e-13 kg/m2/s (vertical integrated dry deposition flux)
-   # - DF_H2O2   6.6e-26 => 2.7e-11 kg/m2/s (vertical integrated dry deposition flux)
+    - ICEFRAC
+    - OCNFRAC
+    - LANDFRAC
+    - O3
+    # 2d fields
+    # - SFSO2     0       => 1.4e-10 kg/m2/s (SO2 surface flux)
+    # - WD_DMS   -4.5e-15 => 1.7e-22 kg/m2/s (vertical integrated wet deposition flux)
+    # - WD_SO2   -1.5e-10 => 3.8e-16 kg/m2/s (vertical integrated wet deposition flux)
+    # - DF_DMS   -4.5e-21 => 5.1e-13 kg/m2/s (vertical integrated dry deposition flux)
+    # - DF_H2O2   6.6e-26 => 2.7e-11 kg/m2/s (vertical integrated dry deposition flux)
    # - DF_SO2    1.5e-27 => 7.0e-10 kg/m2/s (vertical integrated dry deposition flux)
    # 3d fields
    # - sum_BC    1.8e-14 => 1.2e-8 kg/kg (sum of BC concentrations)

@@ -69,7 +69,8 @@
 # Available ADF Default Plot Types
 #+++++++++++++
 default_ptypes: ["Tables","LatLon","LatLon_Vector","Zonal","Meridional",
-                  "NHPolar","SHPolar","TimeSeries","Special"]
+                 "NHPolar","SHPolar","TimeSeries","ENSO","GlobalHistogramTS", 
+                 "GlobalHistogramClimo","Special"]
 
 #+++++++++++++
 # Constants
@@ -241,8 +242,18 @@ cb_BC:
   add_offset: 0
   new_unit: "1e-6 kg/m2"
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
+  obs_file: "BURDENBC_MERRA2_monthly_climo_1degree_200001-202506.nc"
+  obs_var_name: "BURDENBC"
+  obs_name: "MERRA2"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 cb_SULFATE:
   colormap: "Oranges"
@@ -253,8 +264,19 @@ cb_SULFATE:
   add_offset: 0
   new_unit: "1e-6 kg/m2"
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_contour_range: [-1000, 1100, 100]
+  diff_colormap: "RdBu_r"
+  obs_file: "BURDENDUST_CAMS_monthly_climo_1degree_200301-202412.nc"
+  obs_var_name: "BURDENDUST"
+  obs_name: "CAMS"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 cb_isoprene:
   colormap: "Oranges"
@@ -265,8 +287,14 @@ cb_isoprene:
   add_offset: 0
   new_unit: "1e-6 kg/m2"
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
+
 
 cb_monoterp:
   colormap: "Oranges"
@@ -277,8 +305,19 @@ cb_monoterp:
   add_offset: 0
   new_unit: "1e-6 kg/m2"
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
+  diff_contour_range: [-200, 200, 25]
+  diff_colormap: "RdBu_r"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  obs_file: "BURDENSEASALT_CAMS_monthly_climo_1degree_200301-202412.nc"
+  obs_var_name: "BURDENSEASALT"
+  obs_name: "CAMS"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 cb_DMS:
   colormap: "Oranges"
@@ -289,8 +328,18 @@ cb_DMS:
   add_offset: 0
   new_unit: "1e-6 kg/m2"
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
+  obs_file: "BURDENSO4_CAMS_monthly_climo_1degree_200301-202412.nc"
+  obs_name: "CAMS"
+  obs_var_name: "BURDENSO4"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
 
 cb_DUST:
   colormap: "Oranges"
@@ -352,8 +401,13 @@ cb_SO2:
   add_offset: 0
   new_unit: "1e-6 kg/m2"
   category: "Aerosols"
+  colormap: "plasma_r"
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: 'g m$^{-2}$'
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  diff_colormap: "RdBu_r"
 
 DMS:
   category: "Aerosols"
@@ -2169,6 +2223,10 @@ OMEGA500:
   category: "State"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  scale_factor: 864
+  add_offset: 0
+  new_unit: "hPa d$^{-1}$"
+  hist_bins: [-105, -100,  -95,  -90,  -85,  -80,  -75,  -70,  -65,  -60,  -55, -50,  -45,  -40,  -35,  -30,  -25,  -20,  -15,  -10,   -5,    0, 5,   10,   15,   20,   25,   30,   35,   40,   45,   50,   55, 60,   65,   70,   75,   80,   85,   90,   95,  100]
 
 PINT:
   category: "State"
@@ -2556,6 +2614,71 @@ TOT_ICLD_VISTAU:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+CLDTOT_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDTOT_CAL"
+  category: "COSP"
+
+CLDHGH_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDHGH_CAL"
+  category: "COSP"
+
+CLDMED_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDMED_CAL"
+  category: "COSP"
+
+CLDLOW_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLDLOW_CAL"
+  category: "COSP"
+
+CLD_CAL:
+  colormap: "cividis"
+  contour_levels_range: [0, 105, 5]
+  diff_colormap: "RdBu_r"
+  diff_contour_range: [-40, 40, 5]
+  scale_factor: 1.
+  add_offset: 0
+  new_unit: "Percent"
+  obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
+  obs_name: "CALIPSO"
+  obs_var_name: "CLD_CAL"
+  category: "COSP"
+
 
 #+++++++++++++++++
 # Category: Other
@@ -2677,7 +2800,7 @@ utendwtem:
 budget_tables:
   # INPUTS
   #list of the gaseous variables to be caculated.
-  GAS_VARIABLES: ['CH4','CH3CCL3', 'CO', 'O3', 'ISOP', 'MTERP', 'CH3OH', 'CH3COCH3']
+  GAS_VARIABLES: ['CH4','CH3CCL3', 'CO', 'O3', 'ISOP', 'MTERP', 'CH3OH', 'CH3COCH3','DMS','DMS_OASISS']
 
   # list of the aerosol variables to be caculated.
   AEROSOL_VARIABLES: ['AOD','SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
@@ -2715,7 +2838,10 @@ budget_tables:
         'DUST':168.0456,
         'CH3CCL3':133.4042,
         'CH3OH':32,
-        'CH3COCH3':58}
+        'CH3COCH3':58,
+        'DMS':62.136,
+        'DMS_OASISS':62.136,
+        'AOD':1}
 
   # Avogadro's Number
   AVO: 6.022e23

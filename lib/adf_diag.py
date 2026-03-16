@@ -1007,9 +1007,11 @@ class AdfDiag(AdfWeb):
         else:
             cvdp_dir = self.get_cvdp_info("cvdp_loc", required=True) + case_names[0]
         # end if
+
+        cvdp_dir = os.path.abspath(cvdp_dir)
         if not os.path.isdir(cvdp_dir):
             shutil.copytree(
-                self.get_cvdp_info("cvdp_codebase_loc", required=True), cvdp_dir
+                self.get_cvdp_info("cvdp_codebase_loc"), cvdp_dir
             )
         # End if
 
@@ -1540,13 +1542,10 @@ def _load_dataset(fils):
     -----
     When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
     """
-    import warnings  # use to warn user about missing files.
 
-    #Format warning messages:
-    def my_formatwarning(msg, *args, **kwargs):
-        """Issue `msg` as warning."""
-        return str(msg) + '\n'
-    warnings.formatwarning = my_formatwarning
+    import adf_utils as utils
+    import warnings # use to warn user about missing files
+    warnings.formatwarning = utils.my_formatwarning
 
     if len(fils) == 0:
         warnings.warn("\t    WARNING: Input file list is empty.")

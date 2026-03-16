@@ -7,21 +7,16 @@ from I. Simpson's directory (to be generalized).
 
 from pathlib import Path
 from types import NoneType
-import warnings  # use to warn user about missing files.
+
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-import plotting_functions as pf
 import matplotlib.ticker as ticker
 
 
-def my_formatwarning(msg, *args, **kwargs):
-    """custom warning"""
-    # ignore everything except the message
-    return str(msg) + "\n"
-
-
-warnings.formatwarning = my_formatwarning
+import adf_utils as utils
+import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 
 
 def global_mean_timeseries(adfobj):
@@ -59,28 +54,42 @@ def global_mean_timeseries(adfobj):
         #End if
 
         #Load model variable data from file:
-        ds = pf.load_dataset(ts_files)
+        ds = utils.load_dataset(ts_files)
         ref_ts_da = ds[var]
         
-        # check if this is a "2-d" varaible:
-        has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
-        if has_lev_ref:
-            warnings.warn(
-                f"\t Variable named {var} has a lev dimension, which does not work with this script."
-            )
-            continue
-
         if var in emislist:
             ref_ts_da = surface_emission(ref_ts_da)
         elif var in cblist:
             ref_ts_da_ga = column_burden(ref_ts_da)
         # reference time series global average
         else:
-            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+            # check data dimensions:
+            has_lat_ref, has_lev_ref = utils.zm_validate_dims(ref_ts_da)
+
+            # check if this is a "2-d" varaible:
+            if has_lev_ref:
+                warnings.warn(
+                    f"\t Variable named {var} has a lev dimension, which does not work with this script."
+                )
+                continue
+            # End if
+            
+            # check if there is a lat dimension:
+            if not has_lat_ref:
+                warnings.warn(
+                    f"\t Variable named {var} is missing a lat dimension, cannot continue to plot."
+                )                
+                continue
+            # End if
+
+            # reference time series global average
+            ref_ts_da_ga = utils.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+
         # annually averaged
         if var not in emislist:
-            ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
-       
+            ref_ts_da = utils.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
+        # End if
+
         # Loop over model cases:
         case_ts = {}  # dictionary of annual mean, global mean time series
 
@@ -111,24 +120,48 @@ def global_mean_timeseries(adfobj):
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for case: {case_name} and the variable '{var}', so it will be skipped."
                 print(errmsg)
+
+            # Load model variable data from file:
+            _ds = utils.load_dataset(c_ts_files)
+            c_ts_da = _ds[var]
+
+            # If no reference, we still need to check if this is a "2-d" varaible:
+            # check data dimensions:
+            has_lat_case, has_lev_case = utils.zm_validate_dims(c_ts_da)
+
+            # If 3-d variable, notify user, flag and move to next test case
+            if has_lev_case:
+                warnings.warn(
+                    f"\t    WARNING: Variable {var} has a lev dimension for '{case_name}', which does not work with this script."
+                )
+                skip_var = True
                 continue
             #End if
 
-            #Load model variable data from file:
-            _ds = pf.load_dataset(c_ts_files)
-            c_ts_da = _ds[var]
+            # check if there is a lat dimension:
+            if not has_lat_case:
+                warnings.warn(
+                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                )
+                skip_var = True
+                continue
+            # End if
+
+            # Case global average (keep noresm behavior)
             if var in emislist:
                 c_ts_da_ga = surface_emission(c_ts_da)
             elif var in cblist:
                 c_ts_da_ga = column_burden(c_ts_da)
-            # reference time series global average
             else:
-                c_ts_da_ga = pf.spatial_average(c_ts_da, weights=None, spatial_dims=None)
-            # annually averaged
+                c_ts_da_ga = utils.spatial_average(c_ts_da, weights=None, spatial_dims=None)
+
+            # annually averaged (keep noresm behavior)
             if var not in emislist:
-                c_ts_da_ga = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+                c_ts_da_ga = utils.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+
             case_ts[labels[case_name]] = c_ts_da_ga
-        # now have to plot the timeseries
+
+
         fig, ax = make_plot(
             ref_ts_da, case_ts, var, label=adfobj.data.ref_nickname
         )
@@ -337,8 +370,9 @@ def _get_area(tmp_file):
     dx = Earth_rad*np.cos(lat2d*np.pi/180)*dlon*np.pi/180
 
     _area = dx*dy
-    # End if
 
     # Variables to return
     return _area
 #END OF SCRIPT
+##############
+

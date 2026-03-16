@@ -2,15 +2,12 @@
 from pathlib import Path
 import numpy as np
 import xarray as xr
-import warnings  # use to warn user about missing files.
 import matplotlib.pyplot as plt
-import pandas as pd
 
 #Format warning messages:
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-warnings.formatwarning = my_formatwarning
+import adf_utils as utils
+import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 
 def tem(adf):
     """
