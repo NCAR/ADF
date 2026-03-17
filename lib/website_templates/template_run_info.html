@@ -1,26 +1,26 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ADF {{var_title}}</title>
-    <link rel="stylesheet" href="../templates/adf_diag.css">
+    <title>ADF Run Info</title>
+    <link rel="stylesheet" href="templates/adf_diag.css">
   </head>
-  <body>
+  <body >
     <div class="header">
       <div id="screenFiller" style="background:url(../templates/NCAR.gif) top right no-repeat; border:5px solid #555;">
         <div class="center"><h1> {{ title }}</h1></div>
           <div class="center">
             <nav role="navigation" class="primary-navigation">
             <ul>
-              <li><a href="../index.html">Case Home</a></li>
-              <li><a href="../run_info.html">Case Setup Info</a></li>
+              <li><a href="index.html">Case Home</a></li>
+              <li><a href="run_info.html">Case Setup Info</a></li>
               <li><a href="#">Plots &dtrif;</a>
                 <ul class="dropdown">
                   {% for type, html_file in plot_types.items() %}
-                    <li><a href=../{{html_file}}> &nbsp; {{ type }}</a>
+                    <li><a href={{html_file}}> &nbsp; {{ type }}</a></li>
                   {% endfor %}
                 </ul>
               </li>
-              <li><a href="#">Links &dtrif;</a>
+                  <li><a href="#">Links &dtrif;</a>
                 <ul class="dropdown">
                   <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
                   <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
@@ -39,53 +39,16 @@
     </div><!--header-->
 
     <div class="center">
-      <div class="float-container">
-        <div class="float-child">
-          <div><h1>{{plottype_title}} - {{var_title}}</h1></div>
-        </div><!--float-child-->
-        <div class="float-child">
-          <div><button><a href="mean_diag_{{plottype_title}}.html">Back to {{plottype_title}}</a></button><button><a href="../index.html">Back to Plot Types</a></button></div>
-        </div><!--float-child-->
-      </div><!--float-container-->
-    </div><!--center-->
+      <h1>ADF Run Information</h1>
+    </div>
 
-    <div style="width: 100%;"> <!-- main div-->
-      <div class="grid-container-template" style="border: 3px solid black">
-        {% for category, var_seas in mydata.items() %}
-          {% for var_name, ptype_seas in var_seas.items() %}
-            {% if var_name == var_title %}
-              {% if non_seasons[category][var_name] == False %}
-                {% for season in seasons %}
-                  {% if season in ptype_seas.keys() %}
-                    <div class="grid-item">
-                      <a href="../html_img/{{ ptype_seas[season] }}">{{ season }}</a>
-                    </div><!--grid-item-->
-                  {% else %}
-                    <div class="grid-item-blocked">
-                      <a-blocked>{{ season }}</a-blocked>
-                    </div><!--grid-item-blocked-->
-                  {% endif %}<!-- ptype_seas.keys() -->
-                {% endfor %}<!-- season in seasons -->
-              {% else %}
-                {% for season in ptype_seas.keys() %}
-                  <div class="grid-item">
-                    <a href="../html_img/{{ ptype_seas[season] }}">{{ season }}</a>
-                  </div><!--grid-item-->
-                {% endfor %}<!-- ptype_seas.keys() -->
-              {% endif %}<!-- non_season -->
-            {% endif %}<!-- var_name == var_title -->
-          {% endfor %}<!-- var_seas.items() -->
-        {% endfor %}<!-- mydata.items() -->
-      </div><!--grid-container-->
+    <div style="width: 100%;">
+      
 
-      <div id="footer">
-        <div class="center"><!--bottom div -->
-          <a href="{{ imgs[0] }}" target="_blank">
-            <img src="{{ imgs[0] }}" alt="{{ imgs[1] }}"></img>
-          </a>
-        </div> <!-- end bottom div -->
-      </div><!--footer-->
-    </div> <!-- end main div -->
+      <main>
+        {{ run_info|safe }}
+      </main>
+    </div>
 
   </body>
 </html>
