@@ -165,11 +165,6 @@ def polar_map(adfobj):
         vres = res.get(var, {})
         web_category = vres.get("category", None)
 
-        else:
-            vres = {}
-            web_category = None
-        #End if
-
         #loop over different data sets to plot model against:
         for data_src in data_list:
 

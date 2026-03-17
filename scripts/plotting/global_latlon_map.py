@@ -26,7 +26,6 @@ import plotting_functions as pf
 # Warnings
 import warnings  # use to warn user about missing files.
 warnings.formatwarning = utils.my_formatwarning
-warnings.formatwarning = utils.my_formatwarning
 
 #########
 
@@ -101,7 +100,7 @@ def global_latlon_map(adfobj):
     print("  ...lat/lon maps have been generated successfully.")
 
 
-def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unstructured_plotting):
+def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unstruct_plotting):
     vres = adfobj.variable_defaults.get(var, {})
     web_category = vres.get("category", None)
 
@@ -109,7 +108,7 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unst
     # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
     # otherwise defaults to 180
     vres['central_longitude'] = plot_utils.get_central_longitude(adfobj)
-    vres['unstructured_plotting'] = unstructured_plotting
+    vres['unstructured_plotting'] = unstruct_plotting
 
     # Load reference data
     odata, vres = load_reference_data(adfobj, var, vres)
@@ -137,7 +136,7 @@ def load_reference_data(adfobj, var, vres):
             return None
         base_name = adfobj.data.ref_labels[var]
 
-    if vres["unstruct_plotting"]:
+    if vres["unstructured_plotting"]:
         mesh_file = adfobj.mesh_files["baseline_mesh_file"]
         vres["mesh_file"] = mesh_file
         odata = adfobj.data.load_reference_climo_da(base_name, var, **vres)
@@ -174,7 +173,7 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
     plot_loc = Path(adfobj.plot_location[case_idx])
     plot_loc.mkdir(parents=True, exist_ok=True)
     comp = "atm"
-    if vres["unstruct_plotting"]:
+    if vres["unstructured_plotting"]:
         mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
         vres["mesh_file"] = mesh_file
         mdata = adfobj.data.load_climo_da(case_name, var, **vres)
@@ -209,7 +208,7 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
             unstructured = True
         if (not unstruct_case) and (not unstruct_base):
             unstructured = False
-        vres["unstruct_plotting"] = unstructured
+        vres["unstructured_plotting"] = unstructured
     else:
         mdata = adfobj.data.load_regrid_da(case_name, var)
         if mdata is None:

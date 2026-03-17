@@ -209,7 +209,14 @@ class AdfData:
         """Return DataArray from reference (aka baseline) climo file"""
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_reference_climo_file(variablename)
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        print("kwargs",kwargs)
+        if "add_offset" not in kwargs:
+            kwargs["add_offset"] = add_offset
+        if "scale_factor" not in kwargs:
+            kwargs["scale_factor"] = scale_factor
+        print("kwargs DIFF???",kwargs)
+        #return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        return self.load_da(fils, variablename, **kwargs)
 
     def load_reference_climo_dataset(self, case, field, **kwargs):
         """Return a data set to be used as reference (aka baseline) for variable field."""
@@ -332,6 +339,7 @@ class AdfData:
                     print(msg)
                     ds = None
                 mesh_file = kwargs["mesh_file"]
+                print("mesh_file",mesh_file,"\n\n")
                 ds = ux.open_dataset(mesh_file, sfil)
             else:
                 ds = xr.open_dataset(sfil)
