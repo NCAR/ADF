@@ -3,28 +3,6 @@ Generic computation and plotting helper functions
 
 Functions
 ---------
-load_dataset()
-    generalized load dataset method used for plotting/analysis functions
-use_this_norm()
-    switches matplotlib color normalization method
-get_difference_colors(values)
-    Provide a color norm and colormap assuming `values` is a difference field.
-mask_land_or_ocean(arr, msk, use_nan=False)
-    Apply a land or ocean mask to provided variable.
-get_central_longitude(*args)
-    Determine central longitude for maps.
-global_average(fld, wgt, verbose=False)
-    pure numpy global average.
-spatial_average(indata, weights=None, spatial_dims=None)
-    Compute spatial average
-wgt_rmse(fld1, fld2, wgt):
-    Calculate the area-weighted RMSE.
-annual_mean(data, whole_years=False, time_name='time'):
-    Calculate annual averages from time series data.
-seasonal_mean(data, season=None, is_climo=None):
-    Calculates the time-weighted seasonal average (or average over all time).
-domain_stats(data, domain):
-    Provides statistics in specified region.
 make_polar_plot(wks, case_nickname, base_nickname,
                     case_climo_yrs, baseline_climo_yrs,
                     d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.DataArray]=None,
@@ -40,22 +18,6 @@ plot_map_and_save(wks, case_nickname, base_nickname,
                       case_climo_yrs, baseline_climo_yrs,
                       mdlfld, obsfld, diffld, **kwargs):
     Map plots of `mdlfld`, `obsfld`, and their difference, `diffld`.
-pres_from_hybrid(psfc, hya, hyb, p0=100000.):
-    Converts a hybrid level to a pressure
-vert_remap(x_mdl, p_mdl, plev)
-    Interpolates to specified pressure levels.
-lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None, convert_to_mb=False)
-    Interpolate model hybrid levels to specified pressure levels.
-pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False)
-    Interpolate `data` from hybrid-sigma levels to isobaric levels using provided mid-level pressures.
-zonal_mean_xr(fld)
-    Average over all dimensions except `lev` and `lat`.
-validate_dims(fld, list_of_dims)
-    Checks if specified dimensions are in a DataArray
-lat_lon_validate_dims(fld)
-    Check if input field has lat and lon.
-zm_validate_dims(fld)
-    Check for dimensions for zonal average.
 zonal_plot(lat, data, ax=None, color=None, **kwargs)
     Make a line plot or pressure-latitude plot of `data`.
 meridional_plot(lon, data, ax=None, color=None, **kwargs)
@@ -68,49 +30,29 @@ plot_meridional_mean_and_save
     meridioanl mean plot
 square_contour_difference
     Produce filled contours of fld1, fld2, and their difference with square axes.
-
-Notes
------
-This module includes several "private" methods intended for internal use only.
-
-_plot_line(axobject, xdata, ydata, color, **kwargs)
-    Create a generic line plot
-_meridional_plot_line
-
-_zonal_plot_line
-
-_zonal_plot_preslat
-
-_meridional_plot_preslon
-
 """
 
 #import statements:
 from typing import Optional
 import numpy as np
 import xarray as xr
-import pandas as pd
 import matplotlib as mpl
 import cartopy.crs as ccrs
 #nice formatting for tick labels
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from cartopy.util import add_cyclic_point
-import geocat.comp as gcomp
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 import matplotlib.cm as cm
 import uxarray as ux  #need npl 2024a or later
 
-from adf_diag import AdfDiag
 from adf_base import AdfError
-
-import warnings  # use to warn user about missing files.
+import plotting_utils as plot_utils
+import adf_utils as utils
 
 #Format warning messages:
-def my_formatwarning(msg, *args, **kwargs):
-    """Issue `msg` as warning."""
-    return str(msg) + '\n'
-warnings.formatwarning = my_formatwarning
+import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 
 #Set non-X-window backend for matplotlib:
 mpl.use('Agg')
@@ -736,11 +678,19 @@ def domain_stats(data, domain, unstructured=False):
     return x_region_mean, x_region_max, x_region_min
 
 
-
-def make_polar_plot(wks, case_nickname, base_nickname,
-                    case_climo_yrs, baseline_climo_yrs,
-                    d1, d2, difference=None,pctchange=None,
-                    domain:Optional[list]=None, hemisphere:Optional[str]=None, obs=False, unstructured=False, **kwargs):
+def make_polar_plot(wks, case_nickname, 
+                    base_nickname,
+                    case_climo_yrs, 
+                    baseline_climo_yrs,
+                    d1:xr.DataArray, 
+                    d2:xr.DataArray, 
+                    difference:Optional[xr.DataArray]=None,
+                    pctchange:Optional[xr.DataArray]=None,
+                    domain:Optional[list]=None, 
+                    hemisphere:Optional[str]=None, 
+                    obs=False,
+                    unstructured=False,
+                    **kwargs):
 
     """Make a stereographic polar plot for the given data and hemisphere.
 
@@ -887,7 +837,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     axs = [ax1,ax2,ax3,ax4]
 
     #generate a dictionary of contour plot settings:
-    cp_info = prep_contour_plot(d1, d2, pct, dif, **kwargs)
+    cp_info = plot_utils.prep_contour_plot(d1, d2, pct, dif, **kwargs)
 
     imgs = []
 
@@ -1018,6 +968,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
     # Close figures to avoid memory issues:
     plt.close(fig)
+
 
 #######
 
@@ -1196,7 +1147,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     #(vmseasons[s] - voseasons[s]) / np.abs(voseasons[s]) * 100.0 #relative change
 
     # generate dictionary of contour plot settings:
-    cp_info = prep_contour_plot(mdl_mag_ma, obs_mag_ma, diff_mag, pct_mag, **kwargs)
+    cp_info = plot_utils.prep_contour_plot(mdl_mag_ma, obs_mag_ma, diff_mag, pct_mag, **kwargs)
 
     """# Get difference limits, in order to plot the correct range:
     min_diff_val = np.min(diff_mag)
@@ -1346,7 +1297,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
                        fontsize=tiFontSize)
     ax[1].set_title(f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.max():5.2f}\nMin: {obs_mag.min():5.2f}", loc='right',
                        fontsize=tiFontSize)
-    ax[2].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {diff_mag.min():5.2f}", loc='right',
+    ax[-1].set_title(f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {diff_mag.min():5.2f}", loc='right',
                        fontsize=tiFontSize)
     #ax4.set_title(f"Mean: {pct_mag.weighted(wgt).mean().item():5.2f}\nMax: {pct_mag.max():5.2f}\nMin: {pct_mag.min():5.2f}", loc='right',
     #                   fontsize=tiFontSize)
@@ -1524,7 +1475,10 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     central_longitude = kwargs.get('central_longitude', 180)
 
     # generate dictionary of contour plot settings:
-    cp_info = prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
+    cp_info = plot_utils.prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
+
+    # specify the central longitude for the plot
+    central_longitude = kwargs.get('central_longitude', 180)
 
     # create figure object
     fig = plt.figure(figsize=(14,10))
@@ -1758,7 +1712,7 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
         tiFontSize = 8
         
     #generate a dictionary of contour plot settings:
-    cp_info = prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
+    cp_info = plot_utils.prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
     
     if projection == 'global':
         transform = ccrs.PlateCarree()
@@ -2252,10 +2206,10 @@ def zonal_plot(lat, data, ax=None, color=None, **kwargs):
     if ax is None:
         ax = plt.gca()
     if 'lev' in data.dims:
-        img, ax = _zonal_plot_preslat(ax, lat, data['lev'], data, **kwargs)
+        img, ax = plot_utils.zonal_plot_preslat(ax, lat, data['lev'], data, **kwargs)
         return img, ax
     else:
-        ax = _zonal_plot_line(ax, lat, data, color, **kwargs)
+        ax = plot_utils.zonal_plot_line(ax, lat, data, color, **kwargs)
         return ax
 
 def meridional_plot(lon, data, ax=None, color=None, **kwargs):
@@ -2286,216 +2240,18 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
     if ax is None:
         ax = plt.gca()
     if 'lev' in data.dims:
-        img, ax = _meridional_plot_preslon(ax, lon, data['lev'], data, **kwargs)
+        img, ax = plot_utils.meridional_plot_preslon(ax, lon, data['lev'], data, **kwargs)
         return img, ax
     else:
-        ax = _meridional_plot_line(ax, lon,  data, color, **kwargs)
+        ax = plot_utils.meridional_plot_line(ax, lon,  data, color, **kwargs)
         return ax
 
-def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
-    """Preparation for making contour plots.
 
-    Prepares for making contour plots of adata, bdata, diffdata, and pctdata, which is
-    presumably the difference between adata and bdata.
-    - set colormap from kwargs or defaults to coolwarm
-    - set contour levels from kwargs or 12 evenly spaced levels to span the data
-    - normalize colors based on specified contour levels or data range
-    - set option for linear or log pressure when applicable
-    - similar settings for difference, defaults to symmetric about zero
-    - separates Matplotlib kwargs into their own dicts
-
-    Parameters
-    ----------
-    adata, bdata, diffdata, pctdata
-        the data to be plotted
-    kwargs : dict, optional
-        plotting options
-
-    Returns
-    -------
-    dict
-        a dict with the following:
-        - 'subplots_opt': mpl kwargs for subplots
-        - 'contourf_opt': mpl kwargs for contourf
-        - 'colorbar_opt': mpl kwargs for colorbar
-        - 'diff_colorbar_opt' : mpl kwargs for difference colorbar
-        - 'normdiff': color normalization for difference panel
-        - 'cmapdiff': colormap for difference panel
-        - 'levelsdiff': contour levels for difference panel
-        - 'cmap1': color map for a and b panels
-        - 'norm1': color normalization for a and b panels
-        - 'levels1' : contour levels for a and b panels
-        - 'plot_log_p' : true/false whether to plot log(pressure) axis
-    """
-    # determine levels & color normalization:
-    minval = np.min([np.min(adata), np.min(bdata)])
-    maxval = np.max([np.max(adata), np.max(bdata)])
-
-    # determine levels & color normalization:
-    minval    = np.min([np.min(adata), np.min(bdata)])
-    maxval    = np.max([np.max(adata), np.max(bdata)])
-    absmaxdif = np.max(np.abs(diffdata))
-    absmaxpct = np.max(np.abs(pctdata))
-
-    # determine norm to use (deprecate this once minimum MPL version is high enough)
-    normfunc, mplv = use_this_norm()
-
-    if 'colormap' in kwargs:
-        cmap1 = kwargs['colormap']
-    else:
-        cmap1 = 'coolwarm'
-    #End if
-
-    if 'contour_levels' in kwargs:
-        levels1 = kwargs['contour_levels']
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
-            cmap_obj = cm.get_cmap(cmap1)
-            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    elif 'contour_levels_range' in kwargs:
-        assert len(kwargs['contour_levels_range']) == 3, \
-        "contour_levels_range must have exactly three entries: min, max, step"
-
-        levels1 = np.arange(*kwargs['contour_levels_range'])
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
-            cmap_obj = cm.get_cmap(cmap1)
-            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    else:
-        levels1 = np.linspace(minval, maxval, 12)
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
-            cmap_obj = cm.get_cmap(cmap1)
-            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-    #End if
-
-    #Check if the minval and maxval are actually different.  If not,
-    #then set "levels1" to be an empty list, which will cause the
-    #plotting scripts to add a label instead of trying to plot a variable
-    #with no contours:
-    if minval == maxval:
-        levels1 = []
-    #End if
-
-    if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
-        if ((minval < 0) and (0 < maxval)) and mplv > 2:
-            norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-        #End if
-    #End if
-
-    # Difference options -- Check in kwargs for colormap and levels
-    if "diff_colormap" in kwargs:
-        cmapdiff = kwargs["diff_colormap"]
-    else:
-        cmapdiff = 'coolwarm'
-    #End if
-
-    if "diff_contour_levels" in kwargs:
-        levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
-    elif "diff_contour_range" in kwargs:
-        assert len(kwargs['diff_contour_range']) == 3, \
-        "diff_contour_range must have exactly three entries: min, max, step"
-
-        levelsdiff = np.arange(*kwargs['diff_contour_range'])
-    else:
-        # set a symmetric color bar for diff:
-        absmaxdif = np.max(np.abs(diffdata))
-        # set levels for difference plot:
-        absmaxdif = float(absmaxdif)
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-        
-    # Percent Difference options -- Check in kwargs for colormap and levels
-    if "pct_diff_colormap" in kwargs:
-        cmappct = kwargs["pct_diff_colormap"]
-    else:
-        cmappct = "PuOr_r"
-    #End if
-
-    if "pct_diff_contour_levels" in kwargs:
-        levelspctdiff = kwargs["pct_diff_contour_levels"]  # a list of explicit contour levels
-    elif "pct_diff_contour_range" in kwargs:
-            assert len(kwargs['pct_diff_contour_range']) == 3, "pct_diff_contour_range must have exactly three entries: min, max, step"
-            levelspctdiff = np.arange(*kwargs['pct_diff_contour_range'])
-    else:
-        levelspctdiff = [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-    pctnorm = mpl.colors.BoundaryNorm(levelspctdiff,256)
-
-    if "plot_log_pressure" in kwargs:
-        plot_log_p = kwargs["plot_log_pressure"]
-    else:
-        plot_log_p = False
-
-    # color normalization for difference
-    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
-        normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
-    else:
-        normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
-
-    #NOTE: Sometimes the contour levels chosen in the defaults file
-    #can result in the "contourf" software stack generating a
-    #'TypologyException', which should manifest itself as a
-    #"PredicateError", but due to bugs in the stack itself
-    #will also sometimes raise an AttributeError.
-
-    #To prevent this from happening, the polar max and min values
-    #are calculated, and if the default contour values are significantly
-    #larger then the min-max values, then the min-max values are used instead:
-    #-------------------------------
-    if max(levels1) > 10*maxval:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-    elif minval < 0 and min(levels1) < 10*minval:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-    #End if
-
-    absmaxdif = float(absmaxdif)
-    if max(np.abs(levelsdiff)) > 10*absmaxdif:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-
-    #End if
-    #-------------------------------
-
-    subplots_opt = {}
-    contourf_opt = {}
-    colorbar_opt = {}
-    diff_colorbar_opt = {}
-    pct_colorbar_opt = {}
-
-    # extract any MPL kwargs that should be passed on:
-    if 'mpl' in kwargs:
-        subplots_opt.update(kwargs['mpl'].get('subplots',{}))
-        contourf_opt.update(kwargs['mpl'].get('contourf',{}))
-        colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
-        diff_colorbar_opt.update(kwargs['mpl'].get('diff_colorbar',{}))
-        pct_colorbar_opt.update(kwargs['mpl'].get('pct_diff_colorbar',{}))
-    #End if
-    return {'subplots_opt': subplots_opt,
-            'contourf_opt': contourf_opt,
-            'colorbar_opt': colorbar_opt,
-            'diff_colorbar_opt': diff_colorbar_opt,
-            'pct_colorbar_opt': pct_colorbar_opt,
-            'normdiff': normdiff,
-            'cmapdiff': cmapdiff,
-            'levelsdiff': levelsdiff,
-            'pctnorm': pctnorm,
-            'cmappct': cmappct,
-            'levelspctdiff':levelspctdiff,
-            'cmap1': cmap1,
-            'norm1': norm1,
-            'levels1': levels1,
-            'plot_log_p': plot_log_p
-            }
-
+#######
 
 def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, log_p, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, obs=False, **kwargs):
 
     """This is the default zonal mean plot
 
@@ -2554,8 +2310,8 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
     if has_lev:
 
         # calculate zonal average:
-        azm = zonal_mean_xr(adata)
-        bzm = zonal_mean_xr(bdata)
+        azm = utils.zonal_mean_xr(adata)
+        bzm = utils.zonal_mean_xr(bdata)
 
         # calculate difference:
         diff = azm - bzm
@@ -2571,7 +2327,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
             pct = pct_0
 
         # generate dictionary of contour plot settings:
-        cp_info = prep_contour_plot(azm, bzm, diff, pct, **kwargs)
+        cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
 
         # Generate zonal plot:
         fig, ax = plt.subplots(figsize=(10,10),nrows=4, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -2629,8 +2385,8 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         line2 = Line2D([0], [0], label=base_title,
                         color="#ff7f0e") # #ff7f0e -> matplotlib standard orange
 
-        azm = zonal_mean_xr(adata)
-        bzm = zonal_mean_xr(bdata)
+        azm = utils.zonal_mean_xr(adata)
+        bzm = utils.zonal_mean_xr(bdata)
         diff = azm - bzm
         
         # calculate the percent change
@@ -2678,10 +2434,11 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
     plt.close()
 
 
+#######
 
 def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
-                             adata, bdata, has_lev, log_p, latbounds=None, obs=False, **kwargs):
+                             adata, bdata, has_lev, log_p=False, latbounds=None, obs=False, **kwargs):
 
     """Default meridional mean plot
 
@@ -2705,6 +2462,8 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         It must have the same dimensions and vertical levels as adata.
     has_lev : bool
         whether lev dimension is present
+    log_p : bool, optional
+        (Not implemented) use log(pressure) vertical axis
     latbounds : numbers.Number or slice, optional
         indicates latitude bounds to average over
         if it is a number, assume symmetric about equator,
@@ -2813,7 +2572,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
 
     if has_lev:
         # generate dictionary of contour plot settings:
-        cp_info = prep_contour_plot(adata, bdata, diff, pct, **kwargs)
+        cp_info = plot_utils.prep_contour_plot(adata, bdata, diff, pct, **kwargs)
 
         # generate plot objects:
         fig, ax = plt.subplots(figsize=(10,10),nrows=4, constrained_layout=True, sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -2908,9 +2667,8 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
     #Close plots:
     plt.close()
 
-#
-#  -- zonal mean annual cycle --
-#
+
+#######
 
 def square_contour_difference(fld1, fld2, **kwargs):
     """Produce filled contours of fld1, fld2, and their difference with square axes.

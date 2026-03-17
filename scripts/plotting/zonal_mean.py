@@ -3,13 +3,9 @@ import numpy as np
 import xarray as xr
 import plotting_functions as pf
 
+import adf_utils as utils
 import warnings  # use to warn user about missing files.
-
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-
-warnings.formatwarning = my_formatwarning
+warnings.formatwarning = utils.my_formatwarning
 
 def zonal_mean(adfobj):
 
@@ -178,7 +174,7 @@ def zonal_mean(adfobj):
             continue
 
         #Check zonal mean dimensions
-        has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
+        has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
 
         # check if there is a lat dimension:
         # if not, skip test cases and move to next variable
@@ -209,7 +205,7 @@ def zonal_mean(adfobj):
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
             # check data dimensions:
-            has_lat, has_lev = pf.zm_validate_dims(mdata)
+            has_lat, has_lev = utils.zm_validate_dims(mdata)
 
             # check if there is a lat dimension:
             if not has_lat:
@@ -242,7 +238,7 @@ def zonal_mean(adfobj):
 
             #Loop over season dictionary:
             for s in seasons:
-                
+
                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                 # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                 # NOTE: Up to this point, nothing really differs from global_latlon_map,
@@ -257,8 +253,8 @@ def zonal_mean(adfobj):
                 # This could be re-visited for efficiency or improved code structure.
 
                 #Seasonal Averages
-                mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
-                oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
+                mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
+                oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
 
                 #Set the file name
                 plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"

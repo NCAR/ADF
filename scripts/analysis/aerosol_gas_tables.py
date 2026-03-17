@@ -1,25 +1,16 @@
 import numpy as np
 import xarray as xr
-import sys
 from pathlib import Path
-import warnings  # use to warn user about missing files.
 
 from datetime import datetime
 import numpy as np
 import itertools
-
-try:
-    import pandas as pd
-except ImportError:
-    print("Pandas module does not exist in python path, but is needed for amwg_table.")
-    print("Please install module, e.g. 'pip install pandas'.")
-    sys.exit(1)
-#End except
+import pandas as pd
 
 # Import necessary ADF modules:
 from adf_base import AdfError
 
-def aerosol_gas_tables(adfobj):
+def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
     '''
     Calculate aerosol and gaseous budget tables
 
@@ -94,19 +85,39 @@ def aerosol_gas_tables(adfobj):
             * lifetime inconsitencies
             * Removed redundant calculations to improve the speed
             * Verified the results against the NCL script.
-    '''
 
+        Behrooz Roozitalab, 5 Jun, 2025
+        - fixed:            
+            * Fix the bugs in the calculation (when converting from Jupyterhub to ADF)
+            * add the 'U' variable in dic_SE
+            * make the code faster by modifying make_Dic_scn_var_comp
+            * Add a condition to calculate whole world budgets when O3 is not find.
+            * Update pressure calculation in a more general way.
+
+        Behrooz Roozitalab, 20 Aug, 2025
+        - fixed:
+            * the html page was not created, it is fixed.
+            * added "hm" as a case to enable using annual averaged files in addition to monthly files.
+            * if config arg "trop_val" is pres500 : This version uses 500hPa as the tropopause threshold.
+            * if config arg "trop_val" is tropopause (realistic case) : New method of defining troposphere, use  ozone (150ppb) or Trop_P. If not found, calculate total column
+            * Added DMS to gases list - reported as DMS not S
+            * Automatic addition of gaseous compounds even when not defined in the default list, 
+            *   based on Carbon MW (12). It still needs ADF modification to read a list from yaml file. 
+    '''
 
     #Notify user that script has started:
     msg = "\n   Calculating chemistry/aerosol budget tables..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
+
+    # Check which type of tables to be created, default to 'tropopause'
+    if trop_val is None:
+        trop_val = 'tropopause'
 
     # Inputs
     #-------
     # Variable defaults info
     res = adfobj.variable_defaults # dict of variable-specific plot preferences
     bres = res['budget_tables']
-
     # list of the gaseous variables to be caculated.
     GAS_VARIABLES = bres['GAS_VARIABLES']
 
@@ -124,7 +135,7 @@ def aerosol_gas_tables(adfobj):
     # -------------------
     # if True, calculate only Tropospheric values
     # if False, all layers
-    # tropopause is defiend as o3>150ppb. If needed, change accordingly.
+    # tropopause is defiend as either directly or indirectly. Look for tropopause to see the definition
     Tropospheric = bres['Tropospheric']
 
     ### NOT WORKING FOR NOW
@@ -138,6 +149,13 @@ def aerosol_gas_tables(adfobj):
     # For SO4, we report everything in terms of Sulfur, so we use Sulfur MW here
     MW = bres['MW']
 
+    # automatic generation of MW
+    for var in VARIABLES:
+        if var not in MW.keys():
+            print(f"using Carbon molecular weight for {var}")
+            MW[var]=12
+
+                
     # Avogadro's Number
     AVO = float(bres['AVO'])
     # gravity
@@ -158,7 +176,6 @@ def aerosol_gas_tables(adfobj):
     # Grab all case nickname(s)
     test_nicknames_list = adfobj.case_nicknames["test_nicknames"]
     nicknames_list = test_nicknames_list
-
     # Grab climo years
     start_years = adfobj.climo_yrs["syears"]
     end_years = adfobj.climo_yrs["eyears"]
@@ -168,7 +185,7 @@ def aerosol_gas_tables(adfobj):
 
     # Grab history file locations from config yaml file
     hist_locs = adfobj.get_cam_info("cam_hist_loc", required=True)
-    
+  
     # Check if this is test model vs baseline model
     # If so, update test case(s) lists created above
     if not adfobj.compare_obs:
@@ -184,7 +201,7 @@ def aerosol_gas_tables(adfobj):
         hist_strs += [adfobj.hist_string["base_hist_str"]]
         hist_locs += [adfobj.get_baseline_info("cam_hist_loc")]
     # End if
-
+    
     # Check to ensure number of case names matches number history file locations.
     # If not, exit script
     if len(hist_locs) != len(case_names):
@@ -192,13 +209,12 @@ def aerosol_gas_tables(adfobj):
         raise AdfError(errmsg)
 
     # Initialize nicknames dictionary
-    nicknames = {}
+    #nicknames = {}
 
     # Filter the list to include only strings that are possible h0 strings
     # - Search for either h0 or h0a
-    substrings = {"cam.h0","cam.h0a"}
+    substrings = {"cam.h0","cam.h0a","cam.hm"}
     case_hist_strs = []
-    print("hist_strs",hist_strs,"\n")
     for cam_case_str in hist_strs:
         # Check each possible h0 string
         for string in cam_case_str:
@@ -208,9 +224,10 @@ def aerosol_gas_tables(adfobj):
 
     # Create path object for the CAM history file(s) location:
     data_dirs = []
-    for case_idx,case in enumerate(case_names):
+    for case_idx,case in enumerate(nicknames_list):
+
         print(f"\t Looking for history location: {hist_locs[case_idx]}")
-        nicknames[case] = nicknames_list[case_idx]
+
 
         #Check that history file input directory actually exists:
         if (hist_locs[case_idx] is None) or (not Path(hist_locs[case_idx]).is_dir()):
@@ -237,35 +254,36 @@ def aerosol_gas_tables(adfobj):
     areas = {}
     trops = {}
     insides = {}
-    for i,case in enumerate(case_names):
+    for i,case in enumerate(nicknames_list):
+
         start_year = start_years[i]
-        end_year = end_years[i]
-        start_date = f"{start_year}-1-1"
-        end_date = f"{end_year}-1-1"
+        end_year = end_years[i] + 1
+        start_date = f"{start_year:04d}-1-1"
+        end_date = f"{end_year:04d}-1-1"
         
         # Create time periods
         start_period = datetime.strptime(start_date, "%Y-%m-%d")
         end_period = datetime.strptime(end_date, "%Y-%m-%d")
 
         # Calculated duration of time period in seconds?
-        durations[case_names[i]] = (end_period-start_period).days*86400+365*86400
+        durations[case] = (end_period-start_period).days*86400 #+365*86400
+
 
         # Get number of years for calculations
-        num_yrs[case_names[i]] = (int(end_year)-int(start_year))+1
+        num_yrs[case] = (int(end_year)-int(start_year)) #+1
 
         # Get currenty history file directory
         data_dir = data_dirs[i]
 
         # Get all files, lats, lons, and area weights for current case
         Files,Lats,Lons,areas[case],ext1_SE = Get_files(adfobj,data_dir,start_year,end_year,case_hist_strs[i],area=True)
-
         # find the name of all the variables in the file.
         # this will help the code to work for the variables that are not in the files (assingn 0s)
         tmp_file = xr.open_dataset(Path(data_dir) / Files[0])
         ListVars = list(tmp_file.variables)
 
         # Set up and fill dictionaries for components for current cases
-        dic_SE = set_dic_SE(ListVars,ext1_SE)
+        dic_SE = set_dic_SE(ListVars,ext1_SE,VARIABLES)
         dic_SE = fill_dic_SE(adfobj, dic_SE, VARIABLES, ListVars, ext1_SE, AEROSOLS, MW, AVO, gr, Mwair)
 
         text = f'\n\t Calculating values for {case}'
@@ -274,8 +292,7 @@ def aerosol_gas_tables(adfobj):
 
         # Gather dictionary data for current case
         # NOTE: The calculations can take a long time...
-        Dic_crit, Dic_scn_var_comp[case] = make_Dic_scn_var_comp(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS)
-
+        Dic_crit, Dic_scn_var_comp[case],Tropospheric,tropospheric_method = make_Dic_scn_var_comp(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS,Tropospheric,trop_val)
         # Regional refinement
         # NOTE: This function 'Inside_SE' is unavailable at the moment! - JR 10/2024
         if regional:
@@ -288,11 +305,19 @@ def aerosol_gas_tables(adfobj):
                 inside = np.full((len(Lats),len(Lons)),True)
 
         # Set critical threshold
-        current_crit = Dic_crit[0]
-
+        current_crit = Dic_crit
         if Tropospheric:
-            trop = np.where(current_crit>150,np.nan,current_crit)
-            #strat=np.where(current_crit>150,current_crit,np.nan)
+            if tropospheric_method=='pressure':
+                # using pressure > 500hPa
+                trop = np.where(current_crit<500,np.nan,current_crit)
+            if tropospheric_method=='ozone':
+                # using ozone <150 ppb
+                trop = np.where(current_crit>150,np.nan,current_crit)
+            elif tropospheric_method=='tropopause':
+                # using pressure > tropopause pressure
+                trop = np.where(current_crit['Pressure']<current_crit['TROP_P'],np.nan,current_crit['Pressure'])
+            elif tropospheric_method=='NA':
+                print('ERROR: Tropopause is not defined correctly!')
         else:
             trop=current_crit
         trops[case] = trop
@@ -304,7 +329,7 @@ def aerosol_gas_tables(adfobj):
                     "areas":areas,
                     "trops":trops,
                     "case_names":case_names,
-                    "nicknames":nicknames,
+                    "nicknames":nicknames_list,
                     "durations":durations,
                     "insides":insides,
                     "num_yrs":num_yrs,
@@ -334,16 +359,15 @@ def list_files(adfobj, directory, start_year ,end_year, h_case):
     """
 
     # History file year range
-    yrs = np.arange(int(start_year), int(end_year)+1)
+    yrs = np.arange(int(start_year), int(end_year))
 
     all_filenames = []
     for i in yrs:
-        all_filenames.append(sorted(Path(directory).glob(f'*.{h_case}.{i}-*')))
+        all_filenames.append(sorted(Path(directory).glob(f'*.{h_case}.{i:04d}*')))
 
     # Flattening the list of lists
     filenames = list(itertools.chain.from_iterable(sorted(all_filenames)))
     if len(filenames)==0:
-        #sys.exit(" Directory has no outputs ")
         msg = f"chem/aerosol tables, 'list_files':"
         msg += f"\n\t - Directory '{directory}' has no outputs."
         adfobj.debug_log(msg)
@@ -364,7 +388,6 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
     Earth_rad=6.371e6 # Earth Radius in meters
 
     current_files = list_files(adfobj, data_dir, start_year, end_year,h_case)
-
     # get the Lat and Lons for each case
     tmp_file = xr.open_dataset(Path(data_dir) / current_files[0])
     lon = tmp_file['lon'+ext1_SE].data
@@ -380,8 +403,9 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
         except KeyError:
             try:
                 tmp_area = tmp_file['AREA'+ext1_SE].isel(time=0).data
-                Earth_area = 4 * np.pi * Earth_rad**(2)
-                areas = tmp_area*Earth_area/np.nansum(tmp_area)
+                areas=tmp_area
+                #Earth_area = 4 * np.pi * Earth_rad**(2)
+                #areas = tmp_area*Earth_area/np.nansum(tmp_area)
             except:
                 dlon = np.abs(lon[1]-lon[0])
                 dlat = np.abs(lat[1]-lat[0])
@@ -400,7 +424,7 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
     return current_files,lat,lon,areas,ext1_SE
 #####
 
-def set_dic_SE(ListVars, ext1_SE):
+def set_dic_SE(ListVars, ext1_SE,variables):
     """
     Initialize dictionary to house all the relevant tabel data
     """
@@ -411,6 +435,7 @@ def set_dic_SE(ListVars, ext1_SE):
 
     # Chemistry
     #----------
+    dic_SE['U']={'U'+ext1_SE:1}
     dic_SE['O3']={'O3'+ext1_SE:1e9} # covert to ppb for Tropopause calculation
     dic_SE['CH4']={'CH4'+ext1_SE:1}
     dic_SE['CO']={'CO'+ext1_SE:1}
@@ -420,7 +445,8 @@ def set_dic_SE(ListVars, ext1_SE):
     dic_SE['CH3OH']={'CH3OH'+ext1_SE:1}
     dic_SE['CH3COCH3']={'CH3COCH3'+ext1_SE:1}
     dic_SE['CH3CCL3']={'CH3CCL3'+ext1_SE:1}
-
+    dic_SE['CHBR3']={'CHBR3'+ext1_SE:1}
+    dic_SE['CH2BR2']={'CH2BR2'+ext1_SE:1}
 
     # Aerosols
     #---------
@@ -463,6 +489,18 @@ def set_dic_SE(ListVars, ext1_SE):
                    'soa3_a2'+ext1_SE:1,
                    'soa4_a2'+ext1_SE:1,
                    'soa5_a2'+ext1_SE:1}
+
+    dic_SE['DMS']={'DMS'+ext1_SE:1}
+
+
+    # automatic generation of dic_SE
+    for var in variables:
+        if var not in dic_SE.keys():
+            dic_SE[var]={var+ext1_SE:1}
+
+        # consider for OASISS DMS separately
+        if var=='DMS':
+            dic_SE['DMS_OASISS']={'DMS_OASISS'+ext1_SE:1}
     # End if
 
     return dic_SE
@@ -592,6 +630,9 @@ def fill_dic_SE(adfobj, dic_SE, variables, ListVars, ext1_SE, AEROSOLS, MW, AVO,
                     dic_SE[var+'_SF']['SF'+key+ext1_SE]=32.066/115.11
                 else:
                     dic_SE[var+'_SF']['SF'+key+ext1_SE]=1
+            elif ((var=='DMS_OASISS') & ('OCN_FLUX_DMS' in ListVars)):
+                        dic_SE[var+'_SF']['OCN_FLUX_DMS'+ext1_SE]=1
+
                 # End if
             elif key+'SF' in ListVars:
                 dic_SE[var+'_SF'][key+ext1_SE+'SF']=1
@@ -777,7 +818,7 @@ def fill_dic_SE(adfobj, dic_SE, variables, ListVars, ext1_SE, AEROSOLS, MW, AVO,
 #####
 
 
-def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files, ext1_SE, AEROSOLS):
+def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files, ext1_SE, AEROSOLS,Tropospheric,trop_val):
     """
     This function retrieves the files, latitude, and longitude information
     in all the directories within the chosen dates.
@@ -859,15 +900,15 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
         msg = f"chem/aerosol tables: 'make_Dic_scn_var_comp'"
         msg += f"\n\t Current CAM variable: {current_var}"
         msg += f"\n\t   Derived components for CAM variable {current_var}: {components}"
-        #adfobj.debug_log(msg)
+        adfobj.debug_log(msg)
+
         Dic_comp={}
+        Dic_comp,missing_vars,needed_vars=SEbudget(adfobj,dic_SE,current_dir,current_files,components,ext1_SE)
+
         for comp in components:
             # Write details to log file
             msg += f"\n\t\t   calculate derived component: {comp} for main variable, {current_var}"
             adfobj.debug_log(msg)
-
-            # Get component values
-            current_data,missing_vars,needed_vars = SEbudget(adfobj,dic_SE,current_dir,current_files,comp,ext1_SE)
 
             # Gather info for debugging
             for var_m in missing_vars:
@@ -878,9 +919,6 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
                     needed_vars_tot.append(var_n)
         # End for
     # End for
-    #TODO: check this section to see if it can't be better run
-            # Set dictionary for component
-            Dic_comp[comp] = current_data
         # Set dictionary for key of current variable with dictionary values of all
         # necessary constituents for calculating the current variable
         Dic_var_comp[current_var] = Dic_comp
@@ -888,30 +926,62 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
 
     # Critical threshholds, just run this once
     # this is for finding tropospheric values
-    current_crit=SEbudget(adfobj,dic_SE,current_dir,current_files,'O3',ext1_SE)
-    Dic_crit=current_crit
-
-    # Log info to logging file
-    msg = f"chem/aerosol tables:"
-    msg += f"\n\t - potential missing variables from budget? {missing_vars_tot}"
-    adfobj.debug_log(msg)
+    tropospheric_method='NA'
+    print("trop_val",trop_val,"*****")
+    if trop_val == 'pres500':
+        try:
+            current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['Pressure'],ext1_SE)
+            Dic_crit=current_crit['Pressure']
+            tropospheric_method='pressure'
+            msg += f"\n\t WARNING: Troposphere is defined as Pressure>500 hPa"
+            print(msg)
+        except:
+            current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE) 
+            Dic_crit=current_crit['U']
+            Tropospheric=False
+            msg += f"\n\t WARNING: No way of defining troposphere was found in the model, budgets are total column"
+            print(msg)
+        # Log info to logging file
+        msg = f"chem/aerosol tables:"
+        msg += f"\n\t - potential missing variables from budget? {missing_vars_tot}"
+        adfobj.debug_log(msg)
+        print(msg)
+    elif trop_val == 'tropopause':
+        try:
+            current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['O3'],ext1_SE)
+            Dic_crit=current_crit['O3']
+            tropospheric_method='ozone'
+            msg += f"\n\t WARNING: Troposphere is defined as O3<150 ppb"
+            print(msg)        
+        except:
+            try:
+                current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['TROP_P','Pressure'],ext1_SE)
+                Dic_crit=current_crit #[['TROP_P','Pressure']]
+                tropospheric_method='tropopause'
+                msg += f"\n\t WARNING: Troposphere is defined as pressure>trop_p"
+                print(msg)
+            except:
+                current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE) 
+                Dic_crit=current_crit['U']
+                Tropospheric=False
+                msg += f"\n\t WARNING: No way of defining troposphere was found in the model, budgets are total column"
+                print(msg)
 
     msg = f"chem/aerosol tables:"
     msg += f"\n\t - needed variables for budget {needed_vars_tot}"
     adfobj.debug_log(msg)
 
-    return Dic_crit,Dic_scn_var_comp
+    return Dic_crit,Dic_scn_var_comp,Tropospheric,tropospheric_method
 #####
 
 
-def SEbudget(adfobj,dic_SE,data_dir,files,var,ext1_SE,**kwargs):
+def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
     """
     Function used for getting the data for the budget calculation. This is the
     chunk of code that takes the longest by far.
 
     Example:
-    ~70/75 mins per case for 9 years
-    ** This is for both chemistry and aeorosl calculations
+    ** This is for both chemistry and aerosol calculations
 
     dic_SE: dictionary specyfing what variables to get. For example,
             for precipitation you can define SE as:
@@ -937,8 +1007,9 @@ def SEbudget(adfobj,dic_SE,data_dir,files,var,ext1_SE,**kwargs):
     # Set lists to gather necessary variables for logging
     missing_vars = []
     needed_vars = []
+    Dic_all_data={}
 
-    all_data=[]
+#    all_data=[]
     for file in range(len(files)):
 
         ds=xr.open_dataset(Path(data_dir) / files[file])
@@ -947,38 +1018,14 @@ def SEbudget(adfobj,dic_SE,data_dir,files,var,ext1_SE,**kwargs):
         if file==0:
             mock_2d=np.zeros_like(np.array(ds['PS'+ext1_SE].isel(time=0)))
             mock_3d=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
-
-        # Star gathering of variable data
-        data=[]
-        for i in dic_SE[var].keys():
-            if i not in needed_vars:
-                needed_vars.append(i)
-            if file == 0:
-                msg = f"chem/aerosol tables: 'SEbudget'"
-                msg += f"\n\t\t   ** variable(s) needed for derived var {var}: {dic_SE[var].keys()}"
-                msg += f"\n\t\t     - constituent for derived var {var}: {i}"
-                adfobj.debug_log(msg)
-
-            if ((i!='PS'+ext1_SE) and (i!='U'+ext1_SE) ) :
-                data.append(np.array(ds[i].isel(time=0))*dic_SE[var][i])
+            
+            if 'ncol' in list(ds.dims.keys()):
+                SE=True
             else:
-                if i=='PS'+ext1_SE:
-                    data.append(mock_2d)
-                else:
-                    data.append(mock_3d)
-                # End if
-
-                if var not in missing_vars:
-                    missing_vars.append(var)
-            # End if
-
-        # Get total summed data for this history file data
-        data=np.sum(data,axis=0)
-
+                SE=False
         try:
             delP=np.array(ds['PDELDRY'+ext1_SE].isel(time=0))
         except:
-
             hyai=np.array(ds['hyai'])
             hybi=np.array(ds['hybi'])
 
@@ -987,34 +1034,97 @@ def SEbudget(adfobj,dic_SE,data_dir,files,var,ext1_SE,**kwargs):
             except:
                 PS=np.array(ds['PS'+ext1_SE].isel(time=0))
             # End try/except
-
             P0=1e5
-            Plevel=np.zeros_like(np.array(ds['U'+ext1_SE]))
-
+            if SE:
+                Plevel=np.zeros((len(hyai),len(PS)))
+            else:
+                Plevel=np.zeros((len(hyai),len(PS),len(PS[0])))
+                
             for i in range(len(Plevel)):
                 Plevel[i]=hyai[i]*P0+hybi[i]*PS
 
             delP=Plevel[1:]-Plevel[:-1]
-        # End try/except
 
-        if ('CHML' in var) or ('CHMP' in var) :
-            Temp=np.array(ds['T'+ext1_SE].isel(time=0))
-            Pres=np.array(ds['PMID'+ext1_SE].isel(time=0))
-            rho= Pres/(Rgas*Temp)
-            data=data*delP/rho
-        elif ('BURDEN' in var):
-            data=data*delP
-        else:
-            data=data
+        for var in vars:
+            if file == 0:
+                    Dic_all_data[var]=[]
+
+       # Star gathering of variable data
+            if var=='TROP_P':
+                data=np.array(ds['TROP_P'+ext1_SE].isel(time=0))/100
+            elif var== 'Pressure':
+                try:
+                    data=np.array(ds['PMID'+ext1_SE].isel(time=0))/100
+                except:
+                    hyam=np.array(ds['hyam'])
+                    hybm=np.array(ds['hybm'])
+                    try:
+                        PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
+                    except:
+                        PS=np.array(ds['PS'+ext1_SE].isel(time=0))
+                    P0=1e5
+                    data=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
+                    for i in range(len(data)):
+                        data[i]=hyam[i]*P0+hybm[i]*PS
+                    data=data/100
+            else:
+                data=[]
+                for i in dic_SE[var].keys():
+                    if file == 0:
+                        msg = f"chem/aerosol tables: 'SEbudget'"
+                        msg += f"\n\t\t   ** variable(s) needed for derived var {var}: {dic_SE[var].keys()}"
+                        msg += f"\n\t\t     - constituent for derived var {var}: {i}"
+                        adfobj.debug_log(msg)
+                        if i not in needed_vars:
+                            needed_vars.append(i)
+                    if ((i!='PS'+ext1_SE) and (i!='U'+ext1_SE) ) :
+                        data.append(np.array(ds[i].isel(time=0))*dic_SE[var][i])
+                    else:
+                        if i=='PS'+ext1_SE:
+                            data.append(mock_2d)
+                        else:
+                            data.append(mock_3d)
+                        if file == 0:
+                            if var not in missing_vars:
+                                if var!='U': # This is to avoid confusion between U variable or U mock!
+                                    missing_vars.append(var)
+                                    msg += f"\n\t\t     - no variable was found for var {var}: {i}"
+    
+                # End if
+    
+                # Get total summed data for this history file data
+                data=np.sum(data,axis=0)
+
+            if ('CHML' in var) or ('CHMP' in var) :
+                Temp=np.array(ds['T'+ext1_SE].isel(time=0))
+                try:
+                    Pres=np.array(ds['PMID'+ext1_SE].isel(time=0))
+                except:
+                    hyam=np.array(ds['hyam'])
+                    hybm=np.array(ds['hybm'])
+                    try:
+                        PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
+                    except:
+                        PS=np.array(ds['PS'+ext1_SE].isel(time=0))
+                    P0=1e5
+                    Pres=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
+                    for i in range(len(Pres)):
+                        Pres[i]=hyam[i]*P0+hybm[i]*PS
+                rho= Pres/(Rgas*Temp)
+                data=data*delP/rho
+            elif ('BURDEN' in var):
+                data=data*delP
+            else:
+                data=data
         # End if
+            # Add data to list
+            Dic_all_data[var].append(data)
+        ds.close()
+    for var in vars: # Take mean
+         Dic_all_data[var]=np.nanmean(Dic_all_data[var],axis=0)
 
-        # Add data to list
-        all_data.append(data)
 
-    # Take mean
-    all_data=np.nanmean(all_data,axis=0)
-
-    return all_data,missing_vars,needed_vars
+    return Dic_all_data,missing_vars,needed_vars
 #####
 
 
@@ -1102,7 +1212,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
             spc_wdf = spc_wdfa +spc_wdfc
             tmp_wdf = spc_wdf
             wdf = np.ma.masked_where(inside==False,tmp_wdf*area)  #convert Kg/m2/s to Tg/yr
-            WDF = np.ma.sum(wdf*duration*1e-9)/num_yrs
+            WDF = -1*np.ma.sum(wdf*duration*1e-9)/num_yrs
             chem_dict[f"{current_var}_WETDEP (Tg{specifier}/yr)"] = np.round(WDF,5)
 
             if current_var in ["SOA",'SO4']:
@@ -1113,8 +1223,8 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 GAEX = np.ma.sum(gaex*duration*1e-9)/num_yrs
                 chem_dict[f"{current_var}_GAEX (Tg{specifier}/yr)"] = np.round(GAEX,5)
 
-            # LifeTime = Burden/(loss+deposition)
-            LT = BURDEN/(CHML+DDF-WDF)* duration/86400/num_yrs # days
+            # LifeTime = Burden/(loss+deposition) no chemical loss for aerosols
+            LT = BURDEN/(DDF+WDF)* duration/86400/num_yrs # days
             chem_dict[f"{current_var}_LIFETIME (days)"] = np.round(LT,5)
 
             if current_var == 'SO4':
@@ -1150,17 +1260,17 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
             chem_dict[f"{current_var}_WETDEP (Tg/yr)"] = np.round(WDF,5)
 
             # Total Deposition
-            TDEP = DDF - WDF
+            TDEP = DDF + WDF
             chem_dict[f"{current_var}_TDEP (Tg/yr)"] = np.round(TDEP,5)
 
             # LifeTime = Burden/(loss+deposition)
             if current_var == "CH4":
-                LT = BURDEN/(CHML+DDF-WDF) # years
+                LT = BURDEN/(CHML+DDF+WDF) # years
                 chem_dict[f"{current_var}_LIFETIME (years)"] = np.round(LT,5)
             else:
-                if (CHML+DDF-WDF) > 0:
+                if (CHML+DDF+WDF) > 0:
                     if CHML != 0:
-                        LT = BURDEN/(CHML+DDF-WDF)*duration/86400/num_yrs # days
+                        LT = BURDEN/(CHML+DDF+WDF)*duration/86400/num_yrs # days
                         chem_dict[f"{current_var}_LIFETIME (days)"] = np.round(LT,5)
                     else:
                         # do not report lifetime if chemical loss (for gases) is not included in the model outputs
@@ -1221,21 +1331,25 @@ def make_table(adfobj, vars, chem_type, Dic_scn_var_comp, areas, trops, case_nam
     output_location = Path(output_locs[0])
 
     # Loop over model cases
-    for case in case_names:
-        nickname = nicknames[case]
+
+    for i,case in enumerate(nicknames):
+
+        nickname = case
 
         # Collect row data in a list of dictionaries
-        durations[case]
+        #durations[case]
         rows = []
         for current_var in vars:
             chem_dict = calc_budget_data(current_var, Dic_scn_var_comp[case], areas[case], trops[case], insides[case],
                                          num_yrs[case], durations[case], AEROSOLS)
-
             # Loop through table variables
             for key, val in chem_dict.items():
                 if val != 0:  # Skip variables with a value of 0
                     print(f"\t - Variable '{key}' being added to table")
                     rows.append({'variable': key, nickname: np.round(val, 3)})
+                elif 'OASISS_EMIS (' in key: # the paranthesis is to ignore EMIS_Elevated variables!
+                    print(f"\t - Variable '{key}' being added to table")
+                    rows.append({'variable': key, nickname: np.round(val, 3)})                    
                 else:
                     msg = f"chem/aerosol tables:"
                     msg += f"\n\t - Variable '{key}' has value of 0, will not add to table"
@@ -1260,19 +1374,22 @@ def make_table(adfobj, vars, chem_type, Dic_scn_var_comp, areas, trops, case_nam
 
         # Store the DataFrame in the dictionary
         dfs[nickname] = table_df
+        
     # End for
 
     # Merge the DataFrames on the 'variable' column
     if len(case_names) == 2:
-        table_df = pd.merge(dfs[nicknames[case_names[0]]], dfs[nicknames[case_names[1]]], on='variable')
+        
+        table_df = pd.merge(dfs[nicknames[0]], dfs[nicknames[1]], on='variable')
 
         # Calculate the differences between case columns
-        table_df['difference'] = table_df[nicknames[case_names[0]]] - table_df[nicknames[case_names[1]]]
+        table_df['difference'] = table_df[nicknames[0]] - table_df[nicknames[1]]
 
     #Create output file name:
     output_csv_file = output_location / f'ADF_amwg_{chem_type}_table.csv'
-
     # Save table to CSV and add table dataframe to website (if enabled)
     table_df.to_csv(output_csv_file, index=False)
-    adfobj.add_website_data(table_df, chem_type, case, plot_type="Tables")
+    #adfobj.add_website_data(table_df, chem_type, case, plot_type="Tables")
+    adfobj.add_website_data(table_df, chem_type, case_names[0], plot_type="Tables")
+
 #####

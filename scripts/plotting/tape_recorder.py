@@ -5,11 +5,8 @@ import matplotlib.colors as mcolors
 import matplotlib as mpl
 import xarray as xr
 import pandas as pd
-
-from dateutil.relativedelta import relativedelta
-import glob
 from pathlib import Path
-import plotting_functions as pf
+import adf_utils as utils
 
 def tape_recorder(adfobj):
     """
@@ -195,7 +192,7 @@ def tape_recorder(adfobj):
         #Grab time slice based on requested years (if applicable)
         dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
 
-        has_dims = pf.validate_dims(dat[var], ['lon'])
+        has_dims = utils.validate_dims(dat[var], ['lon'])
         if not has_dims['has_lon']:
             print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
         else:
@@ -539,7 +536,7 @@ def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, 
     ax.set_xticklabels([])
     ax.set_xticks(monticks2[1:13], minor=True)
     ax.set_xticklabels(['J','F','M','A','M','J','J','A','S','O','N','D'], minor=True, fontsize=14)
-    ax.set_title(expname, fontsize=16)
+    ax.set_title(expname, fontsize=8)
 
     return ax
 

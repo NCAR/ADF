@@ -2,12 +2,9 @@ from pathlib import Path
 import xarray as xr
 import uxarray as ux
 
+import adf_utils as utils
 import warnings # use to warn user about missing files
-
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-warnings.formatwarning = my_formatwarning
+warnings.formatwarning = utils.my_formatwarning
 
 # "reference data"
 # It is often just a "baseline case", 

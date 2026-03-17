@@ -118,7 +118,6 @@ class AdfWeb(AdfObs):
 
         #Extract needed variables from yaml file:
         case_names = self.get_cam_info('cam_case_name', required=True)
-
         #Also extract baseline case (if applicable), and append to case_names list:
         if not self.compare_obs:
             baseline_name = self.get_baseline_info('cam_case_name', required=True)
@@ -850,7 +849,7 @@ class AdfWeb(AdfObs):
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
 
             #Construct index.html
-            index_title = "AMP Diagnostics Prototype"
+            index_title = "CAM Diagnostics"
             index_tmpl = jinenv.get_template('template_index.html')
             index_rndr = index_tmpl.render(title=index_title,
                                             case_name=web_data.case,

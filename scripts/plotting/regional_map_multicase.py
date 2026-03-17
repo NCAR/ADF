@@ -21,7 +21,6 @@ region_multicase:
 # --- imports and configuration ---
 #
 from pathlib import Path
-import warnings  # use to warn user about missing files.
 
 import numpy as np
 import xarray as xr
@@ -31,16 +30,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 
-from plotting_functions import pres_from_hybrid, prep_contour_plot
+from plotting_utils import prep_contour_plot
+import adf_utils as utils
 
+import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + "\n"
-
-
-warnings.formatwarning = my_formatwarning
-#
 # --- Main Function Shares Name with Module: regional_map_multicase ---
 #
 def regional_map_multicase(adfobj):

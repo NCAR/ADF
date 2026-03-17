@@ -12,6 +12,7 @@ plot_file_op
     Check on status of output plot file.
 """
 # Import standard modules:
+# Import standard modules:
 from pathlib import Path
 import numpy as np
 
@@ -24,6 +25,7 @@ import plotting_functions as pf
 
 # Warnings
 import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 warnings.formatwarning = utils.my_formatwarning
 
 #########
