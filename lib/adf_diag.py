@@ -890,6 +890,7 @@ class AdfDiag(AdfWeb):
 
                 # DOES NOT WORK CORRECTLY!
                 grid_ts = False
+                print("self.unstructured_plotting",self.unstructured_plotting)
                 unstruct_plotting = self.unstructured_plotting
                 if not unstruct_plotting:
                     #is_baseline = False
