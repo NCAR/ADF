@@ -17,7 +17,7 @@ import numpy as np
 
 # Import local modules:
 import plotting_functions as pf
-from aod_latlon import aod_latlon 
+#from aod_latlon import aod_latlon 
 import adf_utils as utils
 import plotting_utils as plot_utils
 import plotting_functions as pf
@@ -91,10 +91,10 @@ def global_latlon_map(adfobj):
     for var in adfobj.diag_var_list:
         process_variable(adfobj, var, **config)
         
-    # Handle AOD special case
+    """# Handle AOD special case
     if "AODVISdn" in adfobj.diag_var_list:
         print("\tRunning AOD panel diagnostics against MERRA and MODIS...")
-        aod_latlon(adfobj)
+        aod_latlon(adfobj)"""
         
     print("  ...lat/lon maps have been generated successfully.")
 
