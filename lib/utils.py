@@ -236,7 +236,7 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
                                     Method = method,
                                     )
 
-    """if comp == "lnd":
+    if comp == "lnd":
         if method == 'coservative':
             rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
         if method == 'bilinear':
@@ -247,10 +247,10 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
         if method == 'coservative':
             rgdata = regrid_atm_se_data_conservative(regridder, model_dataset, comp_grid)
         if method == 'bilinear':
-            rgdata = regrid_atm_se_data_bilinear(regridder, model_dataset, comp_grid)"""
+            rgdata = regrid_atm_se_data_bilinear(regridder, model_dataset, comp_grid)
 
-    if method == 'coservative':
-        rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
+    #if method == 'coservative':
+    #    rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
 
 
     #rgdata['lat'] = latlon_ds.lat #???
