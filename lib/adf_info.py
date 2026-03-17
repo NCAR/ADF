@@ -32,6 +32,7 @@ from pathlib import Path
 import copy
 import os
 import getpass
+import subprocess
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++
 #import non-standard python modules, including ADF
@@ -46,11 +47,9 @@ import xarray as xr
 from adf_config import AdfConfig
 from adf_base   import AdfError
 import utils
-
 #+++++++++++++++++++
 #Define Obs class
 #+++++++++++++++++++
-
 class AdfInfo(AdfConfig):
 
     """
@@ -129,7 +128,6 @@ class AdfInfo(AdfConfig):
                 self.__cam_climo_info[conf_var] = [conf_val]
             #End if
         #End for
-        #-------------------------------------------
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
@@ -203,11 +201,9 @@ class AdfInfo(AdfConfig):
             if "clm" in baseline_hist_str:
                 base_comp = "lnd"
 
-            #self.__base_comp = base_comp
-
             #Check if any time series files are pre-made
             baseline_ts_done   = self.get_baseline_info("cam_ts_done")
-
+            
             baseline_mesh_file = self.get_baseline_info("mesh_file")
             self.__baseline_mesh_file = baseline_mesh_file
 
@@ -252,7 +248,7 @@ class AdfInfo(AdfConfig):
 
                 #Get years from pre-made timeseries file(s)
                 found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(
-                    input_ts_loc, data_name, base_hist_str)
+                    input_ts_loc, data_name)
                 found_yr_range = np.arange(found_syear_baseline,found_eyear_baseline,1)
 
                 #History file path isn't needed if user is running ADF directly on time series.
@@ -263,8 +259,8 @@ class AdfInfo(AdfConfig):
                     print(msg)
                     syear_baseline = found_syear_baseline
                 if syear_baseline not in found_yr_range:
-                    msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {found_syear_baseline}"
+                    msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current "
+                    msg += f"dataset {data_name}, using first found year: {found_syear_baseline}"
                     print(msg)
                     syear_baseline = found_syear_baseline
 
@@ -274,15 +270,15 @@ class AdfInfo(AdfConfig):
                     print(msg)
                     eyear_baseline = found_eyear_baseline
                 if eyear_baseline not in found_yr_range:
-                    msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {found_eyear_baseline}"
+                    msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current "
+                    msg += f"dataset {data_name}, using first found year: {found_eyear_baseline}"
                     print(msg)
                     eyear_baseline = found_eyear_baseline
-            # End if baseline time series done
+            # End if
 
             # Check if history file path exists:
             if any(baseline_hist_locs):
-                """#Check if user provided
+                #Check if user provided
                 if not baseline_hist_str:
                     baseline_hist_str = ['cam.h0a']
                 else:
@@ -293,7 +289,7 @@ class AdfInfo(AdfConfig):
                 self.__base_hist_str = baseline_hist_str
 
                 #Grab first possible hist string, just looking for years of run
-                base_hist_str = baseline_hist_str[0]"""
+                base_hist_str = baseline_hist_str[0]
                 starting_location = Path(baseline_hist_locs)
                 print(f"\tChecking history files in '{starting_location}'")
                 file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
@@ -307,6 +303,7 @@ class AdfInfo(AdfConfig):
                     emsg += "\tTry checking the path 'cam_hist_loc' in 'diag_cam_baseline_climo' "
                     emsg += "section in your config file is correct..."
                     self.end_diag_fail(emsg)
+                file_list = sorted(starting_location.glob("*" + base_hist_str + ".*.nc"))
 
                 #Check if there are any history files
                 if len(file_list) == 0:
@@ -346,8 +343,8 @@ class AdfInfo(AdfConfig):
                     print(msg)
                     syear_baseline = base_found_syr
                 if syear_baseline not in base_climo_yrs:
-                    msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using first found year: {base_climo_yrs[0]}"
+                    msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current "
+                    msg += f"dataset {data_name}, using first found year: {base_climo_yrs[0]}"
                     print(msg)
                     syear_baseline = base_found_syr
 
@@ -357,8 +354,8 @@ class AdfInfo(AdfConfig):
                     print(msg)
                     eyear_baseline = base_found_eyr
                 if eyear_baseline not in base_climo_yrs:
-                    msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current dataset "
-                    msg += f"{data_name}, using last found year: {base_climo_yrs[-1]}"
+                    msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current "
+                    msg += f"dataset {data_name}, using last found year: {base_climo_yrs[-1]}"
                     print(msg)
                     eyear_baseline = base_found_eyr
 
@@ -366,7 +363,6 @@ class AdfInfo(AdfConfig):
                 base_nickname = self.get_baseline_info('case_nickname')
                 if base_nickname is None:
                     base_nickname = data_name
-                #if 'ncols' in base_ds.dims:
                 if any(dim in base_ds.dims for dim in ['ncols', 'ncol']):
                     print('\t  Looks like this is an atmosphere unstructured grid, yeah')
                     unstruct = True
@@ -437,8 +433,6 @@ class AdfInfo(AdfConfig):
 
         #Extract cam history files location:
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
-        if cam_hist_locs is None:
-            cam_hist_locs = [None]*len(case_names)
 
         #Get cleaned nested list of hist_str for test case(s) (component.hist_num, eg cam.h0)
         cam_hist_str = self.__cam_climo_info.get('hist_str', None)
@@ -524,7 +518,7 @@ class AdfInfo(AdfConfig):
 
                 #Get years from pre-made timeseries file(s)
                 #found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)
-                found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name, hist_str_case)
+                found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)
                 found_yr_range = np.arange(found_syear,found_eyear,1)
 
                 #History file path isn't needed if user is running ADF directly on time series.
@@ -553,15 +547,8 @@ class AdfInfo(AdfConfig):
                 #End if
             #End if
 
-            """#Check if history file path exists:
+            #Check if history file path exists:
             hist_str_case = hist_str[case_idx]
-            case_comps = []
-            if "cam" in hist_str_case:
-                case_comp = "atm"
-                case_comps.append("atm")
-            if "clm" in hist_str_case:
-                case_comp = "lnd"
-                case_comps.append("lnd")"""
             if any(cam_hist_locs):
                 #Grab first possible hist string, just looking for years of run
                 hist_str = hist_str_case[0]
@@ -569,6 +556,8 @@ class AdfInfo(AdfConfig):
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
                 print(f"\tChecking history files in '{starting_location}'")
+
+                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
 
                 #Check if the history file location exists
                 if not starting_location.is_dir():
@@ -579,7 +568,7 @@ class AdfInfo(AdfConfig):
                     emsg += "\tTry checking the path 'cam_hist_loc' in 'diag_cam_climo' "
                     emsg += "section in your config file is correct..."
                     self.end_diag_fail(emsg)
-                
+
                 #Check if there are any history files
                 file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
                 if len(file_list) == 0:
@@ -592,7 +581,7 @@ class AdfInfo(AdfConfig):
                     emsg += "in 'diag_cam_climo' "
                     emsg += "section in your config file are correct..."
                     self.end_diag_fail(emsg)
-                
+
                 case_ds = xr.open_dataset(file_list[0], decode_times=True)
                 #if 'ncols' in case_ds.dims:
                 if any(dim in case_ds.dims for dim in ['ncols', 'ncol']):
@@ -672,7 +661,7 @@ class AdfInfo(AdfConfig):
             diag_location = Path(plot_loc)
             print(f"\n\tDiagnostic Plot Location: {diag_location}")
             if not diag_location.is_dir():
-                print(f"\tINFO: Directory not found, making new diagnostic plot location")
+                print("\tINFO: Directory not found, making new diagnostic plot location")
                 diag_location.mkdir(parents=True)
         #End for
 
@@ -690,14 +679,12 @@ class AdfInfo(AdfConfig):
             msg += f"\t  - Test case(s): {case_comps}; Baseline case: {base_comp}"
             raise AdfError(msg)
 
-
         #Finally add baseline case (if applicable) for use by the website table
         #generator.  These files will be stored in the same location as the first
         #listed case.
         if not self.compare_obs:
             self.__plot_location.append(os.path.join(plot_dir, first_case_dir))
         #End if
-
         #-------------------------------------------------------------------------
 
         #Initialize "num_procs" variable:
@@ -735,7 +722,6 @@ class AdfInfo(AdfConfig):
                         self.__num_procs = 1
                     #End if
                 #End except
-
             else:
                 #If anything else, then try to convert to integer:
                 try:
@@ -756,9 +742,9 @@ class AdfInfo(AdfConfig):
         #End if
         #Print number of processors being used to debug log (if requested):
         self.debug_log(f"ADF is running with {self.__num_procs} processors.")
-        # -----------------------------------------
 
     #########
+
     def hist_str_to_list(self, conf_var, conf_val):
         """
         Make hist_str a nested list [ncases,nfiles] of the given value(s)
@@ -770,8 +756,6 @@ class AdfInfo(AdfConfig):
                 conf_val
             ]
         self.__cam_climo_info[conf_var] = [hist_str]
-        # -----------------------------------------
-
     #########
 
     # Create property needed to return "user" name to user:
@@ -791,13 +775,12 @@ class AdfInfo(AdfConfig):
     def num_cases(self):
         """Return the "num_cases" integer value to the user if requested."""
         return self.__num_cases
-
-    # Create property needed to return the case nicknames to user:
+    
+    # Create property needed to return the model component to user:
     @property
     def model_component(self):
         """Return the assumed model component to the user if requested, ie atm or lnd"""
         return self.__model_component
-
 
     # Create property needed to return "diag_var_list" list to user:
     @property
@@ -815,7 +798,7 @@ class AdfInfo(AdfConfig):
         #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__basic_info)
 
-    # Create property needed to return "basic_info" expanded dictionary to user:
+    # Create property needed to return "cam_climo_dict" expanded dictionary to user:
     @property
     def cam_climo_dict(self):
         """Return a copy of the "cam_climo_dict" list to the user if requested."""
@@ -823,15 +806,15 @@ class AdfInfo(AdfConfig):
         #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__cam_climo_info)
 
-    # Create property needed to return "basic_info" expanded dictionary to user:
+    # Create property needed to return "baseline_climo_dict" expanded dictionary to user:
     @property
     def baseline_climo_dict(self):
         """Return a copy of the "cam_bl_climo_info" list to the user if requested."""
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__cam_bl_climo_info)
-
-    # Create property needed to return "num_procs" to user:
+    
+    # Create property needed to return "unstructured_plotting" to user:
     @property
     def unstructured_plotting(self):
         """Return the "unstructured_plotting" logical to the user if requested."""
@@ -840,14 +823,14 @@ class AdfInfo(AdfConfig):
     # Create property needed to return "num_procs" to user:
     @property
     def mesh_file(self):
-        """Return the "unstructured_plotting" logical to the user if requested."""
+        """Return the "mesh_file" logical to the user if requested."""
         return self.__mesh_file
 
 
     # Create property needed to return the case nicknames to user:
     @property
     def mesh_files(self):
-        """Return the test case and baseline nicknames to the user if requested."""
+        """Return the test case and baseline mesh files to the user if requested."""
 
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
@@ -856,8 +839,6 @@ class AdfInfo(AdfConfig):
         baseline_mesh_file = self.__baseline_mesh_file
 
         return {"test_mesh_file":cam_mesh_files,"baseline_mesh_file":baseline_mesh_file}
-
-
 
     # Create property needed to return "num_procs" to user:
     @property
@@ -872,12 +853,11 @@ class AdfInfo(AdfConfig):
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable:
         return copy.copy(self.__plot_location)
-
     
-    # Create property needed to return the case nicknames to user:
+    # Create property needed to return the lat/lon file to user:
     @property
     def latlon_files(self):
-        """Return the test case and baseline nicknames to the user if requested."""
+        """Return the test case and baseline lat/lon file to the user if requested."""
 
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
@@ -887,10 +867,10 @@ class AdfInfo(AdfConfig):
 
         return {"test_latlon_file":cam_latlon_files,"baseline_latlon_file":baseline_latlon_file}
 
-    # Create property needed to return the case nicknames to user:
+    # Create property needed to return the weight file dictionary to user:
     @property
     def latlon_wgt_files(self):
-        """Return the test case and baseline nicknames to the user if requested."""
+        """Return the test case and weight file dictionary to the user if requested."""
 
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
@@ -900,10 +880,10 @@ class AdfInfo(AdfConfig):
 
         return {"test_wgts_file":cam_wgts_files,"baseline_wgts_file":baseline_wgts_file}
 
-    # Create property needed to return the case nicknames to user:
+    # Create property needed to return the lat/lon regrid method to user:
     @property
     def latlon_regrid_method(self):
-        """Return the test case and baseline nicknames to the user if requested."""
+        """Return the test case and baseline lat/lon regrid method to the user if requested."""
 
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
@@ -913,12 +893,10 @@ class AdfInfo(AdfConfig):
 
         return {"test_regrid_method":cam_regrid_method,"baseline_regrid_method":baseline_regrid_method}
     
-
-    
-    # Create property needed to return the case nicknames to user:
+    # Create property needed to return the unstructured dictionary to user:
     @property
     def unstructs(self):
-        """Return the test case and baseline nicknames to the user if requested."""
+        """Return the test case and baseline unstructured dictionary to the user if requested."""
 
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
@@ -928,10 +906,10 @@ class AdfInfo(AdfConfig):
         return {"unstruct_tests":unstruct_tests,"unstruct_base":unstruct_base}
 
 
-    # Create property needed to return the case nicknames to user:
+    # Create property needed to return the native grid dictionary to user:
     @property
     def native_grid(self):
-        """Return the test case and baseline nicknames to the user if requested."""
+        """Return the test case and baseline native grid dictionary to the user if requested."""
 
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
@@ -948,7 +926,6 @@ class AdfInfo(AdfConfig):
         eyears = copy.copy(self.__eyears)
         return {"syears":syears,"eyears":eyears,
                 "syear_baseline":self.__syear_baseline, "eyear_baseline":self.__eyear_baseline}
-
 
     # Create property needed to return the case nicknames to user:
     @property
@@ -972,6 +949,7 @@ class AdfInfo(AdfConfig):
             base_hist_strs = ""
         hist_strs = {"test_hist_str":cam_hist_strs, "base_hist_str":base_hist_strs}
         return hist_strs
+
 
     #########
 
@@ -1069,11 +1047,10 @@ class AdfInfo(AdfConfig):
             var_str, conf_dict=self.__mdtf_info, required=required
         )
 
-
     #########
 
     # Utility function to grab climo years from pre-made time series files:
-    def get_climo_yrs_from_ts(self, input_ts_loc, case_name, hstr):
+    def get_climo_yrs_from_ts(self, input_ts_loc, case_name):
         """
         Grab start and end climo years if none are specified in config file
         for pre-made time series file(s)
@@ -1099,12 +1076,12 @@ class AdfInfo(AdfConfig):
         # NOTE: it is assumed all the variables have the same dates!
         # Also, it is assumed that only h0 files should be climo-ed.
         for var in var_list:
-            ts_files = sorted(input_location.glob(f"{case_name}*{hstr}*.{var}.*nc"))
+            ts_files = sorted(input_location.glob(f"{case_name}*h0*.{var}.*nc"))
             if ts_files:
                 break
             else:
                 logmsg = "get years for time series:"
-                logmsg = f"\n\tVar '{var}' not in dataset, skip to next to try and find climo years..."
+                logmsg += f"\n\tVar '{var}' not in dataset, skip to next to try and find climo years..."
                 self.debug_log(logmsg)
 
         #Read in file(s)
@@ -1123,9 +1100,7 @@ class AdfInfo(AdfConfig):
 
         if time_bounds_name:
             time = cam_ts_data['time']
-            #NOTE: force `load` here b/c if dask & time is cftime,
-            #throws a NotImplementedError:
-
+            #NOTE: force `load` here b/c if dask & time is cftime, throws a NotImplementedError:
             time = xr.DataArray(cam_ts_data[time_bounds_name].load().mean(dim='nbnd').values,
                                 dims=time.dims, attrs=time.attrs)
             cam_ts_data['time'] = time
@@ -1142,6 +1117,7 @@ class AdfInfo(AdfConfig):
             print(msg)
 
         return syr, eyr
+
 
 #++++++++++++++++++++
 #End Class definition
