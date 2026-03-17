@@ -247,7 +247,8 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
         if method == 'coservative':
             rgdata = regrid_atm_se_data_conservative(regridder, model_dataset, comp_grid)
         if method == 'bilinear':
-            rgdata = regrid_atm_se_data_bilinear(regridder, model_dataset, comp_grid)
+            #rgdata = regrid_atm_se_data_bilinear(regridder, model_dataset, comp_grid)
+            rgdata = regrid_atm_se_data_bilinear(regridder, model_dataset, var_name, comp_grid)
 
     #if method == 'coservative':
     #    rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
@@ -270,16 +271,28 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
     return rgdata
 
 
-def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid='ncol'):
+"""def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid='ncol'):
     if isinstance(data_to_regrid, xr.Dataset):
-        vars_with_ncol = [name for name in data_to_regrid.variables if comp_grid in data_to_regrid[name].dims]
-        updated = data_to_regrid.copy().update(data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2))
+        #vars_with_ncol = [name for name in data_to_regrid.variables if comp_grid in data_to_regrid[name].dims]
+        #updated = data_to_regrid.copy().update(data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2))
+        vars_with_ncol = [v for v in data_to_regrid.data_vars if comp_grid in data_to_regrid[v].dims]
+        updated = data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2)
     elif isinstance(data_to_regrid, xr.DataArray):
         updated = data_to_regrid.transpose(...,comp_grid).expand_dims("dummy",axis=-2)
     else:
         raise ValueError(f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}")
     regridded = regridder(updated)
-    return regridded
+    return regridded"""
+
+def regrid_atm_se_data_bilinear(regridder, data_to_regrid, var_name, comp_grid="ncol"):
+
+    da = data_to_regrid[var_name]
+
+    da = da.transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+
+    out = regridder(da)
+
+    return out
 
 
 def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid='ncol'):
