@@ -207,7 +207,7 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
     """
 
     #Import ADF-specific functions:
-    from regrid_se_to_fv import make_se_regridder, regrid_se_data_conservative, regrid_se_data_bilinear, regrid_atm_se_data_conservative, regrid_atm_se_data_bilinear
+    #from regrid_se_to_fv import make_se_regridder, regrid_se_data_conservative, regrid_se_data_bilinear, regrid_atm_se_data_conservative, regrid_atm_se_data_bilinear
 
     if comp == "atm":
         comp_grid = "ncol"
@@ -236,12 +236,12 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
                                     Method = method,
                                     )
 
-    if comp == "lnd":
+    """if comp == "lnd":
         if method == 'coservative':
             rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
         if method == 'bilinear':
             rgdata = regrid_se_data_bilinear(regridder, model_dataset, comp_grid)
-        rgdata[var_name] = (rgdata[var_name] / rgdata.landfrac)
+        rgdata[var_name] = (rgdata[var_name] / rgdata.landfrac)"""
 
     if comp == "atm":
         if method == 'coservative':
