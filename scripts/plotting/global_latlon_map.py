@@ -452,7 +452,6 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
                             [syear_baseline, eyear_baseline],
                             mseasons[s], oseasons[s], dseasons[s], pseasons[s],
                             obs=adfobj.compare_obs, 
-                            #unstructured=unstructured,
                             **vres)
 
         # Add to website

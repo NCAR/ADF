@@ -1,29 +1,66 @@
-from pathlib import Path  # python standard library
-
-# data loading / analysis
-import xarray as xr
+"""Module to make polar stereographic maps."""
+from pathlib import Path
 import numpy as np
 
 # ADF library
 import plotting_functions as pf
 import adf_utils as utils
 
+def get_hemisphere(hemi_type):
+    """Helper function to convert plot type to hemisphere code.
+    
+    Parameters
+    ----------
+    hemi_type : str
+        if `NHPolar` set NH, otherwise SH
+        
+    Returns
+    -------
+    str
+        NH or SH
+    """
+    return "NH" if hemi_type == "NHPolar" else "SH"
+
+def process_seasonal_data(mdata, odata, season):
+    """Helper function to calculate seasonal means and differences.
+    Parameters
+    ----------
+    mdata : xarray.DataArray
+        test case data
+    odata : xarray.DataArray
+        reference case data
+    season : str
+        season (JJA, DJF, MAM, SON)
+
+    Returns
+    -------
+    mseason : xarray.DataArray
+    oseason : xarray.DataArray
+    dseason : xarray.DataArray
+    pseason : xarray.DataArray
+        Seasonal means for test, reference, difference, and percent difference    
+    """
+    mseason = utils.seasonal_mean(mdata, season=season, is_climo=True)
+    oseason = utils.seasonal_mean(odata, season=season, is_climo=True)
+    
+    # Calculate differences
+    dseason = mseason - oseason
+    dseason.attrs['units'] = mseason.attrs['units']
+    
+    # Calculate percent change
+    pseason = (mseason - oseason) / np.abs(oseason) * 100.0
+    pseason.attrs['units'] = '%'
+    pseason = pseason.where(np.isfinite(pseason), np.nan)
+    pseason = pseason.fillna(0.0)
+    
+    return mseason, oseason, dseason, pseason
+
 def polar_map(adfobj):
-    """
-    This script/function generates polar maps of model fields with continental overlays.
-    Plots style follows old AMWG diagnostics:
-      - plots for ANN, DJF, MAM, JJA, SON
-      - separate files for each hemisphere, denoted `_nh` and `_sh` in file names.
-      - mean files shown on top row, difference on bottom row (centered)
-    [based on global_latlon_map.py]
-    """
+    """Generate polar maps of model fields with continental overlays."""
     #Notify user that script has started:
     msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    #
-    # Use ADF api to get all necessary information
-    #
     var_list = adfobj.diag_var_list
     model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
     #model_rgrid_locs = adfobj.get_cam_info("cam_climo_regrid_loc", required=True)
@@ -52,19 +89,9 @@ def polar_map(adfobj):
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
 
-    # CAUTION:
-    # "data" here refers to either obs or a baseline simulation,
-    # Until those are both treated the same (via intake-esm or similar)
-    # we will do a simple check and switch options as needed:
+    # if doing comparison to obs, but no observations are found, quit
     if adfobj.get_basic_info("compare_obs"):
-        #Set obs call for observation details for plot titles
-        obs = True
-
-        #Extract variable-obs dictionary:
         var_obs_dict = adfobj.var_obs_dict
-
-        #If dictionary is empty, then  there are no observations to regrid to,
-        #so quit here:
         if not var_obs_dict:
             print("\t No observations found to plot against, so no polar maps will be generated.")
             return
@@ -105,12 +132,6 @@ def polar_map(adfobj):
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
-    #Set data path variables:
-    #-----------------------
-    mclimo_rg_loc = Path(model_rgrid_loc)
-    if not adfobj.compare_obs:
-        dclimo_loc  = Path(data_loc)
-    #-----------------------
 
     #Determine if user wants to plot 3-D variables on
     #pressure levels:
@@ -126,7 +147,6 @@ def polar_map(adfobj):
 
     # probably want to do this one variable at a time:
     for var in var_list:
-        #Notify user of variable being plotted:
         print(f"\t - polar maps for {var}")
 
         if var not in adfobj.data.ref_var_nam:
@@ -135,39 +155,15 @@ def polar_map(adfobj):
             print(dmsg)
             continue
 
-        if adfobj.compare_obs:
-            #Check if obs exist for the variable:
-            if var in var_obs_dict:
-                #Note: In the future these may all be lists, but for
-                #now just convert the target_list.
-                #Extract target file:
-                dclimo_loc = var_obs_dict[var]["obs_file"]
-                #Extract target list (eventually will be a list, for now need to convert):
-                data_list = [var_obs_dict[var]["obs_name"]]
-                #Extract target variable name:
-                data_var = var_obs_dict[var]["obs_var"]
-            else:
-                dmsg = f"\t    WARNING: No obs found for variable `{var}`, polar map skipped."
-                adfobj.debug_log(dmsg)
-                continue
+        if not adfobj.compare_obs:
+            base_name = adfobj.data.ref_labels[var]
         else:
-            #Set "data_var" for consistent use below:
-            data_var = var
-        #End if
+            base_name = adfobj.data.ref_case_label
 
-        # Check res for any variable specific options that need to be used BEFORE going to the plot:
-        if var in res:
-            vres = res[var]
-            #If found then notify user, assuming debug log is enabled:
-            adfobj.debug_log(f"polar_map: Found variable defaults for {var}")
 
-            #Extract category (if available):
-            web_category = vres.get("category", None)
-
-        else:
-            vres = {}
-            web_category = None
-        #End if
+        # Get variable-specific settings
+        vres = res.get(var, {})
+        web_category = vres.get("category", None)
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
@@ -199,7 +195,7 @@ def polar_map(adfobj):
                     dmsg = f"\t    WARNING: No regridded baseline file for {data_name} for variable `{var}`, polar lat/lon mean plotting skipped."
                     adfobj.debug_log(dmsg)
                     continue
-                o_has_dims = utils.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
+                o_has_dims = pf.validate_dims(odata, ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
                 if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
                     print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
                     continue
@@ -251,7 +247,7 @@ def polar_map(adfobj):
                         adfobj.debug_log(dmsg)
                         continue
                     #Determine dimensions of variable:
-                    has_dims = utils.validate_dims(mdata, ["lat", "lon", "lev"])
+                    has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
                     if (not has_dims['has_lat']) or (not has_dims['has_lon']):
                         print(f"\t    WARNING: skipping polar map for {var} for case {case_name} as it does not have both lat and lon")
                         continue
@@ -265,7 +261,7 @@ def polar_map(adfobj):
                     dmsg = f"\t    WARNING: No test file for {case_name} for variable `{var}`, polar lat/lon mean plotting skipped."
                     adfobj.debug_log(dmsg)
                     continue
-                has_dims = utils.validate_dims(mdata, ["lat", "lon", "lev"])
+                has_dims = pf.validate_dims(mdata, ["lat", "lon", "lev"])
                 if (has_dims['has_lev']) and (not pres_levs):
                     print(f"\t    WARNING: skipping polar map for {var} as it has more than lev dimension, but no pressure levels were provided")
                     continue
@@ -292,15 +288,15 @@ def polar_map(adfobj):
                         unstructured=False
 
                 #Determine dimensions of variable:
-                has_dims = utils.lat_lon_validate_dims(odata)
-                has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
-                has_lat, has_lev = utils.zm_validate_dims(mdata)
+                has_dims = pf.lat_lon_validate_dims(odata)
+                has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
+                has_lat, has_lev = pf.zm_validate_dims(mdata)
                 #if has_dims:
                 if (not has_lev) and (not has_lev_ref):
                     #If observations/baseline CAM have the correct
                     #dimensions, does the input CAM run have correct
                     #dimensions as well?
-                    has_dims_cam = utils.lat_lon_validate_dims(mdata)
+                    has_dims_cam = pf.lat_lon_validate_dims(mdata)
 
                     #If both fields have the required dimensions, then
                     #proceed with plotting:
@@ -322,8 +318,8 @@ def polar_map(adfobj):
 
                         #Loop over season dictionary:
                         for s in seasons:
-                            mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
-                            oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
+                            mseasons[s] = pf.seasonal_mean(mdata, season=s, is_climo=True)
+                            oseasons[s] = pf.seasonal_mean(odata, season=s, is_climo=True)
                             # difference: each entry should be (lat, lon)
                             dseasons[s] = mseasons[s] - oseasons[s]
                             dseasons[s].attrs['units'] = mseasons[s].attrs['units']
@@ -388,7 +384,7 @@ def polar_map(adfobj):
                 elif pres_levs: #Is the user wanting to interpolate to a specific pressure level?
 
                     #Check that case inputs have the correct dimensions (including "lev"):
-                    has_lat, has_lev = utils.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
+                    has_lat, has_lev = pf.zm_validate_dims(mdata)  # assumes will work for both mdata & odata
 
                     """# check if there is a lat dimension:
                     if not has_lat:
@@ -399,7 +395,7 @@ def polar_map(adfobj):
                     # End if"""
 
                     #Check that case inputs have the correct dimensions (including "lev"):
-                    has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
+                    has_lat_ref, has_lev_ref = pf.zm_validate_dims(odata)
 
                     """# check if there is a lat dimension:
                     if not has_lat_ref:
@@ -432,8 +428,8 @@ def polar_map(adfobj):
 
                             #Loop over season dictionary:
                             for s in seasons:
-                                mseasons[s] = (utils.seasonal_mean(mdata, season=s, is_climo=True)).sel(lev=pres)
-                                oseasons[s] = (utils.seasonal_mean(odata, season=s, is_climo=True)).sel(lev=pres)
+                                mseasons[s] = (pf.seasonal_mean(mdata, season=s, is_climo=True)).sel(lev=pres)
+                                oseasons[s] = (pf.seasonal_mean(odata, season=s, is_climo=True)).sel(lev=pres)
                                 # difference: each entry should be (lat, lon)
                                 dseasons[s] = mseasons[s] - oseasons[s]
                                 dseasons[s].attrs['units'] = mseasons[s].attrs['units']

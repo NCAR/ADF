@@ -162,6 +162,11 @@ def cam_taylor_diagram(adfobj):
         # LOOP OVER VARIABLES
         #
         for v in var_list:
+            grid_path = Path(data_loc) / "gridded"
+            if grid_path.is_dir():
+                print("Using gridded file, eh?")
+                data_loc = grid_path
+
             base_x = _retrieve(adfobj, v, data_name, data_loc) # get the baseline field
             for casenumber, case in enumerate(case_names):     # LOOP THROUGH CASES
                 grid_path = Path(case_climo_locs[casenumber]) / "gridded"
@@ -171,10 +176,10 @@ def cam_taylor_diagram(adfobj):
                 else:
                     case_climo_loc = case_climo_locs[casenumber]
                 case_x = _retrieve(adfobj, v, case, case_climo_loc)
-                print("HEREasdsd")
+                #print("HEREasdsd")
                 # ASSUMING `time` is 1-12, get the current season:
                 case_x = case_x.sel(time=seasons[s]).mean(dim='time')
-                print("HEREasdsd-2")
+                #print("HEREasdsd-2")
                 # THIS IS WHERE IS IS BREAKING!!!
                 result_by_case[case].loc[v] = taylor_stats_single(case_x, base_x)
                 print("HERE3")
@@ -421,25 +426,19 @@ def _retrieve(adfobj, variable, casename, location, return_dataset=False):
     v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress',
                 'U300', 'ColumnRelativeHumidity', 'ColumnTemperature', 'Land2mTemperature']
     if variable not in v_to_derive:
-        print("HERE",variable,"asfknaksf")
+        print("HERE",variable,"asfknaksf",f"location: {location}")
         fils = sorted(Path(location).glob(f"{casename}*_{variable}_*.nc"))
         if len(fils) == 0:
             raise ValueError(f"something went wrong for variable: {variable}")
         elif len(fils) > 1:
-            print("HERE1.5")
             ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces?
         else:
-            print("HERE1.75",fils[0])
             ds = xr.open_dataset(fils[0])
-            print("HERE1.85")
         if return_dataset:
             da = ds
         else:
-            print("HERE1.95")
             da = ds[variable]
-            print("HERE1.99")
     else:
-        print("HERE2")
         func = get_derive_func(variable)
         da = func(adfobj, casename, location)  # these ONLY return DataArray
         if return_dataset:
@@ -491,11 +490,16 @@ def taylor_stats_single(casedata, refdata, w=True):
         pattern_correlation, ratio of standard deviation (case/ref), bias
     """
     lat = casedata['lat']
+    #print("TAYLOR LAT IN TAYLOR_STATS_SINGLE",lat)
     if w:
+        #print("TAYLOR wgt = np.cos(np.radians(lat)) IN TAYLOR_STATS_SINGLE")
         wgt = np.cos(np.radians(lat))
     else:
+        #print("TAYLOR wgt = np.ones(len(lat)) IN TAYLOR_STATS_SINGLE")
         wgt = np.ones(len(lat))
+    #print("TAYLOR weighted_correlation IN TAYLOR_STATS_SINGLE")
     correlation = weighted_correlation(casedata, refdata, wgt).item()
+    #print("TAYLOR weighted_std IN TAYLOR_STATS_SINGLE")
     a_sigma = weighted_std(casedata, wgt)
     b_sigma = weighted_std(refdata, wgt)
     mean_case = casedata.weighted(wgt).mean()

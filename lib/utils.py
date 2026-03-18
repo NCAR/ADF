@@ -1,4 +1,14 @@
-# utils.py
+from pathlib import Path
+import os
+import xarray as xr
+import xesmf as xe
+import numpy as np
+from adf_base import AdfError
+
+
+# =========================
+# Helpers
+# =========================
 
 def check_unstructured(ds, case):
     """
@@ -6,114 +16,242 @@ def check_unstructured(ds, case):
     """
     if ('lat' not in ds.dims) and ('lon' not in ds.dims):
         if ('ncol' in ds.dims) or ('lndgrid' in ds.dims):
-            message = f"Looks like the case '{case}' is unstructured, eh!"
-            print(message)
+            print(f"Looks like the case '{case}' is unstructured")
             return True
     return False
 
 
+def save_to_nc(ds, outname):
+    enc = {v: {'_FillValue': None} for v in ds.data_vars}
+    enc.update({c: {'_FillValue': None} for c in ds.coords})
+    ds.to_netcdf(outname, format='NETCDF4', encoding=enc)
+
+
+def ensure_latlon(ds, src_grid_file):
+
+    if "lat" in ds and "lon" in ds:
+        return ds
+
+    print("Adding lat/lon from grid file")
+
+    grid = xr.open_dataset(src_grid_file)
+    print("grid ncol:", grid.dims.get("ncol"))
+    print("data ncol:", ds.dims.get("ncol"))
+
+    return ds.assign_coords({
+        "lat": ("ncol", grid["lat"].values),
+        "lon": ("ncol", grid["lon"].values),
+    })
+
+
+# =========================
+# Regridder
+# =========================
+
+import xarray as xr
+import xesmf as xe
 from pathlib import Path
-import os
-from adf_base import AdfError
+
+def build_regridder(ds, latlon_file, method, weights_file=None):
+
+    target = xr.open_dataset(latlon_file)
+
+    ds_out = xr.Dataset({
+        "lat": (["lat"], target["lat"].values),
+        "lon": (["lon"], target["lon"].values),
+    })
+
+    # If weights exist, don't rebuild grid
+    #if weights_file and Path(weights_file).exists():
+    if 2==1:
+        print(f"Using existing weights: {weights_file}")
+
+        regridder = xe.Regridder(
+            ds,
+            ds_out,
+            method,
+            filename=weights_file,
+            reuse_weights=True
+        )
+
+        return regridder
+
+
+    # -----------------------------
+    # OTHERWISE: build weights fresh
+    # -----------------------------
+    print("Creating new weights")
+
+    is_unstructured = "ncol" in ds.dims
+
+    if is_unstructured:
+        if "lat" not in ds or "lon" not in ds:
+            raise ValueError("SE grid requires lat/lon on ncol")
+
+        ds_in = xr.Dataset({
+            "lat": ("ncol", ds["lat"].values),
+            "lon": ("ncol", ds["lon"].values),
+        })
+    else:
+        ds_in = xr.Dataset({
+            "lat": (["lat"], ds["lat"].values),
+            "lon": (["lon"], ds["lon"].values),
+        })
+
+    regridder = xe.Regridder(
+        ds_in,
+        ds_out,
+        method,
+        filename=weights_file,
+        reuse_weights=False,
+        periodic=True
+    )
+
+
+    return regridder
+
+
+# =========================
+# Core regrid function
+# =========================
+
+def regrid_variable(ds, var, regridder, comp):
+
+    da = ds[var]
+
+    out = regridder(da)
+    out.name = var
+
+    dims_order = [d for d in ["time", "lev", "lat", "lon"] if d in out.dims]
+    out = out.transpose(*dims_order)
+
+    return out.to_dataset()
+
+
+# =========================
+# Area calculation
+# =========================
+
+def add_area(ds):
+    lat = ds["lat"].values
+    lon = ds["lon"].values
+
+    R = 6.37122e3  # km
+
+    dlat = np.gradient(lat)
+    dlon = np.gradient(lon)
+
+    lat_rad = np.deg2rad(lat)
+
+    area = np.outer(
+        R * np.deg2rad(dlat),
+        R * np.cos(lat_rad)[:, None] * np.deg2rad(dlon)
+    )
+
+    ds["area"] = xr.DataArray(area, coords=[lat, lon], dims=["lat", "lon"])
+    ds["area"].attrs.update({
+        "units": "km2",
+        "long_name": "Grid cell area"
+    })
+
+    return ds
+
+
+# =========================
+# Main driver
+# =========================
 
 def grid_timeseries(adfobj, **kwargs):
-    #regrd_ts_loc = Path(test_output_loc[case_idx])
-    # Check if time series directory exists, and if not, then create it:
-    # Use pathlib to create parent directories, if necessary.
 
     ts_dir = Path(kwargs["ts_dir"])
     method = kwargs["method"]
     weight_file = kwargs["wgts_file"]
     latlon_file = kwargs["latlon_file"]
-    time_file = kwargs["time_file"]
     comp = kwargs["comp"]
-    diag_var_list = kwargs["diag_var_list"]
+    vars_list = kwargs["diag_var_list"]
     case_name = kwargs["case_name"]
     hist_str = kwargs["hist_str"]
     time_string = kwargs["time_string"]
     is_baseline = kwargs["is_baseline"]
-    #is_baseline = kwargs.get("is_baseline")
 
-    regrd_ts_loc = ts_dir / "gridded"
-    Path(regrd_ts_loc).mkdir(parents=True, exist_ok=True)
+    out_dir = ts_dir / "gridded"
+    #out_dir.mkdir(parents=True, exist_ok=True)
     # Check that path actually exists:
-    if not regrd_ts_loc.is_dir():
-        print(f"    {regrd_ts_loc} not found, making new directory")
-        regrd_ts_loc.mkdir(parents=True)
+    if not out_dir.is_dir():
+        print(f"    {out_dir} not found, making new directory")
+        out_dir.mkdir(parents=True)
+
 
     #Check if any a weights file exists if using native grid, OPTIONAL
     if not latlon_file:
-        msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
-        raise AdfError(msg)
+        raise AdfError("Missing lat/lon target grid file")
+    
 
-    for var in diag_var_list:
-        if is_baseline:
-            ts_files = adfobj.data.get_ref_timeseries_file(var)
-        else:
-            ts_files = adfobj.data.get_timeseries_file(case_name, var)
+    for var in vars_list:
 
-        ts_outfil_str = (str(ts_dir)
-                         + os.sep
-                         + ".".join([case_name, hist_str, var, time_string, "nc"])
-                         )
-        ts_outfil_str = ts_outfil_str.replace(".nc","_gridded.nc")
+        print(f"\n--- Regridding {var} ---")
+
+        ts_files = (
+            adfobj.data.get_ref_timeseries_file(var)
+            if is_baseline
+            else adfobj.data.get_timeseries_file(case_name, var)
+        )
 
         if not ts_files:
-            print(f"    No time series files found for variable '{var}' in case '{case_name}', skipping gridding for this variable.")
+            print(f"Skipping {var}: no files")
             continue
 
-        # Check if clobber is true for file
-        if Path(ts_outfil_str).is_file():
+        out_file = out_dir / f"{case_name}.{hist_str}.{var}.{time_string}_gridded.nc"
+
+        if out_file.exists():
+            print(f"Skipping {var}: already exists")
             #if overwrite_ts[case_idx]:
             if 2==1:
-                Path(ts_outfil_str).unlink()
+                Path(out_file).unlink()
             else:
                 #msg = f"[{__name__}] Warning: '{var}' file was found "
                 msg = f"\t    INFO: '{var}' gridded file was found "
                 msg += "and overwrite is False. Will use existing file."
                 print(msg)
                 continue
-
-        # Load the time series dataset
-        ts_ds = adfobj.data.load_timeseries_dataset(ts_files)
-        if ts_ds is None:
-            print(f"    No time series data set for variable '{var}' in case '{case_name}', skipping gridding for this variable.")
             continue
 
-        # Store the original cftime time values
-        #print("ts_ds['time']",ts_ds['time'],"\n\n")
-        original_time = ts_ds['time'].values
+        ds = adfobj.data.load_timeseries_dataset(ts_files)
+        if ds is None:
+            print(f"    No time series data set for variable '{var}' in case '{case_name}', skipping gridding for this variable.")
+            continue
+        print("ds",ds.attrs,"\n\n")
+        src_grid_file = ds.attrs['initial_file']
+        ds = ensure_latlon(ds, src_grid_file)
 
-        rgdata = unstructure_regrid(ts_ds, var, comp=comp,
-                                    wgt_file=weight_file,
-                                    latlon_file=latlon_file,
-                                    time_file=time_file,
-                                    method=method)
-        # Copy global attributes
-        rgdata.attrs = ts_ds.attrs.copy()
-        attrs_dict = {
-                                    #"adf_user": adf.user,
-                                    #"climo_yrs": f"{case_name}: {syear}-{eyear}",
-                                    #"climatology_files": climatology_files_str,
-                                    "native_grid_to_latlon":f"xesmf Regridder; method: {method}"
-                                }
+        regridder = build_regridder(
+            ds,
+            latlon_file,
+            method,
+            weights_file=weight_file
+        )
 
-        regridded_file_loc = regrd_ts_loc / Path(ts_outfil_str).parts[-1].replace(".nc","_gridded.nc")
-        rgdata = rgdata.assign_attrs(attrs_dict)
-        # Restore the original cftime time values
-        rgdata = rgdata.assign_coords(time=('time', original_time))
-        #print("regridded_file_loc",rgdata.time,"\n\n")
-        save_to_nc(rgdata, regridded_file_loc)
-        #self.adf.native_grid[f"{case_type_string}_native_grid"] = False
+        original_time = ds.time.values
 
-        #file_path = os.path.join(dir_path, file_name)
-        #os.remove(ts_outfil_str)
-        #print("ts_outfil_str before death: ",ts_outfil_str,"\n")
-        #sorted(ts_dir.glob(f"*.{var}.*nc"))[0].unlink()
+        # ---- REGRID ----
+        rg = regrid_variable(ds, var, regridder, comp)
+
+        # ---- POSTPROCESS ----
+        rg = rg.assign_coords(time=original_time)
+        rg.attrs = ds.attrs
+        rg.attrs["native_grid_to_latlon"] = f"xESMF ({method})"
+
+        rg = add_area(rg)
+
+        # ---- SAVE ----
+        save_to_nc(rg, out_file)
+
+        print(f"Saved: {out_file}")
 
 
 
 
+# Gridding Unstructured to Lat/Lon
 # Regrids unstructured SE grid to regular lat-lon
 # Shamelessly borrowed from @maritsandstad with NorESM who deserves credit for this work
 # https://github.com/NorESMhub/xesmf_clm_fates_diagnostic/blob/main/src/xesmf_clm_fates_diagnostic/plotting_methods.py
@@ -122,19 +260,11 @@ import xarray as xr
 import xesmf
 import numpy as np
 
-def make_se_ts_regridder(weight_file,s_data,d_data,
-                      Method='coservative'
+def make_se_regridder(weight_file, s_data, d_data,
+                      var,
+                      Method='coservative',
                       ):
-    # Intialize dict for xesmf.Regridder
-    #regridder_kwargs = {}
-
-    if weight_file:
-        weights = xr.open_dataset(weight_file)
-        #regridder_kwargs['weights'] = weights
-    else:
-        print("No weights file given!")
-    #    regridder_kwargs['method'] = 'coservative'
-    
+    weights = xr.open_dataset(weight_file)
     in_shape = weights.src_grid_dims.load().data
 
     # Since xESMF expects 2D vars, we'll insert a dummy dimension of size-1
@@ -157,12 +287,17 @@ def make_se_ts_regridder(weight_file,s_data,d_data,
         }
     )
 
+    # Hard code masks for now, not sure this does anything?
     if isinstance(s_data, xr.DataArray):
         s_mask = xr.DataArray(s_data.data.reshape(in_shape[0],in_shape[1]), dims=("lat", "lon"))
         dummy_in['mask']= s_mask
     if isinstance(d_data, xr.DataArray):
         d_mask = xr.DataArray(d_data.values, dims=("lat", "lon"))  
-        dummy_out['mask']= d_mask         
+        dummy_out['mask']= d_mask
+    #print("VAR:",var)            
+    #print("---------------\ndummy_in",dummy_in,"\n\n")
+    #print("dummy_out",dummy_out,"\n\n")
+
 
     # do source and destination grids need masks here?
     # See xesmf docs https://xesmf.readthedocs.io/en/stable/notebooks/Masking.html#Regridding-with-a-mask
@@ -178,13 +313,90 @@ def make_se_ts_regridder(weight_file,s_data,d_data,
     )
     return regridder
 
-import xarray as xr
-import xesmf
-import numpy as np
+def regrid_se_data_bilinear(regridder, data_to_regrid, comp_grid):
+    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}),
+                         skipna=True, na_thres=1,
+                         )
+    return regridded
 
-#def unstructure_regrid(model_dataset, var_name, comp, weight_file, latlon_file, method):
-#def unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_file=None):
-def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_file, time_file, **kwargs):
+def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
+    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}) )
+    return regridded
+
+"""def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
+    dims = data_to_regrid.dims
+    #if data_to_regrid.ndim == 1:
+    if len(data_to_regrid.dims) == 2:
+        # (ncol,) → (1, ncol)
+        updated = data_to_regrid.expand_dims("lat", axis=0)
+        regridded = regridder(updated.rename({comp_grid: "lon"}))
+        return regridded.squeeze("lat")
+
+    elif len(data_to_regrid.dims) == 3:
+        # (other, ncol) → (other, lat, lon)
+        updated = data_to_regrid.expand_dims("lat", axis=-2)
+        regridded = regridder(updated.rename({"lat": "lat", comp_grid: "lon"}))
+        return regridded
+
+    elif len(data_to_regrid.dims) == 4:
+        # Assume (time, lev, ncol)
+        stacked = data_to_regrid.stack(stack_dim=("time", "lev", "ilev"))
+        updated = stacked.expand_dims("lat", axis=-2)
+        regridded = regridder(updated.rename({"lat": "lat", comp_grid: "lon"}))
+        unstacked = regridded.unstack("stack_dim")
+        return unstacked.transpose("time", "lev", "ilev", "lat", "lon")
+
+    else:
+        raise ValueError(f"Unhandled data shape or dimensions: {data_to_regrid.shape} {dims}")"""
+
+
+
+
+def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid='ncol'):
+    if isinstance(data_to_regrid, xr.Dataset):
+        vars_with_ncol = [name for name in data_to_regrid.variables if comp_grid in data_to_regrid[name].dims]
+        updated = data_to_regrid.copy().update(data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2))
+    elif isinstance(data_to_regrid, xr.DataArray):
+        updated = data_to_regrid.transpose(...,comp_grid).expand_dims("dummy",axis=-2)
+    else:
+        raise ValueError(f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}")
+    regridded = regridder(updated)
+    return regridded
+
+
+def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid='ncol'):
+    if isinstance(data_to_regrid, xr.Dataset):
+        vars_with_ncol = [name for name in data_to_regrid.variables if comp_grid in data_to_regrid[name].dims]
+        updated = data_to_regrid.copy().update(data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2))
+    elif isinstance(data_to_regrid, xr.DataArray):
+        updated = data_to_regrid.transpose(...,comp_grid).expand_dims("dummy",axis=-2)
+    else:
+        raise ValueError(f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}")
+    regridded = regridder(updated,skipna=True, na_thres=1)
+    return regridded
+
+
+
+"""
+def regrid_lnd_se_data_bilinear(regridder, data_to_regrid, comp_grid):
+    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}),
+                         skipna=True, na_thres=1,
+                         )
+    return regridded
+
+
+def regrid_lnd_se_data_conservative(regridder, data_to_regrid, comp_grid):
+    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}) )
+    return regridded"""
+
+
+
+def regrid(model_dataset, var_name, comp, wgt_file, method, latlon_file, **kwargs):
+
     """
     Function that takes a variable from a model xarray
     dataset, regrids it to another dataset's lat/lon
@@ -206,9 +418,6 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
     model variable.
     """
 
-    #Import ADF-specific functions:
-    #from regrid_se_to_fv import make_se_regridder, regrid_se_data_conservative, regrid_se_data_bilinear, regrid_atm_se_data_conservative, regrid_atm_se_data_bilinear
-
     if comp == "atm":
         comp_grid = "ncol"
     if comp == "lnd":
@@ -222,127 +431,40 @@ def  unstructure_regrid(model_dataset, var_name, comp, wgt_file, method, latlon_
 
     if comp == "lnd":
         model_dataset['landfrac'] = model_dataset['landfrac'].fillna(0)
+        #mdata = mdata * model_dataset.landfrac  # weight flux by land frac
         model_dataset[var_name] = model_dataset[var_name] * model_dataset.landfrac  # weight flux by land frac
-        s_data = model_dataset.landmask#.isel(time=0)
+        s_data = model_dataset.landmask.isel(time=0)
         d_data = latlon_ds.landmask
     else:
-        s_data = None
-        d_data = None
+        s_data = None #model_dataset[var_name].isel(time=0)
+        d_data = None #latlon_ds.PSL.isel(time=0)
 
     #Grid model data to match target grid lat/lon:
-    regridder = make_se_ts_regridder(weight_file=wgt_file,
+    regridder = make_se_regridder(weight_file=wgt_file,
                                     s_data = s_data,
                                     d_data = d_data,
                                     Method = method,
+                                    var=var_name
                                     )
+ 
 
-    """if comp == "lnd":
-        if method == 'coservative':
-            rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
-        if method == 'bilinear':
-            rgdata = regrid_se_data_bilinear(regridder, model_dataset, comp_grid)
-        rgdata[var_name] = (rgdata[var_name] / rgdata.landfrac)"""
-
-    if comp == "atm":
-        if method == 'coservative':
-            rgdata = regrid_atm_se_data_conservative(regridder, model_dataset, comp_grid)
-        if method == 'bilinear':
-            #rgdata = regrid_atm_se_data_bilinear(regridder, model_dataset, comp_grid)
-            rgdata = regrid_atm_se_data_bilinear(regridder, model_dataset, var_name, comp_grid)
-
-    #if method == 'coservative':
-    #    rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
-
-
-    #rgdata['lat'] = latlon_ds.lat #???
+    if method == 'coservative':
+        rgdata = regrid_se_data_conservative(regridder, model_dataset, comp_grid)
+    if method == 'bilinear':
+        rgdata = regrid_se_data_bilinear(regridder, model_dataset, comp_grid)
     if comp == "lnd":
+        rgdata[var_name] = (rgdata[var_name] / rgdata.landfrac)
         rgdata['landmask'] = latlon_ds.landmask
-        rgdata['landfrac'] = rgdata.landfrac#.isel(time=0)
+        rgdata['landfrac'] = rgdata.landfrac.isel(time=0)
 
-    """new_ds = xr.Dataset(
-                        coords={"lat": ds1["lat"], "lon": ds1["lon"], "time": ds2["time"]},
-                        attrs=ds2.attrs  # Copy attributes from ds2
-                    )
-    """
     # calculate area
-    rgdata = _calc_area(rgdata)
+    rgdata = calc_area(rgdata)
 
     #Return dataset:
     return rgdata
 
 
-"""def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid='ncol'):
-    if isinstance(data_to_regrid, xr.Dataset):
-        #vars_with_ncol = [name for name in data_to_regrid.variables if comp_grid in data_to_regrid[name].dims]
-        #updated = data_to_regrid.copy().update(data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2))
-        vars_with_ncol = [v for v in data_to_regrid.data_vars if comp_grid in data_to_regrid[v].dims]
-        updated = data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2)
-    elif isinstance(data_to_regrid, xr.DataArray):
-        updated = data_to_regrid.transpose(...,comp_grid).expand_dims("dummy",axis=-2)
-    else:
-        raise ValueError(f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}")
-    regridded = regridder(updated)
-    return regridded"""
-
-def regrid_atm_se_data_bilinear(regridder, data_to_regrid, var_name, comp_grid="ncol"):
-
-    da = data_to_regrid[var_name]
-
-    da = da.transpose(..., comp_grid).expand_dims("dummy", axis=-2)
-
-    out = regridder(da)
-
-    return out
-
-
-def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid='ncol'):
-    if isinstance(data_to_regrid, xr.Dataset):
-        vars_with_ncol = [name for name in data_to_regrid.variables if comp_grid in data_to_regrid[name].dims]
-        updated = data_to_regrid.copy().update(data_to_regrid[vars_with_ncol].transpose(..., comp_grid).expand_dims("dummy", axis=-2))
-    elif isinstance(data_to_regrid, xr.DataArray):
-        updated = data_to_regrid.transpose(...,comp_grid).expand_dims("dummy",axis=-2)
-    else:
-        raise ValueError(f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}")
-    regridded = regridder(updated,skipna=True, na_thres=1)
-    return regridded
-
-
-def regrid_lnd_se_data_bilinear(regridder, data_to_regrid, comp_grid):
-    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
-    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}),
-                         skipna=True, na_thres=1,
-                         )
-    return regridded
-
-
-def regrid_lnd_se_data_conservative(regridder, data_to_regrid, comp_grid):
-    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
-    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}) )
-    return regridded
-
-
-
-def save_to_nc(tosave, outname, attrs=None, proc=None):
-    """Saves xarray variable to new netCDF file"""
-
-    xo = tosave  # used to have more stuff here.
-    # deal with getting non-nan fill values.
-    if isinstance(xo, xr.Dataset):
-        enc_dv = {xname: {'_FillValue': None} for xname in xo.data_vars}
-    else:
-        enc_dv = {}
-    #End if
-    enc_c = {xname: {'_FillValue': None} for xname in xo.coords}
-    enc = {**enc_c, **enc_dv}
-    if attrs is not None:
-        xo.attrs = attrs
-    if proc is not None:
-        xo.attrs['Processing_info'] = f"Start from file {origname}. " + proc
-    xo.to_netcdf(outname, format='NETCDF4', encoding=enc)
-
-
-
-def _calc_area(rgdata):
+def calc_area(rgdata):
     # calculate area
     area_km2 = np.zeros(shape=(len(rgdata['lat']), len(rgdata['lon'])))
     earth_radius_km = 6.37122e3  # in meters

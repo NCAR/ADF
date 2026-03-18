@@ -275,7 +275,7 @@ def regrid_and_vert_interp(adf):
                             ds_attrs = mclim_ds.attrs
                             #print("ds_attrs",ds_attrs)
                             # Grid unstructured climo if applicable before regridding
-                            rgdata_interp = _regrid(mclim_ds, var,
+                            rgdata_interp = utils.regrid(mclim_ds, var,
                                                     comp=comp,
                                                     wgt_file=case_wgts_file,
                                                     latlon_file=case_latlon_file,
@@ -403,7 +403,7 @@ def regrid_and_vert_interp(adf):
                                 base_method = adf.latlon_regrid_method["baseline_regrid_method"]
                                 ds_attrs = tclim_ds.attrs
                                 # Grid unstructured climo if applicable before regridding
-                                tgdata_interp = _regrid(tclim_ds, var,
+                                tgdata_interp = utils.regrid(tclim_ds, var,
                                                         comp=comp,
                                                         wgt_file=baseline_wgts_file,
                                                         latlon_file=baseline_latlon_file,
@@ -855,7 +855,7 @@ def regrid_data(fromthis, tothis, method=1):
 
 import numpy as np
 
-def _regrid(model_dataset, var_name, comp, wgt_file, method, latlon_file, **kwargs):
+'''def _regrid(model_dataset, var_name, comp, wgt_file, method, latlon_file, **kwargs):
 
     """
     Function that takes a variable from a model xarray
@@ -952,33 +952,4 @@ def _calc_area(rgdata):
     rgdata['area'].attrs['units'] = 'km2'
     rgdata['area'].attrs['long_name'] = 'Grid cell area'
 
-    return rgdata
-
-
-def _calculate_area(rgdata):
-    """
-    Compute grid cell area for regridded dataset.
-    """
-    area_km2 = np.zeros((len(rgdata['lat']), len(rgdata['lon'])))
-    earth_radius_km = 6.37122e3
-
-    yres_degN = np.abs(np.diff(rgdata['lat'].data))
-    xres_degE = np.abs(np.diff(rgdata['lon']))
-
-    yres_degN = np.append(yres_degN, yres_degN[-1])
-    xres_degE = np.append(xres_degE, xres_degE[-1])
-
-    dy_km = yres_degN * earth_radius_km * np.pi / 180
-    phi_rad = rgdata['lat'].data * np.pi / 180
-
-    for j in range(len(rgdata['lat'])):
-        for i in range(len(rgdata['lon'])):
-            dx_km = xres_degE[i] * np.cos(phi_rad[j]) * earth_radius_km * np.pi / 180
-            area_km2[j, i] = dy_km[j] * dx_km
-
-    return xr.DataArray(area_km2, coords={'lat': rgdata.lat, 'lon': rgdata.lon}, dims=["lat", "lon"], attrs={'units': 'km2', 'long_name': 'Grid cell area'})
-
-
-
-
-
+    return rgdata'''
