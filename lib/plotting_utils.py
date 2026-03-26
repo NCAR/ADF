@@ -412,10 +412,23 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
-        # set a symmetric color bar for diff:
+        print("I'm guessing diff levels were not declared boi")
+        """# set a symmetric color bar for diff:
         absmaxdif = np.max(np.abs(diffdata.data))
         # set levels for difference plot:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)"""
+
+        arr = diffdata.data
+
+        if not np.isfinite(arr).any():
+            print("WARNING: diffdata is all NaN")
+            absmaxdif = 0.0  # fallback
+        else:
+            absmaxdif = np.nanmax(np.abs(arr))
+
+        levelsdiff = np.linspace(-absmaxdif, absmaxdif, 12)
+
+
     # Percent Difference options -- Check in kwargs for colormap and levels
     if "pct_diff_colormap" in kwargs:
         cmappct = kwargs["pct_diff_colormap"]

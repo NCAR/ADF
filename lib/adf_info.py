@@ -155,6 +155,8 @@ class AdfInfo(AdfConfig):
             #End for
         #End if
 
+        self.__native_grid = {}
+
         self.__base_hist_str = ""
 
         #Initialize "compare_obs" variable:
@@ -222,8 +224,9 @@ class AdfInfo(AdfConfig):
                 baseline_regrid_method = 'coservative'
             self.__baseline_regrid_method = baseline_regrid_method
 
-            baseline_native_grid = self.get_baseline_info("native_grid")
-            self.__baseline_native_grid = baseline_native_grid
+            """baseline_native_grid = self.get_baseline_info("native_grid")
+            baseline_native_grid = True
+            self.__baseline_native_grid = baseline_native_grid"""
 
             #Check if user provided
             if not baseline_hist_str:
@@ -374,6 +377,7 @@ class AdfInfo(AdfConfig):
                     print('\t  Looks like this is a structured lat/lon grid?')
                     unstruct = False
                 self.__unstruct_base = unstruct
+                self.__native_grid[data_name] = unstruct
             #End if
 
             #Grab baseline nickname
@@ -483,11 +487,6 @@ class AdfInfo(AdfConfig):
             cam_regrid_method = [None]*len(case_names)
         self.__cam_regrid_method = cam_regrid_method
 
-        cam_native_grid = self.get_cam_info("native_grid")
-        if cam_native_grid is None:
-            cam_native_grid = [None]*len(case_names)
-        self.__test_native_grid = cam_native_grid
-
         #Grab case time series file location(s)
         input_ts_locs = self.get_cam_info("cam_ts_loc", required=True)
 
@@ -595,6 +594,7 @@ class AdfInfo(AdfConfig):
                     print('\t  Looks like this is a structured lat/lon grid, eh?')
                     unstruct = False
                 unstructs.append(unstruct)
+                self.__native_grid[case_name] = unstruct
 
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
@@ -914,10 +914,9 @@ class AdfInfo(AdfConfig):
 
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
-        test_native_grid = self.__test_native_grid
-        base_native_grid = self.__baseline_native_grid
+        native_grid = self.__native_grid
 
-        return {"test_native_grid":test_native_grid,"baseline_native_grid":base_native_grid}
+        return native_grid
 
     # Create property needed to return the climo start (syear) and end (eyear) years to user:
     @property

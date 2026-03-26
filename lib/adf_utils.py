@@ -699,7 +699,11 @@ def zonal_mean_xr(fld):
         d = fld.dims
         davgovr = [dim for dim in d if dim not in ('lev','lat')]
     else:
-        raise IOError("zonal_mean_xr requires Xarray DataArray input.")
+        if 1==1:
+            print()
+        else:
+            print()
+        #raise IOError("zonal_mean_xr requires Xarray DataArray input.")
     return fld.mean(dim=davgovr)
 
 #####################
@@ -720,13 +724,13 @@ from adf_base import AdfError
 # Helpers
 # =========================
 
-def check_unstructured(ds, case):
+def check_unstructured(ds, case, ts_dir):
     """
     Check if a dataset is unstructured based on its dimensions.
     """
     if ('lat' not in ds.dims) and ('lon' not in ds.dims):
         if ('ncol' in ds.dims) or ('lndgrid' in ds.dims):
-            print(f"Looks like the case '{case}' is unstructured")
+            print(f"\t    INFO: Looks like case '{case}' is unstructured, eh? -> {ts_dir}")
             return True
     return False
 
@@ -1105,7 +1109,7 @@ def regrid_lnd_se_data_conservative(regridder, data_to_regrid, comp_grid):
 
 
 
-def regrid(model_dataset, var_name, comp, wgt_file, method, latlon_file, **kwargs):
+def grid_to_latlon(model_dataset, var_name, comp, wgt_file, method, latlon_file, **kwargs):
 
     """
     Function that takes a variable from a model xarray

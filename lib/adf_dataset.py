@@ -183,9 +183,13 @@ class AdfData:
     # Test case(s)
     def load_climo_da(self, case, variablename, **kwargs):
         """Return DataArray from climo file"""
-        add_offset, scale_factor = self.get_value_converters(case, variablename)
+        if "scale_factor" not in kwargs:
+            add_offset, scale_factor = self.get_value_converters(case, variablename)
+            kwargs["scale_factor"] = scale_factor
+            kwargs["add_offset"] = add_offset
         fils = self.get_climo_file(case, variablename)
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        return self.load_da(fils, variablename, **kwargs)
+        #return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
 
 
     def load_climo_dataset(self, case, field, **kwargs):
@@ -199,7 +203,11 @@ class AdfData:
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific case."""
         caseindex = (self.case_names).index(case) # the entry for specified case
-        a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
+        #if native_grid:
+        if 2==1:
+            a = self.adf.get_cam_info("cam_climo_loc/gridded", required=True)
+        else:    
+            a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
         model_cl_loc = Path(a[caseindex])
         return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
 
@@ -262,12 +270,17 @@ class AdfData:
     
     def load_regrid_da(self, case, field, **kwargs):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        add_offset, scale_factor = self.get_value_converters(case, field)
+        #add_offset, scale_factor = self.get_value_converters(case, field)
+        if ("scale_factor" not in kwargs) or ("add_offset" not in kwargs):
+            add_offset, scale_factor = self.get_value_converters(case, field)
+            kwargs["scale_factor"] = scale_factor
+            kwargs["add_offset"] = add_offset
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        #return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        return self.load_da(fils, field, **kwargs)
 
 
     # Reference case (baseline/obs)

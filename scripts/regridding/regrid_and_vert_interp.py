@@ -242,6 +242,7 @@ def regrid_and_vert_interp(adf):
 
                     #Create keyword arguments dictionary for regridding function:
                     regrid_kwargs = {}
+                    regrid_kwargs["case_name"] = case_name
 
                     if comp == "atm":
                         #Check if target in relevant pressure variable dictionaries:
@@ -252,58 +253,52 @@ def regrid_and_vert_interp(adf):
                             regrid_kwargs.update({'pmid_file': pmid_loc_dict[target]})
                         #End if
 
-                    if ('lat' not in mclim_ds.dims) and ('lat' not in mclim_ds.dims):
-                        if ('ncol' in mclim_ds.dims) or ('lndgrid' in mclim_ds.dims):
-                            print(f"\t    INFO: Looks like test case '{case_name}' is unstructured, eh?")
-                            #print("mclim_ds",mclim_ds)
-                            #Check if any a FV file exists if using native grid
-                            case_latlon_file = case_latlon_files[case_idx]
-                            if not case_latlon_file:
-                                msg = "WARNING: This looks like an unstructured case, but missing lat/lon file"
-                                print(msg)
-                                case_latlon_file = None
-                                #raise AdfError(msg)
+                    # If not native plotting, will try and grid the datasets to lat/lon
+                    if adf.native_grid[case_name] and not adf.unstructured_plotting:
+                        #print("mclim_ds",mclim_ds)
+                        #Check if any a FV file exists if using native grid
+                        case_latlon_file = case_latlon_files[case_idx]
+                        if not case_latlon_file:
+                            msg = "WARNING: This looks like an unstructured case, but missing lat/lon file"
+                            print(msg)
+                            case_latlon_file = None
+                            #raise AdfError(msg)
 
-                            #Check if any a weights file exists if using native grid
-                            case_wgts_file = case_wgts_files[case_idx]
-                            if not case_wgts_file:
-                                msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
-                                raise AdfError(msg)
+                        #Check if any a weights file exists if using native grid
+                        case_wgts_file = case_wgts_files[case_idx]
+                        if not case_wgts_file:
+                            msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
+                            raise AdfError(msg)
 
-                            case_method = case_methods[case_idx]
-                            #print("ds attrs?",mclim_ds.lev.long_name,"\n\n")
-                            ds_attrs = mclim_ds.attrs
-                            #print("ds_attrs",ds_attrs)
-                            # Grid unstructured climo if applicable before regridding
-                            rgdata_interp = utils.regrid(mclim_ds, var,
+                        case_method = case_methods[case_idx]
+                        #print("ds attrs?",mclim_ds.lev.long_name,"\n\n")
+                        ds_attrs = mclim_ds.attrs
+                        #print("ds_attrs",ds_attrs)
+                        # Grid unstructured climo if applicable before regridding
+                        rgdata_interp = utils.grid_to_latlon(mclim_ds, var,
                                                     comp=comp,
                                                     wgt_file=case_wgts_file,
                                                     latlon_file=case_latlon_file,
                                                     method=case_method,
                                                     )
-                            #print("After _regrid?",rgdata_interp,"\n\n")
-                            rgdata_interp.attrs = ds_attrs
-                            #rgdata_interp['lev'].attrs['long_name'] = mclim_ds.lev.long_name
-                            if 'lev' in mclim_ds:
-                                rgdata_interp['lev'].attrs['long_name'] = mclim_ds.lev.long_name
-                                rgdata_interp['hybm'] = mclim_ds.hybm
-                                rgdata_interp['hyam'] = mclim_ds.hyam
-                            #print("After adding attrs??",rgdata_interp,"\n\n")
-                            output_test_loc = Path(output_climo_locs[case_idx])
-                            rgridded_output_loc   = output_test_loc / "gridded"
-                            if not rgridded_output_loc.is_dir():
-                                print(f"    {rgridded_output_loc} not found, making new directory")
-                                rgridded_output_loc.mkdir(parents=True)
-                            save_to_nc(rgdata_interp, rgridded_output_loc / f'{case_name}_{var}_gridded_climo.nc')
-
-                        else:
-                            msg = "WARNING: No lat/lons but no grid info either. I guess this really is a problem!"
-                            msg += "\n   You might want to look at the files. Only CAM and CLM (ncol) and CLM (lndgrd) native grids are acceptable."
-                            raise AdfError(msg)
+                        #print("After _regrid?",rgdata_interp,"\n\n")
+                        rgdata_interp.attrs = ds_attrs
+                        #rgdata_interp['lev'].attrs['long_name'] = mclim_ds.lev.long_name
+                        if 'lev' in mclim_ds:
+                            rgdata_interp['lev'].attrs['long_name'] = mclim_ds.lev.long_name
+                            rgdata_interp['hybm'] = mclim_ds.hybm
+                            rgdata_interp['hyam'] = mclim_ds.hyam
+                        #print("After adding attrs??",rgdata_interp,"\n\n")
+                        output_test_loc = Path(output_climo_locs[case_idx])
+                        rgridded_output_loc   = output_test_loc / "gridded"
+                        if not rgridded_output_loc.is_dir():
+                            print(f"    {rgridded_output_loc} not found, making new directory")
+                            rgridded_output_loc.mkdir(parents=True)
+                        save_to_nc(rgdata_interp, rgridded_output_loc / f'{case_name}_{var}_gridded_climo.nc')
                     else:
                         rgdata_interp = mclim_ds
-                    #else:
-                    rgdata_interp = _regrid_and_interpolate_levs(rgdata_interp, var,
+
+                    rgdata_interp = _regrid_and_interpolate_levs(adf, rgdata_interp, var,
                                                                  regrid_dataset=tclim_ds,
                                                                  **regrid_kwargs)
                     #print("DOESNT WORK!",rgdata_interp,"\n\n")
@@ -380,54 +375,48 @@ def regrid_and_vert_interp(adf):
                             if bl_pmid_fil.is_file():
                                 regrid_kwargs.update({'pmid_file': bl_pmid_fil})
                             #End if
+                            regrid_kwargs["case_name"] = case_name
             
                         #if unstruct_base:
-                        if ('lat' not in tclim_ds.dims) and ('lat' not in tclim_ds.dims):
-                            if ('ncol' in tclim_ds.dims) or ('lndgrid' in tclim_ds.dims):
-                                print(f"\t    INFO: Looks like baseline case '{target}' is unstructured, eh?")
+                        if adf.native_grid[case_name] and not adf.unstructured_plotting:
+                            #Check if any a FV file exists if using native grid
+                            baseline_latlon_file   = adf.latlon_files["baseline_latlon_file"]
+                            if not baseline_latlon_file:
+                                msg = "WARNING: This looks like an unstructured case, but missing lat/lon file"
+                                print(msg)
+                                baseline_latlon_file = None
+                                #raise AdfError(msg)
 
-                                #Check if any a FV file exists if using native grid
-                                baseline_latlon_file   = adf.latlon_files["baseline_latlon_file"]
-                                if not baseline_latlon_file:
-                                    msg = "WARNING: This looks like an unstructured case, but missing lat/lon file"
-                                    print(msg)
-                                    baseline_latlon_file = None
-                                    #raise AdfError(msg)
-
-                                #Check if any a weights file exists if using native grid
-                                baseline_wgts_file   = adf.latlon_wgt_files["baseline_wgts_file"]
-                                if not baseline_wgts_file:
-                                    msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
-                                    raise AdfError(msg)
+                            #Check if any a weights file exists if using native grid
+                            baseline_wgts_file   = adf.latlon_wgt_files["baseline_wgts_file"]
+                            if not baseline_wgts_file:
+                                msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
+                                raise AdfError(msg)
                                 
-                                base_method = adf.latlon_regrid_method["baseline_regrid_method"]
-                                ds_attrs = tclim_ds.attrs
-                                # Grid unstructured climo if applicable before regridding
-                                tgdata_interp = utils.regrid(tclim_ds, var,
+                            base_method = adf.latlon_regrid_method["baseline_regrid_method"]
+                            ds_attrs = tclim_ds.attrs
+                            # Grid unstructured climo if applicable before regridding
+                            tgdata_interp = utils.grid_to_latlon(tclim_ds, var,
                                                         comp=comp,
                                                         wgt_file=baseline_wgts_file,
                                                         latlon_file=baseline_latlon_file,
                                                         method=base_method,
                                                        )
-                                tgdata_interp.attrs = ds_attrs
-                                if 'lev' in tclim_ds:
-                                    #tgdata_interp['lev'].attrs['long_name'] = tclim_ds.lev.long_name
+                            tgdata_interp.attrs = ds_attrs
+                            if 'lev' in tclim_ds:
+                                #tgdata_interp['lev'].attrs['long_name'] = tclim_ds.lev.long_name
 
-                                    tgdata_interp['hybm'] = tclim_ds.hybm
-                                    tgdata_interp['hyam'] = tclim_ds.hyam
-                                tgridded_output_loc   = Path(target_loc) / "gridded"
-                                if not tgridded_output_loc.is_dir():
-                                    print(f"    {tgridded_output_loc} not found, making new directory")
-                                    tgridded_output_loc.mkdir(parents=True)
-                                save_to_nc(tgdata_interp, tgridded_output_loc / f'{target}_{var}_gridded_climo.nc')
-                            else:
-                                msg = "WARNING: No lat/lons but no grid info either. I guess this really is a problem!"
-                                msg += "\n   You might want to look at the files. Only CAM (ncol) and CLM (lndgrd) native grids are acceptable."
-                                raise AdfError(msg)
+                                tgdata_interp['hybm'] = tclim_ds.hybm
+                                tgdata_interp['hyam'] = tclim_ds.hyam
+                            tgridded_output_loc   = Path(target_loc) / "gridded"
+                            if not tgridded_output_loc.is_dir():
+                                print(f"    {tgridded_output_loc} not found, making new directory")
+                                tgridded_output_loc.mkdir(parents=True)
+                            save_to_nc(tgdata_interp, tgridded_output_loc / f'{target}_{var}_gridded_climo.nc')
                         else:
                             tgdata_interp = tclim_ds
 
-                        tgdata_interp = _regrid_and_interpolate_levs(tgdata_interp, var,
+                        tgdata_interp = _regrid_and_interpolate_levs(adf, tgdata_interp, var,
                                                                     regrid_dataset=tclim_ds,
                                                                     **regrid_kwargs)
                         if tgdata_interp is None:
@@ -494,7 +483,7 @@ def regrid_and_vert_interp(adf):
 #Helper functions
 #################
 
-def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, **kwargs):
+def _regrid_and_interpolate_levs(adf, model_dataset, var_name, regrid_dataset=None, **kwargs):
 
     """
     Function that takes a variable from a model xarray
@@ -672,37 +661,44 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
 
     #Regrid variable to target dataset (if available):
     if regrid_dataset:
-
-        #Extract grid info from target data:
-        if 'time' in regrid_dataset.coords:
-            if 'lev' in regrid_dataset.coords:
-                tgrid = regrid_dataset.isel(time=0, lev=0).squeeze()
-            else:
-                tgrid = regrid_dataset.isel(time=0).squeeze()
-            #End if
-        #End if
-
-        #Regrid model data to match target grid:
-        rgdata = regrid_data(mdata, tgrid, method=1)
-        if mdat_ofrac:
-            rgofrac = regrid_data(mdat_ofrac, tgrid, method=1)
-        #Regrid surface pressure if need be:
-        if has_lev:
-            if not regridded_ps:
-                rg_ps = regrid_data(mps, tgrid, method=1)
-            else:
-                rg_ps = mps
-            #End if
-
-            #Also regrid mid-level pressure if need be:
-            if vert_coord_type == "height":
-                if not regridded_pmid:
-                    rg_pmid = regrid_data(mpmid, tgrid, method=1)
+        if not adf.native_grid[kwargs["case_name"]] and not adf.unstructured_plotting:
+            #Extract grid info from target data:
+            if 'time' in regrid_dataset.coords:
+                if 'lev' in regrid_dataset.coords:
+                    tgrid = regrid_dataset.isel(time=0, lev=0).squeeze()
                 else:
-                    rg_pmid = mpmid
+                    tgrid = regrid_dataset.isel(time=0).squeeze()
                 #End if
             #End if
-        #End if
+
+            #Regrid model data to match target grid:
+            rgdata = regrid_data(mdata, tgrid, method=1)
+            if mdat_ofrac:
+                rgofrac = regrid_data(mdat_ofrac, tgrid, method=1)
+            #Regrid surface pressure if need be:
+            if has_lev:
+                if not regridded_ps:
+                    rg_ps = regrid_data(mps, tgrid, method=1)
+                else:
+                    rg_ps = mps
+                #End if
+
+                #Also regrid mid-level pressure if need be:
+                if vert_coord_type == "height":
+                    if not regridded_pmid:
+                        rg_pmid = regrid_data(mpmid, tgrid, method=1)
+                    else:
+                        rg_pmid = mpmid
+                    #End if
+                #End if
+            #End if
+        else:
+            #Just rename variables:
+            rgdata = mdata
+            if has_lev:
+                rg_ps = mps
+                if vert_coord_type == "height":
+                    rg_pmid = mpmid
     else:
         #Just rename variables:
         rgdata = mdata

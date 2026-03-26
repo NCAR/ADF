@@ -185,9 +185,8 @@ def tape_recorder(adfobj):
         if grid_path.is_dir():
             print("Using gridded file, eh?")
             ts_loc = grid_path
-            fils = sorted(ts_loc.glob(f'*_{var}_*.nc'))
-        else:
-            fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+
+        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
         dat = adfobj.data.load_timeseries_dataset(fils)
 
         if not dat:
