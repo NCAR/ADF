@@ -141,7 +141,7 @@ def process_model_cases(adfobj, var, obs_data):
 def process_model_data(adfobj, case_name, var, obs_shape):
     """Process model data and check grid compatibility."""
     if case_name == adfobj.data.ref_case_label:
-        ds_case = adfobj.data.load_reference_climo_da(case_name, var)
+        ds_case = adfobj.data.load_reference_climo_da(var)
     else:
         ds_case = adfobj.data.load_climo_da(case_name, var)
     if ds_case is None:

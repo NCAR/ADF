@@ -165,7 +165,7 @@ def zonal_mean(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        odata = adfobj.data.load_reference_regrid_da(var)
 
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
