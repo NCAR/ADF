@@ -1825,6 +1825,9 @@ LANDFRAC:
   category: "Surface variables"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  obs_file: "ERA5_LSM_1deg_conservativeregrid.nc"
+  obs_name: "ERA5"
+  obs_var_name: "LANDFRAC"
 
 #+++++++++++++++++
 # Category: State

@@ -31,6 +31,17 @@ warnings.formatwarning = utils.my_formatwarning
 #       Set AdfData.ref_nickname to that.
 #       Could be altered from "Obs" to be the data source label.
 
+# NOTE: Standard ADF workflow creates time series files with NCO.
+#       Climo files are then generated with create_climo_files.py
+#       Since neither of these apply units conversions (add_offset, scale_factor),
+#       the methods here default to applying them when loading 
+#       time series and climo files, using the kwarg apply_scaling.
+#       Regridded files are made with regrid_and_vert_interp[_2].py,
+#       which uses this module for loading climo files, so will apply
+#       scaling.
+#       Therefore the default on loading regridded files is to NOT
+#       apply scaling.
+
 class AdfData:
     """A class instantiated with an AdfDiag object. 
        Methods provide means to load data. 
@@ -151,9 +162,12 @@ class AdfData:
             return None
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
     
-    def load_reference_timeseries_da(self, field):
+    def load_reference_timeseries_da(self, field, apply_scaling=True):
         """Return a DataArray time series to be used as reference 
           (aka baseline) for variable field.
+
+          apply_scaling: bool
+            If True, apply add_offset and scale_factor to data (if present).
         """
         fils = self.get_ref_timeseries_file(field)
         if not fils:
@@ -168,6 +182,10 @@ class AdfData:
         else:
             add_offset, scale_factor = self.get_value_converters(self.ref_case_label, field)
 
+        if not apply_scaling:
+            add_offset = 0
+            scale_factor = 1
+
         return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
 
@@ -178,9 +196,21 @@ class AdfData:
     #------------------
 
     # Test case(s)
-    def load_climo_da(self, case, variablename):
-        """Return DataArray from climo file"""
+    def load_climo_ds(self, case, variablename):
+        """Return Dataset from climo file; applies scale factor and offset to `variablename`."""
         add_offset, scale_factor = self.get_value_converters(case, variablename)
+        fils = self.get_climo_file(case, variablename)
+        ds = self.load_dataset(fils)
+        ds[variablename] = ds[variablename] * scale_factor + add_offset
+        return ds
+
+    def load_climo_da(self, case, variablename, apply_scaling=True):
+        """Return DataArray from climo file"""
+        if not apply_scaling:
+            add_offset = 0
+            scale_factor = 1
+        else:
+            add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_climo_file(case, variablename)
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
 
@@ -203,11 +233,39 @@ class AdfData:
 
 
     # Reference case (baseline/obs)
-    def load_reference_climo_da(self, case, variablename):
-        """Return DataArray from reference (aka baseline) climo file"""
+    def load_reference_climo_ds(self, case, variablename, apply_scaling=True):
+        """Return Dataset from reference climo file; applies scale factor and offset to `variablename`.
+        """
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_reference_climo_file(variablename)
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
+        ds = self.load_dataset(fils)
+        vname = self.ref_var_nam[variablename]  # name of variable in the reference data
+        # Check if already transformed (via attribute or units)
+        # Check if already transformed (via attribute or units)
+        unit_match = ds[vname].attrs.get('units') == self.adf.variable_defaults[variablename].get('new_unit')
+        if ds[vname].attrs.get('transformed', False) or unit_match:
+            apply_scaling = False
+        if not apply_scaling:
+            add_offset = 0
+            scale_factor = 1
+
+        attrs = ds[vname].attrs.copy()
+        ds[vname] = ds[vname] * scale_factor + add_offset
+        ds[vname].attrs = attrs
+        if scale_factor != 1 or add_offset != 0:
+            ds[vname].attrs['transformed'] = True
+        return ds
+    
+    def load_reference_climo_da(self, case, variablename, apply_scaling=True):
+        """Return DataArray from reference (aka baseline) climo file"""
+        fils = self.get_reference_climo_file(variablename)
+        vname = self.ref_var_nam[variablename]
+        if not apply_scaling:
+            add_offset = 0
+            scale_factor = 1
+        else:
+            add_offset, scale_factor = self.get_value_converters(case, variablename)
+        return self.load_da(fils, vname, add_offset=add_offset, scale_factor=scale_factor)
 
     def get_reference_climo_file(self, var):
         """Return a list of files to be used as reference (aka baseline) for variable var."""
@@ -230,7 +288,15 @@ class AdfData:
     # Test case(s)
     def get_regrid_file(self, case, field):
         """Return list of test regridded files"""
-        model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
+        model_rg_list =  self.model_rgrid_loc 
+        if isinstance(model_rg_list, list):
+            caseindex = self.case_names.index(case)
+            model_rg_loc = Path(model_rg_list[caseindex])
+        elif isinstance(model_rg_list, (str, Path)):
+            model_rg_loc = Path(model_rg_list)
+        else:
+            warnings.warn(f"\t ERROR: Did not find regrid location for case: {case}, variable {field}")
+            return None
         rlbl = self.ref_labels[field]  # rlbl = "reference label" = the name of the reference data that defines target grid
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
@@ -244,9 +310,13 @@ class AdfData:
         return self.load_dataset(fils)
 
     
-    def load_regrid_da(self, case, field):
+    def load_regrid_da(self, case, field, apply_scaling=False):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        add_offset, scale_factor = self.get_value_converters(case, field)
+        if not apply_scaling:
+            add_offset = 0
+            scale_factor = 1
+        else:
+            add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
@@ -264,6 +334,16 @@ class AdfData:
             else:
                 fils = []
         else:
+            model_rg_list =  self.model_rgrid_loc 
+            if isinstance(model_rg_list, list):
+                caseindex = self.case_names.index(case)
+                model_rg_loc = Path(model_rg_list[caseindex])
+            elif isinstance(model_rg_list, (str, Path)):
+                model_rg_loc = Path(model_rg_list)
+            else:
+                warnings.warn(f"\t ERROR: Did not find regrid location for case: {case}, variable {field}")
+                return None
+
             model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
@@ -278,9 +358,13 @@ class AdfData:
         return self.load_dataset(fils)
 
     
-    def load_reference_regrid_da(self, case, field):
+    def load_reference_regrid_da(self, case, field, apply_scaling=False):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        add_offset, scale_factor = self.get_value_converters(case, field)
+        if not apply_scaling:
+            add_offset = 0
+            scale_factor = 1
+        else:
+            add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
@@ -291,13 +375,9 @@ class AdfData:
             field = self.ref_var_nam[field]
         return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
-    #------------------
-
-
+    #---------------------------
     # DataSet and DataArray load
     #---------------------------
-
-    # Load DataSet
     def load_dataset(self, fils):
         """Return xarray DataSet from file(s)"""
         if (len(fils) == 0):
@@ -315,22 +395,30 @@ class AdfData:
             warnings.warn(f"\t    WARNING: invalid data on load_dataset")
         return ds
 
-    # Load DataArray
     def load_da(self, fils, variablename, **kwargs):
         """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
         ds = self.load_dataset(fils)
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
-        da = (ds[variablename]).squeeze()
-        scale_factor = kwargs.get('scale_factor', 1)
-        add_offset = kwargs.get('add_offset', 0)
-        da = da * scale_factor + add_offset
-        if variablename in self.adf.variable_defaults:
-            vres = self.adf.variable_defaults[variablename]
-            da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
+        da = ds[variablename].squeeze()
+        apply_scaling = kwargs.get('apply_scaling', True)
+        if not apply_scaling:
+            add_offset = 0
+            scale_factor = 1
         else:
-            da.attrs['units'] = 'none'
+            scale_factor = kwargs.get('scale_factor', 1)
+            add_offset = kwargs.get('add_offset', 0)
+        attrs = da.attrs.copy()
+        da = da * scale_factor + add_offset
+        da.attrs = attrs
+
+        if scale_factor != 1 or add_offset != 0:
+            if variablename in self.adf.variable_defaults:
+                new_unit = self.adf.variable_defaults[variablename].get("new_unit")
+                if new_unit:
+                    da.attrs['units'] = new_unit
+                    da.attrs['transformed'] = True
         return da
 
     # Get variable conversion defaults, if applicable
@@ -360,7 +448,3 @@ class AdfData:
         return add_offset, scale_factor
 
     #------------------
-
-
-
-    

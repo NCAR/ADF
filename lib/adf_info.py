@@ -125,10 +125,9 @@ class AdfInfo(AdfConfig):
                     emsg += f" {self.__num_cases} entries, instead it has {len(conf_val)}"
                     self.end_diag_fail(emsg)
             else:
-                #If not a list, then convert it to one:
-                self.__cam_climo_info[conf_var] = [conf_val]
-            #End if
-        #End for
+                # If not a list, replicate the scalar value for each case
+                self.__cam_climo_info[conf_var] = [conf_val] * self.__num_cases
+        # End for
 
         #Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var('diag_var_list', required=True)
@@ -368,12 +367,14 @@ class AdfInfo(AdfConfig):
 
         #Make lists of None to be iterated over for case_names
         if syears is None:
-            syears = [None]*len(case_names)
-        #End if
-        if eyears is None:
-            eyears = [None]*len(case_names)
-        #End if
+            syears = [None] * self.__num_cases
+        elif not isinstance(syears, list):
+            syears = [syears] * self.__num_cases
 
+        if eyears is None:
+            eyears = [None] * self.__num_cases
+        elif not isinstance(eyears, list):
+            eyears = [eyears] * self.__num_cases
         #Extract cam history files location:
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
 
@@ -388,7 +389,7 @@ class AdfInfo(AdfConfig):
 
         #Initialize CAM history string nested list
         self.__hist_str = hist_str
-
+        
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
 
@@ -445,13 +446,14 @@ class AdfInfo(AdfConfig):
             hist_str_case = hist_str[case_idx]
             if any(cam_hist_locs):
                 #Grab first possible hist string, just looking for years of run
-                hist_str = hist_str_case[0]
+                hist_str_use = hist_str_case[0]
+                print(f"HIST_STR_USE: {hist_str_use = }, as type: {type(hist_str_use)}")
 
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
                 print(f"\tChecking history files in '{starting_location}'")
 
-                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+                file_list = sorted(starting_location.glob('*'+hist_str_use+'.*.nc'))
 
                 #Check if the history file location exists
                 if not starting_location.is_dir():
@@ -464,7 +466,7 @@ class AdfInfo(AdfConfig):
                     self.end_diag_fail(emsg)
 
                 #Check if there are any history files
-                file_list = sorted(starting_location.glob('*'+hist_str+'.*.nc'))
+                file_list = sorted(starting_location.glob('*'+hist_str_use+'.*.nc'))
                 if len(file_list) == 0:
                     msg = "Checking history files:\n"
                     msg += f"\tThere are no history files in '{starting_location}'."
@@ -483,7 +485,7 @@ class AdfInfo(AdfConfig):
                 #Since the last part always includes the time range, grab that with last index (2)
                 #NOTE: this is based off the current CAM file name structure in the form:
                 #  $CASE.cam.h#.YYYY<other date info>.nc
-                case_climo_yrs = [int(str(i).partition(f"{hist_str}.")[2][0:4]) for i in file_list]
+                case_climo_yrs = [int(str(i).partition(f"{hist_str_use}.")[2][0:4]) for i in file_list]
                 if not case_climo_yrs:
                     msg = f"\t ERROR: No climo years found in {cam_hist_locs[case_idx]}, "
                     raise AdfError(msg)
@@ -617,18 +619,36 @@ class AdfInfo(AdfConfig):
 
     def hist_str_to_list(self, conf_var, conf_val):
         """
-        Make hist_str a nested list [ncases,nfiles] of the given value(s)
+        Normalizes hist_str input into a nested list [ncases][nfiles].
         """
-        if isinstance(conf_val, list):
-            hist_str = conf_val
-        else:  # one case, one hist str
-            hist_str = [
-                conf_val
-            ]
-        self.__cam_climo_info[conf_var] = [hist_str]
-    #########
+        n = self.__num_cases
+        result = None
 
-    # Create property needed to return "user" name to user:
+        # 1. Handle Single String input: "h0" -> [["h0"], ["h0"], ...]
+        if isinstance(conf_val, str):
+            result = [[conf_val] for _ in range(n)]
+
+        elif isinstance(conf_val, list):
+            # 2. Check if it's already a nested list: [["h0"], ["h0"]]
+            # We check the first element to see if it's a list.
+            if len(conf_val) == n and all(isinstance(i, list) for i in conf_val):
+                result = conf_val
+                
+            # 3. Check if it's a list of strings matching N cases: ["h0", "h1"]
+            elif len(conf_val) == n and all(isinstance(i, str) for i in conf_val):
+                result = [[i] for i in conf_val]
+                
+            # 4. Otherwise, treat it as a single set of files for ALL cases: ["h0", "h1"]
+            else:
+                # We wrap the list and multiply it
+                result = [conf_val for _ in range(n)]
+
+        if result is None:
+            raise ValueError(f"Invalid format for {conf_var}: {conf_val}")
+
+        self.__cam_climo_info[conf_var] = result    # Create property needed to return "user" name to user:
+
+
     @property
     def user(self):
         """Return the "user" name if requested."""
