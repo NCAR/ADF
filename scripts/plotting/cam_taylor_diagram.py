@@ -162,7 +162,11 @@ def cam_taylor_diagram(adfobj):
         # LOOP OVER VARIABLES
         #
         for v in var_list:
-            base_x = _retrieve(adfobj, v, data_name, data_loc) # get the baseline field
+            try:
+                base_x = _retrieve(adfobj, v, data_name, data_loc)  # get the baseline field
+            except Exception as e:
+                print(f"[WARN] Skipping variable '{v}' due to error: {e}")
+                continue
             for casenumber, case in enumerate(case_names):     # LOOP THROUGH CASES
                 case_x = _retrieve(adfobj, v, case, case_climo_loc[casenumber])
                 # ASSUMING `time` is 1-12, get the current season:

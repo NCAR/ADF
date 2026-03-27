@@ -108,7 +108,9 @@ def amwg_table(adf):
     #-----------------------------------------
     var_list     = adf.diag_var_list
     var_defaults = adf.variable_defaults
-
+    emislist = ["SFmonoterp","SFisoprene","SFSS","SFDUST", "SFSOA", "SFSO4", "SFSO2_net", "SFOM", "SFBC", "SFDMS", "SFH2O2","SFH2SO4"]
+    cblist=["cb_SULFATE","cb_isoprene","cb_monoterp","cb_DUST","cb_DMS","cb_BC","cb_OM","cb_H2O2","cb_H2SO4","cb_SALT", "cb_SO2"]
+    emicblist = emislist + cblist
     #Check if ocean or land fraction exist
     #in the variable list:
     for var in ["OCNFRAC", "LANDFRAC"]:
@@ -224,13 +226,6 @@ def amwg_table(adf):
             #Load model variable data from file:
             ds = utils.load_dataset(ts_files)
             data = ds[var]
-
-            #Extract units string, if available:
-            if hasattr(data, 'units'):
-                unit_str = data.units
-            else:
-                unit_str = '--'
-
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
                 print(f"\t    WARNING: Variable '{var}' has a vertical dimension, "+\
@@ -272,15 +267,46 @@ def amwg_table(adf):
                 ocn_frc_da = data
             #End if
 
+            if var in emislist:
+                area =  _get_area(data)
+                data = (data*area).sum(dim={"lon","lat"})
+                first_january = np.argwhere((data.time.dt.month == 1).values)[0].item()
+                last_december = np.argwhere((data.time.dt.month == 12).values)[-1].item()
+                data = data.isel(time=slice(first_january,last_december+1)) # PLUS 1 BECAUSE SLICE DOES NOT INCLUDE END POINT
+
+                date_range_string = f"{data['time'][0]} -- {data['time'][-1]}"
+
+                # this provides the seconds in months in each year
+                # -- do it for each year to allow for non-standard calendars (360-day)
+                # -- and also to provision for data with leap years
+                days_gb = data.time.dt.daysinmonth
+                # weighted average with normalized weights: <x> = SUM x_i * w_i  (implied division by SUM w_i)
+                data=  (data * days_gb).groupby('time.year').sum(dim='time')
+                data = 1e-9*86400 * data
+                data.attrs['averaging_period'] = date_range_string
+                data.attrs['units'] = " Tg/yr"
+            
+            if var in cblist:
+                area =  _get_area(data)
+                data = (data*area).sum(dim={"lon","lat"})
+                data = 1e-9* data
+                data.attrs['units'] = " Tg"
             # we should check if we need to do area averaging:
-            if len(data.dims) > 1:
+            if len(data.dims) > 1 and var not in emicblist:
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
                 data = utils.spatial_average(data)  # changes data "in place"
 
             # In order to get correct statistics, average to annual or seasonal
-            data = utils.annual_mean(data, whole_years=True, time_name='time')
+            if var not in emislist:
+                data = utils.annual_mean(data, whole_years=True, time_name='time')
+            
+            #Extract units string, if available:
+            if hasattr(data, 'units'):
+                unit_str = data.units
+            else:
+                unit_str = '--'
 
             # Set values for columns
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
@@ -352,6 +378,31 @@ def amwg_table(adf):
 ##################
 # Helper functions
 ##################
+def _get_area(tmp_file):
+    """
+    This function retrieves the files, latitude, and longitude information
+    in all the directories within the chosen dates.
+    """
+    Earth_rad=6.371e6 # Earth Radius in meters
+
+    lon = tmp_file['lon'].data
+    lon[lon > 180.] -= 360 # shift longitude from 0-360˚ to -180-180˚
+    lat = tmp_file['lat'].data
+
+   
+    dlon = np.abs(lon[1]-lon[0])
+    dlat = np.abs(lat[1]-lat[0])
+
+    lon2d,lat2d = np.meshgrid(lon,lat)
+            
+    dy = Earth_rad*dlat*np.pi/180
+    dx = Earth_rad*np.cos(lat2d*np.pi/180)*dlon*np.pi/180
+
+    _area = dx*dy
+    # End if
+
+    # Variables to return
+    return _area
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:

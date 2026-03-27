@@ -75,6 +75,468 @@ seasons = {"ANN": np.arange(1,13,1),
 #HELPER FUNCTIONS
 #################
 
+def load_dataset(fils):
+    """
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdataset`
+    """
+    if len(fils) == 0:
+        warnings.warn("\t    WARNING: Input file list is empty.")
+        return None
+    elif len(fils) > 1:
+        return xr.open_mfdataset(fils, combine="by_coords")
+    else:
+        return xr.open_dataset(fils[0])
+
+def use_this_norm():
+    """Just use the right normalization; avoids a deprecation warning."""
+
+    mplversion = [int(x) for x in mpl.__version__.split('.')]
+    if mplversion[0] < 3:
+        return mpl.colors.Normalize, mplversion[0]
+    else:
+        if mplversion[1] < 2:
+            return mpl.colors.DivergingNorm, mplversion[0]
+        else:
+            return mpl.colors.TwoSlopeNorm, mplversion[0]
+
+
+def get_difference_colors(values):
+    """Provide a color norm and colormap assuming this is a difference field.
+    Parameters
+    ----------
+    values : array-like
+        can be either the data field or a set of specified contour levels.
+
+    Returns
+    -------
+    dnorm
+        Matplotlib color nomalization
+    cmap
+        Matplotlib colormap
+
+    Notes
+    -----
+    Uses 'OrRd' colormap for positive definite, 'BuPu_r' for negative definite,
+    and 'RdBu_r' centered on zero if there are values of both signs.
+    """
+    normfunc, mplv = use_this_norm()
+    dmin = np.min(values)
+    dmax = np.max(values)
+    # color normalization for difference
+    if ((dmin < 0) and (0 < dmax)):
+        dnorm = normfunc(vmin=np.min(values), vmax=np.max(values), vcenter=0.0)
+        cmap = mpl.cm.RdBu_r
+    else:
+        dnorm = mpl.colors.Normalize(vmin=np.min(values), vmax=np.max(values))
+        if dmin >= 0:
+            cmap = mpl.cm.OrRd
+        elif dmax <= 0:
+            cmap = mpl.cm.BuPu_r
+        else:
+            dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
+    return dnorm, cmap
+
+
+def mask_land_or_ocean(arr, msk, use_nan=False):
+    """Apply a land or ocean mask to provided variable.
+
+    Parameters
+    ----------
+    arr : xarray.DataArray
+        the xarray variable to apply the mask to.
+    msk : xarray.DataArray
+        the xarray variable that contains the land or ocean mask,
+        assumed to be the same shape as "arr".
+    use_nan : bool, optional
+        argument for whether to set the missing values
+        to np.nan values instead of the defaul "-999." values.
+
+    Returns
+    -------
+    arr : xarray.DataArray
+        Same as input `arr` but masked as specified.
+    """
+
+    if use_nan:
+        missing_value = np.nan
+    else:
+        missing_value = -999.
+    #End if
+
+    arr = xr.where(msk>=0.9,arr,missing_value)
+    arr.attrs["missing_value"] = missing_value
+    return(arr)
+
+
+def get_central_longitude(*args):
+    """Determine central longitude for maps.
+
+    Allows an arbitrary number of arguments.
+    If any of the arguments is an instance of `AdfDiag`, then check
+    whether it has a `central_longitude` in `diag_basic_info`.
+    _This case takes precedence._
+    _Else_, if any of the arguments are scalars in [-180, 360],
+    assumes the FIRST ONE is the central longitude.
+    There are no other possible conditions, so if none of those are met,
+    returns the default value of 180.
+
+    Parameters
+    ----------
+    *args : tuple
+        Any number of objects to check for `central_longitude`.
+        After that, looks for the first number between -180 and 360 in the args.
+
+    Notes
+    -----
+    This allows a script to, for example, allow a config file to specify, but also have a preference:
+    `get_central_longitude(AdfObj, 30.0)`
+    """
+    chk_for_adf = [isinstance(arg, AdfDiag) for arg in args]
+    # preference is to get value from AdfDiag:
+    if any(chk_for_adf):
+        for arg in args:
+            if isinstance(arg, AdfDiag):
+                result = arg.get_basic_info('central_longitude', required=False)
+                if (isinstance(result, int) or isinstance(result, float)) and \
+                   (result >= -180) and (result <= 360):
+                    return result
+                else:
+                    #If result exists, then write info to debug log:
+                    if result:
+                        msg = f"central_lngitude of type '{type(result).__name__}'"
+                        msg += f" and value '{result}', which is not a valid longitude"
+                        msg += " for the ADF."
+                        arg.debug_log(msg)
+                    #End if
+
+                    #There is only one ADF object per ADF run, so if its
+                    #not present or configured correctly then no
+                    #reason to keep looking:
+                    break
+                #End if
+            #End if
+        #End for
+    #End if
+
+    # 2nd pass through arguments, look for numbers:
+    for arg in args:
+        if (isinstance(arg, float) or isinstance(arg, int)) and ((arg >= -180) and (arg <= 360)):
+            return arg
+        #End if
+    else:
+        # this is the `else` on the for loop --> if non of the arguments meet the criteria, do this.
+        print("No valid central longitude specified. Defaults to 180.")
+        return 180
+    #End if
+
+#######
+
+def global_average(fld, wgt, verbose=False):
+    """A simple, pure numpy global average.
+
+    Parameters
+    ----------
+    fld : np.ndarray
+        an input ndarray
+    wgt : np.ndarray
+        a 1-dimensional array of weights, should be same size as one dimension of `fld`
+    verbose : bool, optional
+        prints information when `True`
+
+    Returns
+    -------
+    weighted average of `fld`
+    """
+
+    s = fld.shape
+    for i in range(len(s)):
+        if np.size(fld, i) == len(wgt):
+            a = i
+            break
+    fld2 = np.ma.masked_invalid(fld)
+    if verbose:
+        print("(global_average)-- fraction of mask that is True: {}".format(np.count_nonzero(fld2.mask) / np.size(fld2)))
+        print("(global_average)-- apply ma.average along axis = {} // validate: {}".format(a, fld2.shape))
+    avg1, sofw = np.ma.average(fld2, axis=a, weights=wgt, returned=True) # sofw is sum of weights
+
+    return np.ma.average(avg1)
+
+
+def spatial_average(indata, weights=None, spatial_dims=None):
+    """Compute spatial average.
+
+    Parameters
+    ----------
+    indata : xr.DataArray
+        input data
+    weights : np.ndarray or xr.DataArray, optional
+        the weights to apply, see Notes for default behavior
+    spatial_dims : list, optional
+        list of dimensions to average, see Notes for default behavior
+
+    Returns
+    -------
+    xr.DataArray
+        weighted average of `indata`
+
+    Notes
+    -----
+    When `weights` is not provided, tries to find sensible values.
+    If there is a 'lat' dimension, use `cos(lat)`.
+    If there is a 'ncol' dimension, looks for `area` in `indata`.
+    Otherwise, set to equal weights.
+
+    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
+    Will average over `ncol` if present, and then will check for `lat` and `lon`.
+    When none of those three are found, raise an AdfError.
+    """
+    import warnings
+
+    if weights is None:
+        #Calculate spatial weights:
+        if 'lat' in indata.coords:
+            weights = np.cos(np.deg2rad(indata.lat))
+            weights.name = "weights"
+        elif 'ncol' in indata.dims:
+            if 'area' in indata:
+                warnings.warn("area variable being used to generated normalized weights.")
+                weights = indata['area'] / indata['area'].sum()
+            else:
+                warnings.warn("\t  We need a way to get area variable. Using equal weights.")
+                weights = xr.DataArray(1.)
+            weights.name = "weights"
+        else:
+            weights = xr.DataArray(1.)
+            weights.name = "weights"
+            warnings.warn("Un-recognized spatial dimensions: using equal weights for all grid points.")
+        #End if
+    #End if
+
+    #Apply weights to input data:
+    weighted = indata.weighted(weights)
+
+    # we want to average over all non-time dimensions
+    if spatial_dims is None:
+        if 'ncol' in indata.dims:
+            spatial_dims = ['ncol']
+        else:
+            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or ('lon' in dimname.lower()))]
+
+    if not spatial_dims:
+        #Scripts using this function likely expect the horizontal dimensions
+        #to be removed via the application of the mean. So in order to avoid
+        #possibly unexpected behavior due to arrays being incorrectly dimensioned
+        #(which could be difficult to debug) the ADF should die here:
+        emsg = "spatial_average: No spatial dimensions were identified,"
+        emsg += " so can not perform average."
+        raise AdfError(emsg)
+
+    return weighted.mean(dim=spatial_dims, keep_attrs=True)
+
+
+def wgt_rmse(fld1, fld2, wgt):
+    """Calculate the area-weighted RMSE.
+
+    Parameters
+    ----------
+    fld1, fld2 : array-like
+        2-dimensional spatial fields with the same shape.
+        They can be xarray DataArray or numpy arrays.
+    wgt : array-like
+        the weight vector, expected to be 1-dimensional,
+        matching length of one dimension of the data.
+
+    Returns
+    -------
+    float
+        root mean squared error
+
+    Notes:
+    ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
+    """
+    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
+    assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
+    # in case these fields are in dask arrays, compute them now.
+    if hasattr(fld1, "compute"):
+        fld1 = fld1.compute()
+    if hasattr(fld2, "compute"):
+        fld2 = fld2.compute()
+    if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
+        return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
+    else:
+        check = [len(wgt) == s for s in fld1.shape]
+        if ~np.any(check):
+            raise IOError(f"Sorry, weight array has shape {wgt.shape} which is not compatible with data of shape {fld1.shape}")
+        check = [len(wgt) != s for s in fld1.shape]
+        dimsize = fld1.shape[np.argwhere(check).item()]  # want to get the dimension length for the dim that does not match the size of wgt
+        warray = np.tile(wgt, (dimsize, 1)).transpose()   # May need more logic to ensure shape is correct.
+        warray = warray / np.sum(warray) # normalize
+        wmse = np.sum(warray * (fld1 - fld2)**2)
+        return np.sqrt( wmse ).item()
+
+
+#######
+# Time-weighted averaging
+
+def annual_mean(data, whole_years=False, time_name='time'):
+    """Calculate annual averages from monthly time series data.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        monthly data values with temporal dimension
+    whole_years : bool, optional
+        whether to restrict endpoints of the average to
+        start at first January and end at last December
+    time_name : str, optional
+        name of the time dimension, defaults to `time`
+
+    Returns
+    -------
+    result : xr.DataArray or xr.Dataset
+        `data` reduced to annual averages
+
+    Notes
+    -----
+    This function assumes monthly data, and weights the average by the
+    number of days in each month.
+
+    `result` includes an attribute that reports the date range used for the average.
+    """
+    assert time_name in data.coords, f"Did not find the expected time coordinate '{time_name}' in the data"
+    if whole_years:
+        first_january = np.argwhere((data.time.dt.month == 1).values)[0].item()
+        last_december = np.argwhere((data.time.dt.month == 12).values)[-1].item()
+        data_to_avg = data.isel(time=slice(first_january,last_december+1)) # PLUS 1 BECAUSE SLICE DOES NOT INCLUDE END POINT
+    else:
+        data_to_avg = data
+    date_range_string = f"{data_to_avg['time'][0]} -- {data_to_avg['time'][-1]}"
+
+    # this provides the normalized monthly weights in each year
+    # -- do it for each year to allow for non-standard calendars (360-day)
+    # -- and also to provision for data with leap years
+    days_gb = data_to_avg.time.dt.daysinmonth.groupby('time.year').map(lambda x: x / x.sum())
+    # weighted average with normalized weights: <x> = SUM x_i * w_i  (implied division by SUM w_i)
+    result =  (data_to_avg * days_gb).groupby('time.year').sum(dim='time')
+    result.attrs['averaging_period'] = date_range_string
+    result.attrs['units'] = data.attrs.get("units",None)
+    return result
+
+
+def seasonal_mean(data, season=None, is_climo=None):
+    """Calculates the time-weighted seasonal average (or average over all time).
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+        data to be averaged
+    season : str, optional
+        the season to extract from `data`
+        If season is `ANN` or None, average all available time.
+    is_climo : bool, optional
+        If True, expects data to have time or month dimenion of size 12.
+        If False, then 'time' must be a coordinate,
+        and the `time.dt.days_in_month` attribute must be available.
+
+    Returns
+    -------
+    xarray.DataArray or xarray.Dataset
+        the average of `data` in season `season`
+
+    Notes
+    -----
+    If the data is a climatology, the code will make an attempt to understand the time or month
+    dimension, but will assume that it is ordered from January to December.
+    If the data is a climatology and is just a numpy array with one dimension that is size 12,
+    it will assume that dimension is time running from January to December.
+    """
+    if season is not None:
+        assert season in ["ANN", "DJF", "JJA", "MAM", "SON"], f"Unrecognized season string provided: '{season}'"
+    elif season is None:
+        season = "ANN"
+
+    try:
+        month_length = data.time.dt.days_in_month
+    except (AttributeError, TypeError):
+        # do our best to determine the temporal dimension and assign weights
+        if not is_climo:
+            raise ValueError("Non-climo file provided, but without a decoded time dimension.")
+        else:
+            # CLIMO file: try to determine which dimension is month
+            has_time = False
+            if isinstance(data, xr.DataArray):
+                has_time = 'time' in data.dims
+                if not has_time:
+                    if "month" in data.dims:
+                        data = data.rename({"month":"time"})
+                        has_time = True
+            if not has_time:
+                # this might happen if a pure numpy array gets passed in
+                # --> assumes ordered January to December.
+                assert ((12 in data.shape) and (data.shape.count(12) == 1)), f"Sorry, {data.shape.count(12)} dimensions have size 12, making determination of which dimension is month ambiguous. Please provide a `time` or `month` dimension."
+                time_dim_num = data.shape.index(12)
+                fakedims = [f"dim{n}" for n in range(len(data.shape))]
+                data = xr.DataArray(data, dims=fakedims, attrs=data.attrs)
+            timefix = pd.date_range(start='1/1/1999', end='12/1/1999', freq='MS') # generic time coordinate from a non-leap-year
+            data = data.assign_coords({"time":timefix})
+        month_length = data.time.dt.days_in_month
+    #End try/except
+
+    data = data.sel(time=data.time.dt.month.isin(seasons[season])) # directly take the months we want based on season kwarg
+    return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
+
+
+
+#######
+
+#Polar Plot functions
+
+def domain_stats(data, domain):
+    """Provides statistics in specified region.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        data values
+    domain : list or tuple or numpy.ndarray
+        the domain specification as:
+        [west_longitude, east_longitude, south_latitude, north_latitude]
+
+    Returns
+    -------
+    x_region_mean : float
+        the regional area-weighted average
+    x_region_max : float
+        the maximum value in the region
+    x_region_min : float
+        the minimum value in the region
+
+    Notes
+    -----
+    Currently assumes 'lat' is a dimension and uses `cos(lat)` as weight.
+    Should use `spatial_average`
+
+    See Also
+    --------
+    spatial_average
+
+    """
+    x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
+    x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region['lat']))).mean().item()
+    x_region_min = x_region.min().item()
+    x_region_max = x_region.max().item()
+    return x_region_mean, x_region_max, x_region_min
 
 def make_polar_plot(wks, case_nickname, 
                     base_nickname,
@@ -189,11 +651,17 @@ def make_polar_plot(wks, case_nickname,
 
     if 'contour_levels' in kwargs:
         levels1 = kwargs['contour_levels']
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+        if 'log_normal' in kwargs:
+            norm1 = mpl.colors.LogNorm(vmin=min(levels1), vmax=max(levels1))  ##ADA
+        else:
+            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     elif 'contour_levels_range' in kwargs:
         assert len(kwargs['contour_levels_range']) == 3, "contour_levels_range must have exactly three entries: min, max, step"
         levels1 = np.arange(*kwargs['contour_levels_range'])
-        norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+        if 'log_normal' in kwargs:
+            norm1 = mpl.colors.LogNorm(vmin=min(levels1), vmax=max(levels1))  ## ADA
+        else:
+            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
         levels1 = np.linspace(minval, maxval, 12)
         norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
@@ -302,16 +770,16 @@ def make_polar_plot(wks, case_nickname,
     st.set_y(0.95)
 
     #Set plot titles
-    case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+    case_title = r"$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     ax1.set_title(case_title, loc='left', fontsize=6) #fontsize=tiFontSize
 
     if obs:
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
-        base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
+        base_title = r"$\mathbf{Baseline}:$"+obs_title+"\n"+r"$\mathbf{Variable}:$"+f"{obs_var}"
         ax2.set_title(base_title, loc='left', fontsize=6) #fontsize=tiFontSize
     else:
-        base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        base_title = r"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         ax2.set_title(base_title, loc='left', fontsize=6)
 
     ax1.text(-0.2, -0.10, f"Mean: {d1_region_mean:5.2f}\nMax: {d1_region_max:5.2f}\nMin: {d1_region_min:5.2f}", transform=ax1.transAxes)
@@ -322,7 +790,7 @@ def make_polar_plot(wks, case_nickname,
     ax3.set_title("Test % diff Baseline", loc='left', fontsize=8)
 
     ax4.text(-0.2, -0.10, f"Mean: {dif_region_mean:5.2f}\nMax: {dif_region_max:5.2f}\nMin: {dif_region_min:5.2f}", transform=ax4.transAxes)
-    ax4.set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
+    ax4.set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=8)
 
     if "units" in kwargs:
         ax2.set_ylabel(kwargs["units"])
@@ -549,16 +1017,16 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     st.set_y(0.85)
 
     #Set plot titles
-    case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+    case_title = r"$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
 
     if obs:
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
-        base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
+        base_title = r"$\mathbf{Baseline}:$"+obs_title+"\n"+r"$\mathbf{Variable}:$"+f"{obs_var}"
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
     else:
-        base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        base_title = r"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
 
     #Set stats: area_avg
@@ -571,7 +1039,7 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
 
     # set rmse title:
     ax[-1].set_title(f"RMSE: ", fontsize=tiFontSize)
-    ax[-1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
+    ax[-1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
 
     if "units" in kwargs:
         ax[1].set_ylabel(f"[{kwargs['units']}]")
@@ -746,6 +1214,19 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
                                         dateline_direction_label=False)
     lat_formatter = LatitudeFormatter(number_format='0.0f',
                                         degree_symbol='')
+    
+    ## Just adding this to allow for LogNormal plotting:
+    if 'contour_levels' in kwargs:
+        levels1 = kwargs['contour_levels']
+        if 'log_normal' in kwargs:
+            norm1 = mpl.colors.LogNorm(vmin=min(levels1), vmax=max(levels1))  ##ADA
+            cp_info['norm1'] = norm1
+    elif 'contour_levels_range' in kwargs:
+        assert len(kwargs['contour_levels_range']) == 3, "contour_levels_range must have exactly three entries: min, max, step"
+        levels1 = np.arange(*kwargs['contour_levels_range'])
+        if 'log_normal' in kwargs:
+            norm1 = mpl.colors.LogNorm(vmin=min(levels1), vmax=max(levels1))  ## ADA
+            cp_info['norm1'] = norm1
 
     for i, a in enumerate(wrap_fields):
 
@@ -767,7 +1248,8 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
             img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
-            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))
+            img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), 
+                                      transform_first=True,  extend = "both", **cp_info['contourf_opt']))
         #End if
         ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
 
@@ -782,16 +1264,16 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     st.set_y(0.85)
 
     #Set plot titles
-    case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+    case_title = r"$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
 
     if obs:
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
-        base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
+        base_title = r"$\mathbf{Baseline}:$"+obs_title+"\n"+r"$\mathbf{Variable}:$"+f"{obs_var}"
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
     else:
-        base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        base_title = r"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
 
     #Set stats: area_avg
@@ -806,7 +1288,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
 
     # set rmse title:
     ax[3].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
-    ax[3].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
+    ax[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
     ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
 
     for a in ax:
@@ -981,14 +1463,14 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
     #End if
 
     #Set plot titles
-    case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+    case_title = r"$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
     if obs:
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
-        base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
+        base_title = r"$\mathbf{Baseline}:$"+obs_title+"\n"+r"$\mathbf{Variable}:$"+f"{obs_var}"
     else:
-        base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        base_title = r"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
     if has_lev:
 
         # calculate zonal average:
@@ -1042,7 +1524,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
-        ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
+        ax[2].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
         ax[3].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
 
 
@@ -1057,7 +1539,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
 
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
     else:
-        line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
+        line = Line2D([0], [0], label=r"$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
 
         line2 = Line2D([0], [0], label=base_title,
@@ -1087,7 +1569,7 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                    borderaxespad=0.0,fontsize=6,frameon=False)
 
         zonal_plot(adata['lat'], diff, ax=ax[1], color="k")
-        ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=10)
+        ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=10)
         
         zonal_plot(adata['lat'], pct, ax=ax[2], color="k")
         ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=10,fontweight="bold")
@@ -1231,14 +1713,14 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
     xdim = 'lon' # the name used for the x-axis dimension
     pltfunc = meridional_plot  # the plotting function ... maybe we can generalize to get zonal/meridional into one function (?)
 
-    case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
+    case_title = r"$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
     if obs:
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
-        base_title = "$\mathbf{Baseline}:$"+obs_title+"\n"+"$\mathbf{Variable}:$"+f"{obs_var}"
+        base_title = r"$\mathbf{Baseline}:$"+obs_title+"\n"+r"$\mathbf{Variable}:$"+f"{obs_var}"
     else:
-        base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
+        base_title = r"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
 
     if has_lev:
         # generate dictionary of contour plot settings:
@@ -1279,7 +1761,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         #Set plot titles
         ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
-        ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
+        ax[2].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
         ax[3].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize, fontweight = "bold")
 
         # style the plot:
@@ -1292,7 +1774,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         fig.text(-0.03, 0.5, 'PRESSURE [hPa]', va='center', rotation='vertical')
 
     else:
-        line = Line2D([0], [0], label="$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
+        line = Line2D([0], [0], label=r"$\mathbf{Test}:$"+f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
                         color="#1f77b4") # #1f77b4 -> matplotlib standard blue
 
         line2 = Line2D([0], [0], label=base_title,
@@ -1308,7 +1790,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
         pltfunc(adata[xdim], diff, ax=ax[1], color="k")
         pltfunc(adata[xdim], pct, ax=ax[2], color="k")
 
-        ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=10)
+        ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=10)
         ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=10, fontweight = "bold")
 
         #Set Main title for subplots:
