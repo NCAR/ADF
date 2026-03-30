@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NCAR Image Comparison Dashboard</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      margin: 0;
+      background: #f4f7fb;
+    }
+
+    /* ================= HEADER ================= */
+    .header {
+      background: #003865;
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h2 { margin: 0; font-weight: 500; }
+    .logo { height: 40px; }
+
+    /* ================= CONTENT ================= */
+    .container { padding: 20px; }
+    .controls { margin-bottom: 15px; }
+
+    input { padding: 6px; margin: 5px; }
+    .url-input { width: 280px; }
+    .label-input { width: 150px; }
+    .image-input { width: 220px; }
+
+    button {
+      padding: 6px 10px;
+      margin: 5px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+    }
+
+    .primary-btn { background: #0076a8; color: white; }
+    .primary-btn:hover { background: #005f87; }
+
+    /* ================= CASE ROW ================= */
+    .case-row { margin-bottom: 6px; }
+    .toggle-btn { color: white; }
+    .visible { background: #2ca02c; }
+    .hidden { background: #888; }
+
+    /* ================= IMAGE HEADER ================= */
+    .image-header {
+      display: flex;
+      justify-content: flex-start; 
+      align-items: center;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      gap: 8px; 
+    }
+    .image-header button {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ================= GRID ================= */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);  
+      gap: 24px;   
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: white;
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .cell:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.2);
+    }
+
+    .label {
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: bold;
+      margin-bottom: 2px;
+      cursor: help;
+      text-align: center;
+    }
+
+    .img-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+      cursor: pointer;
+    }
+
+    /* ================= MODAL ================= */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      padding-top: 40px;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.9);
+    }
+    .modal img {
+      display: block;
+      margin: auto;
+      max-width: 90%;
+      max-height: 90%;
+    }
+    .close {
+      position: absolute;
+      top: 15px;
+      right: 30px;
+      font-size: 30px;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h2>Image Comparison Dashboard</h2>
+  <img class="logo" src="https://www.ucar.edu/sites/default/files/2021-03/ncar-logo-blue.svg">
+</div>
+
+<div class="container">
+
+<div id="cases"></div>
+
+<button class="primary-btn" onclick="addCase()">+ Add Case</button>
+
+<br><br>
+
+<div class="controls">
+  <input id="imageName" class="image-input"
+         placeholder="Image name (e.g. plot.png)"
+         oninput="handleImageInput()" />
+</div>
+
+<button class="primary-btn" onclick="addImage()">+ Add Image</button>
+<button class="primary-btn" onclick="compareImages()">Compare</button>
+<hr>
+
+<div id="output"></div>
+
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal" onclick="this.style.display='none'">
+  <span class="close">&times;</span>
+  <img id="modalImg">
+</div>
+
+<script>
+let cases = [];
+let imageFiles = [];
+let debounceTimer;
+
+/* ================= INIT ================= */
+function init() {
+  let c = JSON.parse(localStorage.getItem("cases") || "[]");
+  let imgs = JSON.parse(localStorage.getItem("images") || "[]");
+  let base = localStorage.getItem("baseImage") || "";
+
+  cases = c.length ? c : [{url:'', label:''}, {url:'', label:''}];
+
+  imageFiles = imgs.map(img =>
+    typeof img === "string" ? { name: img, hidden: false } : img
+  );
+
+  document.getElementById("imageName").value = base;
+
+  renderCases();
+  compareImages();
+}
+
+/* ================= INPUT ================= */
+function handleImageInput() {
+  // Just debounce compareImages without adding new image every keystroke
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(compareImages, 200);
+}
+
+function updateCase(i, field, value) {
+  if (!cases[i]) return;
+  cases[i][field] = value;
+  saveState();
+  if (field === "label") updateLabelsOnly(i);
+  else {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(compareImages, 200);
+  }
+}
+
+/* ================= PARTIAL LABEL UPDATE ================= */
+function updateLabelsOnly(caseIndex) {
+  let label = cases[caseIndex].label || getAutoLabel(cases[caseIndex].url);
+  document.querySelectorAll(`[data-case="${caseIndex}"] .label`).forEach(el => el.textContent = label);
+}
+
+/* ================= CASE MANAGEMENT ================= */
+function addCase(url = '', label = '') {
+  cases.push({url, label, hidden: false});
+  saveState();
+  renderCases();
+  compareImages();
+}
+function deleteCase(index) {
+  cases.splice(index, 1);
+  saveState();
+  renderCases();
+  compareImages();
+}
+function toggleCase(index) {
+  cases[index].hidden = !cases[index].hidden;
+  saveState();
+  renderCases();
+  compareImages();
+}
+function renderCases() {
+  let div = document.getElementById("cases");
+  div.innerHTML = "";
+  cases.forEach((c, i) => {
+    let stateClass = c.hidden ? "hidden" : "visible";
+    let stateText  = c.hidden ? "Show" : "Hide";
+    div.innerHTML += `
+      <div class="case-row">
+        <input class="url-input" value="${c.url}" placeholder="Assets URL" oninput="updateCase(${i}, 'url', this.value)">
+        <input class="label-input" value="${c.label}" placeholder="Optional label" oninput="updateCase(${i}, 'label', this.value)">
+        <button class="toggle-btn ${stateClass}" onclick="toggleCase(${i})">${stateText}</button>
+        <button onclick="deleteCase(${i})">Delete</button>
+      </div>
+    `;
+  });
+}
+
+/* ================= IMAGE MANAGEMENT ================= */
+function addImage() {
+  let name = document.getElementById("imageName").value.trim();
+  if (name && !imageFiles.some(img => img.name === name)) {
+    imageFiles.push({ name, hidden: false });
+  }
+  saveState();
+  compareImages();
+}
+
+function toggleImage(i) {
+  imageFiles[i].hidden = !imageFiles[i].hidden;
+  saveState();
+  updateImageVisibility(i);
+}
+
+function updateImageVisibility(i) {
+  let output = document.getElementById("output");
+  let headers = output.querySelectorAll(".image-header");
+  let grids = output.querySelectorAll(".grid");
+
+  if (headers[i] && grids[i]) {
+    grids[i].style.display = imageFiles[i].hidden ? "none" : "grid";
+
+    let toggleBtn = headers[i].querySelector(".toggle-btn");
+    toggleBtn.textContent = imageFiles[i].hidden ? "Show" : "Hide";
+    toggleBtn.className = imageFiles[i].hidden ? "toggle-btn hidden" : "toggle-btn visible";
+  }
+}
+
+function deleteImage(i) {
+  imageFiles.splice(i, 1);
+  saveState();
+  compareImages();
+}
+
+/* ================= LABEL HELPER ================= */
+function getAutoLabel(url) {
+  try {
+    let parts = url.split('/').filter(p => p);
+    let idx = parts.indexOf('assets');
+    if (idx > 0) return parts[idx - 1];
+  } catch {}
+  return "Case";
+}
+
+/* ================= MAIN RENDER ================= */
+function compareImages() {
+  let output = document.getElementById("output");
+  output.innerHTML = "";
+
+  if (imageFiles.length === 0) return;
+
+  imageFiles.forEach((imgObj, imgIdx) => {
+    let imgName = imgObj.name;
+
+    // ===== IMAGE HEADER =====
+    let header = document.createElement("div");
+    header.className = "image-header";
+
+    let span = document.createElement("span");
+    span.textContent = "Image: " + imgName;
+
+    let toggleBtn = document.createElement("button");
+    toggleBtn.className = imgObj.hidden ? "toggle-btn hidden" : "toggle-btn visible";
+    toggleBtn.textContent = imgObj.hidden ? "Show" : "Hide";
+    toggleBtn.onclick = () => toggleImage(imgIdx);
+
+    let deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑 Delete";
+    deleteBtn.onclick = () => deleteImage(imgIdx);
+
+    header.appendChild(span);
+    header.appendChild(toggleBtn);
+    header.appendChild(deleteBtn);
+    output.appendChild(header);
+
+    // ===== IMAGE GRID =====
+    let grid = document.createElement("div");
+    grid.className = "grid";
+
+    cases.forEach((c, caseIdx) => {
+      if (!c.url || c.hidden) return;
+
+      let label = c.label || getAutoLabel(c.url);
+      let fullURL = c.url + imgName;
+
+      let cell = document.createElement("div");
+      cell.className = "cell";
+      cell.setAttribute("data-case", caseIdx);
+
+      let labelDiv = document.createElement("div");
+      labelDiv.className = "label";
+      labelDiv.textContent = label;
+      labelDiv.title = c.url;
+
+      let imgContainer = document.createElement("div");
+      imgContainer.className = "img-container";
+
+      let img = document.createElement("img");
+      img.src = fullURL;
+      img.onclick = () => openModal(fullURL);
+
+      imgContainer.appendChild(img);
+      cell.appendChild(labelDiv);
+      cell.appendChild(imgContainer);
+      grid.appendChild(cell);
+    });
+
+    grid.style.display = imgObj.hidden ? "none" : "grid";
+    output.appendChild(grid);
+  });
+}
+
+
+/* ================= MODAL ================= */
+function openModal(src) {
+  let modal = document.getElementById("modal");
+  let modalImg = document.getElementById("modalImg");
+  modal.style.display = "block";
+  modalImg.src = src;
+}
+
+/* ================= CACHE ================= */
+function saveState() {
+  localStorage.setItem("cases", JSON.stringify(cases));
+  localStorage.setItem("images", JSON.stringify(imageFiles));
+  localStorage.setItem("baseImage", document.getElementById("imageName").value);
+}
+
+/* ================= START ================= */
+init();
+</script>
+
+</body>
+</html>

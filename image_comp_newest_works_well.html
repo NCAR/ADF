@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Multi-Case Image Comparison</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      margin: 20px;
+    }
+
+    .controls {
+      margin-bottom: 15px;
+    }
+
+    input {
+      padding: 6px;
+      margin: 5px;
+    }
+
+    .url-input { width: 300px; }
+    .label-input { width: 160px; }
+    .image-input { width: 220px; }
+
+    button {
+      padding: 6px 10px;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    .case-row {
+      margin-bottom: 5px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px; /* 🔧 reduced from 20px */
+    }
+
+    .cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      background: white;
+      border-radius: 12px;
+      padding: 10px 10px 12px 10px;
+
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .cell:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+
+    body {
+      background: #f5f6fa;
+    }
+
+    .grid {
+      gap: 16px;
+    }
+
+    .label {
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: bold;
+      margin-bottom: 2px; /* 🔧 tighter spacing */
+      cursor: help;
+      text-align: center;
+    }
+
+    .img-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start; /* 🔧 key fix */
+    }
+
+    img {
+      max-width: 100%;
+      height: auto; /* 🔧 ensures natural height */
+      object-fit: contain;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    img:hover {
+      transform: scale(1.03);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      padding-top: 40px;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.9);
+    }
+
+    .modal img {
+      display: block;
+      margin: auto;
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+    .close {
+      position: absolute;
+      top: 15px;
+      right: 30px;
+      font-size: 30px;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Image Comparison Tool</h2>
+
+<div id="cases"></div>
+
+<button onclick="addCase()">+ Add Case</button>
+<br><br>
+
+<div class="controls">
+  <input id="imageName" class="image-input"
+         placeholder="Image name (e.g. plot.png)"
+         oninput="saveState()" />
+</div>
+
+<button onclick="addImage()">+ Add Image</button>
+<button onclick="compareImages()">Compare</button>
+
+<hr>
+
+<div id="output"></div>
+
+<!-- Modal -->
+<div id="modal" class="modal" onclick="this.style.display='none'">
+  <span class="close">&times;</span>
+  <img id="modalImg">
+</div>
+
+<script>
+let cases = [];
+let imageFiles = [];
+
+/* =========================
+   CASE MANAGEMENT
+========================= */
+
+function addCase(url = '', label = '') {
+  cases.push({url, label, hidden: false});
+  saveState();
+  renderCases();
+}
+
+function deleteCase(index) {
+  cases.splice(index, 1);
+  saveState();
+  renderCases();
+  compareImages();
+}
+
+function toggleCase(index) {
+  cases[index].hidden = !cases[index].hidden;
+  saveState();
+  compareImages();
+}
+
+function renderCases() {
+  let div = document.getElementById("cases");
+  div.innerHTML = "";
+
+  cases.forEach((c, i) => {
+    div.innerHTML += `
+      <div class="case-row">
+        <input class="url-input" value="${c.url}"
+               placeholder="Assets URL"
+               oninput="updateCase(${i}, 'url', this.value)">
+        <input class="label-input" value="${c.label}"
+               placeholder="Optional label"
+               oninput="updateCase(${i}, 'label', this.value)">
+        <button onclick="toggleCase(${i})">
+          ${c.hidden ? 'Show' : 'Hide'}
+        </button>
+        <button onclick="deleteCase(${i})">Delete</button>
+      </div>
+    `;
+  });
+}
+
+function updateCase(i, field, value) {
+  cases[i][field] = value;
+  saveState();
+}
+
+/* =========================
+   IMAGE MANAGEMENT
+========================= */
+
+function addImage() {
+  let name = document.getElementById("imageName").value.trim();
+  if (name && !imageFiles.includes(name)) {
+    imageFiles.push(name);
+  }
+  saveState();
+  compareImages();
+}
+
+/* =========================
+   LABEL HELPER
+========================= */
+
+function getAutoLabel(url) {
+  try {
+    let parts = url.split('/').filter(p => p);
+    let idx = parts.indexOf('assets');
+    if (idx > 0) return parts[idx - 1];
+  } catch {}
+  return "Case";
+}
+
+/* =========================
+   MAIN RENDER
+========================= */
+
+function compareImages() {
+  let output = document.getElementById("output");
+  output.innerHTML = "";
+
+  let baseImage = document.getElementById("imageName").value.trim();
+
+  if (baseImage && !imageFiles.includes(baseImage)) {
+    imageFiles.unshift(baseImage);
+  }
+
+  if (imageFiles.length === 0) return;
+
+  imageFiles.forEach((imgName, imgIndex) => {
+    let grid = document.createElement("div");
+    grid.className = "grid";
+
+    cases.forEach((c, i) => {
+      if (!c.url || c.hidden) return;
+
+      let label = c.label || getAutoLabel(c.url);
+      let fullURL = c.url + imgName;
+
+      let cell = document.createElement("div");
+      cell.className = "cell";
+
+      let labelDiv = document.createElement("div");
+      labelDiv.className = "label";
+      labelDiv.textContent = label;
+      labelDiv.title = c.url;
+
+      let imgContainer = document.createElement("div");
+      imgContainer.className = "img-container";
+
+      let img = document.createElement("img");
+      img.src = fullURL;
+      img.onclick = () => openModal(fullURL);
+
+      imgContainer.appendChild(img);
+      cell.appendChild(labelDiv);
+      cell.appendChild(imgContainer);
+      grid.appendChild(cell);
+    });
+
+    output.appendChild(document.createElement("hr"));
+    output.appendChild(document.createTextNode(imgName));
+    output.appendChild(grid);
+  });
+}
+
+/* =========================
+   MODAL
+========================= */
+
+function openModal(src) {
+  let modal = document.getElementById("modal");
+  let modalImg = document.getElementById("modalImg");
+  modal.style.display = "block";
+  modalImg.src = src;
+}
+
+/* =========================
+   CACHE
+========================= */
+
+function saveState() {
+  localStorage.setItem("cases", JSON.stringify(cases));
+  localStorage.setItem("images", JSON.stringify(imageFiles));
+  localStorage.setItem("baseImage", document.getElementById("imageName").value);
+}
+
+function loadState() {
+  let c = JSON.parse(localStorage.getItem("cases") || "[]");
+  let imgs = JSON.parse(localStorage.getItem("images") || "[]");
+  let base = localStorage.getItem("baseImage") || "";
+
+  cases = c.length ? c : [{url:'', label:''}, {url:'', label:''}];
+  imageFiles = imgs;
+  document.getElementById("imageName").value = base;
+
+  renderCases();
+}
+
+loadState();
+</script>
+
+</body>
+</html>
