@@ -356,6 +356,11 @@ def seasonal_mean(data, season=None, is_climo=None):
     elif season is None:
         season = "ANN"
 
+    unstruct = False
+    if hasattr(data, "uxgrid") and data.uxgrid is not None:
+        unstruct = True
+        uxgrid=data.uxgrid
+
     try:
         month_length = data.time.dt.days_in_month
     except (AttributeError, TypeError):
@@ -385,8 +390,74 @@ def seasonal_mean(data, season=None, is_climo=None):
     #End try/except
 
     data = data.sel(time=data.time.dt.month.isin(seasons[season])) # directly take the months we want based on season kwarg
-    return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
+    weighted_mean = data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
 
+    # Only wrap if the input had uxgrid
+    if unstruct:
+        weighted_mean = ux.UxDataArray(
+            weighted_mean,
+            uxgrid=uxgrid,
+            attrs=weighted_mean.attrs
+        )
+    return weighted_mean #data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
+
+import numpy as np
+
+def array_diff(a, b, percent=False, fill_nan=None):
+    """
+    Compute difference or percent difference between two data arrays
+    
+    Both unstructured UxDataArrays while preserving uxgrid and structure and xarray DataArrays
+
+    Parameters
+    ----------
+    a, b : UxDataArray/DataArray
+        Input arrays (must have same shape/grid)
+    percent : bool, optional
+        If True, compute percent difference
+    fill_nan : float or None
+        If set, replace NaNs with this value
+
+    Returns
+    -------
+    UxDataArray
+        Result with same uxgrid as input
+    or
+    DataArray
+    """
+
+    # --- sanity checks ---
+    if a.shape != b.shape:
+        raise ValueError("Input arrays must have same shape")
+
+    if hasattr(a, "uxgrid") and a.uxgrid is None:
+        raise ValueError("Input appears to be on an unstructured grid but is missing the uxgrid coordinate")
+
+    # --- compute values ---
+    if percent:
+        if hasattr(a, "uxgrid"):
+            with np.errstate(divide='ignore', invalid='ignore'):
+                vals = (a.values - b.values) / np.abs(b.values) * 100.0
+        else:
+            vals = (a.values - b.values) / np.abs(b.values) * 100.0
+    else:
+        vals = a.values - b.values
+
+    # --- handle NaNs ---
+    if fill_nan is not None:
+        vals = np.where(np.isfinite(vals), vals, fill_nan)
+
+    # --- copy structure ---
+    out = a.copy(deep=True)
+    out.values = vals
+
+    # --- optional: update attrs ---
+    if percent:
+        out.attrs = dict(a.attrs)
+        out.attrs["long_name"] = f"Percent difference ({a.name})"
+        out.attrs["units"] = "%"
+
+    return out
 
 
 #######
@@ -869,100 +940,6 @@ def add_area(ds):
     })
 
     return ds
-
-
-# =========================
-# Main driver
-# =========================
-
-def grid_timeseries(adfobj, **kwargs):
-
-    ts_dir = Path(kwargs["ts_dir"])
-    method = kwargs["method"]
-    weight_file = kwargs["wgts_file"]
-    latlon_file = kwargs["latlon_file"]
-    comp = kwargs["comp"]
-    vars_list = kwargs["diag_var_list"]
-    case_name = kwargs["case_name"]
-    hist_str = kwargs["hist_str"]
-    time_string = kwargs["time_string"]
-    is_baseline = kwargs["is_baseline"]
-
-    out_dir = ts_dir / "gridded"
-    #out_dir.mkdir(parents=True, exist_ok=True)
-    # Check that path actually exists:
-    if not out_dir.is_dir():
-        print(f"    {out_dir} not found, making new directory")
-        out_dir.mkdir(parents=True)
-
-
-    #Check if any a weights file exists if using native grid, OPTIONAL
-    if not latlon_file:
-        raise AdfError("Missing lat/lon target grid file")
-    
-
-    for var in vars_list:
-
-        print(f"\n--- Regridding {var} ---")
-
-        ts_files = (
-            adfobj.data.get_ref_timeseries_file(var)
-            if is_baseline
-            else adfobj.data.get_timeseries_file(case_name, var)
-        )
-
-        if not ts_files:
-            print(f"Skipping {var}: no files")
-            continue
-
-        out_file = out_dir / f"{case_name}.{hist_str}.{var}.{time_string}_gridded.nc"
-
-        if out_file.exists():
-            print(f"Skipping {var}: already exists")
-            #if overwrite_ts[case_idx]:
-            if 2==1:
-                Path(out_file).unlink()
-            else:
-                #msg = f"[{__name__}] Warning: '{var}' file was found "
-                msg = f"\t    INFO: '{var}' gridded file was found "
-                msg += "and overwrite is False. Will use existing file."
-                print(msg)
-                continue
-            continue
-
-        ds = adfobj.data.load_timeseries_dataset(ts_files)
-        if ds is None:
-            print(f"    No time series data set for variable '{var}' in case '{case_name}', skipping gridding for this variable.")
-            continue
-        print("ds",ds.attrs,"\n\n")
-        src_grid_file = ds.attrs['initial_file']
-        ds = ensure_latlon(ds, src_grid_file)
-
-        regridder = build_regridder(
-            ds,
-            latlon_file,
-            method,
-            weights_file=weight_file
-        )
-
-        original_time = ds.time.values
-
-        # ---- REGRID ----
-        rg = regrid_variable(ds, var, regridder, comp)
-
-        # ---- POSTPROCESS ----
-        rg = rg.assign_coords(time=original_time)
-        rg.attrs = ds.attrs
-        rg.attrs["native_grid_to_latlon"] = f"xESMF ({method})"
-
-        rg = add_area(rg)
-
-        # ---- SAVE ----
-        save_to_nc(rg, out_file)
-
-        print(f"Saved: {out_file}")
-
-
 
 
 # Gridding Unstructured to Lat/Lon

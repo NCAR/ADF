@@ -889,30 +889,13 @@ class AdfDiag(AdfWeb):
                 # End with
 
 
-                print("self.unstructured_plotting",self.unstructured_plotting)
-                unstruct_plotting = self.unstructured_plotting
+            print("self.unstructured_plotting",self.unstructured_plotting)
+            unstruct_plotting = self.unstructured_plotting
 
+            #if utils.check_unstructured(ts_file_ds0, case_name, ts_dir) and not unstruct_plotting:
+            if self.native_grid[case_name] and not unstruct_plotting:
 
-                # TEMPORARY: do a quick check if this on native grid and regrid
-                """ts_0 = sorted(Path(ts_dir).glob("*.nc"))[0]
-                ts_file_ds0 = xr.open_dataset(ts_0)
-                #if not unstruct_plotting:
-                print("adf_diag case_name",case_name,"\n",utils.check_unstructured(ts_file_ds0, case_name))"""
-                '''
-                def native_grid(self):
-                    """Return the test case and baseline native grid dictionary to the user if requested."""
-
-                    #Note that copies are needed in order to avoid having a script mistakenly
-                    #modify these variables, as they are mutable and thus passed by reference:
-                    test_native_grid = self.__test_native_grid
-                    base_native_grid = self.__baseline_native_grid
-
-                    return {"test_native_grid":test_native_grid,"baseline_native_grid":base_native_grid}
-                '''
-                #if utils.check_unstructured(ts_file_ds0, case_name, ts_dir) and not unstruct_plotting:
-                if self.native_grid[case_name] and not unstruct_plotting:
-
-                    '''if utils.check_unstructured(ts_file_ds, case_name):
+                '''if utils.check_unstructured(ts_file_ds, case_name):
                         print()
                         latlon_file   = self.latlon_files[f"{case_type_string}_latlon_file"]
                         print("latlon_file",latlon_file,"\n")
@@ -933,75 +916,81 @@ class AdfDiag(AdfWeb):
                                 }
                         utils.grid_timeseries(self, **kwargs)
 
-                        #####'''
-                    tgridded_output_loc   = Path(ts_dir) / "gridded"
-                    if not tgridded_output_loc.is_dir():
-                            print(f"    {tgridded_output_loc} not found, making new directory")
-                            tgridded_output_loc.mkdir(parents=True)
+                    #####'''
+                tgridded_output_loc   = Path(ts_dir) / "gridded"
+                if not tgridded_output_loc.is_dir():
+                        print(f"    {tgridded_output_loc} not found, making new directory")
+                        tgridded_output_loc.mkdir(parents=True)
 
-                    for f in sorted(Path(ts_dir).glob("*.nc")):
-                        ts_outfil_str = f'{str(f).replace(".nc", "_gridded.nc")}'
-                        print(ts_outfil_str,"\n")
-                        # Check if clobber is true for file
-                        if (tgridded_output_loc / ts_outfil_str).is_file():
-                            msg = f"\t    INFO: '{var}' file was found "
-                            msg += "and overwrite is False. Will use existing file."
-                            print(msg)
-                            continue
+                for f in sorted(Path(ts_dir).glob("*.nc")):
+                    #print("native (hopefully) file",f)
+                    ts_outfil_str = Path(f'{str(f).replace(".nc", "_gridded.nc")}')
+                    ts_outfil_grid = ts_outfil_str.name
+                    tgridded_output = tgridded_output_loc / ts_outfil_grid
 
-                            if overwrite_ts[case_idx]:
-                                Path(ts_outfil_str).unlink()
-                            else:
-                                #msg = f"[{__name__}] Warning: '{var}' file was found "
-                                msg = f"\t    INFO: '{var}' file was found "
-                                msg += "and overwrite is False. Will use existing file."
-                                print(msg)
-                                continue
+                    # Check if clobber is true for file
+                    #if (tgridded_output_loc / ts_outfil_str).is_file() and not overwrite_ts[case_idx]:
+                    if Path(tgridded_output).is_file() and not overwrite_ts[case_idx]:
+                        msg = f"\t    INFO: gridded file was found "
+                        msg += "and overwrite is False. Will use existing gridded file."
+                        print(msg)
+                        continue
 
-                        ts_file_ds = xr.open_dataset(f)
-                        #var = fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
+                    #print("Gridded ts file",tgridded_output,"\n")
 
-                        var = str(f).split(f'{hist_str}.')[1].split('.')[0]
+                    """if overwrite_ts[case_idx]:
+                        Path(ts_outfil_str).unlink()
+                    else:
+                        #msg = f"[{__name__}] Warning: '{var}' file was found "
+                        msg = f"\t    INFO: gridded file was found "
+                        msg += "and overwrite is False. Will use existing gridded file."
+                        print(msg)
+                        continue"""
 
-                        #Check if any a FV file exists if using native grid
-                        if case_type_string == "baseline":
-                            latlon_file   = self.latlon_files["baseline_latlon_file"]
-                            wgts_file   = self.latlon_wgt_files["baseline_wgts_file"]
-                            method = self.latlon_regrid_method["baseline_regrid_method"]
-                        else:
-                            latlon_file   = self.latlon_files["test_latlon_file"][case_idx]
-                            wgts_file   = self.latlon_wgt_files["test_wgts_file"][case_idx]
-                            method = self.latlon_regrid_method["test_regrid_method"][case_idx]
-                        if not latlon_file:
-                            msg = "WARNING: This looks like an unstructured case, but missing lat/lon file"
-                            print(msg)
-                            latlon_file = None
-                            #raise AdfError(msg)
+                    ts_file_ds = xr.open_dataset(f)
+                    #var = fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
 
-                        #Check if any a weights file exists if using native grid
-                        if not wgts_file:
-                            msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
-                            print(msg)
-                            return
-                            #raise AdfError(msg)
+                    var = str(f).split(f'{hist_str}.')[1].split('.')[0]
 
-                        ds_attrs = ts_file_ds.attrs
+                    #Check if any a FV file exists if using native grid
+                    if case_type_string == "baseline":
+                        latlon_file   = self.latlon_files["baseline_latlon_file"]
+                        wgts_file   = self.latlon_wgt_files["baseline_wgts_file"]
+                        method = self.latlon_regrid_method["baseline_regrid_method"]
+                    else:
+                        latlon_file   = self.latlon_files["test_latlon_file"][case_idx]
+                        wgts_file   = self.latlon_wgt_files["test_wgts_file"][case_idx]
+                        method = self.latlon_regrid_method["test_regrid_method"][case_idx]
+                    if not latlon_file:
+                        msg = "WARNING: This looks like an unstructured case, but missing lat/lon file"
+                        print(msg)
+                        latlon_file = None
+                        #raise AdfError(msg)
 
-                        # Grid unstructured climo if applicable before regridding
-                        tgdata_interp = utils.grid_to_latlon(ts_file_ds, var,
+                    #Check if any a weights file exists if using native grid
+                    if not wgts_file:
+                        msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
+                        print(msg)
+                        return
+                        #raise AdfError(msg)
+
+                    ds_attrs = ts_file_ds.attrs
+
+                    # Grid unstructured climo if applicable before regridding
+                    tgdata_interp = utils.grid_to_latlon(ts_file_ds, var,
                                                     comp=comp,
                                                     wgt_file=wgts_file,
                                                     latlon_file=latlon_file,
                                                     method=method,
                                                     )
-                        tgdata_interp.attrs = ds_attrs
-                        if 'lev' in ts_file_ds:
-                            #tgdata_interp['lev'].attrs['long_name'] = ts_file_ds.lev.long_name
+                    tgdata_interp.attrs = ds_attrs
+                    if 'lev' in ts_file_ds:
+                        #tgdata_interp['lev'].attrs['long_name'] = ts_file_ds.lev.long_name
 
-                            tgdata_interp['hybm'] = ts_file_ds.hybm
-                            tgdata_interp['hyam'] = ts_file_ds.hyam
+                        tgdata_interp['hybm'] = ts_file_ds.hybm
+                        tgdata_interp['hyam'] = ts_file_ds.hyam
      
-                        save_to_nc(tgdata_interp, tgridded_output_loc / ts_outfil_str)
+                    save_to_nc(tgdata_interp, tgridded_output)
                     # End for
                 # End if check for native grid
             # End for hist_str

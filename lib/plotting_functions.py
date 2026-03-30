@@ -1505,17 +1505,15 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     else:
         wgt = kwargs["wgt"]
         indataset = kwargs["indataset"]
-        #print("Plotting functions mdlfld",mdlfld,"\n\n")
-        print("mdlfld.shape BEFORE RESET",mdlfld.shape)
+
         mdlfld_level = mdlfld.reset_coords(drop=True)
         obsfld_level = obsfld.reset_coords(drop=True)
         pctld_level = pctld.reset_coords(drop=True)
         diffld_level = diffld.reset_coords(drop=True)
         wrap_fields = (mdlfld_level, obsfld_level, pctld_level, diffld_level)
         #area_avg = [global_average(x, wgt) for x in wrap_fields]
-        print("mdlfld.shape AFTER RESET",mdlfld_level.shape)
+
         area_avg = [spatial_average(x, wgt,spatial_dims=None,unstruct=True) for x in wrap_fields]
-        print("area_avg[0] spatial_average",area_avg[0].shape)
         #print("area_avg",area_avg,"\n\n")
         
         #spatial_average(indata, weights=None, spatial_dims=None, unstruct=False, indataset=None)
@@ -1601,21 +1599,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
             #TODO, would be nice to have levels set from the info, above
             if 'projection' in kwargs:
                 kwargs.pop('projection')
-            """print("a",a)
-            print("TYPE:", type(a))
-            print("HAS UXGRID:", hasattr(a, "uxgrid"))
-            print("GRID:", getattr(a, "uxgrid", None))
-            print("DIMS:", a.dims,"\n")"""
-            """if i < 3:
-                #ac,_ = a.to_polycollection()#projection=proj
-                ac, _ = a.to_polycollection()
-                img.append(ac)
-                #ac.norm(norm)
-                ac.set_cmap(cmap)
-                ac.set_antialiased(False)
-                ac.set_transform(proj)
-                ac.set_clim(vmin=levels[0],vmax=levels[-1])
-                ax[i].add_collection(ac)"""
             
             ax[i].set_global()
             raster = a.to_raster(ax=ax[i])
@@ -1628,7 +1611,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
         # End if unstructured grid
 
         #ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
-        print("area_avg[i].shape, i",area_avg[i].shape, i)
         ax[i].set_title(f"Mean: {area_avg[i].item():5.2f}\nMax: {wrap_fields[i].max().item():5.2f}\nMin: {wrap_fields[i].min().item():5.2f}", 
                      loc='right', fontsize=tiFontSize)
         #ax[i].set_title(f"Mean: {0}\nMax: {wrap_fields[i].max().item():5.2f}\nMin: {wrap_fields[i].min().item():5.2f}", 

@@ -260,171 +260,24 @@ def get_plot_config(adfobj):
         'unstruct_plotting': unstructured
     }
 
-import uxarray as ux
-import numpy as np
-
-def prep_ux_for_plot(a, grid_source):
-    # collapse extra dims if needed
-    if 'time' in a.dims:
-        a = a.mean('time')
-    
-    # replace NaNs (very important for new uxarray)
-    a = a.where(np.isfinite(a), 0.0)  # or fillna(0)
-    
-    # force it to be a UxDataArray if it got converted to xarray
-    if not isinstance(a, ux.UxDataArray):
-        a = ux.UxDataArray(
-            data=a.data,
-            dims=a.dims,
-            coords=a.coords,
-            uxgrid=grid_source.uxgrid,
-        )
-    
-    return a
-
-import uxarray as ux
-
-def seasonal_mean_ux(data, season=None, is_climo=None):
-    result = utils.seasonal_mean(data, season=season, is_climo=is_climo)
-
-    # Only wrap if the input had uxgrid
-    if hasattr(data, "uxgrid") and data.uxgrid is not None:
-        result = ux.UxDataArray(
-            result,
-            uxgrid=data.uxgrid,
-            attrs=result.attrs
-        )
-
-    return result
-
-
-import numpy as np
-
-def ux_diff(a, b, percent=False, fill_nan=None):
-    """
-    Compute difference or percent difference between two UxDataArrays
-    while preserving uxgrid and structure.
-
-    Parameters
-    ----------
-    a, b : UxDataArray
-        Input arrays (must have same shape/grid)
-    percent : bool, optional
-        If True, compute percent difference
-    fill_nan : float or None
-        If set, replace NaNs with this value
-
-    Returns
-    -------
-    UxDataArray
-        Result with same uxgrid as input
-    """
-
-    # --- sanity checks ---
-    if a.shape != b.shape:
-        raise ValueError("Input arrays must have same shape")
-
-    if not hasattr(a, "uxgrid") or a.uxgrid is None:
-        raise ValueError("Input 'a' must have a uxgrid")
-
-    # --- compute values ---
-    if percent:
-        with np.errstate(divide='ignore', invalid='ignore'):
-            vals = (a.values - b.values) / np.abs(b.values) * 100.0
-    else:
-        vals = a.values - b.values
-
-    # --- handle NaNs ---
-    if fill_nan is not None:
-        vals = np.where(np.isfinite(vals), vals, fill_nan)
-
-    # --- copy structure ---
-    out = a.copy(deep=True)
-    out.values = vals
-
-    # --- optional: update attrs ---
-    if percent:
-        out.attrs = dict(a.attrs)
-        out.attrs["long_name"] = f"Percent difference ({a.name})"
-        out.attrs["units"] = "%"
-
-    return out
-
 
 def process_seasonal_data(mdata, odata, season, weight_season=True):
     """Helper function to calculate seasonal means and differences."""
-    import xarray as xr
-    if hasattr(mdata, "uxgrid"):
-        mseason = seasonal_mean_ux(mdata, season=season, is_climo=True)
-        oseason = seasonal_mean_ux(odata, season=season, is_climo=True)
 
+    if weight_season:
+        mseason = utils.seasonal_mean(mdata, season=season, is_climo=True)
+        oseason = utils.seasonal_mean(odata, season=season, is_climo=True)
     else:
-        if weight_season:
-            mseason = utils.seasonal_mean(mdata, season=season, is_climo=True)
-            oseason = utils.seasonal_mean(odata, season=season, is_climo=True)
-        else:
-            mseason = mdata.sel(time=season).mean(dim='time')
-            oseason = odata.sel(time=season).mean(dim='time')
-    
-    # Calculate differences
-    #dseason = mseason - oseason
+        mseason = mdata.sel(time=season).mean(dim='time')
+        oseason = odata.sel(time=season).mean(dim='time')
+    dseason = utils.array_diff(mseason, oseason)
+    pseason = utils.array_diff(mseason, oseason, percent=True)
 
-    """# compute difference
-    diff_values = mseason.values - oseason.values  # just the raw numpy array
-    # copy mseason to keep uxgrid and attributes
-    diff_array = mseason.copy(deep=True)
-    # overwrite the values with the difference
-    diff_array.values = diff_values
+    if hasattr(mdata, "uxgrid"):
+        mseason = plot_utils.prep_ux_for_plot(mseason, mdata)
+        oseason = plot_utils.prep_ux_for_plot(oseason, odata)
+        pseason = plot_utils.prep_ux_for_plot(pseason, mdata)
 
-    pseason_values = (mseason.values - oseason.values) / np.abs(oseason.values) * 100
-    pseason_array = mseason.copy(deep=True)
-    pseason_array.values = pseason_values"""
-
-    dseason = ux_diff(mseason, oseason)
-    pseason = ux_diff(mseason, oseason, percent=True)
-    #pseason = ux_diff(mseason, oseason, percent=True, fill_nan=0.0)
-    
-    """# Calculate percent change
-    #pseason = (mseason - oseason) / np.abs(oseason) * 100.0
-    with xr.set_options(keep_attrs=True):
-        pseason = (mseason - oseason) / np.abs(oseason) * 100.0"""
-    #print(type(mseason.to_polycollection()))
-    #print(type(pseason.to_polycollection()))
-    print(type(pseason))
-    print(hasattr(pseason, "uxgrid"))
-    print(pseason.uxgrid if hasattr(pseason, "uxgrid") else "NO GRID")
-    print(pseason.attrs,"\n\n")
-    pseason_attrs = pseason.attrs
-    #pseason = pseason.where(np.isfinite(pseason), np.nan)
-    #pseason = pseason.where(np.isfinite(pseason), 0.0)
-    print(type(pseason))
-    
-    if hasattr(mdata, "uxgrid") and mdata.uxgrid is not None:
-        print("YEAH???!?")
-        import uxarray as ux
-        """pseason = ux.UxDataArray(
-            pseason,
-            uxgrid=mdata.uxgrid,
-            attrs=mdata.attrs
-        )"""
-        pseason = ux.UxDataArray(
-            data=pseason.data,
-            dims=pseason.dims,
-            coords=pseason.coords,
-            uxgrid=mseason.uxgrid,
-            attrs=pseason_attrs
-        )
-
-    print("AFTER BOI",type(pseason))
-    print(hasattr(pseason, "uxgrid"))
-    print(pseason.uxgrid if hasattr(pseason, "uxgrid") else "NO GRID")
-    print(pseason.attrs)
-
-    mseason = prep_ux_for_plot(mseason, mdata)
-    oseason = prep_ux_for_plot(oseason, odata)
-    pseason = prep_ux_for_plot(pseason, mdata)
-
-    print("\n-------------------------\nmseason, oseason, dseason, pseason:",type(mseason), type(oseason), type(dseason), type(pseason),"\n-------------------------\n\n")
     return mseason, oseason, dseason, pseason
 
 
@@ -617,43 +470,6 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
                     syear_case, eyear_case, syear_baseline, eyear_baseline,
                     web_category, case_idx, vres):
     """Process and generate 3D plots with pressure levels."""
-    comp = "atm"
-    """if vres["unstruct_plotting"]:
-        mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
-        vres["mesh_file"] = mesh_file
-        #mdata = adfobj.data.load_climo_da(case_name, var, **kwargs)
-
-        unstruct_case = True
-        mdataset = adfobj.data.load_climo_dataset(case_name, var, **vres)
-        if comp == "lnd": 
-            area = mdataset.area.isel(time=0)
-            landfrac = mdataset.landfrac.isel(time=0)
-            # calculate weights
-            wgt = area * landfrac / (area * landfrac).sum()
-        if comp == "atm":
-            wgt = mdataset.isel(time=0)[var]
-
-        #Determine dimensions of variable:
-        #has_dims = {}
-        if len(wgt.n_face) == len(vres["wgt_base"].n_face):
-            vres["wgt"] = wgt
-            vres["indataset"] = mdataset
-        else:
-            print("The weights are different between test and baseline. Won't continue, eh.")
-            return
-
-        unstruct_base = vres["unstruct_base"]
-        if (not unstruct_case) and (unstruct_base):
-            print("Base is unstructured but Test is lat/lon. Can't continue?")
-            return
-        if (unstruct_case) and (not unstruct_base):
-            print("Base is lat/lon but Test is unstructured. Can't continue?")
-            return
-        if (unstruct_case) and (unstruct_base):
-            unstructured = True
-        if (not unstruct_case) and (not unstruct_base):
-            unstructured = False
-        vres["unstruct_plotting"] = unstructured"""
 
     for pres in pres_levs:
         # Validate pressure level exists
@@ -673,8 +489,6 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
                 process_seasonal_data(mdata, odata, s)
 
             # Generate plot
-            print("mseasons[s].shape", mseasons[s].shape)
-            print("mseasons[s].sel(lev=pres).shape", mseasons[s].sel(lev=pres).shape)
             pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                 [syear_case, eyear_case],
                                 [syear_baseline, eyear_baseline],

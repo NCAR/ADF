@@ -487,6 +487,27 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
             'plot_log_p': plot_log_p
             }
 
+import uxarray as ux
+import numpy as np
 
+def prep_ux_for_plot(a, grid_source):
+
+    # collapse extra dims if needed
+    if 'time' in a.dims:
+        a = a.mean('time')
+    
+    # replace NaNs (very important for new uxarray)
+    a = a.where(np.isfinite(a), 0.0)  # or fillna(0)
+    
+    # force it to be a UxDataArray if it got converted to xarray
+    if not isinstance(a, ux.UxDataArray):
+        a = ux.UxDataArray(
+            data=a.data,
+            dims=a.dims,
+            coords=a.coords,
+            uxgrid=grid_source.uxgrid,
+        )
+    
+    return a
 #####################
 #END HELPER FUNCTIONS
