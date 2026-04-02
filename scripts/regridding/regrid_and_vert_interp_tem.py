@@ -31,6 +31,9 @@ def regrid_and_vert_interp_tem(adf):
     """
 
     #Import necessary modules:
+    import numpy as np
+    import plotting_functions as pf
+
     from pathlib import Path
 
     # regridding
@@ -52,15 +55,20 @@ def regrid_and_vert_interp_tem(adf):
     output_loc       = adf.get_basic_info("cam_regrid_loc", required=True)
     if "qbo" in adf.plotting_scripts:
         var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM",
-                    "PSITEM","UTENDEPFD","UTENDVTEM","UTENDWTEM","PS","PMID"]
+                    "PSITEM","DELF","UTENDVTEM","UTENDWTEM","PS","PMID"]
     else:
-        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD","PS","PMID"]
-        var_cor_list = ["Uzm","THzm","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF","PS","PMID"]
     var_defaults     = adf.variable_defaults
 
     #CAM simulation variables (these quantities are always lists):
     case_names = adf.get_cam_info("cam_case_name", required=True)
     input_climo_locs = adf.get_cam_info("cam_tem_loc", required=True)
+
+    #Grab TEM diagnostics options
+    #----------------------------
+    #Extract TEM file save locations
+    tem_base_loc = adf.get_baseline_info("cam_tem_loc")
+    tem_case_locs = adf.get_cam_info("cam_tem_loc")
 
     #Grab case years
     syear_cases = adf.climo_yrs["syears"]
@@ -234,7 +242,7 @@ def regrid_and_vert_interp_tem(adf):
                         #Open single file as new xarray dataset:
                         tclim_ds = xr.open_dataset(tclim_fils[0],decode_times=False)
                     #End if
-                    tclim_ds = tclim_ds.rename({'zmlat': 'lat'})
+                    tclim_ds = tclim_ds.rename({'zalat': 'lat'})
 
                     #Generate CAM climatology (climo) file list:
                     mclim_fils = sorted(mclimo_loc.glob(f"{case_name}.TEMdiag*.nc"))
@@ -251,8 +259,7 @@ def regrid_and_vert_interp_tem(adf):
                         #Open single file as new xarray dataset:
                         mclim_ds = xr.open_dataset(mclim_fils[0],decode_times=False)
                     #End if
-
-                    mclim_ds = mclim_ds.rename({'zmlat': 'lat'})
+                    mclim_ds = mclim_ds.rename({'zalat': 'lat'})
                     #Create keyword arguments dictionary for regridding function:
                     regrid_kwargs = {}
 
@@ -271,7 +278,7 @@ def regrid_and_vert_interp_tem(adf):
                     if rgdata_interp is None:
                         continue
 
-                    rgdata_interp = rgdata_interp.rename({'lat': 'zmlat'})
+                    rgdata_interp = rgdata_interp.rename({'lat': 'zalat'})
                     rgdata_interps.append(rgdata_interp)
 
                     #Now vertically interpolate baseline (target) climatology,
@@ -308,8 +315,7 @@ def regrid_and_vert_interp_tem(adf):
                             #for now:
                             continue
                         #End if
-
-                        tgdata_interp = tgdata_interp.rename({'lat': 'zmlat'})
+                        tgdata_interp = tgdata_interp.rename({'lat': 'zalat'})
                         tgdata_interps.append(tgdata_interp)
                     #End if
                 else:
@@ -317,7 +323,8 @@ def regrid_and_vert_interp_tem(adf):
                 #End if (file check)
             #End do (target list)
         #End do (variable list)
-
+        #Extract defaults for variable:
+        var_default_dict = var_defaults.get(var, {})
         if len(rgdata_interps) > 0:
             #Finally, write re-gridded data to output file:
             #Convert the list of Path objects to a list of strings
@@ -329,13 +336,19 @@ def regrid_and_vert_interp_tem(adf):
                     "climatology_files": climatology_files_str,
                 }
 
+            print(f"\n\n\n\n{rgdata_interps[0]}\n\nTHIUS IS GONNA BE BIG!",rgdata_interps,"\n\n\n\n")
+            #rgdata_interp = xr.concat(rgdata_interps, dim="time")
             rgdata_interp = xr.merge(rgdata_interps)
+            #rgdata_interp["PMID"] = mclim_ds["PMID"]
+            #print("\n\nWOAH:",rgdata_interp,"\n\n")
             rgdata_interp = rgdata_interp.assign_attrs(test_attrs_dict)
-
+            print("\n\nWOAH:",rgdata_interp,"\n")
+            print("WHAT ISD HAPPENEFOIBN FOKNS",rgdata_interp.PS.time.values,"\n\n")
             save_to_nc(rgdata_interp, regridded_file_loc)
             rgdata_interp.close()  # bpm: we are completely done with this data
 
         if len(tgdata_interps) > 0:
+            
             # Convert the list to a string (join with commas or another separator)
             climatology_files_str = [str(path) for path in tclim_fils]
             climatology_files_str = ', '.join(climatology_files_str)
@@ -348,7 +361,7 @@ def regrid_and_vert_interp_tem(adf):
 
             tgdata_interp = xr.merge(tgdata_interps)
             tgdata_interp = tgdata_interp.assign_attrs(base_attrs_dict)
-
+            print('tgdata_interp["PMID"]',tgdata_interp["PMID"],"\n-~-~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_\n")
             #Write interpolated baseline climatology to file:
             save_to_nc(tgdata_interp, interp_bl_file)
     #End do (case list)
@@ -572,11 +585,42 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
     #End if
 
     #Vertical interpolation:
+
     #Interpolate variable to default pressure levels:
     if has_lev:
+        import numpy as np
+        new_levels = np.array([3.01759109, 5.44485703, 9.08718781, 14.24753845, 21.00145538,
+            29.20879333, 38.55235229, 48.63703735, 59.09703247, 69.66665161,
+            80.20207275, 90.66681885, 101.10148926, 111.59320801, 122.25200439,
+            133.19550293, 144.54046143, 156.39897461, 168.87756592, 182.0778125,
+            196.0976416, 211.03290039, 226.97895996, 243.98534668, 262.11119629,
+            281.51827148, 302.36227539, 324.74960449, 348.79453125, 374.61978516,
+            402.3571582, 432.14824219, 464.14512695, 498.51110352, 535.42157227,
+            574.2534451, 612.85953891, 649.19185169, 682.74605196, 713.7345652,
+            742.35357401, 768.78426008, 793.19395123, 815.73718074, 836.55666564,
+            855.78421029, 873.54154074, 889.94107538, 905.08663666, 919.07410836,
+            931.99204257, 943.92222039, 954.94016956, 965.11564272, 974.5130589,
+            983.19191142, 991.20714452, 997.52772561])
+
+        # Generate 30 levels between 1000 and 3 hPa in log space
+        #print("regrid_dataset",regrid_dataset,"\n")
+        new_levs = False
+        if regrid_dataset:
+            new_levs = True
+            #print("min(regrid_dataset.lev.values)",min(regrid_dataset.lev.values),"\n")
+            #np.array(regrid_dataset.lev.values)
+            new_levels = np.array(np.logspace(np.log10(1000), np.log10(min(regrid_dataset.lev.values)), num=30))*100
+
+            # Optional: round for readability
+            #new_levels = np.round(new_levels, decimals=3)
+            #print("new_levels",new_levels,"\n")
         if vert_coord_type == "hybrid":
             #Interpolate from hybrid sigma-pressure to the standard pressure levels:
-            rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
+            if new_levs:
+                rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, new_levels=new_levels, \
+                                            convert_to_mb=True)
+            else:
+                rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
                                             convert_to_mb=True)
         elif vert_coord_type == "height":
             #Interpolate variable using mid-level pressure (PMID):

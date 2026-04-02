@@ -6,8 +6,8 @@ from datetime import date
 from pathlib import Path
 from glob import glob
 from itertools import chain
-#import metpy.calc.thermo as thermo
-#from metpy.units import units
+import metpy.calc.thermo as thermo
+from metpy.units import units
 
 
 def create_TEM_files(adf):
@@ -32,14 +32,20 @@ def create_TEM_files(adf):
     #Extract test case years
     start_years   = adf.climo_yrs["syears"]
     end_years     = adf.climo_yrs["eyears"]
-
+    print("start_years",start_years)
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
 
     if "qbo" in adf.plotting_scripts:
+        #var_list = ['uzm','epfy','epfz','vtem','wtem',
+        #            'psitem','utendepfd','utendvtem','utendwtem']
+        var_list = ['uzm','thzm','epfy','epfz','vtem','wtem',
+                    'psitem','delf','utendvtem','utendwtem']
         var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM",
-                    "PSITEM","UTENDEPFD","UTENDVTEM","UTENDWTEM"]
+                    "PSITEM","DLEF","UTENDVTEM","UTENDWTEM"]
     else:
-        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
+        #var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        #var_list = ['uzm','thzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF"]
 
     tem_locs = []
     
@@ -68,6 +74,7 @@ def create_TEM_files(adf):
     hist_nums = adf.get_cam_info("tem_hist_str")[0]
     if hist_nums is None:
         hist_nums = ["h4a"]*len(case_names)
+    print("hist_nums before baseline",hist_nums)
 
     #Get test case(s) tem over-write boolean and force to list if not by default
     overwrite_tem_cases = adf.get_cam_info("overwrite_tem")
@@ -121,35 +128,29 @@ def create_TEM_files(adf):
                 if obs_file_path not in tem_obs_fils:
                     tem_obs_fils.append(obs_file_path)
 
+        #ds = xr.open_mfdataset(tem_obs_fils,combine="nested")
         ds = xr.open_mfdataset(tem_obs_fils,decode_times=True, combine='by_coords')
-        if "zalat" in ds.dims:
-            zm_name = "zalat"
-        elif "zmlat" in ds.dims:
-            zm_name = "zmlat"
-        else:
-            print("Something went wrong with the zonal mean lat coordinate for Obs")
-            return
         start_year = str(ds.time[0].values)[0:4]
         end_year = str(ds.time[-1].values)[0:4]
 
         #Update the attributes
         ds.attrs['created'] = str(date.today())
         ds['lev']=ds['level']
-        ds[zm_name]=ds['lat']
+        ds['zalat']=ds['lat']
 
         #Make a copy of obs data so we don't do anything bad
         ds_obs = ds.copy()
-        ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', zm_name), ds_obs.uzm.data),
-                                'epfy': xr.Variable(('time', 'lev', zm_name), ds_obs.epfy.data),
-                                'epfz': xr.Variable(('time', 'lev', zm_name), ds_obs.epfz.data),
-                                'vtem': xr.Variable(('time', 'lev', zm_name), ds_obs.vtem.data),
-                                'wtem': xr.Variable(('time', 'lev', zm_name), ds_obs.wtem.data),
-                                'psitem': xr.Variable(('time', 'lev', zm_name), ds_obs.psitem.data),
-                                'utendepfd': xr.Variable(('time', 'lev', zm_name), ds_obs.utendepfd.data),
-                                'utendvtem': xr.Variable(('time', 'lev', zm_name), ds_obs.utendvtem.data),
-                                'utendwtem': xr.Variable(('time', 'lev', zm_name), ds_obs.utendwtem.data),
+        ds_base = xr.Dataset({'uzm': xr.Variable(('time', 'lev', 'zalat'), ds_obs.uzm.data),
+                                'epfy': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfy.data),
+                                'epfz': xr.Variable(('time', 'lev', 'zalat'), ds_obs.epfz.data),
+                                'vtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.vtem.data),
+                                'wtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.wtem.data),
+                                'psitem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.psitem.data),
+                                'delf': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendepfd.data),
+                                'utendvtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendvtem.data),
+                                'utendwtem': xr.Variable(('time', 'lev', 'zalat'), ds_obs.utendwtem.data),
                                 'lev': xr.Variable('lev', ds_obs.level.values),
-                                'zmlat': xr.Variable(zm_name, ds_obs.lat.values),
+                                'zalat': xr.Variable('zalat', ds_obs.lat.values),
                                 'time': xr.Variable('time', ds_obs.time.values)
                     })
 
@@ -215,11 +216,10 @@ def create_TEM_files(adf):
         if not list(starting_location.glob("*"+hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
             emsg += " Script is ending here."
-            #adf.end_diag_fail(emsg)
-            print(emsg)
-            continue
+            adf.end_diag_fail(emsg)
         #End if
 
+        #hist0_str = "cam.h0"
         hist0_str = cam_hist_strs[case_idx]
 
         #Get full path and file for file name
@@ -257,19 +257,14 @@ def create_TEM_files(adf):
 
             #Flatten list of lists to 1d list
             hist_files = sorted(list(chain.from_iterable(hist_files)))
-            ds = xr.open_mfdataset(hist_files,decode_times=True, combine='nested', concat_dim='time')
-
-
             hist0_files = sorted(list(chain.from_iterable(hist0_files)))
-            ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='nested', concat_dim='time')
+            ds = xr.open_mfdataset(hist_files,decode_times=True, combine='by_coords')
+            ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='by_coords')
+            #print("ds_h0 BEFORE",ds_h0,"\n\n")
 
-            if "zalat" in ds_h0.dims:
-                zm_name = "zalat"
-            elif "zmlat" in ds_h0.dims:
-                zm_name = "zmlat"
-            else:
-                print(f"Something went wrong with the zonal mean lat coordinate for {case_name}")
-                return
+            #h0_files = glob(f"{starting_location}/*cam.h0*.nc")
+            #ds_h0 = xr.open_mfdataset(h0_files,decode_times=True, combine='by_coords').sel(time=slice())
+            ds_h0 = ds_h0.rename({'lat': 'zalat'})
 
             #Average time dimension over time bounds, if bounds exist:
             if 'time_bnds' in ds_h0:
@@ -289,17 +284,15 @@ def create_TEM_files(adf):
                 ds_h0['time'] = time
                 ds_h0.assign_coords(time=time)
                 ds_h0 = xr.decode_cf(ds_h0)
+            #print("ds_h0 AFTER",ds_h0,"\n\n")
+
 
             #iterate over the times in a dataset
             for idx,_ in enumerate(ds.time.values):
                 if idx == 0:
-                    dstem0 = calc_tem(ds.squeeze().isel(time=idx), zm_name)
+                    dstem0 = calc_tem(ds.squeeze().isel(time=idx))
                 else:
-                    dstem = calc_tem(ds.squeeze().isel(time=idx), zm_name)
-                    if "zalat" in dstem.dims:
-                        zm_name = "zalat"
-                    if "zmlat" in dstem.dims:
-                        zm_name = "zmlat"
+                    dstem = calc_tem(ds.squeeze().isel(time=idx))
                     dstem0 = xr.concat([dstem0, dstem],'time')
                 #End if
             #End if
@@ -324,26 +317,18 @@ def create_TEM_files(adf):
                 dstem0 = xr.decode_cf(dstem0)
 
             # Step 1: Your standard latitudes
-            za_lats = dstem[zm_name].values
+            za_lats = dstem0.zalat.values
+            #print("dstem0.UZM",dstem0.UZM,"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
             # Step 2: Interpolate ds2 to standard latitudes
-            # List of possible coordinate names
-            possible_lat_names = ['zalat', 'zmlat']
+            ds_h0_lats = ds_h0.interp(zalat=za_lats)
 
-            # Find the one that exists in the dataset
-            for name in possible_lat_names:
-                if name in ds_h0.coords:
-                    lat_coord_name = name
-                    break
-            else:
-                raise ValueError("No known latitude coordinate found in dataset.")
-
-            # Interpolate using dynamic coordinate name
-            ds_h0_lats = ds_h0.interp({lat_coord_name: za_lats})
-
-            #ds_h0_lats = ds_h0.interp(zalat=za_lats)
             zonal_mean_PS = ds_h0_lats['PS'].mean(dim='lon').compute()
             zonal_mean_PMID = ds_h0_lats['PMID'].mean(dim='lon').compute()
+            #dstem0['PMID'] = zonal_mean_PMID
+            #print("zonal_mean_PMID",zonal_mean_PMID,"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+            #print("dstem0['lev']",dstem0['lev'].values,"\n")
 
             #Update the attributes
             dstem0.attrs = ds.attrs
@@ -351,6 +336,81 @@ def create_TEM_files(adf):
             dstem0['lev']=ds['lev']
             dstem0['PS'] = zonal_mean_PS
             dstem0['PMID'] = zonal_mean_PMID
+
+            #pmid = ds["PMID"].squeeze()
+            #print(pmid)
+
+            """#Create array to avoid weighting missing values:
+            pmid_ones = xr.where(pmid.isnull(), 0.0, 1.0)
+
+            #month_length = pmid.time.dt.days_in_month
+            #weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
+            if s == 'ANN':
+
+                #Calculate annual weights (i.e. don't group by season):
+                weights_ann = month_length / month_length.sum()
+
+                pmid = (pmid * weights_ann).sum(dim='time')
+                pmid = pmid / (pmid_ones*weights_ann).sum(dim='time')
+            else:
+                #this is inefficient because we do same calc over and over
+                pmid = (pmid * weights).groupby("time.season").sum(dim="time").sel(season=s)
+                wgt_denom = (pmid_ones*weights).groupby("time.season").sum(dim="time").sel(season=s)
+                pmid = pmid / wgt_denom"""
+
+
+            #mseasons.attrs['units'] = "K"
+            #oseasons.attrs['units'] = "K"
+            #pmid = pmid.mean(dim="lon")
+            #mseasons = thermo.temperature_from_potential_temperature(pmid* units.mbar,mseasons* units.kelvin)
+            #print("AHHH",np.max(mseasons.values))
+            #oseasons = thermo.temperature_from_potential_temperature(pmid* units.mbar,oseasons* units.kelvin)
+
+            #mseasons = thermo.temperature_from_potential_temperature(zonal_mean_PMID* units.Pa,
+            #                                                         mseasons* units.kelvin)
+            #mseasons_metpy = thermo.temperature_from_potential_temperature(pmid* units.Pa,mseasons* units.kelvin)
+            #print("AHHH",np.max(mseasons.values))
+            #oseasons_metpy = thermo.temperature_from_potential_temperature(pmid* units.Pa,oseasons* units.kelvin)
+            #dstem0["TZM"] = thermo.temperature_from_potential_temperature(zonal_mean_PMID* units.Pa,
+            #                                                         dstem0["THZM"].values* units.kelvin)
+            #dstem0["TZM"].attrs['units'] = 'K'
+
+            # write output to a netcdf file
+            #print("\n\ndstem0",dstem0,"\n\n")
+            """#Average time dimension over time bounds, if bounds exist:
+            if 'time_bnds' in ds:
+                time_bounds_name = 'time_bnds'
+            elif 'time_bounds' in ds:
+                time_bounds_name = 'time_bounds'
+            else:
+                time_bounds_name = None
+
+            if time_bounds_name:
+                time = ds['time']
+                #NOTE: force `load` here b/c if dask & time is cftime,
+                #throws a NotImplementedError:
+
+                time = xr.DataArray(ds[time_bounds_name].load().mean(dim='nbnd').values,
+                                    dims=time.dims, attrs=time.attrs)
+                dstem0['time'] = time
+                dstem0.assign_coords(time=time)
+                dstem0 = xr.decode_cf(dstem0)"""
+            #print("dstem0 AFTER",dstem0.PMID.values,"\n\n")
+            #print("dstem0['time_bnds'].load()",dstem0['time_bnds'].load())
+
+
+            """# assign time to midpoint of interval (even if it is already)
+            if 'time_bnds' in dstem0:
+                t = dstem0['time_bnds'].load().mean(dim='nbnd')
+                t.attrs = dstem0['time'].attrs
+                dstem0 = dstem0.assign_coords({'time':t})
+            elif 'time_bounds' in dstem0:
+                t = dstem0['time_bounds'].load().mean(dim='nbnd')
+                t.attrs = dstem0['time'].attrs
+                dstem0 = dstem0.assign_coords({'time':t})
+            else:
+                warnings.warn("Timeseries file does not have time bounds info.")
+            dstem0 = xr.decode_cf(dstem0)"""
 
             dstem0.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
 
@@ -361,7 +421,7 @@ def create_TEM_files(adf):
 
 
 
-def calc_tem(ds, zm_name):
+def calc_tem(ds):
     """
     # calc_tem() function to calculate TEM diagnostics on CAM/WACCM output
     # This assumes the data have already been organized into zonal mean fluxes
@@ -389,7 +449,7 @@ def calc_tem(ds, zm_name):
     # vtem      Transformed Eulerian mean northward wind [m s−1]
     # wtem      Transformed Eulerian mean upward wind [m s−1]
     # psitem    Transformed Eulerian mean mass stream function [kg s−1]
-    # utendepfd tendency of eastward wind due to Eliassen–Palm flux divergence [m s−2]
+    # delf tendency of eastward wind due to Eliassen–Palm flux divergence [m s−2]
     # utendvtem tendency of eastward wind due to TEM northward wind advection and the Coriolis term [m s−2]
     # utendwtem tendency of eastward wind due to TEM upward wind advection [m s−2]
 
@@ -407,10 +467,10 @@ def calc_tem(ds, zm_name):
     H = 7000.
     g0 = 9.80665
 
-    nlat = ds[zm_name].size
+    nlat = ds['zalat'].size
     nlev = ds['lev'].size
 
-    latrad = np.radians(ds[zm_name])
+    latrad = np.radians(ds.zalat)
     coslat = np.cos(latrad)
     coslat2d = np.tile(coslat,(nlev,1))
 
@@ -492,8 +552,8 @@ def calc_tem(ds, zm_name):
                           pre,
                           axis=0)
 
-    utendepfd = (depfydphi + depfzdp)/(a*coslat2d)
-    utendepfd = xr.DataArray(utendepfd, coords = ds.Uzm.coords, name='utendepfd')
+    delf = (depfydphi + depfzdp)/(a*coslat2d)
+    delf = xr.DataArray(delf, coords = ds.Uzm.coords, name='delf')
 
     # TEM stream function, Eq A8
     topvzm = np.zeros([1,nlat])
@@ -536,8 +596,8 @@ def calc_tem(ds, zm_name):
     psitem.attrs['long_name'] = 'Transformed Eulerian mean mass stream function'
     psitem.attrs['units'] = 'kg/s'
 
-    utendepfd.attrs['long_name'] = 'tendency of eastward wind due to Eliassen-Palm flux divergence'
-    utendepfd.attrs['units'] = 'm/s2'
+    delf.attrs['long_name'] = 'tendency of eastward wind due to Eliassen-Palm flux divergence'
+    delf.attrs['units'] = 'm/s2'
 
     utendvtem.attrs['long_name'] = 'tendency of eastward wind due to TEM northward wind advection and the coriolis term'
     utendvtem.attrs['units'] = 'm/s2'
@@ -549,7 +609,7 @@ def calc_tem(ds, zm_name):
     epfz.values = np.float32(epfz.values)
     wtem.values = np.float32(wtem.values)
     psitem.values = np.float32(psitem.values)
-    utendepfd.values = np.float32(utendepfd.values)
+    delf.values = np.float32(delf.values)
     utendvtem.values = np.float32(utendvtem.values)
     utendwtem.values = np.float32(utendwtem.values)
 
@@ -561,7 +621,10 @@ def calc_tem(ds, zm_name):
 
     dstem = xr.Dataset(data_vars=dict(date = ds.date,
                                       datesec = ds.datesec,
+                                      #time_bnds = ds.time_bnds,
                                       time_bnds = time_bounds_name,
+                                      #PMID=ds.PMID,
+                                      #PS=ds.PS,
                                       hybm=ds.hybm,
                                       hyam=ds.hyam,
                                       UZM = uzm,
@@ -572,7 +635,7 @@ def calc_tem(ds, zm_name):
                                       VTEM = vtem,
                                       WTEM = wtem,
                                       PSITEM = psitem,
-                                      DELF = utendepfd,
+                                      DELF = delf,
                                       UTENDVTEM = utendvtem,
                                       UTENDWTEM = utendwtem
                                       ))
