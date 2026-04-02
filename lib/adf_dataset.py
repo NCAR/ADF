@@ -219,7 +219,7 @@ class AdfData:
         fils = sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
         if fils:
             return fils
-        return None
+        return []
 
     #------------------
 
