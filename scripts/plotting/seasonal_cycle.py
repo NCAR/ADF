@@ -14,8 +14,8 @@ from pathlib import Path
 import glob
 from itertools import chain
 
-#CAM diagnostic plotting functions:
-import plotting_functions as pf
+#CAM diagnostic utility functions:
+import adf_utils as utils
 
 
 #Set seasonal ranges:
@@ -346,7 +346,6 @@ def seasonal_cycle(adfobj):
             if plot_name.is_file():
                 plot_name.unlink()
 
-            #pf.cold_point_temp(plot_name, case_names, cases_coords, cases_monthly)
             month_vs_lat_plot(var, var_dict, plot_name, case_names, nicknames, climo_yrs, cases_coords, cases_monthly, vert_lev)
             adfobj.add_website_data(plot_name, "CPT", case_name, season="ANN",
                                         plot_type="WACCM",
@@ -981,8 +980,8 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
             case_seas[m] = ds_month['T'][month_dict[m+1]]
 
         #Average over set of latitudes
-        merra2_pcap = pf.coslat_average(rfield_seas,slat,nlat)
-        case_pcap = pf.coslat_average(case_seas,slat,nlat)
+        merra2_pcap = utils.coslat_average(rfield_seas,slat,nlat)
+        case_pcap = utils.coslat_average(case_seas,slat,nlat)
 
         #
         [time_grid, lev_grid] = np.meshgrid(ds['lev'],np.arange(0,12))
@@ -1147,7 +1146,7 @@ def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, clim
             case_seas[m] = ds_month[var][month_dict[month+1]]
 
         #Average over set of latitudes
-        case_pcap = pf.coslat_average(case_seas,slat,nlat)
+        case_pcap = utils.coslat_average(case_seas,slat,nlat)
         case_pcap = case_seas.sel(lev=vert_lev,method="nearest").sel(lat=slice(slat, nlat))
         if var == "Q":
             case_pcap = case_pcap*1e6
@@ -1394,7 +1393,7 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
 
     #nt = 108
     nt = 120
-    plotdata = pf.coslat_average(merra2['U'],-10,10)
+    plotdata = utils.coslat_average(merra2['U'],-10,10)
 
     plotdata_clip = np.clip(np.abs(plotdata), None, 35)
     plotdata=np.sign(plotdata)*plotdata_clip
@@ -1457,7 +1456,7 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
 
         contour_levels = np.arange(-35, 35, 2.5)
 
-        plotdata = pf.coslat_average(case_data['U'],-10,10)
+        plotdata = utils.coslat_average(case_data['U'],-10,10)
         plotdata_clip = np.clip(np.abs(plotdata), None, 35)
         plotdata=np.sign(plotdata)*plotdata_clip
 
