@@ -32,8 +32,6 @@ def regrid_and_vert_interp_tem(adf):
 
     #Import necessary modules:
     import numpy as np
-    import plotting_functions as pf
-
     from pathlib import Path
 
     # regridding
@@ -400,7 +398,7 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
     """
 
     #Import ADF-specific functions:
-    import plotting_functions as pf
+    import adf_utils as utils
 
     #Extract keyword arguments:
     if 'ps_file' in kwargs:
@@ -617,14 +615,14 @@ def _regrid_and_interpolate_levs(model_dataset, var_name, regrid_dataset=None, *
         if vert_coord_type == "hybrid":
             #Interpolate from hybrid sigma-pressure to the standard pressure levels:
             if new_levs:
-                rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, new_levels=new_levels, \
+                rgdata_interp = utils.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, new_levels=new_levels, \
                                             convert_to_mb=True)
             else:
-                rgdata_interp = pf.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
+                rgdata_interp = utils.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
                                             convert_to_mb=True)
         elif vert_coord_type == "height":
             #Interpolate variable using mid-level pressure (PMID):
-            rgdata_interp = pf.pmid_to_plev(rgdata, rg_pmid, convert_to_mb=True)
+            rgdata_interp = utils.pmid_to_plev(rgdata, rg_pmid, convert_to_mb=True)
         else:
             #The vertical coordinate type is un-recognized, so print warning and
             #skip vertical interpolation:
