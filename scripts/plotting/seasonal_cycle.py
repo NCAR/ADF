@@ -254,6 +254,18 @@ def seasonal_cycle(adfobj):
                 season = "season"
             #End if
 
+            # Get values form cases for later use
+            lims = []
+            for idx,case_name in enumerate(case_names):
+                data_coords = case_ds_dict["coords"][case_name]
+                data_lev = data_coords['lev']
+
+                # Find the next value below highest vertical level
+                prev_major_tick = 10 ** (np.floor(np.log10(np.nanmin(data_lev))))
+                lims.append(prev_major_tick)
+
+            highest_lev = np.min(lims)
+
             plot_name = plot_loc / f"{cam_var}_zm_{interval}_WACCM_SeasonalCycle_Mean.{plot_type}"
             if (not redo_plot) and plot_name.is_file():
                 adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
@@ -267,7 +279,7 @@ def seasonal_cycle(adfobj):
                     plot_name.unlink()
             
                 comparison_plots(plot_name, cam_var, case_names, nicknames, case_ds_dict,
-                                    obs_ds_dict, season, interval, comp_plots_dict, obs_cam_vars)
+                                    obs_ds_dict, season, interval, comp_plots_dict, obs_cam_vars, highest_lev)
                 adfobj.add_website_data(plot_name, f"{cam_var}_zm", case_name, season=interval,
                                         plot_type="WACCM", category="Seasonal Cycle",
                                         ext="SeasonalCycle_Mean",non_season=True)
@@ -679,7 +691,7 @@ def time_mean(ncfile, data, time_avg, interval, is_climo=None, obs=False):
     return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
 ########
 
-def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dict, obs_ds_dict, time_avg, interval, comp_plots_dict, obs_cam_vars):
+def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dict, obs_ds_dict, time_avg, interval, comp_plots_dict, obs_cam_vars, highest_lev):
     """
 
     """
@@ -746,9 +758,9 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
         ax = fig.add_subplot(nrows, casenum, idx+1)
 
         #Plot case contour fill
-        cf=plt.contourf(lev_grid, lat_grid,
+        cf = plt.contourf(lev_grid, lat_grid,
                         data_array.transpose(transpose_coords=True),
-                        levels=levs, cmap='RdYlBu_r')
+                        levels=levs, cmap='RdYlBu_r',extend="both")
 
         #Plot case contours (for highlighting)
         contour = plt.contour(lev_grid, lat_grid,
@@ -762,15 +774,12 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
 
 
         # Find the next value below highest vertical level
-        prev_major_tick = 10 ** (np.floor(np.log10(np.nanmin(data_lev))))
-        y_lims = [float(lim) for lim in [1e3,prev_major_tick]]
+        y_lims = [float(lim) for lim in [1e3,highest_lev]]
         ax.set_ylim(y_lims)
 
         plt.xticks(np.arange(-90,91,45),rotation=40)
         ax.tick_params(axis='x', labelsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
+        if idx == 0:
             plt.ylabel('hPa',fontsize=10)
         ax.tick_params(axis='y', labelsize=8)
 
@@ -809,13 +818,14 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
         #End if
 
         #Plot difference contour fill
+        diff_merra = (data_array-merra_rfield)
         cf=plt.contourf(lev_grid, lat_grid,
-                        (data_array-merra_rfield).transpose(transpose_coords=True),
-                        levels=diff_levs, cmap='RdYlBu_r')
+                        diff_merra.transpose(transpose_coords=True),
+                        levels=diff_levs, cmap='RdYlBu_r',extend="both")
 
         #Plot case contours (for highlighting)
         contour = plt.contour(lev_grid, lat_grid,
-                        (data_array-merra_rfield).transpose(transpose_coords=True),
+                        diff_merra.transpose(transpose_coords=True),
                     colors="black",linewidths=0.5,levels=diff_levs[::2],zorder=100)
         fmt = {lev: '{:.0f}'.format(lev) for lev in contour.levels}
         ax.clabel(contour, contour.levels, inline=True, fmt=fmt, fontsize=8)
@@ -824,16 +834,13 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
         plt.yscale("log")
 
         # Find the next value below highest vertical level
-        prev_major_tick = 10 ** (np.floor(np.log10(np.nanmin(data_lev))))
-        y_lims = [float(lim) for lim in [1e3,prev_major_tick]]
+        y_lims = [float(lim) for lim in [1e3,highest_lev]]
         ax.set_ylim(y_lims)
 
 
         plt.xticks(np.arange(-90,91,45),rotation=40)
         ax.tick_params(axis='x', labelsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
+        if idx == 0:
             plt.ylabel('hPa',fontsize=10)
 
         ax.tick_params(axis='y', labelsize=8)
@@ -874,13 +881,14 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
             #End if
 
             #Plot difference contour fill
-            cf=plt.contourf(lev_grid, lat_grid,
-                            (data_array-saber_rfield).transpose(transpose_coords=True),
-                            levels=diff_levs, cmap='RdYlBu_r')
+            diff_saber = (data_array-saber_rfield)
+            cf = plt.contourf(lev_grid, lat_grid,
+                            diff_saber.transpose(transpose_coords=True),
+                            levels=diff_levs, cmap='RdYlBu_r',extend="both")
 
             #Plot case contours (for highlighting)
             contour = plt.contour(lev_grid, lat_grid,
-                            (data_array-saber_rfield).transpose(transpose_coords=True),
+                            diff_saber.transpose(transpose_coords=True),
                         colors="black",linewidths=0.5,levels=diff_levs,zorder=100)
             fmt = {lev: '{:.0f}'.format(lev) for lev in contour.levels}
             ax.clabel(contour, contour.levels[::2], inline=True, fmt=fmt, fontsize=8)
@@ -889,16 +897,13 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
             plt.yscale("log")
 
             # Find the next value below highest vertical level
-            prev_major_tick = 10 ** (np.floor(np.log10(np.nanmin(data_lev))))
-            y_lims = [float(lim) for lim in [1e3,prev_major_tick]]
+            y_lims = [float(lim) for lim in [1e3,highest_lev]]
 
             ax.set_ylim(y_lims)
 
             plt.xticks(np.arange(-90,91,45),rotation=40)
             ax.tick_params(axis='x', labelsize=8)
-            if idx > 0:
-                plt.yticks([])
-            else:
+            if idx == 0:
                 plt.ylabel('hPa',fontsize=10)
             ax.tick_params(axis='y', labelsize=8)
 
@@ -989,7 +994,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
         #Set up first row - Temps
         ax = fig.add_subplot(nrows, casenum, idx+1)
         cf=plt.contourf(lev_grid, time_grid, case_pcap,
-                        levels=levs,cmap='RdYlBu_r'
+                        levels=levs,cmap='RdYlBu_r',extend="both"
                        ) #np.arange(-10,11,1)
         c0=plt.contour(lev_grid, time_grid, case_pcap, colors='grey',
                            levels=levs[::2],
@@ -1004,12 +1009,8 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
         ax.set_yticks([300,100,30,10,1])
         ax.set_xticks(np.arange(0,12,2))#,rotation=40
         ax.set_xticklabels(('Jan','Mar','May','Jul','Sep','Nov'),rotation=40,fontsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
-            ax.set_yticklabels(["","$10^{2}$","","$10^{1}$",""],fontsize=10)
+        if idx == 0:
             plt.ylabel('hPa',fontsize=10)
-        
         #Set title
         local_title=f"{case_names[idx]}"
         plt.title(local_title, fontsize=font_size)
@@ -1031,7 +1032,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
         ax = fig.add_subplot(nrows, casenum, casenum+idx+1)
         clevs = np.arange(-10,11,1)
         cf=plt.contourf(lev_grid, time_grid, (case_pcap-merra2_pcap),
-                        levels=diff_levs,cmap='RdYlBu_r'
+                        levels=diff_levs,cmap='RdYlBu_r',extend="both"
                        ) 
         c0=plt.contour(lev_grid, time_grid, (case_pcap-merra2_pcap), colors='grey',
                            levels=clevs[::3],
@@ -1057,10 +1058,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
         ax.set_yticks([300,100,30,10,1])
         ax.set_xticks(np.arange(0,12,2))#,rotation=40
         ax.set_xticklabels(('Jan','Mar','May','Jul','Sep','Nov'),rotation=40,fontsize=8)
-        if idx > 0:
-            plt.yticks([])
-        else:
-            ax.set_yticklabels(["","$10^{2}$","","$10^{1}$",""],fontsize=10)
+        if idx == 0:
             plt.ylabel('hPa',fontsize=10)
 
         #Set title
@@ -1082,7 +1080,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
             # Set the font size for the colorbar label
             cbar.set_label("K", fontsize=10, labelpad=1)
 
-    fig.suptitle(f"{hemi.upper()}H Polar Cap Temp Anomolies - {title_ext}",fontsize=12,y=0.93) #,horizontalalignment="center"
+    fig.suptitle(f"{hemi.upper()}H Polar Cap Temp Anomolies - {title_ext}",fontsize=12,y=0.93)
  
     fig.savefig(plot_name, bbox_inches='tight', dpi=300)
     
@@ -1159,7 +1157,7 @@ def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, clim
         #Set up plot
         cf=ax[idx].contourf(lat_grid, time_grid, (case_pcap),
                         levels=levs,
-                        cmap=cmap,#zorder=100
+                        cmap=cmap,extend="both",
                       )
         c=ax[idx].contour(lat_grid, time_grid, (case_pcap),
                         levels=levs,
@@ -1230,7 +1228,7 @@ def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, clim
 
     cf=ax[idx].contourf(lat_grid, time_grid, (diff_pcap),
                         levels=diff_levs,
-                        cmap=diff_cmap,#zorder=100
+                        cmap=diff_cmap,extend="both",
                       )
     c=ax[idx].contour(lat_grid, time_grid, (diff_pcap),
                         levels=diff_levs[::2],
@@ -1404,7 +1402,7 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
 
     data = plotdata[start_ind:end_ind,:]
     cf = axes[main_key[merra_idx]].contourf(lev_grid, time_grid, data,
-                                        levels=contour_levels, cmap='RdBu_r')
+                                        levels=contour_levels, cmap='RdBu_r',extend="both")
 
     c = axes[main_key[merra_idx]].contour(lev_grid, time_grid, data, alpha=0.75,linewidths=0.3,
                                         levels=contour_levels[::5], colors='k',linestyles=['dashed' if val < 0 else 'solid' for val in np.unique(data)])
@@ -1469,7 +1467,7 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
         yr0 = int(yrs+int(start_idx/12))
 
         cf = axes[main_key[idx]].contourf(lev_grid[start_idx:end_idx-1,:], time_grid[start_idx:end_idx-1,:], plotdata[start_idx:end_idx-1,:],
-                                    levels=contour_levels, cmap='RdBu_r')
+                                    levels=contour_levels, cmap='RdBu_r',extend="both")
 
         c = axes[main_key[idx]].contour(lev_grid[start_idx:end_idx-1,:], time_grid[start_idx:end_idx-1,:], plotdata[start_idx:end_idx,:],
                                     levels=contour_levels[::5], colors='k',alpha=0.75,linewidths=0.5)
