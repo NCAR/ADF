@@ -124,14 +124,7 @@ def tem(adf):
                }
 
     #Suggestion from Rolando, if QBO is being produced, add utendvtem and utendwtem?
-    if "qbo" in adf.plotting_scripts:
-        var_list = ['uzm', 'thzm', 'tzm', 'epfy','epfz','vtem','wtem',
-                    'psitem','delf','utendvtem','utendwtem']
-        var_list = [i.upper() for i in var_list]
-    #Otherwise keep it simple
-    else:
-        var_list = ['uzm','thzm', 'tzm','epfy','epfz','vtem','wtem','psitem','delf']
-        var_list = [i.upper() for i in var_list]
+    var_list = ["UZM","THZM","TZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF"]
 
     #Check if comparing against obs
     if adf.compare_obs:
