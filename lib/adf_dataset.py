@@ -199,7 +199,8 @@ class AdfData:
         a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
         caseindex = (self.case_names).index(case) # the entry for specified case
         model_cl_loc = Path(a[caseindex])
-        return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
+        fils = sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
+        return fils
 
 
     # Reference case (baseline/obs)
@@ -213,13 +214,11 @@ class AdfData:
         """Return a list of files to be used as reference (aka baseline) for variable var."""
         if self.adf.compare_obs:
             fils = self.ref_var_loc.get(var, None)
-            return [fils] if fils is not None else None
+            return [fils] if fils is not None else []
         ref_loc = self.adf.get_baseline_info("cam_climo_loc")
         # NOTE: originally had this looking for *_baseline.nc
         fils = sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
-        if fils:
-            return fils
-        return None
+        return fils
 
     #------------------
 
