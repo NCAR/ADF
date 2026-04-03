@@ -357,7 +357,9 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
     if 'contour_levels' in kwargs:
         levels1 = kwargs['contour_levels']
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+        levels1 = np.array(levels1, dtype=float)
+
+        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
@@ -367,14 +369,15 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         "contour_levels_range must have exactly three entries: min, max, step"
 
         levels1 = np.arange(*kwargs['contour_levels_range'])
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+        levels1 = np.array(levels1, dtype=float)
+        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
         levels1 = np.linspace(minval, maxval, 12)
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
+        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
             cmap_obj = cm.get_cmap(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
@@ -405,12 +408,14 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     #End if
 
     if "diff_contour_levels" in kwargs:
-        levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
+        levelsdiff = kwargs['diff_contour_levels']
     elif "diff_contour_range" in kwargs:
         assert len(kwargs['diff_contour_range']) == 3, \
         "diff_contour_range must have exactly three entries: min, max, step"
 
-        levelsdiff = np.arange(*kwargs['diff_contour_range'])
+        levelsdiff = kwargs['diff_contour_range']
+        levelsdiff = np.array(levelsdiff, dtype=float)
+        levelsdiff = np.arange(*levelsdiff)
     else:
         # set a symmetric color bar for diff:
         absmaxdif = np.max(np.abs(diffdata.data))
@@ -436,7 +441,6 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         plot_log_p = kwargs["plot_log_pressure"]
     else:
         plot_log_p = False
-
     # color normalization for difference
     if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
         normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
