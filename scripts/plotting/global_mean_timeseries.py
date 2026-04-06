@@ -51,6 +51,8 @@ def global_mean_timeseries(adfobj):
             vres = {}
         #End if
 
+        vres["plot_type"] = __name__
+
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
 

@@ -164,6 +164,8 @@ def global_latlon_vect_map(adfobj):
             continue
         #End if
 
+        vres["plot_type"] = __name__
+
         #Make sure that variable is part of a vector pair:
         if "vector_pair" in vres:
             var_pair = vres["vector_pair"]
@@ -405,6 +407,8 @@ def global_latlon_vect_map(adfobj):
                                 continue
                             #End if
 
+                            vres['lev'] = int(lv)
+
                             #Loop over season dictionary:
                             for s in seasons:
                                 umseasons[s] = (utils.seasonal_mean(umdata, season=s, is_climo=True)).sel(lev=lv)
@@ -444,7 +448,7 @@ def global_latlon_vect_map(adfobj):
                                 #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                                 #   *Any other entries will be ignored.
                                 # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                pf.plot_map_vect_and_save(plot_name, case_nickname, base_nickname,
+                                pf.plot_map_vect_and_save(adfobj, plot_name, case_nickname, base_nickname,
                                                         [syear_cases[case_idx],eyear_cases[case_idx]],
                                                         [syear_baseline,eyear_baseline],lv,
                                                         umseasons[s], vmseasons[s],
@@ -506,7 +510,7 @@ def global_latlon_vect_map(adfobj):
                                                       udseasons[s], vdseasons[s], obs, **vres)
 
                             #Add plot to website (if enabled):
-                            adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,
+                            adfobj.add_website_data(adfobj, plot_name, var_name, case_name, category=web_category,
                                                     season=s, plot_type="LatLon_Vector")
 
                         #End for

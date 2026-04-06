@@ -137,6 +137,7 @@ def polar_map(adfobj):
         # Get variable-specific settings
         vres = res.get(var, {})
         web_category = vres.get("category", None)
+        vres["plot_type"] = __name__
 
         # Get all plot info and check existence
         plot_info = []
@@ -153,8 +154,10 @@ def polar_map(adfobj):
 
             for s in seasons:
                 for hemi_type in ["NHPolar", "SHPolar"]:
+                    vres["hemi"] = hemi_type
                     if pres_levs and has_lev: # 3-D variable & pressure levels specified
                         for pres in pres_levs:
+                            vres['lev'] = int(pres)
                             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
                             info = {
                                 'path': plot_name,
@@ -245,7 +248,7 @@ def polar_map(adfobj):
             if plot['path'].exists():
                 plot['path'].unlink()
 
-            pf.make_polar_plot(
+            pf.make_polar_plot(adfobj, 
                 plot['path'], test_nicknames[case_idx], base_nickname,
                 [syear_cases[case_idx], eyear_cases[case_idx]],
                 [syear_baseline, eyear_baseline],
