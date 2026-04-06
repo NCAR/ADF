@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Image Comparison Dashboard</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      margin: 0;
+      background: #f4f7fb;
+    }
+
+    .header {
+      background: #003865;
+      color: white;
+      padding: 12px 20px;
+    }
+
+    .container { padding: 20px; }
+
+    input {
+      padding: 6px;
+      margin: 5px;
+      width: 250px;
+    }
+
+    button {
+      padding: 6px 10px;
+      margin: 5px;
+      cursor: pointer;
+      border-radius: 6px;
+      border: none;
+    }
+
+    .primary-btn { background: #0076a8; color: white; }
+    .danger-btn { background: #c0392b; color: white; }
+
+    .row { margin-bottom: 8px; }
+
+    /* Horizontal layout for images */
+    .grid {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      margin-bottom: 25px;
+    }
+
+    .cell {
+      min-width: 300px;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    /* Hover zoom effect */
+    .cell img {
+      max-width: 100%;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .cell img:hover {
+      transform: scale(1.08);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .label {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .image-header {
+      font-weight: bold;
+      margin-top: 25px;
+      margin-bottom: 10px;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.85);
+      overflow: auto;
+    }
+
+    .modal img {
+      display: block;
+      margin: auto;
+      max-width: 90%;
+      max-height: 90%;
+      margin-top: 5%;
+    }
+
+    .close {
+      position: absolute;
+      top: 15px;
+      right: 25px;
+      color: white;
+      font-size: 35px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Drag placeholder effect */
+    .dragging {
+      opacity: 0.4;
+      border: 2px dashed #0076a8;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>Image Comparison Dashboard</h2>
+</div>
+
+<div class="container">
+
+  <!-- CASES -->
+  <h3>Directories</h3>
+  <div id="cases"></div>
+  <button class="primary-btn" onclick="addCase()">+ Add Case</button>
+
+  <hr>
+
+  <!-- IMAGES -->
+  <h3>Images to Compare</h3>
+  <div id="images"></div>
+  <button class="primary-btn" onclick="addImage()">+ Add Image</button>
+
+  <br><br>
+  <button class="primary-btn" onclick="compareImages()">Compare</button>
+  <button class="danger-btn" onclick="clearAll()">Clear All</button>
+
+  <hr>
+
+  <div id="output"></div>
+
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal">
+  <span class="close" onclick="closeModal()">&times;</span>
+  <img id="modalImg">
+</div>
+
+<script>
+let cases = [];
+let images = [];
+
+/* INIT */
+function init() {
+  cases = JSON.parse(localStorage.getItem("cases") || "[]");
+  images = JSON.parse(localStorage.getItem("images") || "[]");
+
+  // defaults
+  if (cases.length === 0) cases = [{url:'', label:''}];
+  if (images.length === 0) images = ["", ""]; // TWO default images
+
+  renderCases();
+  renderImages();
+  compareImages();
+}
+
+/* CASES */
+function addCase() {
+  cases.push({url:'', label:''});
+  saveState();
+  renderCases();
+  compareImages();
+}
+
+function deleteCase(i) {
+  cases.splice(i, 1);
+  saveState();
+  renderCases();
+  compareImages();
+}
+
+function updateCase(i, field, val) {
+  cases[i][field] = val;
+  saveState();
+}
+
+/* Render directory inputs */
+function renderCases() {
+  let div = document.getElementById("cases");
+  div.innerHTML = "";
+
+  cases.forEach((c, i) => {
+    div.innerHTML += `
+      <div class="row">
+        <input value="${c.url}" placeholder="Directory URL"
+          oninput="updateCase(${i}, 'url', this.value)">
+        <input value="${c.label}" placeholder="Label"
+          oninput="updateCase(${i}, 'label', this.value)">
+        <button onclick="deleteCase(${i})">❌</button>
+      </div>
+    `;
+  });
+}
+
+/* IMAGES */
+function addImage() {
+  images.push("");
+  saveState();
+  renderImages();
+  compareImages();
+}
+
+function deleteImage(i) {
+  images.splice(i, 1);
+  saveState();
+  renderImages();
+  compareImages();
+}
+
+function updateImage(i, val) {
+  images[i] = val;
+  saveState();
+}
+
+/* Render image inputs */
+function renderImages() {
+  let div = document.getElementById("images");
+  div.innerHTML = "";
+
+  images.forEach((img, i) => {
+    div.innerHTML += `
+      <div class="row">
+        <input value="${img}" placeholder="Image name (e.g. plot.png)"
+          oninput="updateImage(${i}, this.value)">
+        <button onclick="deleteImage(${i})">❌</button>
+      </div>
+    `;
+  });
+}
+
+/* MAIN: compare images side by side per case */
+function compareImages() {
+  let output = document.getElementById("output");
+  output.innerHTML = "";
+
+  cases.forEach(c => {
+    if (!c.url) return;
+
+    let header = document.createElement("div");
+    header.className = "image-header";
+    header.textContent = c.label || c.url;
+    output.appendChild(header);
+
+    let grid = document.createElement("div");
+    grid.className = "grid";
+
+    images.forEach((imgName, index) => {
+      if (!imgName) return;
+
+      let fullURL = c.url + imgName;
+
+      let cell = document.createElement("div");
+      cell.className = "cell";
+      cell.setAttribute("draggable", "true");
+      cell.dataset.index = index;
+
+      // Drag events
+      cell.addEventListener('dragstart', dragStart);
+      cell.addEventListener('dragover', dragOver);
+      cell.addEventListener('drop', drop);
+      cell.addEventListener('dragend', dragEnd);
+
+      let label = document.createElement("div");
+      label.className = "label";
+      label.textContent = imgName;
+
+      let img = document.createElement("img");
+      img.src = fullURL;
+
+      img.onerror = () => {
+        img.style.opacity = 0.3;
+        img.title = "Image not found";
+      };
+
+      img.onclick = () => openModal(fullURL);
+
+      cell.appendChild(label);
+      cell.appendChild(img);
+      grid.appendChild(cell);
+    });
+
+    output.appendChild(grid);
+  });
+}
+
+/* DRAG & DROP FUNCTIONS */
+let dragSrcEl = null;
+
+function dragStart(e) {
+  dragSrcEl = this;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', this.innerHTML);
+  this.classList.add('dragging');
+}
+
+function dragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function drop(e) {
+  e.stopPropagation();
+  if (dragSrcEl !== this) {
+    // Swap positions in DOM
+    const parent = this.parentNode;
+    let srcIndex = parseInt(dragSrcEl.dataset.index);
+    let tgtIndex = parseInt(this.dataset.index);
+
+    // Swap images array to persist order
+    [images[srcIndex], images[tgtIndex]] = [images[tgtIndex], images[srcIndex]];
+    saveState();
+
+    // Re-render
+    compareImages();
+  }
+}
+
+function dragEnd(e) {
+  this.classList.remove('dragging');
+}
+
+/* MODAL */
+function openModal(src) {
+  document.getElementById("modal").style.display = "block";
+  document.getElementById("modalImg").src = src;
+}
+
+function closeModal() {
+  document.getElementById("modal").style.display = "none";
+}
+
+/* CLEAR EVERYTHING */
+function clearAll() {
+  if (!confirm("Clear everything?")) return;
+
+  cases = [{url:'', label:''}];
+  images = ["", ""];
+
+  localStorage.clear();
+
+  renderCases();
+  renderImages();
+  document.getElementById("output").innerHTML = "";
+}
+
+/* SAVE STATE */
+function saveState() {
+  localStorage.setItem("cases", JSON.stringify(cases));
+  localStorage.setItem("images", JSON.stringify(images));
+}
+
+/* START */
+init();
+</script>
+
+</body>
+</html>

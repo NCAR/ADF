@@ -1570,6 +1570,7 @@ Q:
   obs_var_name: "Q"
 
 T:
+  colormap: "RdBu_r"
   category: "State"
   obs_file: "T_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
