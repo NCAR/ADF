@@ -250,11 +250,16 @@ class AdfWeb(AdfObs):
 
             # Gather Git info
             git_info = self.get_git_info()
-            f.write("\n")
-            f.write(f"<br><br><strong><a {font_22}>Git Info</a></strong><br>")
-            for key,val in git_info.items():
-                f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a></><br>")
-            f.write("</p>")
+            if git_info is None:
+                f.write("\n")
+                f.write(f"<br><br><strong><a {font_22}>No git info found</a></strong><br>")
+                f.write("</p>")
+            else:
+                f.write("\n")
+                f.write(f"<br><br><strong><a {font_22}>Git Info</a></strong><br>")
+                for key,val in git_info.items():
+                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a></><br>")
+                f.write("</p>")
 
     def _write_run_info_to_log(self, config_file, active_env):
 
@@ -290,12 +295,16 @@ class AdfWeb(AdfObs):
 
         # Gather Git info
         git_info = self.get_git_info()
-        git_msg = "\nGit Info:"
-        msg = f"{git_msg}\n{'-' * (len(git_msg)-1)}\n"
-        log_msg += f"\n  {msg}"
+        if git_info is None:
+            msg = "No git info found"
+            log_msg += f"\n  {msg}"
+        else:
+            git_msg = "\nGit Info:"
+            msg = f"{git_msg}\n{'-' * (len(git_msg)-1)}\n"
+            log_msg += f"\n  {msg}"
 
-        for key,val in git_info.items():
-            log_msg += f"  {key}: {val}\n"
+            for key,val in git_info.items():
+                log_msg += f"  {key}: {val}\n"
 
         self.debug_log(log_msg)
 
