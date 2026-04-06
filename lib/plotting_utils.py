@@ -32,12 +32,27 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.cm as cm
 import cartopy.crs as ccrs
+import os
+
+import urllib
+from urllib.parse import urlparse
+from urllib.request import urlretrieve
+from pathlib import Path
+import re
 
 from adf_diag import AdfDiag
 import adf_utils as utils
 
 import warnings  # use to warn user about missing files.
 warnings.formatwarning = utils.my_formatwarning
+
+#Set non-X-window backend for matplotlib:
+mpl.use('Agg')
+
+#Now import pyplot:
+import matplotlib.pyplot as plt
+
+script_name = os.path.splitext(os.path.basename(__file__))[0]
 
 #################
 #HELPER FUNCTIONS
@@ -307,6 +322,310 @@ def meridional_plot_preslon(ax, lon, lev, data, **kwargs):
     ax.set_ylim([np.max(lev), np.min(lev)])
     return img, ax
 
+
+# Color Map Functions
+#--------------------
+
+ncl_defaults = ["ncl_default"]
+
+def guess_ncl_url(cmap):
+    return f"https://www.ncl.ucar.edu/Document/Graphics/ColorTables/Files/{cmap}.rgb"
+
+
+def download_ncl_colormap(url, dest):
+    urlretrieve(url, dest)
+
+
+def read_ncl_colormap(adfobj, fil):
+    # determine if fil is a URL:
+    # if so, we have to download it
+
+    msg = f"{script_name}: read_ncl_colormap()"
+    if isinstance(fil, str):
+        pars = urlparse(fil)
+        if pars.scheme in ['http', 'https', 'ftp']:
+            filename = Path.cwd() / fil.split("/")[-1]
+            if filename.is_file():
+                msg += f"\n\tFile already downloaded as {filename}"
+            else:
+                msg += f"\n\tFile will be downloaded and saved as {filename}"
+                download_ncl_colormap(fil, str(filename))
+        else:
+            is_url = False
+            filename = Path(fil)
+    elif isinstance(fil, Path):
+        filename = fil
+    else:
+        raise ValueError(f"\tERROR: what to do with type {type(fil)}")
+        
+    # NCL's colormaps are not regularized enough to just use read_csv. 
+    # We have to determine how many lines to skip because it varies.
+    # NCL has some files that have "comments" at the end
+    # which will look like additional columnns
+    # We basically are forced to just read line-by-line
+
+    # ASSUME ALL NCL COLORMAPS ARE N rows BY 3 COLUMNS,
+    # AND THE VALUES ARE INTEGERS 0-255.
+    with open(filename) as f:
+        table_exists = False
+        for count, line in enumerate(f):
+            line_str = line.strip() # remove leading/trailing whitespace
+            if (len(line_str) == 0) or (not line_str[0].isdigit()):
+                continue # empty line or non-data line 
+                # NOTE: also skips if the first value is negative (hlu_default) 
+            else:
+                if re.search(r'[^\s0-9-\.]', line_str): # any non number characters ASSUMED AT END
+                    # take the string up to the non-matching character
+                    line_vals = line_str[:re.search(r'[^\s0-9-\.]', line_str).start()-1].strip().split()
+                else:
+                    line_vals = line_str.split()
+                try: 
+                    row = [float(r) for r in line_vals]
+                except:
+                    msg += f"\n\tERROR reading RGB file {line_vals}"
+                if table_exists:
+                    table = np.vstack([table, row])
+                else:
+                    table = np.array(row)
+                    table_exists=True
+    adfobj.debug_log(msg)
+    return table
+
+
+def ncl_to_mpl(adfobj, nclmap, name):
+    msg = f"{script_name}: ncl_to_mpl()"
+    if nclmap.max() > 1:
+        try:
+            vals = nclmap / 255
+        except:
+            msg += f"\n\tERROR: could not divide by 255. {type(nclmap) = }"
+            msg += f" {nclmap}"
+            adfobj.debug_log(msg)
+            return None
+    else:
+        msg += f"\n\t{name} seems to be 0-1"
+        vals = nclmap
+    assert vals.shape[1] == 3, 'vals.shape should be (N,3)'
+    ncolors = vals.shape[0]
+    if ncolors > 100:
+        my_cmap = mpl.colors.LinearSegmentedColormap.from_list(name, vals)
+        my_cmap_r = my_cmap.reversed()
+    else:
+        my_cmap = mpl.colors.ListedColormap(vals, name)
+        my_cmap_r = my_cmap.reversed()
+    # my_cmap, my_cmap_r from reversing a colormap
+    # ALLOW MPL TO KNOW ABOUT THE COLORMAP:
+    # mpl.colormaps.register(cmap=my_cmap)
+    # mpl.colormaps.register(cmap=my_cmap_r)
+
+    adfobj.debug_log(msg)
+    return my_cmap, my_cmap_r
+
+
+def choose_colormap_type(levels, threshold_symmetry=0.25):
+    levels = np.array(levels)
+    minval, maxval = np.min(levels), np.max(levels)
+    crosses_zero = (minval < 0) and (maxval > 0)
+    symmetry_ratio = abs(abs(maxval) - abs(minval)) / max(abs(maxval), abs(minval))
+    is_symmetric = symmetry_ratio < threshold_symmetry
+    return 'diverging' if crosses_zero and is_symmetric else 'sequential'
+
+
+def load_colormap(adfobj, cmap_name):
+    msg = f"{script_name}: load_colormap()"
+    if cmap_name in plt.colormaps():
+        adfobj.debug_log(msg)
+        return cmap_name
+    else:
+        msg += f"\n\t{cmap_name} not a standard Matplotlib colormap. Trying NCL..."
+        url = guess_ncl_url(cmap_name)
+        locfil = Path(".") / f"{cmap_name}.rgb"
+        data = read_ncl_colormap(locfil,msg) if locfil.is_file() else read_ncl_colormap(url)
+        cm, cmr = ncl_to_mpl(adfobj, data, cmap_name)
+        if not cm:
+            msg += f"\n\tFailed to load {cmap_name}. Defaulting to 'coolwarm'."
+            adfobj.debug_log(msg)
+            return 'coolwarm'
+        adfobj.debug_log(msg)
+        return cm
+    
+
+def try_load_ncl_cmap(adfobj, cmap_case):
+    """Try to load an NCL colormap, fallback to PRECT special case or 'coolwarm'."""
+    msg = f"{script_name}: try_load_ncl_cmap()"
+    msg += f"\n\tTrying {cmap_case} as an NCL color map:"
+    try:
+        url = guess_ncl_url(cmap_case)
+        locfil = Path(".") / f"{cmap_case}.rgb"
+        if locfil.is_file():
+            data = read_ncl_colormap(locfil)
+        else:
+            try:
+                data = read_ncl_colormap(url)
+            except urllib.error.HTTPError:
+                msg += f"\n\tNCL colormap file not found"
+
+        if isinstance(data, np.ndarray):
+            cm, cmr = ncl_to_mpl(data, cmap_case)
+            adfobj.debug_log(msg)
+            return cm, msg
+    except Exception:
+        pass
+
+    adfobj.debug_log(msg)
+    return "coolwarm", msg
+
+
+def get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names):
+    """
+    Gather colormap from variable defaults file, if applicable.
+    Falls back to 'viridis' (case) or 'BrBG' (diff) if none is found.
+    """
+
+    key_map = {
+        "diff": ("diff_colormap", "BrBG"),
+        "case": ("colormap", "viridis"),
+    }
+    colormap_key, default_cmap = key_map.get(plotty, ("colormap", "viridis"))
+
+    cmap_case = None
+    
+    msg = f"{script_name}: get_cmap()"
+
+    # Priority 1: YAML dict
+    if colormap_key in plot_type_dict:
+        cmap_entry = plot_type_dict[colormap_key]
+        msg += f"\n\tUser supplied cmap for {plotty}: {cmap_entry}"
+
+        if isinstance(cmap_entry, str):
+            cmap_case = cmap_entry
+        elif isinstance(cmap_entry, dict):
+            resolved = resolve_hemi_level(adfobj, cmap_entry, kwargs, polar_names)
+            if isinstance(resolved, str):
+                cmap_case = resolved
+
+    # Priority 2: kwargs dict
+    elif colormap_key in kwargs and isinstance(kwargs[colormap_key], str):
+        cmap_case = kwargs[colormap_key]
+        msg += f"\n\tUser supplied cmap for {plotty}: {cmap_case}"
+
+    # Priority 3: fallback default
+    if not cmap_case:
+        msg += f"\n\tNo cmap for {plotty} found, defaulting to {default_cmap}"
+        cmap_case = default_cmap
+
+    # NCL support
+    if cmap_case in ncl_defaults:
+        cmap_case, msg = try_load_ncl_cmap(adfobj, cmap_case)
+
+    # Final check: must exist in matplotlib or NCL
+    if isinstance(cmap_case, str):
+        if (cmap_case not in plt.colormaps()) and (cmap_case not in ncl_defaults):
+            msg += f"\n\tInvalid cmap '{cmap_case}' for {plotty}, defaulting to {default_cmap}"
+            cmap_case = default_cmap
+    
+    adfobj.debug_log(msg)
+
+    return cmap_case
+
+
+# Conour Plot Prep Functions
+#----------------------------
+def resolve_hemi_level(adfobj, data, kwargs, polar_names):
+    """Resolve hemisphere and/or vertical level specific values from a dict."""
+    msg = f"{script_name}: resolve_hemi_level()"
+    hemi = kwargs.get("hemi")
+    lev = kwargs.get("lev")
+
+    if hemi and polar_names.get(hemi) in data:
+        hemi_data = data[polar_names[hemi]]
+        if isinstance(hemi_data, dict) and lev in hemi_data:
+            msg += f"\n\tPolar {hemi} with vertical level {lev}"
+            adfobj.debug_log(msg)
+            return hemi_data[lev]
+        msg += f"\n\tPolar {hemi} without vertical levels"
+        adfobj.debug_log(msg)
+        return hemi_data
+    elif lev and lev in data:
+        msg += f"\n\tVertical level {lev}"
+        adfobj.debug_log(msg)
+        return data[lev]
+
+    adfobj.debug_log(msg)
+    return None
+
+
+
+def resolve_levels(adfobj, plotty, plot_type_dict, kwargs, polar_names):
+        """Resolve contour levels based on user input and defaults."""
+        levels_sim = None
+        msg = f"{script_name}: resolve_levels()"
+
+        # Map keys based on plot type
+        key_map = {
+            "diff": ("diff_contour_levels", "diff_contour_range", "diff_contour_linspace"),
+            "case": ("contour_levels", "contour_levels_range", "contour_levels_linspace"),
+        }
+        contour_levels, contour_range, contour_linspace = key_map.get(plotty, (None, None, None))
+
+        def process_entry(entry, kind, msg):
+            """Handle lists and dicts for levels/ranges/linspace."""
+            if isinstance(entry, list):
+                if len(entry) == 3:
+                    if kind == "range":
+                        msg += f"\n\tLevels specified for {plotty}: numpy.arange."
+                        adfobj.debug_log(msg)
+                        return np.arange(*entry)
+                    elif kind == "linspace":
+                        msg += f"\n\tLevels specified for {plotty}: numpy.linspace."
+                        adfobj.debug_log(msg)
+                        return np.linspace(*entry)
+                    else:
+                        msg += f"\n\tLevels specified for {plotty} as list of 3 values, please add more values."
+                        msg += " Will get contrours from data range."
+                        adfobj.debug_log(msg)
+                        return None
+                elif len(entry) < 3:
+                    msg += f"\n\tNot enough {kind} entries for {plotty} (<3) — ambiguous"
+                    adfobj.debug_log(msg)
+                else:
+                    adfobj.debug_log(msg)
+                    return entry
+            elif isinstance(entry, dict):
+                resolved = resolve_hemi_level(adfobj, entry, kwargs, polar_names)
+                if isinstance(resolved, list) and len(resolved) == 3:
+                    if kind == "range":
+                        msg += f"\n\tLevels specified for {plotty}: numpy.arange."
+                        adfobj.debug_log(msg)
+                        return np.arange(*resolved)
+                    elif kind == "linspace":
+                        msg += f"\n\tLevels specified for {plotty}: numpy.linspace."
+                        adfobj.debug_log(msg)
+                        return np.linspace(*resolved)
+                adfobj.debug_log(msg)
+                return resolved
+            else:
+                adfobj.debug_log(msg)
+                return entry
+
+        # Priority: explicit contour levels → range → linspace
+        for key, kind in [(contour_levels, "levels"),
+                        (contour_range, "range"),
+                        (contour_linspace, "linspace")]:
+            entry = None
+            if key in plot_type_dict:
+                entry = plot_type_dict[key]
+            elif key in kwargs:
+                entry = kwargs[key]
+
+            if entry is not None:
+                levels_sim = process_entry(entry, kind, msg)
+                if levels_sim is not None:
+                    break  # stop once a valid setting is found
+        adfobj.debug_log(msg)
+        return levels_sim
+
+
 def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     """Preparation for making contour plots.
 
@@ -334,14 +653,49 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         - 'contourf_opt': mpl kwargs for contourf
         - 'colorbar_opt': mpl kwargs for colorbar
         - 'diff_colorbar_opt' : mpl kwargs for difference colorbar
-        - 'normdiff': color normalization for difference panel
-        - 'cmapdiff': colormap for difference panel
-        - 'levelsdiff': contour levels for difference panel
-        - 'cmap1': color map for a and b panels
-        - 'norm1': color normalization for a and b panels
-        - 'levels1' : contour levels for a and b panels
+        - 'pct_colorbar_opt': mpl kwargs for percent difference colorbar
+        - 'norm_diff': color normalization for difference panel
+        - 'cmap_diff': colormap for difference panel
+        - 'levels_diff': contour levels for difference panel
+        - 'norm_pctdiff': color normalization for percent difference panel
+        - 'cmap_pctdiff': colormap for percent difference panel
+        - 'levels_pctdiff':contour levels for percent difference panel
+        - 'cmap_sim': color map for a and b panels
+        - 'norm_sim': color normalization for a and b panels
+        - 'levels_sim' : contour levels for a and b panels
         - 'plot_log_p' : true/false whether to plot log(pressure) axis
+        - 'extend_sim': colorbar extend for a and b panels
+        - 'extend_diff': colorbar extend for difference panel
     """
+
+    adfobj = kwargs["adfobj"]
+
+    polar_names = {"NHPolar":"nh",
+                   "SHPolar":"sh"}
+    
+    # Start color map/bar configurations
+    # ----------------------------------
+    if "plot_type" in kwargs:
+        plot_type = kwargs["plot_type"]
+        if plot_type in kwargs:
+            plot_type_dict = kwargs[plot_type]
+        else:
+            plot_type_dict = kwargs
+    else:
+        plot_type = None
+        plot_type_dict = {}
+
+    msg = f"{script_name}: prep_contour_plot()"
+    msg_detail = f"\n\n\tPreparing contour map for {adata.name}"
+    if "lev" in kwargs:
+        msg_detail += f' - {kwargs["lev"]}'
+    if "hemi" in kwargs:
+        msg_detail += f' : {kwargs["hemi"]}'
+    if plot_type:
+        msg_detail += f" for {plot_type} plot"
+    start_msg = msg + f"{msg_detail}\n\t{'-' * (len(msg_detail)-2)}\n"
+    adfobj.debug_log(start_msg)
+
     # determine levels & color normalization:
     minval = np.min([np.min(adata), np.min(bdata)])
     maxval = np.max([np.max(adata), np.max(bdata)])
@@ -349,99 +703,141 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # determine norm to use (deprecate this once minimum MPL version is high enough)
     normfunc, mplv = use_this_norm()
 
-    if 'colormap' in kwargs:
-        cmap1 = kwargs['colormap']
-    else:
-        cmap1 = 'coolwarm'
-    #End if
+    # Case/Baseline  options -- Check in kwargs for colormap and levels
+    # COLOR MAP
+    #---------
+    cmap_case = get_cmap(adfobj, "case", plot_type_dict, kwargs, polar_names)
+    msg = f"\n\tFinal case colormap: {cmap_case}\n\n"
+    
+    # CONTOUR LEVELS
+    #---------------
+    levels_sim = resolve_levels(adfobj, "case", plot_type_dict, kwargs, polar_names)
+    msg += f"\n\tPre check levels: {type(levels_sim)}\n\t\t{levels_sim}\n"
+    if levels_sim is None:
+        msg += "\n\tSetting the levels from max/min"
+        levels_sim = np.linspace(minval, maxval, 12)
+    msg += f"\n\tFinal levels: {type(levels_sim)}\n\t\t{levels_sim}\n\n"
 
-    if 'contour_levels' in kwargs:
-        levels1 = kwargs['contour_levels']
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
-            cmap_obj = cm.get_cmap(cmap1)
-            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    elif 'contour_levels_range' in kwargs:
-        assert len(kwargs['contour_levels_range']) == 3, \
-        "contour_levels_range must have exactly three entries: min, max, step"
+    # Check whether data exceeds limits
+    vmin, vmax = levels_sim[0], levels_sim[-1]
 
-        levels1 = np.arange(*kwargs['contour_levels_range'])
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
-            cmap_obj = cm.get_cmap(cmap1)
-            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
+    extend = 'neither'
+    if minval < vmin and maxval > vmax:
+        extend = 'both'
+    elif minval < vmin:
+        extend = 'min'
+    elif maxval > vmax:
+        extend = 'max'
+    
+    if kwargs.get('non_linear', False):
+        cmap_obj = cm.get_cmap(cmap_case)
+        norm_sim = mpl.colors.BoundaryNorm(levels_sim, cmap_obj.N)
     else:
-        levels1 = np.linspace(minval, maxval, 12)
-        if ('non_linear' in kwargs) and (kwargs['non_linear']):
-            cmap_obj = cm.get_cmap(cmap1)
-            norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
-        else:
-            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+        norm_sim = mpl.colors.Normalize(vmin=min(levels_sim), vmax=max(levels_sim))
     #End if
 
     #Check if the minval and maxval are actually different.  If not,
-    #then set "levels1" to be an empty list, which will cause the
+    #then set "levels_sim" to be an empty list, which will cause the
     #plotting scripts to add a label instead of trying to plot a variable
     #with no contours:
     if minval == maxval:
-        levels1 = []
+        levels_sim = []
     #End if
 
-    if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
+    if ('colormap' not in plot_type_dict) and ('contour_levels' not in plot_type_dict):
         if ((minval < 0) and (0 < maxval)) and mplv > 2:
-            norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
+            norm_sim = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
         else:
-            norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+            norm_sim = mpl.colors.Normalize(vmin=minval, vmax=maxval)
         #End if
     #End if
-
+    
     # Difference options -- Check in kwargs for colormap and levels
-    if "diff_colormap" in kwargs:
-        cmapdiff = kwargs["diff_colormap"]
-    else:
-        cmapdiff = 'coolwarm'
-    #End if
+    # determine levels & color normalization:
+    minval = np.min(diffdata)
+    maxval = np.max(diffdata)
 
-    if "diff_contour_levels" in kwargs:
-        levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
-    elif "diff_contour_range" in kwargs:
-        assert len(kwargs['diff_contour_range']) == 3, \
-        "diff_contour_range must have exactly three entries: min, max, step"
+    # COLOR MAP
+    #----------
+    cmap_diff = get_cmap(adfobj, "diff", plot_type_dict, kwargs, polar_names)
+    msg += f"\n\tFinal difference colormap: {cmap_diff}\n\n"
 
-        levelsdiff = np.arange(*kwargs['diff_contour_range'])
+    # CONTOUR LEVELS
+    #---------------
+    levels_diff = resolve_levels(adfobj, "diff", plot_type_dict, kwargs, polar_names)
+
+    msg += f"\n\tPre check difference LEVELS: {type(levels_diff)}\n\t\t{levels_diff}\n"
+    if levels_diff is None:
+        msg += f"\n\tSetting the difference levels from max/min"
+        absmaxdif = np.max(np.abs(diffdata))
+        levels_diff = np.linspace(-absmaxdif, absmaxdif, 12)
+    msg += f"\n\tFinal difference levels: {type(levels_diff)}\n\t\t{levels_diff}\n"
+
+    # Check whether data exceeds limits
+    vmin, vmax = levels_diff[0], levels_diff[-1]
+    extend_diff = 'neither'
+    if minval < vmin and maxval > vmax:
+        extend_diff = 'both'
+    elif minval < vmin:
+        extend_diff = 'min'
+    elif maxval > vmax:
+        extend_diff = 'max'
+
+    # color normalization for difference
+    if ((np.min(levels_diff) < 0) and (0 < np.max(levels_diff))) and mplv > 2:
+        norm_diff = normfunc(vmin=np.min(levels_diff), vmax=np.max(levels_diff), vcenter=0.0)
     else:
-        # set a symmetric color bar for diff:
-        absmaxdif = np.max(np.abs(diffdata.data))
-        # set levels for difference plot:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        norm_diff = mpl.colors.Normalize(vmin=np.min(levels_diff), vmax=np.max(levels_diff))
+
     # Percent Difference options -- Check in kwargs for colormap and levels
-    if "pct_diff_colormap" in kwargs:
-        cmappct = kwargs["pct_diff_colormap"]
+    # COLOR MAP
+    #----------
+    # determine levels & color normalization:
+    #minval = np.min(diffdata)
+    #maxval = np.max(diffdata)
+    if "pct_diff_colormap" in plot_type_dict:
+        cmap_pctdiff = plot_type_dict["pct_diff_colormap"]
     else:
-        cmappct = "PuOr_r"
+        cmap_pctdiff = "PuOr_r"
     #End if
 
-    if "pct_diff_contour_levels" in kwargs:
-        levelspctdiff = kwargs["pct_diff_contour_levels"]  # a list of explicit contour levels
-    elif "pct_diff_contour_range" in kwargs:
-            assert len(kwargs['pct_diff_contour_range']) == 3, "pct_diff_contour_range must have exactly three entries: min, max, step"
-            levelspctdiff = np.arange(*kwargs['pct_diff_contour_range'])
+    if cmap_pctdiff not in plt.colormaps():
+        msg += f"\n\tPercent Difference: {cmap_pctdiff} is not a matplotlib standard color map."
+        msg += f" Trying if this an NCL color map"
+
+        url = guess_ncl_url(cmap_pctdiff)
+        locfil = "." / f"{cmap_pctdiff}.rgb"
+        if locfil.is_file():
+            data = read_ncl_colormap(locfil)
+        else:
+            data = read_ncl_colormap(url)
+        cm, cmr = ncl_to_mpl(data, cmap_pctdiff)
+        #ncl_colors[cm.name] = cm
+        #ncl_colors[cmr.name] = cmr
+        
+        if not cm:
+            msg += f"\n\tPercent Difference: {cmap_pctdiff} is not a matplotlib or NCL color map."
+            cmap_pctdiff = 'PuOr_r'
+            msg += f" Defaulting to '{cmap_pctdiff}'"
+            adfobj.debug_log(msg)
+        else:
+            cmap_pctdiff = cm
+
+    # CONTOUR LEVELS
+    #---------------
+    if "pct_diff_contour_levels" in plot_type_dict:
+        levels_pctdiff = plot_type_dict["pct_diff_contour_levels"]  # a list of explicit contour levels
+    elif "pct_diff_contour_range" in plot_type_dict:
+            assert len(plot_type_dict['pct_diff_contour_range']) == 3, "pct_diff_contour_range must have exactly three entries: min, max, step"
+            levels_pctdiff = np.arange(*plot_type_dict['pct_diff_contour_range'])
     else:
-        levelspctdiff = [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-    pctnorm = mpl.colors.BoundaryNorm(levelspctdiff,256)
+        levels_pctdiff = [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+    norm_pctdiff = mpl.colors.BoundaryNorm(levels_pctdiff,256)
 
     if "plot_log_pressure" in kwargs:
         plot_log_p = kwargs["plot_log_pressure"]
     else:
         plot_log_p = False
-
-    # color normalization for difference
-    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
-        normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
-    else:
-        normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
 
     subplots_opt = {}
     contourf_opt = {}
@@ -457,21 +853,24 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         diff_colorbar_opt.update(kwargs['mpl'].get('diff_colorbar',{}))
         pct_colorbar_opt.update(kwargs['mpl'].get('pct_diff_colorbar',{}))
     #End if
+
     return {'subplots_opt': subplots_opt,
             'contourf_opt': contourf_opt,
             'colorbar_opt': colorbar_opt,
             'diff_colorbar_opt': diff_colorbar_opt,
             'pct_colorbar_opt': pct_colorbar_opt,
-            'normdiff': normdiff,
-            'cmapdiff': cmapdiff,
-            'levelsdiff': levelsdiff,
-            'pctnorm': pctnorm,
-            'cmappct': cmappct,
-            'levelspctdiff':levelspctdiff,
-            'cmap1': cmap1,
-            'norm1': norm1,
-            'levels1': levels1,
-            'plot_log_p': plot_log_p
+            'norm_diff': norm_diff,
+            'cmap_diff': cmap_diff,
+            'levels_diff': levels_diff,
+            'norm_pctdiff': norm_pctdiff,
+            'cmap_pctdiff': cmap_pctdiff,
+            'levels_pctdiff':levels_pctdiff,
+            'cmap_sim': cmap_case,
+            'norm_sim': norm_sim,
+            'levels_sim': levels_sim,
+            'plot_log_p': plot_log_p,
+            'extend_sim': extend,
+            'extend_diff': extend_diff
             }
 
 
