@@ -666,6 +666,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         - 'plot_log_p' : true/false whether to plot log(pressure) axis
         - 'extend_sim': colorbar extend for a and b panels
         - 'extend_diff': colorbar extend for difference panel
+        - 'units': ADF cleaned units string for labeling colorbars
     """
 
     adfobj = kwargs["adfobj"]
@@ -754,8 +755,8 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     
     # Difference options -- Check in kwargs for colormap and levels
     # determine levels & color normalization:
-    minval = np.min(diffdata)
-    maxval = np.max(diffdata)
+    minval = np.nanmin(diffdata)
+    maxval = np.nanmax(diffdata)
 
     # COLOR MAP
     #----------
@@ -834,6 +835,18 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         levels_pctdiff = [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
     norm_pctdiff = mpl.colors.BoundaryNorm(levels_pctdiff,256)
 
+    vmin, vmax = levels_pctdiff[0], levels_pctdiff[-1]
+    extend_pctdiff = 'neither'
+    if pctdata is not None:
+        minval = np.nanmin(pctdata)
+        maxval = np.nanmax(pctdata)
+        if minval < vmin and maxval > vmax:
+            extend_pctdiff = 'both'
+        elif minval < vmin:
+            extend_pctdiff = 'min'
+        elif maxval > vmax:
+            extend_pctdiff = 'max'
+
     if "plot_log_pressure" in kwargs:
         plot_log_p = kwargs["plot_log_pressure"]
     else:
@@ -854,6 +867,11 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         pct_colorbar_opt.update(kwargs['mpl'].get('pct_diff_colorbar',{}))
     #End if
 
+    if "units" in kwargs:
+        units = kwargs["units"]
+    else:
+        units = adata.units
+
     return {'subplots_opt': subplots_opt,
             'contourf_opt': contourf_opt,
             'colorbar_opt': colorbar_opt,
@@ -870,7 +888,9 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
             'levels_sim': levels_sim,
             'plot_log_p': plot_log_p,
             'extend_sim': extend,
-            'extend_diff': extend_diff
+            'extend_diff': extend_diff,
+            'extend_pctdiff': extend_pctdiff,
+            'units': units
             }
 
 
