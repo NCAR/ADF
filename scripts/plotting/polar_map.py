@@ -348,6 +348,10 @@ def polar_map(adfobj):
                                     elif (var == 'NPP'):
                                         print("\t\t Skipping NPP polar plot")
                                         continue
+                                    # not working for regular grids?
+                                    elif (var == 'CH4_SURF_EBUL_UNSAT'):
+                                        print("\t\t Skipping CH4_SURF_EBUL_UNSAT polar plot")
+                                        continue
                                     else: 
                                         pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                            [syear_cases[case_idx],eyear_cases[case_idx]],
