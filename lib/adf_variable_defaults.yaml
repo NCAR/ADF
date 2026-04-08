@@ -1416,9 +1416,11 @@ U10:
   category: "Surface variables"
 
 Surface_Wind_Stress:
+  new_unit: "N m$^{-2}$"
   category: "Surface variables"
 
 TAUX:
+  new_unit: "N m$^{-2}$"
   vector_pair: "TAUY"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
@@ -1426,6 +1428,7 @@ TAUX:
   add_offset: 0
 
 TAUY:
+  new_unit: "N m$^{-2}$"
   vector_pair: "TAUX"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
