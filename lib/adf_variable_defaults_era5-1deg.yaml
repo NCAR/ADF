@@ -299,9 +299,6 @@ BC:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
-  mpl:
-    colorbar:
-      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["bc_a1", "bc_a4"]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -313,9 +310,6 @@ POM:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
-  mpl:
-    colorbar:
-      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["pom_a1", "pom_a4"]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -327,9 +321,6 @@ SO4:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
-  mpl:
-    colorbar:
-      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["so4_a1", "so4_a2", "so4_a3"]
   derivable_from_cam_chem: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
@@ -342,9 +333,6 @@ SOA:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
-  mpl:
-    colorbar:
-      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["soa_a1", "soa_a2"]
   derivable_from_cam_chem: ["soa1_a1", "soa2_a1", "soa3_a1", "soa4_a1", "soa5_a1", "soa1_a2", "soa2_a2", "soa3_a2", "soa4_a2", "soa5_a2"]
@@ -359,9 +347,6 @@ DUST:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
-  mpl:
-    colorbar:
-      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["dst_a1", "dst_a2", "dst_a3"]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -377,10 +362,8 @@ SeaSalt:
   new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
-      label : '$\mu$g/m3'
       ticks: [0.05,0.2,0.4,1,2,6,24,90]
     diff_colorbar:
-      label : '$\mu$g/m3'
       ticks: [-10,8,6,4,2,0,-2,-4,-6,-8,-10]
   category: "Aerosols"
   derivable_from: ["ncl_a1", "ncl_a2", "ncl_a3"]
@@ -1539,9 +1522,6 @@ CLOUD:
   scale_factor: 100
   add_offset: 0
   new_unit: "Percent"
-  mpl:
-    colorbar:
-      label : "Percent"
   category: "Clouds"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -1557,9 +1537,6 @@ TGCLDLWP:
   scale_factor: 1000
   add_offset: 0
   new_unit: "g m$^{-2}$"
-  mpl:
-    colorbar:
-      label : "g m$^{-2}$"
   category: "Clouds"
   obs_file: "TGCLDLWP_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1577,9 +1554,6 @@ TGCLDIWP:
   scale_factor: 1000
   add_offset: 0
   new_unit: "g m$^{-2}$"
-  mpl:
-    colorbar:
-      label : "g m$^{-2}$"
   category: "Clouds"
   obs_file: "TGCLDIWP_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1620,9 +1594,6 @@ PRECC:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm/d"
   category: "Hydrologic cycle"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -1635,9 +1606,6 @@ PRECL:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -1650,9 +1618,6 @@ PRECSC:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -1665,9 +1630,6 @@ PRECSL:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -1680,9 +1642,6 @@ PRECT:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm d$^{-1}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "PRECT"
@@ -1712,9 +1671,6 @@ PSL:
   scale_factor: 0.01
   add_offset: 0
   new_unit: "hPa"
-  mpl:
-    colorbar:
-      label : "hPa"
   category: "Surface variables"
   obs_file: "PSL_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1730,9 +1686,6 @@ PS:
   scale_factor: 0.01
   add_offset: 0
   new_unit: "hPa"
-  mpl:
-    colorbar:
-      label : "hPa"
   category: "Surface variables"
   obs_file: "PS_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1754,9 +1707,6 @@ TS:
   scale_factor: 1
   add_offset: 0
   new_unit: "K"
-  mpl:
-    colorbar:
-      label : "K"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "TS"
@@ -1772,9 +1722,6 @@ SST:
   scale_factor: 1
   add_offset: 0
   new_unit: "K"
-  mpl:
-    colorbar:
-      label : "K"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "TS"
@@ -1789,11 +1736,13 @@ U10:
   pct_diff_colormap: "PuOr_r"
 
 Surface_Wind_Stress:
+  new_unit: "N m$^{-2}$"
   category: "Surface variables"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 TAUX:
+  new_unit: "N m$^{-2}$"
   vector_pair: "TAUY"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
@@ -1806,6 +1755,7 @@ TAUX:
   obs_var_name: "TAUX"
 
 TAUY:
+  new_unit: "N m$^{-2}$"
   vector_pair: "TAUX"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
@@ -1859,9 +1809,6 @@ RELHUM:
   scale_factor: 1
   add_offset: 0
   new_unit: "Fraction"
-  mpl:
-    colorbar:
-      label : "Fraction"
   obs_file: "RELHUM_ERA5_monthly_climo_1degree_197901-202212.nc"
   obs_name: "ERA5"
   obs_var_name: "RELHUM"
@@ -1877,9 +1824,6 @@ U:
   scale_factor: 1
   add_offset: 0
   new_unit: "ms$^{-1}$"
-  mpl:
-    colorbar:
-      label : "ms$^{-1}$"
   obs_file: "U_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "U"
@@ -1897,9 +1841,6 @@ V:
   scale_factor: 1
   add_offset: 0
   new_unit: "ms$^{-1}$"
-  mpl:
-    colorbar:
-      label : "ms$^{-1}$"
   obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "V"
@@ -1988,9 +1929,6 @@ RESTOM:
   scale_factor: 1
   add_offset: 0
   new_unit: "W m$^{-2}$"
-  mpl:
-    colorbar:
-      label : "W m$^{-2}$"
   category: "TOA energy flux"
   derivable_from: ['FLNT','FSNT']
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -2004,9 +1942,6 @@ SWCF:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_sw_mon"
@@ -2024,9 +1959,6 @@ LWCF:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
@@ -2042,9 +1974,6 @@ FSUTOA:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   category: "TOA energy flux"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -2057,9 +1986,6 @@ FSNT:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "fsnt"
@@ -2090,9 +2016,6 @@ FLNT:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_all_mon"
@@ -2108,9 +2031,6 @@ FLNTC:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_clr_t_mon"
@@ -2140,9 +2060,6 @@ FSNS:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_all_mon"
@@ -2158,9 +2075,6 @@ FSNSC:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_clr_t_mon"
@@ -2176,9 +2090,6 @@ FLDS:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_lw_down_all_mon"
@@ -2209,9 +2120,6 @@ LHFLX:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "LHFLX"
@@ -2404,9 +2312,6 @@ H2O:
   scale_factor: 1
   add_offset: 0
   new_unit: "mol mol$^{-1}$"
-  mpl:
-    colorbar:
-      label: "mol mol$^{-1}$"
   plot_log_pressure: True
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
