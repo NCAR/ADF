@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+import plotting_utils as plot_utils
 
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
@@ -158,6 +159,7 @@ def zonal_mean(adfobj):
             vres = {}
         #End if
 
+        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
         vres["plot_type"] = __name__
 
         # load reference data (observational or baseline)

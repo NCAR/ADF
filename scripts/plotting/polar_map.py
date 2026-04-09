@@ -4,6 +4,7 @@ import numpy as np
 
 # ADF library
 import plotting_functions as pf
+import plotting_utils as plot_utils
 import adf_utils as utils
 
 def get_hemisphere(hemi_type):
@@ -136,6 +137,7 @@ def polar_map(adfobj):
 
         # Get variable-specific settings
         vres = res.get(var, {})
+        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
         web_category = vres.get("category", None)
         vres["plot_type"] = __name__
 
