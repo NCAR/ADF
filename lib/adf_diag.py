@@ -1362,7 +1362,7 @@ class AdfDiag(AdfWeb):
 
                 # Grab attributes from first constituent file to be used in derived variable
                 attrs = ds[constit_list[0]].attrs
-
+                
                 # create new file name for derived variable
                 derived_file = constit_files[0].replace(constit_list[0], var)
 
@@ -1443,6 +1443,11 @@ class AdfDiag(AdfWeb):
                 der_val.name = var
                 ds[var] = der_val
 
+                # Set encoding: _FillValue to 1e36
+                #encoding = {
+                #    var: {'_FillValue': 1e36}
+                #}
+
                 # Aerosol Calculations
                 # ----------------------------------------------------------------------------------
                 # These will be multiplied by rho (density of dry air)
@@ -1487,7 +1492,15 @@ class AdfDiag(AdfWeb):
                 ds_final = ds.drop_vars(constit_list)
                 # Copy attributes from constituent file to derived variable
                 ds_final[var].attrs = attrs
-                ds_final.to_netcdf(derived_file, unlimited_dims='time', mode='w')
+                
+                # Set _FillValues correctly
+                encoding = {
+                        var: {"_FillValue": 1.e36},
+                        'landfrac': {"_FillValue": 1.e36},
+                        'area': {"_FillValue": 1.e36},
+                        'landmask': {"_FillValue": -9999},
+                }
+                ds_final.to_netcdf(derived_file, encoding=encoding, unlimited_dims='time', mode='w')
 
     ######### MDTF functions #########
     def setup_run_mdtf(self):
