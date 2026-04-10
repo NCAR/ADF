@@ -28,9 +28,6 @@ PRECT:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mm d$^{-1}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "PRECT"
@@ -50,9 +47,6 @@ SWCF:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_sw_mon"
@@ -69,9 +63,6 @@ LWCF:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
-  mpl:
-    colorbar:
-      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
@@ -88,9 +79,6 @@ PSL:
   scale_factor: 0.01
   add_offset: 0
   new_unit: "hPa"
-  mpl:
-    colorbar:
-      label : "hPa"
   category: "Surface variables"
   obs_file: "PSL_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
@@ -138,9 +126,6 @@ U:
   scale_factor: 1
   add_offset: 0
   new_unit: "ms$^{-1}$"
-  mpl:
-    colorbar:
-      label : "ms$^{-1}$"
   obs_file: "U_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "U"
@@ -205,9 +190,6 @@ RELHUM:
   scale_factor: 1
   add_offset: 0
   new_unit: "Fraction"
-  mpl:
-    colorbar:
-      label : "Fraction"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "RELHUM"
