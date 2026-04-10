@@ -490,12 +490,12 @@ def load_colormap(adfobj, cmap_name):
         msg += f"\n\t{cmap_name} not a standard Matplotlib colormap. Trying NCL..."
         url = guess_ncl_url(cmap_name)
         locfil = Path(".") / f"{cmap_name}.rgb"
-        data = read_ncl_colormap(locfil,msg) if locfil.is_file() else read_ncl_colormap(url)
+        data = read_ncl_colormap(adfobj, locfil,msg) if locfil.is_file() else read_ncl_colormap(adfobj, url)
         cm, cmr = ncl_to_mpl(adfobj, data, cmap_name)
         if not cm:
             msg += f"\n\tFailed to load {cmap_name}. Defaulting to 'coolwarm'."
             adfobj.debug_log(msg)
-            return 'coolwarm'
+            return 'viridis'
         adfobj.debug_log(msg)
         return cm
     
@@ -508,23 +508,24 @@ def try_load_ncl_cmap(adfobj, cmap_case):
         url = guess_ncl_url(cmap_case)
         locfil = Path(".") / f"{cmap_case}.rgb"
         if locfil.is_file():
-            data = read_ncl_colormap(locfil)
+            data = read_ncl_colormap(adfobj, locfil)
         else:
             try:
-                data = read_ncl_colormap(url)
+                data = read_ncl_colormap(adfobj, url)
             except urllib.error.HTTPError:
-                msg += f"\n\tNCL colormap file not found"
+                msg += "\n\tNCL colormap file not found"
 
         if isinstance(data, np.ndarray):
-            cm, cmr = ncl_to_mpl(data, cmap_case)
+            cm, cmr = ncl_to_mpl(adfobj, data, cmap_case)
             adfobj.debug_log(msg)
             return cm, msg
+
+        adfobj.debug_log(msg)
+        return "viridis", msg
     except Exception:
-        pass
-
-    adfobj.debug_log(msg)
-    return "coolwarm", msg
-
+        msg + "Something went wrong trying to load NCL colormap. Defaulting to 'viridis'."
+        adfobj.debug_log(msg)
+        return "viridis", msg
 
 def get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names):
     """
@@ -559,14 +560,14 @@ def get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names):
         cmap_case = kwargs[colormap_key]
         msg += f"\n\tUser supplied cmap for {plotty}: {cmap_case}"
 
-    # Priority 3: fallback default
+    # Priority 3: NCL support
+    if cmap_case in ncl_defaults:
+        cmap_case, msg = try_load_ncl_cmap(adfobj, cmap_case)
+
+    # Last attempt fallback default
     if not cmap_case:
         msg += f"\n\tNo cmap for {plotty} found, defaulting to {default_cmap}"
         cmap_case = default_cmap
-
-    # NCL support
-    if cmap_case in ncl_defaults:
-        cmap_case, msg = try_load_ncl_cmap(adfobj, cmap_case)
 
     # Final check: must exist in matplotlib or NCL
     if isinstance(cmap_case, str):
@@ -859,10 +860,10 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         url = guess_ncl_url(cmap_pctdiff)
         locfil = "." / f"{cmap_pctdiff}.rgb"
         if locfil.is_file():
-            data = read_ncl_colormap(locfil)
+            data = read_ncl_colormap(adfobj, locfil)
         else:
-            data = read_ncl_colormap(url)
-        cm, cmr = ncl_to_mpl(data, cmap_pctdiff)
+            data = read_ncl_colormap(adfobj, url)
+        cm, cmr = ncl_to_mpl(adfobj, data, cmap_pctdiff)
         #ncl_colors[cm.name] = cm
         #ncl_colors[cmr.name] = cmr
         
