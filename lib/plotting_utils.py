@@ -243,7 +243,7 @@ def get_central_longitude(*args):
 #  -- zonal & meridional mean code --
 #
 
-def _plot_line(axobject, xdata, ydata, color, **kwargs):
+'''def _plot_line(axobject, xdata, ydata, color, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""
 
     if color != None:
@@ -258,6 +258,58 @@ def _plot_line(axobject, xdata, ydata, color, **kwargs):
         axobject.set_ylabel("[{units}]".format(kwargs["units"]))
     #End if
 
+    return axobject'''
+
+
+
+def _plot_line(axobject, xdata, ydata, color=None, **kwargs):
+    """Create a generic line plot and check for some ways to annotate."""
+
+    use_cmap = kwargs.pop("use_cmap", False)
+    cmap = kwargs.pop("cmap", "viridis")
+    norm = kwargs.pop("norm", None)
+    vmin = kwargs.pop("vmin", None)
+    vmax = kwargs.pop("vmax", None)
+
+    if use_cmap:
+        from matplotlib.collections import LineCollection
+
+        x = np.asarray(xdata)
+        y = np.asarray(ydata)
+
+        points = np.array([x, y]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+        lc = LineCollection(segments, cmap=cmap)
+
+        if norm is not None:
+            lc.set_norm(norm)
+        else:
+            if vmin is None:
+                vmin = np.nanmin(y)
+            if vmax is None:
+                vmax = np.nanmax(y)
+            lc.set_clim(vmin, vmax)
+
+        lc.set_array(y)
+
+        axobject.add_collection(lc)
+        axobject.autoscale()
+
+        axobject._last_linecollection = lc
+
+    else:
+        if color is not None:
+            axobject.plot(xdata, ydata, c=color, **kwargs)
+        else:
+            axobject.plot(xdata, ydata, **kwargs)
+
+    # Y label logic
+    if hasattr(ydata, "units"):
+        axobject.set_ylabel("[{units}]".format(units=getattr(ydata, "units")))
+    elif "units" in kwargs:
+        axobject.set_ylabel("[{units}]".format(kwargs["units"]))
+
     return axobject
 
 def meridional_plot_line(ax, lon, data, color, **kwargs):
@@ -268,9 +320,8 @@ def meridional_plot_line(ax, lon, data, color, **kwargs):
     #
     # annotate
     #
-    ax.set_xlabel("LONGITUDE")
     if hasattr(data, "units"):
-        ax.set_ylabel("{units}".format(units=getattr(data,"units")))
+        ax.set_ylabel("{units}".format(units=getattr(data,"units")),fontsize=6)
     elif "units" in kwargs:
         ax.set_ylabel("{units}".format(kwargs["units"]))
     return ax
@@ -282,9 +333,8 @@ def zonal_plot_line(ax, lat, data, color, **kwargs):
     #
     # annotate
     #
-    ax.set_xlabel("LATITUDE")
     if hasattr(data, "units"):
-        ax.set_ylabel("{units}".format(units=getattr(data,"units")))
+        ax.set_ylabel("{units}".format(units=getattr(data,"units")),fontsize=6)
     elif "units" in kwargs:
         ax.set_ylabel("{units}".format(kwargs["units"]))
     return ax
@@ -892,6 +942,23 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
             'extend_pctdiff': extend_pctdiff,
             'units': units
             }
+
+
+def add_var_to_vres(adfobj, var, vres):
+    if 'vector_name' in vres:
+        vect_var_name = vres['vector_name']
+        vec_vres = adfobj.variable_defaults.get(vect_var_name, {})
+        if 'nickname' in vec_vres:
+            vres["var_name"] = vec_vres['nickname']
+        else:
+            vres["var_name"] = vect_var_name
+    else:
+
+        if 'nickname' in vres:
+            vres["var_name"] = vres['nickname']
+        else:
+            vres["var_name"] = var
+    return vres
 
 
 #####################
