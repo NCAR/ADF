@@ -108,7 +108,7 @@ def zonal_mean(adfobj):
                     logp_zonal_skip.append(plot_name_log)
                     #Continue to next iteration:
                     adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s,
-                                            plot_type="Zonal", category="Log-P")
+                                            plot_type="Zonal", category=web_category)
                     pass
 
                 elif (redo_plot) and plot_name_log.is_file():
@@ -161,6 +161,8 @@ def zonal_mean(adfobj):
 
         vres = plot_utils.add_var_to_vres(adfobj, var, vres)
         vres["plot_type"] = __name__
+        #Extract category (if available):
+        web_category = vres.get("category", None)
 
         # load reference data (observational or baseline)
         if not adfobj.compare_obs:
@@ -242,6 +244,7 @@ def zonal_mean(adfobj):
 
             #Loop over season dictionary:
             for s in seasons:
+                vres["season"] = s
 
                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                 # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -291,7 +294,7 @@ def zonal_mean(adfobj):
                                                         mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)
 
                     #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category="Log-P")
+                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category=web_category)
                 #End if
 
             #End for (seasons loop)
