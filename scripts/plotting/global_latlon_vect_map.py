@@ -153,6 +153,7 @@ def global_latlon_vect_map(adfobj):
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
+            vres = plot_utils.add_var_to_vres(adfobj, var, vres)
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
 
@@ -168,13 +169,21 @@ def global_latlon_vect_map(adfobj):
         vres["vector"] = True
 
         #Make sure that variable is part of a vector pair:
-        if "vector_pair" in vres:
+        """if "vector_pair" in vres:
             var_pair = vres["vector_pair"]
             var_name = vres["vector_name"]
         else:
             adfobj.debug_log(f"variable '{var}' not a vector pair")
             continue
+        #End if"""
+
+        if "vector_pair" not in vres:
+            adfobj.debug_log(f"variable '{var}' not a vector pair")
+            continue
         #End if
+
+        var_pair = vres["vector_pair"]
+        var_name = vres["vector_name"]
 
         #Notify user of variable being plotted:
         print(f"\t - lat/lon vector maps for {var},{var_pair}")
@@ -436,6 +445,8 @@ def global_latlon_vect_map(adfobj):
                                 vres["upctdiffld_nowrap"] = upseasons[s]
                                 vres["vpctdiffld_nowrap"] = vpseasons[s]
 
+                                vres["season"] = s
+
                                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                                 plot_name = plot_loc / f"{var_name}_{lv}hpa_{s}_LatLon_Vector_Mean.{plot_type}"
@@ -456,7 +467,7 @@ def global_latlon_vect_map(adfobj):
                                 # pass in casenames
                                 vres["case_name"] = case_name
                                 vres["baseline"] = data_src
-                                vres["var_name"] = var_name
+                                #vres["var_name"] = var_name
 
                                 #Create new plot:
                                 # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
@@ -504,6 +515,8 @@ def global_latlon_vect_map(adfobj):
                             vres["upctdiffld_nowrap"] = upseasons[s]
                             vres["vpctdiffld_nowrap"] = vpseasons[s]
 
+                            vres["season"] = s
+
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
                             plot_name = plot_loc / f"{var_name}_{s}_LatLon_Vector_Mean.{plot_type}"
@@ -524,7 +537,7 @@ def global_latlon_vect_map(adfobj):
                             # pass in casenames
                             vres["case_name"] = case_name
                             vres["baseline"] = data_src
-                            vres["var_name"] = var_name
+                            #vres["var_name"] = var_name
 
                             #Create new plot:
                             # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res

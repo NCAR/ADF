@@ -102,6 +102,7 @@ def global_latlon_map(adfobj):
 def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot):
     vres = adfobj.variable_defaults.get(var, {})
     vres["plot_type"] = __name__
+    vres = plot_utils.add_var_to_vres(adfobj, var, vres)
     web_category = vres.get("category", None)
 
     # For global maps, also set the central longitude:
@@ -373,6 +374,8 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
         plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
         if doplot[plot_name] is None:
             continue
+
+        vres["season"] = s
             
         # Calculate seasonal means and differences
         mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
@@ -408,6 +411,8 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
             if doplot[plot_name] is None:
                 continue
+            
+            vres["season"] = s
 
             # Calculate seasonal means and differences
             mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
