@@ -114,7 +114,7 @@ U:
   polar_map:
     colormap:
       nh: "terrain"
-      sh: "HoobaDoopFloppityFloop"
+      sh: "fake_cmap"
     contour_levels_range:
       nh: 
         200: [-10, 31, 2.5]
