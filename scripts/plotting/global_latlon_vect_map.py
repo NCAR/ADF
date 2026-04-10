@@ -166,24 +166,16 @@ def global_latlon_vect_map(adfobj):
         #End if
 
         vres["plot_type"] = __name__
-        vres["vector"] = True
 
         #Make sure that variable is part of a vector pair:
-        """if "vector_pair" in vres:
+        if "vector_pair" in vres:
             var_pair = vres["vector_pair"]
             var_name = vres["vector_name"]
+            vres["vector"] = True
         else:
             adfobj.debug_log(f"variable '{var}' not a vector pair")
             continue
-        #End if"""
-
-        if "vector_pair" not in vres:
-            adfobj.debug_log(f"variable '{var}' not a vector pair")
-            continue
         #End if
-
-        var_pair = vres["vector_pair"]
-        var_name = vres["vector_name"]
 
         #Notify user of variable being plotted:
         print(f"\t - lat/lon vector maps for {var},{var_pair}")
