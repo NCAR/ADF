@@ -156,10 +156,8 @@ def polar_map(adfobj):
 
             for s in seasons:
                 for hemi_type in ["NHPolar", "SHPolar"]:
-                    vres["hemi"] = hemi_type
-                    if pres_levs and has_lev: # 3-D variable & pressure levels specified
+                    if pres_levs and has_lev: # 3-D variable & lev levels specified
                         for pres in pres_levs:
-                            vres['lev'] = int(pres)
                             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
                             info = {
                                 'path': plot_name,
@@ -167,8 +165,8 @@ def polar_map(adfobj):
                                 'case': case_name,
                                 'case_idx': case_idx,
                                 'season': s,
-                                'type': hemi_type,
-                                'pressure': pres,
+                                'hemi': hemi_type,
+                                'lev': pres,
                                 'exists': plot_name.is_file()
                             }
                             plot_info.append(info)
@@ -186,7 +184,7 @@ def polar_map(adfobj):
                             'case': case_name,
                             'case_idx': case_idx,
                             'season': s,
-                            'type': hemi_type,
+                            'hemi': hemi_type,
                             'exists': plot_name.is_file()
                         }
                         plot_info.append(info)
@@ -214,6 +212,7 @@ def polar_map(adfobj):
             case_name = plot['case']
             case_idx = plot['case_idx']
             vres["season"] = plot['season']
+            vres["hemi"] = plot['hemi']
             plot_loc = Path(plot_locations[case_idx])
 
             # Ensure plot directory exists
@@ -230,12 +229,12 @@ def polar_map(adfobj):
             else:
                 has_lev = False
 
-            if has_lev and pres_levs and plot.get('pressure'):
+            if has_lev and pres_levs and plot.get('lev'):
                 if not all(dim in mdata.dims for dim in ['lat', 'lev']):
                     continue
-                mdata = mdata.sel(lev=plot['pressure'])
-                odata_level = odata.sel(lev=plot['pressure'])
-                vres["lev"] = plot['pressure']
+                mdata = mdata.sel(lev=plot['lev'])
+                odata_level = odata.sel(lev=plot['lev'])
+                vres["lev"] = plot['lev']
             else:
                 if not utils.lat_lon_validate_dims(mdata):
                     continue
@@ -257,7 +256,7 @@ def polar_map(adfobj):
                 [syear_cases[case_idx], eyear_cases[case_idx]],
                 [syear_baseline, eyear_baseline],
                 mseason, oseason, dseason, pseason,
-                hemisphere=get_hemisphere(plot['type']),
+                hemisphere=get_hemisphere(plot['hemi']),
                 obs=adfobj.compare_obs, **vres
             )
 
@@ -265,7 +264,7 @@ def polar_map(adfobj):
             adfobj.add_website_data(
                 plot['path'], plot['var'], case_name,
                 category=web_category, season=plot['season'],
-                plot_type=plot['type']
+                plot_type=plot['hemi']
             )
 
     print("  ...polar maps have been generated successfully.")
