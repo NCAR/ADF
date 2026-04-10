@@ -44,6 +44,7 @@ from cartopy.util import add_cyclic_point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MultipleLocator
 
 from adf_base import AdfError
 import plotting_utils as plot_utils
@@ -889,15 +890,16 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
     if has_lev:
         # Generate zonal plot:
-        fig, ax = plt.subplots(figsize=(8,10),nrows=4, constrained_layout=True,
-                               sharex=True, sharey=True,**cp_info['subplots_opt'])
+        fig, ax = plt.subplots(figsize=(8,10),nrows=4,constrained_layout=True,
+                               sharey=True, **cp_info['subplots_opt'])
+
         levs = np.unique(np.array(levels_sim))
         alat = adata['lat']
         blat = bdata['lat']
 
         levs_diff = np.unique(np.array(levels_diff))
         levs_pct_diff = np.unique(np.array(levels_pctdiff))
-        cbar_labelpad_zonal = 3
+        cbar_labelpad_zonal = 5
         if len(levs) < 2:
             img0, ax[0] = zonal_plot(alat, azm, ax=ax[0])
             ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
@@ -990,7 +992,8 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         for a in ax:
             a.tick_params('both', length=5, width=1.5, which='major')
             a.tick_params('both', length=5, width=1.5, which='minor')
-
+            a.tick_params(axis='both', labelsize=7)
+            a.xaxis.set_major_locator(MultipleLocator(20))  # every 20°
         if log_p:
             [a.set_yscale("log") for a in ax]
 
@@ -1044,7 +1047,8 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
             a.tick_params('both', length=3, width=1, which='major')
             a.tick_params('both', length=3, width=1, which='minor')
             a.tick_params(axis='both', labelsize=6)
-            a.yaxis.set_major_locator(MaxNLocator(nbins=8))
+            a.xaxis.set_major_locator(MultipleLocator(20))  # every 20°
+            a.yaxis.set_major_locator(MaxNLocator(nbins=6))
             a.grid(True)
         #End for
 
@@ -1226,12 +1230,12 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
 
         # Generate zonal plot:
         fig, ax = plt.subplots(figsize=(8,10),nrows=4, constrained_layout=True,
-                               sharex=True, sharey=True,**cp_info['subplots_opt'])
+                               sharey=True, **cp_info['subplots_opt'])
 
         levs = np.unique(np.array(levels_sim))
         levs_diff = np.unique(np.array(levels_diff))
         levs_pct_diff = np.unique(np.array(levels_pctdiff))
-        cbar_labelpad_zonal = 3
+        cbar_labelpad_merd = 5
         if len(levs) < 2:
             img0, ax[0] = pltfunc(adata[xdim], adata, ax=ax[0])
             ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
@@ -1254,7 +1258,7 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                             borderpad=0,
                             )
             cbar0 = fig.colorbar(img0, cax=cb_mean_ax, location='right',**cp_info['colorbar_opt'])
-            cbar0.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad_zonal, loc='left')
+            cbar0.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad_merd, loc='left')
             cbar0.ax.tick_params(labelsize=cbar_size)
 
             cb_mean_ax = inset_axes(ax[1],
@@ -1266,7 +1270,7 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                             borderpad=0,
                             )
             cbar1 = fig.colorbar(img1, cax=cb_mean_ax, location='right',**cp_info['colorbar_opt'])
-            cbar1.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad_zonal, loc='left')
+            cbar1.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad_merd, loc='left')
             cbar1.ax.tick_params(labelsize=cbar_size)
         #End if
 
@@ -1286,7 +1290,7 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                             borderpad=0,
                             )
             diff_cbar = fig.colorbar(img2, cax=diffcb_mean_ax, location='right',**cp_info['colorbar_opt'])
-            diff_cbar.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad_zonal, loc='left')
+            diff_cbar.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad_merd, loc='left')
             diff_cbar.ax.tick_params(labelsize=cbar_size)
             
         if len(levs_pct_diff) < 2:
@@ -1305,7 +1309,7 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                             borderpad=0,
                             )
             pctdiff_cbar = fig.colorbar(img3, cax=pctdiffcb_mean_ax, location='right',**cp_info['colorbar_opt'])
-            pctdiff_cbar.ax.set_title("%", fontsize=cbar_size, pad=cbar_labelpad_zonal, loc='left')
+            pctdiff_cbar.ax.set_title("%", fontsize=cbar_size, pad=cbar_labelpad_merd, loc='left')
             pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
 
         ax[0].set_title(case_title, loc='left', fontsize=tiFontSize)
@@ -1324,7 +1328,8 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         for a in ax:
             a.tick_params('both', length=5, width=1.5, which='major')
             a.tick_params('both', length=5, width=1.5, which='minor')
-
+            a.tick_params(axis='both', labelsize=7)
+            a.xaxis.set_major_locator(MultipleLocator(30))  # every 30°
         if log_p:
             [a.set_yscale("log") for a in ax]
 
@@ -1380,9 +1385,8 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
             a.tick_params('both', length=3, width=1, which='major')
             a.tick_params('both', length=3, width=1, which='minor')
             a.tick_params(axis='both', labelsize=6)
-            # Set the maximum number of ticks desired
-            #a.xaxis.set_major_locator(MaxNLocator(nbins=5)) 
-            a.yaxis.set_major_locator(MaxNLocator(nbins=8))
+            a.xaxis.set_major_locator(MaxNLocator(nbins=12))
+            a.yaxis.set_major_locator(MaxNLocator(nbins=6))
             a.grid(True)
         #End for
 
