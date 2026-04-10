@@ -111,5 +111,8 @@ GitHub.sublime-settings
 !.vscode/extensions.json 
 .history
 
+#NCL RGB files
+*.rgb
+
 
 
