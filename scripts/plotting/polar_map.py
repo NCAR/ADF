@@ -213,6 +213,7 @@ def polar_map(adfobj):
                 
             case_name = plot['case']
             case_idx = plot['case_idx']
+            vres["season"] = plot['season']
             plot_loc = Path(plot_locations[case_idx])
 
             # Ensure plot directory exists
@@ -234,6 +235,7 @@ def polar_map(adfobj):
                     continue
                 mdata = mdata.sel(lev=plot['pressure'])
                 odata_level = odata.sel(lev=plot['pressure'])
+                vres["lev"] = plot['pressure']
             else:
                 if not utils.lat_lon_validate_dims(mdata):
                     continue
