@@ -888,38 +888,6 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
     else:
         base_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
     if has_lev:
-
-        # calculate zonal average:
-        azm = utils.zonal_mean_xr(adata)
-        bzm = utils.zonal_mean_xr(bdata)
-
-        # calculate difference:
-        diff = azm - bzm
-        
-        # calculate the percent change
-        pct = (azm - bzm) / np.abs(bzm) * 100.0
-        #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct = pct.where(np.isfinite(pct), np.nan)
-        pct = pct.fillna(0.0)
-
-        """# generate dictionary of contour plot settings:
-        cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
-
-        levels_diff = cp_info['levels_diff']
-        cmap_diff = cp_info['cmap_diff']
-        norm_diff = cp_info['norm_diff']
-        extend_diff = cp_info['extend_diff']
-
-        levels_pctdiff = cp_info['levels_pctdiff']
-        cmap_pctdiff = cp_info['cmap_pctdiff']
-        norm_pctdiff = cp_info['norm_pctdiff']
-        extend_pctdiff = cp_info['extend_pctdiff']
-
-        levels_sim = cp_info['levels_sim']
-        cmap_sim = cp_info['cmap_sim']
-        norm_sim = cp_info['norm_sim']
-        extend_sim = cp_info['extend_sim']"""
-
         # Generate zonal plot:
         fig, ax = plt.subplots(figsize=(8,10),nrows=4, constrained_layout=True,
                                sharex=True, sharey=True,**cp_info['subplots_opt'])
@@ -1035,35 +1003,6 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         byears = f"years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         tyears = f"years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
-        """azm = utils.zonal_mean_xr(adata)
-        bzm = utils.zonal_mean_xr(bdata)
-        diff = azm - bzm
-        
-        # calculate the percent change
-        pct = (azm - bzm) / np.abs(bzm) * 100.0
-        #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct = pct.where(np.isfinite(pct), np.nan)
-        pct = pct.fillna(0.0)
-        
-        # generate dictionary of contour plot settings:
-        cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
-        units = cp_info['units']
-        levels_diff = cp_info['levels_diff']
-        cmap_diff = cp_info['cmap_diff']
-        norm_diff = cp_info['norm_diff']
-        extend_diff = cp_info['extend_diff']
-
-        levels_pctdiff = cp_info['levels_pctdiff']
-        cmap_pctdiff = cp_info['cmap_pctdiff']
-        norm_pctdiff = cp_info['norm_pctdiff']
-        extend_pctdiff = cp_info['extend_pctdiff']
-
-        levels_sim = cp_info['levels_sim']
-        cmap_sim = cp_info['cmap_sim']
-        norm_sim = cp_info['norm_sim']
-        extend_sim = cp_info['extend_sim']"""
-
-
         fig, ax = plt.subplots(nrows=3)#figsize=(6,8), 
         ax[0].set_title(f"{tyears}\n{byears}", loc='right', fontsize=6)
 
@@ -1105,8 +1044,6 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
             a.tick_params('both', length=3, width=1, which='major')
             a.tick_params('both', length=3, width=1, which='minor')
             a.tick_params(axis='both', labelsize=6)
-            # Set the maximum number of ticks desired
-            #a.xaxis.set_major_locator(MaxNLocator(nbins=5)) 
             a.yaxis.set_major_locator(MaxNLocator(nbins=8))
             a.grid(True)
         #End for
