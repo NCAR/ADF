@@ -145,6 +145,9 @@ Q: # example of no specific values for plotting, so it will default all values t
   obs_file: "Q_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "Q"
+  scale_factor: 1000
+  add_offset: 0
+  new_unit: "g kg$^{-1}$"
 
 
 T:
@@ -194,3 +197,24 @@ RELHUM:
   obs_name: "ERAI"
   obs_var_name: "RELHUM"
   category: "State"
+
+Surface_Wind_Stress:
+  nickname: "Surface Wind Stress"
+  new_unit: "N m$^{-2}$"
+  category: "Surface variables"
+
+TAUX:
+  new_unit: "N m$^{-2}$"
+  vector_pair: "TAUY"
+  vector_name: "Surface_Wind_Stress"
+  category: "Surface variables"
+  scale_factor: -1
+  add_offset: 0
+
+TAUY:
+  new_unit: "N m$^{-2}$"
+  vector_pair: "TAUX"
+  vector_name: "Surface_Wind_Stress"
+  category: "Surface variables"
+  scale_factor: -1
+  add_offset: 0
