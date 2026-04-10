@@ -1416,6 +1416,7 @@ U10:
   category: "Surface variables"
 
 Surface_Wind_Stress:
+  nickname: "Surface Wind Stress"
   new_unit: "N m$^{-2}$"
   category: "Surface variables"
 
