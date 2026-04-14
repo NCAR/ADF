@@ -6,14 +6,10 @@ from I. Simpson's directory (to be generalized).
 """
 
 from pathlib import Path
-from types import NoneType
 
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-
-
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
 warnings.formatwarning = utils.my_formatwarning
@@ -41,7 +37,7 @@ def global_mean_timeseries(adfobj):
     # or an empty dictionary if use_defaults was not specified in YAML.
 
     for field in adfobj.diag_var_list:
-        ts_files = adfobj.data.get_ref_timeseries_file(field)#
+        ts_files = adfobj.data.get_ref_timeseries_file(field)
         # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
         if not ts_files:
             errmsg = f"Time series files for variable '{field}' not found.  Script will continue to next variable."
@@ -123,6 +119,7 @@ def global_mean_timeseries(adfobj):
                 errmsg =  "Currently the AMWG table script can only handle one time series file per variable."
                 errmsg += f" Multiple files were found for case: {case_name} and the variable '{field}', so it will be skipped."
                 print(errmsg)
+                continue
 
             # Load model variable data from file:
             _ds = utils.load_dataset(c_ts_files)
@@ -166,7 +163,7 @@ def global_mean_timeseries(adfobj):
 
 
         fig, ax = make_plot(
-            ref_ts_da, case_ts, field, label=adfobj.data.ref_nickname
+            ref_ts_da, case_ts, field, label=ref_label
         )
         ax.set_ylabel(getattr(ref_ts_da,"units", "[-]")) # add units
         plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
@@ -292,39 +289,6 @@ class Lens2Data:
             lens2 = None
         return has_lens, lens2
 ######
-
-
-def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
-    """plot yearly values of ref_ts_da"""
-    fig, ax = plt.subplots()
-
-    # Plot reference/baseline if available
-    if type(ref_ts_da) != NoneType:
-        ax.plot(ref_ts_da.year, ref_ts_da, label=label)
-    else:
-        return fig, ax
-    for idx, (c, cdata) in enumerate(case_ts.items()):
-        ax.plot(cdata.year, cdata, label=c)
-        # Force the plot axis to always plot the test case years
-        if idx == 0:
-            syr = min(cdata.year)
-            eyr = max(cdata.year)
-
-    field = lens2.field  # this will be defined even if no LENS2 data
-    if lens2.has_lens:
-        lensmin = lens2.lens2[field].min("M")  # note: "M" is the member dimension
-        lensmax = lens2.lens2[field].max("M")
-        ax.fill_between(lensmin.year, lensmin, lensmax, color="lightgray", alpha=0.5)
-        ax.plot(
-            lens2.lens2[field].year,
-            lens2.lens2[field].mean("M"),
-            color="darkgray",
-            linewidth=2,
-            label="LENS2",
-        )
-    print(f"Determined plot location: {plot_loc}")
-    return plot_loc
-
 
 def make_plot(ref_ts_da, case_ts, field, label=None):
     """plot yearly values of ref_ts_da"""
