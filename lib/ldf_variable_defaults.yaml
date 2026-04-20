@@ -583,156 +583,6 @@ NBP: # Net Biome Production
   table_unit: "PgC y$^{-1}$"
   ts_unit: "PgC" #global TS uses cumulative NBP in PgC
 
-FCH4: #Gridcell surface CH4 flux to atmosphere 
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400
-  add_offset: 0
-  new_unit: "kgC m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "kgC m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "TgC y$^{-1}$"
-
-CH4PROD: #Gridcell total production of CH4
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400
-  add_offset: 0
-  new_unit: "gC m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "gC m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "TgC y$^{-1}$"
-
-FCH4TOCO2: #Gridcell oxidation of CH4 to CO2
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400
-  add_offset: 0
-  new_unit: "gC m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "gC m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "TgC y$^{-1}$"
-
-FCH4_DFSAT: #CH4 additional flux due to changing fsat, natural vegetated and crop landunits only
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400
-  add_offset: 0
-  new_unit: "kgC m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "kgC m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "T mol y$^{-1}$"
-
-CH4_SURF_AERE_SAT: #aerenchyma surface CH4 flux for inundated area; (+ to atm)
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400  #mol/m2/s to mol/m2/d
-  add_offset: 0
-  new_unit: "mol m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mol m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "T mol y$^{-1}$"
-
-CH4_SURF_AERE_UNSAT: #aerenchyma surface CH4 flux for non-inundated area; (+ to atm)
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400  #mol/m2/s to mol/m2/d
-  add_offset: 0
-  new_unit: "mol m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mol m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "T mol y$^{-1}$"
-
-CH4_SURF_DIFF_SAT: #diffusive surface CH4 flux for inundated / lake area; (+ to atm)
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400  #mol/m2/s to mol/m2/d
-  add_offset: 0
-  new_unit: "mol m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mol m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "T mol y$^{-1}$"
-
-CH4_SURF_DIFF_UNSAT: #diffusive surface CH4 flux for non-inundated area; (+ to atm)
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor:  86400 #mol/m2/s to mol/m2/d
-  add_offset: 0
-  new_unit: "mol m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mol m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "T mol y$^{-1}$"
-
-CH4_SURF_EBUL_SAT: #ebullition surface CH4 flux for inundated / lake area; (+ to atm)
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400  #mol/m2/s to mol/m2/d
-  add_offset: 0
-  new_unit: "mol m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mol m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "T mol y$^{-1}$"
-
-CH4_SURF_EBUL_UNSAT: #ebullition surface CH4 flux for non-inundated area; (+ to atm)
-  category: "Methane"
-  diff_colormap: "PiYG"
-  scale_factor: 86400  #mol/m2/s to mol/m2/d
-  add_offset: 0
-  new_unit: "mol m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label : "mol m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PiYG"
-  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
-  avg_method: 'sum'
-  table_unit: "T mol y$^{-1}$"
-
 TOTECOSYSC_1m:
   category: "Carbon"
   scale_factor_table: 0.000000001  #g/m2 to Pg globally
@@ -768,6 +618,161 @@ NFIX: # Nitrogen Fixation
   scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
   avg_method: 'sum'
   table_unit: "TgN y$^{-1}$"
+
+
+#+++++++++
+# Methane
+#+++++++++
+
+FCH4: #Gridcell surface CH4 flux to atmosphere 
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, gC -> gCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "kgCH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kgCH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "TgCH4 y$^{-1}$"
+
+CH4PROD: #Gridcell total production of CH4
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, gC -> gCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "gCH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "TgCH4 y$^{-1}$"
+
+FCH4TOCO2: #Gridcell oxidation of CH4 to CO2
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, gC -> gCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "gCH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gCH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "TgCH4 y$^{-1}$"
+
+FCH4_DFSAT: #CH4 additional flux due to changing fsat, natural vegetated and crop landunits only
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, kgC->kgCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "kg CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg CH4 y$^{-1}$"
+
+CH4_SURF_AERE_SAT: #aerenchyma surface CH4 flux for inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_AERE_UNSAT: #aerenchyma surface CH4 flux for non-inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_DIFF_SAT: #diffusive surface CH4 flux for inundated / lake area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_DIFF_UNSAT: #diffusive surface CH4 flux for non-inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor:  86400 #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_EBUL_SAT: #ebullition surface CH4 flux for inundated / lake area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T CH4 mol y$^{-1}$"
+
+CH4_SURF_EBUL_UNSAT: #ebullition surface CH4 flux for non-inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
 
 #+++++++++++
 # C Isotopes
