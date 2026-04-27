@@ -459,7 +459,6 @@ def global_latlon_vect_map(adfobj):
                                 # pass in casenames
                                 vres["case_name"] = case_name
                                 vres["baseline"] = data_src
-                                #vres["var_name"] = var_name
 
                                 #Create new plot:
                                 # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
@@ -530,7 +529,6 @@ def global_latlon_vect_map(adfobj):
                             # pass in casenames
                             vres["case_name"] = case_name
                             vres["baseline"] = data_src
-                            #vres["var_name"] = var_name
 
                             #Create new plot:
                             # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
