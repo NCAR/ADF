@@ -265,13 +265,17 @@ def get_central_longitude(*args):
 def _plot_line(axobject, xdata, ydata, color=None, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""
 
-    use_cmap = kwargs.pop("use_cmap", False)
-    cmap = kwargs.pop("cmap", "viridis")
-    norm = kwargs.pop("norm", None)
-    vmin = kwargs.pop("vmin", None)
-    vmax = kwargs.pop("vmax", None)
-
+    use_cmap = kwargs.get("colormap_2d", False)
+    cmap = kwargs.get("cmap", "viridis")
+    norm = kwargs.get("norm", None)
+    vmin = kwargs.get("vmin", None)
+    vmax = kwargs.get("vmax", None)
     if use_cmap:
+        if kwargs["type"] == "pctdiff":
+            cmap = kwargs.get("pct_diff_colormap", "PuOr")
+        if kwargs["type"] == "diff":
+            cmap = kwargs.get("diff_colormap", "RdBu_r")
+
         from matplotlib.collections import LineCollection
 
         x = np.asarray(xdata)
