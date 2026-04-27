@@ -171,7 +171,6 @@ def global_latlon_vect_map(adfobj):
         if "vector_pair" in vres:
             var_pair = vres["vector_pair"]
             var_name = vres["vector_name"]
-            vres["vector"] = True
         else:
             adfobj.debug_log(f"variable '{var}' not a vector pair")
             continue
@@ -438,6 +437,7 @@ def global_latlon_vect_map(adfobj):
                                 vres["vpctdiffld_nowrap"] = vpseasons[s]
 
                                 vres["season"] = s
+                                vres["vector"] = True
 
                                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -508,6 +508,7 @@ def global_latlon_vect_map(adfobj):
                             vres["vpctdiffld_nowrap"] = vpseasons[s]
 
                             vres["season"] = s
+                            vres["vector"] = True
 
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
