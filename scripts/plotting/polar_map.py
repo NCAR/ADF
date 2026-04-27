@@ -156,7 +156,7 @@ def polar_map(adfobj):
 
             for s in seasons:
                 for hemi_type in ["NHPolar", "SHPolar"]:
-                    if pres_levs and has_lev: # 3-D variable & lev levels specified
+                    if pres_levs and has_lev: # 3-D variable & pressure levels specified
                         for pres in pres_levs:
                             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
                             info = {
