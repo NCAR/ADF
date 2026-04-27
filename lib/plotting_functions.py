@@ -396,11 +396,14 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
         + This is experimental, and if you find yourself doing much with this, you probably should write a new plotting script that does not rely on this module.
     When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
     """
+
     kwargs["adfobj"] = adfobj
+    vector = False
 
     #nice formatting for tick labels
     from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
     if "vector" in kwargs:
+        vector = True
     
         # too many vectors to see well, so prune by striding through data:
         skip=(slice(None,None,5),slice(None,None,8))
@@ -493,26 +496,22 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
     # LAYOUT WITH GRIDSPEC
     wspace = 1.66
     hspace = -0.25
-    """if "vector" in kwargs:
+    if vector:
         hspace = 0
     else:
-        hspace = -0.25"""
+        hspace = -0.25
     gs = mpl.gridspec.GridSpec(3, 6, wspace=wspace, hspace=hspace) # 2 rows, 4 columns, but each map will take up 2 columns
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
     ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info['subplots_opt'])
     ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info['subplots_opt'])
-    #Keep this for later in case percent diff is desired in vector plots
-    ax3 = plt.subplot(gs[2, :3], projection=proj, **cp_info['subplots_opt'])
-    ax4 = plt.subplot(gs[2, 3:], projection=proj, **cp_info['subplots_opt'])
-    ax = [ax1,ax2,ax3,ax4]
 
-    """if "vector" in kwargs:
+    if vector:
         ax3 = plt.subplot(gs[2, 1:5], projection=proj, **cp_info['subplots_opt'])
         ax = [ax1,ax2,ax3]
     else:
         ax3 = plt.subplot(gs[2, :3], projection=proj, **cp_info['subplots_opt'])
         ax4 = plt.subplot(gs[2, 3:], projection=proj, **cp_info['subplots_opt'])
-        ax = [ax1,ax2,ax3,ax4]"""
+        ax = [ax1,ax2,ax3,ax4]
 
     img = [] # contour plots
     cs = []  # contour lines
@@ -525,20 +524,18 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
     lat_formatter = LatitudeFormatter(number_format='0.0f',
                                         degree_symbol='')
 
-    """if "vector" in kwargs: #ignore percent diff for now, think about picking back up later
+    if vector: #ignore percent diff for now, think about picking back up later
         diff_idx = 2
     else:
         pctdiff_idx = 2
-        diff_idx = 3"""
+        diff_idx = 3
 
-    pctdiff_idx = 2
-    diff_idx = 3
     for i, a in enumerate(wrap_fields):
         if i == diff_idx:
             levels = cp_info['levels_diff']
             cmap = cp_info['cmap_diff']
             extend = cp_info["extend_diff"]
-            if "vector" in kwargs:
+            if vector:
                 # Get difference limits, in order to plot the correct range:
                 min_diff_val = np.min(diff_mag)
                 max_diff_val = np.max(diff_mag)
@@ -551,17 +548,12 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                 #End if
             else:
                 norm = cp_info['norm_diff']
-        if i == pctdiff_idx:
-            levels = cp_info['levels_pctdiff']
-            cmap = cp_info['cmap_pctdiff']
-            extend = cp_info['extend_pctdiff']
-            norm = cp_info['norm_pctdiff']
-        """if "vector" not in kwargs: #non vector lat/lon gets percent diff as third (2) index For now, JR
+        if not vector: #non vector lat/lon gets percent diff as third (2) index For now, JR
             if i == pctdiff_idx:
                 levels = cp_info['levels_pctdiff']
                 cmap = cp_info['cmap_pctdiff']
                 extend = cp_info['extend_pctdiff']
-                norm = cp_info['norm_pctdiff']"""
+                norm = cp_info['norm_pctdiff']
         if i in [0,1]:
             levels = cp_info['levels_sim']
             cmap = cp_info['cmap_sim']
@@ -573,7 +565,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
             img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
             ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
         else:
-            if "vector" in kwargs:
+            if vector:
                 if i == diff_idx:
                     img.append(ax[i].contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(),
                                               transform_first=True, norm=norm,
@@ -581,17 +573,13 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                             ))
                     ax[i].quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip],
                                  transform=ccrs.PlateCarree())
-
-
-                if i == pctdiff_idx:
+                """if i == pctdiff_idx:
                     img.append(ax[i].contourf(lons, lats, pctdiff_mag, transform=ccrs.PlateCarree(),
                                               transform_first=True, norm=norm,
                             cmap='PuOr', extend=extend
                             ))
                     #ax[i].quiver(lons[skip], lats[skip], upctdiffld[skip], vpctdiffld[skip],
-                    #             transform=ccrs.PlateCarree())
-
-
+                    #             transform=ccrs.PlateCarree())"""
                 if i in [0,1]:
                     img.append(ax[i].contourf(lons, lats, sim_mags[i], cmap='Greys',
                                               transform=ccrs.PlateCarree(),
@@ -641,23 +629,13 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                        fontsize=tiFontSize)
     ax[1].set_title(f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}", loc='right',
                        fontsize=tiFontSize)
-    """if "vector" not in kwargs:
+    
+    if not vector:
         ax[pctdiff_idx].set_title(f"Mean: {pctld.weighted(wgt).mean().item():5.2f}\nMax: {pctld.max():5.2f}\nMin: {pctld.min():5.2f}", loc='right',
                         fontsize=tiFontSize)
-        ax[diff_idx].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}", loc='right',
-                        fontsize=tiFontSize)
         ax[pctdiff_idx].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
-        ax[diff_idx].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
-        ax[diff_idx].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
-    else:
-        ax[diff_idx].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}", loc='right',
-                        fontsize=tiFontSize)
-        ax[diff_idx].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
-        ax[diff_idx].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)"""
-
     ax[diff_idx].set_title(f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}", loc='right',
                     fontsize=tiFontSize)
-    ax[pctdiff_idx].set_title("Test % Diff Baseline", loc='left', fontsize=tiFontSize,fontweight="bold")
     ax[diff_idx].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
     ax[diff_idx].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=tiFontSize)
 
@@ -685,7 +663,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
     cbar.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad, loc='left')
     cbar.ax.tick_params(labelsize=cbar_size)
 
-    """if "vector" not in kwargs:
+    if not vector:
         cb_pct_ax = inset_axes(ax[pctdiff_idx],
                         width="5%",
                         height="100%",
@@ -696,19 +674,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                         )
         pctdiff_cbar = fig.colorbar(img[pctdiff_idx], cax=cb_pct_ax, **cp_info['pct_colorbar_opt'])
         pctdiff_cbar.ax.set_title("%", fontsize=cbar_size, pad=cbar_labelpad, loc='left')
-        pctdiff_cbar.ax.tick_params(labelsize=cbar_size)"""
-    
-    cb_pct_ax = inset_axes(ax[pctdiff_idx],
-                        width="5%",
-                        height="100%",
-                        loc='lower left',
-                        bbox_to_anchor=(1.02, 0, 1, 1),
-                        bbox_transform=ax3.transAxes,
-                        borderpad=0,
-                        )
-    pctdiff_cbar = fig.colorbar(img[pctdiff_idx], cax=cb_pct_ax, **cp_info['pct_colorbar_opt'])
-    pctdiff_cbar.ax.set_title("%", fontsize=cbar_size, pad=cbar_labelpad, loc='left')
-    pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
+        pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
 
     cb_diff_ax = inset_axes(ax[diff_idx],
                     width="5%",
@@ -1020,23 +986,23 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
 
         fig.legend(handles=[line,line2],bbox_to_anchor=(0.125, 0.84, 1.05, .102),loc="upper left",
                    borderaxespad=0.0,fontsize=6,frameon=False,labelspacing=0.3)
-
+        
+        use_cmap = kwargs.get("colormap_2d", False)
+        kwargs["colormap_2d"] = use_cmap
+        kwargs["type"] = "diff"
         zonal_plot(
             adata['lat'], diff,
             ax=ax[1],
-            use_cmap=True,
-            cmap=cmap_diff,
-            norm=norm_diff
+            norm=norm_diff,
         )
         ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
+        kwargs["type"] = "pctdiff"
         zonal_plot(
             adata['lat'], pct,
             ax=ax[2],
-            use_cmap=True,
-            cmap=cmap_pctdiff,
-            norm=norm_pctdiff
+            norm=norm_pctdiff,
         )
         ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=6,fontweight="bold")
         ax[2].set_ylabel("%", fontsize=6)
@@ -1053,17 +1019,17 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         #End for
 
         plt.subplots_adjust(wspace= 0.01, hspace= 0.5, right=0.85)
+        if use_cmap:
+            # Create colorbar axes (same width for both)
+            cax1 = fig.add_axes([0.86, 0.4, 0.02, 0.1925])  # [left, bottom, width, height]
+            cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
+            ax[1].set_facecolor("0.5")   # dark gray
+            ax[2].set_facecolor("0.5")
 
-        # Create colorbar axes (same width for both)
-        cax1 = fig.add_axes([0.86, 0.4, 0.02, 0.1925])  # [left, bottom, width, height]
-        cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
-        ax[1].set_facecolor("0.5")   # dark gray
-        ax[2].set_facecolor("0.5")
-
-        diff_cbar = fig.colorbar(ax[1]._last_linecollection, cax=cax1)
-        diff_cbar.ax.tick_params(labelsize=6)
-        pctdiff_cbar = fig.colorbar(ax[2]._last_linecollection, cax=cax2)
-        pctdiff_cbar.ax.tick_params(labelsize=6)
+            diff_cbar = fig.colorbar(ax[1]._last_linecollection, cax=cax1)
+            diff_cbar.ax.tick_params(labelsize=6)
+            pctdiff_cbar = fig.colorbar(ax[2]._last_linecollection, cax=cax2)
+            pctdiff_cbar.ax.tick_params(labelsize=6)
     #End if
 
     #Write the figure to provided workspace/file:
@@ -1357,23 +1323,23 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         fig.legend(handles=[line,line2],bbox_to_anchor=(0.125, 0.84, 1.05, .102),loc="upper left",
                    borderaxespad=0.0,fontsize=6,frameon=False,labelspacing=0.3)
 
+        use_cmap = kwargs.get("colormap_2d", False)
+        kwargs["colormap_2d"] = use_cmap
+        kwargs["type"] = "diff"
         pltfunc(
             adata[xdim], diff,
             ax=ax[1],
-            use_cmap=True,
-            cmap="RdBu_r",
-            norm=norm_diff
+            norm=norm_diff,
         )
 
         ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
+        kwargs["type"] = "pctdiff"
         pltfunc(
             adata[xdim], pct,
             ax=ax[2],
-            use_cmap=True,
-            cmap="PuOr",
-            norm=norm_pctdiff
+            norm=norm_pctdiff,
         )
 
         ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=6,fontweight="bold")
@@ -1392,16 +1358,17 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
 
         plt.subplots_adjust(wspace= 0.01, hspace= 0.5, right=0.85)
 
-        # Create colorbar axes (same width for both)
-        cax1 = fig.add_axes([0.86, 0.4, 0.02, 0.1925])  # [left, bottom, width, height]
-        cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
-        ax[1].set_facecolor("0.5")   # dark gray
-        ax[2].set_facecolor("0.5")
+        if use_cmap:
+            # Create colorbar axes (same width for both)
+            cax1 = fig.add_axes([0.86, 0.4, 0.02, 0.1925])  # [left, bottom, width, height]
+            cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
+            ax[1].set_facecolor("0.5")   # dark gray
+            ax[2].set_facecolor("0.5")
 
-        diff_cbar = fig.colorbar(ax[1]._last_linecollection, cax=cax1)
-        diff_cbar.ax.tick_params(labelsize=6)
-        pctdiff_cbar = fig.colorbar(ax[2]._last_linecollection, cax=cax2)
-        pctdiff_cbar.ax.tick_params(labelsize=6)
+            diff_cbar = fig.colorbar(ax[1]._last_linecollection, cax=cax1)
+            diff_cbar.ax.tick_params(labelsize=6)
+            pctdiff_cbar = fig.colorbar(ax[2]._last_linecollection, cax=cax2)
+            pctdiff_cbar.ax.tick_params(labelsize=6)
     #End if
 
     #Write the figure to provided workspace/file:
