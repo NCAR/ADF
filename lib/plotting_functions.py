@@ -988,21 +988,28 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                    borderaxespad=0.0,fontsize=6,frameon=False,labelspacing=0.3)
         
         use_cmap = kwargs.get("colormap_2d", False)
-        kwargs["colormap_2d"] = use_cmap
-        kwargs["type"] = "diff"
+        plot_kwargs = kwargs.copy()
+        plot_kwargs["colormap_2d"] = use_cmap
+        diff_kwargs = plot_kwargs.copy()
+        diff_kwargs["type"] = "diff"
+        diff_kwargs.pop("norm", None)
         zonal_plot(
             adata['lat'], diff,
             ax=ax[1],
             norm=norm_diff,
+            **diff_kwargs,
         )
         ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        kwargs["type"] = "pctdiff"
+        pctdiff_kwargs = plot_kwargs.copy()
+        pctdiff_kwargs["type"] = "pctdiff"
+        pctdiff_kwargs.pop("norm", None)
         zonal_plot(
             adata['lat'], pct,
             ax=ax[2],
             norm=norm_pctdiff,
+            **pctdiff_kwargs,
         )
         ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=6,fontweight="bold")
         ax[2].set_ylabel("%", fontsize=6)
@@ -1324,22 +1331,29 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
                    borderaxespad=0.0,fontsize=6,frameon=False,labelspacing=0.3)
 
         use_cmap = kwargs.get("colormap_2d", False)
-        kwargs["colormap_2d"] = use_cmap
-        kwargs["type"] = "diff"
+        plot_kwargs = kwargs.copy()
+        plot_kwargs["colormap_2d"] = use_cmap
+        diff_kwargs = plot_kwargs.copy()
+        diff_kwargs["type"] = "diff"
+        diff_kwargs.pop("norm", None)
         pltfunc(
             adata[xdim], diff,
             ax=ax[1],
             norm=norm_diff,
+            **diff_kwargs,
         )
 
         ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc='left', fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        kwargs["type"] = "pctdiff"
+        pctdiff_kwargs = plot_kwargs.copy()
+        pctdiff_kwargs["type"] = "pctdiff"
+        pctdiff_kwargs.pop("norm", None)
         pltfunc(
             adata[xdim], pct,
             ax=ax[2],
             norm=norm_pctdiff,
+            **pctdiff_kwargs,
         )
 
         ax[2].set_title("Test % Diff Baseline", loc='left', fontsize=6,fontweight="bold")

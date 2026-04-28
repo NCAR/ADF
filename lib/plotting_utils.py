@@ -31,6 +31,7 @@ import numpy as np
 import xarray as xr
 import matplotlib as mpl
 import matplotlib.cm as cm
+import matplotlib.lines as mlines
 import cartopy.crs as ccrs
 import os
 
@@ -53,6 +54,8 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 script_name = os.path.splitext(os.path.basename(__file__))[0]
+
+_LINE2D_PROPS = set(mlines.Line2D([0], [0]).properties().keys())
 
 #################
 #HELPER FUNCTIONS
@@ -303,10 +306,13 @@ def _plot_line(axobject, xdata, ydata, color=None, **kwargs):
         axobject._last_linecollection = lc
 
     else:
+        # Only keep kwargs valid for Line2D / ax.plot()
+        plot_kwargs = {k: v for k, v in kwargs.items() if k in _LINE2D_PROPS}
+
         if color is not None:
-            axobject.plot(xdata, ydata, c=color, **kwargs)
+            axobject.plot(xdata, ydata, c=color, **plot_kwargs)
         else:
-            axobject.plot(xdata, ydata, **kwargs)
+            axobject.plot(xdata, ydata, **plot_kwargs)
 
     # Y label logic
     if hasattr(ydata, "units"):
