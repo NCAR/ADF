@@ -105,7 +105,6 @@ def create_climo_files(adf, clobber=False, search=None):
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
-    print(f"CHECK ON INPUT")
     print(case_names)
     print(input_ts_locs)
 

@@ -164,7 +164,6 @@ def meridional_mean(adfobj):
         #End if
 
         unstruct_plotting = adfobj.unstructured_plotting
-        print("unstruct_plotting", unstruct_plotting)
         if unstruct_plotting:
             #config["unstructured_plotting"] = unstruct_plotting
             unstructured = unstruct_plotting
@@ -289,7 +288,6 @@ def meridional_mean(adfobj):
             # check data dimensions:
             #has_lat, has_lev = utils.zm_validate_dims(mdata)
             lat_lev = utils.validate_dims(mdata, ['lat', 'lev'])
-            print("lat_lev",lat_lev,"\n")
 
             """if vres["unstructured_plotting"]:
                 # check if there is a lat dimension:

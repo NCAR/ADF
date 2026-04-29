@@ -183,13 +183,17 @@ class AdfData:
     # Test case(s)
     def load_climo_da(self, case, variablename, **kwargs):
         """Return DataArray from climo file"""
-        if "scale_factor" not in kwargs:
-            add_offset, scale_factor = self.get_value_converters(case, variablename)
-            kwargs["scale_factor"] = scale_factor
-            kwargs["add_offset"] = add_offset
+        kwargs = self._ensure_scaling_kwargs(case, variablename, kwargs)
         fils = self.get_climo_file(case, variablename)
         return self.load_da(fils, variablename, **kwargs)
-        #return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+
+    def _ensure_scaling_kwargs(self, case, variablename, kwargs):
+        """Ensure scale_factor/add_offset are present without overwriting explicit values."""
+        if ("scale_factor" not in kwargs) or ("add_offset" not in kwargs):
+            add_offset, scale_factor = self.get_value_converters(case, variablename)
+            kwargs.setdefault("scale_factor", scale_factor)
+            kwargs.setdefault("add_offset", add_offset)
+        return kwargs
 
 
     def load_climo_dataset(self, case, field, **kwargs):
@@ -215,15 +219,8 @@ class AdfData:
     # Reference case (baseline/obs)
     def load_reference_climo_da(self, case, variablename, **kwargs):
         """Return DataArray from reference (aka baseline) climo file"""
-        add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_reference_climo_file(variablename)
-        print("kwargs",kwargs)
-        if "add_offset" not in kwargs:
-            kwargs["add_offset"] = add_offset
-        if "scale_factor" not in kwargs:
-            kwargs["scale_factor"] = scale_factor
-        print("kwargs DIFF???",kwargs)
-        #return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        kwargs = self._ensure_scaling_kwargs(case, variablename, kwargs)
         return self.load_da(fils, variablename, **kwargs)
 
     def load_reference_climo_dataset(self, case, field, **kwargs):
@@ -270,11 +267,9 @@ class AdfData:
     
     def load_regrid_da(self, case, field, **kwargs):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        #add_offset, scale_factor = self.get_value_converters(case, field)
-        if ("scale_factor" not in kwargs) or ("add_offset" not in kwargs):
-            add_offset, scale_factor = self.get_value_converters(case, field)
-            kwargs["scale_factor"] = scale_factor
-            kwargs["add_offset"] = add_offset
+        kwargs = self._ensure_scaling_kwargs(case, field, kwargs)
+        kwargs['scale_factor'] = 1
+        kwargs['add_offset'] = 0
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
@@ -309,7 +304,6 @@ class AdfData:
     
     def load_reference_regrid_da(self, case, field, **kwargs):
         """Return a data array to be used as reference (aka baseline) for variable field."""
-        add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t  DATAARRAY  WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
@@ -318,7 +312,11 @@ class AdfData:
         # listed in variable defaults for this observation field
         if self.adf.compare_obs:
             field = self.ref_var_nam[field]
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        kwargs = self._ensure_scaling_kwargs(case, field, kwargs)
+        if 'regridded' in str(fils[0]):
+            kwargs['scale_factor'] = 1
+            kwargs['add_offset'] = 0
+        return self.load_da(fils, field, **kwargs)
 
     #------------------
 

@@ -412,7 +412,6 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
-        print("I'm guessing diff levels were not declared boi")
         """# set a symmetric color bar for diff:
         absmaxdif = np.max(np.abs(diffdata.data))
         # set levels for difference plot:
@@ -426,6 +425,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         else:
             absmaxdif = np.nanmax(np.abs(arr))
 
+        #adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
         levelsdiff = np.linspace(-absmaxdif, absmaxdif, 12)
 
 

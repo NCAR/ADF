@@ -1086,7 +1086,7 @@ def regrid_lnd_se_data_conservative(regridder, data_to_regrid, comp_grid):
 
 
 
-def grid_to_latlon(model_dataset, var_name, comp, wgt_file, method, latlon_file, **kwargs):
+def grid_to_latlon(model_dataset, model_da, var_name, comp, wgt_file, method, latlon_file, **kwargs):
 
     """
     Function that takes a variable from a model xarray
@@ -1118,12 +1118,14 @@ def grid_to_latlon(model_dataset, var_name, comp, wgt_file, method, latlon_file,
     else:
         print("Looks like no lat lon file is supplied. God speed!")
 
-    model_dataset[var_name] = model_dataset[var_name].fillna(0)
+    #model_dataset[var_name] = model_dataset[var_name].fillna(0)
+    model_da = model_da.fillna(0)
 
     if comp == "lnd":
         model_dataset['landfrac'] = model_dataset['landfrac'].fillna(0)
         #mdata = mdata * model_dataset.landfrac  # weight flux by land frac
-        model_dataset[var_name] = model_dataset[var_name] * model_dataset.landfrac  # weight flux by land frac
+        #model_dataset[var_name] = model_dataset[var_name] * model_dataset.landfrac  # weight flux by land frac
+        model_da = model_da * model_dataset.landfrac
         s_data = model_dataset.landmask.isel(time=0)
         d_data = latlon_ds.landmask
     else:

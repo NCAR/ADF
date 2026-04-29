@@ -68,7 +68,6 @@ def global_latlon_vect_map(adfobj):
     kwargs = {}
     #
     unstruct_plotting = adfobj.unstructured_plotting
-    print("unstruct_plotting", unstruct_plotting)
     if unstruct_plotting:
         kwargs["unstructured_plotting"] = unstruct_plotting
         #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
@@ -471,7 +470,7 @@ def global_latlon_vect_map(adfobj):
                     vdseasons = {} # hold the differences
                     upseasons = {}
                     vpseasons = {}
-                    print("m_has_dims",m_has_dims,"\n\n")
+
                     if m_has_dims['has_lev']:
 
                         # Loop over levels

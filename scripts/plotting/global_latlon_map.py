@@ -236,7 +236,6 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
 def get_plot_config(adfobj):
     """Get plotting configuration from ADF object."""
     unstruct_plotting = adfobj.unstructured_plotting
-    print("unstruct_plotting", unstruct_plotting)
     if unstruct_plotting:
         #config["unstructured_plotting"] = unstruct_plotting
         unstructured = unstruct_plotting

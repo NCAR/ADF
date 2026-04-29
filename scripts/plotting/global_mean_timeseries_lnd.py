@@ -66,19 +66,30 @@ def global_mean_timeseries_lnd(adfobj):
 
         ref_ts_ds = pf.load_dataset(baseline_ts_files)
         weights = ref_ts_ds.landfrac * ref_ts_ds.area
-        ref_ts_da= ref_ts_ds[field]
-        
+
         c_ts_ds = pf.load_dataset(case_ts_files)
         c_weights = c_ts_ds.landfrac * c_ts_ds.area
-        c_ts_da= c_ts_ds[field]
+
+        ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
+        c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
         #Extract category (if available):
         web_category = vres.get("category", None)
+        if ref_ts_da is None:
+            print(
+                f"\t Variable named {field} provides Nonetype for reference data. Skipping this variable"
+            )
+            validate_dims = True
+            continue
+        if c_ts_da is None:
+            print(
+                f"\t Variable named {field} provides Nonetype for case '{case_name}'. Skipping this variable"
+            )
+            validate_dims = True
+            continue
         
         # get variable defaults  
-        scale_factor = vres.get('scale_factor', 1)
         scale_factor_table = vres.get('scale_factor_table', 1)
-        add_offset = vres.get('add_offset', 0)
         avg_method = vres.get('avg_method', 'mean')
         if avg_method == 'mean':
             weights = weights/weights.sum()
@@ -89,35 +100,28 @@ def global_mean_timeseries_lnd(adfobj):
         units = ref_ts_da.attrs['units']
 
         # scale for plotting, if needed
-        ref_ts_da = ref_ts_da * scale_factor * scale_factor_table
+        ref_ts_da = ref_ts_da * scale_factor_table
         ref_ts_da.attrs['units'] = units
-        c_ts_da = c_ts_da * scale_factor * scale_factor_table
+        c_ts_da = c_ts_da * scale_factor_table
         c_ts_da.attrs['units'] = units
 
-        # Check to see if this field is available
-        if ref_ts_da is None:
+        validate_dims = False
+        # reference time series global average
+        # TODO, make this more general for land?
+        ref_ts_da_ga = pf.spatial_average_lnd(ref_ts_da, weights=weights)
+        c_ts_da_ga = pf.spatial_average_lnd(c_ts_da, weights=c_weights)
+
+        # annually averaged
+        ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
+        c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
+
+        # check if variable has a lev dimension
+        has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
+        if has_lev_ref:
             print(
-                f"\t Variable named {field} provides Nonetype. Skipping this variable"
+                f"Variable named {field} has a lev dimension, which does not work with this script."
             )
-            validate_dims = True
-        else:
-            validate_dims = False
-            # reference time series global average
-            # TODO, make this more general for land?
-            ref_ts_da_ga = pf.spatial_average_lnd(ref_ts_da, weights=weights)
-            c_ts_da_ga = pf.spatial_average_lnd(c_ts_da, weights=c_weights)
-
-            # annually averaged
-            ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
-            c_ts_da = pf.annual_mean(c_ts_da_ga, whole_years=True, time_name="time")
-
-            # check if variable has a lev dimension
-            has_lev_ref = pf.zm_validate_dims(ref_ts_da)[1]
-            if has_lev_ref:
-                print(
-                    f"Variable named {field} has a lev dimension, which does not work with this script."
-                )
-                continue
+            continue
 
         ## SPECIAL SECTION -- CESM2 LENS DATA:
         lens2_data = Lens2Data(

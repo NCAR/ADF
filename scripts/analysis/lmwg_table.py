@@ -207,18 +207,19 @@ def lmwg_table(adf):
             #Load model variable data from file:
             ds = pf.load_dataset(ts_files)
             weights = ds.landfrac * ds.area
-            data = ds[var]
-
-            #Extract defaults for variable:
+            # Load model variable data from file with unit conversion from ADF defaults.
+            data = adf.data.load_timeseries_da(case_names[i], var)
             var_default_dict = var_defaults.get(var, {})
-            scale_factor = var_default_dict.get('scale_factor', 1)
             scale_factor_table = var_default_dict.get('scale_factor_table', 1)
-            add_offset = var_default_dict.get('add_offset', 0)
-            # could require this for each variable?
             avg_method = var_default_dict.get('avg_method', 'mean')
             if avg_method == 'mean':
                 weights = weights/weights.sum()
 
+            if data is None:
+                print(
+                    f"\t    WARNING: Variable '{var}' for case '{case_names[i]}' could not be loaded. Skipping..."
+                )
+                continue
             # get units for variable (do this before doing math)
             data.attrs['units'] = var_default_dict.get("new_unit", data.attrs.get('units', 'none'))
             data.attrs['units'] = var_default_dict.get("table_unit", data.attrs.get('units', 'none'))
@@ -227,7 +228,7 @@ def lmwg_table(adf):
             else:
                 unit_str = '--'
 
-            data = data * scale_factor * scale_factor_table
+            data = data * scale_factor_table
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
                 print(f"\t    ** Variable '{var}' has a vertical dimension, "+\

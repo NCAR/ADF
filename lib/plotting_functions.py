@@ -2335,7 +2335,7 @@ def compute_ux_zonal_mean(da, bins=2):
     lat = xr.DataArray(
         np.array(da.uxgrid.face_lat),
         dims=["n_face"],
-        name="lat"   # 👈 IMPORTANT (helps naming!)
+        name="lat"
     )
 
     lat_bins = np.arange(-90, 90 + bins, bins)
@@ -2471,69 +2471,6 @@ def ux_to_lon_binned(da, bins=2):
 
 
 
-
-
-
-
-
-
-
-
-
-
-"""def ux_to_lon_binned(da, bins=2):
-    import numpy as np
-    import xarray as xr
-
-    da_vals = np.array(da)
-    lon = np.array(da.uxgrid.face_lon)
-
-    lon_bins = np.arange(0, 360 + bins, bins)
-    lon_mid = 0.5 * (lon_bins[:-1] + lon_bins[1:])
-    bin_index = np.clip(np.digitize(lon, lon_bins) - 1, 0, len(lon_mid) - 1)
-
-    # --- 1D ---
-    if da_vals.ndim == 1:
-        out = np.full((len(lon_mid), len(lon)), np.nan)
-
-        for i in range(len(lon_mid)):
-            mask = bin_index == i
-            out[i, mask] = da_vals[mask]
-
-        dims = ["lon", "n_face"]
-        coords = {"lon": lon_mid}
-
-    # --- 2D ---
-    elif da_vals.ndim == 2:
-        nlev = da_vals.shape[0]
-        out = np.full((nlev, len(lon_mid), len(lon)), np.nan)
-
-        for i in range(len(lon_mid)):
-            mask = bin_index == i
-            out[:, i, mask] = da_vals[:, mask]
-
-        dims = ["lev", "lon", "n_face"]
-        coords = {
-            "lev": da["lev"].values,
-            "lon": lon_mid
-        }
-
-    else:
-        raise ValueError("Only 1D or 2D supported")
-    coords["n_face"] = np.arange(len(lon))
-    return xr.DataArray(
-        out,
-        dims=dims,
-        coords=coords,
-        name=da.name,
-        attrs=da.attrs
-    )"""
-
-
-
-
-
-
 def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                              case_climo_yrs, baseline_climo_yrs,
                              adata, bdata, has_lev, log_p=False, obs=False, 
@@ -2574,18 +2511,6 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
                shrink: 0.4
           ```
     """
-
-    '''def zonal_mean_xr(fld):
-        """Average over all dimensions except `lev` and `lat`."""
-        if isinstance(fld, xr.DataArray):
-            d = fld.dims
-            davgovr = [dim for dim in d if dim not in ('lev','lat')]
-        elif isinstance(fld, ux.UxDataArray):
-            d = fld.dims
-            davgovr = [dim for dim in d if dim not in ('lev','lat')]
-        else:
-            raise IOError("zonal_mean_xr requires Xarray DataArray or UXarray UxDataArray input.")
-        return fld.mean(dim=davgovr)'''
 
     # style the plot:
     # We should think about how to do plot customization and defaults.
@@ -2859,7 +2784,7 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
 
     adata = meridional_mean_xr(adata)
     bdata = meridional_mean_xr(bdata)
-    print("MERDIONAL adata",adata,"\n\n")
+    #print("MERDIONAL adata",adata,"\n\n")
 
     if len(adata.dims) > 2:
         print(f"ERROR: plot_meridonal_mean_and_save - AFTER averaging, there are too many dimensions: {adata.dims}")

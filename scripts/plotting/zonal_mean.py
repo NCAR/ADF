@@ -159,7 +159,6 @@ def zonal_mean(adfobj):
         #End if
 
         unstruct_plotting = adfobj.unstructured_plotting
-        print("unstruct_plotting", unstruct_plotting)
         if unstruct_plotting:
             #config["unstructured_plotting"] = unstruct_plotting
             unstructured = unstruct_plotting
@@ -177,8 +176,6 @@ def zonal_mean(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        """odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
-        odata = odataset[var]"""
         if vres["unstructured_plotting"]:
             vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
             comp = "atm"
@@ -224,9 +221,6 @@ def zonal_mean(adfobj):
 
             #Set output plot location:
             plot_loc = Path(plot_locations[case_idx])
-
-            """mdataset = adfobj.data.load_regrid_da(case_name, var, **vres)
-            mdata = mdataset[var]"""
 
             if vres["unstructured_plotting"]:
                 mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]

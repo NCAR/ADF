@@ -226,19 +226,22 @@ def regrid_and_vert_interp(adf):
                     #Write to debug log if enabled:
                     #adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
                     
-                    tclim_ds = adf.data.load_reference_climo_dataset(target, var)
-                    if tclim_ds is None:
-                        print(f"\t    WARNING: regridding {var} failed, no climo file for case '{target}'. Continuing to next variable.")
-                        continue
-                    #else:
-                    #    #Open single file as new xarray dataset:
-                    #    tclim_ds = xr.open_dataset(tclim_fils[0])
-                    #End if
+                    #tclim_ds = adf.data.load_reference_climo_dataset(target, var)
+                    #if tclim_ds is None:
+                    #    print(f"\t    WARNING: regridding {var} failed, no climo file for case '{target}'. Continuing to next variable.")
+                    #    continue
 
-                    mclim_ds = adf.data.load_climo_dataset(case_name, var)
-                    if mclim_ds is None:
+                    tclim_da = adf.data.load_climo_da(case_name, var)
+                    if tclim_da is None:
                         print(f"\t    WARNING: regridding {var} failed, no climo file for case '{target}'. Continuing to next variable.")
                         continue
+                    tclim_ds = xr.Dataset({var: tclim_da})
+
+                    mclim_da = adf.data.load_climo_da(case_name, var)
+                    if mclim_da is None:
+                        print(f"\t    WARNING: regridding {var} failed, no climo file for case '{case_name}'. Continuing to next variable.")
+                        continue
+                    mclim_ds = xr.Dataset({var: mclim_da})
 
                     #Create keyword arguments dictionary for regridding function:
                     regrid_kwargs = {}
