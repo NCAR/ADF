@@ -179,6 +179,23 @@ class AdfInfo(AdfConfig):
             #Set the baseline years to empty strings:
             syear_baseline = ""
             eyear_baseline = ""
+            base_comp = "atm"
+            baseline_mesh_file = None #self.get_baseline_info("mesh_file")
+            self.__baseline_mesh_file = baseline_mesh_file
+
+            #Check if any a FV file exists if using native grid
+            baseline_latlon_file   = None #self.get_baseline_info("latlon_file")
+            self.__baseline_latlon_file = baseline_latlon_file
+
+            #Check if any a weights file exists if using native grid, OPTIONAL
+            baseline_wgts_file   = None #self.get_baseline_info("weights_file")
+            self.__baseline_wgts_file = baseline_wgts_file
+
+            baseline_regrid_method = None #self.get_baseline_info("regrid_method")
+            #if baseline_regrid_method == 'conservative':
+            #    print("user defined 'conservative', but xesmf has a typo, changing to 'coservative'")
+            #    baseline_regrid_method = 'coservative'
+            self.__baseline_regrid_method = baseline_regrid_method
         else:
             #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = self.read_config_var('diag_cam_baseline_climo',
@@ -595,6 +612,7 @@ class AdfInfo(AdfConfig):
                     unstruct = False
                 unstructs.append(unstruct)
                 self.__native_grid[case_name] = unstruct
+                #self.__native_grid_gridded[case_name] = native_grid_gridded
 
                 #Partition string to find exactly where h-number is
                 #This cuts the string before and after the `{hist_str}.` sub-string
@@ -917,6 +935,18 @@ class AdfInfo(AdfConfig):
         native_grid = self.__native_grid
 
         return native_grid
+
+
+    '''# Create property needed to return the native grid dictionary to user:
+    @property
+    def native_grid_gridded(self):
+        """Return the test case and baseline native grid dictionary to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        native_grid_gridded = self.__native_grid_gridded
+
+        return native_grid_gridded'''
 
     # Create property needed to return the climo start (syear) and end (eyear) years to user:
     @property

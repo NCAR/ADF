@@ -97,7 +97,12 @@ class AdfData:
         caseindex = (self.case_names).index(case)
         ts_locs = self.adf.get_cam_info("cam_ts_loc")
 
-        ts_loc = Path(ts_locs[caseindex])
+        if self.adf.native_grid[case] and not self.adf.unstructured_plotting:
+            ts_loc = Path(ts_locs[caseindex]) / "gridded"
+        else:
+            ts_loc = Path(ts_locs[caseindex])
+
+        #ts_loc = Path(ts_locs[caseindex])
         ts_filenames = f'{case}.*.{field}.*nc'
         ts_files = sorted(ts_loc.glob(ts_filenames))
         return ts_files
@@ -109,7 +114,11 @@ class AdfData:
             warnings.warn("\t    WARNING: ADF does not currently expect observational time series files.")
             return None
         else:
-            ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc"))
+            #ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc"))
+            if self.adf.native_grid[self.ref_case_label] and not self.adf.unstructured_plotting:
+                ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc")) / "gridded"
+            else:
+                ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc"))
             ts_filenames = f'{self.ref_case_label}.*.{field}.*nc'
             ts_files = sorted(ts_loc.glob(ts_filenames))
             return ts_files
@@ -183,7 +192,7 @@ class AdfData:
     # Test case(s)
     def load_climo_da(self, case, variablename, **kwargs):
         """Return DataArray from climo file"""
-        kwargs = self._ensure_scaling_kwargs(case, variablename, kwargs)
+        #kwargs = self._ensure_scaling_kwargs(case, variablename, kwargs)
         fils = self.get_climo_file(case, variablename)
         return self.load_da(fils, variablename, **kwargs)
 
@@ -268,8 +277,8 @@ class AdfData:
     def load_regrid_da(self, case, field, **kwargs):
         """Return a data array to be used as reference (aka baseline) for variable field."""
         kwargs = self._ensure_scaling_kwargs(case, field, kwargs)
-        kwargs['scale_factor'] = 1
-        kwargs['add_offset'] = 0
+        #kwargs['scale_factor'] = 1
+        #kwargs['add_offset'] = 0
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
@@ -350,7 +359,7 @@ class AdfData:
                     print(msg)
                     ds = None
                 mesh_file = kwargs["mesh_file"]
-                print("mesh_file",mesh_file,"\n\n")
+                #print("mesh_file",mesh_file,"\n\n")
                 ds = ux.open_dataset(mesh_file, sfil)
             else:
                 ds = xr.open_dataset(sfil)
@@ -359,21 +368,34 @@ class AdfData:
         return ds
 
     # Load DataArray
-    def load_da(self, fils, variablename, **kwargs):
+    def load_da(self, fils, variablename, **vres):
         """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
-        ds = self.load_dataset(fils, **kwargs)
+        ds = self.load_dataset(fils, **vres)
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
-        scale_factor = kwargs.get('scale_factor', 1)
-        add_offset = kwargs.get('add_offset', 0)
-        da = da * scale_factor + add_offset
-        if variablename in self.adf.variable_defaults:
+        #print(variablename,"da.attrs.get('units', 'none')",da.attrs.get('units', 'none'),ds.units)
+        #da2 = da.copy()
+        units = da.attrs.get('units', ds.attrs.get('units', 'none'))
+        da.attrs['units'] = units
+        #vres.get("new_unit", da.attrs.get('units', ds.attrs.get('units', 'none')))
+        print("variablename",variablename)
+        if vres:
+            scale_factor = vres.get('scale_factor', 1)
+            add_offset = vres.get('add_offset', 0)
+            print("scale_factor",scale_factor)
+            print("add_offset",add_offset)
+            da = da * scale_factor + add_offset
+            da.attrs['units'] = vres.get("new_unit", units)
+        #if da.values == da2.values:
+        #if xr.testing.assert_equal(da, da2):
+        #   print(f"\t    INFO: No scaling applied to variable '{variablename}' (scale_factor={scale_factor}, add_offset={add_offset}).")
+        """if variablename in self.adf.variable_defaults:
             vres = self.adf.variable_defaults[variablename]
-            da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
+            da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', ds.attrs.get('units', 'none')))
         else:
-            da.attrs['units'] = 'none'
+            da.attrs['units'] = 'none'"""
         return da
 
     # Get variable conversion defaults, if applicable

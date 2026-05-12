@@ -57,6 +57,7 @@ def amwg_table(adf):
     #Import necessary modules:
     from adf_base import AdfError
     import adf_utils as utils
+    import plotting_functions as pf
 
     #Additional information:
     #----------------------
@@ -163,12 +164,18 @@ def amwg_table(adf):
     csv_list = []
     for case_idx, case_name in enumerate(case_names):
 
+        unstruct = adf.unstructured_plotting
+
         #Convert output location string to a Path object:
         output_location = Path(output_locs[case_idx])
 
         #Generate input file path:
-        input_location = Path(input_ts_locs[case_idx])
+        if adf.native_grid[case_name] and not unstruct:
+            input_location = Path(input_ts_locs[case_idx]) / "gridded"
+        else:
+            input_location = Path(input_ts_locs[case_idx])
 
+        print("input_location",input_location)
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
             errmsg = f"Time series directory '{input_location}' not found.  Script is exiting."
@@ -202,9 +209,17 @@ def amwg_table(adf):
             #Notify users of variable being added to table:
             print(f"\t - Variable '{var}' being added to table")
 
+            vres = var_defaults.get(var, {})
+
             #Create list of time series files present for variable:
-            ts_filenames = f'{case_name}.*.{var}.*nc'
-            ts_files = sorted(input_location.glob(ts_filenames))
+            #ts_filenames = f'{case_name}.*.{var}.*nc'
+            #ts_files = sorted(input_location.glob(ts_filenames))
+            if case_idx != len(case_names)-1:
+                ts_files = adf.data.get_timeseries_file(case_name, var)
+                vres["mesh_file"] = adf.mesh_files["test_mesh_file"][case_idx]
+            else:
+                ts_files = adf.data.get_ref_timeseries_file(var)
+                vres["mesh_file"] = adf.mesh_files["baseline_mesh_file"]
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
@@ -222,15 +237,21 @@ def amwg_table(adf):
             #End if
 
             #Load model variable data from file:
-            ds = utils.load_dataset(ts_files)
-            data = ds[var]
+            vres["unstructured_plotting"] = unstruct
+            #ds = adf.data.load_dataset(ts_files, **vres)
+            #data = ds[var]
 
+            data = adf.data.load_da(ts_files, var, **vres)
+            
+            print("data",data.units,"\n\n")
             #Extract units string, if available:
             if hasattr(data, 'units'):
-                unit_str = data.units
+                unit_str = f"{data.units}"
             else:
                 unit_str = '--'
-
+            print("unit_st BEFORE:",unit_str,"\n\n")
+            unit_str = latex_to_unicode_units(unit_str)
+            print("unit_str AFTER:",unit_str,"\n\n")
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
                 print(f"\t    WARNING: Variable '{var}' has a vertical dimension, "+\
@@ -272,16 +293,31 @@ def amwg_table(adf):
                 ocn_frc_da = data
             #End if
 
-            # we should check if we need to do area averaging:
-            if len(data.dims) > 1:
-                # flags that we have spatial dimensions
-                # Note: that could be 'lev' which should trigger different behavior
-                # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = utils.spatial_average(data)  # changes data "in place"
-
             # In order to get correct statistics, average to annual or seasonal
             data = utils.annual_mean(data, whole_years=True, time_name='time')
 
+            if unstruct:
+                unstruct_case = True
+            # we should check if we need to do area averaging:
+            if len(data.dims) > 1:
+                    # flags that we have spatial dimensions
+                    # Note: that could be 'lev' which should trigger different behavior
+                    # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
+                if unstruct:
+                    ds = adf.data.load_dataset(ts_files, **vres)
+                    if 'n_face' in data.dims:
+                        weights = ds['area']
+                    elif 'ncol' in data.dims:
+                        weights = ds['area']
+                    else:
+                        weights = None
+
+                    data = utils.spatial_average(data, weights=weights)
+                else:
+                    data = utils.spatial_average(data)
+            #ax[i].set_title(f"Mean: {glob_wgt_fld.mean().item():5.2f}\nMax: {fields[i].max().item():5.2f}\nMin: {fields[i].min().item():5.2f}", 
+            #            loc='right', fontsize=tiFontSize)
+            
             # Set values for columns
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                     'standard error', '95% CI', 'trend', 'trend p-value']
@@ -352,10 +388,35 @@ def amwg_table(adf):
 ##################
 # Helper functions
 ##################
+import re
+
+SUPERSCRIPTS = str.maketrans({
+                "0": "⁰",
+                "1": "¹",
+                "2": "²",
+                "3": "³",
+                "4": "⁴",
+                "5": "⁵",
+                "6": "⁶",
+                "7": "⁷",
+                "8": "⁸",
+                "9": "⁹",
+                "-": "⁻",
+            })
+
+def latex_to_unicode_units(unit_str):
+    """
+    Convert LaTeX-style exponents like $^{-1}$ to Unicode superscripts.
+    """
+
+    def repl(match):
+        exponent = match.group(1)
+        return exponent.translate(SUPERSCRIPTS)
+
+    return re.sub(r"\$\^\{([^}]*)\}\$", repl, unit_str)
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:
-
     data_mean = data.data.mean()
     #Conditional Formatting depending on type of float
     if np.abs(data_mean) < 1:

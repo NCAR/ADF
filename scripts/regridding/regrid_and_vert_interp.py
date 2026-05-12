@@ -219,29 +219,36 @@ def regrid_and_vert_interp(adf):
                     if adf.compare_obs:
                         #For now, only grab one file (but convert to list for use below):
                         tclim_fils = [tclimo_loc]
+                        #tclim_ds = adf.data.load_reference_climo_dataset(target, var)
                     else:
                        tclim_fils = adf.data.get_reference_climo_file(var)
                     #End if
 
                     #Write to debug log if enabled:
-                    #adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
-                    
-                    #tclim_ds = adf.data.load_reference_climo_dataset(target, var)
-                    #if tclim_ds is None:
-                    #    print(f"\t    WARNING: regridding {var} failed, no climo file for case '{target}'. Continuing to next variable.")
-                    #    continue
+                    adf.debug_log(f"regrid_example: tclim_fils (n={len(tclim_fils)}): {tclim_fils}")
 
-                    tclim_da = adf.data.load_climo_da(case_name, var)
+                    tclim_ds = adf.data.load_reference_climo_dataset(target, var)
+                    if adf.compare_obs:
+                        obs_var = adf.data.ref_var_nam[var]
+                        tunits = tclim_ds[obs_var].attrs.get('units', 'none')
+                        tclim_da = tclim_ds[obs_var]
+                    else:
+                        tunits = tclim_ds[var].attrs.get('units', 'none')
+                        tclim_da = tclim_ds[var]
+                    
+                    if "area" in tclim_ds:
+                        tclim_area = tclim_ds.area
                     if tclim_da is None:
                         print(f"\t    WARNING: regridding {var} failed, no climo file for case '{target}'. Continuing to next variable.")
                         continue
-                    tclim_ds = xr.Dataset({var: tclim_da})
-
-                    mclim_da = adf.data.load_climo_da(case_name, var)
+                    mclim_ds = adf.data.load_climo_dataset(case_name, var)
+                    munits = mclim_ds[var].attrs.get('units', 'none')
+                    if "area" in mclim_ds:
+                        mclim_area = mclim_ds.area
+                    mclim_da = mclim_ds[var]
                     if mclim_da is None:
                         print(f"\t    WARNING: regridding {var} failed, no climo file for case '{case_name}'. Continuing to next variable.")
                         continue
-                    mclim_ds = xr.Dataset({var: mclim_da})
 
                     #Create keyword arguments dictionary for regridding function:
                     regrid_kwargs = {}
@@ -256,9 +263,10 @@ def regrid_and_vert_interp(adf):
                             regrid_kwargs.update({'pmid_file': pmid_loc_dict[target]})
                         #End if
 
+                    rgdata_interp = mclim_ds
+
                     # If not native plotting, will try and grid the datasets to lat/lon
                     if adf.native_grid[case_name] and not adf.unstructured_plotting:
-                        #print("mclim_ds",mclim_ds)
                         #Check if any a FV file exists if using native grid
                         case_latlon_file = case_latlon_files[case_idx]
                         if not case_latlon_file:
@@ -274,37 +282,36 @@ def regrid_and_vert_interp(adf):
                             raise AdfError(msg)
 
                         case_method = case_methods[case_idx]
-                        #print("ds attrs?",mclim_ds.lev.long_name,"\n\n")
                         ds_attrs = mclim_ds.attrs
-                        #print("ds_attrs",ds_attrs)
+
                         # Grid unstructured climo if applicable before regridding
-                        rgdata_interp = utils.grid_to_latlon(mclim_ds, var,
-                                                    comp=comp,
-                                                    wgt_file=case_wgts_file,
-                                                    latlon_file=case_latlon_file,
-                                                    method=case_method,
-                                                    )
-                        #print("After _regrid?",rgdata_interp,"\n\n")
+                        if 'ncol' in mclim_ds.dims:
+                            rgdata_interp = utils.grid_to_latlon(mclim_ds, var,
+                                                        comp=comp,
+                                                        wgt_file=case_wgts_file,
+                                                        latlon_file=case_latlon_file,
+                                                        method=case_method,
+                                                        )
+                        else:
+                            print("Looks like this climo file is already on a lat/lon grid, so skipping gridding step...")
                         rgdata_interp.attrs = ds_attrs
-                        #rgdata_interp['lev'].attrs['long_name'] = mclim_ds.lev.long_name
+
                         if 'lev' in mclim_ds:
                             rgdata_interp['lev'].attrs['long_name'] = mclim_ds.lev.long_name
                             rgdata_interp['hybm'] = mclim_ds.hybm
                             rgdata_interp['hyam'] = mclim_ds.hyam
-                        #print("After adding attrs??",rgdata_interp,"\n\n")
+
                         output_test_loc = Path(output_climo_locs[case_idx])
                         rgridded_output_loc   = output_test_loc / "gridded"
                         if not rgridded_output_loc.is_dir():
                             print(f"    {rgridded_output_loc} not found, making new directory")
                             rgridded_output_loc.mkdir(parents=True)
                         save_to_nc(rgdata_interp, rgridded_output_loc / f'{case_name}_{var}_gridded_climo.nc')
-                    else:
-                        rgdata_interp = mclim_ds
-
+                    print("rgdata_interp.shape BEOFRE",rgdata_interp[var].shape)
                     rgdata_interp = _regrid_and_interpolate_levs(adf, rgdata_interp, var,
                                                                  regrid_dataset=tclim_ds,
-                                                                 **regrid_kwargs)
-                    #print("DOESNT WORK!",rgdata_interp,"\n\n")
+                                                             **regrid_kwargs)
+                    print("rgdata_interp.shape AFTER",rgdata_interp[var].shape)
                     #Extract defaults for variable:
                     var_default_dict = var_defaults.get(var, {})
 
@@ -344,10 +351,13 @@ def regrid_and_vert_interp(adf):
                     mclim_fils = adf.data.get_climo_file(case_name, var)
                     climatology_files_str = [str(path) for path in mclim_fils]
                     climatology_files_str = ', '.join(climatology_files_str)
+                    if "area" in mclim_ds:
+                        rgdata_interp["area"] = mclim_area
                     test_attrs_dict = {
                             "adf_user": adf.user,
                             "climo_yrs": f"{case_name}: {syear}-{eyear}",
                             "climatology_files": climatology_files_str,
+                            "units": munits
                         }
                     rgdata_interp = rgdata_interp.assign_attrs(test_attrs_dict)
                     save_to_nc(rgdata_interp, regridded_file_loc)
@@ -379,7 +389,8 @@ def regrid_and_vert_interp(adf):
                                 regrid_kwargs.update({'pmid_file': bl_pmid_fil})
                             #End if
                             regrid_kwargs["case_name"] = case_name
-            
+                        
+                        tgdata_interp = tclim_ds
                         #if unstruct_base:
                         if adf.native_grid[case_name] and not adf.unstructured_plotting:
                             #Check if any a FV file exists if using native grid
@@ -399,16 +410,16 @@ def regrid_and_vert_interp(adf):
                             base_method = adf.latlon_regrid_method["baseline_regrid_method"]
                             ds_attrs = tclim_ds.attrs
                             # Grid unstructured climo if applicable before regridding
-                            tgdata_interp = utils.grid_to_latlon(tclim_ds, var,
-                                                        comp=comp,
-                                                        wgt_file=baseline_wgts_file,
-                                                        latlon_file=baseline_latlon_file,
-                                                        method=base_method,
-                                                       )
+                            if 'ncol' in mclim_ds.dims:
+                                tgdata_interp = utils.grid_to_latlon(tclim_ds, var,
+                                                            comp=comp,
+                                                            wgt_file=baseline_wgts_file,
+                                                            latlon_file=baseline_latlon_file,
+                                                            method=base_method,
+                                                        )
                             tgdata_interp.attrs = ds_attrs
                             if 'lev' in tclim_ds:
-                                #tgdata_interp['lev'].attrs['long_name'] = tclim_ds.lev.long_name
-
+                                tgdata_interp['lev'].attrs['long_name'] = tclim_ds.lev.long_name
                                 tgdata_interp['hybm'] = tclim_ds.hybm
                                 tgdata_interp['hyam'] = tclim_ds.hyam
                             tgridded_output_loc   = Path(target_loc) / "gridded"
@@ -416,12 +427,11 @@ def regrid_and_vert_interp(adf):
                                 print(f"    {tgridded_output_loc} not found, making new directory")
                                 tgridded_output_loc.mkdir(parents=True)
                             save_to_nc(tgdata_interp, tgridded_output_loc / f'{target}_{var}_gridded_climo.nc')
-                        else:
-                            tgdata_interp = tclim_ds
-
+                        print("tgdata_interp.shape BEOFRE",tgdata_interp[var].shape)
                         tgdata_interp = _regrid_and_interpolate_levs(adf, tgdata_interp, var,
                                                                     regrid_dataset=tclim_ds,
                                                                     **regrid_kwargs)
+                        print("tgdata_interp.shape BEOFRE",tgdata_interp[var].shape)
                         if tgdata_interp is None:
                             #Something went wrong during interpolation, so just cycle through
                             #for now:
@@ -466,11 +476,17 @@ def regrid_and_vert_interp(adf):
                             "adf_user": adf.user,
                             "climo_yrs": f"{case_name}: {syear}-{eyear}; {base_climo_yrs_attr}",
                             "climatology_files": climatology_files_str,
+                            "units": tunits
                         }
                         tgdata_interp = tgdata_interp.assign_attrs(base_attrs_dict)
+                        if "area" in tclim_ds:
+                            tgdata_interp["area"] = tclim_area
 
                         #Write interpolated baseline climatology to file:
                         save_to_nc(tgdata_interp, interp_bl_file)
+                    else:
+                        art=4
+                        #print("tgdata_interp.shape BEOFRE",tgdata_interp[var].shape)
                     #End if
                 else:
                     print("\t    INFO: Regridded file already exists, so skipping...")
@@ -664,7 +680,8 @@ def _regrid_and_interpolate_levs(adf, model_dataset, var_name, regrid_dataset=No
 
     #Regrid variable to target dataset (if available):
     if regrid_dataset:
-        if not adf.native_grid[kwargs["case_name"]] and not adf.unstructured_plotting:
+        if 1==1:
+        #if not adf.native_grid[kwargs["case_name"]] and not adf.unstructured_plotting:
             #Extract grid info from target data:
             if 'time' in regrid_dataset.coords:
                 if 'lev' in regrid_dataset.coords:
@@ -719,6 +736,7 @@ def _regrid_and_interpolate_levs(adf, model_dataset, var_name, regrid_dataset=No
     if has_lev:
         if vert_coord_type == "hybrid":
             #Interpolate from hybrid sigma-pressure to the standard pressure levels:
+            print()
             rgdata_interp = utils.lev_to_plev(rgdata, rg_ps, mhya, mhyb, P0=P0, \
                                            convert_to_mb=True)
         elif vert_coord_type == "height":

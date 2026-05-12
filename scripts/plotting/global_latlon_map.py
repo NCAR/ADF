@@ -133,17 +133,19 @@ def load_reference_data(adfobj, var, vres):
             dmsg = f"\t    WARNING: No obs data found for variable `{var}`, global lat/lon mean plotting skipped."
             adfobj.debug_log(dmsg)
             print(dmsg)
-            return None
+            return None, None
         base_name = adfobj.data.ref_labels[var]
 
+    #odata = adfobj.data.load_reference_regrid_da(base_name, var, **vres)
     if vres["unstructured_plotting"]:
         #mesh_file = adfobj.mesh_files["baseline_mesh_file"]
         vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
-        #odata = adfobj.data.load_reference_regrid_da(base_name, var, **vres)
         comp = "atm"
         unstruct_base = True
         odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
-        odata = odataset[var]
+        odata = adfobj.data.load_reference_regrid_da(base_name, var, **vres)
+        #odata = odataset[var]
+        vres["odataset"] = odataset
         if comp == "lnd": 
             area = odataset.area.isel(time=0)
             landfrac = odataset.landfrac.isel(time=0)
@@ -155,15 +157,16 @@ def load_reference_data(adfobj, var, vres):
         vres["unstruct_base"] = unstruct_base
 
     else:
+        print("HERE RIGHT?")
         odata = adfobj.data.load_reference_regrid_da(base_name, var)
         if odata is None:
             print(f"\t    WARNING: No reference data found for {var}")
-            return None
+            return None, None
 
         o_has_dims = utils.validate_dims(odata, ["lat", "lon", "lev"])
         if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
             print(f"\t    WARNING: Reference data missing lat/lon dimensions")
-            return None
+            return None, None
         
     return odata, vres
 
@@ -174,6 +177,7 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
     plot_loc = Path(adfobj.plot_location[case_idx])
     plot_loc.mkdir(parents=True, exist_ok=True)
     comp = "atm"
+    #mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
     if vres["unstructured_plotting"]:
         mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
         vres["mesh_file"] = mesh_file
@@ -181,8 +185,9 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
 
         unstruct_case = True
         mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
-        mdata = mdataset[var]
-        print("type(mdata)",type(mdata))
+        mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
+        vres["dataset"] = mdataset
+        #mdata = mdataset[var]
         if comp == "lnd": 
             area = mdataset.area.isel(time=0)
             landfrac = mdataset.landfrac.isel(time=0)
@@ -214,6 +219,7 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
             unstructured = False
         vres["unstructured_plotting"] = unstructured
     else:
+        print("TEST HERER RIGHT")
         mdata = adfobj.data.load_regrid_da(case_name, var)
         if mdata is None:
             return
@@ -269,15 +275,15 @@ def process_seasonal_data(mdata, odata, season, weight_season=True):
     else:
         mseason = mdata.sel(time=season).mean(dim='time')
         oseason = odata.sel(time=season).mean(dim='time')
-    dseason = utils.array_diff(mseason, oseason)
-    pseason = utils.array_diff(mseason, oseason, percent=True)
+    #dseason = utils.array_diff(mseason, oseason)
+    #pseason = utils.array_diff(mseason, oseason, percent=True)
 
     if hasattr(mdata, "uxgrid"):
         mseason = plot_utils.prep_ux_for_plot(mseason, mdata)
         oseason = plot_utils.prep_ux_for_plot(oseason, odata)
-        pseason = plot_utils.prep_ux_for_plot(pseason, mdata)
+        #pseason = plot_utils.prep_ux_for_plot(pseason, mdata)
 
-    return mseason, oseason, dseason, pseason
+    return mseason, oseason#, dseason, pseason
 
 
 def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_plot, plot_type):
@@ -447,14 +453,21 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
             continue
             
         # Calculate seasonal means and differences
-        mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
-            process_seasonal_data(mdata, odata, s)
+        #mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
+        #    process_seasonal_data(mdata, odata, s)
+        
+        mseason, oseason = process_seasonal_data(mdata, odata, s)
+        dseason = utils.array_diff(mseason, oseason)
+        pseason = utils.array_diff(mseason, oseason, percent=True)
+
+        vres["season"] = s
+        vres["var"] = var
 
         # Generate plot
         pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                             [syear_case, eyear_case],
                             [syear_baseline, eyear_baseline],
-                            mseasons[s], oseasons[s], dseasons[s], pseasons[s],
+                            mseason, oseason, dseason, pseason,
                             obs=adfobj.compare_obs, 
                             **vres)
 
@@ -484,17 +497,24 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
                 continue
 
             # Calculate seasonal means and differences
-            mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
-                process_seasonal_data(mdata, odata, s)
-
+            #mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
+            #    process_seasonal_data(mdata, odata, s)
+            
+            mseason, oseason = process_seasonal_data(mdata, odata, s)
+            dseason = utils.array_diff(mseason.sel(lev=pres), oseason.sel(lev=pres))
+            print("dseason.shape",dseason.shape)
+            pseason = utils.array_diff(mseason.sel(lev=pres), oseason.sel(lev=pres), percent=True)
+            print("pseason.shape",pseason.shape)
+            vres["season"] = s
+            vres["var"] = var
             # Generate plot
             pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                 [syear_case, eyear_case],
                                 [syear_baseline, eyear_baseline],
-                                mseasons[s].sel(lev=pres), 
-                                oseasons[s].sel(lev=pres),
-                                dseasons[s].sel(lev=pres),
-                                pseasons[s].sel(lev=pres),
+                                mseason.sel(lev=pres), 
+                                oseason.sel(lev=pres),
+                                dseason,
+                                pseason,
                                 obs=adfobj.compare_obs, **vres)
 
             # Add to website

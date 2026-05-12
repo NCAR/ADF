@@ -820,9 +820,28 @@ class AdfDiag(AdfWeb):
                 #NOTE: There is no solution to do this with NCO operators,
                 #      but there is with CDO operators. We can switch to using CDO,
                 #      but it would require the user to have/load CDO as well.
-                fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
-                for fil in fils:
+
+                print("self.unstructured_plotting",self.unstructured_plotting)
+                unstruct_plotting = self.unstructured_plotting
+
+                #fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
+                for var in diag_var_list:
+                #for fil in fils:
+                    fils = glob.glob(f"{ts_dir}/*.{var}.{time_string}.nc")
+                    print(var,"fil",fils)
+                    if not fils:
+                        print(f"Uh oh, no files found for {var} with time string {time_string} in {ts_dir}")
+                        print("Will check for derived vars later, ok. Jeez stop with the nagging")
+                        continue
+                    if len(fils) > 1:
+                        print("Uh oh, too many files :(\nCheck the time series directory for duplicates.")
+                    print("fil",fils[0])
+                    fil = fils[0]
                     ts_ds = xr.open_dataset(fil, decode_times=False)
+                    #if 'PRECL' in ts_ds:
+                    #    print(ts_ds['PRECL'].units,"\n")
+                    print("ts_ds[var].units",ts_ds[var].units,"\n")
+                    units = ts_ds[var].attrs.get("units", "--")
                     if ('time_bnds' in ts_ds) or ('time_bounds' in ts_ds):
                         if comp == "atm":
                             if 'time_bnds' in ts_ds:
@@ -847,7 +866,8 @@ class AdfDiag(AdfWeb):
                             if "h0" in hist_str:
                                 #print("ATM is it coming here???")
                                 ds = xr.open_dataset(hist_files[0], decode_times=False)
-                                ts_ds['area'] = ds.areawt
+                                if unstruct_plotting:
+                                    ts_ds['area'] = ds.areawt
                         if comp == "lnd":
                             # need greater flexibility given changes in clm history files over time
                             if 'hist_interval' in ts_ds['time_bounds'].dims:
@@ -871,7 +891,8 @@ class AdfDiag(AdfWeb):
                         # Add attribute note of time change
                         attrs_dict = {
                             "adf_timeseries_info": "Time series files have been computed using ncrcat'",
-                            "adf_note": "The time values have been modified to middle of month"
+                            "adf_note": "The time values have been modified to middle of month",
+                            "units": units,
                         }
                         ts_ds_fixed = ts_ds_fixed.assign_attrs(attrs_dict)
 
@@ -887,10 +908,6 @@ class AdfDiag(AdfWeb):
                         constit_dict=constit_dict, ts_dir=ts_dir
                     )
                 # End with
-
-
-            print("self.unstructured_plotting",self.unstructured_plotting)
-            unstruct_plotting = self.unstructured_plotting
 
             #if utils.check_unstructured(ts_file_ds0, case_name, ts_dir) and not unstruct_plotting:
             if self.native_grid[case_name] and not unstruct_plotting:
