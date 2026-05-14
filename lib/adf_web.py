@@ -303,8 +303,8 @@ class AdfWeb(AdfObs):
             msg = f"{git_msg}\n{'-' * (len(git_msg)-1)}\n"
             log_msg += f"\n  {msg}"
 
-            for key,val in git_info.items():
-                log_msg += f"  {key}: {val}\n"
+        for key,val in git_info.items():
+            log_msg += f"  {key}: {val}\n"
 
         self.debug_log(log_msg)
 
@@ -851,9 +851,8 @@ class AdfWeb(AdfObs):
             #If not, add it so the index.html file can include it
             for ptype in plot_types.keys():
                 if ptype not in avail_plot_types:
-                    avail_plot_types.append(plot_types)
-
-
+                    avail_plot_types.append(ptype)
+        
             # External packages that can be run through ADF
             avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
 

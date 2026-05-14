@@ -1159,11 +1159,25 @@ class AdfDiag(AdfWeb):
         whether to overwrite the file (true) or exit with a warning message.
 
         """
-
+        start_years = self.climo_yrs["syears"]
+        start_years = str(start_years[0]).zfill(4)
+        end_years = self.climo_yrs["eyears"]
+        end_years = str(end_years[0]).zfill(4)
+        date_range_string_case = f"{start_years}01-{end_years}12"
         # Loop through derived variables
         for var in vars_to_derive:
             print(f"\t - deriving time series for {var}")
-
+            filename = f'{self.get_cam_info("cam_case_name")[0]}.{hist_str}*.{var}.{date_range_string_case}.nc'
+            if glob.glob(os.path.join(ts_dir, filename)):
+                expname = f'{self.get_baseline_info("cam_case_name")}'
+                start_years = self.climo_yrs["syear_baseline"]
+                start_years = str(start_years).zfill(4)
+                end_years = self.climo_yrs["eyear_baseline"]
+                end_years = str(end_years).zfill(4)
+                date_range_string = f"{start_years}01-{end_years}12"
+            else: 
+                expname = f'{self.get_cam_info("cam_case_name")[0]}'
+                date_range_string = date_range_string_case
             # Grab list of constituents for this variable
             constit_list = constit_dict[var]
 
@@ -1172,9 +1186,9 @@ class AdfDiag(AdfWeb):
             for constit in constit_list:
                 # Check if the constituent file is present, if so add it to list
                 if hist_str:
-                    const_glob_str = f"*{hist_str}*.{constit}.*.nc"
+                    const_glob_str = f"{expname}.{hist_str}*.{constit}.{date_range_string}.nc"
                 else:
-                    const_glob_str = f"*.{constit}.*.nc"
+                    const_glob_str = f"{expname}.*.{constit}.{date_range_string}.nc"
                 # end if
                 if glob.glob(os.path.join(ts_dir, const_glob_str)):
                     constit_files.append(glob.glob(os.path.join(ts_dir, const_glob_str ))[0])
@@ -1275,6 +1289,8 @@ class AdfDiag(AdfWeb):
                 # Drop all constituents from final saved dataset
                 # These are not necessary because they have their own time series files
                 ds_final = ds.drop_vars(constit_list)
+                if "time_bnds" in list(ds_final.keys()):
+                    ds_final = ds_final.drop_vars("time_bnds")
                 # Copy attributes from constituent file to derived variable
                 ds_final[var].attrs = attrs
                 ds_final.to_netcdf(derived_file, unlimited_dims='time', mode='w')
