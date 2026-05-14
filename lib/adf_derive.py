@@ -79,6 +79,9 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
     #       an empty list as a check later
     constit_list = []
 
+    # Initialize tracking for error messages
+    constit_errmsg_written = False
+
     try_cam_constits = True
     # Try finding info from variable defaults yaml file
     try:
@@ -101,7 +104,9 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
                 msg += f"checking constituents for '{var}'"
                 self.debug_log(msg)
         else:
+            # Only write error if we haven't already written it
             self.debug_log(constit_errmsg)
+            constit_errmsg_written = True
         # End if
     # End if
     
@@ -119,11 +124,13 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
             der_from_msg += "or set appropriate argument in variable "
             der_from_msg += "defaults yaml file."
             self.debug_log(der_from_msg)
+            constit_errmsg_written = True
         # End if
     # End if
 
-    # Log if this variable can be derived but is missing list of constituents
-    if isinstance(constit_list, list) and not constit_list:
+   # Log if this variable can be derived but is missing list of constituents
+    # (only if not already logged above)
+    if not constit_list and not constit_errmsg_written:
         self.debug_log(constit_errmsg)
 
     # Check if any constituents were found
