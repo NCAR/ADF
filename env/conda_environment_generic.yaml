@@ -1,0 +1,19 @@
+name: adf_v1.0.0
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pyyaml=6.0.2
+  - scipy=1.12.0
+  - cartopy=0.23.0
+  - netcdf4=1.6.5
+  - xarray=2024.1.1
+  - uxarray=2025.03.0
+  - matplotlib=3.9.4
+  - pandas=2.2.0
+  - pint=0.23
+  - xskillscore=0.0.24
+  - geocat-comp=2024.04.0
+  - xesmf>=0.8.8
+  - nco
