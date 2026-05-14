@@ -522,7 +522,7 @@ class AdfDiag(AdfWeb):
 
                 # Intitialize list for NCO commands
                 list_of_commands = []
-                list_of_ncattend_commands = []
+                list_of_ncatted_commands = []
                 list_of_hist_commands = []
 
                 # Create copy of var list that can be modified for derivable variables
@@ -549,7 +549,6 @@ class AdfDiag(AdfWeb):
                         if overwrite_ts[case_idx]:
                             Path(ts_outfil_str).unlink()
                         else:
-                            #msg = f"[{__name__}] Warning: '{var}' file was found "
                             msg = f"\t    INFO: '{var}' file was found "
                             msg += "and overwrite is False. Will use existing file."
                             print(msg)
@@ -655,9 +654,9 @@ class AdfDiag(AdfWeb):
                     # generate time series files
                     list_of_commands.append(cmd)
                     # Add global attributes: user, original hist file loc(s) and all filenames
-                    list_of_ncattend_commands.append(cmd_ncatted)
+                    list_of_ncatted_commands.append(cmd_ncatted)
                     # Remove the `history` attr that gets tacked on (for clean up)
-                    # NOTE: this may not be best practice, but it the history attr repeats
+                    # NOTE: this may not be best practice, but if the history attr repeats
                     #       the files attrs so the global attrs become obtrusive...
                     list_of_hist_commands.append(cmd_remove_history)
                 # End variable loop
@@ -668,7 +667,7 @@ class AdfDiag(AdfWeb):
 
                 # Run ncatted commands after ncrcat is done
                 with mp.Pool(processes=self.num_procs) as mpool:
-                    _ = mpool.map(call_ncrcat, list_of_ncattend_commands)
+                    _ = mpool.map(call_ncrcat, list_of_ncatted_commands)
 
                 # Run ncatted command to remove history attribute
                 # after the global attributes are set
