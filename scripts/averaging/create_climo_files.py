@@ -286,6 +286,7 @@ def process_variable(adf_user, ts_files, syr, eyr, output_file):
             enc    = {**enc_c, **enc_dv}
 
             climo.attrs.update({
+                "units": ds.attrs.get("units", "--"),
                 "adf_user": adf_user,
                 "climo_yrs": f"{syr}-{eyr}",
                 "time_series_files": ", ".join([str(f) for f in ts_files])
