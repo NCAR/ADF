@@ -150,8 +150,6 @@ AODDUST:
   contour_levels_range: [0.01, 0.6, 0.05]
   diff_colormap: "PuOr_r"
   diff_contour_range: [-0.06, 0.06, 0.01]
-  scale_factor: 1
-  add_offset: 0
   new_unit: ""
 
 AODVIS:
@@ -160,8 +158,6 @@ AODVIS:
   contour_levels_range: [0.05, 0.6, 0.05]
   diff_colormap: "PuOr_r"
   diff_contour_range: [-0.1, 0.1, 0.01]
-  scale_factor: 1
-  add_offset: 0
   new_unit: ""
 
 AODVISdn:
@@ -170,8 +166,6 @@ AODVISdn:
   contour_levels_range: [0.01, 1.01, 0.05]
   diff_colormap: "PuOr_r"
   diff_contour_range: [-0.4, 0.401, 0.05]
-  scale_factor: 1
-  add_offset: 0
   new_unit: ""
   obs_file: "MOD08_M3_192x288_AOD_2001-2020_climo.nc"
   obs_name: "MODIS"
@@ -181,20 +175,17 @@ BURDENBC:
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
-  add_offset: 0
   new_unit: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
   obs_file: "BURDENBC_MERRA2_monthly_climo_1degree_200001-202506.nc"
   obs_var_name: "BURDENBC"
   obs_name: "MERRA2"
   obs_scale_factor: 1000000
-  obs_add_offset: 0
 
 BURDENDUST:
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
-  add_offset: 0
   new_unit: 'g m$^{-2}$'
   diff_contour_range: [-1000, 1100, 100]
   diff_colormap: "RdBu_r"
@@ -202,13 +193,11 @@ BURDENDUST:
   obs_var_name: "BURDENDUST"
   obs_name: "CAMS"
   obs_scale_factor: 1000000
-  obs_add_offset: 0
 
 BURDENPOM:
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
-  add_offset: 0
   new_unit: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
 
@@ -217,7 +206,6 @@ BURDENSEASALT:
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
-  add_offset: 0
   new_unit: 'g m$^{-2}$'
   diff_contour_range: [-200, 200, 25]
   diff_colormap: "RdBu_r"
@@ -225,26 +213,22 @@ BURDENSEASALT:
   obs_var_name: "BURDENSEASALT"
   obs_name: "CAMS"
   obs_scale_factor: 1000000
-  obs_add_offset: 0
 
 BURDENSO4:
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
-  add_offset: 0
   new_unit: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
   obs_file: "BURDENSO4_CAMS_monthly_climo_1degree_200301-202412.nc"
   obs_name: "CAMS"
   obs_var_name: "BURDENSO4"
   obs_scale_factor: 1000000
-  obs_add_offset: 0
 
 BURDENSOA:
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
-  add_offset: 0
   new_unit: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
 
@@ -273,7 +257,6 @@ BC:
   colormap: "RdBu_r"
   diff_colormap: "BrBG"
   scale_factor: 1000000000
-  add_offset: 0
   new_unit: '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["bc_a1", "bc_a4"]
@@ -282,7 +265,6 @@ POM:
   colormap: "RdBu_r"
   diff_colormap: "BrBG"
   scale_factor: 1000000000
-  add_offset: 0
   new_unit: '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["pom_a1", "pom_a4"]
@@ -291,7 +273,6 @@ SO4:
   colormap: "RdBu_r"
   diff_colormap: "BrBG"
   scale_factor: 1000000000
-  add_offset: 0
   new_unit: '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["so4_a1", "so4_a2", "so4_a3"]
@@ -301,7 +282,6 @@ SOA:
   colormap: "RdBu_r"
   diff_colormap: "BrBG"
   scale_factor: 1000000000
-  add_offset: 0
   new_unit: '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["soa_a1", "soa_a2"]
@@ -313,7 +293,6 @@ DUST:
   non_linear: True
   diff_colormap: "BrBG"
   scale_factor: 1000000000
-  add_offset: 0
   new_unit: '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["dst_a1", "dst_a2", "dst_a3"]
@@ -324,7 +303,6 @@ SeaSalt:
   non_linear: True
   diff_colormap: "BrBG"
   scale_factor: 1000000000
-  add_offset: 0
   new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
@@ -1173,8 +1151,6 @@ CLDTOT:
   contour_levels_range: [0.2, 1.1, 0.05]
   diff_colormap: "BrBG"
   diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1186,8 +1162,6 @@ CLDLOW:
   contour_levels_range: [0, 1.05, 0.05]
   diff_colormap: "BrBG"
   diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1199,8 +1173,6 @@ CLDHGH:
   contour_levels_range: [0, 1.05, 0.05]
   diff_colormap: "BrBG"
   diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1212,8 +1184,6 @@ CLDMED:
   contour_levels_range: [0, 1.05, 0.05]
   diff_colormap: "BrBG"
   diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1226,7 +1196,6 @@ CLOUD:
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 2]
   scale_factor: 100
-  add_offset: 0
   new_unit: "Percent"
   category: "Clouds"
 
@@ -1239,14 +1208,12 @@ TGCLDLWP:
   diff_colormap: "BrBG"
   diff_contour_range: [-100, 100, 10]
   scale_factor: 1000
-  add_offset: 0
   new_unit: "g m$^{-2}$"
   category: "Clouds"
   obs_file: "TGCLDLWP_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "TGCLDLWP"
   obs_scale_factor: 1000
-  obs_add_offset: 0
 
 TGCLDIWP:
   colormap: "Blues"
@@ -1254,14 +1221,12 @@ TGCLDIWP:
   diff_colormap: "BrBG"
   diff_contour_range: [-50, 50, 5]
   scale_factor: 1000
-  add_offset: 0
   new_unit: "g m$^{-2}$"
   category: "Clouds"
   obs_file: "TGCLDIWP_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "TGCLDIWP"
   obs_scale_factor: 1000
-  obs_add_offset: 0
 
 CCN3:
   category: "Clouds"
@@ -1292,7 +1257,6 @@ PRECC:
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
-  add_offset: 0
   new_unit: "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
@@ -1302,7 +1266,6 @@ PRECL:
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
-  add_offset: 0
   new_unit: "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
@@ -1312,7 +1275,6 @@ PRECSC:
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
-  add_offset: 0
   new_unit: "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
@@ -1322,7 +1284,6 @@ PRECSL:
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
-  add_offset: 0
   new_unit: "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
@@ -1332,7 +1293,6 @@ PRECT:
   diff_colormap: "seismic"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
-  add_offset: 0
   new_unit: "mm d$^{-1}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1359,7 +1319,6 @@ PSL:
   diff_colormap: "PuOr_r"
   diff_contour_range: [-9, 9, 0.5]
   scale_factor: 0.01
-  add_offset: 0
   new_unit: "hPa"
   category: "Surface variables"
   obs_file: "PSL_ERA5_monthly_climo_197901-202112.nc"
@@ -1372,7 +1331,6 @@ PS:
   diff_colormap: "PuOr_r"
   diff_contour_range: [-9, 9, 0.5]
   scale_factor: 0.01
-  add_offset: 0
   new_unit: "hPa"
   category: "Surface variables"
   obs_file: "PS_ERA5_monthly_climo_197901-202112.nc"
@@ -1390,8 +1348,6 @@ TS:
   contour_levels_range: [220,320, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 1]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "K"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1403,8 +1359,6 @@ SST:
   contour_levels_range: [220,320, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 1]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "K"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1426,7 +1380,6 @@ TAUX:
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
   scale_factor: -1
-  add_offset: 0
 
 TAUY:
   new_unit: "N m$^{-2}$"
@@ -1434,7 +1387,6 @@ TAUY:
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
   scale_factor: -1
-  add_offset: 0
 
 ICEFRAC:
   category: "Surface variables"
@@ -1454,8 +1406,6 @@ TMQ:
   contour_levels_range: [0, 75.0, 5.0]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "kg m$^{-2}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1467,8 +1417,6 @@ RELHUM:
   contour_levels_range: [0, 105, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Fraction"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1480,8 +1428,6 @@ U:
   contour_levels_range: [-10, 90, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "ms$^{-1}$"
   obs_file: "U_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
@@ -1495,8 +1441,6 @@ V:
   contour_levels_range: [-10, 90, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "ms$^{-1}$"
   obs_file: "V_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
@@ -1506,8 +1450,8 @@ V:
   category: "State"
 
 Q:
+  colormap: "coolwarm"
   scale_factor: 1000
-  add_offset: 0
   new_unit: "g/kg"
   category: "State"
   obs_file: "Q_ERA5_monthly_climo_197901-202112.nc"
@@ -1530,7 +1474,6 @@ OMEGA:
 OMEGA500:
   category: "State"
   scale_factor: 864
-  add_offset: 0
   new_unit: "hPa d$^{-1}$"
   hist_bins: [-105, -100,  -95,  -90,  -85,  -80,  -75,  -70,  -65,  -60,  -55, -50,  -45,  -40,  -35,  -30,  -25,  -20,  -15,  -10,   -5,    0, 5,   10,   15,   20,   25,   30,   35,   40,   45,   50,   55, 60,   65,   70,   75,   80,   85,   90,   95,  100]
 
@@ -1565,8 +1508,6 @@ RESTOM:
   contour_levels_range: [-100, 100, 5]
   diff_colormap: "seismic"
   diff_contour_range: [-10, 10, 0.5]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "W m$^{-2}$"
   category: "TOA energy flux"
   derivable_from: ['FLNT','FSNT']
@@ -1576,14 +1517,10 @@ SWCF:
   contour_levels_range: [-150, 50, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_sw_mon"
-  obs_scale_factor: 1
-  obs_add_offset: 0
   category: "TOA energy flux"
 
 LWCF:
@@ -1591,8 +1528,6 @@ LWCF:
   contour_levels_range: [-10, 100, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 1]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
@@ -1604,8 +1539,6 @@ FSUTOA:
   contour_levels_range: [-10, 180, 15]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 1]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   category: "TOA energy flux"
 
@@ -1614,8 +1547,6 @@ FSNT:
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
@@ -1636,8 +1567,6 @@ FLNT:
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
@@ -1649,8 +1578,6 @@ FLNTC:
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
@@ -1672,8 +1599,6 @@ FSNS:
   contour_levels_range: [-10, 300, 20]
   diff_colormap: "BrBG"
   diff_contour_range: [-24, 24, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
@@ -1685,8 +1610,6 @@ FSNSC:
   contour_levels_range: [-10, 300, 20]
   diff_colormap: "BrBG"
   diff_contour_range: [-24, 24, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
@@ -1698,8 +1621,6 @@ FLDS:
   contour_levels_range: [100, 500, 25]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
@@ -1720,8 +1641,6 @@ LHFLX:
   contour_levels_range: [0, 220, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-45, 45, 5]
-  scale_factor: 1
-  add_offset: 0
   new_unit: "Wm$^{-2}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
@@ -1800,8 +1719,6 @@ CLDTOT_CAL:
   contour_levels_range: [0, 105, 5]
   diff_colormap: "RdBu_r"
   diff_contour_range: [-40, 40, 5]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Percent"
   obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
   obs_name: "CALIPSO"
@@ -1813,8 +1730,6 @@ CLDHGH_CAL:
   contour_levels_range: [0, 105, 5]
   diff_colormap: "RdBu_r"
   diff_contour_range: [-40, 40, 5]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Percent"
   obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
   obs_name: "CALIPSO"
@@ -1826,8 +1741,6 @@ CLDMED_CAL:
   contour_levels_range: [0, 105, 5]
   diff_colormap: "RdBu_r"
   diff_contour_range: [-40, 40, 5]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Percent"
   obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
   obs_name: "CALIPSO"
@@ -1839,8 +1752,6 @@ CLDLOW_CAL:
   contour_levels_range: [0, 105, 5]
   diff_colormap: "RdBu_r"
   diff_contour_range: [-40, 40, 5]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Percent"
   obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
   obs_name: "CALIPSO"
@@ -1852,8 +1763,6 @@ CLD_CAL:
   contour_levels_range: [0, 105, 5]
   diff_colormap: "RdBu_r"
   diff_contour_range: [-40, 40, 5]
-  scale_factor: 1.
-  add_offset: 0
   new_unit: "Percent"
   obs_file: "CALIPSO_GOCCP_3.1.2_climo_200606-202012.nc"
   obs_name: "CALIPSO"
@@ -1868,8 +1777,6 @@ CLD_CAL:
 H2O:
   colormap: "PuOr_r"
   diff_colormap: "BrBG"
-  scale_factor: 1
-  add_offset: 0
   new_unit: "mol mol$^{-1}$"
   mpl:
     colorbar:
