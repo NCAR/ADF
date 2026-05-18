@@ -67,9 +67,10 @@ def polar_map(adfobj):
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
     plot_locations = adfobj.plot_location
+    
     kwargs = {}
 
-    #
+    # Check for unstructured
     unstruct_plotting = adfobj.unstructured_plotting
     if unstruct_plotting:
         kwargs["unstructured_plotting"] = unstruct_plotting
@@ -77,7 +78,6 @@ def polar_map(adfobj):
         #kwargs["mesh_file"] = mesh_file
     else:
         unstructured=False
-    #print("kwargs", kwargs)
 
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
@@ -154,8 +154,7 @@ def polar_map(adfobj):
 
         # Get variable-specific settings
         vres = res.get(var, {})
-        #vres = plot_utils.add_var_to_vres(adfobj, var, vres)
-        vres["var"] = var
+        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
         web_category = vres.get("category", None)
         vres["plot_type"] = __name__
 
@@ -165,17 +164,16 @@ def polar_map(adfobj):
         
         for case_idx, case_name in enumerate(case_names):
             plot_loc = Path(plot_locations[case_idx])
-            print("Try target thing")
+
             tmp_ds = adfobj.data.load_regrid_dataset(case_name, var)
             if tmp_ds is None:
-                print("ok, we got prob target thing")
                 continue
 
             has_lev = "lev" in tmp_ds.dims
 
             for s in seasons:
                 for hemi_type in ["NHPolar", "SHPolar"]:
-                    if pres_levs and has_lev: # 3-D variable & lev levels specified
+                    if pres_levs and has_lev: # 3-D variable & pressure levels specified
                         for pres in pres_levs:
                             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
                             info = {
@@ -223,7 +221,6 @@ def polar_map(adfobj):
             print(f"\t    Skipping {var} - all plots already exist")
             continue
 
-        #odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
         if unstruct_plotting:
             kwargs["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
             unstruct_base = True
@@ -245,7 +242,6 @@ def polar_map(adfobj):
         # Process each case
         for plot in plot_info:
             if plot['exists'] and not redo_plot:
-                print("ok, we got prob plot exist and redo thing??")
                 continue
                 
             case_name = plot['case']
@@ -253,6 +249,7 @@ def polar_map(adfobj):
             vres["season"] = plot['season']
             vres["hemi"] = plot['hemi']
             plot_loc = Path(plot_locations[case_idx])
+
             if unstruct_plotting:
                 vres["mesh_file"] = info["mesh_file"]
 
@@ -268,7 +265,8 @@ def polar_map(adfobj):
 
             # Ensure plot directory exists
             plot_loc.mkdir(parents=True, exist_ok=True)
-            
+
+            # Load and validate model data (units transformation included in load_regrid_da)
             if unstruct_plotting:
                 kwargs["mesh_file"] = adfobj.mesh_files["test_mesh_file"][case_idx]
                 #mdata = adfobj.data.load_climo_da(case_name, var, **kwargs)
@@ -375,7 +373,8 @@ def polar_map(adfobj):
             if plot['path'].exists():
                 plot['path'].unlink()
 
-            pf.make_polar_plot(plot['path'], test_nicknames[case_idx], base_nickname,
+            pf.make_polar_plot(adfobj, 
+                plot['path'], test_nicknames[case_idx], base_nickname,
                 [syear_cases[case_idx], eyear_cases[case_idx]],
                 [syear_baseline, eyear_baseline],
                 mseason, oseason, dseason, pseason,

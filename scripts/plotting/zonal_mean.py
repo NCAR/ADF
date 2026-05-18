@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+import plotting_utils as plot_utils
 
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
@@ -169,6 +170,11 @@ def zonal_mean(adfobj):
         #config["unstructured_plotting"] = unstructured
         vres["unstructured_plotting"] = unstructured
 
+        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres["plot_type"] = __name__
+        #Extract category (if available):
+        web_category = vres.get("category", None)
+
         # load reference data (observational or baseline)
         if not adfobj.compare_obs:
             base_name = adfobj.data.ref_case_label
@@ -176,7 +182,7 @@ def zonal_mean(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        if vres["unstructured_plotting"]:
+        if unstructured:
             vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
             comp = "atm"
             unstruct_base = True
@@ -193,6 +199,7 @@ def zonal_mean(adfobj):
             vres["unstruct_base"] = unstruct_base
         else:
             odata = adfobj.data.load_reference_regrid_da(base_name, var)
+
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
             dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
@@ -200,10 +207,9 @@ def zonal_mean(adfobj):
             continue
 
         #Check zonal mean dimensions
-        #print("ZONAL odata",odata)
         has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
 
-        if not vres["unstructured_plotting"]:
+        if not unstructured:
             # check if there is a lat dimension:
             # if not, skip test cases and move to next variable
             if not has_lat_ref:
@@ -222,7 +228,8 @@ def zonal_mean(adfobj):
             #Set output plot location:
             plot_loc = Path(plot_locations[case_idx])
 
-            if vres["unstructured_plotting"]:
+            # load re-gridded model files:
+            if unstructured:
                 mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
                 vres["mesh_file"] = mesh_file
                 #mdata = adfobj.data.load_climo_da(case_name, var, **vres)
@@ -271,7 +278,7 @@ def zonal_mean(adfobj):
             # check data dimensions:
             has_lat, has_lev = utils.zm_validate_dims(mdata)
 
-            if not vres["unstructured_plotting"]:
+            if not unstructured:
                 # check if there is a lat dimension:
                 if not has_lat:
                     print(
@@ -303,6 +310,7 @@ def zonal_mean(adfobj):
 
             #Loop over season dictionary:
             for s in seasons:
+                vres["season"] = s
 
                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                 # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -334,7 +342,7 @@ def zonal_mean(adfobj):
                 if plot_name not in zonal_skip:
 
                     #Create new plot:
-                    pf.plot_zonal_mean_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
+                    pf.plot_zonal_mean_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
                                                     [syear_baseline,eyear_baseline],
                                                     mseasons[s], oseasons[s], has_lev, log_p=False, obs=adfobj.compare_obs, **vres)
@@ -346,7 +354,7 @@ def zonal_mean(adfobj):
                 #Create log-pressure plots as well (if applicable)
                 if (plot_name_log) and (plot_name_log not in logp_zonal_skip):
 
-                    pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, adfobj.data.ref_nickname,
+                    pf.plot_zonal_mean_and_save(adfobj, plot_name_log, case_nickname, adfobj.data.ref_nickname,
                                                         [syear_cases[case_idx],eyear_cases[case_idx]],
                                                         [syear_baseline,eyear_baseline],
                                                         mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)

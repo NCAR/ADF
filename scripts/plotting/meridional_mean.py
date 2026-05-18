@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+import plotting_utils as plot_utils
 
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
@@ -103,6 +104,12 @@ def meridional_mean(adfobj):
 
         #Loop over the variables for each season
         for var in var_list:
+            if var in res:
+                vres = res[var]
+            else:
+                vres = {}
+            #End if
+            web_category = vres.get("category", None)
             for s in seasons:
                 #Check meridional log-p:
                 plot_name_log = plot_loc / f"{var}_{s}_Meridional_logp_Mean.{plot_type}"
@@ -126,7 +133,7 @@ def meridional_mean(adfobj):
                     meridional_skip.append(plot_name)
                     #Add already-existing plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, season=s,
-                                                        plot_type="Meridional")
+                                                        plot_type="Meridional", category=web_category)
 
                     continue
                 elif (redo_plot) and plot_name.is_file():
@@ -163,15 +170,16 @@ def meridional_mean(adfobj):
             vres = {}
         #End if
 
+        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres["plot_type"] = __name__
+        #Extract category (if available):
+        web_category = vres.get("category", None)
+
         unstruct_plotting = adfobj.unstructured_plotting
         if unstruct_plotting:
-            #config["unstructured_plotting"] = unstruct_plotting
             unstructured = unstruct_plotting
-            #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
-            #kwargs["mesh_file"] = mesh_file
         else:
             unstructured = False
-        #config["unstructured_plotting"] = unstructured
         vres["unstructured_plotting"] = unstructured
 
         # load reference data (observational or baseline)
@@ -181,9 +189,7 @@ def meridional_mean(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        """odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
-        odata = odataset[var]"""
-        if vres["unstructured_plotting"]:
+        if unstructured:
             vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
             comp = "atm"
             unstruct_base = True
@@ -200,14 +206,14 @@ def meridional_mean(adfobj):
             vres["unstruct_base"] = unstruct_base
         else:
             odata = adfobj.data.load_reference_regrid_da(base_name, var)
+
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
             dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
             adfobj.debug_log(dmsg)
             continue
 
-        #Check zonal mean dimensions
-        #has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
+        #Check meridional mean dimensions
         lat_lev_ref = utils.validate_dims(odata, ['lat', 'lev'])
         #Check if reference file has vertical levels
         #Notify user of level dimension:
@@ -216,16 +222,6 @@ def meridional_mean(adfobj):
             has_lev_ref = True
         else:
             has_lev_ref = False
-
-        """if vres["unstructured_plotting"]:
-            # check if there is a lat dimension:
-            # if not, skip test cases and move to next variable
-            if not lat_lev_ref:
-                print(
-                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
-                )
-                continue
-            # End if"""
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
@@ -236,13 +232,11 @@ def meridional_mean(adfobj):
             #Set output plot location:
             plot_loc = Path(plot_locations[case_idx])
 
-            """mdataset = adfobj.data.load_regrid_da(case_name, var, **vres)
-            mdata = mdataset[var]"""
-
-            if vres["unstructured_plotting"]:
+            # load re-gridded model files:
+            if unstructured:
                 mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
                 vres["mesh_file"] = mesh_file
-                #mdata = adfobj.data.load_climo_da(case_name, var, **vres)
+
                 mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
                 mdata = mdataset[var]
 
@@ -289,15 +283,6 @@ def meridional_mean(adfobj):
             #has_lat, has_lev = utils.zm_validate_dims(mdata)
             lat_lev = utils.validate_dims(mdata, ['lat', 'lev'])
 
-            """if vres["unstructured_plotting"]:
-                # check if there is a lat dimension:
-                if not has_lat:
-                    print(
-                        f"\t    WARNING: Variable {var} is missing a lon dimension for '{case_name}', cannot continue to plot."
-                    )
-                    continue
-                # End if"""
-
             #Check if reference file has vertical levels
             #Notify user of level dimension:
             if lat_lev['has_lev']:
@@ -324,6 +309,7 @@ def meridional_mean(adfobj):
 
             #Loop over season dictionary:
             for s in seasons:
+                vres["season"] = s
 
                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                 # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -355,19 +341,19 @@ def meridional_mean(adfobj):
                 if plot_name not in meridional_skip:
 
                     #Create new plot:
-                    pf.plot_meridional_mean_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
+                    pf.plot_meridional_mean_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
                                                     [syear_baseline,eyear_baseline],
                                                     mseasons[s], oseasons[s], has_lev, log_p=False, obs=adfobj.compare_obs, **vres)
 
                     #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Meridional")
+                    adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Meridional", category=web_category)
                 #End if
 
                 #Create log-pressure plots as well (if applicable)
                 if (plot_name_log) and (plot_name_log not in logp_meridional_skip):
 
-                    pf.plot_meridional_mean_and_save(plot_name_log, case_nickname, adfobj.data.ref_nickname,
+                    pf.plot_meridional_mean_and_save(adfobj, plot_name_log, case_nickname, adfobj.data.ref_nickname,
                                                         [syear_cases[case_idx],eyear_cases[case_idx]],
                                                         [syear_baseline,eyear_baseline],
                                                         mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)

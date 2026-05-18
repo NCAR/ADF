@@ -48,6 +48,10 @@ import uxarray as ux
 import pandas as pd
 import geocat.comp as gcomp
 
+from pathlib import Path
+import os
+import xesmf as xe
+
 from adf_base import AdfError
 
 import warnings  # use to warn user about missing files.
@@ -162,81 +166,6 @@ def global_average(fld, wgt, verbose=False):
     avg1, sofw = np.ma.average(fld2, axis=a, weights=wgt, returned=True) # sofw is sum of weights
 
     return np.ma.average(avg1)
-
-
-'''def spatial_average(indata, weights=None, spatial_dims=None):
-    """Compute spatial average.
-
-    Parameters
-    ----------
-    indata : xr.DataArray
-        input data
-    weights : np.ndarray or xr.DataArray, optional
-        the weights to apply, see Notes for default behavior
-    spatial_dims : list, optional
-        list of dimensions to average, see Notes for default behavior
-
-    Returns
-    -------
-    xr.DataArray
-        weighted average of `indata`
-
-    Notes
-    -----
-    When `weights` is not provided, tries to find sensible values.
-    If there is a 'lat' dimension, use `cos(lat)`.
-    If there is a 'ncol' dimension, looks for `area` in `indata`.
-    Otherwise, set to equal weights.
-
-    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
-    Will average over `ncol` if present, and then will check for `lat` and `lon`.
-    When none of those three are found, raise an AdfError.
-    """
-    import warnings
-
-    if weights is None:
-        #Calculate spatial weights:
-        if 'lat' in indata.coords:
-            weights = np.cos(np.deg2rad(indata.lat))
-            weights.name = "weights"
-        elif 'ncol' in indata.dims or 'n_face' in indata.dims:
-            if 'area' in indata.coords or 'area' in indata._coords:
-                warnings.warn("area variable being used to generated normalized weights.")
-                weights = indata['area'] / indata['area'].sum()
-            else:
-                warnings.warn("\t  We need a way to get area variable. Using equal weights.")
-                weights = xr.DataArray(1.)
-            weights.name = "weights"
-        else:
-            weights = xr.DataArray(1.)
-            weights.name = "weights"
-            warnings.warn("Un-recognized spatial dimensions: using equal weights for all grid points.")
-        #End if
-    #End if
-
-    #Apply weights to input data:
-    weighted = indata.weighted(weights)
-
-    # we want to average over all non-time dimensions
-    if spatial_dims is None:
-        if 'ncol' in indata.dims:
-            spatial_dims = ['ncol']
-        elif 'n_face' in indata.dims:
-            spatial_dims = ['n_face']
-        else:
-            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or ('lon' in dimname.lower()))]
-
-    if not spatial_dims:
-        #Scripts using this function likely expect the horizontal dimensions
-        #to be removed via the application of the mean. So in order to avoid
-        #possibly unexpected behavior due to arrays being incorrectly dimensioned
-        #(which could be difficult to debug) the ADF should die here:
-        emsg = "spatial_average: No spatial dimensions were identified,"
-        emsg += " so can not perform average."
-        raise AdfError(emsg)
-
-    return weighted.mean(dim=spatial_dims, keep_attrs=True)'''
-
 
 
 def spatial_average(indata, weights=None, spatial_dims=None):
@@ -470,9 +399,10 @@ def seasonal_mean(data, season=None, is_climo=None):
             uxgrid=uxgrid,
             attrs=weighted_mean.attrs
         )
-    return weighted_mean #data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
+    return weighted_mean
 
-import numpy as np
+#######
+
 
 def array_diff(a, b, percent=False, fill_nan=None):
     """
@@ -497,15 +427,13 @@ def array_diff(a, b, percent=False, fill_nan=None):
     DataArray
     """
 
-    # --- sanity checks ---
-    print(a.shape,b.shape)
+    print("Comparing two arrays, sizes are:\n",a.shape,b.shape)
     if a.shape != b.shape:
         raise ValueError("Input arrays must have same shape")
 
     if hasattr(a, "uxgrid") and a.uxgrid is None:
         raise ValueError("Input appears to be on an unstructured grid but is missing the uxgrid coordinate")
 
-    # --- compute values ---
     if percent:
         if hasattr(a, "uxgrid"):
             with np.errstate(divide='ignore', invalid='ignore'):
@@ -515,25 +443,18 @@ def array_diff(a, b, percent=False, fill_nan=None):
     else:
         vals = a.values - b.values
 
-    # --- handle NaNs ---
     if fill_nan is not None:
         vals = np.where(np.isfinite(vals), vals, fill_nan)
 
-# --- copy structure ---
     out = a.copy(deep=True)
     out.values = vals
 
-    # --- optional: update attrs ---
     if percent:
         out.attrs = dict(a.attrs)
         out.attrs["long_name"] = f"Percent difference ({a.name})"
         out.attrs["units"] = "%"
 
-
     return out
-
-
-#######
 
 
 def domain_stats(data, domain):
@@ -843,25 +764,12 @@ def zonal_mean_xr(fld):
         d = fld.dims
         davgovr = [dim for dim in d if dim not in ('lev','lat')]
     else:
-        if 1==1:
-            print()
-        else:
-            print()
-        #raise IOError("zonal_mean_xr requires Xarray DataArray input.")
-    return fld.mean(dim=davgovr)
-
-#####################
-#END HELPER FUNCTIONS
+        raise IOError("zonal_mean_xr requires Xarray DataArray input.")
+    fld = fld.mean(dim=davgovr, keep_attrs=True)
+    return fld
 
 
-
-
-from pathlib import Path
-import os
-import xarray as xr
-import xesmf as xe
-import numpy as np
-from adf_base import AdfError
+# Gridding/Regridding
 
 
 # =========================
@@ -920,8 +828,7 @@ def build_regridder(ds, latlon_file, method, weights_file=None):
     })
 
     # If weights exist, don't rebuild grid
-    #if weights_file and Path(weights_file).exists():
-    if 2==1:
+    if weights_file and Path(weights_file).exists():
         print(f"Using existing weights: {weights_file}")
 
         regridder = xe.Regridder(
@@ -1089,34 +996,6 @@ def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
     regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}) )
     return regridded
 
-"""def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
-    dims = data_to_regrid.dims
-    #if data_to_regrid.ndim == 1:
-    if len(data_to_regrid.dims) == 2:
-        # (ncol,) → (1, ncol)
-        updated = data_to_regrid.expand_dims("lat", axis=0)
-        regridded = regridder(updated.rename({comp_grid: "lon"}))
-        return regridded.squeeze("lat")
-
-    elif len(data_to_regrid.dims) == 3:
-        # (other, ncol) → (other, lat, lon)
-        updated = data_to_regrid.expand_dims("lat", axis=-2)
-        regridded = regridder(updated.rename({"lat": "lat", comp_grid: "lon"}))
-        return regridded
-
-    elif len(data_to_regrid.dims) == 4:
-        # Assume (time, lev, ncol)
-        stacked = data_to_regrid.stack(stack_dim=("time", "lev", "ilev"))
-        updated = stacked.expand_dims("lat", axis=-2)
-        regridded = regridder(updated.rename({"lat": "lat", comp_grid: "lon"}))
-        unstacked = regridded.unstack("stack_dim")
-        return unstacked.transpose("time", "lev", "ilev", "lat", "lon")
-
-    else:
-        raise ValueError(f"Unhandled data shape or dimensions: {data_to_regrid.shape} {dims}")"""
-
-
-
 
 def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid='ncol'):
     if isinstance(data_to_regrid, xr.Dataset):
@@ -1140,23 +1019,6 @@ def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid='ncol')
         raise ValueError(f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}")
     regridded = regridder(updated,skipna=True, na_thres=1)
     return regridded
-
-
-
-"""
-def regrid_lnd_se_data_bilinear(regridder, data_to_regrid, comp_grid):
-    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
-    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}),
-                         skipna=True, na_thres=1,
-                         )
-    return regridded
-
-
-def regrid_lnd_se_data_conservative(regridder, data_to_regrid, comp_grid):
-    updated = data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
-    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}) )
-    return regridded"""
-
 
 
 def grid_to_latlon(model_dataset, var_name, comp, wgt_file, method, latlon_file, **kwargs):
@@ -1257,258 +1119,5 @@ def calc_area(rgdata):
 
     return rgdata
 
-
-
-
-
-
-from pathlib import Path
-import os
-import xarray as xr
-import xesmf as xe
-import numpy as np
-from adf_base import AdfError
-
-
-# =========================
-# Helpers
-# =========================
-
-def check_unstructured(ds, case):
-    """
-    Check if a dataset is unstructured based on its dimensions.
-    """
-    if ('lat' not in ds.dims) and ('lon' not in ds.dims):
-        if ('ncol' in ds.dims) or ('lndgrid' in ds.dims):
-            print(f"Looks like the case '{case}' is unstructured")
-            return True
-    return False
-
-
-def save_to_nc(ds, outname):
-    enc = {v: {'_FillValue': None} for v in ds.data_vars}
-    enc.update({c: {'_FillValue': None} for c in ds.coords})
-    ds.to_netcdf(outname, format='NETCDF4', encoding=enc)
-
-
-def ensure_latlon(ds, src_grid_file):
-
-    if "lat" in ds and "lon" in ds:
-        return ds
-
-    print("Adding lat/lon from grid file")
-
-    grid = xr.open_dataset(src_grid_file)
-    print("grid ncol:", grid.dims.get("ncol"))
-    print("data ncol:", ds.dims.get("ncol"))
-
-    return ds.assign_coords({
-        "lat": ("ncol", grid["lat"].values),
-        "lon": ("ncol", grid["lon"].values),
-    })
-
-
-# =========================
-# Regridder
-# =========================
-
-import xarray as xr
-import xesmf as xe
-from pathlib import Path
-
-def build_regridder(ds, latlon_file, method, weights_file=None):
-
-    target = xr.open_dataset(latlon_file)
-
-    ds_out = xr.Dataset({
-        "lat": (["lat"], target["lat"].values),
-        "lon": (["lon"], target["lon"].values),
-    })
-
-    # If weights exist, don't rebuild grid
-    #if weights_file and Path(weights_file).exists():
-    if 2==1:
-        print(f"Using existing weights: {weights_file}")
-
-        regridder = xe.Regridder(
-            ds,
-            ds_out,
-            method,
-            filename=weights_file,
-            reuse_weights=True
-        )
-
-        return regridder
-
-
-    # -----------------------------
-    # OTHERWISE: build weights fresh
-    # -----------------------------
-    print("Creating new weights")
-
-    is_unstructured = "ncol" in ds.dims
-
-    if is_unstructured:
-        if "lat" not in ds or "lon" not in ds:
-            raise ValueError("SE grid requires lat/lon on ncol")
-
-        ds_in = xr.Dataset({
-            "lat": ("ncol", ds["lat"].values),
-            "lon": ("ncol", ds["lon"].values),
-        })
-    else:
-        ds_in = xr.Dataset({
-            "lat": (["lat"], ds["lat"].values),
-            "lon": (["lon"], ds["lon"].values),
-        })
-
-    regridder = xe.Regridder(
-        ds_in,
-        ds_out,
-        method,
-        filename=weights_file,
-        reuse_weights=False,
-        periodic=True
-    )
-
-
-    return regridder
-
-
-# =========================
-# Core regrid function
-# =========================
-
-def regrid_variable(ds, var, regridder, comp):
-
-    da = ds[var]
-
-    out = regridder(da)
-    out.name = var
-
-    dims_order = [d for d in ["time", "lev", "lat", "lon"] if d in out.dims]
-    out = out.transpose(*dims_order)
-
-    return out.to_dataset()
-
-
-# =========================
-# Area calculation
-# =========================
-
-def add_area(ds):
-    lat = ds["lat"].values
-    lon = ds["lon"].values
-
-    R = 6.37122e3  # km
-
-    dlat = np.gradient(lat)
-    dlon = np.gradient(lon)
-
-    lat_rad = np.deg2rad(lat)
-
-    area = np.outer(
-        R * np.deg2rad(dlat),
-        R * np.cos(lat_rad)[:, None] * np.deg2rad(dlon)
-    )
-
-    ds["area"] = xr.DataArray(area, coords=[lat, lon], dims=["lat", "lon"])
-    ds["area"].attrs.update({
-        "units": "km2",
-        "long_name": "Grid cell area"
-    })
-
-    return ds
-
-
-'''# =========================
-# Main driver
-# =========================
-
-def grid_timeseries(adfobj, **kwargs):
-
-    ts_dir = Path(kwargs["ts_dir"])
-    method = kwargs["method"]
-    weight_file = kwargs["wgts_file"]
-    latlon_file = kwargs["latlon_file"]
-    comp = kwargs["comp"]
-    vars_list = kwargs["diag_var_list"]
-    case_name = kwargs["case_name"]
-    hist_str = kwargs["hist_str"]
-    time_string = kwargs["time_string"]
-    is_baseline = kwargs["is_baseline"]
-
-    out_dir = ts_dir / "gridded"
-    #out_dir.mkdir(parents=True, exist_ok=True)
-    # Check that path actually exists:
-    if not out_dir.is_dir():
-        print(f"    {out_dir} not found, making new directory")
-        out_dir.mkdir(parents=True)
-
-
-    #Check if any a weights file exists if using native grid, OPTIONAL
-    if not latlon_file:
-        raise AdfError("Missing lat/lon target grid file")
-    
-
-    for var in vars_list:
-
-        print(f"\n--- Regridding {var} ---")
-
-        ts_files = (
-            adfobj.data.get_ref_timeseries_file(var)
-            if is_baseline
-            else adfobj.data.get_timeseries_file(case_name, var)
-        )
-
-        if not ts_files:
-            print(f"Skipping {var}: no files")
-            continue
-
-        out_file = out_dir / f"{case_name}.{hist_str}.{var}.{time_string}_gridded.nc"
-
-        if out_file.exists():
-            print(f"Skipping {var}: already exists")
-            #if overwrite_ts[case_idx]:
-            if 2==1:
-                Path(out_file).unlink()
-            else:
-                #msg = f"[{__name__}] Warning: '{var}' file was found "
-                msg = f"\t    INFO: '{var}' gridded file was found "
-                msg += "and overwrite is False. Will use existing file."
-                print(msg)
-                continue
-            continue
-
-        ds = adfobj.data.load_timeseries_dataset(ts_files)
-        if ds is None:
-            print(f"    No time series data set for variable '{var}' in case '{case_name}', skipping gridding for this variable.")
-            continue
-        print("ds",ds.attrs,"\n\n")
-        src_grid_file = ds.attrs['initial_file']
-        ds = ensure_latlon(ds, src_grid_file)
-
-        regridder = build_regridder(
-            ds,
-            latlon_file,
-            method,
-            weights_file=weight_file
-        )
-
-        original_time = ds.time.values
-
-        # ---- REGRID ----
-        rg = regrid_variable(ds, var, regridder, comp)
-
-        # ---- POSTPROCESS ----
-        rg = rg.assign_coords(time=original_time)
-        rg.attrs = ds.attrs
-        rg.attrs["native_grid_to_latlon"] = f"xESMF ({method})"
-
-        rg = add_area(rg)
-
-        # ---- SAVE ----
-        save_to_nc(rg, out_file)
-
-        print(f"Saved: {out_file}")'''
-
+#####################
+#END HELPER FUNCTIONS
