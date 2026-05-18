@@ -186,7 +186,7 @@ def domain_stats(data, domain, unstructured=False):
 
         print("x_region[imax].item()",x_region[imax].item())
         print("x_region.uxgrid.face_lat.values[imax]",x_region.uxgrid.face_lat.values[imax])
-        print("x_region.uxgrid.face_lon.values[imax]",x_region.uxgrid.face_lon.values[imax])
+        print("x_region.uxgrid.face_lon.values[imax]",x_region.uxgrid.face_lon.values[imax],"\n")
 
 
     x_region_min = x_region.min().item()
@@ -301,25 +301,12 @@ def make_polar_plot(adfobj, wks, case_nickname,
         pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
         #wrap_fields = (d1_cyclic, d2_cyclic, dif_cyclic, pct_cyclic)
         wrap_fields = (d1_cyclic, d2_cyclic, pct_cyclic, dif_cyclic)
-        lons, lats = np.meshgrid(lon_cyclic, d1.lat)
+        #lons, lats = np.meshgrid(lon_cyclic, d1.lat)
+        lons, lats = plot_utils.transform_coordinates_for_projection(proj, lon_cyclic, d1.lat) # Explicit coordinate transform
     else:
-        wgt = kwargs["wgt"]
-        """lon = d1.uxgrid.face_lon.values
-        lat = d1.uxgrid.face_lat.values
-        lon_min, lon_max, lat_min, lat_max = domain
-        mask = (
-            (lat >= lat_min) & (lat <= lat_max)# &
-            #(lon >= lon_min) & (lon <= lon_max)
-        )
-        if kwargs["var"] != "LANDFRAC":
-            d1 = d1.isel(n_face=mask)
-            d2 = d2.isel(n_face=mask)
-        pct = pct.isel(n_face=mask)
-        dif = pct.isel(n_face=mask)"""
         print("domain",domain)
-
         lon_min, lon_max, lat_min, lat_max = domain
-        print("dir(d1.uxgrid.subset)",dir(d1.uxgrid.subset))
+        #print("dir(d1.uxgrid.subset)",dir(d1.uxgrid.subset))
         lon = d1.uxgrid.face_lon.values
         lat = d1.uxgrid.face_lat.values
 
@@ -349,12 +336,16 @@ def make_polar_plot(adfobj, wks, case_nickname,
         #d_rmse = wgt_rmse(a, b, wgt)  
         #d_rmse = (np.sqrt(((dif**2)*wgt).sum())).values.item()
 
+    means.extend([d1_region_mean,d2_region_mean, pct_region_mean, dif_region_mean])
+    mins.extend([d1_region_min,d2_region_min, pct_region_min, dif_region_min])
+    maxs.extend([d1_region_max,d2_region_max, pct_region_max, dif_region_max])
+
     # -- deal with optional plotting arguments that might provide variable-dependent choices
     kwargs["adfobj"] = adfobj
     cp_info = plot_utils.prep_contour_plot(d1, d2, dif, pct, **kwargs)
     units = cp_info['units']
 
-    lons, lats = plot_utils.transform_coordinates_for_projection(proj, lon_cyclic, d1.lat) # Explicit coordinate transform
+    #lons, lats = plot_utils.transform_coordinates_for_projection(proj, lon_cyclic, d1.lat) # Explicit coordinate transform
 
     fig = plt.figure(figsize=(10,10))
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
@@ -394,7 +385,7 @@ def make_polar_plot(adfobj, wks, case_nickname,
             axs[i].set_global()
             raster = a.to_raster(ax=axs[i])
             im = axs[i].imshow(
-                            raster, cmap=cmap, origin="lower",extend=extend,
+                            raster, cmap=cmap, origin="lower",
                             extent=axs[i].get_xlim() + axs[i].get_ylim()
                         )
             im.set_clim(vmin=levels[0],vmax=levels[-1])
@@ -402,11 +393,12 @@ def make_polar_plot(adfobj, wks, case_nickname,
         else:
             levs = np.unique(np.array(levels))
             if len(levs) < 2:
-                imgs.append(axs[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
+                imgs.append(axs[i].contourf(lons, lats, a, colors="w",
+                                            transform=proj, transform_first=True))
                 axs[i].text(0.4, 0.4, empty_message, transform=axs[i].transAxes, bbox=props)
             else:
                 imgs.append(axs[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, extend=extend,
-                                            transform=ccrs.PlateCarree(), #transform_first=True,
+                                            transform=proj, #transform_first=True,
                                             **cp_info['contourf_opt']))
             
 
@@ -519,7 +511,7 @@ def make_polar_plot(adfobj, wks, case_nickname,
 
 #######
 
-def plot_map_vect_and_save(wks, case_nickname, base_nickname,
+'''def plot_map_vect_and_save(wks, case_nickname, base_nickname,
                            case_climo_yrs, baseline_climo_yrs,
                            plev, umdlfld_nowrap, vmdlfld_nowrap,
                            uobsfld_nowrap, vobsfld_nowrap,
@@ -837,12 +829,12 @@ def plot_map_vect_and_save(wks, case_nickname, base_nickname,
     fig.savefig(wks, bbox_inches='tight', dpi=300)
 
     #Close plots:
-    plt.close()
+    plt.close()'''
 
 
 def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                       case_climo_yrs, baseline_climo_yrs,
-                      mdlfld, obsfld, diffld, pctld, obs=False, unstructured=False, **kwargs):
+                      mdlfld, obsfld, diffld, pctld, obs=False, **kwargs):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
 
     Parameters
@@ -949,7 +941,8 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
             pctdiff_mag = pctdiff_mag.where(np.isfinite(pctdiff_mag), np.nan)
             pctdiff_mag = pctdiff_mag.fillna(0.0)
 
-            wrap_fields = (umdlfld, uobsfld, udiffld, upctdiffld)
+            wrap_fields = (umdlfld, uobsfld, udiffld)
+            other_wrap_fields = ([umdlfld, vmdlfld], [uobsfld, vobsfld], [udiffld, vdiffld])#, [upctld, vpctld]
 
             # get statistics (from non-wrapped)
             fields = (mdl_mag, obs_mag, pctdiff_mag, diff_mag)
@@ -971,10 +964,32 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
             vdiffld = vdiffld_nowrap
             upctld = upctdiffld_nowrap
             vpctld = vpctdiffld_nowrap
+            # Calculate vector magnitudes.
+            # Please note that the difference field needs
+            # to be calculated from the model and obs fields
+            # in order to get the correct sign:
+            mdl_mag_ma  = np.sqrt(umdlfld**2 + vmdlfld**2)
+            obs_mag_ma  = np.sqrt(uobsfld**2 + vobsfld**2)
+
+            mdl_mag_ma  = np.sqrt(umdlfld**2 + vmdlfld**2)
+            obs_mag_ma  = np.sqrt(uobsfld**2 + vobsfld**2)
+
+            #Convert vector magnitudes to xarray DataArrays:
+            mdl_mag  = xr.DataArray(mdl_mag_ma)
+            obs_mag  = xr.DataArray(obs_mag_ma)
+            diff_mag = mdl_mag - obs_mag
+            pct_mag = ((mdl_mag_ma - obs_mag)/ np.abs(obs_mag))*100
+            #(vmseasons[s] - voseasons[s]) / np.abs(voseasons[s]) * 100.0 #relative change
+
+            #wrap_fields = (umdlfld, uobsfld, udiffld, upctld)
+            wrap_fields = (mdl_mag, obs_mag, diff_mag)#pct_mag
+            other_wrap_fields = ([umdlfld, vmdlfld], [uobsfld, vobsfld], [udiffld, vdiffld])#, [upctld, vpctld]
 
             # Use face (cell-centered) coordinates
             lons = grid.face_lon.values
             lats = grid.face_lat.values
+
+            d_rmse = -9999.99
 
     else: # Normal global lat/lon
         if not unstructured:
@@ -986,6 +1001,8 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
             dwrap, _ = add_cyclic_point(diffld, coord=diffld['lon'])
             pwrap, _ = add_cyclic_point(pctld, coord=pctld['lon'])
             wrap_fields = (mwrap, owrap, pwrap, dwrap)
+
+            lons, lats = np.meshgrid(lon, lat)
 
             fields = (mdlfld, obsfld, pctld, diffld)
 
@@ -1011,6 +1028,8 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
             d_rmse = wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
             # specify the central longitude for the plot
             central_longitude = kwargs.get('central_longitude', 180)
+
+
         else:
             wgt = kwargs["wgt"]
 
@@ -1081,7 +1100,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
         ax4 = plt.subplot(gs[2, 3:], projection=proj, **cp_info['subplots_opt'])
         ax = [ax1,ax2,ax3,ax4]
 
-    img = [] # contour plots
+    imgs = [] # contour plots
     cs = []  # contour lines
     cb = []  # color bars
 
@@ -1098,7 +1117,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
         pctdiff_idx = 2
         diff_idx = 3
 
-    for i, a in enumerate(wrap_fields):
+    for i, fld in enumerate(wrap_fields):
         if i == diff_idx:
             levels = cp_info['levels_diff']
             cmap = cp_info['cmap_diff']
@@ -1133,16 +1152,17 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
         if not unstructured:
             levs = np.unique(np.array(levels))
             if len(levs) < 2:
-                img.append(ax[i].contourf(lons,lats,a,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
+                imgs.append(ax[i].contourf(lons,lats,fld,colors="w",transform=ccrs.PlateCarree(),transform_first=True))
                 ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
             else:
                 if vector:
                     if i == diff_idx:
-                        img.append(ax[i].contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(),
+                        ua, va = other_wrap_fields[i]
+                        imgs.append(ax[i].contourf(lons, lats, diff_mag, transform=ccrs.PlateCarree(),
                                                 transform_first=True, norm=norm,
                                 cmap='PuOr', alpha=0.5, extend=extend
                                 ))
-                        ax[i].quiver(lons[skip], lats[skip], udiffld[skip], vdiffld[skip],
+                        ax[i].quiver(lons[skip], lats[skip], ua[skip], va[skip],
                                     transform=ccrs.PlateCarree())
                     """if i == pctdiff_idx:
                         img.append(ax[i].contourf(lons, lats, pctdiff_mag, transform=ccrs.PlateCarree(),
@@ -1152,34 +1172,58 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                         #ax[i].quiver(lons[skip], lats[skip], upctdiffld[skip], vpctdiffld[skip],
                         #             transform=ccrs.PlateCarree())"""
                     if i in [0,1]:
-                        img.append(ax[i].contourf(lons, lats, sim_mags[i], cmap='Greys',
+                        ua, va = other_wrap_fields[i]
+                        imgs.append(ax[i].contourf(lons, lats, sim_mags[i], cmap='Greys',
                                                 transform=ccrs.PlateCarree(),
                                                 transform_first=True, extend=extend
                             ))
-                        ax[i].quiver(lons[skip], lats[skip], umdlfld[skip], vmdlfld[skip], mdl_mag.values[skip],
+                        ax[i].quiver(lons[skip], lats[skip], ua[skip], va[skip], mdl_mag.values[skip],
                                 transform=ccrs.PlateCarree(), cmap='Reds')
-                        ax[i].quiver(lons[skip], lats[skip], uobsfld[skip], vobsfld[skip], obs_mag.values[skip],
+                        ax[i].quiver(lons[skip], lats[skip], ua[skip], va[skip], obs_mag.values[skip],
                                 transform=ccrs.PlateCarree(), cmap='Reds')
                 else:
-                    img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm,
+                    imgs.append(ax[i].contourf(lons, lats, fld, levels=levels, cmap=cmap, norm=norm,
                                         transform=ccrs.PlateCarree(), transform_first=True, extend=extend,
                                         **cp_info['contourf_opt']))
                 #img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))
             #End if
         else:
-            #configure for polycollection plotting
-            #TODO, would be nice to have levels set from the info, above
-            if 'projection' in kwargs:
-                kwargs.pop('projection')
+            if vector:
+                ua, va = other_wrap_fields[i]
+                fld_ux = ux.UxDataArray(fld)
+                fld_ux._uxgrid = umdlfld_nowrap.uxgrid
+
+                ax[i].set_global()
+                raster = fld_ux.to_raster(ax=ax[i])
+                im = ax[i].imshow(
+                                raster, cmap=cmap, origin="lower",
+                                extent=ax[i].get_xlim() + ax[i].get_ylim()
+                            )
+                im.set_clim(vmin=levels[0],vmax=levels[-1])
+                #imgs.append(im)
+
+                skip = 20
+                indices = np.arange(0, ua.sizes['n_face'], skip)
+                ua_sub = ua.isel(n_face=indices)
+                va_sub = va.isel(n_face=indices)
+                ax[i].quiver(lons[::skip], lats[::skip],
+                            ua_sub,
+                            va_sub,
+                            transform=ccrs.PlateCarree(),cmap='Reds')
+                imgs.append(im)
             
-            ax[i].set_global()
-            raster = a.to_raster(ax=ax[i])
-            im = ax[i].imshow(
-                            raster, cmap=cmap, origin="lower",
-                            extent=ax[i].get_xlim() + ax[i].get_ylim()
-                        )
-            im.set_clim(vmin=levels[0],vmax=levels[-1])
-            img.append(im)
+            else:
+                if 'projection' in kwargs:
+                    kwargs.pop('projection')
+                
+                ax[i].set_global()
+                raster = fld.to_raster(ax=ax[i])
+                im = ax[i].imshow(
+                                raster, cmap=cmap, origin="lower",
+                                extent=ax[i].get_xlim() + ax[i].get_ylim()
+                            )
+                im.set_clim(vmin=levels[0],vmax=levels[-1])
+                imgs.append(im)
         
 
 
@@ -1212,6 +1256,10 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
         ax[1].set_title(base_title, loc='left', fontsize=tiFontSize)
 
     #Set stats: area_avg
+    if hasattr(wgt, 'fillna'):
+        wgt = wgt.fillna(0)
+    else:
+        wgt = np.where(np.isfinite(wgt), wgt, 0)
     ax[0].set_title(f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.max():5.2f}\nMin: {mdlfld.min():5.2f}", loc='right',
                        fontsize=tiFontSize)
     ax[1].set_title(f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}", loc='right',
@@ -1246,7 +1294,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                     bbox_transform=ax2.transAxes,
                     borderpad=0,
                     )
-    cbar = fig.colorbar(img[1], cax=cb_mean_ax, **cp_info['colorbar_opt'])
+    cbar = fig.colorbar(imgs[1], cax=cb_mean_ax, **cp_info['colorbar_opt'])
     cbar.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad, loc='left')
     cbar.ax.tick_params(labelsize=cbar_size)
 
@@ -1259,7 +1307,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                         bbox_transform=ax3.transAxes,
                         borderpad=0,
                         )
-        pctdiff_cbar = fig.colorbar(img[pctdiff_idx], cax=cb_pct_ax, **cp_info['pct_colorbar_opt'])
+        pctdiff_cbar = fig.colorbar(imgs[pctdiff_idx], cax=cb_pct_ax, **cp_info['pct_colorbar_opt'])
         pctdiff_cbar.ax.set_title("%", fontsize=cbar_size, pad=cbar_labelpad, loc='left')
         pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
 
@@ -1271,7 +1319,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
                     bbox_transform=ax[diff_idx].transAxes,
                     borderpad=0,
                     )
-    diff_cbar = fig.colorbar(img[diff_idx], cax=cb_diff_ax, **cp_info['diff_colorbar_opt'])
+    diff_cbar = fig.colorbar(imgs[diff_idx], cax=cb_diff_ax, **cp_info['diff_colorbar_opt'])
     diff_cbar.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad, loc='left')
     diff_cbar.ax.tick_params(labelsize=cbar_size)
 
