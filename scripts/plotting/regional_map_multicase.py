@@ -372,9 +372,9 @@ def regional_map_multicase_plot(adf, datadict, opt=None):
         popts = prep_contour_plot(datadict[xreg], datadict[xreg], datadict[xreg] - datadict[xreg], **opt)
         popts2 = {
             **popts["contourf_opt"],
-            "cmap": popts["cmap1"],
-            "norm": popts["norm1"],
-            "levels": popts["levels1"],
+            "cmap": popts["cmap_sim"],
+            "norm": popts["norm_sim"],
+            "levels": popts["levels_sim"],
         }
         cb_opt = popts.get("colorbar_opt")
         cntrplts.append(
