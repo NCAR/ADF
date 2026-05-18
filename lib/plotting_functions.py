@@ -77,121 +77,6 @@ seasons = {"ANN": np.arange(1,13,1),
 cbar_size = 8
 cbar_labelpad = 5
 
-#################
-#HELPER FUNCTIONS
-#################
-
-def wgt_rmse(fld1, fld2, wgt):
-    """Calculate the area-weighted RMSE.
-
-    Parameters
-    ----------
-    fld1, fld2 : array-like
-        2-dimensional spatial fields with the same shape.
-        They can be xarray DataArray or numpy arrays.
-    wgt : array-like
-        the weight vector, expected to be 1-dimensional,
-        matching length of one dimension of the data.
-
-    Returns
-    -------
-    float
-        root mean squared error
-
-    Notes:
-    ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
-    """
-    wgt.fillna(0)
-    assert len(fld1.shape) <= 2,     "Input fields must have less than two dimensions."
-    assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
-    # in case these fields are in dask arrays, compute them now.
-    if hasattr(fld1, "compute"):
-        fld1 = fld1.compute()
-    if hasattr(fld2, "compute"):
-        fld2 = fld2.compute()
-    if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
-        return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
-    else:
-        check = [len(wgt) == s for s in fld1.shape]
-        if ~np.any(check):
-            raise IOError(f"Sorry, weight array has shape {wgt.shape} which is not compatible with data of shape {fld1.shape}")
-        check = [len(wgt) != s for s in fld1.shape]
-        dimsize = fld1.shape[np.argwhere(check).item()]  # want to get the dimension length for the dim that does not match the size of wgt
-        warray = np.tile(wgt, (dimsize, 1)).transpose()   # May need more logic to ensure shape is correct.
-        warray = warray / np.sum(warray) # normalize
-        wmse = np.sum(warray * (fld1 - fld2)**2)
-        return np.sqrt( wmse ).item()
-
-
-#######
-
-
-#Polar Plot functions
-
-def domain_stats(data, domain, unstructured=False):
-    """Provides statistics in specified region.
-
-    Parameters
-    ----------
-    data : xarray.DataArray
-        data values
-    domain : list or tuple or numpy.ndarray
-        the domain specification as:
-        [west_longitude, east_longitude, south_latitude, north_latitude]
-
-    Returns
-    -------
-    x_region_mean : float
-        the regional area-weighted average
-    x_region_max : float
-        the maximum value in the region
-    x_region_min : float
-        the minimum value in the region
-
-    Notes
-    -----
-    Currently assumes 'lat' is a dimension and uses `cos(lat)` as weight.
-    Should use `spatial_average`
-
-    See Also
-    --------
-    spatial_average
-
-    """
-    if not unstructured:
-        x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
-        x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region['lat']))).mean().item()
-    else:
-        #x_region = data
-        #x_region_mean = data.mean().item()
-        #print(data.uxgrid)
-        #print(dir(data.uxgrid))
-        lon = data.uxgrid.face_lon.values
-        lat = data.uxgrid.face_lat.values
-
-        lon_min, lon_max, lat_min, lat_max = domain
-
-        mask = (
-            (lat >= lat_min) &
-            (lat <= lat_max)
-        )
-        
-        indices = np.where(mask)[0]
-        
-        x_region = data.isel(n_face=indices)
-        weights = x_region.uxgrid.face_areas.values
-        x_region_mean = (x_region.values * weights).sum() / weights.sum()
-
-        imax = x_region.argmax().item()
-
-        print("x_region[imax].item()",x_region[imax].item())
-        print("x_region.uxgrid.face_lat.values[imax]",x_region.uxgrid.face_lat.values[imax])
-        print("x_region.uxgrid.face_lon.values[imax]",x_region.uxgrid.face_lon.values[imax],"\n")
-
-
-    x_region_min = x_region.min().item()
-    x_region_max = x_region.max().item()
-    return x_region_mean, x_region_max, x_region_min
 
 def make_polar_plot(adfobj, wks, case_nickname,
                     base_nickname,
@@ -284,10 +169,10 @@ def make_polar_plot(adfobj, wks, case_nickname,
     maxs = []
     if not unstructured:
         # statistics for annotation (these are scalars):
-        d1_region_mean, d1_region_max, d1_region_min = domain_stats(d1, domain)
-        d2_region_mean, d2_region_max, d2_region_min = domain_stats(d2, domain)
-        dif_region_mean, dif_region_max, dif_region_min = domain_stats(dif, domain)
-        pct_region_mean, pct_region_max, pct_region_min = domain_stats(pct, domain)
+        d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain)
+        d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain)
+        dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(dif, domain)
+        pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(pct, domain)
         #downsize to the specified region; makes plotting/rendering/saving much faster
         d1 = d1.sel(lat=slice(domain[2],domain[3]))
         d2 = d2.sel(lat=slice(domain[2],domain[3]))
@@ -326,10 +211,10 @@ def make_polar_plot(adfobj, wks, case_nickname,
         wrap_fields = (d1, d2, pct, dif)
         #area_avg = [spatial_average(x, wgt,spatial_dims=None,unstruct=True, indataset=indataset) for x in wrap_fields]
 
-        d1_region_mean, d1_region_max, d1_region_min = domain_stats(d1, domain, unstructured)
-        d2_region_mean, d2_region_max, d2_region_min = domain_stats(d2, domain, unstructured)
-        dif_region_mean, dif_region_max, dif_region_min = domain_stats(dif, domain, unstructured)
-        pct_region_mean, pct_region_max, pct_region_min = domain_stats(pct, domain, unstructured)
+        d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain, unstructured)
+        d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain, unstructured)
+        dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(dif, domain, unstructured)
+        pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(pct, domain, unstructured)
 
 
         # TODO Check this is correct, weighted rmse uses xarray weighted function
@@ -1025,7 +910,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
 
                 x = utils.spatial_average(data, weights=weights)
                 area_avg.append(x)
-            d_rmse = wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
+            d_rmse = utils.wgt_rmse(mdlfld, obsfld, wgt)  # correct weighted RMSE for (lat,lon) fields.
             # specify the central longitude for the plot
             central_longitude = kwargs.get('central_longitude', 180)
 
@@ -1333,8 +1218,6 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
 #######
 
 def compute_ux_zonal_mean(da, bins=2):
-    import numpy as np
-    import xarray as xr
 
     da_vals = xr.DataArray(np.array(da), dims=da.dims)
 
@@ -1367,8 +1250,6 @@ def compute_ux_zonal_mean(da, bins=2):
 
 
 def ux_to_lat_binned(da, bins=2):
-    import numpy as np
-    import xarray as xr
 
     da_vals = np.array(da)
     lat = np.array(da.uxgrid.face_lat)
@@ -1423,8 +1304,6 @@ def ux_to_lat_binned(da, bins=2):
 
 
 def ux_to_lon_binned(da, bins=2):
-    import numpy as np
-    import xarray as xr
 
     da_vals = np.array(da)
     lon = np.array(da.uxgrid.face_lon)
@@ -1634,6 +1513,7 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         bdata = ux_to_lat_binned(bdata)
 
     azm = zonal_mean_xr(adata)
+    print("\n----------------------------\nadata.units",adata.units)
     bzm = zonal_mean_xr(bdata)
     diff = azm - bzm
         
@@ -1650,6 +1530,10 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
     units = cp_info['units']
+    print("units????",units)
+    if not units:
+        units = adata.units
+    print("units!!!!!",units,"\n--------------------------")
     levels_diff = cp_info['levels_diff']
     cmap_diff = cp_info['cmap_diff']
     norm_diff = cp_info['norm_diff']
@@ -1794,6 +1678,7 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
 
         fig, ax = plt.subplots(nrows=3)#figsize=(6,8), 
         ax[0].set_title(f"{tyears}\n{byears}", loc='right', fontsize=6)
+        ax[0].set_ylabel(units, fontsize=6)
 
         #Set Main title for subplots:
         var_name = kwargs['var_name']
