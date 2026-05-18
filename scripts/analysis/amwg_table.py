@@ -250,15 +250,13 @@ def amwg_table(adf):
             else:
                 data.attrs['units'] = raw_units
             
-            print("data",data.units,"\n\n")
-            #Extract units string, if available:
-            if hasattr(data, 'units'):
-                unit_str = f"{data.units}"
-            else:
-                unit_str = '--'
-            print("unit_st BEFORE:",unit_str,"\n\n")
+            # Print a short debug of units (use attrs to support UxDataArray)
+            #print("data units", data.attrs.get('units', '--'), "\n\n")
+            # Extract units string from attrs for robustness
+            unit_str = data.attrs.get('units', '--')
+            #print("unit_st BEFORE:",unit_str,"\n\n")
             unit_str = latex_to_unicode_units(unit_str)
-            print("unit_str AFTER:",unit_str,"\n\n")
+            #print("unit_str AFTER:",unit_str,"\n\n")
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
@@ -302,7 +300,6 @@ def amwg_table(adf):
             #End if
 
             # In order to get correct statistics, average to annual or seasonal
-            print("data",data,"\n")
             data = utils.annual_mean(data, whole_years=True, time_name='time')
 
             if unstruct:

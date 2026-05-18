@@ -1585,7 +1585,6 @@ SWCF:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "TOA energy flux"
-  colormap_2d: True
 
 LWCF:
   colormap: "Oranges"

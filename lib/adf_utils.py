@@ -427,7 +427,6 @@ def array_diff(a, b, percent=False, fill_nan=None):
     DataArray
     """
 
-    print("Comparing two arrays, sizes are:\n",a.shape,b.shape)
     if a.shape != b.shape:
         raise ValueError("Input arrays must have same shape")
 

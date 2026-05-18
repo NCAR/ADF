@@ -164,6 +164,7 @@ def global_latlon_vect_map(adfobj):
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
+            vres["unstructured_plotting"] = unstruct_plotting
             vres = plot_utils.add_var_to_vres(adfobj, var, vres)
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
@@ -250,11 +251,11 @@ def global_latlon_vect_map(adfobj):
             if unstruct_plotting:
                 mesh_file = adfobj.mesh_files["baseline_mesh_file"]
                 kwargs["mesh_file"] = mesh_file
-                uodata = adfobj.data.load_reference_climo_da(base_name, data_var[0], **kwargs)
-                vodata = adfobj.data.load_reference_climo_da(base_name, data_var[1], **kwargs)
+                uodata = adfobj.data.load_reference_regrid_da(base_name, data_var[0], **kwargs)
+                vodata = adfobj.data.load_reference_regrid_da(base_name, data_var[1], **kwargs)
                 unstruct_base = True
-                odataset = adfobj.data.load_reference_climo_dataset(base_name, data_var[0], **kwargs)
-                o_has_dims = pf.validate_dims(uodata, [ "lev"])
+                odataset = adfobj.data.load_reference_regrid_dataset(base_name, data_var[0], **kwargs)
+                o_has_dims = utils.validate_dims(uodata, [ "lev"])
                 if comp == "lnd": 
                     area = odataset.area.isel(time=0)
                     landfrac = odataset.landfrac.isel(time=0)
@@ -270,7 +271,7 @@ def global_latlon_vect_map(adfobj):
                     dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
                     adfobj.debug_log(dmsg)
                     continue
-                o_has_dims = pf.validate_dims(uodata    , ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
+                o_has_dims = utils.validate_dims(uodata    , ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
                 if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
                     print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
                     continue
@@ -307,13 +308,13 @@ def global_latlon_vect_map(adfobj):
                     mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
                     kwargs["mesh_file"] = mesh_file
                     vres["mesh_file"] = mesh_file
-                    umdata = adfobj.data.load_climo_da(case_name, data_var[0], **kwargs)
-                    vmdata = adfobj.data.load_climo_da(case_name, data_var[1], **kwargs)
+                    umdata = adfobj.data.load_regrid_da(case_name, data_var[0], **kwargs)
+                    vmdata = adfobj.data.load_regrid_da(case_name, data_var[1], **kwargs)
 
                     unstruct_case = True
-                    mdataset = adfobj.data.load_climo_dataset(case_name, data_var[0], **kwargs)
+                    mdataset = adfobj.data.load_regrid_dataset(case_name, data_var[0], **kwargs)
                     #Determine dimensions of variable:
-                    m_has_dims = pf.validate_dims(umdata, [ "lev"])
+                    m_has_dims = utils.validate_dims(umdata, [ "lev"])
                     if comp == "lnd": 
                         area = mdataset.area.isel(time=0)
                         landfrac = mdataset.landfrac.isel(time=0)
@@ -331,7 +332,7 @@ def global_latlon_vect_map(adfobj):
                         adfobj.debug_log(dmsg)
                         continue
                     #Determine dimensions of variable:
-                    m_has_dims = pf.validate_dims(umdata, ["lat", "lon", "lev"])
+                    m_has_dims = utils.validate_dims(umdata, ["lat", "lon", "lev"])
                     if (not m_has_dims['has_lat']) or (not m_has_dims['has_lon']):
                         print(f"\t    WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
                         continue

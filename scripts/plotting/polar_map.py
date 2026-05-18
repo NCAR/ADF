@@ -61,6 +61,7 @@ def polar_map(adfobj):
     #Notify user that script has started:
     msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
+    comp = "atm"
 
     var_list = adfobj.diag_var_list
 
@@ -236,7 +237,7 @@ def polar_map(adfobj):
                 # calculate weights
                 wgt_base = area * landfrac / (area * landfrac).sum()
         if comp == "atm":
-            if adfobj.native_grid[case_name] and not adfobj.unstructured_plotting:
+            if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
                 wgt_base = odataset.isel(time=0)[var]
 
         # Process each case
@@ -282,8 +283,10 @@ def polar_map(adfobj):
                         # calculate weights
                         wgt = area * landfrac / (area * landfrac).sum()
                 if comp == "atm":
-                    if adfobj.native_grid[case_name] and not adfobj.unstructured_plotting:
+                    print(adfobj.native_grid[case_name],adfobj.unstructured_plotting)
+                    if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
                         wgt = mdataset.isel(time=0)[var]
+                print("wgt",var,wgt,"\n")
             else:
                 mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
                 """#Skip this variable/case if the regridded climo file doesn't exist:

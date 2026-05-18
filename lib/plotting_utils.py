@@ -931,7 +931,11 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     if "units" in kwargs:
         units = kwargs["units"]
     else:
-        units = adata.units
+        # UxDataArray may not expose attribute-style access to attrs
+        # so first try attribute access, else fall back to attrs dict
+        units = getattr(adata, 'units', None)
+        if units is None:
+            units = getattr(getattr(adata, 'attrs', {}), 'get', lambda k, d=None: None)('units', None) if not isinstance(adata.attrs, dict) else adata.attrs.get('units', None)
 
     return {'subplots_opt': subplots_opt,
             'contourf_opt': contourf_opt,

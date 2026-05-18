@@ -453,7 +453,7 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
         vres["var"] = var
 
         # Generate plot
-        pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
+        pf.plot_map_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
                             [syear_case, eyear_case],
                             [syear_baseline, eyear_baseline],
                             mseason, oseason, dseason, pseason,
@@ -496,7 +496,7 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
             vres['lev'] = int(pres)
 
             # Generate plot
-            pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
+            pf.plot_map_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
                                 [syear_case, eyear_case],
                                 [syear_baseline, eyear_baseline],
                                 mseason.sel(lev=pres), 
