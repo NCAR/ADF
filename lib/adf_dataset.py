@@ -475,9 +475,8 @@ class AdfData:
 
         scale_factor = kwargs.get('scale_factor', 1)
         add_offset = kwargs.get('add_offset', 0)
-        #print("scale_factor",scale_factor)
-        #print("add_offset",add_offset)
-        self.adf.base.debug_log("scale_factor",scale_factor)
+        self.adf.debug_log(f"scale_factor {scale_factor}")
+        self.adf.debug_log(f"add_offset {add_offset}")
         da = da * scale_factor + add_offset
 
         if variablename in self.adf.variable_defaults:
