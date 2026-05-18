@@ -307,11 +307,11 @@ def regrid_and_vert_interp(adf):
                             print(f"    {rgridded_output_loc} not found, making new directory")
                             rgridded_output_loc.mkdir(parents=True)
                         save_to_nc(rgdata_interp, rgridded_output_loc / f'{case_name}_{var}_gridded_climo.nc')
-                    print("rgdata_interp.shape BEOFRE",rgdata_interp[var].shape)
+
                     rgdata_interp = _regrid_and_interpolate_levs(adf, rgdata_interp, var,
                                                                  regrid_dataset=tclim_ds,
                                                              **regrid_kwargs)
-                    print("rgdata_interp.shape AFTER",rgdata_interp[var].shape)
+
                     #Extract defaults for variable:
                     var_default_dict = var_defaults.get(var, {})
 
@@ -427,11 +427,11 @@ def regrid_and_vert_interp(adf):
                                 print(f"    {tgridded_output_loc} not found, making new directory")
                                 tgridded_output_loc.mkdir(parents=True)
                             save_to_nc(tgdata_interp, tgridded_output_loc / f'{target}_{var}_gridded_climo.nc')
-                        print("tgdata_interp.shape BEOFRE",tgdata_interp[var].shape)
+
                         tgdata_interp = _regrid_and_interpolate_levs(adf, tgdata_interp, var,
                                                                     regrid_dataset=tclim_ds,
                                                                     **regrid_kwargs)
-                        print("tgdata_interp.shape BEOFRE",tgdata_interp[var].shape)
+
                         if tgdata_interp is None:
                             #Something went wrong during interpolation, so just cycle through
                             #for now:
@@ -484,9 +484,6 @@ def regrid_and_vert_interp(adf):
 
                         #Write interpolated baseline climatology to file:
                         save_to_nc(tgdata_interp, interp_bl_file)
-                    else:
-                        art=4
-                        #print("tgdata_interp.shape BEOFRE",tgdata_interp[var].shape)
                     #End if
                 else:
                     print("\t    INFO: Regridded file already exists, so skipping...")

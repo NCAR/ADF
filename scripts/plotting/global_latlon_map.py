@@ -218,7 +218,6 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
             unstructured = False
         vres["unstructured_plotting"] = unstructured
     else:
-        print("TEST HERER RIGHT")
         mdata = adfobj.data.load_regrid_da(case_name, var)
         if mdata is None:
             return

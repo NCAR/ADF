@@ -821,26 +821,23 @@ class AdfDiag(AdfWeb):
                 #      but there is with CDO operators. We can switch to using CDO,
                 #      but it would require the user to have/load CDO as well.
 
-                print("self.unstructured_plotting",self.unstructured_plotting)
                 unstruct_plotting = self.unstructured_plotting
 
                 #fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
                 for var in diag_var_list:
                 #for fil in fils:
                     fils = glob.glob(f"{ts_dir}/*.{var}.{time_string}.nc")
-                    print(var,"fil",fils)
                     if not fils:
                         print(f"Uh oh, no files found for {var} with time string {time_string} in {ts_dir}")
-                        print("Will check for derived vars later, ok. Jeez stop with the nagging")
+                        print("Will check for derived vars later.")
                         continue
                     if len(fils) > 1:
                         print("Uh oh, too many files :(\nCheck the time series directory for duplicates.")
-                    print("fil",fils[0])
+                        continue
+
                     fil = fils[0]
                     ts_ds = xr.open_dataset(fil, decode_times=False)
-                    #if 'PRECL' in ts_ds:
-                    #    print(ts_ds['PRECL'].units,"\n")
-                    print("ts_ds[var].units",ts_ds[var].units,"\n")
+
                     units = ts_ds[var].attrs.get("units", "--")
                     if ('time_bnds' in ts_ds) or ('time_bounds' in ts_ds):
                         if comp == "atm":
@@ -864,7 +861,6 @@ class AdfDiag(AdfWeb):
                                                     dims=time.dims, attrs=time.attrs)
                             # Optional, add additional variables to cam.h0* files
                             if "h0" in hist_str:
-                                #print("ATM is it coming here???")
                                 ds = xr.open_dataset(hist_files[0], decode_times=False)
                                 if unstruct_plotting:
                                     ts_ds['area'] = ds.areawt
@@ -911,29 +907,6 @@ class AdfDiag(AdfWeb):
 
             #if utils.check_unstructured(ts_file_ds0, case_name, ts_dir) and not unstruct_plotting:
             if self.native_grid[case_name] and not unstruct_plotting:
-
-                '''if utils.check_unstructured(ts_file_ds, case_name):
-                        print()
-                        latlon_file   = self.latlon_files[f"{case_type_string}_latlon_file"]
-                        print("latlon_file",latlon_file,"\n")
-                        #latlon_file = ts_0
-                        time_file = ts_file_ds
-                        wgts_file = self.latlon_wgt_files[f"{case_type_string}_wgts_file"]
-                        method = self.latlon_regrid_method[f"{case_type_string}_regrid_method"]
-                        if not baseline:
-                            wgts_file = wgts_file[case_idx]
-                            method = method[case_idx]
-                            latlon_file = latlon_file[case_idx]
-
-                        kwargs = {"ts_dir":ts_dir, "latlon_file":latlon_file, "wgts_file":wgts_file,
-                                  "method":method, "diag_var_list":self.diag_var_list,
-                                  "case_name":case_name, "hist_str":hist_str,
-                                  "time_string":time_string, "comp":comp,"time_file":time_file,
-                                  "is_baseline":baseline
-                                }
-                        utils.grid_timeseries(self, **kwargs)
-
-                    #####'''
                 tgridded_output_loc   = Path(ts_dir) / "gridded"
                 if not tgridded_output_loc.is_dir():
                         print(f"    {tgridded_output_loc} not found, making new directory")
@@ -952,17 +925,6 @@ class AdfDiag(AdfWeb):
                         msg += "and overwrite is False. Will use existing gridded file."
                         print(msg)
                         continue
-
-                    #print("Gridded ts file",tgridded_output,"\n")
-
-                    """if overwrite_ts[case_idx]:
-                        Path(ts_outfil_str).unlink()
-                    else:
-                        #msg = f"[{__name__}] Warning: '{var}' file was found "
-                        msg = f"\t    INFO: gridded file was found "
-                        msg += "and overwrite is False. Will use existing gridded file."
-                        print(msg)
-                        continue"""
 
                     ts_file_ds = xr.open_dataset(f)
                     #var = fils = glob.glob(f"{ts_dir}/*{time_string}.nc")

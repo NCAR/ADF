@@ -1217,36 +1217,6 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
 
 #######
 
-def compute_ux_zonal_mean(da, bins=2):
-
-    da_vals = xr.DataArray(np.array(da), dims=da.dims)
-
-    lat = xr.DataArray(
-        np.array(da.uxgrid.face_lat),
-        dims=["n_face"],
-        name="lat"
-    )
-
-    lat_bins = np.arange(-90, 90 + bins, bins)
-
-    out = da_vals.groupby_bins(lat, lat_bins).mean()
-
-    # --- find the bin dimension dynamically ---
-    bin_dim = [d for d in out.dims if "bins" in d][0]
-
-    # --- rename to lat ---
-    out = out.rename({bin_dim: "lat"})
-
-    # --- assign midpoints ---
-    lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
-    out = out.assign_coords(lat=lat_mid)
-
-    return out
-
-
-
-
-
 
 
 def ux_to_lat_binned(da, bins=2):
@@ -1296,10 +1266,6 @@ def ux_to_lat_binned(da, bins=2):
         name=da.name,
         attrs=da.attrs
     )
-
-
-
-
 
 
 
@@ -1513,7 +1479,6 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         bdata = ux_to_lat_binned(bdata)
 
     azm = zonal_mean_xr(adata)
-    print("\n----------------------------\nadata.units",adata.units)
     bzm = zonal_mean_xr(bdata)
     diff = azm - bzm
         
@@ -1529,11 +1494,7 @@ def plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
-    units = cp_info['units']
-    print("units????",units)
-    if not units:
-        units = adata.units
-    print("units!!!!!",units,"\n--------------------------")
+    units = cp_info.get('units',adata.units) # Check here because we lose units with `zonal_mean_xr` FIX THIS!
     levels_diff = cp_info['levels_diff']
     cmap_diff = cp_info['cmap_diff']
     norm_diff = cp_info['norm_diff']

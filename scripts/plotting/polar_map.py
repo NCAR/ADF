@@ -75,8 +75,6 @@ def polar_map(adfobj):
     unstruct_plotting = adfobj.unstructured_plotting
     if unstruct_plotting:
         kwargs["unstructured_plotting"] = unstruct_plotting
-        #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
-        #kwargs["mesh_file"] = mesh_file
     else:
         unstructured=False
 
@@ -283,10 +281,8 @@ def polar_map(adfobj):
                         # calculate weights
                         wgt = area * landfrac / (area * landfrac).sum()
                 if comp == "atm":
-                    print(adfobj.native_grid[case_name],adfobj.unstructured_plotting)
                     if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
                         wgt = mdataset.isel(time=0)[var]
-                print("wgt",var,wgt,"\n")
             else:
                 mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
                 """#Skip this variable/case if the regridded climo file doesn't exist:
@@ -350,14 +346,9 @@ def polar_map(adfobj):
                 if has_lev and pres_levs and plot.get('lev'):
                     if not all(dim in mdata.dims for dim in ['lat', 'lev']):
                         continue
-                    """mdata = mdata.sel(lev=plot['lev'])
-                    odata_level = odata.sel(lev=plot['lev'])
-                    vres["lev"] = plot['lev']"""
                 else:
                     if not utils.lat_lon_validate_dims(mdata):
                         continue
-            else:
-                print("OOOOOKKKKKKAAAAyYYY")
 
             if has_lev and pres_levs and plot.get('lev'):
                 mdata = mdata.sel(lev=plot['lev'])

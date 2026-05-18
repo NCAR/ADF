@@ -455,7 +455,6 @@ class AdfData:
                     print(msg)
                     ds = None
                 mesh_file = kwargs["mesh_file"]
-                #print("mesh_file",mesh_file,"\n\n")
                 ds = ux.open_dataset(mesh_file, sfil)
             else:
                 ds = xr.open_dataset(sfil)

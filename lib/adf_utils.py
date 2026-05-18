@@ -196,7 +196,6 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     # 2. Build weights if needed
     # -----------------------------
     if weights is None:
-        print(indata.dims)
         # Case 1: area weights (best for unstructured)
         if 'area' in indata.coords:
             weights = indata['area']
@@ -493,10 +492,6 @@ def domain_stats(data, domain, unstructured=False):
         x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
         x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region['lat']))).mean().item()
     else:
-        #x_region = data
-        #x_region_mean = data.mean().item()
-        #print(data.uxgrid)
-        #print(dir(data.uxgrid))
         lon = data.uxgrid.face_lon.values
         lat = data.uxgrid.face_lat.values
 
@@ -515,9 +510,9 @@ def domain_stats(data, domain, unstructured=False):
 
         imax = x_region.argmax().item()
 
-        print("x_region[imax].item()",x_region[imax].item())
-        print("x_region.uxgrid.face_lat.values[imax]",x_region.uxgrid.face_lat.values[imax])
-        print("x_region.uxgrid.face_lon.values[imax]",x_region.uxgrid.face_lon.values[imax],"\n")
+        #print("x_region[imax].item()",x_region[imax].item())
+        #print("x_region.uxgrid.face_lat.values[imax]",x_region.uxgrid.face_lat.values[imax])
+        #print("x_region.uxgrid.face_lon.values[imax]",x_region.uxgrid.face_lon.values[imax],"\n")
 
 
     x_region_min = x_region.min().item()
@@ -829,11 +824,11 @@ def ensure_latlon(ds, src_grid_file):
     if "lat" in ds and "lon" in ds:
         return ds
 
-    print("Adding lat/lon from grid file")
+    #print("Adding lat/lon from grid file")
 
     grid = xr.open_dataset(src_grid_file)
-    print("grid ncol:", grid.dims.get("ncol"))
-    print("data ncol:", ds.dims.get("ncol"))
+    #print("grid ncol:", grid.dims.get("ncol"))
+    #print("data ncol:", ds.dims.get("ncol"))
 
     return ds.assign_coords({
         "lat": ("ncol", grid["lat"].values),
@@ -996,10 +991,6 @@ def make_se_regridder(weight_file, s_data, d_data,
     if isinstance(d_data, xr.DataArray):
         d_mask = xr.DataArray(d_data.values, dims=("lat", "lon"))  
         dummy_out['mask']= d_mask
-    #print("VAR:",var)            
-    #print("---------------\ndummy_in",dummy_in,"\n\n")
-    #print("dummy_out",dummy_out,"\n\n")
-
 
     # do source and destination grids need masks here?
     # See xesmf docs https://xesmf.readthedocs.io/en/stable/notebooks/Masking.html#Regridding-with-a-mask
