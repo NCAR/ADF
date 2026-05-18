@@ -255,7 +255,8 @@ def wgt_rmse(fld1, fld2, wgt):
     Notes:
     ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
     """
-    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
+    wgt.fillna(0)
+    assert len(fld1.shape) <= 2,     "Input fields must have less than two dimensions."
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     # in case these fields are in dask arrays, compute them now.
     if hasattr(fld1, "compute"):
@@ -456,7 +457,9 @@ def array_diff(a, b, percent=False, fill_nan=None):
     return out
 
 
-def domain_stats(data, domain):
+#Polar Plot functions
+
+def domain_stats(data, domain, unstructured=False):
     """Provides statistics in specified region.
 
     Parameters
@@ -486,8 +489,37 @@ def domain_stats(data, domain):
     spatial_average
 
     """
-    x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
-    x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region['lat']))).mean().item()
+    if not unstructured:
+        x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
+        x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region['lat']))).mean().item()
+    else:
+        #x_region = data
+        #x_region_mean = data.mean().item()
+        #print(data.uxgrid)
+        #print(dir(data.uxgrid))
+        lon = data.uxgrid.face_lon.values
+        lat = data.uxgrid.face_lat.values
+
+        lon_min, lon_max, lat_min, lat_max = domain
+
+        mask = (
+            (lat >= lat_min) &
+            (lat <= lat_max)
+        )
+        
+        indices = np.where(mask)[0]
+        
+        x_region = data.isel(n_face=indices)
+        weights = x_region.uxgrid.face_areas.values
+        x_region_mean = (x_region.values * weights).sum() / weights.sum()
+
+        imax = x_region.argmax().item()
+
+        print("x_region[imax].item()",x_region[imax].item())
+        print("x_region.uxgrid.face_lat.values[imax]",x_region.uxgrid.face_lat.values[imax])
+        print("x_region.uxgrid.face_lon.values[imax]",x_region.uxgrid.face_lon.values[imax],"\n")
+
+
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
