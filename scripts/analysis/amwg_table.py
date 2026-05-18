@@ -173,7 +173,7 @@ def amwg_table(adf):
             input_location = Path(input_ts_locs[case_idx]) / "gridded"
         else:
             input_location = Path(input_ts_locs[case_idx])
-        print("AMWG table input_location",input_location)
+        #print("AMWG table input_location",input_location)
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
             errmsg = f"Time series directory '{input_location}' not found.  Script is exiting."
@@ -304,11 +304,12 @@ def amwg_table(adf):
 
             if unstruct:
                 unstruct_case = True
+
             # we should check if we need to do area averaging:
             if len(data.dims) > 1:
-                    # flags that we have spatial dimensions
-                    # Note: that could be 'lev' which should trigger different behavior
-                    # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
+                # flags that we have spatial dimensions
+                # Note: that could be 'lev' which should trigger different behavior
+                # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
                 if unstruct:
                     ds = adf.data.load_dataset(ts_files, **vres)
                     if 'n_face' in data.dims:
