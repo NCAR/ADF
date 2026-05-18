@@ -93,7 +93,14 @@ class AdfData:
     # Test case(s)
     def get_timeseries_file(self, case, field):
         """Return list of test time series files"""
-        caseindex = (self.case_names).index(case)
+        try:
+            caseindex = self.case_names.index(case)
+        except ValueError:
+            stripped_names = [c.strip() for c in self.case_names]
+            if case.strip() in stripped_names:
+                caseindex = stripped_names.index(case.strip())
+            else:
+                raise
         ts_locs = self.adf.get_cam_info("cam_ts_loc")
 
         if self.adf.native_grid[case] and not self.adf.unstructured_plotting:
@@ -156,7 +163,18 @@ class AdfData:
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find case time series file(s), variable: {variablename}")
             return None
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
+        ds = self.load_timeseries_dataset(fils)
+        if ds is None:
+            return None
+        da = ds[variablename].squeeze()
+        raw_units = da.attrs.get('units', '--')
+        da = da * scale_factor + add_offset
+        if variablename in self.adf.variable_defaults:
+            vres = self.adf.variable_defaults[variablename]
+            da.attrs['units'] = vres.get('new_unit', raw_units)
+        else:
+            da.attrs['units'] = raw_units
+        return da
     
     def load_reference_timeseries_da(self, field):
         """Return a DataArray time series to be used as reference 
@@ -175,7 +193,18 @@ class AdfData:
         else:
             add_offset, scale_factor = self.get_value_converters(self.ref_case_label, field)
 
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
+        ds = self.load_timeseries_dataset(fils)
+        if ds is None:
+            return None
+        da = ds[field].squeeze()
+        raw_units = da.attrs.get('units', '--')
+        da = da * scale_factor + add_offset
+        if field in self.adf.variable_defaults:
+            vres = self.adf.variable_defaults[field]
+            da.attrs['units'] = vres.get('new_unit', raw_units)
+        else:
+            da.attrs['units'] = raw_units
+        return da
 
 
     #------------------

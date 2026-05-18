@@ -163,7 +163,6 @@ def amwg_table(adf):
     #Initialize list of case name csv files for case comparison check later
     csv_list = []
     for case_idx, case_name in enumerate(case_names):
-
         unstruct = adf.unstructured_plotting
 
         #Convert output location string to a Path object:
@@ -174,8 +173,7 @@ def amwg_table(adf):
             input_location = Path(input_ts_locs[case_idx]) / "gridded"
         else:
             input_location = Path(input_ts_locs[case_idx])
-
-        print("input_location",input_location)
+        print("AMWG table input_location",input_location)
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
             errmsg = f"Time series directory '{input_location}' not found.  Script is exiting."
@@ -212,8 +210,6 @@ def amwg_table(adf):
             vres = var_defaults.get(var, {})
 
             #Create list of time series files present for variable:
-            #ts_filenames = f'{case_name}.*.{var}.*nc'
-            #ts_files = sorted(input_location.glob(ts_filenames))
             if case_idx != len(case_names)-1:
                 ts_files = adf.data.get_timeseries_file(case_name, var)
                 vres["mesh_file"] = adf.mesh_files["test_mesh_file"][case_idx]
@@ -236,12 +232,23 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #Load model variable data from file:
-            vres["unstructured_plotting"] = unstruct
-            #ds = adf.data.load_dataset(ts_files, **vres)
-            #data = ds[var]
-
-            data = adf.data.load_da(ts_files, var, **vres)
+            #Load model variable data from time series file(s).
+            #Use time-series-specific loader so time bounds are converted to midpoint
+            #and decoded properly for unstructured files.
+            ds = adf.data.load_timeseries_dataset(ts_files)
+            if ds is None:
+                errmsg = f"\t    WARNING: Could not load time series files for variable '{var}'. Skipping..."
+                warnings.warn(errmsg)
+                continue
+            data = ds[var].squeeze()
+            add_offset, scale_factor = adf.data.get_value_converters(case_name, var)
+            data = data * scale_factor + add_offset
+            raw_units = data.attrs.get('units', '--')
+            if var in adf.variable_defaults:
+                vres = adf.variable_defaults[var]
+                data.attrs['units'] = vres.get('new_unit', raw_units)
+            else:
+                data.attrs['units'] = raw_units
             
             print("data",data.units,"\n\n")
             #Extract units string, if available:
@@ -252,6 +259,7 @@ def amwg_table(adf):
             print("unit_st BEFORE:",unit_str,"\n\n")
             unit_str = latex_to_unicode_units(unit_str)
             print("unit_str AFTER:",unit_str,"\n\n")
+
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
                 print(f"\t    WARNING: Variable '{var}' has a vertical dimension, "+\
@@ -294,6 +302,7 @@ def amwg_table(adf):
             #End if
 
             # In order to get correct statistics, average to annual or seasonal
+            print("data",data,"\n")
             data = utils.annual_mean(data, whole_years=True, time_name='time')
 
             if unstruct:
@@ -315,9 +324,7 @@ def amwg_table(adf):
                     data = utils.spatial_average(data, weights=weights)
                 else:
                     data = utils.spatial_average(data)
-            #ax[i].set_title(f"Mean: {glob_wgt_fld.mean().item():5.2f}\nMax: {fields[i].max().item():5.2f}\nMin: {fields[i].min().item():5.2f}", 
-            #            loc='right', fontsize=tiFontSize)
-            
+
             # Set values for columns
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
                     'standard error', '95% CI', 'trend', 'trend p-value']
@@ -388,35 +395,10 @@ def amwg_table(adf):
 ##################
 # Helper functions
 ##################
-import re
-
-SUPERSCRIPTS = str.maketrans({
-                "0": "⁰",
-                "1": "¹",
-                "2": "²",
-                "3": "³",
-                "4": "⁴",
-                "5": "⁵",
-                "6": "⁶",
-                "7": "⁷",
-                "8": "⁸",
-                "9": "⁹",
-                "-": "⁻",
-            })
-
-def latex_to_unicode_units(unit_str):
-    """
-    Convert LaTeX-style exponents like $^{-1}$ to Unicode superscripts.
-    """
-
-    def repl(match):
-        exponent = match.group(1)
-        return exponent.translate(SUPERSCRIPTS)
-
-    return re.sub(r"\$\^\{([^}]*)\}\$", repl, unit_str)
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:
+
     data_mean = data.data.mean()
     #Conditional Formatting depending on type of float
     if np.abs(data_mean) < 1:
@@ -473,6 +455,33 @@ def _df_comp_table(adf, output_location, case_names):
 
     #Add comparison table dataframe to website (if enabled):
     adf.add_website_data(df_comp, "Case Comparison", case_names[0], plot_type="Tables")
+
+
+import re
+SUPERSCRIPTS = str.maketrans({
+                "0": "⁰",
+                "1": "¹",
+                "2": "²",
+                "3": "³",
+                "4": "⁴",
+                "5": "⁵",
+                "6": "⁶",
+                "7": "⁷",
+                "8": "⁸",
+                "9": "⁹",
+                "-": "⁻",
+            })
+
+def latex_to_unicode_units(unit_str):
+    """
+    Convert LaTeX-style exponents like $^{-1}$ to Unicode superscripts.
+    """
+
+    def repl(match):
+        exponent = match.group(1)
+        return exponent.translate(SUPERSCRIPTS)
+
+    return re.sub(r"\$\^\{([^}]*)\}\$", repl, unit_str)
 
 ##############
 #END OF SCRIPT
