@@ -61,36 +61,6 @@ _LINE2D_PROPS = set(mlines.Line2D([0], [0]).properties().keys())
 #HELPER FUNCTIONS
 #################
 
-def load_dataset(fils):
-    """
-    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
-
-    Parameters
-    ----------
-    fils : list
-        strings or paths to input file(s)
-
-    Returns
-    -------
-    xr.Dataset
-
-    Notes
-    -----
-    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
-    """
-    if len(fils) == 0:
-        warnings.warn(f"\t    WARNING: Input file list is empty.")
-        return None
-    elif len(fils) > 1:
-        return xr.open_mfdataset(fils, combine='by_coords')
-    else:
-        return xr.open_dataset(fils[0])
-    #End if
-#End def
-
-
-#######
-
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""
 
