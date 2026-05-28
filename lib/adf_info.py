@@ -192,9 +192,10 @@ class AdfInfo(AdfConfig):
             self.__baseline_wgts_file = baseline_wgts_file
 
             baseline_regrid_method = None #self.get_baseline_info("regrid_method")
-            #if baseline_regrid_method == 'conservative':
-            #    print("user defined 'conservative', but xesmf has a typo, changing to 'coservative'")
-            #    baseline_regrid_method = 'coservative'
+            if baseline_regrid_method == 'conservative':
+                print("user defined 'conservative', " \
+                "but xesmf has a typo, changing to 'coservative'")
+                baseline_regrid_method = 'coservative'
             self.__baseline_regrid_method = baseline_regrid_method
         else:
             #If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
@@ -223,7 +224,6 @@ class AdfInfo(AdfConfig):
 
             #Check if any time series files are pre-made
             baseline_ts_done   = self.get_baseline_info("cam_ts_done")
-            
             baseline_mesh_file = self.get_baseline_info("mesh_file")
             self.__baseline_mesh_file = baseline_mesh_file
 
@@ -456,7 +456,8 @@ class AdfInfo(AdfConfig):
         #Extract cam history files location:
         cam_hist_locs = self.get_cam_info('cam_hist_loc')
 
-        #Get cleaned nested list of hist_str for test case(s) (component.hist_num, eg cam.h0)
+        #Get cleaned nested list of hist_str for test case(s)
+        #ie (component.hist_num, eg cam.h0)
         cam_hist_str = self.__cam_climo_info.get('hist_str', None)
 
         if not cam_hist_str:
@@ -494,7 +495,8 @@ class AdfInfo(AdfConfig):
             cam_regrid_methods = []
             for regr_method in cam_regrid_method:
                 if regr_method == 'conservative':
-                    print("user defined 'conservative', but xesmf has a typo, changing to 'coservative'")
+                    print("user defined 'conservative', " \
+                    "but xesmf has a typo, changing to 'coservative'")
                     cam_regrid_methods.append('coservative')
                 if regr_method is None:
                     cam_regrid_methods.append('coservative')
@@ -794,7 +796,7 @@ class AdfInfo(AdfConfig):
     def num_cases(self):
         """Return the "num_cases" integer value to the user if requested."""
         return self.__num_cases
-    
+
     # Create property needed to return the model component to user:
     @property
     def model_component(self):
@@ -832,7 +834,7 @@ class AdfInfo(AdfConfig):
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__cam_bl_climo_info)
-    
+
     # Create property needed to return "unstructured_plotting" to user:
     @property
     def unstructured_plotting(self):
@@ -854,10 +856,10 @@ class AdfInfo(AdfConfig):
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
         cam_mesh_files = copy.copy(self.__cam_mesh_files)
-        
         baseline_mesh_file = self.__baseline_mesh_file
 
-        return {"test_mesh_file":cam_mesh_files,"baseline_mesh_file":baseline_mesh_file}
+        return {"test_mesh_file":cam_mesh_files,
+                "baseline_mesh_file":baseline_mesh_file}
 
     # Create property needed to return "num_procs" to user:
     @property
@@ -872,7 +874,7 @@ class AdfInfo(AdfConfig):
         #Note that a copy is needed in order to avoid having a script mistakenly
         #modify this variable:
         return copy.copy(self.__plot_location)
-    
+
     # Create property needed to return the lat/lon file to user:
     @property
     def latlon_files(self):
@@ -881,10 +883,9 @@ class AdfInfo(AdfConfig):
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
         cam_latlon_files = copy.copy(self.__cam_latlon_files)
-        
         baseline_latlon_file = self.__baseline_latlon_file
-
-        return {"test_latlon_file":cam_latlon_files,"baseline_latlon_file":baseline_latlon_file}
+        return {"test_latlon_file":cam_latlon_files,
+                "baseline_latlon_file":baseline_latlon_file}
 
     # Create property needed to return the weight file dictionary to user:
     @property
@@ -894,7 +895,6 @@ class AdfInfo(AdfConfig):
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
         cam_wgts_files = copy.copy(self.__cam_wgts_files)
-        
         baseline_wgts_file = self.__baseline_wgts_file
 
         return {"test_wgts_file":cam_wgts_files,"baseline_wgts_file":baseline_wgts_file}
@@ -907,10 +907,10 @@ class AdfInfo(AdfConfig):
         #Note that copies are needed in order to avoid having a script mistakenly
         #modify these variables, as they are mutable and thus passed by reference:
         cam_regrid_method = copy.copy(self.__cam_regrid_method)
-
         baseline_regrid_method = self.__baseline_regrid_method
 
-        return {"test_regrid_method":cam_regrid_method,"baseline_regrid_method":baseline_regrid_method}
+        return {"test_regrid_method":cam_regrid_method,
+                "baseline_regrid_method":baseline_regrid_method}
     
     # Create property needed to return the unstructured dictionary to user:
     @property
@@ -1111,7 +1111,8 @@ class AdfInfo(AdfConfig):
                 break
             else:
                 logmsg = "get years for time series:"
-                logmsg += f"\n\tVar '{var}' not in dataset, skip to next to try and find climo years..."
+                logmsg += f"\n\tVar '{var}' not in dataset, "
+                logmsg +="skip to next to try and find climo years..."
                 self.debug_log(logmsg)
 
         #Read in file(s)
