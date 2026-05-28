@@ -384,8 +384,8 @@ class AdfDiag(AdfWeb):
             case_type_string = "baseline"
             hist_str_list = [self.hist_string["base_hist_str"]]
 
-            overwrite_regrid_locs = [self.get_baseline_info("cam_overwrite_ts_regrid")]
-            test_output_loc       = [self.get_baseline_info("cam_ts_regrid_loc")]
+            #overwrite_regrid_locs = [self.get_baseline_info("cam_overwrite_ts_regrid")]
+            #test_output_loc       = [self.get_baseline_info("cam_ts_regrid_loc")]
 
         else:
             # Use test case settings, which are already lists:
@@ -399,8 +399,8 @@ class AdfDiag(AdfWeb):
             case_type_string = "test"
             hist_str_list = self.hist_string["test_hist_str"]
 
-            overwrite_regrid_locs = self.get_cam_info("cam_overwrite_ts_regrid")
-            test_output_loc       = self.get_cam_info("cam_ts_regrid_loc")
+            #overwrite_regrid_locs = self.get_cam_info("cam_overwrite_ts_regrid")
+            #test_output_loc       = self.get_cam_info("cam_ts_regrid_loc")
         # End if
 
         # Read hist_str (component.hist_num) from the yaml file, or set to default
@@ -445,7 +445,8 @@ class AdfDiag(AdfWeb):
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
 
-                print(f"\t Processing time series for {case_type_string} case '{case_name}', {hist_str} files:")
+                print(f"\t Processing time series for {case_type_string} case  \
+                      '{case_name}', {hist_str} files:")
                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
                     emsg = (
                         f"No history *{hist_str}.*.nc files found in '{starting_location}'."
@@ -828,11 +829,13 @@ class AdfDiag(AdfWeb):
                 #for fil in fils:
                     fils = glob.glob(f"{ts_dir}/*.{var}.{time_string}.nc")
                     if not fils:
-                        print(f"Uh oh, no files found for {var} with time string {time_string} in {ts_dir}")
+                        print(f"Uh oh, no files found for {var} with time string" \
+                              f"{time_string} in {ts_dir}")
                         print("Will check for derived vars later.")
                         continue
                     if len(fils) > 1:
-                        print("Uh oh, too many files :(\nCheck the time series directory for duplicates.")
+                        print("Uh oh, too many files :(" \
+                        "\nCheck the time series directory for duplicates.")
                         continue
 
                     fil = fils[0]
@@ -909,8 +912,8 @@ class AdfDiag(AdfWeb):
             if self.native_grid[case_name] and not unstruct_plotting:
                 tgridded_output_loc   = Path(ts_dir) / "gridded"
                 if not tgridded_output_loc.is_dir():
-                        print(f"    {tgridded_output_loc} not found, making new directory")
-                        tgridded_output_loc.mkdir(parents=True)
+                    print(f"    {tgridded_output_loc} not found, making new directory")
+                    tgridded_output_loc.mkdir(parents=True)
 
                 for f in sorted(Path(ts_dir).glob("*.nc")):
                     #print("native (hopefully) file",f)
@@ -968,7 +971,7 @@ class AdfDiag(AdfWeb):
 
                         tgdata_interp['hybm'] = ts_file_ds.hybm
                         tgdata_interp['hyam'] = ts_file_ds.hyam
-     
+
                     save_to_nc(tgdata_interp, tgridded_output)
                     # End for
                 # End if check for native grid
@@ -1387,7 +1390,7 @@ class AdfDiag(AdfWeb):
 
             # Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
-                ermsg = f"\t    WARNING: Not all constituent files present;"
+                ermsg = "\t    WARNING: Not all constituent files present;"
                 ermsg += f" {var} cannot be calculated."
                 ermsg += f" Please remove {var} from 'diag_var_list' or find the "
                 ermsg += "relevant CAM files.\n"
@@ -1736,7 +1739,7 @@ def _load_dataset(fils):
     When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
     """
 
-    import utils as utils
+    #import adf_utils as utils
     import warnings # use to warn user about missing files
     warnings.formatwarning = utils.my_formatwarning
 
