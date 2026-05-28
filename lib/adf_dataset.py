@@ -1,5 +1,6 @@
 from pathlib import Path
 import xarray as xr
+import uxarray as ux
 
 import adf_utils as utils
 import warnings # use to warn user about missing files
@@ -44,7 +45,7 @@ class AdfData:
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
         # paths 
-        self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
+        #self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
         # variables (and info for unit transform)
         # use self.adf.diag_var_list and self.adf.self.adf.variable_defaults
@@ -92,9 +93,22 @@ class AdfData:
     # Test case(s)
     def get_timeseries_file(self, case, field):
         """Return list of test time series files"""
-        ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True) # list of paths (could be multiple cases)
-        caseindex = (self.case_names).index(case)
-        ts_loc = Path(ts_locs[caseindex])
+        try:
+            caseindex = self.case_names.index(case)
+        except ValueError:
+            stripped_names = [c.strip() for c in self.case_names]
+            if case.strip() in stripped_names:
+                caseindex = stripped_names.index(case.strip())
+            else:
+                raise
+        ts_locs = self.adf.get_cam_info("cam_ts_loc")
+
+        if self.adf.native_grid[case] and not self.adf.unstructured_plotting:
+            ts_loc = Path(ts_locs[caseindex]) / "gridded"
+        else:
+            ts_loc = Path(ts_locs[caseindex])
+
+        #ts_loc = Path(ts_locs[caseindex])
         ts_filenames = f'{case}.*.{field}.*nc'
         ts_files = sorted(ts_loc.glob(ts_filenames))
         return ts_files
@@ -149,7 +163,18 @@ class AdfData:
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find case time series file(s), variable: {variablename}")
             return None
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
+        ds = self.load_timeseries_dataset(fils)
+        if ds is None:
+            return None
+        da = ds[variablename].squeeze()
+        raw_units = da.attrs.get('units', '--')
+        da = da * scale_factor + add_offset
+        if variablename in self.adf.variable_defaults:
+            vres = self.adf.variable_defaults[variablename]
+            da.attrs['units'] = vres.get('new_unit', raw_units)
+        else:
+            da.attrs['units'] = raw_units
+        return da
     
     def load_reference_timeseries_da(self, field):
         """Return a DataArray time series to be used as reference 
@@ -168,7 +193,18 @@ class AdfData:
         else:
             add_offset, scale_factor = self.get_value_converters(self.ref_case_label, field)
 
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
+        ds = self.load_timeseries_dataset(fils)
+        if ds is None:
+            return None
+        da = ds[field].squeeze()
+        raw_units = da.attrs.get('units', '--')
+        da = da * scale_factor + add_offset
+        if field in self.adf.variable_defaults:
+            vres = self.adf.variable_defaults[field]
+            da.attrs['units'] = vres.get('new_unit', raw_units)
+        else:
+            da.attrs['units'] = raw_units
+        return da
 
 
     #------------------
@@ -178,37 +214,31 @@ class AdfData:
     #------------------
 
     # Test case(s)
+    def get_climo_file(self, case, variablename):
+        """Retrieve the climo file path(s) for variablename for a specific case."""
+        caseindex = (self.case_names).index(case) # the entry for specified case
+        #if native_grid:
+        if 2==1:
+            a = self.adf.get_cam_info("cam_climo_loc/gridded", required=True)
+        else:    
+            a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
+        model_cl_loc = Path(a[caseindex])
+        return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
+    
     def load_climo_da(self, case, variablename):
         """Return DataArray from climo file"""
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_climo_file(case, variablename)
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
-
-
-    def load_climo_file(self, case, variablename):
-        """Return Dataset for climo of variablename"""
-        fils = self.get_climo_file(case, variablename)
-        if not fils:
-            warnings.warn(f"\t    WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
-            return None
-        return self.load_dataset(fils)
     
-
-    def get_climo_file(self, case, variablename):
-        """Retrieve the climo file path(s) for variablename for a specific case."""
-        a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
-        caseindex = (self.case_names).index(case) # the entry for specified case
-        model_cl_loc = Path(a[caseindex])
-        return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
-
+    def load_climo_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_climo_file(case, field)
+        if not fils:
+            return None
+        return self.load_dataset(fils, **kwargs)
 
     # Reference case (baseline/obs)
-    def load_reference_climo_da(self, case, variablename):
-        """Return DataArray from reference (aka baseline) climo file"""
-        add_offset, scale_factor = self.get_value_converters(case, variablename)
-        fils = self.get_reference_climo_file(variablename)
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
-
     def get_reference_climo_file(self, var):
         """Return a list of files to be used as reference (aka baseline) for variable var."""
         if self.adf.compare_obs:
@@ -220,6 +250,27 @@ class AdfData:
         if fils:
             return fils
         return None
+
+    def load_reference_climo_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_reference_climo_file(field)
+        if not fils:
+            return None
+        return self.load_dataset(fils, **kwargs)
+
+    '''
+    def load_reference_climo_da(self, case, variablename, **kwargs):
+        """Return DataArray from reference (aka baseline) climo file"""
+        add_offset, scale_factor = self.get_value_converters(case, variablename)
+        fils = self.get_reference_climo_file(variablename)
+        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
+    '''
+    
+    def load_reference_climo_da(self, case, variablename, **kwargs):
+        """Return DataArray from reference (aka baseline) climo file"""
+        fils = self.get_reference_climo_file(variablename)
+        kwargs = self._ensure_scaling_kwargs(case, variablename, kwargs)
+        return self.load_da(fils, variablename, **kwargs)
 
     #------------------
 
@@ -234,25 +285,40 @@ class AdfData:
         rlbl = self.ref_labels[field]  # rlbl = "reference label" = the name of the reference data that defines target grid
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
-
-    def load_regrid_dataset(self, case, field):
+    '''def load_regrid_dataset(self, case, field):
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
-        return self.load_dataset(fils)
-
+        return self.load_dataset(fils)'''
     
-    def load_regrid_da(self, case, field):
+    def load_regrid_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_regrid_file(case, field)
+        if not fils:
+            warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_dataset(fils, **kwargs)
+
+    '''def load_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
             return None
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
-
+        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)'''
+    
+    def load_regrid_da(self, case, field, **kwargs):
+        """Return a data array to be used as reference (aka baseline) for variable field."""
+        kwargs = self._ensure_scaling_kwargs(case, field, kwargs)
+        fils = self.get_regrid_file(case, field)
+        if not fils:
+            warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            return None
+        #return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor, **kwargs)
+        return self.load_da(fils, field, **kwargs)
 
     # Reference case (baseline/obs)
     def get_ref_regrid_file(self, case, field):
@@ -269,16 +335,17 @@ class AdfData:
         return fils
 
 
-    def load_reference_regrid_dataset(self, case, field):
+    '''def load_reference_regrid_dataset(self, case, field):
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(f"\t    WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
             return None
-        return self.load_dataset(fils)
+        return self.load_dataset(fils)'''
+
 
     
-    def load_reference_regrid_da(self, case, field):
+    ''' def load_reference_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
@@ -289,7 +356,33 @@ class AdfData:
         # listed in variable defaults for this observation field
         if self.adf.compare_obs:
             field = self.ref_var_nam[field]
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
+        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)'''
+
+
+    def load_reference_regrid_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_ref_regrid_file(case, field)
+        if not fils:
+            warnings.warn(f"\t  DATASET  WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            return None
+        return self.load_dataset(fils, **kwargs)
+
+    
+    def load_reference_regrid_da(self, case, field, **kwargs):
+        """Return a data array to be used as reference (aka baseline) for variable field."""
+        fils = self.get_ref_regrid_file(case, field)
+        if not fils:
+            warnings.warn(f"\t  DATAARRAY  WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            return None
+        #Change the variable name from CAM standard to what is
+        # listed in variable defaults for this observation field
+        if self.adf.compare_obs:
+            field = self.ref_var_nam[field]
+        kwargs = self._ensure_scaling_kwargs(case, field, kwargs)
+        if 'regridded' in str(fils[0]):
+            kwargs['scale_factor'] = 1
+            kwargs['add_offset'] = 0
+        return self.load_da(fils, field, **kwargs)
 
     #------------------
 
@@ -297,7 +390,7 @@ class AdfData:
     # DataSet and DataArray load
     #---------------------------
 
-    # Load DataSet
+    '''# Load DataSet
     def load_dataset(self, fils):
         """Return xarray DataSet from file(s)"""
         if (len(fils) == 0):
@@ -323,14 +416,73 @@ class AdfData:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
+        raw_units = da.attrs.get('units', '--')
         scale_factor = kwargs.get('scale_factor', 1)
         add_offset = kwargs.get('add_offset', 0)
         da = da * scale_factor + add_offset
         if variablename in self.adf.variable_defaults:
             vres = self.adf.variable_defaults[variablename]
-            da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
+            da.attrs['units'] = vres.get("new_unit", raw_units)
         else:
-            da.attrs['units'] = 'none'
+            da.attrs['units'] = raw_units
+        return da'''
+    
+
+    # TODO, make uxarray options for all of these fuctions.  
+    # What's the most robust way to handle this?
+
+    # Load DataSet
+    def load_dataset(self, fils, **kwargs):
+        """Return xarray DataSet from file(s)"""
+
+        unstructured_plotting = kwargs.get("unstructured_plotting",False)
+
+        if not fils:
+            warnings.warn("\t    WARNING: Input file list is empty.")
+            return None
+        elif (len(fils) > 1):
+            ds = xr.open_mfdataset(fils, combine='by_coords')
+        else:
+            sfil = str(fils[0])
+            if not Path(sfil).is_file():
+                warnings.warn(f"\t    WARNING: Expecting to find file: {sfil}")
+                return None
+            if unstructured_plotting:
+                if "mesh_file" not in kwargs:
+                    msg = "\t   WARNING: Unstructured plotting is requested, but no available mesh file."
+                    msg += " Please make sure 'mesh_file' is declared in the config yaml file"
+                    msg += "\n\t   NOTE: many mesh files can be found at /glade/campaign/cesm/cesmdata/inputdata/share/meshes/"
+                    print(msg)
+                    ds = None
+                mesh_file = kwargs["mesh_file"]
+                ds = ux.open_dataset(mesh_file, sfil)
+            else:
+                ds = xr.open_dataset(sfil)
+        if ds is None:
+            warnings.warn(f"\t    WARNING: invalid data on load_dataset")
+        return ds
+
+    # Load DataArray
+    def load_da(self, fils, variablename, **kwargs):
+        """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
+        ds = self.load_dataset(fils, **kwargs)
+        if ds is None:
+            warnings.warn(f"\t    WARNING: Load failed for {variablename}")
+            return None
+        da = (ds[variablename]).squeeze()
+        raw_units = da.attrs.get('units', '--')
+
+        scale_factor = kwargs.get('scale_factor', 1)
+        add_offset = kwargs.get('add_offset', 0)
+        self.adf.debug_log(f"scale_factor {scale_factor}")
+        self.adf.debug_log(f"add_offset {add_offset}")
+        da = da * scale_factor + add_offset
+
+        if variablename in self.adf.variable_defaults:
+            vres = self.adf.variable_defaults[variablename]
+            da.attrs['units'] = vres.get("new_unit", raw_units)
+        else:
+            da.attrs['units'] = raw_units
         return da
 
     # Get variable conversion defaults, if applicable
@@ -358,6 +510,14 @@ class AdfData:
                     scale_factor = vres.get("scale_factor",1)
                     add_offset = vres.get("add_offset", 0)
         return add_offset, scale_factor
+    
+    def _ensure_scaling_kwargs(self, case, variablename, kwargs):
+        """Ensure scale_factor/add_offset are present without overwriting or double counting explicit values."""
+        if ("scale_factor" not in kwargs) or ("add_offset" not in kwargs):
+            add_offset, scale_factor = self.get_value_converters(case, variablename)
+            kwargs.setdefault("scale_factor", scale_factor)
+            kwargs.setdefault("add_offset", add_offset)
+        return kwargs
 
     #------------------
 

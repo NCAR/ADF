@@ -30,7 +30,7 @@ def qbo(adfobj):
 
     #Extract relevant info from the ADF:
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
-    case_loc = adfobj.get_cam_info('cam_ts_loc', required=True)
+    case_locs = adfobj.get_cam_info('cam_ts_loc', required=True)
     base_name = adfobj.get_baseline_info('cam_case_name')
     base_loc = adfobj.get_baseline_info('cam_ts_loc')
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
@@ -86,7 +86,7 @@ def qbo(adfobj):
 
     #Check if model vs model run, and if so, append baseline to case lists:
     if not adfobj.compare_obs:
-        case_loc.append(base_loc)
+        case_locs.append(base_loc)
         case_names.append(base_name)
     #End if
 
@@ -94,12 +94,44 @@ def qbo(adfobj):
     obs = xr.open_dataset(obsdir+"/U_ERA5_5S_5N_1979_2019.nc").U_5S_5N
 
     #----Read in the case data and baseline
-    ncases = len(case_loc)
-    casedat = [utils.load_dataset(sorted(Path(case_loc[i]).glob(f"{case_names[i]}.*.U.*.nc"))) for i in range(0,ncases,1)]
+    ncases = len(case_locs)
+    #casedat = [pf.load_dataset(sorted(Path(case_locs[i]).glob(f"{case_names[i]}.*.U.*.nc"))) for i in range(0,ncases,1)]
+    casedat = []
+    for i in range(0,ncases,1):
+        """#sorted(Path(case_locs[i]).glob(f"{case_names[i]}.*.U.*.nc")))
+        #Create list of time series files present for variable:
+        # Note that we hard-code for h0 because we only want to make climos of monthly output
+        if i == ncases-1:
+            ts_files = adfobj.data.get_ref_timeseries_file("U")
+        else:
+            ts_files = adfobj.data.get_timeseries_file(case_names[i], "U")
+        
+        #input_location  = Path(input_ts_locs[case_idx])
+
+        #If no files exist, try to move to next variable. --> Means we can not proceed with this variable,
+        # and it'll be problematic later unless there are multiple hist file streams and the variable is in the others
+        if not ts_files:
+            errmsg = f"\t    WARNING: Time series files for variable 'U' not found.  Script will continue to next variable.\n"
+            errmsg += f"\t      The input location searched was: {case_locs[i]}."
+            print(errmsg)
+            logmsg = f"climo file generation: The input location searched was: {case_locs[i]}. The glob pattern was {ts_files}."
+            #Write to debug log if enabled:
+            adfobj.debug_log(logmsg)
+            #  end_diag_script(errmsg) # Previously we would kill the run here.
+            continue"""
+        
+        grid_path = Path(case_locs[i]) / "gridded"
+        if grid_path.is_dir():
+            print("Using gridded file, eh?")
+            case_ts_loc = grid_path
+        else:
+            case_ts_loc = case_locs[i]
+        casedat.append(utils.load_dataset(sorted(Path(case_ts_loc).glob(f"{case_names[i]}.*.U.*.nc"))))
 
     #Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []
     for idx, dat in enumerate(casedat):
+        #print("QBO dat.variables",dat.variables)
         if 'U' not in dat.variables:
             warnings.warn(f"\t    WARNING: Case {case_names[idx]} contains no 'U' field, skipping...")
             bad_idxs.append(idx)
@@ -118,7 +150,7 @@ def qbo(adfobj):
     for i in range(0,ncases,1):
         has_dims = utils.validate_dims(casedat[i].U, ['lon'])
         if not has_dims['has_lon']:
-            print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_loc[i]}', cannot continue to plot.")
+            print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_locs[i]}', cannot continue to plot.")
         else:
             casedatzm.append(casedat[i].U.mean("lon"))
     if len(casedatzm) == 0:

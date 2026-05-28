@@ -65,6 +65,14 @@ def global_latlon_vect_map(adfobj):
     #all generated plots and tables:
     plot_locations = adfobj.plot_location
 
+    kwargs = {}
+    # Check for unstructured simulations
+    unstruct_plotting = adfobj.unstructured_plotting
+    if unstruct_plotting:
+        kwargs["unstructured_plotting"] = unstruct_plotting
+    else:
+        unstructured=False
+
     #CAM simulation variables:
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
 
@@ -117,6 +125,9 @@ def global_latlon_vect_map(adfobj):
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
+    comp = adfobj.model_component
+    unstructured = False
+
     #-----------------------------------------
 
     #Set input/output data path variables:
@@ -153,6 +164,8 @@ def global_latlon_vect_map(adfobj):
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
+            vres["unstructured_plotting"] = unstruct_plotting
+            vres = plot_utils.add_var_to_vres(adfobj, var, vres)
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
 
@@ -160,9 +173,11 @@ def global_latlon_vect_map(adfobj):
             web_category = vres.get("category", None)
 
         else:
-            adfobj.debug_log(f"global_latlon_vect_map: Skipping '{var}' as no variable defaults were found")
-            continue
+            vres = {}
+            web_category = None
         #End if
+
+        vres["plot_type"] = __name__
 
         #Make sure that variable is part of a vector pair:
         if "vector_pair" in vres:
@@ -233,59 +248,46 @@ def global_latlon_vect_map(adfobj):
 
         #loop over different data sets to plot model against:
         for data_src in data_list:
-
-            # load data (observational) commparison files (we should explore intake as an alternative to having this kind of repeated code):
-            if adfobj.compare_obs:
-                #For now, only grab one file (but convert to list for use below)
-                uoclim_fils = [udclimo_loc]
-                voclim_fils = [vdclimo_loc]
+            if unstruct_plotting:
+                mesh_file = adfobj.mesh_files["baseline_mesh_file"]
+                kwargs["mesh_file"] = mesh_file
+                uodata = adfobj.data.load_reference_regrid_da(base_name, data_var[0], **kwargs)
+                vodata = adfobj.data.load_reference_regrid_da(base_name, data_var[1], **kwargs)
+                unstruct_base = True
+                odataset = adfobj.data.load_reference_regrid_dataset(base_name, data_var[0], **kwargs)
+                o_has_dims = utils.validate_dims(uodata, [ "lev"])
+                if comp == "lnd": 
+                    area = odataset.area.isel(time=0)
+                    landfrac = odataset.landfrac.isel(time=0)
+                    # calculate weights
+                    wgt_base = area * landfrac / (area * landfrac).sum()
+                if comp == "atm":
+                    wgt_base = odataset.isel(time=0)[var]
             else:
-                uoclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[0]}_baseline.nc"))
-                voclim_fils = sorted(dclimo_loc.glob(f"{data_src}_{data_var[1]}_baseline.nc"))
-            #End if
+                uodata = adfobj.data.load_reference_regrid_da(base_name, data_var[0], **kwargs)
+                vodata = adfobj.data.load_reference_regrid_da(base_name, data_var[1], **kwargs)
+                if (uodata is None) or (vodata is None):
+                    
+                    dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+                    adfobj.debug_log(dmsg)
+                    continue
+                o_has_dims = utils.validate_dims(uodata    , ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
+                if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
+                    print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
+                    continue
 
-            if len(uoclim_fils) > 1:
-                uoclim_ds = xr.open_mfdataset(uoclim_fils, combine='by_coords')
-            elif len(uoclim_fils) == 1:
-                sfil = str(uoclim_fils[0])
-                uoclim_ds = xr.open_dataset(sfil)
-            else:
-                print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
-                print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t      The glob is: {data_src}_{data_var[0]}_*.nc")
+            if uodata is None:
+                dmsg = f"\t    WARNING: No baseline file for {base_name} for variable `{data_var[0]}`, global lat/lon mean plotting skipped."
+                #dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, will"
+                adfobj.debug_log(dmsg)
+                print(dmsg)
                 continue
-            #End if
-
-            if len(voclim_fils) > 1:
-                voclim_ds = xr.open_mfdataset(voclim_fils, combine='by_coords')
-            elif len(voclim_fils) == 1:
-                sfil = str(voclim_fils[0])
-                voclim_ds = xr.open_dataset(sfil)
-            else:
-                print("\t    WARNING: Did not find any regridded reference climo files. Will try to skip.")
-                print(f"\t    INFO: Data Location, dclimo_loc is {dclimo_loc}")
-                print(f"\t      The glob is: {data_src}_{data_var[1]}_*.nc")
+            if vodata is None:
+                dmsg = f"\t    WARNING: No baseline file for {base_name} for variable `{data_var[1]}`, global lat/lon mean plotting skipped."
+                #dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, will"
+                adfobj.debug_log(dmsg)
+                print(dmsg)
                 continue
-            #End if
-
-            #Extract variables of interest:
-            uodata = uoclim_ds[data_var[0]].squeeze()  # squeeze in case of degenerate dimensions
-            vodata = voclim_ds[data_var[1]].squeeze()  # squeeze in case of degenerate dimensions
-
-            #Convert units if requested (assumes units between model and data are the same):
-            uodata = uodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-            vodata = vodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-
-            #Check zonal mean dimensions
-            has_lat_ref, has_lev_ref = utils.zm_validate_dims(uodata)
-
-            # check if there is a lat dimension:
-            if not has_lat_ref:
-                print(
-                    f"\t    WARNING: Variable '{var}' is missing a lat dimension for '{base_name}', cannot continue to plot."
-                )
-                continue
-            # End if
 
             #Loop over model cases:
             for case_idx, case_name in enumerate(case_names):
@@ -302,78 +304,95 @@ def global_latlon_vect_map(adfobj):
                     plot_loc.mkdir(parents=True)
                 #End if
 
-                # load re-gridded model files:
-                umclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var}_*.nc"))
-                vmclim_fils = sorted(mclimo_rg_loc.glob(f"{data_src}_{case_name}_{var_pair}_*.nc"))
+                if unstruct_plotting:
+                    mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
+                    kwargs["mesh_file"] = mesh_file
+                    vres["mesh_file"] = mesh_file
+                    umdata = adfobj.data.load_regrid_da(case_name, data_var[0], **kwargs)
+                    vmdata = adfobj.data.load_regrid_da(case_name, data_var[1], **kwargs)
 
-                if len(umclim_fils) > 1:
-                    umclim_ds = xr.open_mfdataset(umclim_fils, combine='by_coords')
-                elif len(umclim_fils) == 1:
-                    umclim_ds = xr.open_dataset(umclim_fils[0])
+                    unstruct_case = True
+                    mdataset = adfobj.data.load_regrid_dataset(case_name, data_var[0], **kwargs)
+                    #Determine dimensions of variable:
+                    m_has_dims = utils.validate_dims(umdata, [ "lev"])
+                    if comp == "lnd": 
+                        area = mdataset.area.isel(time=0)
+                        landfrac = mdataset.landfrac.isel(time=0)
+                        # calculate weights
+                        wgt = area * landfrac / (area * landfrac).sum()
+                    if comp == "atm":
+                        wgt = mdataset.isel(time=0)[var]
+                        #print("LATLON FUNC wgt",wgt,"\n")
                 else:
-                    print("\t    WARNING: Did not find any regridded test climo files. Will try to skip.")
-                    print(f"\t    INFO: Data Location, mclimo_rg_loc, is {mclimo_rg_loc}")
-                    print(f"\t      The glob is: {data_src}_{case_name}_{var}_*.nc")
+                    umdata = adfobj.data.load_regrid_da(case_name, data_var[0])
+                    vmdata = adfobj.data.load_regrid_da(case_name, data_var[1])
+                    #Skip this variable/case if the regridded climo file doesn't exist:
+                    if (umdata is None) or (vmdata is None):
+                        dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+                        adfobj.debug_log(dmsg)
+                        continue
+                    #Determine dimensions of variable:
+                    m_has_dims = utils.validate_dims(umdata, ["lat", "lon", "lev"])
+                    if (not m_has_dims['has_lat']) or (not m_has_dims['has_lon']):
+                        print(f"\t    WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
+                        continue
+                    else: # i.e., has lat&lon
+                        if (m_has_dims['has_lev']) and (not pres_levs):
+                            print(f"\t    WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
+                            continue
+                #Skip this variable/case if the regridded climo file doesn't exist:
+                if (umdata is None) or (vmdata is None):
+                    dmsg = f"\t    WARNING: No test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
+                    adfobj.debug_log(dmsg)
                     continue
-                #End if
 
-                if len(vmclim_fils) > 1:
-                    vmclim_ds = xr.open_mfdataset(vmclim_fils, combine='by_coords')
-                elif len(vmclim_fils) == 1:
-                    vmclim_ds = xr.open_dataset(vmclim_fils[0])
-                else:
-                    #The vector pair was never processed, so skip varaible:
-                    print(f"\t    WARNING: Missing vector pair '{var_pair}' for variable '{var}', so skipping variable")
-                    continue
-                #End if
 
-                #Extract variable of interest
-                umdata = umclim_ds[var].squeeze()
-                vmdata = vmclim_ds[var_pair].squeeze()
 
-                #Convert units if requested:
-                umdata = umdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-                vmdata = vmdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-
-                #Check dimensions:
-                has_lat, has_lev = utils.zm_validate_dims(umdata)
-
-                # check if there is a lat dimension:
-                if not has_lat:
-                    print(
-                        f"\t -  {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
-                    )
-                    continue
-                # End if
-
-                # update units
-                # NOTE: looks like our climo files don't have all their metadata
-                uodata.attrs['units'] = vres.get("new_unit", uodata.attrs.get('units', 'none'))
-                vodata.attrs['units'] = vres.get("new_unit", vodata.attrs.get('units', 'none'))
-                umdata.attrs['units'] = vres.get("new_unit", umdata.attrs.get('units', 'none'))
-                vmdata.attrs['units'] = vres.get("new_unit", vmdata.attrs.get('units', 'none'))
-
-                #Determine if observations/baseline have the correct dimensions:
-                if has_lev:
-                    has_dims = utils.lat_lon_validate_dims(uodata.isel(lev=0))
-                else:
-                    has_dims = utils.lat_lon_validate_dims(uodata)
-                #End if
-
-                if has_dims:
-                    #If observations/baseline CAM have the correct
-                    #dimensions, does the input CAM run have correct
-                    #dimensions as well?
-                    if has_lev_ref:
-                        has_dims_cam = utils.lat_lon_validate_dims(umdata.isel(lev=0))
+                #Determine dimensions of variable:
+                if unstruct_plotting:
+                    #has_dims = {}
+                    if len(wgt.n_face) == len(wgt_base.n_face):
+                        vres["wgt"] = wgt
+                        vres["indataset"] = mdataset
+                        #has_dims = {}
+                        #has_dims['has_lev'] = False
                     else:
-                        has_dims_cam = utils.lat_lon_validate_dims(umdata)
-                    #End if
-                #End if
+                        print("The weights are different between test and baseline. Won't continue, eh.")
+                        return
+
+                    if (not unstruct_case) and (unstruct_base):
+                        print("Base is unstructured but Test is lat/lon. Can't continue?")
+                        return
+                    if (unstruct_case) and (not unstruct_base):
+                        print("Base is lat/lon but Test is unstructured. Can't continue?")
+                        return
+                    if (unstruct_case) and (unstruct_base):
+                        unstructured=True
+                    if (not unstruct_case) and (not unstruct_base):
+                        unstructured=False
+                # Check output file. If file does not exist, proceed.
+                # If file exists:
+                #   if redo_plot is true: delete it now and make plot
+                #   if redo_plot is false: add to website and move on
+                """doplot = {}
+
+                if (not m_has_dims['has_lev']) or (not o_has_dims['has_lev']):
+                    for s in seasons:
+                        plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
+                        doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon")
+                else:
+                    for pres in pres_levs:
+                        for s in seasons:
+                            plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
+                            doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon")
+                if all(value is None for value in doplot.values()):
+                    print(f"\t    INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
+                    continue"""
 
                 #If both fields have the required dimensions, then
                 #proceed with plotting:
-                if has_dims_cam:
+                #if has_dims_cam:
+                if 1==1:
 
                     #
                     # Seasonal Averages
@@ -388,9 +407,12 @@ def global_latlon_vect_map(adfobj):
                     uoseasons = {}
                     voseasons = {}
                     udseasons = {} # hold the differences
-                    vdseasons = {} # hold the differences
+                    vdseasons = {}
+                    upseasons = {} # hold the percent differences
+                    vpseasons = {}
 
-                    if has_lev:
+                    #if has_lev:
+                    if m_has_dims['has_lev']:
 
                         # Loop over levels
                         for lv in pres_levs:
@@ -399,11 +421,12 @@ def global_latlon_vect_map(adfobj):
                             #exists in the model data, which should already
                             #have been interpolated to the standard reference
                             #pressure levels:
-                            if not (lv in umclim_ds['lev']):
-                                #Move on to the next pressure level:
-                                print(f"\t plot_press_levels value '{lv}' not a standard reference pressure, so skipping.")
+                            if (not (lv in umdata['lev'])) or (not (lv in uodata['lev'])):
+                                print(f"\t    WARNING: plot_press_levels value '{lv}' not present in {var} [test: {(lv in umdata['lev'])}, ref: {lv in uodata['lev']}], so skipping.")
                                 continue
-                            #End if
+
+                            vres['lev'] = int(lv)
+                            vres["vector"] = True
 
                             #Loop over season dictionary:
                             for s in seasons:
@@ -414,6 +437,22 @@ def global_latlon_vect_map(adfobj):
                                 # difference: each entry should be (lat, lon)
                                 udseasons[s] = umseasons[s] - uoseasons[s]
                                 vdseasons[s] = vmseasons[s] - voseasons[s]
+
+                                upseasons[s] = (umseasons[s] - uoseasons[s]) / np.abs(uoseasons[s]) * 100.0
+                                upseasons[s] = upseasons[s].where(np.isfinite(upseasons[s]), np.nan)
+                                vpseasons[s] = (vmseasons[s] - voseasons[s]) / np.abs(voseasons[s]) * 100.0
+                                vpseasons[s] = vpseasons[s].where(np.isfinite(vpseasons[s]), np.nan)
+
+                                vres["umdlfld_nowrap"] = umseasons[s]
+                                vres["vmdlfld_nowrap"] = vmseasons[s]
+                                vres["uobsfld_nowrap"] = uoseasons[s]
+                                vres["vobsfld_nowrap"] = voseasons[s]
+                                vres["udiffld_nowrap"] = udseasons[s]
+                                vres["vdiffld_nowrap"] = vdseasons[s]
+                                vres["upctdiffld_nowrap"] = upseasons[s]
+                                vres["vpctdiffld_nowrap"] = vpseasons[s]
+
+                                vres["season"] = s
 
                                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -435,7 +474,6 @@ def global_latlon_vect_map(adfobj):
                                 # pass in casenames
                                 vres["case_name"] = case_name
                                 vres["baseline"] = data_src
-                                vres["var_name"] = var_name
 
                                 #Create new plot:
                                 # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
@@ -444,12 +482,12 @@ def global_latlon_vect_map(adfobj):
                                 #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                                 #   *Any other entries will be ignored.
                                 # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                pf.plot_map_vect_and_save(plot_name, case_nickname, base_nickname,
-                                                        [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                        [syear_baseline,eyear_baseline],lv,
-                                                        umseasons[s], vmseasons[s],
-                                                        uoseasons[s], voseasons[s],
-                                                        udseasons[s], vdseasons[s], obs, **vres)
+                                pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
+                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                    [syear_baseline,eyear_baseline],
+                                                    umseasons[s], uoseasons[s],
+                                                    udseasons[s], upseasons[s],
+                                                    obs=obs, unstructured=unstructured, **vres)
 
                                 #Add plot to website (if enabled):
                                 adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
@@ -468,6 +506,23 @@ def global_latlon_vect_map(adfobj):
                             # difference: each entry should be (lat, lon)
                             udseasons[s] = umseasons[s] - uoseasons[s]
                             vdseasons[s] = vmseasons[s] - voseasons[s]
+
+                            upseasons[s] = (umseasons[s] - uoseasons[s]) / np.abs(uoseasons[s]) * 100.0
+                            upseasons[s] = upseasons[s].where(np.isfinite(upseasons[s]), np.nan)
+                            vpseasons[s] = (vmseasons[s] - voseasons[s]) / np.abs(voseasons[s]) * 100.0
+                            vpseasons[s] = vpseasons[s].where(np.isfinite(vpseasons[s]), np.nan)
+
+                            vres["umdlfld_nowrap"] = umseasons[s]
+                            vres["vmdlfld_nowrap"] = vmseasons[s]
+                            vres["uobsfld_nowrap"] = uoseasons[s]
+                            vres["vobsfld_nowrap"] = voseasons[s]
+                            vres["udiffld_nowrap"] = udseasons[s]
+                            vres["vdiffld_nowrap"] = vdseasons[s]
+                            vres["upctdiffld_nowrap"] = upseasons[s]
+                            vres["vpctdiffld_nowrap"] = vpseasons[s]
+
+                            vres["season"] = s
+                            vres["vector"] = True
 
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -498,12 +553,12 @@ def global_latlon_vect_map(adfobj):
                             #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                             #   *Any other entries will be ignored.
                             # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                            pf.plot_map_vect_and_save(plot_name, case_nickname, base_nickname,
-                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                      [syear_baseline,eyear_baseline], None,
-                                                      umseasons[s], vmseasons[s],
-                                                      uoseasons[s], voseasons[s],
-                                                      udseasons[s], vdseasons[s], obs, **vres)
+                            pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
+                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                    [syear_baseline,eyear_baseline],
+                                                    umseasons[s], uoseasons[s],
+                                                    udseasons[s], upseasons[s],
+                                                    obs=obs, unstructured=unstructured, **vres)
 
                             #Add plot to website (if enabled):
                             adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,

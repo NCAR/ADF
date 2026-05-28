@@ -12,7 +12,7 @@ import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-
+import plotting_utils as plot_utils
 
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
@@ -50,9 +50,19 @@ def global_mean_timeseries(adfobj):
         else:
             vres = {}
         #End if
+        vres = plot_utils.add_var_to_vres(adfobj, field, vres)
+        vres["plot_type"] = __name__
 
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
+
+        """grid_path = Path(case_locs[i]) / "gridded"
+        if grid_path.is_dir():
+            print("Using gridded file, eh?")
+            case_ts_loc = grid_path
+        else:
+            case_ts_loc = case_locs[i]
+        casedat.append(pf.load_dataset(sorted(Path(case_ts_loc).glob(f"{case_names[i]}.*.U.*.nc"))))"""
 
         base_name = adfobj.data.ref_case_label
 
@@ -110,6 +120,13 @@ def global_mean_timeseries(adfobj):
         for case_name in adfobj.data.case_names:
 
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
+            """grid_path = Path(case_locs[i]) / "gridded"
+            if grid_path.is_dir():
+                print("Using gridded file, eh?")
+                case_ts_loc = grid_path
+            else:
+                case_ts_loc = case_locs[i]
+            casedat.append(pf.load_dataset(sorted(Path(case_ts_loc).glob(f"{case_names[i]}.*.U.*.nc"))))"""
 
             if c_ts_da is None:
                 print(

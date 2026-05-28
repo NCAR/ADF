@@ -14,6 +14,7 @@ When multiple test cases are provided, they are plotted with different colors.
 from pathlib import Path
 import numpy as np
 import xarray as xr
+import uxarray as ux
 import pandas as pd
 import geocat.comp as gc  # use geocat's interpolation
 import matplotlib as mpl
@@ -54,26 +55,12 @@ def cam_taylor_diagram(adfobj):
     syear_cases = adfobj.climo_yrs["syears"]
     eyear_cases = adfobj.climo_yrs["eyears"]
 
-    case_climo_loc = adfobj.get_cam_info('cam_climo_loc', required=True)
+    case_climo_locs = adfobj.get_cam_info('cam_climo_loc', required=True)
 
     # ADF variable which contains the output path for plots and tables:
-    plot_location = adfobj.plot_location
-    if not plot_location:
-        plot_location = adfobj.get_basic_info("cam_diag_plot_loc")
-    if isinstance(plot_location, list):
-        for pl in plot_location:
-            plpth = Path(pl)
-            #Check if plot output directory exists, and if not, then create it:
-            if not plpth.is_dir():
-                print(f"\t    {pl} not found, making new directory")
-                plpth.mkdir(parents=True)
-        if len(plot_location) == 1:
-            plot_loc = Path(plot_location[0])
-        else:
-            print(f"Ambiguous plotting location since all cases go on same plot. Will put them in first location: {plot_location[0]}")
-            plot_loc = Path(plot_location[0])
-    else:
-        plot_loc = Path(plot_location)
+    plot_locs = adfobj.plot_location
+    plot_loc = plot_locs[0]
+    plot_loc = Path(plot_loc)
 
     # CAUTION:
     # "data" here refers to either obs or a baseline simulation,
@@ -109,6 +96,15 @@ def cam_taylor_diagram(adfobj):
     #Check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
+
+    kwargs = {}
+
+    #Unstructured chceck
+    unstruct_plotting = adfobj.unstructured_plotting
+    kwargs["unstructured_plotting"] = unstruct_plotting
+
+    test_mesh_files = adfobj.mesh_files["test_mesh_file"]
+    base_mesh_file = adfobj.mesh_files["baseline_mesh_file"]
 
     #Check if the variables needed for the Taylor diags are present,
     #If not then skip this script:
@@ -162,12 +158,54 @@ def cam_taylor_diagram(adfobj):
         # LOOP OVER VARIABLES
         #
         for v in var_list:
-            base_x = _retrieve(adfobj, v, data_name, data_loc) # get the baseline field
+            #vres = res[v]
+            if s == "ANN":
+                if v=="ColumnRelativeHumidity" or v==var_list[0]:
+                    print("Variable",v)
+            grid_path = Path(data_loc) / "gridded"
+            if grid_path.is_dir():
+                print("Using gridded file, eh?")
+                data_loc = grid_path
+            
+            #vres["mesh_file"] = test_mesh_files
+            kwargs["mesh_file"] = base_mesh_file
+            base_x = _retrieve(adfobj, v, data_name, data_loc, **kwargs) # get the baseline field
+            if s == "ANN":
+                if v=="ColumnRelativeHumidity" or v==var_list[0]:
+                    print("base_x",s,v,type(base_x),"\n\n")
+            #if hasattr(base_x, "uxgrid"):
+            #    print("uxgrid in the base yup")
+
             for casenumber, case in enumerate(case_names):     # LOOP THROUGH CASES
-                case_x = _retrieve(adfobj, v, case, case_climo_loc[casenumber])
+                kwargs["mesh_file"] = test_mesh_files[casenumber]
+                grid_path = Path(case_climo_locs[casenumber]) / "gridded"
+                if grid_path.is_dir():
+                    print("Using gridded file, eh?")
+                    case_climo_loc = grid_path
+                else:
+                    case_climo_loc = case_climo_locs[casenumber]
+                case_x = _retrieve(adfobj, v, case, case_climo_loc, **kwargs)
+                if s == "ANN" and casenumber==0:
+                    if v=="ColumnRelativeHumidity" or v==var_list[0]:
+                        print("case_x",s,v,type(case_x),"\n\n-----------------------")
+
                 # ASSUMING `time` is 1-12, get the current season:
-                case_x = case_x.sel(time=seasons[s]).mean(dim='time')
+                #case_x = case_x.sel(time=seasons[s]).mean(dim='time')
+                """if hasattr(case_x, "uxgrid"):
+                    print("uxgrid in the case yup")
+                else:
+                    print("I bet this came here. NO UXGRID")"""
+                case_x = case_x.sel(time=seasons[s]).mean(
+                                        dim='time',
+                                        keep_attrs=True
+                                    )
+                """if hasattr(case_x, "uxgrid"):
+                    print("uxgrid STILL in the case yup")
+                else:
+                    print("I bet this came here. NO UXGRID")"""
+                #print("case_x",case_x.coords,"\n\n")
                 result_by_case[case].loc[v] = taylor_stats_single(case_x, base_x)
+                #print("\n\n")
         #
         # -- PLOTTING (one per season) --
         #
@@ -198,7 +236,7 @@ def cam_taylor_diagram(adfobj):
 
 # --- DERIVED VARIABLES ---
 
-def vertical_average(fld, ps, acoef, bcoef):
+def vertical_average(fld, ps, acoef, bcoef, uxgrid=None):
     """Calculate weighted vertical average using trapezoidal rule. Uses full column."""
     pres = utils.pres_from_hybrid(ps, acoef, bcoef)
     # integral of del_pressure turns out to be just the average of the square of the boundaries:
@@ -208,14 +246,38 @@ def vertical_average(fld, ps, acoef, bcoef):
     dp_integrated = 0.5 * (pres.sel(lev=maxlev)**2 - pres.sel(lev=minlev)**2)
     levaxis = fld.dims.index('lev')  # fld needs to be a dataarray
     assert isinstance(levaxis, int), f'the axis called lev is not an integer: {levaxis}'
+    #print("fld",fld,"\n\n")
     fld_integrated = np.trapz(fld * pres, x=pres, axis=levaxis)
-    return fld_integrated / dp_integrated
+    #print("fld_integrated",fld_integrated,"\n\n-----------------------")
+    result = fld_integrated / dp_integrated
+    if hasattr(fld, "uxgrid"):
+        result = ux.UxDataArray(
+                data=result,
+                uxgrid=uxgrid,
+                coords={k: v for k, v in fld.coords.items() if k != "lev"}
+            )
+    #else:
+    #    result = fld.isel(lev=0, drop=True).copy(data=result)
+    return result #fld.isel(lev=0, drop=True).copy(data=result) #fld_integrated / dp_integrated
 
-def find_landmask(adf, casename, location):
+def find_landmask(adf, casename, location, **kwargs):
+    '''case_mesh_file =  adf.mesh_files["test_mesh_file"][0]
+    base_mesh_file =  adf.mesh_files["baseline_mesh_file"]
+
+    kwargs = {"unstructured_plotting":adf.unstructured_plotting,
+              "case_mesh_file":case_mesh_file,
+              "base_mesh_file":base_mesh_file}'''
     # maybe it's in the climo files, but we might need to look in the history files:
-    landfrac_fils = list(Path(location).glob(f"{casename}*_LANDFRAC_*.nc"))
+    #landfrac_fils = list(Path(location).glob(f"{casename}*_LANDFRAC_*.nc"))
+    #landfrac_fils = adf.data.get_climo_file(casename, 'LANDFRAC')
+    if casename != adf.data.ref_case_label:
+        landfrac_fils = adf.data.get_climo_file(casename, 'LANDFRAC')
+    else:
+        landfrac_fils = adf.data.get_reference_climo_file('LANDFRAC')
     if landfrac_fils:
-        return xr.open_dataset(landfrac_fils[0])['LANDFRAC']
+        #return xr.open_dataset(landfrac_fils[0])['LANDFRAC'] #<- climo file
+        return adf.data.load_dataset([landfrac_fils[0]], **kwargs)['LANDFRAC']
+
     else:
         if casename in adf.get_cam_info('cam_case_name'):
             # cases are in lists, so need to match them
@@ -229,7 +291,7 @@ def find_landmask(adf, casename, location):
             raise IOError(f"No history files in expected location: {hloc}")
         k = 0
         for h in hfils:
-            dstmp = xr.open_dataset(h)
+            dstmp = xr.open_dataset(h) #<- history file
             if 'LANDFRAC' in dstmp:
                 print(f"\tGood news, found LANDFRAC in history file")
                 return dstmp['LANDFRAC']
@@ -239,55 +301,119 @@ def find_landmask(adf, casename, location):
             raise IOError(f"Checked {k} files, but did not find LANDFRAC in any of them.")
     # should not reach past the `if` statement without returning landfrac or raising exception.
 
-def get_prect(casename, location, **kwargs):
+def get_prect(adf, casename, location, **kwargs):
+    """case_mesh_file =  adf.mesh_files["test_mesh_file"][0]
+    base_mesh_file =  adf.mesh_files["baseline_mesh_file"]
+
+    kwargs = {"unstructured_plotting":adf.unstructured_plotting,
+              "case_mesh_file":case_mesh_file,
+              "base_mesh_file":base_mesh_file}"""
     # look for prect first:
-    fils = sorted(Path(location).glob(f"{casename}*_PRECT_*.nc"))
+    #fils = sorted(Path(location).glob(f"{casename}*_PRECT_*.nc"))
+    #fils = adf.data.get_climo_file(casename, 'PRECT')
+    if casename != adf.data.ref_case_label:
+        fils = adf.data.get_climo_file(casename, 'PRECT')
+    else:
+        fils = adf.data.get_reference_climo_file('PRECT')
     if len(fils) == 0:
         print("\t Need to derive PRECT = PRECC + PRECL")
-        fils1 = sorted(Path(location).glob(f"{casename}*_PRECC_*.nc"))
-        fils2 = sorted(Path(location).glob(f"{casename}*_PRECL_*.nc"))
+        #fils1 = sorted(Path(location).glob(f"{casename}*_PRECC_*.nc"))
+        #fils2 = sorted(Path(location).glob(f"{casename}*_PRECL_*.nc"))
+        if casename != adf.data.ref_case_label:
+            fils1 = adf.data.get_climo_file(casename, 'PRECC')
+            fils2 = adf.data.get_climo_file(casename, 'PRECL')
+        else:
+            fils1 = adf.data.get_reference_climo_file('PRECC')
+            fils2 = adf.data.get_reference_climo_file('PRECL')
         if (len(fils1) == 0) or (len(fils2) == 0):
             raise IOError("Could not find PRECC or PRECL")
         else:
             if len(fils1) == 1:
-                precc = xr.open_dataset(fils1[0])['PRECC']
-                precl = xr.open_dataset(fils2[0])['PRECL']
+                #precc = xr.open_dataset(fils1[0])['PRECC'] #<- climo file?
+                #precl = xr.open_dataset(fils2[0])['PRECL'] #<- climo file?
+                precc = adf.data.load_dataset([fils1[0]], **kwargs)['PRECC']
+                precl = adf.data.load_dataset([fils2[0]], **kwargs)['PRECL']
                 prect = precc + precl
             else:
                 raise NotImplementedError("Need to deal with mult-file case.")
-    elif len(fils) > 1:
-        prect = xr.open_mfdataset(fils)['PRECT'].load()  # do we ever expect climo files split into pieces?
     else:
-        prect = xr.open_dataset(fils[0])['PRECT']
+        prect = adf.data.load_dataset([fils[0]], **kwargs)['PRECT']
+    #elif len(fils) > 1:
+    #    prect = xr.open_mfdataset(fils)['PRECT'].load()  # do we ever expect climo files split into pieces?
+    #else:
+    #    prect = xr.open_dataset(fils[0])['PRECT'] #<- climo file
+    
     return prect
 
 
 def get_tropical_land_precip(adf, casename, location, **kwargs):
-    landfrac = find_landmask(adf, casename, location)
+    landfrac = find_landmask(adf, casename, location, **kwargs)
     if landfrac is None:
         raise ValueError("\t No landfrac returned")
-    prect = get_prect(casename, location)
+    prect = get_prect(adf, casename, location, **kwargs)
     # mask to only keep land locations
-    prect = xr.DataArray(np.where(landfrac >= .95, prect, np.nan),
+    """prect = xr.DataArray(np.where(landfrac >= .95, prect, np.nan),
                          dims=prect.dims,
                          coords=prect.coords,
-                         attrs=prect.attrs)  # threshold could be 1
-    return prect.sel(lat=slice(-30,30))
+                         attrs=prect.attrs)  # threshold could be 1"""
+    prect = prect.where(landfrac >= 0.95)
+
+    lat_min = -30
+    lat_max = 30
+    if kwargs["unstructured_plotting"]:
+        lon = prect.uxgrid.face_lon.values
+        lat = prect.uxgrid.face_lat.values
+
+        mask = (
+            (lat >= lat_min) &
+            (lat <= lat_max)
+        )
+        
+        indices = np.where(mask)[0]
+        
+        prect_ds = prect.isel(n_face=indices)
+    else:
+        prect_ds = prect.sel(lat=slice(lat_min,lat_max))
+    return prect_ds #prect.sel(lat=slice(-30,30))
 
 
 def get_tropical_ocean_precip(adf, casename, location, **kwargs):
-    landfrac = find_landmask(adf, casename, location)
+    landfrac = find_landmask(adf, casename, location, **kwargs)
     if landfrac is None:
         raise ValueError("No landfrac returned")
-    prect = get_prect(casename, location)
+    prect = get_prect(adf, casename, location, **kwargs)
     # mask to only keep ocean locations
-    prect = xr.DataArray(np.where(landfrac <= 0.05, prect, np.nan),
+    """prect = xr.DataArray(np.where(landfrac <= 0.05, prect, np.nan),
                          dims=prect.dims,
                          coords=prect.coords,
-                         attrs=prect.attrs)
-    return prect.sel(lat=slice(-30,30))
+                         attrs=prect.attrs)"""
+    prect = prect.where(landfrac <= 0.05)
 
-def get_surface_pressure(dset, casename, location):
+    lat_min = -30
+    lat_max = 30
+    if kwargs["unstructured_plotting"]:
+        lon = prect.uxgrid.face_lon.values
+        lat = prect.uxgrid.face_lat.values
+
+        mask = (
+            (lat >= lat_min) &
+            (lat <= lat_max)
+        )
+        
+        indices = np.where(mask)[0]
+        
+        prect_ds = prect.isel(n_face=indices)
+    else:
+        prect_ds = prect.sel(lat=slice(lat_min,lat_max))
+    return prect_ds #prect.sel(lat=slice(-30,30))
+
+def get_surface_pressure(adf, dset, casename, location, **kwargs):
+    '''case_mesh_file =  adf.mesh_files["test_mesh_file"][0]
+    base_mesh_file =  adf.mesh_files["baseline_mesh_file"]
+
+    kwargs = {"unstructured_plotting":adf.unstructured_plotting,
+              "case_mesh_file":case_mesh_file,
+              "base_mesh_file":base_mesh_file}'''
 
     #Find surface pressure (PS):
     if 'PS' in dset.variables:
@@ -295,16 +421,22 @@ def get_surface_pressure(dset, casename, location):
         ps = dset['PS']
     else:
         #Check if surface pressure exists as a separate climo file:
-        fils = sorted(Path(location).glob(f"{casename}*_PS_*.nc"))
+        #fils = sorted(Path(location).glob(f"{casename}*_PS_*.nc"))
+        #fils = adf.data.get_climo_file(casename, 'PS')
+        if casename != adf.data.ref_case_label:
+            fils = adf.data.get_climo_file(casename, 'PS')
+        else:
+            fils = adf.data.get_reference_climo_file('PS')
         if (len(fils) == 0):
             emsg = f"Could not find PS. This is needed as a separate variable if"
             emsg += " reading time series files directly."
             raise IOError(emsg)
         else:
-            if len(fils) == 1:
-                ps_ds = xr.open_dataset(fils[0])
-            else:
-                raise NotImplementedError("Need to deal with mult-file case.")
+            #if len(fils) == 1:
+            #    ps_ds = xr.open_dataset(fils[0]) #<- climo file
+            #else:
+            #    raise NotImplementedError("Need to deal with mult-file case.")
+            ps_ds = adf.data.load_dataset([fils[0]], **kwargs)
         #End if
         ps = ps_ds['PS']
     #End if
@@ -312,78 +444,142 @@ def get_surface_pressure(dset, casename, location):
     #Return values:
     return ps
 
-def get_var_at_plev(adf, casename, location, variable, plev):
+def get_var_at_plev(adf, casename, location, variable, plev, **kwargs):
     """
     Get `variable` from the data and then interpolate it to isobaric level `plev` (units of hPa).
     """
-    dset = _retrieve(adf, variable, casename, location, return_dataset=True)
-
+    unstruct = False
+    dset = _retrieve(adf, variable, casename, location, return_dataset=True, **kwargs)
+    #print("dset",dset)
+    if hasattr(dset, "uxgrid"):
+        uxgrid = dset.uxgrid
+        unstruct = True
     # Try and extract surface pressure:
-    ps = get_surface_pressure(dset, casename, location)
+    ps = get_surface_pressure(adf, dset, casename, location, **kwargs)
 
-    vplev = gc.interp_hybrid_to_pressure(dset['U'], ps, dset['hyam'], dset['hybm'],
+    vplev = gc.interp_hybrid_to_pressure(dset[variable], ps, dset['hyam'], dset['hybm'],
                                          new_levels=np.array([100. * plev]), lev_dim='lev')
+    #print("vplev BEFORE",vplev)
+    if unstruct:
+        #vplev = uxgrid.from_dataarray(vplev)
+        vplev = ux.UxDataArray(vplev, uxgrid=uxgrid)
+    #print("vplev",vplev,"\n\n----------------------------------")
     vplev = vplev.squeeze(drop=True).load()
     return vplev
 
 
-def get_u_at_plev(adf, casename, location):
-    return get_var_at_plev(adf, casename, location, "U", 300)
+def get_u_at_plev(adf, casename, location, **kwargs):
+    return get_var_at_plev(adf, casename, location, "U", 300, **kwargs)
 
 
-def get_vertical_average(adf, casename, location, varname):
+def get_vertical_average(adf, casename, location, varname, **kwargs):
     '''Collect data from case and use `vertical_average` to get result.'''
-    fils = sorted(Path(location).glob(f"{casename}*_{varname}_*.nc"))
+    '''case_mesh_file =  adf.mesh_files["test_mesh_file"][0]
+    base_mesh_file =  adf.mesh_files["baseline_mesh_file"]
+
+    kwargs = {"unstructured_plotting":adf.unstructured_plotting,
+              "case_mesh_file":case_mesh_file,
+              "base_mesh_file":base_mesh_file}'''
+    #fils = sorted(Path(location).glob(f"{casename}*_{varname}_*.nc"))
+    if casename != adf.data.ref_case_label:
+        fils = adf.data.get_climo_file(casename, varname)
+    else:
+        fils = adf.data.get_reference_climo_file(varname)
     if (len(fils) == 0):
         raise IOError(f"Could not find {varname}")
     else:
-        if len(fils) == 1:
-            ds = xr.open_dataset(fils[0])
-        else:
-            raise NotImplementedError("Need to deal with mult-file case.")
+        ds = adf.data.load_dataset([fils[0]], **kwargs)
+        #if len(fils) == 1:
+        #    ds = xr.open_dataset(fils[0]) #<- climo file
+        #else:
+        #    raise NotImplementedError("Need to deal with mult-file case.")
     # Try and extract surface pressure:
-    ps = get_surface_pressure(ds, casename, location)
+    ps = get_surface_pressure(adf, ds, casename, location, **kwargs)
     # If the climo file is made by ADF, then hyam and hybm will be with VARIABLE:
-    return vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'])
+    if hasattr(ds, "uxgrid"):
+        uxgrid = ds.uxgrid
+    else:
+        uxgrid = None
+    vert_avg = vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'],uxgrid)
+    return vert_avg #vertical_average(ds[varname], ps, ds['hyam'], ds['hybm'])
 
 
 def get_virh(adf, casename, location, **kwargs):
     '''Calculate vertically averaged relative humidity.'''
-    return get_vertical_average(adf, casename, location, "RELHUM")
+    return get_vertical_average(adf, casename, location, "RELHUM", **kwargs)
 
 
 def get_vit(adf, casename, location, **kwargs):
     '''Calculate vertically averaged temperature.'''
-    return get_vertical_average(adf, casename, location, "T")
+    return get_vertical_average(adf, casename, location, "T", **kwargs)
 
 
-def get_landt2m(adf, casename, location):
+def get_landt2m(adf, casename, location, **kwargs):
     """Gets TREFHT (T_2m) and removes non-land points."""
-    fils = sorted(Path(location).glob(f"{casename}*_TREFHT_*.nc"))
+    '''case_mesh_file =  adf.mesh_files["test_mesh_file"][0]
+    base_mesh_file =  adf.mesh_files["baseline_mesh_file"]
+
+    kwargs = {"unstructured_plotting":adf.unstructured_plotting,
+              "case_mesh_file":case_mesh_file,
+              "base_mesh_file":base_mesh_file}'''
+    #fils = sorted(Path(location).glob(f"{casename}*_TREFHT_*.nc"))
+    if casename != adf.data.ref_case_label:
+        fils = adf.data.get_climo_file(casename, "TREFHT")
+    else:
+        fils = adf.data.get_reference_climo_file("TREFHT")
     if len(fils) == 0:
         raise IOError(f"TREFHT could not be found in the files.")
-    elif len(fils) > 1:
-        t = xr.open_mfdataset(fils)['TREFHT'].load()  # do we ever expect climo files split into pieces?
-    else:
-        t = xr.open_dataset(fils[0])['TREFHT']
-    landfrac = find_landmask(adf, casename, location)
-    t = xr.DataArray(np.where(landfrac >= .95, t, np.nan),
+    #elif len(fils) > 1:
+    #    t = xr.open_mfdataset(fils)['TREFHT'].load()  # do we ever expect climo files split into pieces?
+    #else:
+    #    t = xr.open_dataset(fils[0])['TREFHT'] #<- climo file
+    t = adf.data.load_dataset([fils[0]], **kwargs)['TREFHT']
+    landfrac = find_landmask(adf, casename, location, **kwargs)
+    """t = xr.DataArray(np.where(landfrac >= .95, t, np.nan),
                          dims=t.dims,
                          coords=t.coords,
-                         attrs=t.attrs)  # threshold could be 1
+                         attrs=t.attrs)  # threshold could be 1"""
+    t = t.where(landfrac >= 0.95)
     return t
 
 
-def get_eqpactaux(adf, casename, location):
+def get_eqpactaux(adf, casename, location, **kwargs):
     """Gets zonal surface wind stress 5S to 5N."""
-    fils = sorted(Path(location).glob(f"{casename}*_TAUX_*.nc"))
+    '''case_mesh_file =  adf.mesh_files["test_mesh_file"][0]
+    base_mesh_file =  adf.mesh_files["baseline_mesh_file"]
+
+    kwargs = {"unstructured_plotting":adf.unstructured_plotting,
+              "case_mesh_file":case_mesh_file,
+              "base_mesh_file":base_mesh_file}'''
+    #ils = sorted(Path(location).glob(f"{casename}*_TAUX_*.nc"))
+    if casename != adf.data.ref_case_label:
+        fils = adf.data.get_climo_file(casename, "TAUX")
+    else:
+        fils = adf.data.get_reference_climo_file("TAUX")
     if len(fils) == 0:
         raise IOError(f"TAUX could not be found in the files.")
-    elif len(fils) > 1:
-        taux = xr.open_mfdataset(fils)['TAUX'].load()  # do we ever expect climo files split into pieces?
+    #elif len(fils) > 1:
+    #    taux = xr.open_mfdataset(fils)['TAUX'].load()  # do we ever expect climo files split into pieces?
+    #else:
+    #    taux = xr.open_dataset(fils[0])['TAUX']
+    taux_ds = adf.data.load_dataset([fils[0]], **kwargs)['TAUX']
+    lat_min = -5
+    lat_max = 5
+    if kwargs["unstructured_plotting"]:
+        lon = taux_ds.uxgrid.face_lon.values
+        lat = taux_ds.uxgrid.face_lat.values
+
+        mask = (
+            (lat >= lat_min) &
+            (lat <= lat_max)
+        )
+        
+        indices = np.where(mask)[0]
+        
+        taux_ds = taux_ds.isel(n_face=indices)
     else:
-        taux = xr.open_dataset(fils[0])['TAUX']
-    return taux.sel(lat=slice(-5, 5))
+        taux_ds = taux_ds.sel(lat=slice(lat_min,lat_max))
+    return taux_ds #taux.sel(lat=slice(-5, 5))
 
 
 def get_derive_func(fld):
@@ -400,7 +596,7 @@ def get_derive_func(fld):
     return funcs[fld]
 
 
-def _retrieve(adfobj, variable, casename, location, return_dataset=False):
+def _retrieve(adf, variable, casename, location, return_dataset=False, **kwargs):
     """Custom function that retrieves a variable. Returns the variable as a DataArray.
     kwarg:
     return_dataset -> if true, return the dataset object, otherwise return the DataArray
@@ -411,26 +607,103 @@ def _retrieve(adfobj, variable, casename, location, return_dataset=False):
     v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress',
                 'U300', 'ColumnRelativeHumidity', 'ColumnTemperature', 'Land2mTemperature']
     if variable not in v_to_derive:
-        fils = sorted(Path(location).glob(f"{casename}*_{variable}_*.nc"))
+        #print("HERE",variable,"asfknaksf",f"location: {location}")
+        #fils = sorted(Path(location).glob(f"{casename}*_{variable}_*.nc"))
+        if casename != adf.data.ref_case_label:
+            fils = adf.data.get_climo_file(casename, variable)
+        else:
+            fils = adf.data.get_reference_climo_file(variable)
         if len(fils) == 0:
             raise ValueError(f"something went wrong for variable: {variable}")
-        elif len(fils) > 1:
-            ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces?
-        else:
-            ds = xr.open_dataset(fils[0])
+        #elif len(fils) > 1:
+        #    ds = xr.open_mfdataset(fils)  # do we ever expect climo files split into pieces?
+        #else:
+        #    ds = xr.open_dataset(fils[0]) #<- climo file
+        ds = adf.data.load_dataset([fils[0]], **kwargs)
         if return_dataset:
             da = ds
         else:
             da = ds[variable]
     else:
         func = get_derive_func(variable)
-        da = func(adfobj, casename, location)  # these ONLY return DataArray
+        da = func(adf, casename, location, **kwargs)  # these ONLY return DataArray
         if return_dataset:
             da = da.to_dataset(name=variable)
+    print("_retrieve data array",da.coords,"\n\n")
     return da
 
 
-def weighted_correlation(x, y, weights):
+
+
+
+def is_unstructured(da):
+    """
+    Detect whether data is on an unstructured grid.
+    """
+
+    return (
+        "ncol" in da.dims
+        or "n_face" in da.dims
+        or ("grid_topology" in da.attrs)
+    )
+
+
+def get_spatial_weights(da, use_weights=True):
+
+    if not use_weights:
+        return xr.ones_like(da)
+
+    # ---------------------------------------
+    # Structured grid
+    # ---------------------------------------
+    if "lat" in da.coords and "lon" in da.coords:
+
+        return np.cos(np.radians(da["lat"]))
+
+    # ---------------------------------------
+    # Unstructured grid
+    # ---------------------------------------
+    face_dim = None
+
+    for d in da.dims:
+        if d in ["ncol", "n_face", "face"]:
+            face_dim = d
+            break
+    #print("get_spatial_weights da",da.coords)
+    if face_dim is not None:
+
+        # uxarray face areas
+        if hasattr(da, "uxgrid"):
+
+            try:
+                return xr.DataArray(
+                    da.uxgrid.face_areas,
+                    dims=[face_dim]
+                )
+            except Exception:
+                pass
+
+        # fallback latitude weighting
+        for lat_name in [
+            "lat",
+            "grid_center_lat",
+            "face_lat"
+        ]:
+            if lat_name in da.coords:
+                return np.cos(
+                    np.radians(da[lat_name])
+                )
+
+        raise ValueError(
+            "Could not determine unstructured-grid weights."
+        )
+
+    raise ValueError(
+        "Could not determine grid type."
+    )
+
+
+'''def weighted_correlation(x, y, weights):
     # TODO: since we expect masked fields (land/ocean), need to allow for missing values (maybe works already?)
     mean_x = x.weighted(weights).mean()
     mean_y = y.weighted(weights).mean()
@@ -439,10 +712,35 @@ def weighted_correlation(x, y, weights):
     cov_xy = (dev_x * dev_y).weighted(weights).mean()
     cov_xx = (dev_x * dev_x).weighted(weights).mean()
     cov_yy = (dev_y * dev_y).weighted(weights).mean()
+    return cov_xy / np.sqrt(cov_xx * cov_yy)'''
+
+
+def weighted_correlation(x, y, weights):
+
+    # align arrays
+    x, y = xr.align(x, y, join="inner")
+
+    # build shared valid mask
+    mask = np.isfinite(x) & np.isfinite(y)
+
+    x = x.where(mask)
+    y = y.where(mask)
+
+    mean_x = x.weighted(weights).mean()
+    mean_y = y.weighted(weights).mean()
+
+    dev_x = x - mean_x
+    dev_y = y - mean_y
+
+    cov_xy = (dev_x * dev_y).weighted(weights).mean()
+
+    cov_xx = (dev_x**2).weighted(weights).mean()
+    cov_yy = (dev_y**2).weighted(weights).mean()
+
     return cov_xy / np.sqrt(cov_xx * cov_yy)
 
 
-def weighted_std(x, weights):
+'''def weighted_std(x, weights):
     """Weighted standard deviation.
     x -> xr.DataArray
     weights -> array-like of weights, probably xr.DataArray
@@ -460,11 +758,21 @@ def weighted_std(x, weights):
     dev_x = x - mean_x
     swdev = (weights * dev_x**2).sum()
     total_weights = wa.where(x.notnull()).sum()
-    return np.sqrt(swdev / total_weights)
+    return np.sqrt(swdev / total_weights)'''
+
+def weighted_std(x, weights):
+
+    mean_x = x.weighted(weights).mean()
+
+    dev_x = x - mean_x
+
+    variance = (dev_x**2).weighted(weights).mean()
+
+    return np.sqrt(variance)
 
 
 
-def taylor_stats_single(casedata, refdata, w=True):
+'''def taylor_stats_single(casedata, refdata, w=True):
     """This replicates the basic functionality of 'taylor_stats' from NCL.
     input:
         casedata : input data, DataArray
@@ -484,7 +792,32 @@ def taylor_stats_single(casedata, refdata, w=True):
     mean_case = casedata.weighted(wgt).mean()
     mean_ref = refdata.weighted(wgt).mean()
     bias = (100*((mean_case - mean_ref)/mean_ref)).item()
-    return correlation, a_sigma/b_sigma, bias
+    return correlation, a_sigma/b_sigma, bias'''
+
+
+def taylor_stats_single(casedata, refdata, w=True):
+
+    weights = get_spatial_weights(casedata, use_weights=w)
+
+    correlation = weighted_correlation(
+        casedata,
+        refdata,
+        weights
+    ).item()
+
+    a_sigma = weighted_std(casedata, weights)
+
+    b_sigma = weighted_std(refdata, weights)
+
+    mean_case = casedata.weighted(weights).mean()
+
+    mean_ref = refdata.weighted(weights).mean()
+
+    bias = (
+        100 * ((mean_case - mean_ref) / mean_ref)
+    ).item()
+
+    return correlation, a_sigma / b_sigma, bias
 
 
 def taylor_plot_setup(title,baseline):

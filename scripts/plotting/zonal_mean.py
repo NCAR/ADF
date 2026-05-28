@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+import plotting_utils as plot_utils
 
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
@@ -158,6 +159,22 @@ def zonal_mean(adfobj):
             vres = {}
         #End if
 
+        unstruct_plotting = adfobj.unstructured_plotting
+        if unstruct_plotting:
+            #config["unstructured_plotting"] = unstruct_plotting
+            unstructured = unstruct_plotting
+            #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
+            #kwargs["mesh_file"] = mesh_file
+        else:
+            unstructured = False
+        #config["unstructured_plotting"] = unstructured
+        vres["unstructured_plotting"] = unstructured
+
+        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres["plot_type"] = __name__
+        #Extract category (if available):
+        web_category = vres.get("category", None)
+
         # load reference data (observational or baseline)
         if not adfobj.compare_obs:
             base_name = adfobj.data.ref_case_label
@@ -165,7 +182,23 @@ def zonal_mean(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        if unstructured:
+            vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+            comp = "atm"
+            unstruct_base = True
+            odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
+            odata = odataset[var]
+            if comp == "lnd": 
+                area = odataset.area.isel(time=0)
+                landfrac = odataset.landfrac.isel(time=0)
+                # calculate weights
+                wgt_base = area * landfrac / (area * landfrac).sum()
+            if comp == "atm":
+                wgt_base = odataset.isel(time=0)[var]
+            vres["wgt_base"] = wgt_base
+            vres["unstruct_base"] = unstruct_base
+        else:
+            odata = adfobj.data.load_reference_regrid_da(base_name, var)
 
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
@@ -176,14 +209,15 @@ def zonal_mean(adfobj):
         #Check zonal mean dimensions
         has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
 
-        # check if there is a lat dimension:
-        # if not, skip test cases and move to next variable
-        if not has_lat_ref:
-            print(
-                f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
-            )
-            continue
-        # End if
+        if not unstructured:
+            # check if there is a lat dimension:
+            # if not, skip test cases and move to next variable
+            if not has_lat_ref:
+                print(
+                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                )
+                continue
+            # End if
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
@@ -195,7 +229,44 @@ def zonal_mean(adfobj):
             plot_loc = Path(plot_locations[case_idx])
 
             # load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            if unstructured:
+                mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
+                vres["mesh_file"] = mesh_file
+                #mdata = adfobj.data.load_climo_da(case_name, var, **vres)
+                mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
+                mdata = mdataset[var]
+
+                unstruct_case = True
+                if comp == "lnd": 
+                    area = mdataset.area.isel(time=0)
+                    landfrac = mdataset.landfrac.isel(time=0)
+                    # calculate weights
+                    wgt = area * landfrac / (area * landfrac).sum()
+                if comp == "atm":
+                    wgt = mdataset.isel(time=0)[var]
+
+                #Determine dimensions of variable:
+                if len(wgt.n_face) == len(vres["wgt_base"].n_face):
+                    vres["wgt"] = wgt
+                    vres["indataset"] = mdataset
+                else:
+                    print("The weights are different between test and baseline. Won't continue, eh.")
+                    return
+
+                unstruct_base = vres["unstruct_base"]
+                if (not unstruct_case) and (unstruct_base):
+                    print("Base is unstructured but Test is lat/lon. Can't continue?")
+                    return
+                if (unstruct_case) and (not unstruct_base):
+                    print("Base is lat/lon but Test is unstructured. Can't continue?")
+                    return
+                if (unstruct_case) and (unstruct_base):
+                    unstructured = True
+                if (not unstruct_case) and (not unstruct_base):
+                    unstructured = False
+                vres["unstructured_plotting"] = unstructured
+            else:
+                mdata = adfobj.data.load_regrid_da(case_name, var)
 
             if mdata is None:
                 dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
@@ -207,13 +278,14 @@ def zonal_mean(adfobj):
             # check data dimensions:
             has_lat, has_lev = utils.zm_validate_dims(mdata)
 
-            # check if there is a lat dimension:
-            if not has_lat:
-                print(
-                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
-                )
-                continue
-            # End if
+            if not unstructured:
+                # check if there is a lat dimension:
+                if not has_lat:
+                    print(
+                        f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    )
+                    continue
+                # End if
 
             #Check if reference file has vertical levels
             #Notify user of level dimension:
@@ -238,6 +310,7 @@ def zonal_mean(adfobj):
 
             #Loop over season dictionary:
             for s in seasons:
+                vres["season"] = s
 
                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                 # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -269,7 +342,7 @@ def zonal_mean(adfobj):
                 if plot_name not in zonal_skip:
 
                     #Create new plot:
-                    pf.plot_zonal_mean_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
+                    pf.plot_zonal_mean_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
                                                     [syear_baseline,eyear_baseline],
                                                     mseasons[s], oseasons[s], has_lev, log_p=False, obs=adfobj.compare_obs, **vres)
@@ -281,7 +354,7 @@ def zonal_mean(adfobj):
                 #Create log-pressure plots as well (if applicable)
                 if (plot_name_log) and (plot_name_log not in logp_zonal_skip):
 
-                    pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, adfobj.data.ref_nickname,
+                    pf.plot_zonal_mean_and_save(adfobj, plot_name_log, case_nickname, adfobj.data.ref_nickname,
                                                         [syear_cases[case_idx],eyear_cases[case_idx]],
                                                         [syear_baseline,eyear_baseline],
                                                         mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)

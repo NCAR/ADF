@@ -57,6 +57,7 @@ def amwg_table(adf):
     #Import necessary modules:
     from adf_base import AdfError
     import adf_utils as utils
+    import plotting_functions as pf
 
     #Additional information:
     #----------------------
@@ -162,13 +163,17 @@ def amwg_table(adf):
     #Initialize list of case name csv files for case comparison check later
     csv_list = []
     for case_idx, case_name in enumerate(case_names):
+        unstruct = adf.unstructured_plotting
 
         #Convert output location string to a Path object:
         output_location = Path(output_locs[case_idx])
 
         #Generate input file path:
-        input_location = Path(input_ts_locs[case_idx])
-
+        if adf.native_grid[case_name] and not unstruct:
+            input_location = Path(input_ts_locs[case_idx]) / "gridded"
+        else:
+            input_location = Path(input_ts_locs[case_idx])
+        #print("AMWG table input_location",input_location)
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
             errmsg = f"Time series directory '{input_location}' not found.  Script is exiting."
@@ -202,9 +207,15 @@ def amwg_table(adf):
             #Notify users of variable being added to table:
             print(f"\t - Variable '{var}' being added to table")
 
+            vres = var_defaults.get(var, {})
+
             #Create list of time series files present for variable:
-            ts_filenames = f'{case_name}.*.{var}.*nc'
-            ts_files = sorted(input_location.glob(ts_filenames))
+            if case_idx != len(case_names)-1:
+                ts_files = adf.data.get_timeseries_file(case_name, var)
+                vres["mesh_file"] = adf.mesh_files["test_mesh_file"][case_idx]
+            else:
+                ts_files = adf.data.get_ref_timeseries_file(var)
+                vres["mesh_file"] = adf.mesh_files["baseline_mesh_file"]
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
@@ -221,15 +232,31 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #Load model variable data from file:
-            ds = utils.load_dataset(ts_files)
-            data = ds[var]
-
-            #Extract units string, if available:
-            if hasattr(data, 'units'):
-                unit_str = data.units
+            #Load model variable data from time series file(s).
+            #Use time-series-specific loader so time bounds are converted to midpoint
+            #and decoded properly for unstructured files.
+            ds = adf.data.load_timeseries_dataset(ts_files)
+            if ds is None:
+                errmsg = f"\t    WARNING: Could not load time series files for variable '{var}'. Skipping..."
+                warnings.warn(errmsg)
+                continue
+            data = ds[var].squeeze()
+            add_offset, scale_factor = adf.data.get_value_converters(case_name, var)
+            data = data * scale_factor + add_offset
+            raw_units = data.attrs.get('units', '--')
+            if var in adf.variable_defaults:
+                vres = adf.variable_defaults[var]
+                data.attrs['units'] = vres.get('new_unit', raw_units)
             else:
-                unit_str = '--'
+                data.attrs['units'] = raw_units
+            
+            # Print a short debug of units (use attrs to support UxDataArray)
+            #print("data units", data.attrs.get('units', '--'), "\n\n")
+            # Extract units string from attrs for robustness
+            unit_str = data.attrs.get('units', '--')
+            #print("unit_st BEFORE:",unit_str,"\n\n")
+            unit_str = latex_to_unicode_units(unit_str)
+            #print("unit_str AFTER:",unit_str,"\n\n")
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
@@ -272,15 +299,29 @@ def amwg_table(adf):
                 ocn_frc_da = data
             #End if
 
+            # In order to get correct statistics, average to annual or seasonal
+            data = utils.annual_mean(data, whole_years=True, time_name='time')
+
+            if unstruct:
+                unstruct_case = True
+
             # we should check if we need to do area averaging:
             if len(data.dims) > 1:
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = utils.spatial_average(data)  # changes data "in place"
+                if unstruct:
+                    ds = adf.data.load_dataset(ts_files, **vres)
+                    if 'n_face' in data.dims:
+                        weights = ds['area']
+                    elif 'ncol' in data.dims:
+                        weights = ds['area']
+                    else:
+                        weights = None
 
-            # In order to get correct statistics, average to annual or seasonal
-            data = utils.annual_mean(data, whole_years=True, time_name='time')
+                    data = utils.spatial_average(data, weights=weights)
+                else:
+                    data = utils.spatial_average(data)
 
             # Set values for columns
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
@@ -412,6 +453,33 @@ def _df_comp_table(adf, output_location, case_names):
 
     #Add comparison table dataframe to website (if enabled):
     adf.add_website_data(df_comp, "Case Comparison", case_names[0], plot_type="Tables")
+
+
+import re
+SUPERSCRIPTS = str.maketrans({
+                "0": "⁰",
+                "1": "¹",
+                "2": "²",
+                "3": "³",
+                "4": "⁴",
+                "5": "⁵",
+                "6": "⁶",
+                "7": "⁷",
+                "8": "⁸",
+                "9": "⁹",
+                "-": "⁻",
+            })
+
+def latex_to_unicode_units(unit_str):
+    """
+    Convert LaTeX-style exponents like $^{-1}$ to Unicode superscripts.
+    """
+
+    def repl(match):
+        exponent = match.group(1)
+        return exponent.translate(SUPERSCRIPTS)
+
+    return re.sub(r"\$\^\{([^}]*)\}\$", repl, unit_str)
 
 ##############
 #END OF SCRIPT

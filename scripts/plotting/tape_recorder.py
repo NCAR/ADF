@@ -180,6 +180,12 @@ def tape_recorder(adfobj):
         # Search for files
         ts_loc = Path(case_ts_locs[idx])
         hist_str = hist_strs[idx]
+
+        grid_path = Path(ts_loc) / "gridded"
+        if grid_path.is_dir():
+            print("Using gridded file, eh?")
+            ts_loc = grid_path
+
         fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
         dat = adfobj.data.load_timeseries_dataset(fils)
 
@@ -230,8 +236,11 @@ def tape_recorder(adfobj):
     y2_loc = y1[count]-0.02
 
     ax = plotcolorbar(fig, plot_step, plot_min, plot_max, f'{var} (kg/kg)',
-                      x1_loc, x2_loc, y1_loc, y2_loc,
+                      x1_loc, x2_loc, y1_loc, y2_loc,fsize=10,
                       cmap=cmap)
+    
+    ax.tick_params('both', length=5, width=1.5, which='major')
+    ax.tick_params('both', length=5, width=1.5, which='minor')
 
     #Save image
     fig.savefig(plot_name, bbox_inches='tight', facecolor='white')
@@ -499,8 +508,6 @@ def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, 
         print("This isn't going to work.  If overplotting, specify axis")
         return
 
-    plt.rcParams['font.size'] = '14'
-
     monticks_temp = np.arange(0,12,1)
     monticks2_temp = np.arange(0,12,1)+0.5
 
@@ -535,8 +542,8 @@ def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, 
     ax.set_xticks(monticks)
     ax.set_xticklabels([])
     ax.set_xticks(monticks2[1:13], minor=True)
-    ax.set_xticklabels(['J','F','M','A','M','J','J','A','S','O','N','D'], minor=True, fontsize=14)
-    ax.set_title(expname, fontsize=8)
+    ax.set_xticklabels(['J','F','M','A','M','J','J','A','S','O','N','D'], minor=True, fontsize=10)
+    ax.set_title(expname, fontsize=10)
 
     return ax
 

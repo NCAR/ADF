@@ -26,6 +26,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import adf_utils as utils
+
 # Check if "PyYAML" is present in python path:
 # pylint: disable=unused-import
 try:
@@ -65,6 +67,30 @@ try:
 except ImportError:
     print("Cartopy module does not exist in python path.")
     print("Please install module, e.g. 'pip install Cartopy'.")
+    sys.exit(1)
+
+# Check if "uxarray" is present in python path:
+#try:
+#    import uxarray as ux
+#except ImportError:
+#    print("uxarray module does not exist in python path.")
+#    print("Please install module, e.g. 'pip install uxarray'.")
+#    sys.exit(1)
+
+# Check if "esmpy" is present in python path:
+try:
+    import esmpy
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install esmpy'.")
+    sys.exit(1)
+
+# Check if "xesmf" is present in python path:
+try:
+    import xesmf
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install xesmf'.")
     sys.exit(1)
 
 # pylint: enable=unused-import
@@ -358,6 +384,9 @@ class AdfDiag(AdfWeb):
             case_type_string = "baseline"
             hist_str_list = [self.hist_string["base_hist_str"]]
 
+            #overwrite_regrid_locs = [self.get_baseline_info("cam_overwrite_ts_regrid")]
+            #test_output_loc       = [self.get_baseline_info("cam_ts_regrid_loc")]
+
         else:
             # Use test case settings, which are already lists:
             case_names = self.get_cam_info("cam_case_name", required=True)
@@ -367,8 +396,11 @@ class AdfDiag(AdfWeb):
             overwrite_ts = self.get_cam_info("cam_overwrite_ts")
             start_years = self.climo_yrs["syears"]
             end_years = self.climo_yrs["eyears"]
-            case_type_string="case"
+            case_type_string = "test"
             hist_str_list = self.hist_string["test_hist_str"]
+
+            #overwrite_regrid_locs = self.get_cam_info("cam_overwrite_ts_regrid")
+            #test_output_loc       = self.get_cam_info("cam_ts_regrid_loc")
         # End if
 
         # Read hist_str (component.hist_num) from the yaml file, or set to default
@@ -378,11 +410,13 @@ class AdfDiag(AdfWeb):
         # get info about variable defaults
         res = self.variable_defaults
 
+        comp = self.model_component
+
         # Loop over cases:
         for case_idx, case_name in enumerate(case_names):
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
-                emsg = "\tNOTE: Configuration file indicates time series files have been pre-computed"
+                emsg = "\tNOTE: Config. file indicates time series files have been pre-computed"
                 emsg += f" for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 continue
@@ -395,9 +429,11 @@ class AdfDiag(AdfWeb):
             # Create path object for the CAM history file(s) location:
             starting_location = Path(cam_hist_locs[case_idx])
 
+            #unstruct = unstructed[case_idx]
+
             # Check that path actually exists:
             if not starting_location.is_dir():
-                emsg = f"Provided {case_type_string} 'cam_hist_loc' directory"
+                emsg = f"Provided {case_type_string} case 'cam_hist_loc' directory"
                 emsg += f" '{starting_location}' not found.  Script is ending here."
                 self.end_diag_fail(emsg)
             # End if
@@ -409,7 +445,8 @@ class AdfDiag(AdfWeb):
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
 
-                print(f"\t Processing time series for {case_type_string} {case_name}, {hist_str} files:")
+                print(f"\t Processing time series for {case_type_string} case  \
+                      '{case_name}', {hist_str} files:")
                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
                     emsg = (
                         f"No history *{hist_str}.*.nc files found in '{starting_location}'."
@@ -641,8 +678,9 @@ class AdfDiag(AdfWeb):
                         # Lastly, raise error if the variable is not a derived quanitity
                         # but is also not in the history file(s)
                         else:
-                            msg = f"\t    WARNING: {var} is not in the history file for case '{case_name}' "
-                            msg += "nor can it be derived. Script will continue to next variable."
+                            msg = f"\t    WARNING: {var} is not in the history file for case  "
+                            msg += f"'{case_name}' nor can it be derived. Script will continue "
+                            msg += " to the text variable."
                             print(msg)
                             logmsg = f"create time series for {case_name}:"
                             logmsg += f"\n {var} is not in the file {hist_files[0]} "
@@ -652,7 +690,8 @@ class AdfDiag(AdfWeb):
                     # End if (var in var_diag_list)
 
                     # Check if variable has a "lev" dimension according to first file:
-                    has_lev = bool("lev" in hist_file_ds[var].dims or "ilev" in hist_file_ds[var].dims)
+                    has_lev = bool("lev" in hist_file_ds[var].dims or \
+                            "ilev" in hist_file_ds[var].dims)
 
                     # Check if files already exist in time series directory:
                     ts_file_list = glob.glob(ts_outfil_str)
@@ -664,7 +703,7 @@ class AdfDiag(AdfWeb):
                             continue
 
                     # Variable list starts with just the variable
-                    ncrcat_var_list = f"{var}"
+                    ncrcat_var_list = f"{var},lat,lon"
 
                     # Determine "ncrcat" command to generate time series file:
                     if "date" in hist_file_ds[var].dims:
@@ -712,9 +751,12 @@ class AdfDiag(AdfWeb):
                         + ["-o", ts_outfil_str]
                     )
 
-                    # Example ncatted command (you can modify it with the specific attribute changes you need)
-                    #cmd_ncatted = ["ncatted", "-O", "-a", f"adf_user,global,a,c,{self.user}", ts_outfil_str]
-                    # Step 1: Convert Path objects to strings and concatenate the list of historical files into a single string
+                    # Example ncatted command
+                    # (you can modify it with the specific attribute changes you need)
+                    # cmd_ncatted = ["ncatted", "-O", "-a", "f" adf_user,global,a,c,{self.user}",
+                    #                ts_outfil_str]
+                    # Step 1: Convert Path objects to strings and concatenate the list of
+                    #  historical files into a single string
                     hist_files_str = ', '.join(str(f.name) for f in hist_files)
                     hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
 
@@ -727,12 +769,25 @@ class AdfDiag(AdfWeb):
                         ts_outfil_str
                     ]
 
-                    # Step 3: Create the ncatted command to remove the history attribute
+                    if "clm" in hist_str:
+                        # Step 3b: Optional, add additional variables to clm2.h1 files
+                        if  "h1" in hist_str:
+                            cmd_add_clm_h1_fields = [
+                                "ncrcat", "-A", "-v", 
+                                "pfts1d_ixy,pfts1d_jxy,pfts1d_itype_veg,lat,lon",
+                                hist_files,
+                                ts_outfil_str
+                            ]
+                            # add time varrying information to clm2.h1 fields
+                            list_of_hist_commands.append(cmd_add_clm_h1_fields)
+
+                     # Step 3c: Create the ncatted command to remove the history attribute
                     cmd_remove_history = [
                         "ncatted", "-O", "-h",
                         "-a", "history,global,d,,",
                         ts_outfil_str
                     ]
+
 
                     # Add to command list for use in multi-processing pool:
                     # -----------------------------------------------------
@@ -740,8 +795,9 @@ class AdfDiag(AdfWeb):
                     list_of_commands.append(cmd)
                     # Add global attributes: user, original hist file loc(s) and all filenames
                     list_of_ncattend_commands.append(cmd_ncatted)
+
                     # Remove the `history` attr that gets tacked on (for clean up)
-                    # NOTE: this may not be best practice, but it the history attr repeats
+                    # NOTE: this may not be best practice, but if the history attr repeats
                     #       the files attrs so the global attrs become obtrusive...
                     list_of_hist_commands.append(cmd_remove_history)
 
@@ -756,9 +812,94 @@ class AdfDiag(AdfWeb):
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_ncattend_commands)
 
-                # Run ncatted command to remove history attribute after the global attributes are set
+                # Run ncatted command to remove history attribute after
+                # the global attributes are set
                 with mp.Pool(processes=self.num_procs) as mpool:
                     _ = mpool.map(call_ncrcat, list_of_hist_commands)
+
+                # Loop over the created time series files again and fix the time if necessary
+                #NOTE: There is no solution to do this with NCO operators,
+                #      but there is with CDO operators. We can switch to using CDO,
+                #      but it would require the user to have/load CDO as well.
+
+                unstruct_plotting = self.unstructured_plotting
+
+                #fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
+                for var in diag_var_list:
+                #for fil in fils:
+                    fils = glob.glob(f"{ts_dir}/*.{var}.{time_string}.nc")
+                    if not fils:
+                        print(f"Uh oh, no files found for {var} with time string" \
+                              f"{time_string} in {ts_dir}")
+                        print("Will check for derived vars later.")
+                        continue
+                    if len(fils) > 1:
+                        print("Uh oh, too many files :(" \
+                        "\nCheck the time series directory for duplicates.")
+                        continue
+
+                    fil = fils[0]
+                    ts_ds = xr.open_dataset(fil, decode_times=False)
+
+                    units = ts_ds[var].attrs.get("units", "--")
+                    if ('time_bnds' in ts_ds) or ('time_bounds' in ts_ds):
+                        if comp == "atm":
+                            if 'time_bnds' in ts_ds:
+                                ts_ds.time_bnds.attrs['units'] = ts_ds.time.attrs['units']
+                                ts_ds.time_bnds.attrs['calendar'] = ts_ds.time.attrs['calendar']
+                            if 'time_bounds' in ts_ds:
+                                ts_ds.time_bounds.attrs['units'] = ts_ds.time.attrs['units']
+                                ts_ds.time_bounds.attrs['calendar'] = ts_ds.time.attrs['calendar']
+                        if comp == "lnd":
+                            ts_ds.time_bounds.attrs['units'] = ts_ds.time.attrs['units']
+                            ts_ds.time_bounds.attrs['calendar'] = ts_ds.time.attrs['calendar']
+                        time = ts_ds['time']
+
+                        if comp == "atm":
+                            if 'time_bnds' in ts_ds:
+                                time = xr.DataArray(ts_ds['time_bnds'].load().mean(dim='nbnd').values,
+                                                    dims=time.dims, attrs=time.attrs)
+                            if 'time_bounds' in ts_ds:
+                                time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='nbnd').values,
+                                                    dims=time.dims, attrs=time.attrs)
+                            # Optional, add additional variables to cam.h0* files
+                            if "h0" in hist_str:
+                                ds = xr.open_dataset(hist_files[0], decode_times=False)
+                                if unstruct_plotting:
+                                    ts_ds['area'] = ds.areawt
+                        if comp == "lnd":
+                            # need greater flexibility given changes in clm history files over time
+                            if 'hist_interval' in ts_ds['time_bounds'].dims:
+                                time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='hist_interval').values,
+                                                    dims=time.dims, attrs=time.attrs)
+                            else:
+                                time = xr.DataArray(ts_ds['time_bounds'].load().mean(dim='nbnd').values,
+                                                    dims=time.dims, attrs=time.attrs)
+
+                            # Optional, add additional variables to clm2.h0* files
+                            if "h0" in hist_str:
+                                ds = xr.open_dataset(hist_files[0], decode_times=False)
+                                ts_ds['area'] = ds.area
+                                ts_ds['landfrac'] = ds.landfrac
+                                ts_ds['landmask'] = ds.landmask
+
+                        ts_ds['time'] = time
+                        ts_ds.assign_coords(time=time)
+                        ts_ds_fixed = xr.decode_cf(ts_ds)
+
+                        # Add attribute note of time change
+                        attrs_dict = {
+                            "adf_timeseries_info": "Time series files have been computed using ncrcat'",
+                            "adf_note": "The time values have been modified to middle of month",
+                            "units": units,
+                        }
+                        ts_ds_fixed = ts_ds_fixed.assign_attrs(attrs_dict)
+
+                        # Save to a temporary file
+                        temp_file_path = fil + ".tmp"
+                        ts_ds_fixed.to_netcdf(temp_file_path)
+                        # Replace the original file with the modified file
+                        os.replace(temp_file_path, fil)
 
                 if vars_to_derive:
                     self.derive_variables(
@@ -766,6 +907,74 @@ class AdfDiag(AdfWeb):
                         constit_dict=constit_dict, ts_dir=ts_dir
                     )
                 # End with
+
+            #if utils.check_unstructured(ts_file_ds0, case_name, ts_dir) and not unstruct_plotting:
+            if self.native_grid[case_name] and not unstruct_plotting:
+                tgridded_output_loc   = Path(ts_dir) / "gridded"
+                if not tgridded_output_loc.is_dir():
+                    print(f"    {tgridded_output_loc} not found, making new directory")
+                    tgridded_output_loc.mkdir(parents=True)
+
+                for f in sorted(Path(ts_dir).glob("*.nc")):
+                    #print("native (hopefully) file",f)
+                    ts_outfil_str = Path(f'{str(f).replace(".nc", "_gridded.nc")}')
+                    ts_outfil_grid = ts_outfil_str.name
+                    tgridded_output = tgridded_output_loc / ts_outfil_grid
+
+                    # Check if clobber is true for file
+                    #if (tgridded_output_loc / ts_outfil_str).is_file() and not overwrite_ts[case_idx]:
+                    if Path(tgridded_output).is_file() and not overwrite_ts[case_idx]:
+                        msg = f"\t    INFO: gridded file was found "
+                        msg += "and overwrite is False. Will use existing gridded file."
+                        print(msg)
+                        continue
+
+                    ts_file_ds = xr.open_dataset(f)
+                    #var = fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
+
+                    var = str(f).split(f'{hist_str}.')[1].split('.')[0]
+
+                    #Check if any a FV file exists if using native grid
+                    if case_type_string == "baseline":
+                        latlon_file   = self.latlon_files["baseline_latlon_file"]
+                        wgts_file   = self.latlon_wgt_files["baseline_wgts_file"]
+                        method = self.latlon_regrid_method["baseline_regrid_method"]
+                    else:
+                        latlon_file   = self.latlon_files["test_latlon_file"][case_idx]
+                        wgts_file   = self.latlon_wgt_files["test_wgts_file"][case_idx]
+                        method = self.latlon_regrid_method["test_regrid_method"][case_idx]
+                    if not latlon_file:
+                        msg = "WARNING: This looks like an unstructured case, but missing lat/lon file"
+                        print(msg)
+                        latlon_file = None
+                        #raise AdfError(msg)
+
+                    #Check if any a weights file exists if using native grid
+                    if not wgts_file:
+                        msg = "WARNING: This looks like an unstructured case, but missing weights file, can't continue."
+                        print(msg)
+                        return
+                        #raise AdfError(msg)
+
+                    ds_attrs = ts_file_ds.attrs
+
+                    # Grid unstructured climo if applicable before regridding
+                    tgdata_interp = utils.grid_to_latlon(ts_file_ds, var,
+                                                    comp=comp,
+                                                    wgt_file=wgts_file,
+                                                    latlon_file=latlon_file,
+                                                    method=method,
+                                                    )
+                    tgdata_interp.attrs = ds_attrs
+                    if 'lev' in ts_file_ds:
+                        #tgdata_interp['lev'].attrs['long_name'] = ts_file_ds.lev.long_name
+
+                        tgdata_interp['hybm'] = ts_file_ds.hybm
+                        tgdata_interp['hyam'] = ts_file_ds.hyam
+
+                    save_to_nc(tgdata_interp, tgridded_output)
+                    # End for
+                # End if check for native grid
             # End for hist_str
         # End cases loop
 
@@ -1181,7 +1390,8 @@ class AdfDiag(AdfWeb):
 
             # Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
-                ermsg = f"\t    WARNING: Not all constituent files present; {var} cannot be calculated."
+                ermsg = "\t    WARNING: Not all constituent files present;"
+                ermsg += f" {var} cannot be calculated."
                 ermsg += f" Please remove {var} from 'diag_var_list' or find the "
                 ermsg += "relevant CAM files.\n"
                 print(ermsg)
@@ -1299,8 +1509,9 @@ class AdfDiag(AdfWeb):
 
         #
         # Create a dict with all the case info needed for MDTF case_list
-        #     Note that model and convention are hard-coded to CESM because that's all we expect here
-        #     This could be changed by inputing them into ADF with other MDTF-specific variables
+        #     Note that model and convention are hard-coded to CESM
+        #     because that's all we expect here. This could be changed
+        #     by inputing them into ADF with other MDTF-specific variables
         #
         case_list_keys = ["CASENAME", "FIRSTYR", "LASTYR", "model", "convention"]
 
@@ -1355,8 +1566,8 @@ class AdfDiag(AdfWeb):
 
         #
         # Submit the MDTF script in background mode, send output to mdtf.out file
-        #
-        mdtf_log = "mdtf.out" # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+        # maybe set this to cam_diag_plot_loc: /glade/scratch/${user}/ADF/plots
+        mdtf_log = "mdtf.out"
         mdtf_exe = mdtf_codebase + os.sep + "mdtf -f " + mdtf_input_settings_filename
         if copy_files_only:
             print("\t ...Copy files only. NOT Running MDTF")
@@ -1528,7 +1739,7 @@ def _load_dataset(fils):
     When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
     """
 
-    import adf_utils as utils
+    #import adf_utils as utils
     import warnings # use to warn user about missing files
     warnings.formatwarning = utils.my_formatwarning
 
@@ -1541,4 +1752,24 @@ def _load_dataset(fils):
         return xr.open_dataset(fils[0])
     #End if
 # End def
+
+def save_to_nc(tosave, outname, attrs=None, proc=None):
+    """Saves xarray variable to new netCDF file"""
+
+    xo = tosave  # used to have more stuff here.
+    # deal with getting non-nan fill values.
+    if isinstance(xo, xr.Dataset):
+        enc_dv = {xname: {'_FillValue': None} for xname in xo.data_vars}
+    else:
+        enc_dv = {}
+    #End if
+    enc_c = {xname: {'_FillValue': None} for xname in xo.coords}
+    enc = {**enc_c, **enc_dv}
+    if attrs is not None:
+        xo.attrs = attrs
+    if proc is not None:
+        xo.attrs['Processing_info'] = f"Start from file {origname}. " + proc
+    xo.to_netcdf(outname, format='NETCDF4', encoding=enc)
+
+#####
 ########
