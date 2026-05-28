@@ -46,7 +46,6 @@ import xarray as xr
 #ADF modules:
 from adf_config import AdfConfig
 from adf_base   import AdfError
-import utils
 #+++++++++++++++++++
 #Define Obs class
 #+++++++++++++++++++
