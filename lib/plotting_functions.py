@@ -189,16 +189,11 @@ def make_polar_plot(adfobj, wks, case_nickname,
         #lons, lats = np.meshgrid(lon_cyclic, d1.lat)
         lons, lats = plot_utils.transform_coordinates_for_projection(proj, lon_cyclic, d1.lat) # Explicit coordinate transform
     else:
-        print("domain",domain)
-        lon_min, lon_max, lat_min, lat_max = domain
-        #print("dir(d1.uxgrid.subset)",dir(d1.uxgrid.subset))
-        lon = d1.uxgrid.face_lon.values
         lat = d1.uxgrid.face_lat.values
 
-
         mask = (
-            (lat >= lat_min) &
-            (lat <= lat_max)
+            (lat >= domain[2]) &
+            (lat <= domain[3])
         )
         
         indices = np.where(mask)[0]
@@ -1219,7 +1214,7 @@ def plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
 
 
 
-def ux_to_lat_binned(da, bins=2):
+"""def ux_to_lat_binned(da, bins=2):
 
     da_vals = np.array(da)
     lat = np.array(da.uxgrid.face_lat)
@@ -1262,6 +1257,57 @@ def ux_to_lat_binned(da, bins=2):
     return xr.DataArray(
         out,
         dims=dims,
+        coords=coords,
+        name=da.name,
+        attrs=da.attrs
+    )"""
+
+def ux_to_lat_binned(da, bins=2):
+
+    lat = np.asarray(da.uxgrid.face_lat)
+
+    lat_bins = np.arange(-90, 90 + bins, bins)
+    lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
+
+    bin_index = np.clip(
+        np.digitize(lat, lat_bins) - 1,
+        0,
+        len(lat_mid) - 1
+    )
+
+    face_dim = da.dims[-1]
+
+    da_vals = da.values
+
+    new_shape = (
+        *da_vals.shape[:-1],
+        len(lat_mid),
+        da_vals.shape[-1]
+    )
+
+    out = np.full(new_shape, np.nan, dtype=float)
+
+    for i in range(len(lat_mid)):
+        mask = bin_index == i
+        out[..., i, mask] = da_vals[..., mask]
+
+    new_dims = (
+        *da.dims[:-1],
+        "lat",
+        face_dim
+    )
+
+    coords = {}
+
+    for dim in da.dims[:-1]:
+        coords[dim] = da.coords[dim]
+
+    coords["lat"] = lat_mid
+    coords[face_dim] = np.arange(len(lat))
+
+    return xr.DataArray(
+        out,
+        dims=new_dims,
         coords=coords,
         name=da.name,
         attrs=da.attrs
@@ -1825,7 +1871,6 @@ def plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
         unstructured = kwargs['unstructured_plotting']
     else:
         unstructured = False
-
 
     if unstructured:
         adata = ux_to_lon_binned(adata)
