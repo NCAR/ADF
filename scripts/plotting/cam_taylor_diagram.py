@@ -91,11 +91,11 @@ def cam_taylor_diagram(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     #Check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
     kwargs = {}
 
@@ -157,22 +157,22 @@ def cam_taylor_diagram(adfobj):
         #
         # LOOP OVER VARIABLES
         #
-        for v in var_list:
-            #vres = res[v]
-            if s == "ANN":
+        for v in var_list:            
+            """if s == "ANN":
                 if v=="ColumnRelativeHumidity" or v==var_list[0]:
                     print("Variable",v)
+            """
             grid_path = Path(data_loc) / "gridded"
             if grid_path.is_dir():
-                print("Using gridded file, eh?")
                 data_loc = grid_path
             
-            #vres["mesh_file"] = test_mesh_files
             kwargs["mesh_file"] = base_mesh_file
             base_x = _retrieve(adfobj, v, data_name, data_loc, **kwargs) # get the baseline field
-            if s == "ANN":
+            
+            """if s == "ANN":
                 if v=="ColumnRelativeHumidity" or v==var_list[0]:
                     print("base_x",s,v,type(base_x),"\n\n")
+            """
             #if hasattr(base_x, "uxgrid"):
             #    print("uxgrid in the base yup")
 
@@ -180,15 +180,15 @@ def cam_taylor_diagram(adfobj):
                 kwargs["mesh_file"] = test_mesh_files[casenumber]
                 grid_path = Path(case_climo_locs[casenumber]) / "gridded"
                 if grid_path.is_dir():
-                    print("Using gridded file, eh?")
                     case_climo_loc = grid_path
                 else:
                     case_climo_loc = case_climo_locs[casenumber]
                 case_x = _retrieve(adfobj, v, case, case_climo_loc, **kwargs)
-                if s == "ANN" and casenumber==0:
+                
+                """if s == "ANN" and casenumber==0:
                     if v=="ColumnRelativeHumidity" or v==var_list[0]:
                         print("case_x",s,v,type(case_x),"\n\n-----------------------")
-
+                """
                 # ASSUMING `time` is 1-12, get the current season:
                 #case_x = case_x.sel(time=seasons[s]).mean(dim='time')
                 """if hasattr(case_x, "uxgrid"):
@@ -629,7 +629,7 @@ def _retrieve(adf, variable, casename, location, return_dataset=False, **kwargs)
         da = func(adf, casename, location, **kwargs)  # these ONLY return DataArray
         if return_dataset:
             da = da.to_dataset(name=variable)
-    print("_retrieve data array",da.coords,"\n\n")
+    #print("_retrieve data array",da.coords,"\n\n")
     return da
 
 
@@ -702,19 +702,6 @@ def get_spatial_weights(da, use_weights=True):
         "Could not determine grid type."
     )
 
-
-'''def weighted_correlation(x, y, weights):
-    # TODO: since we expect masked fields (land/ocean), need to allow for missing values (maybe works already?)
-    mean_x = x.weighted(weights).mean()
-    mean_y = y.weighted(weights).mean()
-    dev_x = x - mean_x
-    dev_y = y - mean_y
-    cov_xy = (dev_x * dev_y).weighted(weights).mean()
-    cov_xx = (dev_x * dev_x).weighted(weights).mean()
-    cov_yy = (dev_y * dev_y).weighted(weights).mean()
-    return cov_xy / np.sqrt(cov_xx * cov_yy)'''
-
-
 def weighted_correlation(x, y, weights):
 
     # align arrays
@@ -739,27 +726,6 @@ def weighted_correlation(x, y, weights):
 
     return cov_xy / np.sqrt(cov_xx * cov_yy)
 
-
-'''def weighted_std(x, weights):
-    """Weighted standard deviation.
-    x -> xr.DataArray
-    weights -> array-like of weights, probably xr.DataArray
-    If weights is not the same shape as x, will use `broadcast_like` to
-    create weights array.
-    Returns the weighted standard deviation of the full x array.
-    """
-    xshape = x.shape
-    wshape = weights.shape
-    if xshape != wshape:
-        wa = weights.broadcast_like(x)
-    else:
-        wa = weights
-    mean_x = x.weighted(weights).mean()
-    dev_x = x - mean_x
-    swdev = (weights * dev_x**2).sum()
-    total_weights = wa.where(x.notnull()).sum()
-    return np.sqrt(swdev / total_weights)'''
-
 def weighted_std(x, weights):
 
     mean_x = x.weighted(weights).mean()
@@ -769,30 +735,6 @@ def weighted_std(x, weights):
     variance = (dev_x**2).weighted(weights).mean()
 
     return np.sqrt(variance)
-
-
-
-'''def taylor_stats_single(casedata, refdata, w=True):
-    """This replicates the basic functionality of 'taylor_stats' from NCL.
-    input:
-        casedata : input data, DataArray
-        refdata  : reference case data, DataArray
-        w        : if true use cos(latitude) as spatial weight, if false assume uniform weight
-    returns:
-        pattern_correlation, ratio of standard deviation (case/ref), bias
-    """
-    lat = casedata['lat']
-    if w:
-        wgt = np.cos(np.radians(lat))
-    else:
-        wgt = np.ones(len(lat))
-    correlation = weighted_correlation(casedata, refdata, wgt).item()
-    a_sigma = weighted_std(casedata, wgt)
-    b_sigma = weighted_std(refdata, wgt)
-    mean_case = casedata.weighted(wgt).mean()
-    mean_ref = refdata.weighted(wgt).mean()
-    bias = (100*((mean_case - mean_ref)/mean_ref)).item()
-    return correlation, a_sigma/b_sigma, bias'''
 
 
 def taylor_stats_single(casedata, refdata, w=True):

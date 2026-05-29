@@ -6,6 +6,7 @@ import matplotlib.colors as mcolors
 import matplotlib as mpl
 
 import adf_utils as utils
+import plotting_functions as pf
 import warnings # use to warn user about missing files
 warnings.formatwarning = utils.my_formatwarning
 
@@ -44,16 +45,19 @@ def qbo(adfobj):
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
     if not plot_type:
         plot_type = 'png'
     #End if
 
+    var_defaults = adfobj.variable_defaults
+    unstruct_plotting = adfobj.unstructured_plotting
+
     #Check if zonal wind ("U") variable is present.  If not then skip
     #this script:
     if not ('U' in adfobj.diag_var_list):
-        msg = "No zonal wind ('U') variable present"
+        msg = "\t No zonal wind ('U') variable present"
         msg += " in 'diag_var_list', so QBO plots will"
         msg += " be skipped."
         print(msg)
@@ -122,11 +126,24 @@ def qbo(adfobj):
         
         grid_path = Path(case_locs[i]) / "gridded"
         if grid_path.is_dir():
-            print("Using gridded file, eh?")
+            #print("Using gridded file, eh?")
             case_ts_loc = grid_path
         else:
             case_ts_loc = case_locs[i]
-        casedat.append(utils.load_dataset(sorted(Path(case_ts_loc).glob(f"{case_names[i]}.*.U.*.nc"))))
+        var = "U"
+        vres = var_defaults.get(var, {})
+        vres["unstructured_plotting"] = unstruct_plotting
+        #Create list of time series files present for variable:
+        if i != len(case_names)-1:
+            ts_files = adfobj.data.get_timeseries_file(case_names[i], var)
+            vres["mesh_file"] = adfobj.mesh_files["test_mesh_file"][i]
+        else:
+            ts_files = adfobj.data.get_ref_timeseries_file(var)
+            vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+        ds = adfobj.data.load_dataset(ts_files, **vres)
+        print("ds",ds,"\n\n")
+        casedat.append(ds)
+        #casedat.append(utils.load_dataset(sorted(Path(case_ts_loc).glob(f"{case_names[i]}.*.U.*.nc"))))
 
     #Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []
@@ -145,14 +162,88 @@ def qbo(adfobj):
         #End for
     #End if
 
+    """unstruct = False
+    if hasattr(data, "uxgrid") and data.uxgrid is not None:
+        unstruct = True
+        uxgrid=data.uxgrid
+    # Only wrap if the input had uxgrid
+    if unstruct:
+        weighted_mean = ux.UxDataArray(
+            weighted_mean,
+            uxgrid=uxgrid,
+            attrs=weighted_mean.attrs
+        )"""
+
     #----Calculate the zonal mean
+    def ux_zonal_mean(da, bins=2):
+
+        lat = np.asarray(da.uxgrid.face_lat)
+        area = np.asarray(da.uxgrid.face_areas)
+
+        lat_bins = np.arange(-90, 90 + bins, bins)
+        lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
+
+        bin_index = np.clip(
+            np.digitize(lat, lat_bins) - 1,
+            0,
+            len(lat_mid) - 1
+        )
+
+        zonal = []
+
+        for i in range(len(lat_mid)):
+
+            mask = bin_index == i
+
+            if not np.any(mask):
+                continue
+
+            idx = np.where(mask)[0]
+
+            subset = da.isel(n_face=idx)
+
+            w = xr.DataArray(
+                area[idx],
+                dims=["n_face"]
+            )
+
+            zonal_mean = (
+                (subset * w).sum("n_face")
+                / w.sum()
+            )
+
+            zonal.append(zonal_mean)
+
+        """return xr.concat(zonal, dim="lat").assign_coords(
+            lat=lat_mid[:len(zonal)]
+        )"""
+
+        result = xr.concat(zonal, dim="lat").assign_coords(
+            lat=lat_mid[:len(zonal)]
+        )
+
+        # strip UXARRAY wrapper here
+        result = xr.DataArray(
+            result.data,
+            coords=result.coords,
+            dims=result.dims,
+            attrs=result.attrs,
+        )
+
+        return result
+
     casedatzm = []
     for i in range(0,ncases,1):
-        has_dims = utils.validate_dims(casedat[i].U, ['lon'])
-        if not has_dims['has_lon']:
-            print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_locs[i]}', cannot continue to plot.")
+        if unstruct_plotting:
+            #print("casedat[i].U",casedat[i].U)
+            casedatzm.append(ux_zonal_mean(casedat[i].U))
         else:
-            casedatzm.append(casedat[i].U.mean("lon"))
+            has_dims = utils.validate_dims(casedat[i].U, ['lon'])
+            if not has_dims['has_lon']:
+                print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_locs[i]}', cannot continue to plot.")
+            else:
+                casedatzm.append(casedat[i].U.mean("lon"))
+
     if len(casedatzm) == 0:
         print(f"\t  WARNING: No available cases found, exiting script.")
         exitmsg = "\tNo QBO plots will be made."
@@ -165,7 +256,13 @@ def qbo(adfobj):
         return
 
     #----Calculate the 5S-5N average
-    casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]
+    """if unstruct_plotting:
+        casedat_5S_5N = []
+    else:
+        casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]"""
+    
+    #print("casedatzm",casedatzm)
+    casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(ncases) ]
 
     #----Find the minimum number of years across dataset for plotting the timeseries.
     nyobs = np.floor(obs.time.size/12.)
@@ -204,6 +301,8 @@ def qbo(adfobj):
 
     #---Dunkerton and Delisi QBO amplitude
     obsamp = calcddamp(obs)
+    print(type(casedat_5S_5N[0]))
+    print(casedat_5S_5N[0].dims)
     modamp = [ calcddamp(casedat_5S_5N[i]) for i in range(0,ncases,1) ]
 
     fig = plt.figure(figsize=(16,16))

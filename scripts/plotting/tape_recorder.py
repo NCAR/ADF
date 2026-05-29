@@ -34,6 +34,9 @@ def tape_recorder(adfobj):
     plot_location = adfobj.plot_location
     plot_loc = Path(plot_location[0])
 
+    unstruct_plotting = adfobj.unstructured_plotting
+    var_defaults = adfobj.variable_defaults
+
     #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
@@ -110,11 +113,11 @@ def tape_recorder(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
     #Set location for observations
     obs_loc = Path(adfobj.get_basic_info("obs_data_loc"))
@@ -177,46 +180,65 @@ def tape_recorder(adfobj):
     runname_LT=[]
     count=2
     for idx,key in enumerate(test_nicknames):
+        case_name = case_names[idx]
+
         # Search for files
         ts_loc = Path(case_ts_locs[idx])
         hist_str = hist_strs[idx]
 
         grid_path = Path(ts_loc) / "gridded"
         if grid_path.is_dir():
-            print("Using gridded file, eh?")
+            #print("Using gridded file, eh?")
             ts_loc = grid_path
 
-        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
-        dat = adfobj.data.load_timeseries_dataset(fils)
+        #fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        #dat = adfobj.data.load_timeseries_dataset(fils)
+
+        var = "Q"
+        vres = var_defaults.get(var, {})
+        vres["unstructured_plotting"] = unstruct_plotting
+        #Create list of time series files present for variable:
+        #if idx != len(case_names)-1:
+        if case_name != adfobj.data.ref_case_label:
+            ts_files = adfobj.data.get_timeseries_file(case_names[idx], var)
+            vres["mesh_file"] = adfobj.mesh_files["test_mesh_file"][idx]
+        else:
+            ts_files = adfobj.data.get_ref_timeseries_file(var)
+            vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+        dat = adfobj.data.load_dataset(ts_files, **vres)
 
         if not dat:
-            dmsg = f"\t No data for `{var}` found in {fils}, case will be skipped in tape recorder plot."
+            dmsg = f"\t No data for `{var}` found in {ts_loc}, {key} will be skipped."
             print(dmsg)
             adfobj.debug_log(dmsg)
             continue
 
         #Grab time slice based on requested years (if applicable)
-        dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
-
-        has_dims = utils.validate_dims(dat[var], ['lon'])
-        if not has_dims['has_lon']:
-            print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
+        #dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+        print("dat",dat,"\n\n")
+        if unstruct_plotting:
+            datzm = ux_zonal_mean(dat[var])
         else:
-            datzm = dat.mean('lon')
-            dat_tropics = cosweightlat(datzm[var], -10, 10)
-            dat_mon = dat_tropics.groupby('time.month').mean('time').load()
-            ax = plot_pre_mon(fig, dat_mon,
-                            plot_step, plot_min, plot_max, key,
-                            x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
-                            taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
-            count=count+1
-            runname_LT.append(key)
+            has_dims = utils.validate_dims(dat[var], ['lon'])
+            if not has_dims['has_lon']:
+                print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
+            else:
+                datzm = dat[var].mean('lon')
+
+        dat_tropics = cosweightlat(datzm, -10, 10)
+        dat_mon = dat_tropics.groupby('time.month').mean('time').load()
+        ax = plot_pre_mon(fig, dat_mon,
+                                plot_step, plot_min, plot_max, key,
+                                x1[count],x2[count],y1[count],y2[count],cmap=cmap, paxis='lev',
+                                taxis='month',climo_yrs=f"{start_years[idx]}-{end_years[idx]}")
+        count=count+1
+        runname_LT.append(key)
 
     #Check to see if any cases were successful
     if not runname_LT:
         msg = f"\t  WARNING: No cases seem to be available, please check time series files for {var}."
         msg += "\n\tNo tape recorder plots will be made."
-        print(msg)
+        adfobj.debug_log(msg)
         #End tape recorder plotting script:
         return
 
@@ -548,5 +570,48 @@ def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, 
     return ax
 
 #########
+
+
+def ux_zonal_mean(da, bins=2):
+
+        lat = np.asarray(da.uxgrid.face_lat)
+        area = np.asarray(da.uxgrid.face_areas)
+
+        lat_bins = np.arange(-90, 90 + bins, bins)
+        lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
+
+        bin_index = np.clip(
+            np.digitize(lat, lat_bins) - 1,
+            0,
+            len(lat_mid) - 1
+        )
+
+        zonal = []
+        for i in range(len(lat_mid)):
+            mask = bin_index == i
+            if not np.any(mask):
+                continue
+
+            idx = np.where(mask)[0]
+            subset = da.isel(n_face=idx)
+
+            w = xr.DataArray(area[idx], dims=["n_face"])
+
+            zonal_mean = ((subset * w).sum("n_face")/ w.sum())
+            zonal.append(zonal_mean)
+
+        result = xr.concat(zonal, dim="lat").assign_coords(
+            lat=lat_mid[:len(zonal)]
+        )
+
+        # strip UXARRAY wrapper
+        result = xr.DataArray(
+            result.data,
+            coords=result.coords,
+            dims=result.dims,
+            attrs=result.attrs,
+        )
+
+        return result
 
 ###############
