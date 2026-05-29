@@ -160,6 +160,10 @@ class AdfInfo(AdfConfig):
 
         #Initialize "compare_obs" variable:
         self.__compare_obs = self.get_basic_info('compare_obs')
+        redo_plot = self.get_basic_info('redo_plot')
+        plot_type = self.basic_info_dict.get('plot_type', 'png')
+        print(f"\t NOTE: redo_plot is set to {redo_plot}")
+        print(f"\t NOTE: Plot type is set to {plot_type}")
 
         #Check if a CAM vs AMWG obs comparison is being performed:
         if self.__compare_obs:
