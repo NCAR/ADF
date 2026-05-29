@@ -120,7 +120,10 @@ class AdfData:
             warnings.warn("\t    WARNING: ADF does not currently expect observational time series files.")
             return None
         else:
-            ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
+            if self.adf.native_grid[self.ref_case_label] and not self.adf.unstructured_plotting:
+                ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True)) / "gridded"
+            else:
+                ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
             ts_filenames = f'{self.ref_case_label}.*.{field}.*nc'
             ts_files = sorted(ts_loc.glob(ts_filenames))
             return ts_files
@@ -132,6 +135,10 @@ class AdfData:
             warnings.warn("\t    WARNING: Input file list is empty.")
             return None
         elif (len(fils) > 1):
+            #if unstruct:
+            #    print()
+            #else:
+            #    ds = xr.open_mfdataset(fils, decode_times=False)
             ds = xr.open_mfdataset(fils, decode_times=False)
         else:
             sfil = str(fils[0])
