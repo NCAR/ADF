@@ -82,12 +82,12 @@ def adf_histogram(adfobj):
     res = adfobj.variable_defaults
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get("plot_type", "png")
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
     res = adfobj.variable_defaults
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info("redo_plot")
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #
     # SECTION 1: determine which plots need to be made
     #
