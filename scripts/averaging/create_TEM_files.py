@@ -35,7 +35,7 @@ def create_TEM_files(adf):
     print("start_years",start_years)
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
 
-    if "qbo" in adf.plotting_scripts:
+    """if "qbo" in adf.plotting_scripts:
         #var_list = ['uzm','epfy','epfz','vtem','wtem',
         #            'psitem','utendepfd','utendvtem','utendwtem']
         var_list = ['uzm','thzm','epfy','epfz','vtem','wtem',
@@ -45,8 +45,9 @@ def create_TEM_files(adf):
     else:
         #var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
         #var_list = ['uzm','thzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
-        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF"]
+        var_list = ["UZM","TZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF"]"""
 
+    var_list = ["UZM","TZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF"]
     tem_locs = []
     
     #Grab TEM diagnostics options
@@ -246,7 +247,7 @@ def create_TEM_files(adf):
                 print(f"\t    INFO: Found TEM file but clobber is True, so over-writing file.")
 
             #Glob each set of years
-            #NOTE: This will make a nested list
+            #NOTE: This will make a nested list for climatology TEM files
             hist_files = []
             hist0_files = []
             for yr in np.arange(int(start_year),int(end_year)+1):
@@ -260,10 +261,7 @@ def create_TEM_files(adf):
             hist0_files = sorted(list(chain.from_iterable(hist0_files)))
             ds = xr.open_mfdataset(hist_files,decode_times=True, combine='by_coords')
             ds_h0 = xr.open_mfdataset(hist0_files,decode_times=True, combine='by_coords')
-            #print("ds_h0 BEFORE",ds_h0,"\n\n")
 
-            #h0_files = glob(f"{starting_location}/*cam.h0*.nc")
-            #ds_h0 = xr.open_mfdataset(h0_files,decode_times=True, combine='by_coords').sel(time=slice())
             ds_h0 = ds_h0.rename({'lat': 'zalat'})
 
             #Average time dimension over time bounds, if bounds exist:
@@ -286,8 +284,7 @@ def create_TEM_files(adf):
                 ds_h0 = xr.decode_cf(ds_h0)
             #print("ds_h0 AFTER",ds_h0,"\n\n")
 
-
-            #iterate over the times in a dataset
+            """#iterate over the times in a dataset
             for idx,_ in enumerate(ds.time.values):
                 if idx == 0:
                     dstem0 = calc_tem(ds.squeeze().isel(time=idx))
@@ -295,7 +292,13 @@ def create_TEM_files(adf):
                     dstem = calc_tem(ds.squeeze().isel(time=idx))
                     dstem0 = xr.concat([dstem0, dstem],'time')
                 #End if
-            #End if
+            #End if"""
+
+            results = []
+            for idx in range(ds.sizes["time"]):
+                results.append(calc_tem(ds.isel(time=idx).squeeze()))
+
+            dstem0 = xr.concat(results, dim="time")
 
             #Average time dimension over time bounds, if bounds exist:
             if 'time_bnds' in ds:
@@ -309,26 +312,25 @@ def create_TEM_files(adf):
                 time = ds['time']
                 #NOTE: force `load` here b/c if dask & time is cftime,
                 #throws a NotImplementedError:
-
                 time = xr.DataArray(ds[time_bounds_name].load().mean(dim='nbnd').values,
                                     dims=time.dims, attrs=time.attrs)
                 dstem0['time'] = time
                 dstem0.assign_coords(time=time)
                 dstem0 = xr.decode_cf(dstem0)
 
-            # Step 1: Your standard latitudes
-            za_lats = dstem0.zalat.values
-            #print("dstem0.UZM",dstem0.UZM,"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+            # Find which zonal lat variable is present in the dataset and use it for interpolation
+            if 'zalat' in dstem0:
+                za_lats = dstem0.zalat.values
+            elif 'zmlat' in dstem0:
+                za_lats = dstem0.zmlat.values
+            else:
+                raise ValueError("Neither 'zalat' nor 'zmlat' found in dataset. Cannot determine number of latitudes for TEM calculations.")
 
-            # Step 2: Interpolate ds2 to standard latitudes
+            #Interpolate ds_h0 to standard latitudes
             ds_h0_lats = ds_h0.interp(zalat=za_lats)
 
             zonal_mean_PS = ds_h0_lats['PS'].mean(dim='lon').compute()
             zonal_mean_PMID = ds_h0_lats['PMID'].mean(dim='lon').compute()
-            #dstem0['PMID'] = zonal_mean_PMID
-            #print("zonal_mean_PMID",zonal_mean_PMID,"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
-
-            #print("dstem0['lev']",dstem0['lev'].values,"\n")
 
             #Update the attributes
             dstem0.attrs = ds.attrs
@@ -336,81 +338,6 @@ def create_TEM_files(adf):
             dstem0['lev']=ds['lev']
             dstem0['PS'] = zonal_mean_PS
             dstem0['PMID'] = zonal_mean_PMID
-
-            #pmid = ds["PMID"].squeeze()
-            #print(pmid)
-
-            """#Create array to avoid weighting missing values:
-            pmid_ones = xr.where(pmid.isnull(), 0.0, 1.0)
-
-            #month_length = pmid.time.dt.days_in_month
-            #weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
-            if s == 'ANN':
-
-                #Calculate annual weights (i.e. don't group by season):
-                weights_ann = month_length / month_length.sum()
-
-                pmid = (pmid * weights_ann).sum(dim='time')
-                pmid = pmid / (pmid_ones*weights_ann).sum(dim='time')
-            else:
-                #this is inefficient because we do same calc over and over
-                pmid = (pmid * weights).groupby("time.season").sum(dim="time").sel(season=s)
-                wgt_denom = (pmid_ones*weights).groupby("time.season").sum(dim="time").sel(season=s)
-                pmid = pmid / wgt_denom"""
-
-
-            #mseasons.attrs['units'] = "K"
-            #oseasons.attrs['units'] = "K"
-            #pmid = pmid.mean(dim="lon")
-            #mseasons = thermo.temperature_from_potential_temperature(pmid* units.mbar,mseasons* units.kelvin)
-            #print("AHHH",np.max(mseasons.values))
-            #oseasons = thermo.temperature_from_potential_temperature(pmid* units.mbar,oseasons* units.kelvin)
-
-            #mseasons = thermo.temperature_from_potential_temperature(zonal_mean_PMID* units.Pa,
-            #                                                         mseasons* units.kelvin)
-            #mseasons_metpy = thermo.temperature_from_potential_temperature(pmid* units.Pa,mseasons* units.kelvin)
-            #print("AHHH",np.max(mseasons.values))
-            #oseasons_metpy = thermo.temperature_from_potential_temperature(pmid* units.Pa,oseasons* units.kelvin)
-            #dstem0["TZM"] = thermo.temperature_from_potential_temperature(zonal_mean_PMID* units.Pa,
-            #                                                         dstem0["THZM"].values* units.kelvin)
-            #dstem0["TZM"].attrs['units'] = 'K'
-
-            # write output to a netcdf file
-            #print("\n\ndstem0",dstem0,"\n\n")
-            """#Average time dimension over time bounds, if bounds exist:
-            if 'time_bnds' in ds:
-                time_bounds_name = 'time_bnds'
-            elif 'time_bounds' in ds:
-                time_bounds_name = 'time_bounds'
-            else:
-                time_bounds_name = None
-
-            if time_bounds_name:
-                time = ds['time']
-                #NOTE: force `load` here b/c if dask & time is cftime,
-                #throws a NotImplementedError:
-
-                time = xr.DataArray(ds[time_bounds_name].load().mean(dim='nbnd').values,
-                                    dims=time.dims, attrs=time.attrs)
-                dstem0['time'] = time
-                dstem0.assign_coords(time=time)
-                dstem0 = xr.decode_cf(dstem0)"""
-            #print("dstem0 AFTER",dstem0.PMID.values,"\n\n")
-            #print("dstem0['time_bnds'].load()",dstem0['time_bnds'].load())
-
-
-            """# assign time to midpoint of interval (even if it is already)
-            if 'time_bnds' in dstem0:
-                t = dstem0['time_bnds'].load().mean(dim='nbnd')
-                t.attrs = dstem0['time'].attrs
-                dstem0 = dstem0.assign_coords({'time':t})
-            elif 'time_bounds' in dstem0:
-                t = dstem0['time_bounds'].load().mean(dim='nbnd')
-                t.attrs = dstem0['time'].attrs
-                dstem0 = dstem0.assign_coords({'time':t})
-            else:
-                warnings.warn("Timeseries file does not have time bounds info.")
-            dstem0 = xr.decode_cf(dstem0)"""
 
             dstem0.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
 
@@ -466,11 +393,16 @@ def calc_tem(ds):
     om = 7.29212e-5
     H = 7000.
     g0 = 9.80665
+    if 'zalat' in ds:
+        nlat = ds['zalat'].size
+        latrad = np.radians(ds.zalat)
+    elif 'zmlat' in ds:
+        nlat = ds['zmlat'].size
+        latrad = np.radians(ds.zmlat)
+    else:
+        raise ValueError("Neither 'zalat' nor 'zmlat' found in dataset. Cannot determine number of latitudes for TEM calculations.")
 
-    nlat = ds['zalat'].size
     nlev = ds['lev'].size
-
-    latrad = np.radians(ds.zalat)
     coslat = np.cos(latrad)
     coslat2d = np.tile(coslat,(nlev,1))
 
@@ -487,6 +419,8 @@ def calc_tem(ds):
     wzm.values = ma.masked_greater_equal(wzm, 1e33)
     thzm = ds['THzm']
     thzm.values = ma.masked_greater_equal(thzm, 1e33)
+    #tzm = ds['Tzm']
+    #tzm.values = ma.masked_greater_equal(tzm, 1e33)
 
     uvzm = ds['UVzm']
     uvzm.values = ma.masked_greater_equal(uvzm, 1e33)
@@ -618,6 +552,9 @@ def calc_tem(ds):
         time_bounds_name = 'time_bnds'
     elif 'time_bounds' in ds:
         time_bounds_name = 'time_bounds'
+    else:
+        time_bounds_name = None
+    
 
     dstem = xr.Dataset(data_vars=dict(date = ds.date,
                                       datesec = ds.datesec,
@@ -629,6 +566,7 @@ def calc_tem(ds):
                                       hyam=ds.hyam,
                                       UZM = uzm,
                                       VZM = vzm,
+                                      #TZM = tzm,
                                       THZM = thzm,
                                       EPFY = epfy,
                                       EPFZ = epfz,

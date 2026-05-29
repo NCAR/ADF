@@ -229,23 +229,23 @@ def tem(adf):
             for s in seasons:
 
                 #Location to save plots
-                plot_name = plot_location / f"{var}_{s}_WACCM_SeasonalCycle_Mean.png"
+                plot_name = plot_location / f"{var}_{s}_WACCM_TEM_Mean.png"
 
                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                 if (not redo_plot) and plot_name.is_file():
                     #Add already-existing plot to website (if enabled):
                     adf.debug_log(f"'{plot_name}' exists and clobber is false.")
-                    adf.add_website_data(plot_name, var, None, season=s, plot_type="WACCM",ext="SeasonalCycle_Mean",category="TEM",multi_case=True)
+                    adf.add_website_data(plot_name, var, None, season=s, plot_type="WACCM",ext="TEM_Mean",category="TEM",multi_case=True)
 
                 elif ((redo_plot) and plot_name.is_file()) or (not plot_name.is_file()):
                     if plot_name.is_file():
                         plot_name.unlink()
 
                 #Grab variable defaults for this variable
-                """if var == "TZM":
+                if var == "TZM":
                     vres = res["THZM"]
                 else:   
-                    vres = res[var.upper()]"""
+                    vres = res[var.upper()]
 
                 vres = res[var.upper()]
 
@@ -368,10 +368,33 @@ def tem(adf):
                     mseasons = mseasons*1000
                     oseasons = oseasons*1000
 
-                mlat = mseasons['zalat']
-                mlev = mseasons['lev']
+                # Find which zonal lat variable is present in the dataset and use it for interpolation
+                if 'zalat' in mseasons.coords:
+                    mlat = mseasons['zalat']
+                elif 'zmlat' in mseasons.coords:
+                    mlat = mseasons['zmlat']
+                else:
+                    raise ValueError("Neither 'zalat' nor 'zmlat' found in dataset. Cannot determine number of latitudes for TEM calculations.")
+                
+                if 'zalat' in oseasons.coords:
+                    olat = oseasons['zalat']
+                elif 'zmlat' in oseasons.coords:
+                    olat = oseasons['zmlat']
+                else:
+                    raise ValueError("Neither 'zalat' nor 'zmlat' found in dataset. Cannot determine number of latitudes for TEM calculations.")
+                
+                if 'zalat' in mseasons.coords and 'zmlat' in mseasons.coords:
+                    print("Both 'zalat' and 'zmlat' found in dataset. Defaulting to 'zalat' for model latitudes.")
+                    print("Test",np.allclose(mseasons.zalat, mseasons.zmlat))
+                    mseasons = mseasons.drop_vars("zmlat")
+                    continue
+                if 'zalat' in oseasons.coords and 'zmlat' in oseasons.coords:
+                    print("Both 'zalat' and 'zmlat' found in dataset. Defaulting to 'zalat' for model latitudes.")
+                    print("Test",np.allclose(oseasons.zalat, oseasons.zmlat))
+                    oseasons = oseasons.drop_vars("zmlat")
+                    continue
 
-                olat = oseasons['zalat']
+                mlev = mseasons['lev']
                 olev = oseasons['lev']
 
                 #difference: each entry should be (lat, lon)
@@ -529,7 +552,7 @@ def tem(adf):
 
                 #Add plot to website (if enabled):
                 adf.add_website_data(plot_name, var, case_name, season=s, plot_type="WACCM",
-                                     ext="SeasonalCycle_Mean",category="TEM")
+                                     ext="TEM_Mean",category="TEM")
 
                 plt.close()
     print("  ...TEM plots have been generated successfully.")
