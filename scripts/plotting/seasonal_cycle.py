@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -408,8 +407,6 @@ def seasonal_cycle(adfobj):
         #End if
     #End for
 
-
-
     #WACCM QBO
     #---------
     # Notify user that script has started:
@@ -485,7 +482,6 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
     #Check if file exists. If so, open the file or make it if not
     if zm_file.exists():
         waccm_zm = xr.open_mfdataset(zm_file)
-        
     else:
         print(f"\t  ...Making zonal mean average file from history files for {case_name}")
         h0_lists = []
@@ -497,7 +493,6 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
 
         waccm_zm = xr.open_mfdataset(h0_list, use_cftime=True, data_vars=calc_var_list)
         waccm_zm = waccm_zm[calc_var_list].mean(dim='lon')
-
 
         attrs_dict = {"Description":"Zonal averaged mean of history files",
             "adf_user": adfobj.user,
@@ -641,7 +636,6 @@ def time_mean(ncfile, data, time_avg, interval, is_climo=None, obs=False):
             assert interval in seasons, f"Unrecognized season string provided: '{interval}'"
         elif interval is None:
             interval = "ANN"
-
     try:
         month_length = data.time.dt.days_in_month
     except (AttributeError, TypeError):
@@ -684,9 +678,7 @@ def time_mean(ncfile, data, time_avg, interval, is_climo=None, obs=False):
         #data.attrs[time_avg] = interval
         data = data.sel(time=data.time.dt.month.isin(seasons[interval])) # directly take the months we want based on season kwarg
     if time_avg == "month":
-
         data = data.sel(time=data.time.dt.month.isin(interval)) # directly take the months we want
-
 
     return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
 ########
@@ -771,7 +763,6 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
 
         #Format axes
         plt.yscale("log")
-
 
         # Find the next value below highest vertical level
         y_lims = [float(lim) for lim in [1e3,highest_lev]]
@@ -1461,15 +1452,14 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
         #TODO: this will need to be adjusted??
         #Curently this is finding (start_idx)th month and then going out 9 years
         #QUESTION: what if the data doesn't have 9 years? - we will need to clip this...
-        start_idx = 0 #119-24
-        end_idx = start_idx+nt+1
+        start_idx = 0
+        end_idx = start_idx+nt_sub+1
 
         yr0 = int(yrs+int(start_idx/12))
-
-        cf = axes[main_key[idx]].contourf(lev_grid[start_idx:end_idx-1,:], time_grid[start_idx:end_idx-1,:], plotdata[start_idx:end_idx-1,:],
+        cf = axes[main_key[idx]].contourf(lev_grid[start_idx:end_idx,:], time_grid[start_idx:end_idx,:], plotdata[start_idx:end_idx,:],
                                     levels=contour_levels, cmap='RdBu_r',extend="both")
 
-        c = axes[main_key[idx]].contour(lev_grid[start_idx:end_idx-1,:], time_grid[start_idx:end_idx-1,:], plotdata[start_idx:end_idx,:],
+        c = axes[main_key[idx]].contour(lev_grid[start_idx:end_idx,:], time_grid[start_idx:end_idx,:], plotdata[start_idx:end_idx,:],
                                     levels=contour_levels[::5], colors='k',alpha=0.75,linewidths=0.5)
         # add contour labels
         lb = plt.clabel(c, fontsize=6, inline=True, fmt='%r')
