@@ -293,7 +293,8 @@ def regrid_and_vert_interp(adf):
                                                         method=case_method,
                                                         )
                         else:
-                            print("Looks like this climo file is already on a lat/lon grid, so skipping gridding step...")
+                            dmsg = "\t   Looks like this climo file is already on a lat/lon grid, so skipping gridding step..."
+                            adf.debug_log(dmsg)
                         rgdata_interp.attrs = ds_attrs
 
                         if 'lev' in mclim_ds:
