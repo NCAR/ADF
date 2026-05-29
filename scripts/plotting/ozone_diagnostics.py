@@ -1142,7 +1142,7 @@ def ozone_diagnostics (adfobj):
    if (not(redo_plot)) and (os.path.isfile(Output_IMG)):
        print(SName,' Ozone Taylor plot exists and redo_plot is false.  Adding to website and Skipping plot.')
        adfobj.add_website_data(Output_IMG, "OzoneSonde_TaylorDiagram", None,season="ANN", multi_case=True)
-       sys.exit(0)
+       return
    else:
        print("Plotting Ozone Taylor Diagrams")
    
