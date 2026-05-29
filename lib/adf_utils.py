@@ -1077,6 +1077,7 @@ def grid_to_latlon(model_dataset, var_name, comp, wgt_file, method, latlon_file,
 
     model_dataset[var_name] = model_dataset[var_name].fillna(0)
     #model_da = model_da.fillna(0)
+    da_attrs = model_dataset[var_name].attrs
 
     if comp == "lnd":
         model_dataset['landfrac'] = model_dataset['landfrac'].fillna(0)
@@ -1109,6 +1110,7 @@ def grid_to_latlon(model_dataset, var_name, comp, wgt_file, method, latlon_file,
 
     # calculate area
     rgdata = calc_area(rgdata)
+    rgdata[var_name].attrs = da_attrs
 
     #Return dataset:
     return rgdata
