@@ -23,7 +23,7 @@ mkdir -p regrid
 
 foreach file ( ${case}.clm2.h0a.* )
   echo "  " ${file}
-  ncremap -t 1 --sgs_frc=landfrac --sgs_msk=landmask -m ${wgts} ${file} regrid/${file} >& /dev/null
+  ncremap -t 1 -P clm --sgs_frc=landfrac --sgs_msk=landmask -m ${wgts} ${file} regrid/${file} >& /dev/null
 end
 
 exit
