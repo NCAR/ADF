@@ -338,9 +338,9 @@ class AdfInfo(AdfConfig):
                 #start or end of the entire available model data.
                 if ts_syear_baseline is None:
                     msg = f"\t WARNING: No given start year for {data_name}, "
-                    msg += f"using first found year: {base_ts_found_syr}"
+                    msg += f"using first found year: {base_found_ts_syr}"
                     print(msg)
-                    ts_syear_baseline = base_ts_found_syr
+                    ts_syear_baseline = base_found_ts_syr
                 if ts_syear_baseline not in base_ts_yrs:
                     msg = f"\t WARNING: Given start year '{ts_syear_baseline}' is not in current dataset "
                     msg += f"{data_name}, using first found year: {base_ts_yrs[0]}"
