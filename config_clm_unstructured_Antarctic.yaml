@@ -81,7 +81,7 @@ diag_basic_info:
     #Location of observational datasets:
     #Note: this only matters if "compare_obs" is true and the path
     #isn't specified in the variable defaults file.
-    obs_data_loc: /glade/campaign/cgd/tss/people/oleson/lnd_diag_data/obs_data
+    obs_data_loc: /glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data
 
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_regrid_loc: /glade/derecho/scratch/${user}/ADF_unstruct/regrid
@@ -140,16 +140,16 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_alpha08b.B1850C_LTso.ne30_t232_wgx3.308_nmelt1
+    cam_case_name: b.e30_alpha08i.B1850C_LTso.ne30_t232_wgx3.315
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'nmelt1'
+    case_nickname: '315_Alb'
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/derecho/scratch/gunterl/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/slevis/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
 
     # If unstructured_plotting, a mesh file is required!
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
@@ -157,13 +157,13 @@ diag_cam_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1
-    climo_start_year: 25
+    ts_start_year: 1
+    climo_start_year: 5
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 44
-    climo_end_year: 44
+    ts_end_year: 12
+    climo_end_year: 12
 
     #Do time series files exist?
     #If True, then diagnostics assumes that model files are already time series.
@@ -203,13 +203,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_alpha08b.B1850C_LTso.ne30_t232_wgx3.308
+    cam_case_name: b.e30_alpha08b.B1850C_LTso.ne30_t232_wgx3.315
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '308'
+    case_nickname: '315'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -224,14 +224,14 @@ diag_cam_baseline_climo:
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
-    start_year: 1
-    climo_start_year: 25 
+    ts_start_year: 100
+    climo_start_year: 104
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
-    end_year: 70
-    climo_end_year: 44
+    ts_end_year: 111
+    climo_end_year: 111
 
     #Do time series files need to be generated?
     #If True, then diagnostics assumes that model files are already time series.
@@ -306,10 +306,6 @@ diag_var_list:
     - SNOWDP
     - ALTMAX
     - TWS
-    #- C13_GPP_pm
-    # - C13_TOTVEGC_pm
-    #- C14_GPP_pm
-    #- C14_TOTVEGC_pm
  
 region_list:
     - Global
