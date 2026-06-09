@@ -79,12 +79,16 @@ def regional_timeseries(adfobj):
     regional_ts_var_list = ['TSA','PREC','ELAI',
                             'FSDS','FLDS','GPP','ASA',
                             'QRUNOFF_TO_COUPLER','ET','FCTR','FCEV',
-                            'SNOWDP','QBOT','SOILWATER_10CM','AREA_BURNED',
+                            'SNOWDP','TWS','SOILWATER_10CM','AREA_BURNED',
                             ]
-# For polar focused analyses
+## For polar focused analyses
 #                            'FSDS','FLDS','RNET','ASA',
 #                            'QRUNOFF_TO_COUPLER','ET','TWS','QBOT',
 #                            'QRUNOFF_ICE_TO_COUPLER','QRGWL','SNOWDP','ALTMAX',
+#                           ]
+
+#    regional_ts_var_list = ['TBOT','PREC','PBOT',
+#                            'FSDS','FLDS','QBOT','WIND',
 #                           ]
 
     # Extract variables:

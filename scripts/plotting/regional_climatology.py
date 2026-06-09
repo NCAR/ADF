@@ -78,18 +78,16 @@ def regional_climatology(adfobj):
     regional_climo_var_list = ['TSA','PREC','ELAI',
                                'FSDS','FLDS','GPP','ASA',
                                'QRUNOFF_TO_COUPLER','ET','FCTR','FCEV',
-                               'SNOWDP','QBOT','SOILWATER_10CM','AREA_BURNED',
+                               'SNOWDP','TWS','SOILWATER_10CM','AREA_BURNED',
                                ]
-# For polar focused analyses
+## For polar focused analyses
 #                            'FSDS','FLDS','RNET','ASA',
 #                            'QRUNOFF_TO_COUPLER','ET','TWS','QBOT',
 #                            'QRUNOFF_ICE_TO_COUPLER','QRGWL','SNOWDP','ALTMAX',
 #                           ]
 
-#    regional_climo_var_list = ['TSA','PREC','ELAI', 
-#                               'FSDS','FLDS','GPP','ASA',
-#                               'QRUNOFF_TO_COUPLER','ET','DSTDEP','NDEP',
-#                               'SNOWDP','QBOT','SOILWATER_10CM','BCDEP',
+#    regional_climo_var_list = ['TBOT','PREC','PBOT', 
+#                               'FSDS','FLDS','QBOT','WIND',
 #                               ]
 
 # Extract variables:
@@ -463,7 +461,8 @@ def getRegion_xarray(varDS, varName,
         longitude = varDS['lon']
         varDS = varDS.assign_coords(lon= (longitude + 180) % 360)
         #print(f"Converted lon to [0,360] for variable {varName}")
-
+    
+    #print(f" starting variable {varName}")
     # TODO is there a less brittle way to do this?
     if (area is not None) and (landfrac is not None):
         weight = area * landfrac
