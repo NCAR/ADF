@@ -745,6 +745,7 @@ class AdfDiag(AdfWeb):
                     # End if has_lev
 
                     # Optional, add additional time varying variables to clm2.h1 files
+                    # TODO, make this more intelligent for PFT or COL level output
                     if ("clm" in hist_str) and ("h1" in hist_str):
                         ncrcat_var_list = ncrcat_var_list + ",pfts1d_wtgcell,pfts1d_wtlunit,pfts1d_wtcol"
                     
@@ -1387,6 +1388,16 @@ class AdfDiag(AdfWeb):
                     der_val = 100*ds["FSR"]/ds["FSDS"].where(ds["FSDS"]>0)
                 elif var == "RNET":
                     der_val = ds["FSA"]-ds["FIRA"]
+                elif var == "ENET":
+                    der_val = ds["FSA"]-ds["FIRA"]-ds["EFLX_LH_TOT"]-ds["FSH_TO_COUPLER"]-ds['FGR12']
+                elif var == 'ENERGY_BALANCE':
+                    latice = 3.337e5 # latent heat of fusion (J/kg)
+                    cpl_landfrac = 0.29251054 
+                    der_val = (-ds['SNOW_FROM_ATM']*latice + \
+                               ds["FSA"] + ds["FLDS"] - \
+                               ds["FIRE"] - ds["FSH_TO_COUPLER"] - \
+                               ds["EFLX_LH_TOT"] + \
+                               ds["QRUNOFF_ICE_TO_COUPLER"]* latice) * cpl_landfrac 
                 elif var == "WUE":
                     der_val = ds["GPP"]/ds["FCTR"].where(ds["FCTR"]>0)
                 elif var == "BURNED_AREA":
