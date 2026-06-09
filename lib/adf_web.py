@@ -412,8 +412,11 @@ class AdfWeb(AdfObs):
             #End if
             asset_path = None
         else:
+            print("web_data.stem",web_data.stem)
             html_name = f'plot_page_{web_data.stem}.html'
+            print("html_name",html_name)
             html_file = self.__case_web_paths[case_name]["img_pages_dir"] / html_name
+            print("html_file",html_file)
             asset_path = self.__case_web_paths[case_name]['assets_dir'] / web_data.name
         #End if
 
@@ -769,7 +772,9 @@ class AdfWeb(AdfObs):
                     plot_types = plot_type_html
                 #End if
 
-
+                print("web_data.name",web_data.name)
+                print("web_data.plot_type,",web_data.plot_type,)
+                print("PLOT IMAGE: web_data.ext",web_data.ext,"\n")
                 rend_kwarg_dict = {"title": main_title,
                                        "var_title": web_data.name,
                                        "ext": web_data.ext,
@@ -798,12 +803,32 @@ class AdfWeb(AdfObs):
                 #Construct individual plot type mean_diag html files
                 mean_tmpl = jinenv.get_template('template_mean_diag.html')
 
-                rend_kwarg_dict["enumerate"] = jinja_enumerate
-                rend_kwarg_dict["list"] = jinja_list
-                mean_rndr = mean_tmpl.render(rend_kwarg_dict)
+                # Build a fresh context for the mean/summary page so
+                # per-plot keys (like 'ext', 'var_title', 'imgs') do not
+                # leak into the aggregated template rendering. Reusing
+                # the per-plot `rend_kwarg_dict` caused the same
+                # extension/name suffix to be applied to all entries.
+                mean_rend_kwarg = {
+                    "title": main_title,
+                    "case_name": case1,
+                    "case_yrs": case_yrs,
+                    "base_name": data_name,
+                    "baseline_yrs": baseline_yrs,
+                    "plottype_title": web_data.plot_type,
+                    "ext": web_data.ext,
+                    "mydata": mean_html_info.get(web_data.plot_type, {}),
+                    "plot_types": plot_types,
+                    "seasons": seasons,
+                    "non_seasons": non_seasons.get(web_data.plot_type, {}),
+                    "enumerate": jinja_enumerate,
+                    "list": jinja_list,
+                }
+
+                print("right before template mean diag: mean_rend_kwarg", mean_rend_kwarg, "\n\n")
+                mean_rndr = mean_tmpl.render(mean_rend_kwarg)
 
                 #Write mean diagnostic plots HTML file:
-                with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
+                with open(mean_ptype_file, 'w', encoding='utf-8') as ofil:
                     ofil.write(mean_rndr)
                 #End with
             #End if (data frame)

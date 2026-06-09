@@ -2197,7 +2197,8 @@ OMEGAT:
 # Category: TEM
 #++++++++++++++
 UZM:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   contour_levels_range: [-60,61,8]
   diff_colormap: "bwr"
   diff_contour_range: [-35,36,5]
@@ -2250,7 +2251,8 @@ TZM:
   obs_var_name: "thzm"
 
 EPFY:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   contour_adjust: 1e7
   contour_levels: [-5e7,-4e7,-3e7,-2e7,-1e7,-0.8e7,-0.6e7,-0.4e7,-0.2e7,-0.1e7,0,0.1e7,0.2e7,0.4e7,0.6e7,0.8e7,1e7,2e7,3e7,4e7,5e7]
   non_linear_levels: True
@@ -2266,7 +2268,8 @@ EPFY:
   obs_var_name: "epfy"
 
 EPFZ:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   contour_adjust: 1e6
   contour_levels: [-5e6,-4e6,-3e6,-2e6,-1e6,-0.8e6,-0.6e6,-0.4e6,-0.2e6,-0.1e6,0,0.1e6,0.2e6,0.4e6,0.6e6,0.8e6,1e6,2e6,3e6,4e6,5e6]
   non_linear_levels: True
@@ -2282,7 +2285,8 @@ EPFZ:
   obs_var_name: "epfz"
 
 VTEM:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   contour_levels: [-5,-4,-3,-2,-1,-0.8,-0.6,-0.4,-0.2,-0.1,0,0.1,0.2,0.4,0.6,0.8,1,2,3,4,5]
   non_linear_levels: True
   diff_colormap: "bwr"
@@ -2298,7 +2302,8 @@ VTEM:
   obs_var_name: "vtem"
 
 WTEM:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   contour_levels: [-2,-1.7,-1.4,-1.1,-0.8,-0.65,-0.5,-0.35,-0.2,-0.1,0,0.1,0.2,0.35,0.5,0.65,0.8,1.1,1.4,1.7,2]
   scale_factor: 100
   non_linear_levels: True
@@ -2316,7 +2321,8 @@ WTEM:
   obs_var_name: "wtem"
 
 PSITEM:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   contour_levels: [-3e11,-2e11,-1e11,-0.8e11,-0.6e11,-0.4e11,-0.2e11,-0.1e11,0,0.1e11,0.2e11,0.4e11,0.6e11,0.8e11,1e11,2e11,3e11]
   contour_adjust: 1e11
   non_linear_levels: True
@@ -2333,7 +2339,8 @@ PSITEM:
   obs_var_name: "psitem"
 
 DELF:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   contour_levels: [-0.3,-0.2,-0.1,-0.08,-0.06,-0.04,-0.02,-0.01,0,0.01,0.02,0.04,0.06,0.08,0.1,0.2,0.3]
   non_linear_levels: True
   diff_colormap: "bwr"
@@ -2348,7 +2355,8 @@ DELF:
   obs_var_name: "utendepfd"
 
 UTENDVTEM:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   diff_colormap: "bwr"
   ylim: [1e3,1e-1]
   long_name: EP flux divergence - meridional component ($F_{yy}$)
@@ -2357,7 +2365,8 @@ UTENDVTEM:
   obs_var_name: "utendvtem"
 
 UTENDWTEM:
-  colormap: "RdYlBu_r"
+  #colormap: "RdYlBu_r"
+  colormap: "RdBu_r"
   diff_colormap: "bwr"
   ylim: [1e3,1e-1]
   long_name: EP flux divergence - vertical component ($F_{zz})
