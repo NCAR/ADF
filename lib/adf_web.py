@@ -763,12 +763,13 @@ class AdfWeb(AdfObs):
                 img_pages_dir = self.__case_web_paths[web_data.case]['img_pages_dir']
                 img_data = [os.path.relpath(web_data.asset_path, start=img_pages_dir),
                             web_data.asset_path.stem]
+                
+                case_name = case_names[0]
+
                 #Check if plot image already handles multiple cases:
                 if web_data.multi_case:
-                    case1 = "Listed in plots."
                     plot_types = multi_plot_type_html
                 else:
-                    case1 = web_data.case
                     plot_types = plot_type_html
                 #End if
 
@@ -779,7 +780,7 @@ class AdfWeb(AdfObs):
                                        "var_title": web_data.name,
                                        "ext": web_data.ext,
                                        "season_title": web_data.season,
-                                       "case_name": web_data.case,
+                                       "case_name": case_name,
                                        "case_yrs": case_yrs,
                                        "base_name": data_name,
                                        "baseline_yrs": baseline_yrs,
@@ -810,7 +811,7 @@ class AdfWeb(AdfObs):
                 # extension/name suffix to be applied to all entries.
                 mean_rend_kwarg = {
                     "title": main_title,
-                    "case_name": case1,
+                    "case_name": case_name,
                     "case_yrs": case_yrs,
                     "base_name": data_name,
                     "baseline_yrs": baseline_yrs,
@@ -851,7 +852,7 @@ class AdfWeb(AdfObs):
             run_info_html_file = self.__case_web_paths[web_data.case]['website_dir'] / "run_info.html"
             run_info_tmpl = jinenv.get_template('template_run_info.html')
             run_info_rndr = run_info_tmpl.render(title=index_title,
-                                            case_name=web_data.case,
+                                            case_name=case_name,
                                             base_name=data_name,
                                             case_yrs=case_yrs,
                                             baseline_yrs=baseline_yrs,
@@ -886,7 +887,7 @@ class AdfWeb(AdfObs):
             index_title = "CAM Diagnostics"
             index_tmpl = jinenv.get_template('template_index.html')
             index_rndr = index_tmpl.render(title=index_title,
-                                            case_name=web_data.case,
+                                            case_name=case_name,
                                             base_name=data_name,
                                             case_yrs=case_yrs,
                                             baseline_yrs=baseline_yrs,
