@@ -223,20 +223,21 @@ def polar_map(adfobj):
         if unstruct_plotting:
             kwargs["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
             unstruct_base = True
+            if comp == "lnd":
+                if adfobj.native_grid[case_name] and not adfobj.unstructured_plotting:
+                    area = odataset.area.isel(time=0)
+                    landfrac = odataset.landfrac.isel(time=0)
+                    # calculate weights
+                    wgt_base = area * landfrac / (area * landfrac).sum()
+            if comp == "atm":
+                if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
+                    wgt_base = odataset.isel(time=0)[var]
+
         odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
         odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
         if odataset is None:
             print(f"\t    WARNING: No reference data found for {var}")
             continue
-        if comp == "lnd":
-            if adfobj.native_grid[case_name] and not adfobj.unstructured_plotting:
-                area = odataset.area.isel(time=0)
-                landfrac = odataset.landfrac.isel(time=0)
-                # calculate weights
-                wgt_base = area * landfrac / (area * landfrac).sum()
-        if comp == "atm":
-            if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
-                wgt_base = odataset.isel(time=0)[var]
 
         # Process each case
         for plot in plot_info:
