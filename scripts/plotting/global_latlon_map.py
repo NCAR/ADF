@@ -152,7 +152,7 @@ def load_reference_data(adfobj, var, vres):
             # calculate weights
             wgt_base = area * landfrac / (area * landfrac).sum()
         if comp == "atm":
-            wgt_base = odataset.isel(time=0)[var]\
+            wgt_base = odataset.isel(time=0)[var]
 
         vres["wgt_base"] = wgt_base
         vres["unstruct_base"] = unstruct_base
