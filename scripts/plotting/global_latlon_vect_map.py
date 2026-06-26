@@ -153,6 +153,7 @@ def global_latlon_vect_map(adfobj):
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
+            vres = plot_utils.add_var_to_vres(adfobj, var, vres)
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
 
@@ -163,6 +164,8 @@ def global_latlon_vect_map(adfobj):
             adfobj.debug_log(f"global_latlon_vect_map: Skipping '{var}' as no variable defaults were found")
             continue
         #End if
+
+        vres["plot_type"] = __name__
 
         #Make sure that variable is part of a vector pair:
         if "vector_pair" in vres:
@@ -388,7 +391,9 @@ def global_latlon_vect_map(adfobj):
                     uoseasons = {}
                     voseasons = {}
                     udseasons = {} # hold the differences
-                    vdseasons = {} # hold the differences
+                    vdseasons = {}
+                    upseasons = {} # hold the percent differences
+                    vpseasons = {}
 
                     if has_lev:
 
@@ -405,6 +410,8 @@ def global_latlon_vect_map(adfobj):
                                 continue
                             #End if
 
+                            vres['lev'] = int(lv)
+
                             #Loop over season dictionary:
                             for s in seasons:
                                 umseasons[s] = (utils.seasonal_mean(umdata, season=s, is_climo=True)).sel(lev=lv)
@@ -414,6 +421,23 @@ def global_latlon_vect_map(adfobj):
                                 # difference: each entry should be (lat, lon)
                                 udseasons[s] = umseasons[s] - uoseasons[s]
                                 vdseasons[s] = vmseasons[s] - voseasons[s]
+
+                                upseasons[s] = (umseasons[s] - uoseasons[s]) / np.abs(uoseasons[s]) * 100.0
+                                upseasons[s] = upseasons[s].where(np.isfinite(upseasons[s]), np.nan)
+                                vpseasons[s] = (vmseasons[s] - voseasons[s]) / np.abs(voseasons[s]) * 100.0
+                                vpseasons[s] = vpseasons[s].where(np.isfinite(vpseasons[s]), np.nan)
+
+                                vres["umdlfld_nowrap"] = umseasons[s]
+                                vres["vmdlfld_nowrap"] = vmseasons[s]
+                                vres["uobsfld_nowrap"] = uoseasons[s]
+                                vres["vobsfld_nowrap"] = voseasons[s]
+                                vres["udiffld_nowrap"] = udseasons[s]
+                                vres["vdiffld_nowrap"] = vdseasons[s]
+                                vres["upctdiffld_nowrap"] = upseasons[s]
+                                vres["vpctdiffld_nowrap"] = vpseasons[s]
+
+                                vres["season"] = s
+                                vres["vector"] = True
 
                                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                                 # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -435,7 +459,6 @@ def global_latlon_vect_map(adfobj):
                                 # pass in casenames
                                 vres["case_name"] = case_name
                                 vres["baseline"] = data_src
-                                vres["var_name"] = var_name
 
                                 #Create new plot:
                                 # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
@@ -444,12 +467,12 @@ def global_latlon_vect_map(adfobj):
                                 #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                                 #   *Any other entries will be ignored.
                                 # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                pf.plot_map_vect_and_save(plot_name, case_nickname, base_nickname,
-                                                        [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                        [syear_baseline,eyear_baseline],lv,
-                                                        umseasons[s], vmseasons[s],
-                                                        uoseasons[s], voseasons[s],
-                                                        udseasons[s], vdseasons[s], obs, **vres)
+                                pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
+                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                    [syear_baseline,eyear_baseline],
+                                                    umseasons[s], uoseasons[s],
+                                                    udseasons[s], upseasons[s],
+                                                    obs=obs, **vres)
 
                                 #Add plot to website (if enabled):
                                 adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
@@ -468,6 +491,23 @@ def global_latlon_vect_map(adfobj):
                             # difference: each entry should be (lat, lon)
                             udseasons[s] = umseasons[s] - uoseasons[s]
                             vdseasons[s] = vmseasons[s] - voseasons[s]
+
+                            upseasons[s] = (umseasons[s] - uoseasons[s]) / np.abs(uoseasons[s]) * 100.0
+                            upseasons[s] = upseasons[s].where(np.isfinite(upseasons[s]), np.nan)
+                            vpseasons[s] = (vmseasons[s] - voseasons[s]) / np.abs(voseasons[s]) * 100.0
+                            vpseasons[s] = vpseasons[s].where(np.isfinite(vpseasons[s]), np.nan)
+
+                            vres["umdlfld_nowrap"] = umseasons[s]
+                            vres["vmdlfld_nowrap"] = vmseasons[s]
+                            vres["uobsfld_nowrap"] = uoseasons[s]
+                            vres["vobsfld_nowrap"] = voseasons[s]
+                            vres["udiffld_nowrap"] = udseasons[s]
+                            vres["vdiffld_nowrap"] = vdseasons[s]
+                            vres["upctdiffld_nowrap"] = upseasons[s]
+                            vres["vpctdiffld_nowrap"] = vpseasons[s]
+
+                            vres["season"] = s
+                            vres["vector"] = True
 
                             # time to make plot; here we'd probably loop over whatever plots we want for this variable
                             # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -489,7 +529,6 @@ def global_latlon_vect_map(adfobj):
                             # pass in casenames
                             vres["case_name"] = case_name
                             vres["baseline"] = data_src
-                            vres["var_name"] = var_name
 
                             #Create new plot:
                             # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
@@ -498,12 +537,12 @@ def global_latlon_vect_map(adfobj):
                             #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
                             #   *Any other entries will be ignored.
                             # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                            pf.plot_map_vect_and_save(plot_name, case_nickname, base_nickname,
-                                                      [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                      [syear_baseline,eyear_baseline], None,
-                                                      umseasons[s], vmseasons[s],
-                                                      uoseasons[s], voseasons[s],
-                                                      udseasons[s], vdseasons[s], obs, **vres)
+                            pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
+                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                    [syear_baseline,eyear_baseline],
+                                                    umseasons[s], uoseasons[s],
+                                                    udseasons[s], upseasons[s],
+                                                    obs=obs, **vres)
 
                             #Add plot to website (if enabled):
                             adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,

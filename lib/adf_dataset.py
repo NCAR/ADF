@@ -322,14 +322,15 @@ class AdfData:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = (ds[variablename]).squeeze()
+        raw_units = da.attrs.get('units', '--')
         scale_factor = kwargs.get('scale_factor', 1)
         add_offset = kwargs.get('add_offset', 0)
         da = da * scale_factor + add_offset
         if variablename in self.adf.variable_defaults:
             vres = self.adf.variable_defaults[variablename]
-            da.attrs['units'] = vres.get("new_unit", da.attrs.get('units', 'none'))
+            da.attrs['units'] = vres.get("new_unit", raw_units)
         else:
-            da.attrs['units'] = 'none'
+            da.attrs['units'] = raw_units
         return da
 
     # Get variable conversion defaults, if applicable

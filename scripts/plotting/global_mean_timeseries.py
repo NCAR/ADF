@@ -12,7 +12,7 @@ import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-
+import plotting_utils as plot_utils
 
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
@@ -50,6 +50,8 @@ def global_mean_timeseries(adfobj):
         else:
             vres = {}
         #End if
+        vres = plot_utils.add_var_to_vres(adfobj, field, vres)
+        vres["plot_type"] = __name__
 
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
