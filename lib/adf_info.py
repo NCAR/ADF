@@ -213,7 +213,6 @@ class AdfInfo(AdfConfig):
                 #Get years from pre-made timeseries file(s)
                 found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(
                     input_ts_loc, data_name)
-                found_yr_range = np.arange(found_syear_baseline,found_eyear_baseline,1)
 
                 #History file path isn't needed if user is running ADF directly on time series.
                 #So make sure start and end year are specified:
@@ -222,7 +221,7 @@ class AdfInfo(AdfConfig):
                     msg += f"using first found year: {found_syear_baseline}"
                     print(msg)
                     syear_baseline = found_syear_baseline
-                if syear_baseline not in found_yr_range:
+                if not found_syear_baseline <= syear_baseline <= found_eyear_baseline:
                     msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current "
                     msg += f"dataset {data_name}, using first found year: {found_syear_baseline}"
                     print(msg)
@@ -233,9 +232,9 @@ class AdfInfo(AdfConfig):
                     msg += f"using last found year: {found_eyear_baseline}"
                     print(msg)
                     eyear_baseline = found_eyear_baseline
-                if eyear_baseline not in found_yr_range:
+                if not found_syear_baseline <= eyear_baseline <= found_eyear_baseline:
                     msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current "
-                    msg += f"dataset {data_name}, using first found year: {found_eyear_baseline}"
+                    msg += f"dataset {data_name}, using last found year: {found_eyear_baseline}"
                     print(msg)
                     eyear_baseline = found_eyear_baseline
             # End if
@@ -304,7 +303,7 @@ class AdfInfo(AdfConfig):
                     msg += f"using first found year: {base_found_syr}"
                     print(msg)
                     syear_baseline = base_found_syr
-                if syear_baseline not in base_climo_yrs:
+                if not base_found_syr <= syear_baseline <= base_found_eyr:
                     msg = f"\t WARNING: Given start year '{syear_baseline}' is not in current "
                     msg += f"dataset {data_name}, using first found year: {base_climo_yrs[0]}"
                     print(msg)
@@ -315,7 +314,7 @@ class AdfInfo(AdfConfig):
                     msg += f"using last found year: {base_found_eyr}"
                     print(msg)
                     eyear_baseline = base_found_eyr
-                if eyear_baseline not in base_climo_yrs:
+                if not base_found_syr <= eyear_baseline <= base_found_eyr:
                     msg = f"\t WARNING: Given end year '{eyear_baseline}' is not in current "
                     msg += f"dataset {data_name}, using last found year: {base_climo_yrs[-1]}"
                     print(msg)
@@ -417,7 +416,6 @@ class AdfInfo(AdfConfig):
 
                 #Get years from pre-made timeseries file(s)
                 found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)
-                found_yr_range = np.arange(found_syear,found_eyear,1)
 
                 #History file path isn't needed if user is running ADF directly on time series.
                 #So make sure start and end year are specified:
@@ -426,7 +424,7 @@ class AdfInfo(AdfConfig):
                     msg += f"using first found year: {found_syear}"
                     print(msg)
                     syear = found_syear
-                if syear not in found_yr_range:
+                if not found_syear <= syear <= found_eyear:
                     msg = f"\t WARNING: Given start year '{syear}' is not in current dataset "
                     msg += f"{case_name}, using first found year: {found_syear}\n"
                     print(msg)
@@ -437,7 +435,7 @@ class AdfInfo(AdfConfig):
                     msg += f"using last found year: {found_eyear}"
                     print(msg)
                     eyear = found_eyear
-                if eyear not in found_yr_range:
+                if not found_syear <= eyear <= found_eyear:
                     msg = f"\t WARNING: Given end year '{eyear}' is not in current dataset "
                     msg += f"{case_name}, using last found year: {found_eyear}\n"
                     print(msg)
@@ -503,7 +501,7 @@ class AdfInfo(AdfConfig):
                     msg += f"using first found year: {case_found_syr}"
                     print(msg)
                     syear = case_found_syr
-                if syear not in case_climo_yrs:
+                if not case_found_syr <= syear <= case_found_eyr:
                     msg = f"\t WARNING: Given start year '{syear}' is not in current dataset "
                     msg += f"{case_name}, using first found year: {case_climo_yrs[0]}\n"
                     print(msg)
@@ -514,7 +512,7 @@ class AdfInfo(AdfConfig):
                     msg += f"using last found year: {case_found_eyr}"
                     print(msg)
                     eyear = case_found_eyr
-                if eyear not in case_climo_yrs:
+                if not case_found_syr <= eyear <= case_found_eyr:
                     msg = f"\t WARNING: Given end year '{eyear}' is not in current dataset "
                     msg += f"{case_name}, using last found year: {case_climo_yrs[-1]}\n"
                     print(msg)
