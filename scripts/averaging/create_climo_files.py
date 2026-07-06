@@ -2,14 +2,14 @@
 Module to create (monthly) climatology files.
 """
 
-from adf_base import AdfError
-import adf_utils as utils
-
 import warnings  # use to warn user about missing files.
-warnings.formatwarning = utils.my_formatwarning
 
 import numpy as np
 import xarray as xr  # module-level import so all functions can get to it.
+
+from adf_base import AdfError
+import adf_utils as utils
+warnings.formatwarning = utils.my_formatwarning
 
 
 def get_time_slice_by_year(time, startyear, endyear):
@@ -38,7 +38,9 @@ def get_time_slice_by_year(time, startyear, endyear):
     since this is unlikely to actually work.
     """
     if not hasattr(time, 'dt'):
-        print("Warning: get_time_slice_by_year requires the `time` parameter to be an xarray time coordinate with a dt accessor. Returning generic slice (which will probably fail).")
+        print("Warning: get_time_slice_by_year requires the `time` parameter to be an "
+              "xarray time coordinate with a dt accessor. Returning generic slice "
+              "(which will probably fail).")
         return slice(startyear, endyear)
     start_time_index = np.argwhere((time.dt.year >= startyear).values).flatten().min()
     end_time_index = np.argwhere((time.dt.year <= endyear).values).flatten().max()
@@ -50,7 +52,7 @@ def get_time_slice_by_year(time, startyear, endyear):
 #Main function
 ##############
 
-def create_climo_files(adf, clobber=False, search=None):
+def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unused-argument
     """
     Orchestrates production of monthly climatology files
     from CAM time series files.
@@ -66,9 +68,11 @@ def create_climo_files(adf, clobber=False, search=None):
         optional string used as a template to find the time series files
         using {CASE} and {VARIABLE} and otherwise an arbitrary shell-like globbing pattern:
         example 1: provide the string "{CASE}.*.{VARIABLE}.*.nc" this is the default
-        example 2: maybe CASE is not necessary because post-process destroyed the info "post_process_text-{VARIABLE}.nc"
+        example 2: maybe CASE is not necessary because post-process destroyed the
+                   info "post_process_text-{VARIABLE}.nc"
         example 3: order does not matter "{VARIABLE}.{CASE}.*.nc"
-        Only CASE and VARIABLE are allowed because they are arguments to the averaging function
+        Only CASE and VARIABLE are allowed because they are arguments to the
+        averaging function
 
     Notes
     -----
@@ -179,13 +183,26 @@ def create_climo_files(adf, clobber=False, search=None):
             print(f"\t    {output_location} not found, making new directory")
             output_location.mkdir(parents=True)
 
-        # If we need to allow custom search, could put it into adf.data
-        # #Time series file search
-        # if search is None:
-        #     search = "{CASE}*{HIST_STR}*.{VARIABLE}.*nc"  # NOTE: maybe we should not care about the file extension part at all, but check file type later?
+        # If we need to allow a custom time series file search template, it could be
+        # plumbed through adf.data here (the `search` argument is not yet wired up).
 
         #Check model year bounds:
         syr, eyr = check_averaging_interval(start_year[case_idx], end_year[case_idx])
+
+        #Determine the history stream(s) configured for this case. Climo files are
+        #produced per stream and the stream is included in the climo file name, so
+        #that a variable present in more than one stream (e.g. h0 and h1) does not
+        #collide. If the stream isn't known (e.g. baseline run directly on pre-made
+        #time series), fall back to the older stream-agnostic search and naming.
+        if is_baseline:
+            case_hist_strs = adf.hist_string["base_hist_str"]
+        else:
+            case_hist_strs = adf.hist_string["test_hist_str"][case_idx]
+        if isinstance(case_hist_strs, str):
+            case_hist_strs = [case_hist_strs]
+        case_hist_strs = [h for h in case_hist_strs if h]
+        if not case_hist_strs:
+            case_hist_strs = [None]
 
         #Loop over CAM output variables:
         list_of_arguments = []
@@ -193,37 +210,53 @@ def create_climo_files(adf, clobber=False, search=None):
             # Notify user of new climo file:
             print(f"\t - climatology for {var}")
 
-            # Create name of climatology output file (which includes the full path)
-            # and check whether it is there (don't do computation if we don't want to overwrite):
-            output_file = output_location / f"{case_name}_{var}_climo.nc"
-            if (not clobber) and (output_file.is_file()):
-                msg = f"\t    INFO: '{var}' file was found "
-                msg += "and overwrite is False. Will use existing file."
-                print(msg)
-                continue
-            elif (clobber) and (output_file.is_file()):
-                print(f"\t    INFO: Climo file exists for {var}, but clobber is {clobber}, so will OVERWRITE it.")
+            #Look for the variable's time series in each configured stream. A
+            #variable is usually in just one stream, but may exist in several.
+            found_in_any_stream = False
+            for hist_str in case_hist_strs:
+                if is_baseline:
+                    ts_files = adf.data.get_ref_timeseries_file(var, hist_str=hist_str)
+                else:
+                    ts_files = adf.data.get_timeseries_file(case_name, var, hist_str=hist_str)
 
-            #Create list of time series files present for variable:
-            # Note that we hard-code for h0 because we only want to make climos of monthly output
-            if is_baseline:
-                ts_files = adf.data.get_ref_timeseries_file(var)
-            else:
-                ts_files = adf.data.get_timeseries_file(case_name, var)
+                #If no files exist for this stream, try the next stream:
+                if not ts_files:
+                    continue
+                found_in_any_stream = True
 
-            #If no files exist, try to move to next variable. --> Means we can not proceed with this variable,
-            # and it'll be problematic later unless there are multiple hist file streams and the variable is in the others
-            if not ts_files:
-                errmsg = f"\t    WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable.\n"
+                # Create name of climatology output file (which includes the full path),
+                # now including the history stream when known, and check whether it is
+                # there (don't do computation if we don't want to overwrite):
+                if hist_str:
+                    output_file = output_location / f"{case_name}_{hist_str}_{var}_climo.nc"
+                    var_label = f"{var} ({hist_str})"
+                else:
+                    output_file = output_location / f"{case_name}_{var}_climo.nc"
+                    var_label = f"{var}"
+                if (not clobber) and (output_file.is_file()):
+                    msg = f"\t    INFO: '{var_label}' file was found "
+                    msg += "and overwrite is False. Will use existing file."
+                    print(msg)
+                    continue
+                if clobber and output_file.is_file():
+                    print(f"\t    INFO: Climo file exists for {var_label}, but clobber is "
+                          f"{clobber}, so will OVERWRITE it.")
+
+                list_of_arguments.append((adf.user, ts_files, syr, eyr, output_file))
+
+            #If no stream had the variable, warn and move to the next variable. --> Means we
+            # can not proceed with this variable, and it'll be problematic later.
+            if not found_in_any_stream:
+                errmsg = f"\t    WARNING: Time series files for variable '{var}' not found.  "
+                errmsg += "Script will continue to next variable.\n"
                 errmsg += f"\t      The input location searched was: {input_location}."
                 print(errmsg)
-                logmsg = f"climo file generation: The input location searched was: {input_location}. The glob pattern was {ts_files}."
+                logmsg = "climo file generation: The input location searched was: "
+                logmsg += f"{input_location}."
                 #Write to debug log if enabled:
                 adf.debug_log(logmsg)
                 #  end_diag_script(errmsg) # Previously we would kill the run here.
                 continue
-
-            list_of_arguments.append((adf.user, ts_files, syr, eyr, output_file))
 
         # Parallelize the computation using multiprocessing pool:
         print(f"  --> Starting Pool with {number_of_cpu} workers for {len(list_of_arguments)} variables.")
@@ -261,15 +294,14 @@ def process_variable(adf_user, ts_files, syr, eyr, output_file):
     output_file : str or Path
         file path for output climatology file
     '''
-    import xarray as xr
-    import numpy as np
     import dask
     import gc
     dask.config.set(scheduler='synchronous') # Disable internal dask multi-threading
     try:
-        # Using chunks={} forces xarray to use dask, which handles memory better 
+        # Using chunks={} forces xarray to use dask, which handles memory better
         # than loading everything into RAM at once via open_dataset
-        with xr.open_mfdataset(ts_files, decode_times=True, combine='by_coords', chunks={'time': 12}) as ds:
+        with xr.open_mfdataset(ts_files, decode_times=True, combine='by_coords',
+                               chunks={'time': 12}) as ds:
             if 'time_bnds' in ds:
                 new_time = ds['time_bnds'].load().mean(dim='nbnd')
                 ds = ds.assign_coords(time=new_time.values)
@@ -281,7 +313,8 @@ def process_variable(adf_user, ts_files, syr, eyr, output_file):
             climo = ds_subset.groupby('time.month').mean(dim='time')
             climo = climo.rename({'month': 'time'})
 
-            enc_dv = {xname: {'_FillValue': None, 'zlib': True, 'complevel': 4} for xname in climo.data_vars}
+            enc_dv = {xname: {'_FillValue': None, 'zlib': True, 'complevel': 4}
+                      for xname in climo.data_vars}
             enc_c  = {xname: {'_FillValue': None} for xname in climo.coords}
             enc    = {**enc_c, **enc_dv}
 
@@ -334,10 +367,10 @@ def check_averaging_interval(syear_in, eyear_in):
         assert check_syr >= 0, 'Sorry, values must be positive whole numbers.'
         try:
             syr = f"{check_syr:04d}"
-        except:
+        except Exception as exc:
             errmsg = " 'start_year' values must be positive whole numbers"
             errmsg += f"not '{syear_in}'."
-            raise AdfError(errmsg)
+            raise AdfError(errmsg) from exc
     else:
         syr = None
     #End if
@@ -347,10 +380,10 @@ def check_averaging_interval(syear_in, eyear_in):
         assert check_eyr >= 0, 'Sorry, end_year values must be positive whole numbers.'
         try:
             eyr = f"{check_eyr:04d}"
-        except:
+        except Exception as exc:
             errmsg = " 'end_year' values must be positive whole numbers"
             errmsg += f"not '{eyear_in}'."
-            raise AdfError(errmsg)
+            raise AdfError(errmsg) from exc
     else:
         eyr = None
     #End if

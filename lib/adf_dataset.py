@@ -1,12 +1,14 @@
+"""Data-access layer: locate and load ADF time series, climo, and regridded files."""
+import warnings # use to warn user about missing files
 from pathlib import Path
+
 import xarray as xr
 
 import adf_utils as utils
-import warnings # use to warn user about missing files
 warnings.formatwarning = utils.my_formatwarning
 
 # "reference data"
-# It is often just a "baseline case", 
+# It is often just a "baseline case",
 # but could be some totally external data (reanalysis or observation or other model)
 # When it is another simulation, it gets treated like another "case"
 # When it is external data expect:
@@ -14,8 +16,10 @@ warnings.formatwarning = utils.my_formatwarning
 # - one variable per "climo"
 # - source can differ for each variable, requires label
 # - resolution can differ for each variable, requires regridded file(s)
-# - the variable name and units in the file may differ from CAM; use defaults.yaml to set conversion
-# - there could be multiple instances of a variable from different sources (e.g. different observations)
+# - the variable name and units in the file may differ from CAM;
+#   use defaults.yaml to set conversion
+# - there could be multiple instances of a variable from different sources
+#   (e.g. different observations)
 
 # NOTE: the last item (multiple instances of a variable) is not allowed in AdfObs.var_obs_dict
 #       Since ADF is not able to handle this case, for now it is excluded the AdfData class.
@@ -24,26 +28,26 @@ warnings.formatwarning = utils.my_formatwarning
 #       below construct the "baseline case" version to be similar to "external data".
 #       - provide a dictionary of (variable: file-path)
 #         + For external data, that dictionay is from AdfObs.var_obs_dict,
-#           which provides a dict of all the available variables. 
+#           which provides a dict of all the available variables.
 #         + For reference simulation, look for files that match the diag_var_list
 
-# NOTE: There is currently a "base_nickname" allowed from AdfInfo. 
+# NOTE: There is currently a "base_nickname" allowed from AdfInfo.
 #       Set AdfData.ref_nickname to that.
 #       Could be altered from "Obs" to be the data source label.
 
 class AdfData:
-    """A class instantiated with an AdfDiag object. 
-       Methods provide means to load data. 
-       This class does not interact with plotting, 
+    """A class instantiated with an AdfDiag object.
+       Methods provide means to load data.
+       This class does not interact with plotting,
        just provides access to data locations and loading data.
 
        A future need is to add some kind of frequency/sampling
-       parameters to allow for non-h0 files. 
+       parameters to allow for non-h0 files.
 
     """
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
-        # paths 
+        # paths
         self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
         # variables (and info for unit transform)
@@ -56,17 +60,21 @@ class AdfData:
         self.ref_nickname = self.base_nickname
 
         # define reference data
-        self.set_reference() # specify "ref_labels" -> called "data_list" in zonal_mean (name of data source)
+        # set_reference specifies "ref_labels" (called "data_list" in zonal_mean,
+        # i.e. the name of the data source)
+        self.set_reference()
 
     def set_reference(self):
         """Set attributes for reference (aka baseline) data location, names, and variables."""
         if self.adf.compare_obs:
-            self.ref_var_loc = {v: self.adf.var_obs_dict[v]['obs_file'] for v in self.adf.var_obs_dict}
-            self.ref_labels = {v: self.adf.var_obs_dict[v]['obs_name'] for v in self.adf.var_obs_dict}
-            self.ref_var_nam = {v: self.adf.var_obs_dict[v]['obs_var'] for v in self.adf.var_obs_dict}
+            obs = self.adf.var_obs_dict
+            self.ref_var_loc = {v: obs[v]['obs_file'] for v in obs}
+            self.ref_labels = {v: obs[v]['obs_name'] for v in obs}
+            self.ref_var_nam = {v: obs[v]['obs_var'] for v in obs}
             self.ref_case_label = "Obs"
             if not self.adf.var_obs_dict:
-                warnings.warn("\t    WARNING: reference is observations, but no observations found to plot against.")
+                warnings.warn("\t    WARNING: reference is observations, but no "
+                              "observations found to plot against.")
         else:
             self.ref_var_loc = {}
             self.ref_var_nam = {}
@@ -86,38 +94,75 @@ class AdfData:
             f = self.get_reference_climo_file(v)
             self.ref_var_loc[v] = f
 
-    
+    # History stream helpers
+    #------------------
+    @staticmethod
+    def _as_hist_str_list(hist_strs):
+        """Coerce a hist_str entry (str, list, None, or empty) to a clean list of streams."""
+        if not hist_strs:
+            return []
+        if isinstance(hist_strs, str):
+            return [hist_strs]
+        return [h for h in hist_strs if h]
+
+    def _hist_strs_for_case(self, case):
+        """Ordered history streams configured for a test case (priority order)."""
+        test_hist_strs = self.adf.hist_string["test_hist_str"]
+        caseindex = (self.case_names).index(case)
+        if caseindex < len(test_hist_strs):
+            return self._as_hist_str_list(test_hist_strs[caseindex])
+        return []
+
+    def _hist_strs_for_reference(self):
+        """Ordered history streams configured for the reference/baseline case."""
+        return self._as_hist_str_list(self.adf.hist_string["base_hist_str"])
+
+
     # Time series files
     #------------------
     # Test case(s)
-    def get_timeseries_file(self, case, field):
-        """Return list of test time series files"""
-        ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True) # list of paths (could be multiple cases)
+    def get_timeseries_file(self, case, field, hist_str=None):
+        """Return list of test time series files.
+
+        If hist_str is given, restrict the search to that history stream
+        (time series files are named {case}.{hist_str}.{field}.*.nc).
+        """
+        # list of paths (could be multiple cases)
+        ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True)
         caseindex = (self.case_names).index(case)
         ts_loc = Path(ts_locs[caseindex])
-        ts_filenames = f'{case}.*.{field}.*nc'
+        if hist_str:
+            ts_filenames = f'{case}.{hist_str}.{field}.*nc'
+        else:
+            ts_filenames = f'{case}.*.{field}.*nc'
         ts_files = sorted(ts_loc.glob(ts_filenames))
         return ts_files
 
     # Reference case (baseline/obs)
-    def get_ref_timeseries_file(self, field):
-        """Return list of reference time series files"""
+    def get_ref_timeseries_file(self, field, hist_str=None):
+        """Return list of reference time series files.
+
+        If hist_str is given, restrict the search to that history stream.
+        """
         if self.adf.compare_obs:
-            warnings.warn("\t    WARNING: ADF does not currently expect observational time series files.")
+            warnings.warn("\t    WARNING: ADF does not currently expect "
+                          "observational time series files.")
             return None
+        ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
+        if hist_str:
+            ts_filenames = f'{self.ref_case_label}.{hist_str}.{field}.*nc'
         else:
-            ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
             ts_filenames = f'{self.ref_case_label}.*.{field}.*nc'
-            ts_files = sorted(ts_loc.glob(ts_filenames))
-            return ts_files
+        ts_files = sorted(ts_loc.glob(ts_filenames))
+        return ts_files
 
 
     def load_timeseries_dataset(self, fils):
         """Return DataSet from time series file(s) and assign time to midpoint of interval"""
-        if (len(fils) == 0):
+        if len(fils) == 0:
             warnings.warn("\t    WARNING: Input file list is empty.")
             return None
-        elif (len(fils) > 1):
+        if len(fils) > 1:
             ds = xr.open_mfdataset(fils, decode_times=False)
         else:
             sfil = str(fils[0])
@@ -126,7 +171,7 @@ class AdfData:
                 return None
             ds = xr.open_dataset(sfil, decode_times=False)
         if ds is None:
-            warnings.warn(f"\t    WARNING: invalid data on load_dataset")
+            warnings.warn("\t    WARNING: invalid data on load_dataset")
         # assign time to midpoint of interval (even if it is already)
         if 'time_bnds' in ds:
             t = ds['time_bnds'].mean(dim='nbnd')
@@ -147,17 +192,19 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_timeseries_file(case, variablename)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find case time series file(s), variable: {variablename}")
+            warnings.warn("\t    WARNING: Did not find case time series file(s), "
+                          f"variable: {variablename}")
             return None
         return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
-    
+
     def load_reference_timeseries_da(self, field):
-        """Return a DataArray time series to be used as reference 
+        """Return a DataArray time series to be used as reference
           (aka baseline) for variable field.
         """
         fils = self.get_ref_timeseries_file(field)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find reference time series file(s), variable: {field}")
+            warnings.warn("\t    WARNING: Did not find reference time series file(s), "
+                          f"variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
@@ -189,18 +236,31 @@ class AdfData:
         """Return Dataset for climo of variablename"""
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find climo file for variable: {variablename}. Will try to skip.")
+            warnings.warn("\t    WARNING: Did not find climo file for variable: "
+                          f"{variablename}. Will try to skip.")
             return None
         return self.load_dataset(fils)
-    
+
 
     def get_climo_file(self, case, variablename):
-        """Retrieve the climo file path(s) for variablename for a specific case."""
-        a = self.adf.get_cam_info("cam_climo_loc", required=True) # list of paths (could be multiple cases)
+        """Retrieve the climo file path(s) for variablename for a specific case.
+
+        Climo files created by recent ADF versions include the history stream
+        in the name ({case}_{hist_str}_{var}_climo.nc). Search for those first,
+        in the case's configured hist_str priority order, then fall back to the
+        older stream-less convention ({case}_{var}_climo.nc) so that
+        pre-existing climo files still work.
+        """
+        # list of paths (could be multiple cases)
+        a = self.adf.get_cam_info("cam_climo_loc", required=True)
         caseindex = (self.case_names).index(case) # the entry for specified case
         model_cl_loc = Path(a[caseindex])
-        fils = sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
-        return fils
+        for hist_str in self._hist_strs_for_case(case):
+            fils = sorted(model_cl_loc.glob(f"{case}_{hist_str}_{variablename}_climo.nc"))
+            if fils:
+                return fils
+        # Fall back to older naming (no hist_str) for pre-existing climo files:
+        return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
 
 
     # Reference case (baseline/obs)
@@ -216,13 +276,18 @@ class AdfData:
             fils = self.ref_var_loc.get(var, None)
             return [fils] if fils is not None else []
         ref_loc = self.adf.get_baseline_info("cam_climo_loc")
+        # Prefer stream-aware naming (in priority order), then fall back to the
+        # older convention so pre-existing baseline climo files still work:
+        for hist_str in self._hist_strs_for_reference():
+            fils = sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{hist_str}_{var}_climo.nc"))
+            if fils:
+                return fils
         # NOTE: originally had this looking for *_baseline.nc
-        fils = sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
-        return fils
+        return sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
 
     #------------------
 
-    
+
     # Regridded files
     #------------------
 
@@ -230,7 +295,8 @@ class AdfData:
     def get_regrid_file(self, case, field):
         """Return list of test regridded files"""
         model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
-        rlbl = self.ref_labels[field]  # rlbl = "reference label" = the name of the reference data that defines target grid
+        # rlbl = "reference label" = name of the reference data that defines the target grid
+        rlbl = self.ref_labels[field]
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
 
@@ -238,17 +304,19 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn("\t    WARNING: Did not find regrid file(s) for case: "
+                          f"{case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
-    
+
     def load_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find regrid file(s) for case: {case}, variable: {field}")
+            warnings.warn("\t    WARNING: Did not find regrid file(s) for case: "
+                          f"{case}, variable: {field}")
             return None
         return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
 
@@ -272,17 +340,19 @@ class AdfData:
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn("\t    WARNING: Did not find regridded file(s) for case: "
+                          f"{case}, variable: {field}")
             return None
         return self.load_dataset(fils)
 
-    
+
     def load_reference_regrid_da(self, case, field):
         """Return a data array to be used as reference (aka baseline) for variable field."""
         add_offset, scale_factor = self.get_value_converters(case, field)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn(f"\t    WARNING: Did not find regridded file(s) for case: {case}, variable: {field}")
+            warnings.warn("\t    WARNING: Did not find regridded file(s) for case: "
+                          f"{case}, variable: {field}")
             return None
         #Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
@@ -299,10 +369,10 @@ class AdfData:
     # Load DataSet
     def load_dataset(self, fils):
         """Return xarray DataSet from file(s)"""
-        if (len(fils) == 0):
+        if len(fils) == 0:
             warnings.warn("\t    WARNING: Input file list is empty.")
             return None
-        elif (len(fils) > 1):
+        if len(fils) > 1:
             ds = xr.open_mfdataset(fils, combine='by_coords')
         else:
             sfil = str(fils[0])
@@ -311,17 +381,17 @@ class AdfData:
                 return None
             ds = xr.open_dataset(sfil)
         if ds is None:
-            warnings.warn(f"\t    WARNING: invalid data on load_dataset")
+            warnings.warn("\t    WARNING: invalid data on load_dataset")
         return ds
 
     # Load DataArray
     def load_da(self, fils, variablename, **kwargs):
-        """Return xarray DataArray from files(s) w/ optional scale factor, offset, and/or new units"""
+        """Return xarray DataArray from file(s) w/ optional scale factor, offset, new units."""
         ds = self.load_dataset(fils)
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
-        da = (ds[variablename]).squeeze()
+        da = ds[variablename].squeeze()
         scale_factor = kwargs.get('scale_factor', 1)
         add_offset = kwargs.get('add_offset', 0)
         da = da * scale_factor + add_offset
@@ -336,7 +406,7 @@ class AdfData:
     def get_value_converters(self, case, variablename):
         """
         Get variable defaults if applicable
-        
+
            - This is to get any scale factors or off-sets
 
         Returns
@@ -359,7 +429,3 @@ class AdfData:
         return add_offset, scale_factor
 
     #------------------
-
-
-
-    
