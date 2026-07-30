@@ -4,14 +4,13 @@ Generate plots that compare ENSO characteristics across various versions of CESM
 
 import xarray as xr
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.ticker as mticker
-import cartopy
-import cartopy.crs as ccrs
-import warnings # use to warn user about missing files
 from pathlib import Path
+
+import adf_utils as utils
+
+import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 
 def enso_comparison_plots(adfobj):
     """

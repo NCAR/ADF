@@ -26,12 +26,10 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-import plotting_functions as pf
+
 import warnings  # use to warn user about missing files.
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-warnings.formatwarning = my_formatwarning
+import adf_utils as utils
+warnings.formatwarning = utils.my_formatwarning
 
 #
 # USER-ADJUSTABLE PARAMETERS:
@@ -133,7 +131,7 @@ def adf_histogram(adfobj):
             print(f"{var}: Looks like lev/ilev present... skip")
             continue
         
-        has_lat_lon = pf.lat_lon_validate_dims(da)
+        has_lat_lon = utils.lat_lon_validate_dims(da)
         if not has_lat_lon:
             print(f"INFO: {var} looks like it is on unstructured mesh. Has ncol: {'ncol' in da.dims}. Histogram does not need to regrid.")
 
@@ -162,7 +160,7 @@ def adf_histogram(adfobj):
                 if ("lev" in da.dims) or ("ilev" in da.dims):
                     print(f"{var}: Looks like lev/ilev present... skip")
                     continue
-                has_lat_lon = pf.lat_lon_validate_dims(da)
+                has_lat_lon = utils.lat_lon_validate_dims(da)
                 if not has_lat_lon:
                     print(f"INFO: {var} looks like it is on unstructured mesh. Has ncol: {'ncol' in da.dims}. Histogram does not need to regrid.")
                 

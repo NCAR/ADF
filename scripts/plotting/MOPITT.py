@@ -6,7 +6,6 @@
 import h5py                                # For loading he5 files
 import glob
 # Processing
-import pandas as pd
 import xarray as xr
 import numpy as np
 from scipy import interpolate              # for vertical interpolation
