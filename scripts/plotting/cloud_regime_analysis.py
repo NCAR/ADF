@@ -613,8 +613,10 @@ def _calculate_rfo(labels, cluster_index):
     
     """
     if not isinstance(labels, xr.DataArray):
+        # Return the tuple shape callers unpack; a bare None would raise TypeError
+        # at the call site and hide the real problem reported here.
         warnings.warn(f"ERROR: Input 'labels' must be an xarray.DataArray, got {type(labels)}")
-        return None
+        return None, np.nan
 
     # Spatial RFO map (% of valid time steps in the cluster). Masking to valid
     # labels matters: without it, NaN points (e.g. from land/ocean masking) count
@@ -644,6 +646,19 @@ def load_reference_data(adfobj, varname):
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed reference data for {varname}")
             return None
+        # The whole Dataset is needed here (the histogram plus any stored cluster
+        # labels), so load_dataset is used rather than load_da. That bypasses the
+        # obs_scale_factor/obs_add_offset handling load_da would normally apply, so
+        # do it explicitly for the histogram variable -- the obs files are not all
+        # on the same scale as the cluster centers (MODIS is a fraction, not a
+        # percent), and euclidean distance is not scale invariant.
+        add_offset, scale_factor = adfobj.data.get_value_converters(
+            adfobj.data.ref_labels.get(varname), varname
+        )
+        if (scale_factor != 1) or (add_offset != 0):
+            print(f"[CRA: load_reference_data] applying obs scale_factor={scale_factor}, "
+                  f"add_offset={add_offset} to {ref_var_nam}")
+            ds[ref_var_nam] = ds[ref_var_nam] * scale_factor + add_offset
         print(f"[CRA: load_reference_data] return observation dataset")
         return ds
     else:
@@ -768,12 +783,16 @@ def plot_rfo_maps(test_labels, ref_labels, adf, field):
 
         # 1. Reference RFO
         rfo_ref, total_rfo_ref = _calculate_rfo(ref_labels, cluster)
+        rfo_test, total_rfo_test = _calculate_rfo(test_labels, cluster)
+        if (rfo_ref is None) or (rfo_test is None):
+            warnings.warn(f"WARNING: Could not compute RFO for {field} CR{cluster+1}; skipping its map.")
+            plt.close(fig)
+            continue
         _plot_map(ax[0], rfo_ref.lon, rfo_ref.lat, rfo_ref,
                           f"{obs_or_base}, RFO = {total_rfo_ref:.1f}%",
                           "GnBu", 0, 100)
-        
+
         # 2. Test Case RFO
-        rfo_test, total_rfo_test = _calculate_rfo(test_labels, cluster)
         mesh2 = _plot_map(ax[1], rfo_test.lon, rfo_test.lat, rfo_test,
                           f"Test Case, RFO = {total_rfo_test:.1f}%",
                           "GnBu", 0, 100)
@@ -913,7 +932,9 @@ def _plot_cloud_regimes(plot_data, adf, baseline_mode=True):
     
     # Plot columns
     if baseline_mode:
-        _plot_observation_column(ax[:, 0], plot_data, cmap, norm, include_rfo=True)
+        # No observation labels exist in baseline mode, so the centers column shows
+        # no RFO. Reporting one here would just repeat the baseline column's value.
+        _plot_observation_column(ax[:, 0], plot_data, cmap, norm, include_rfo=False)
         _plot_baseline_column(ax[:, 1], plot_data, cmap, norm)
         _plot_test_case_column(ax[:, 2], plot_data, cmap, norm)
     else:
@@ -942,10 +963,12 @@ def _plot_observation_column(ax_col, plot_data, cmap, norm, include_rfo=False):
         
         # Set title with optional RFO
         if include_rfo:
-            rfo_map, rfo = _calculate_rfo(plot_data['cluster_labels_o'], i)
+            _, rfo = _calculate_rfo(plot_data['cluster_labels_o'], i)
             ax_col[i].set_title(f"Observation CR {i+1}, RFO = {np.round(float(rfo), 1)}%")
         else:
-            ax_col[i].set_title(f"Observation CR {i+1}")
+            # These are the observationally-derived cluster centers being fit to,
+            # not a case, so name them for what they are.
+            ax_col[i].set_title(f"{plot_data['data_product']} CR {i+1}")
 
 
 def _plot_baseline_column(ax_col, plot_data, cmap, norm):

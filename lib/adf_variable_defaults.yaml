@@ -2237,6 +2237,10 @@ CLMODIS:
   obs_file: 'MODIS_obs_data.nc'
   obs_name: "MODIS"
   obs_var_name: "MODIS_CLD_HISTO"
+  # MODIS_CLD_HISTO is stored as a cloud fraction (profile totals ~0.5) while CAM's
+  # CLMODIS and the MODIS cluster centers are percent (totals ~60). ISCCP and MISR
+  # obs are already percent and need no conversion.
+  obs_scale_factor: 100
 
 CLD_MISR:
   category: "Clouds"
