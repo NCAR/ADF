@@ -51,16 +51,14 @@ curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Mi
 bash Miniforge3-$(uname)-$(uname -m).sh
 ```
 [Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install) is an equivalent alternative. Once
-installed, create the environment with the same `conda env create` command above. The environment is created under
-your own conda installation's `envs/` directory — the `prefix:` line at the bottom of `env/conda_environment.yaml`
-names an NCAR HPC path, but `conda env create` uses `name:` and ignores `prefix:`, so it has no effect here. Note
-also that on NCAR HPC systems a personal conda install is shadowed by `module load conda` whenever that module is
-loaded.
+installed, create the environment with the same `conda env create` command above; it lands under your own conda
+installation's `envs/` directory. Note that on NCAR HPC systems a personal conda install is shadowed by
+`module load conda` whenever that module is loaded.
 
 ### Non-python requirements (all machines)
 
-Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On NCAR HPC
-(derecho/casper) this can be loaded by simply running:
+The `ncrcat` NetCDF Operator (NCO) is also needed.  On NCAR HPC (derecho/casper) it can be loaded by simply
+running:
 ```
 module load nco
 ```
