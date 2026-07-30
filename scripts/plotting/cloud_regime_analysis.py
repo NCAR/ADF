@@ -47,7 +47,16 @@ class VariableNames:
     obs_tau_var: str
 
 
-# Consolidate data into a single dictionary of dataclass objects
+# Consolidate data into a single dictionary of dataclass objects.
+#
+# The obs_ht_var/obs_tau_var names below are taken from the ADF_obs files
+# themselves; each file labels its own axes:
+#   ISCCP_obs_data.nc  levtau "Optical thickness levels" (6), levpc "Pressure levels" (7)
+#   MISR_obs_data.nc   tau    "cloud optical depth" (8),      cth   "altitude" (16)
+#   MODIS_obs_data.nc  COT    optical thickness (7),          PRES  pressure (7)
+# The valid (non-negative) bin counts match the supplied cluster-center files
+# exactly -- 6x7=42 for ISCCP, 7x15=105 for MISR, 7x7=49 for MODIS -- which
+# confirms the assignment.
 ALL_VARS = {
     "FISCCP1_COSP": VariableNames(
         product_name="ISCCP",
@@ -55,8 +64,8 @@ ALL_VARS = {
         ht_var="cosp_prs",
         tau_var="cosp_tau",
         obs_data_var="n_pctaudist",
-        obs_ht_var="levtau",
-        obs_tau_var="levpc",
+        obs_ht_var="levpc",
+        obs_tau_var="levtau",
     ),
     "CLD_MISR": VariableNames(
         product_name="MISR",
@@ -64,8 +73,8 @@ ALL_VARS = {
         ht_var="cosp_htmisr",
         tau_var="cosp_tau",
         obs_data_var="clMISR",
-        obs_ht_var="tau",
-        obs_tau_var="cth",
+        obs_ht_var="cth",
+        obs_tau_var="tau",
     ),
     "CLMODIS": VariableNames(
         product_name="MODIS",
@@ -73,8 +82,8 @@ ALL_VARS = {
         ht_var="cosp_prs",
         tau_var="cosp_tau_modis",
         obs_data_var="MODIS_CLD_HISTO",
-        obs_ht_var="COT",
-        obs_tau_var="PRES",
+        obs_ht_var="PRES",
+        obs_tau_var="COT",
     ),
 }
 
@@ -314,7 +323,7 @@ def _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts):
             obs_ht_var=ref_ht_var,
             obs_tau_var=ref_tau_var,
         )
-        processed_ref = _preprocess_data(ref_data[data_var], data_var, obs_var_info, opts)
+        processed_ref = _preprocess_data(ref_data[data_var], data_var, obs_var_info, opts, is_obs=True)
     else: # Comparing to baseline simulation
         baseline_info = adf.get_baseline_info
         time_range_b = [str(baseline_info("start_year")), str(baseline_info("end_year"))]
@@ -328,8 +337,14 @@ def _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts):
     ref_labels = compute_cluster_labels(processed_ref, ref_tau_var, ref_ht_var, cl, opts['distance'], opts['ot_library'], method=opts['emd_method'], num_cpus=opts['n_cpus'])
     return ref_labels, processed_ref
 
-def _preprocess_data(ds, field_name, var_info, opts):
-    """Performs all preprocessing steps on a data array before clustering."""
+def _preprocess_data(ds, field_name, var_info, opts, is_obs=False):
+    """Performs all preprocessing steps on a data array before clustering.
+
+    is_obs marks input that is already on the observational binning. The bin
+    trimming below exists to bring *model* histograms onto the obs grid the
+    cluster centers were built on; the obs files already match those centers
+    (42/105/49 bins), so trimming them again would drop a real bin.
+    """
     if isinstance(ds, xr.Dataset):
         ds = ds[field_name]
 
@@ -347,10 +362,13 @@ def _preprocess_data(ds, field_name, var_info, opts):
 
     ds = select_valid_tau_height(ds, var_info.tau_var, var_info.ht_var)
 
-    # Special handling when comparing against observational regimes.
+    # Special handling when comparing model data against observational regimes.
     # Use var_info.product_name rather than a lookup on field_name: when this is
     # called for observations, field_name is the obs variable (e.g. "n_pctaudist"),
     # which is not a key in ALL_VARS.
+    if is_obs:
+        return ds
+
     if var_info.product_name == "ISCCP" and opts['cl_shape'][1] == 42:
         ds = ds.sel({var_info.tau_var: slice(ds[var_info.tau_var].min().item() + 1e-11, None)})
         print(f"\t Dropping smallest tau bin ({var_info.tau_var}) for obs comparison.")
@@ -397,6 +415,20 @@ def compute_cluster_labels(ds, tau_var_name, ht_var_name, cl, wasserstein_or_euc
         return None
     mat_valid = mat[is_valid]
     print(f"INFO: Fitting {len(mat_valid)} valid histograms to cluster centers.")
+
+    # Euclidean distance is not scale invariant, so histograms and cluster centers
+    # must share units. A large mismatch (e.g. cloud fraction 0-1 against centers in
+    # percent) silently assigns every profile to whichever center has the smallest
+    # magnitude, which looks like a valid result. Check rather than trust.
+    data_scale = np.nanmedian(mat_valid.sum(axis=1))
+    center_scale = np.nanmedian(cl.sum(axis=1))
+    if data_scale > 0 and not (0.1 < center_scale / data_scale < 10):
+        warnings.warn(
+            f"WARNING: histogram totals (median {data_scale:.4g} per profile) and cluster center "
+            f"totals (median {center_scale:.4g}) differ by a factor of {center_scale / data_scale:.4g}. "
+            "These are probably in different units (fraction vs percent). Cluster assignments "
+            "will be meaningless until they match."
+        )
     labels_valid = precomputed_clusters(mat_valid, cl, wasserstein_or_euclidean, ds, tau_var_name, ht_var_name, ot_library, method, num_cpus=num_cpus)
     
     cluster_labels_flat = np.full(len(mat), np.nan, dtype=np.float32)
