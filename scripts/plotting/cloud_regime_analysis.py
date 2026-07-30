@@ -1,4 +1,3 @@
-import os
 import joblib
 from math import ceil
 import warnings
@@ -10,7 +9,6 @@ import xesmf
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import cartopy
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 import cartopy.crs as ccrs
 
@@ -92,13 +90,14 @@ def cloud_regime_analysis(
     premade_cloud_regimes=None,
     lat_range=None,
     lon_range=None,
-    only_ocean_or_land=None
+    only_ocean_or_land=None,
+    regrid_weights_file=None
 ):
     """
     Generates 2D maps and plots of Cloud Regime (CR) centers by comparing a
     test case against observations or a baseline simulation.
 
-    This function orchestrates the ADF workflow to to generate 2-D lat/lon maps of Cloud Regimes (CRs) and plots of the CR
+    This function orchestrates the ADF workflow to generate 2-D lat/lon maps of Cloud Regimes (CRs) and plots of the CR
     centers themselves (CTP-tau histograms). It can fit data into CRs using either Wasserstein (AKA Earth Movers Distance) or
     Euclidean distance. 
     Checks for COSP variables in diag_var_list: FISCCP1_COSP, CLD_MISR, and CLMODIS. 
@@ -109,7 +108,7 @@ def cloud_regime_analysis(
     There are 6 sets of premade CRs, two for each data product. One made with euclidean distance and one
     with Wasserstein distance for ISCCP, MODIS, and MISR. 
     Therefore when the wasserstein_or_euclidean variables is changed it is
-    important to undertand that not only the distance metric used to fit data into CRs is changing, but also the CRs themselves
+    important to understand that not only the distance metric used to fit data into CRs is changing, but also the CRs themselves
     unless the user is passing in a set of premade CRs with the premade_cloud_regimes variable.
 
     PARAMETERS
@@ -121,14 +120,14 @@ def cloud_regime_analysis(
         This also selects the default CRs based on creation with kmeans the selected distance.
         Default is euclidean distance *because it is much faster than wasserstein*.
     ot_library : str ("pot" | "wasserstein")
-        When wasserstein distance is used, this chooses tha backend for calculation:
+        When wasserstein distance is used, this chooses the backend for calculation:
         - "pot": python optimal transport is default, see: https://pythonot.github.io/index.html
         - "wasserstein" : wasserstein package, see: https://github.com/thaler-lab/Wasserstein
            NOTE: wasserstein was used originally (See Davis & Medeiros 2024), but as of ADF implementation, requires Numpy < 2.
     emd_method : str ("exact" | "sinkhorn")
         When wasserstein distances is used AND POT library is backend, specify the algorithm
-        - "exact" is uses the exact algorithm, is default, and is recommended.
-        - "sinkhorn" uses the Sinkhorn algorithm, which is faster, but is **highly experimental** and not recommeded.
+        - "exact" uses the exact algorithm, is default, and is recommended.
+        - "sinkhorn" uses the Sinkhorn algorithm, which is faster, but is **highly experimental** and not recommended.
     premade_cloud_regimes : Path-like to numpy array file
         Specify custom CRs to use rather than the those in ADF_variable_defaults
         - enter as a path to a numpy array of shape (k, n_tau_bins * n_pressure_bins)
@@ -140,11 +139,16 @@ def cloud_regime_analysis(
         Range of longitudes to use, Example [-90,90] 
         Default is use all available longitudes
     only_ocean_or_land : str
-        Set to 
-        - "O" to perform analysis with only points over water, 
-        - "L" for only points over land, 
-        - None or False to use data over land and water. 
+        Set to
+        - "O" to perform analysis with only points over water,
+        - "L" for only points over land,
+        - None or False to use data over land and water.
         Default is None (land & water).
+    regrid_weights_file : Path-like
+        ESMF weights file used to regrid unstructured ("ncol") data to a lat/lon grid.
+        Only needed when the test case is on an unstructured grid; cases on such a grid
+        are skipped with a warning if this is not provided.
+        Default is None (assume data is already on a lat/lon grid).
     """
     dask.config.set({"array.slicing.split_large_chunks": False})
 
@@ -157,12 +161,19 @@ def cloud_regime_analysis(
         only_ocean_or_land,
     )
     
-    time_range = [str(adf.get_cam_info("start_year")[0]), str(adf.get_cam_info("end_year")[0])]
-    opts['time_range'] = time_range
     landfrac_present = "LANDFRAC" in adf.diag_var_list
     opts['landfrac_present'] = landfrac_present
     opts['emd_method'] = emd_method
+    opts['ot_library'] = ot_library
     opts['n_cpus'] = adf.get_basic_info('num_procs')
+
+    # Per-case year ranges, indexed by case in the loop below so that multi-case
+    # runs do not all inherit the first case's years. The reference gets its own
+    # range inside _get_ref_cluster_labels; for observations it keeps using the
+    # first test case's range so model and obs cover the same period.
+    start_years = adf.get_cam_info("start_year")
+    end_years = adf.get_cam_info("end_year")
+    opts['time_range'] = [str(start_years[0]), str(end_years[0])]
 
     # 2. Process each COSP cloud variable
     cr_vars = [field for field in adf.diag_var_list if field in ALL_VARS]
@@ -182,15 +193,21 @@ def cloud_regime_analysis(
         ref_data = load_reference_data(adf, field)
         if ref_data is None: continue
 
-        ref_labels = _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts)
+        # processed_ref is the preprocessed reference histograms that the labels were
+        # derived from; the baseline column must average those, not the raw ref_data,
+        # or the labels and the histograms disagree on time range and tau/ht binning.
+        ref_labels, processed_ref = _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts)
         if ref_labels is None:
             warnings.warn(f"WARNING: Could not generate reference labels for {field}. Skipping.")
             continue
 
         # 5. Process each test case against the reference
-        for case_name in adf.data.case_names:
+        for case_idx, case_name in enumerate(adf.data.case_names):
             print(f"\nINFO: Analyzing case: {case_name}")
-            
+
+            # Use this case's own year range rather than the first case's.
+            opts['time_range'] = [str(start_years[case_idx]), str(end_years[case_idx])]
+
             c_ts_da = adf.data.load_timeseries_da(case_name, field)
             if c_ts_da is None:
                 warnings.warn(f"WARNING: Variable {field} for case '{case_name}' is None. Skipping.")
@@ -198,9 +215,15 @@ def cloud_regime_analysis(
 
             # Regrid if on unstructured grid (e.g., 'ncol' dimension)
             if "ncol" in c_ts_da.dims:
+                if regrid_weights_file is None:
+                    warnings.warn(
+                        f"WARNING: '{field}' for case '{case_name}' is on an unstructured grid, but no "
+                        "`regrid_weights_file` was given to cloud_regime_analysis. Skipping this case. "
+                        "Supply an ESMF weights file for your grid to enable regridding."
+                    )
+                    continue
                 print("INFO: Regridding data from unstructured grid.")
-                regrid_weights_file = Path("/glade/work/brianpm/mapping_ne30pg3_to_fv09_esmfbilin.nc")
-                rg = make_se_regridder(regrid_weights_file, Method="bilinear")
+                rg = make_se_regridder(Path(regrid_weights_file), Method="bilinear")
                 ds = regrid_se_data_bilinear(rg, c_ts_da, column_dim_name="ncol")
             else:
                 ds = c_ts_da
@@ -210,7 +233,7 @@ def cloud_regime_analysis(
             if processed_ds is None: continue
 
             # Compute cluster labels for the test case
-            test_labels = compute_cluster_labels(processed_ds, var_info.tau_var, var_info.ht_var, cl, opts['distance'], ot_library, method=opts['emd_method'], num_cpus=opts['n_cpus'])
+            test_labels = compute_cluster_labels(processed_ds, var_info.tau_var, var_info.ht_var, cl, opts['distance'], opts['ot_library'], method=opts['emd_method'], num_cpus=opts['n_cpus'])
             test_labels.attrs['k'] = cl.shape[0]
 
             # 6. Generate all plots
@@ -219,9 +242,9 @@ def cloud_regime_analysis(
             ht_coord = processed_ds[var_info.ht_var]
 
             if adf.compare_obs:
-                plot_hists_obs(field, cl, test_labels, ref_labels, processed_ds, ref_data, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf)
+                plot_hists_obs(field, cl, test_labels, ref_labels, processed_ds, processed_ref, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf)
             else:
-                plot_hists_baseline(field, cl, test_labels, ref_labels, processed_ds, ref_data, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf)
+                plot_hists_baseline(field, cl, test_labels, ref_labels, processed_ds, processed_ref, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf)
 
             plot_rfo_maps(test_labels, ref_labels, adf, field)
 
@@ -251,7 +274,16 @@ def _validate_user_inputs(distance, regimes, lat_r, lon_r, land_ocean):
     return opts
 
 def _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts):
-    """Computes and returns cluster labels for the reference (obs or baseline)."""
+    """Compute cluster labels for the reference (obs or baseline).
+
+    RETURNS
+    -------
+    (labels, processed_ref) : tuple
+        labels : xr.DataArray of cluster labels, or None on failure.
+        processed_ref : the preprocessed histograms the labels came from, so callers
+            can average the same data the labels describe. None when pre-computed
+            observation labels were read straight from the obs file.
+    """
     if adf.compare_obs:
         # If pre-computed labels are in the file, use them
         if opts['premade_cloud_regimes'] is None:
@@ -263,12 +295,26 @@ def _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts):
                 if 'lon' in labels.coords and labels.lon.max() > 180:
                     print("INFO: Standardizing longitude for pre-computed reference labels.")
                     labels = labels.assign_coords(lon=(((labels.lon + 180) % 360) - 180)).sortby("lon")
-                return labels
+                # No processed histograms in this branch; the observation column
+                # plots the cluster centers themselves, not an average of the data.
+                return labels, None
         # Otherwise, compute labels from histograms
         ref_ht_var = var_info.obs_ht_var
         ref_tau_var = var_info.obs_tau_var
         data_var = var_info.obs_data_var
-        processed_ref = _preprocess_data(ref_data[data_var], data_var, VariableNames("", "", ref_ht_var, ref_tau_var, "", "", ""), opts)
+        # Carry the product name across so _preprocess_data can apply the
+        # product-specific bin trimming; it cannot look `data_var` up in ALL_VARS,
+        # which is keyed by model variable name.
+        obs_var_info = VariableNames(
+            product_name=var_info.product_name,
+            data_var=data_var,
+            ht_var=ref_ht_var,
+            tau_var=ref_tau_var,
+            obs_data_var=data_var,
+            obs_ht_var=ref_ht_var,
+            obs_tau_var=ref_tau_var,
+        )
+        processed_ref = _preprocess_data(ref_data[data_var], data_var, obs_var_info, opts)
     else: # Comparing to baseline simulation
         baseline_info = adf.get_baseline_info
         time_range_b = [str(baseline_info("start_year")), str(baseline_info("end_year"))]
@@ -277,9 +323,10 @@ def _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts):
         ref_ht_var, ref_tau_var = var_info.ht_var, var_info.tau_var
 
     if processed_ref is None:
-        return None
-    
-    return compute_cluster_labels(processed_ref, ref_tau_var, ref_ht_var, cl, opts['distance'], ot_library, method=opts['emd_method'], num_cpus=opts['n_cpus'])
+        return None, None
+
+    ref_labels = compute_cluster_labels(processed_ref, ref_tau_var, ref_ht_var, cl, opts['distance'], opts['ot_library'], method=opts['emd_method'], num_cpus=opts['n_cpus'])
+    return ref_labels, processed_ref
 
 def _preprocess_data(ds, field_name, var_info, opts):
     """Performs all preprocessing steps on a data array before clustering."""
@@ -300,11 +347,14 @@ def _preprocess_data(ds, field_name, var_info, opts):
 
     ds = select_valid_tau_height(ds, var_info.tau_var, var_info.ht_var)
 
-    # Special handling when comparing against observational regimes
-    if ALL_VARS[field_name].product_name == "ISCCP" and opts['cl_shape'][1] == 42:
+    # Special handling when comparing against observational regimes.
+    # Use var_info.product_name rather than a lookup on field_name: when this is
+    # called for observations, field_name is the obs variable (e.g. "n_pctaudist"),
+    # which is not a key in ALL_VARS.
+    if var_info.product_name == "ISCCP" and opts['cl_shape'][1] == 42:
         ds = ds.sel({var_info.tau_var: slice(ds[var_info.tau_var].min().item() + 1e-11, None)})
         print(f"\t Dropping smallest tau bin ({var_info.tau_var}) for obs comparison.")
-    if ALL_VARS[field_name].product_name == "MISR" and opts['cl_shape'][1] == 105:
+    if var_info.product_name == "MISR" and opts['cl_shape'][1] == 105:
         ds = ds.sel({var_info.ht_var: slice(ds[var_info.ht_var].min().item() + 1e-11, None)})
         print(f"\t Dropping lowest height bin ({var_info.ht_var}) for obs comparison.")
 
@@ -325,11 +375,11 @@ def compute_cluster_labels(ds, tau_var_name, ht_var_name, cl, wasserstein_or_euc
         CTH/CTP dimension name
     cl
         cluster centers
-    wassterstein_or_euclidean : str
-        distrance metric choice
+    wasserstein_or_euclidean : str
+        distance metric choice
     ot_library : str
         backend library for Wasserstein
-    methos : str
+    method : str
         algorithm for wasserstein distance (default is exact)
     num_cpus : int
         number of CPU cores to assume for wasserstein calculation
@@ -393,7 +443,7 @@ def precomputed_clusters(mat, cl, wasserstein_or_euclidean, ds, tau_var_name, ht
         distances = None
         # Try preferred library first
         if ot_library == 'pot':
-            distances = _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=emd_method)
+            distances = _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=emd_method, num_cpus=num_cpus)
         elif (ot_library is None) or (ot_library == 'wasserstein'):
             distances = _compute_distances_wasserstein(mat, cl, ds, tau_var_name, ht_var_name, num_cpus=num_cpus)
         else:
@@ -408,10 +458,13 @@ def precomputed_clusters(mat, cl, wasserstein_or_euclidean, ds, tau_var_name, ht
     return np.argmin(distances, axis=1)
 
 
-def _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=None):
+def _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=None, num_cpus=None):
     """
     Computes pairwise Wasserstein distances using POT and parallelizes the
     calculation with joblib for performance.
+
+    num_cpus sets the joblib worker count; it comes from the ADF `num_procs`
+    setting so the calculation matches the resources the run was given.
     """
     try:
         import ot
@@ -440,8 +493,10 @@ def _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=None):
 
     # 3. Define a helper function that INCLUDES normalization for the model data.
     def compute_single_histogram_distances(histogram, centers_normalized, cost_matrix, method=None):
+        # Default to the exact algorithm; sinkhorn is faster but experimental and
+        # must be opted into explicitly (see the emd_method docstring).
         if method is None:
-            method = 'sinkhorn'
+            method = 'exact'
         hist_sum = histogram.sum()
         if hist_sum < 1e-9:
             return np.full(centers_normalized.shape[0], np.inf)
@@ -455,9 +510,8 @@ def _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=None):
             warnings.warn(f"ERROR: compute_single_histogram_distances method must be (None, sinkhorn, exact), got {method}")
             return None
 
-    # --- FIX: Use the helper function to get the *allocated* core count ---
-    n_jobs = 36 # _get_hpc_job_cores()
-    print(f"\t Distributing EMD calculation across {n_jobs} allocated cores...")
+    n_jobs = num_cpus if num_cpus else 1
+    print(f"\t Distributing EMD calculation across {n_jobs} cores...")
     
     # 4. Use joblib to run the calculations in parallel
     distances_list = joblib.Parallel(n_jobs=n_jobs, verbose=10)(
@@ -481,12 +535,13 @@ def _compute_distances_wasserstein(mat, cl, ds, tau_var_name, ht_var_name, num_c
 
     print("\t INFO: Using 'wasserstein' library. Will try to JIT compile `stacking` function.")
     
-    # This function is defined locally as it's highly specific to this library's API
+    # This function is defined locally as it's highly specific to this library's API.
+    # Each row becomes (weight, x, y) as the wasserstein package expects.
     @njit()
     def stacking(position_matrix, centroids):
         centroid_list = []
         for i in range(len(centroids)):
-            x = np.empty((3, len(mat[0]))).T
+            x = np.empty((3, len(centroids[i]))).T
             x[:, 0] = centroids[i]
             x[:, 1] = position_matrix[0]
             x[:, 2] = position_matrix[1]
@@ -529,8 +584,12 @@ def _calculate_rfo(labels, cluster_index):
         warnings.warn(f"ERROR: Input 'labels' must be an xarray.DataArray, got {type(labels)}")
         return None
 
-    # Spatial RFO map (% of time steps in the cluster)
-    rfo_map = (labels == cluster_index).mean(dim="time", skipna=True) * 100
+    # Spatial RFO map (% of valid time steps in the cluster). Masking to valid
+    # labels matters: without it, NaN points (e.g. from land/ocean masking) count
+    # as "not in this cluster" and the map disagrees with the scalar total below,
+    # which excludes them.
+    valid = labels.notnull()
+    rfo_map = (labels == cluster_index).where(valid).mean(dim="time", skipna=True) * 100
 
     # Total area-weighted RFO (scalar %)
     weights = np.cos(np.deg2rad(labels.lat))
@@ -541,13 +600,11 @@ def _calculate_rfo(labels, cluster_index):
     return rfo_map, total_rfo
 def load_reference_data(adfobj, varname):
     """Load reference data, which could be an observation or a baseline simulation."""
-    # ... (function content is identical to your original)
     base_name = adfobj.data.ref_case_label
-    ref_var_nam = adfobj.data.ref_var_nam[varname] # shuld work for obs/sim
+    ref_var_nam = adfobj.data.ref_var_nam[varname]  # should work for obs/sim
     print(f"[CRA: load_reference_data] {base_name = }, {ref_var_nam = }")
 
     if adfobj.compare_obs:
-        ocase = adfobj.data.ref_case_label
         fils = adfobj.data.ref_var_loc.get(varname, None)
         if not isinstance(fils, list):
             fils = [fils]
@@ -679,7 +736,7 @@ def plot_rfo_maps(test_labels, ref_labels, adf, field):
 
         # 1. Reference RFO
         rfo_ref, total_rfo_ref = _calculate_rfo(ref_labels, cluster)
-        mesh1 = _plot_map(ax[0], rfo_ref.lon, rfo_ref.lat, rfo_ref,
+        _plot_map(ax[0], rfo_ref.lon, rfo_ref.lat, rfo_ref,
                           f"{obs_or_base}, RFO = {total_rfo_ref:.1f}%",
                           "GnBu", 0, 100)
         
@@ -705,7 +762,7 @@ def plot_rfo_maps(test_labels, ref_labels, adf, field):
         _configure_map_axes(ax[0], is_left=True, is_bottom=False)
         _configure_map_axes(ax[1], is_left=False, is_bottom=False)
         _configure_map_axes(ax[2], is_left=True, is_bottom=True)
-        # Manually set ticks for bottom right axis
+        # Only three panels are used (reference, test, difference); drop the empty fourth.
         ax[3].remove()
 
         fig.suptitle(f"CR{cluster+1} Relative Frequency of Occurrence", fontsize=16, y=0.95)
@@ -750,28 +807,37 @@ def _prepare_plot_data(fld, cl, cluster_labels, cluster_labels_o, histograms, hi
         cluster centers
     
     cluster_labels: xr.DataArray
-        labels for case ([time], lat, lon)
-    cluster_labels_o: array-like
-        labels for reference data
-    histograms: xr.DataAray (?)
-    
+        labels for the test case ([time], lat, lon)
+    cluster_labels_o: xr.DataArray
+        labels for the reference data (observations or baseline)
+    histograms: xr.DataArray
+        preprocessed test-case histograms
+    histograms_ref: xr.DataArray or xr.Dataset
+        reference histograms (only used in baseline mode)
+    ht_var_name, tau_var_name : str
+        model dimension names for the vertical (CTP/CTH) and tau axes
+    htcoord, taucoord : xr.DataArray
+        coordinate values used for the plot axes
     """
     data = ALL_VARS[fld].product_name
     k = len(cl)
     ylabels = htcoord.values
     xlabels = taucoord.values
-    
+
+    # Each cluster center is a flattened (tau x ht) histogram; a mismatch here
+    # means the centers file does not correspond to this product's binning.
+    if cl.shape[1] != len(xlabels) * len(ylabels):
+        warnings.warn(
+            f"WARNING: cluster centers for {fld} have {cl.shape[1]} bins, but the data has "
+            f"{len(xlabels)} tau x {len(ylabels)} ht = {len(xlabels) * len(ylabels)}."
+        )
+
     # Create meshgrid
     X2, Y2 = np.meshgrid(np.arange(len(xlabels) + 1), np.arange(len(ylabels) + 1))
-    
+
     # Calculate figure height
     fig_height = (1 + 10 / 3 * ceil(k / 3)) * 3
-    
-    # Create weights for RFO calculations
-    weights = np.cos(np.deg2rad(cluster_labels.stack(z=("time", "lat", "lon")).lat.values))
-    valid_inds = ~np.isnan(cluster_labels.stack(z=("time", "lat", "lon")))
-    weights = weights[valid_inds]
-    
+
     return {
         'field': fld,
         'data_product': data,
@@ -784,7 +850,6 @@ def _prepare_plot_data(fld, cl, cluster_labels, cluster_labels_o, histograms, hi
         'X2': X2,
         'Y2': Y2,
         'fig_height': fig_height,
-        'weights': weights,
         'ht_var_name': ht_var_name,
         'tau_var_name': tau_var_name,
         'fld': fld,
@@ -854,13 +919,15 @@ def _plot_observation_column(ax_col, plot_data, cmap, norm, include_rfo=False):
 def _plot_baseline_column(ax_col, plot_data, cmap, norm):
     """Plot the baseline cluster centers with weighted means and RFO."""
     for i in range(plot_data['k']):
-        # Calculate RFO
-        rfo_map, rfo = _calculate_rfo(cluster_labels_b, i)  # Global variable
-        
+        # Calculate RFO. cluster_labels_o holds the reference labels, which in
+        # baseline mode are the baseline simulation's.
+        _, rfo = _calculate_rfo(plot_data['cluster_labels_o'], i)
+
         # Calculate weighted mean
-        wmean = _calculate_weighted_mean_xr(i, plot_data['cluster_labels_o'], plot_data['histograms_ref'])
+        wmean = _calculate_weighted_mean_xr(i, plot_data['cluster_labels_o'], plot_data['histograms_ref'],
+                                            plot_data['ht_var_name'], plot_data['tau_var_name'])
         # Plot
-        im = ax_col[i].pcolormesh(plot_data['X2'], plot_data['Y2'], wmean, norm=norm, cmap=cmap)
+        ax_col[i].pcolormesh(plot_data['X2'], plot_data['Y2'], wmean, norm=norm, cmap=cmap)
         ax_col[i].set_title(f"Baseline Case CR {i+1}, RFO = {np.round(rfo, 1)}%")
 
 
@@ -868,13 +935,14 @@ def _plot_test_case_column(ax_col, plot_data, cmap, norm):
     """Plot the test case cluster centers with weighted means and RFO."""
     for i in range(plot_data['k']):
         # Calculate RFO
-        rfo_map, rfo = _calculate_rfo(plot_data['cluster_labels'], i)
-        
+        _, rfo = _calculate_rfo(plot_data['cluster_labels'], i)
+
         # Calculate weighted mean
-        wmean = _calculate_weighted_mean_xr(i, plot_data['cluster_labels'], plot_data['histograms'])
-        
+        wmean = _calculate_weighted_mean_xr(i, plot_data['cluster_labels'], plot_data['histograms'],
+                                            plot_data['ht_var_name'], plot_data['tau_var_name'])
+
         # Plot
-        im = ax_col[i].pcolormesh(plot_data['X2'], plot_data['Y2'], wmean, norm=norm, cmap=cmap)
+        ax_col[i].pcolormesh(plot_data['X2'], plot_data['Y2'], wmean, norm=norm, cmap=cmap)
         ax_col[i].set_title(f"Test Case CR {i+1}, RFO = {np.round(rfo, 1)}%")
 
 def _create_colormap():
@@ -1050,11 +1118,18 @@ def select_valid_tau_height(ds, tau_var_name, ht_var_name):
         ds = ds.sel({ht_var_name: slice(0, None)})
     return ds
 
-def _calculate_weighted_mean_xr(cluster_i, cluster_labels, hists):
+def _calculate_weighted_mean_xr(cluster_i, cluster_labels, hists, ht_var_name, tau_var_name):
+    """Area-weighted mean histogram for one cluster, oriented for pcolormesh.
+
+    Returns a 2-D array with dims (ht, tau). The explicit transpose matters: the
+    incoming data is normally (time, tau, ht, lat, lon), so the mean would come
+    back as (tau, ht) -- the transpose of what pcolormesh needs here. That is a
+    silent error whenever the histogram happens to be square (e.g. ISCCP 7x7).
+    """
     weights = np.cos(np.radians(hists['lat']))
     cluster_data = xr.where(cluster_labels==cluster_i, hists, np.nan)
     dims = [dim for dim in hists.dims if dim in ["ncol","lat","lon","time"]]
-    return cluster_data.weighted(weights).mean(dim=dims)
+    return cluster_data.weighted(weights).mean(dim=dims).transpose(ht_var_name, tau_var_name)
 
 
 # --------------
@@ -1134,24 +1209,20 @@ def _make_mask_broadcastable(mask, ds):
 def create_land_mask(ds):
     """
     Create land mask using cartopy Natural Earth data.
-    Improved version with better performance and cleaner code.
-    
+
     Parameters:
     -----------
     ds : xarray.Dataset
         Dataset with lat/lon coordinates
-        
+
     Returns:
     --------
     land_mask : numpy.ndarray
         2D array (lat, lon) with 1 for land, 0 for ocean
     """
     from cartopy import feature as cfeature
-    from shapely.geometry import Point
-    from shapely.prepared import prep
-    import numpy as np
-    
-    #TODO: Replace this with with a regionmask approach (no numba needed)
+
+    #TODO: Replace this with a regionmask approach
     # Get land polygons
     land_110m = cfeature.NaturalEarthFeature("physical", "land", "110m")
     land_polygons = [prep(geom) for geom in land_110m.geometries()]
@@ -1160,48 +1231,17 @@ def create_land_mask(ds):
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     # Flatten coordinates for easier processing
     lon_flat, lat_flat = lon_grid.flatten(), lat_grid.flatten()
-    points = [Point(lon, lat) for lon, lat in zip(lon_flat, lat_flat)]
-    # Find land points
-    land_coords = []
-    for polygon in land_polygons:
-        land_coords.extend([
-            (point.x, point.y) for point in points if polygon.covers(point)
-        ])
-    # Convert to numpy array for numba processing
-    land_array = np.array(land_coords)
-    coord_array = np.column_stack([lon_flat, lat_flat])
-    # Use numba for fast coordinate matching
-    land_mask_flat = _find_land_points(coord_array, land_array)
+    # Test each grid point against the land polygons and record the result
+    # directly. (An earlier version collected the land coordinates and then
+    # re-derived the mask by matching coordinates pairwise, which repeated work
+    # already done here at O(n_points x n_land) cost.)
+    mask_flat = np.zeros(lon_flat.size, dtype=np.int32)
+    for idx, (lon, lat) in enumerate(zip(lon_flat, lat_flat)):
+        point = Point(lon, lat)
+        if any(polygon.covers(point) for polygon in land_polygons):
+            mask_flat[idx] = 1
     # Reshape to original grid
-    return land_mask_flat.reshape(len(lats), len(lons))
-
-
-@njit()
-def _find_land_points(coord_array, land_coords):
-    """
-    Numba-compiled function to quickly identify land points.
-    
-    Parameters:
-    -----------
-    coord_array : numpy.ndarray
-        Array of (lon, lat) coordinates
-    land_coords : numpy.ndarray
-        Array of known land coordinates
-        
-    Returns:
-    --------
-    mask : numpy.ndarray
-        1D mask array with 1 for land, 0 for ocean
-    """
-    mask = np.zeros(len(coord_array), dtype=np.int32)
-
-    for i in range(len(coord_array)):
-        coord = coord_array[i]
-        for j in range(len(land_coords)):
-            if np.allclose(coord, land_coords[j], atol=1e-10):
-                mask[i] = 1
-                break
-    return mask
+    return mask_flat.reshape(len(lats), len(lons))
 
 #---------------------
 # Regridding functions
@@ -1234,7 +1274,7 @@ def make_se_regridder(weight_file, Method="conservative"):
         dummy_out,
         weights=weight_file,
         # results seem insensitive to this method choice
-        # choices are coservative_normed, coservative, and bilinear
+        # choices are conservative_normed, conservative, and bilinear
         method=Method,
         reuse_weights=True,
         periodic=True,
