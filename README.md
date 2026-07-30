@@ -44,27 +44,38 @@ for details (e.g. changing the environment location, using conda in batch jobs).
 ### If your machine has no conda module (e.g. CGD machines)
 
 Some machines don't provide a `conda` module, so you'll need your own. Install
-[Miniforge](https://github.com/conda-forge/miniforge) (uses conda-forge by default, matching
-`env/conda_environment.yaml`):
+[Miniforge](https://github.com/conda-forge/miniforge), which defaults to the conda-forge channel that supplies
+nearly all of `env/conda_environment.yaml`:
 ```
 curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
 bash Miniforge3-$(uname)-$(uname -m).sh
 ```
 [Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install) is an equivalent alternative. Once
-installed, create the environment with the same `conda env create` command above. Note that on NCAR HPC systems
-a personal conda install is shadowed by `module load conda` whenever that module is loaded.
+installed, create the environment with the same `conda env create` command above. The environment is created under
+your own conda installation's `envs/` directory — the `prefix:` line at the bottom of `env/conda_environment.yaml`
+names an NCAR HPC path, but `conda env create` uses `name:` and ignores `prefix:`, so it has no effect here. Note
+also that on NCAR HPC systems a personal conda install is shadowed by `module load conda` whenever that module is
+loaded.
 
-Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running:
+### Non-python requirements (all machines)
+
+Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On NCAR HPC
+(derecho/casper) this can be loaded by simply running:
 ```
 module load nco
-``` 
-or on the CGD machines by simply running:
-```
-module load tool/nco
 ```
 on the command line.
 
-Finally, if you also want to run the [Climate Variability Diagnostics Package](https://www.cesm.ucar.edu/working_groups/CVC/cvdp/) (CVDP) as part of the ADF then you'll also need NCL.  On the CISL machines this can be done using the command:
+On CGD machines the `tool/nco` modules are currently not usable: the unversioned `tool/nco` resolves to a
+modulefile for an install that isn't present and adds nothing to `PATH`, and `tool/nco/4.5.2` puts `ncrcat` on
+`PATH` but fails at runtime looking for `libexpat.so.0`, which current CGD systems no longer ship. Install NCO
+from conda-forge into your ADF environment instead:
+```
+conda activate adf_v1.0.0
+conda install -c conda-forge nco
+```
+
+Finally, if you also want to run the [Climate Variability Diagnostics Package](https://www.cesm.ucar.edu/working_groups/CVC/cvdp/) (CVDP) as part of the ADF then you'll also need NCL.  On NCAR HPC (derecho/casper) this can be done using the command:
 ```
 module load ncl
 ```
