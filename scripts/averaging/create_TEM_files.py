@@ -33,10 +33,10 @@ def create_TEM_files(adf):
     res = adf.variable_defaults # will be dict of variable-specific plot preferences
 
     if "qbo" in adf.plotting_scripts:
-        var_list = ['uzm','epfy','epfz','vtem','wtem',
-                    'psitem','utendepfd','utendvtem','utendwtem']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM",
+                    "PSITEM","UTENDEPFD","UTENDVTEM","UTENDWTEM"]
     else:
-        var_list = ['uzm','epfy','epfz','vtem','wtem','psitem','utendepfd']
+        var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
 
     tem_locs = []
     
@@ -62,9 +62,9 @@ def create_TEM_files(adf):
         #End for
 
     #Set default to h4
-    hist_nums = adf.get_cam_info("tem_hist_str")
+    hist_nums = adf.get_cam_info("tem_hist_str")[0]
     if hist_nums is None:
-        hist_nums = ["h4"]*len(case_names)
+        hist_nums = ["h4a"]*len(case_names)
 
     #Get test case(s) tem over-write boolean and force to list if not by default
     overwrite_tem_cases = adf.get_cam_info("overwrite_tem")
@@ -154,7 +154,7 @@ def create_TEM_files(adf):
             #Set default to h4
             hist_num = adf.get_baseline_info("tem_hist_str")
             if hist_num is None:
-                hist_num = "h4"
+                hist_num = "h4a"
 
             #Extract baseline years (which may be empty strings if using Obs):
             syear_baseline = adf.climo_yrs["syear_baseline"]
@@ -200,8 +200,9 @@ def create_TEM_files(adf):
         #End if
 
         #Check if history files actually exist. If not then kill script:
-        hist_str = f"*{hist_nums[case_idx]}"
-        if not list(starting_location.glob(hist_str+'.*.nc')):
+        
+        hist_str = f"{hist_nums[case_idx]}"
+        if not list(starting_location.glob("*"+hist_str+'.*.nc')):
             emsg = f"No CAM history {hist_str} files found in '{starting_location}'."
             emsg += " Script is ending here."
             adf.end_diag_fail(emsg)
@@ -237,7 +238,7 @@ def create_TEM_files(adf):
 
                 #Grab all leading zeros for climo year just in case
                 yr = f"{str(yr).zfill(4)}"
-                hist_files.append(glob(f"{starting_location}/{hist_str}.{yr}*.nc"))
+                hist_files.append(glob(f"{starting_location}/*{hist_str}.{yr}*.nc"))
 
             #Flatten list of lists to 1d list
             hist_files = sorted(list(chain.from_iterable(hist_files)))
@@ -423,6 +424,9 @@ def calc_tem(ds):
     vzm.attrs['long_name'] = 'Zonal-Mean meridional wind'
     vzm.attrs['units'] = 'm/s'
 
+    thzm.attrs['long_name'] = 'Zonal-Mean potential temperature'
+    thzm.attrs['units'] = 'K'
+
     epfy.attrs['long_name'] = 'northward component of E-P flux'
     epfy.attrs['units'] = 'm3/s2'
 
@@ -455,19 +459,28 @@ def calc_tem(ds):
     utendvtem.values = np.float32(utendvtem.values)
     utendwtem.values = np.float32(utendwtem.values)
 
+    #Average time dimension over time bounds, if bounds exist:
+    if 'time_bnds' in ds:
+        time_bounds_name = 'time_bnds'
+    elif 'time_bounds' in ds:
+        time_bounds_name = 'time_bounds'
+
     dstem = xr.Dataset(data_vars=dict(date = ds.date,
                                       datesec = ds.datesec,
-                                      time_bnds = ds.time_bnds,
-                                      uzm = uzm,
-                                      vzm = vzm,
-                                      epfy = epfy,
-                                      epfz = epfz,
-                                      vtem = vtem,
-                                      wtem = wtem,
-                                      psitem = psitem,
-                                      utendepfd = utendepfd,
-                                      utendvtem = utendvtem,
-                                      utendwtem = utendwtem
+                                      time_bnds = time_bounds_name,
+                                      hybm=ds.hybm,
+                                      hyam=ds.hyam,
+                                      UZM = uzm,
+                                      VZM = vzm,
+                                      THZM = thzm,
+                                      EPFY = epfy,
+                                      EPFZ = epfz,
+                                      VTEM = vtem,
+                                      WTEM = wtem,
+                                      PSITEM = psitem,
+                                      UTENDEPFD = utendepfd,
+                                      UTENDVTEM = utendvtem,
+                                      UTENDWTEM = utendwtem
                                       ))
 
     return dstem

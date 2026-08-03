@@ -37,6 +37,7 @@ from typing import Optional
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
+import matplotlib.cm as cm
 import cartopy.crs as ccrs
 #nice formatting for tick labels
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
@@ -69,7 +70,6 @@ seasons = {"ANN": np.arange(1,13,1),
             "MAM": [3, 4, 5],
             "SON": [9, 10, 11]
             }
-
 
 #################
 #HELPER FUNCTIONS
@@ -829,7 +829,6 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
                     borderpad=0,
                     )
     fig.colorbar(img[1], cax=cb_mean_ax, **cp_info['colorbar_opt'])
-    
 
     cb_pct_ax = inset_axes(ax3,
                     width="5%",  # width = 5% of parent_bbox width
@@ -1451,7 +1450,7 @@ def square_contour_difference(fld1, fld2, **kwargs):
     else:
         dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
         cmap = mpl.cm.RdBu_r
-        
+
     img3 = ax3.contourf(xx, yy, diff.transpose(), cmap=cmap, norm=dnorm)
     if (coord1 == 'month') and (fld1.shape[0] ==12):
         ax3.set_xticks(np.arange(1,13))
