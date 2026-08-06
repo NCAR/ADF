@@ -170,18 +170,20 @@ def cloud_regime_analysis(
         only_ocean_or_land,
     )
     
-    landfrac_present = "LANDFRAC" in adf.diag_var_list
-    opts['landfrac_present'] = landfrac_present
     opts['emd_method'] = emd_method
     opts['ot_library'] = ot_library
-    opts['n_cpus'] = adf.get_basic_info('num_procs')
+    # adf.num_procs is the resolved integer. get_basic_info('num_procs') returns the
+    # raw config value, which can be None or the string "*"; joblib accepts neither.
+    opts['n_cpus'] = adf.num_procs
 
     # Per-case year ranges, indexed by case in the loop below so that multi-case
     # runs do not all inherit the first case's years. The reference gets its own
     # range inside _get_ref_cluster_labels; for observations it keeps using the
     # first test case's range so model and obs cover the same period.
-    start_years = adf.get_cam_info("start_year")
-    end_years = adf.get_cam_info("end_year")
+    # climo_yrs rather than get_cam_info("start_year"): the ADF always fills these
+    # in (deriving them from the files when the config omits them).
+    start_years = adf.climo_yrs["syears"]
+    end_years = adf.climo_yrs["eyears"]
     opts['time_range'] = [str(start_years[0]), str(end_years[0])]
 
     # 2. Process each COSP cloud variable
@@ -217,6 +219,11 @@ def cloud_regime_analysis(
             # Use this case's own year range rather than the first case's.
             opts['time_range'] = [str(start_years[case_idx]), str(end_years[case_idx])]
 
+            # Each case gets its own plot directory; writing everything to
+            # plot_location[0] would make the cases in a multi-case run overwrite
+            # each other's figures.
+            plot_loc = Path(adf.plot_location[case_idx])
+
             c_ts_da = adf.data.load_timeseries_da(case_name, field)
             if c_ts_da is None:
                 warnings.warn(f"WARNING: Variable {field} for case '{case_name}' is None. Skipping.")
@@ -251,11 +258,11 @@ def cloud_regime_analysis(
             ht_coord = processed_ds[var_info.ht_var]
 
             if adf.compare_obs:
-                plot_hists_obs(field, cl, test_labels, ref_labels, processed_ds, processed_ref, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf)
+                plot_hists_obs(field, cl, test_labels, ref_labels, processed_ds, processed_ref, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf, plot_loc, case_name)
             else:
-                plot_hists_baseline(field, cl, test_labels, ref_labels, processed_ds, processed_ref, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf)
+                plot_hists_baseline(field, cl, test_labels, ref_labels, processed_ds, processed_ref, var_info.ht_var, var_info.tau_var, ht_coord, tau_coord, adf, plot_loc, case_name)
 
-            plot_rfo_maps(test_labels, ref_labels, adf, field)
+            plot_rfo_maps(test_labels, ref_labels, adf, field, plot_loc, case_name)
 
 
 #
@@ -325,8 +332,9 @@ def _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts):
         )
         processed_ref = _preprocess_data(ref_data[data_var], data_var, obs_var_info, opts, is_obs=True)
     else: # Comparing to baseline simulation
-        baseline_info = adf.get_baseline_info
-        time_range_b = [str(baseline_info("start_year")), str(baseline_info("end_year"))]
+        # climo_yrs rather than get_baseline_info("start_year"): the ADF always
+        # resolves these, while the raw config entries are optional and often None.
+        time_range_b = [str(adf.climo_yrs["syear_baseline"]), str(adf.climo_yrs["eyear_baseline"])]
         baseline_opts = {**opts, 'time_range': time_range_b}
         processed_ref = _preprocess_data(ref_data, field, var_info, baseline_opts)
         ref_ht_var, ref_tau_var = var_info.ht_var, var_info.tau_var
@@ -351,7 +359,7 @@ def _preprocess_data(ds, field_name, var_info, opts, is_obs=False):
     if 'lon' in ds.coords and ds.lon.max() > 180:
         ds = ds.assign_coords(lon=(((ds.lon + 180) % 360) - 180)).sortby("lon")
 
-    ds = apply_land_ocean_mask(ds, opts['only_ocean_or_land'], opts.get('landfrac_present'))
+    ds = apply_land_ocean_mask(ds, opts['only_ocean_or_land'])
     if ds is None: return None
     
     ds = spatial_subset(ds, opts['lat_range'], opts['lon_range'])
@@ -673,10 +681,17 @@ def load_cluster_centers(adf, cluster_spec, variablename):
                 algo = 'emd'
             else:
                 algo = 'euclidean'
+            obs_data_loc = adf.get_basic_info("obs_data_loc")
+            if not obs_data_loc:
+                warnings.warn(
+                    "[ERROR] 'obs_data_loc' is not set, so the default cluster centers "
+                    f"cannot be found. Set it, or pass premade_cloud_regimes for {variablename}."
+                )
+                return None
             try:
                 # Use variablename to find the data product name
                 data = ALL_VARS[variablename].product_name
-                obs_data_loc = Path(adf.get_basic_info("obs_data_loc"))
+                obs_data_loc = Path(obs_data_loc)
                 data_key = f"{data}_{algo}_centers"
                 cluster_centers_path = adf.variable_defaults[data_key]["obs_file"]
                 file_path = obs_data_loc / cluster_centers_path
@@ -764,13 +779,17 @@ def _add_colorbar2(fig, ax, mappable, label):
     cb = fig.colorbar(mappable, cax=cax)
     cb.set_label(label=label)
 
-def plot_rfo_maps(test_labels, ref_labels, adf, field):
+def plot_rfo_maps(test_labels, ref_labels, adf, field, plot_loc, case_name):
     """
     Plots Relative Frequency of Occurrence (RFO) maps for test, reference,
     and their difference for each cloud regime.
+
+    plot_loc is this case's plot directory and case_name its name; both are needed
+    so that a multi-case run does not write every case to the same file.
     """
     k = test_labels.attrs.get("k", int(np.nanmax(test_labels.values)) + 1)
     obs_or_base = "Observation" if adf.compare_obs else "Baseline"
+    img_type = adf.read_config_var("diag_basic_info").get('plot_type', 'png')
     plt.rcParams.update({"font.size": 13, "figure.dpi": 200})
     for cluster in range(k):
         fig, axes = plt.subplots(
@@ -819,32 +838,36 @@ def plot_rfo_maps(test_labels, ref_labels, adf, field):
         fig.suptitle(f"CR{cluster+1} Relative Frequency of Occurrence", fontsize=16, y=0.95)
         
         # Save figure
-        save_path = Path(adf.plot_location[0]) / f"{field}_CR{cluster+1}_LatLon_mean.png"
+        save_path = plot_loc / f"{field}_CR{cluster+1}_LatLon_mean.{img_type}"
         plt.savefig(save_path, bbox_inches='tight')
 
         if adf.create_html:
-            adf.add_website_data(str(save_path), field, case_name=None, multi_case=True)
+            adf.add_website_data(str(save_path), field, case_name)
         
         plt.close(fig)
 
 
-def plot_hists_baseline(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord, adf):
+def plot_hists_baseline(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord, adf, plot_loc, case_name):
     """Plot cloud regime centers for observations, baseline, and test case."""
     plot_data = _prepare_plot_data(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord)
     plot_data['columns'] = ['observation', 'baseline', 'test_case']
     plot_data['figsize'] = (17, plot_data['fig_height'])
     plot_data['save_suffix'] = '_CR_centers'
-    
+    plot_data['plot_loc'] = plot_loc
+    plot_data['case_name'] = case_name
+
     _plot_cloud_regimes(plot_data, adf, baseline_mode=True)
 
 
-def plot_hists_obs(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord, adf):
+def plot_hists_obs(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord, adf, plot_loc, case_name):
     """Plot cloud regime centers for observations and test case."""
     plot_data = _prepare_plot_data(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord)
     plot_data['columns'] = ['observation', 'test_case']
     plot_data['figsize'] = (12, plot_data['fig_height'])
     plot_data['save_suffix'] = '_CR_centers'
-    
+    plot_data['plot_loc'] = plot_loc
+    plot_data['case_name'] = case_name
+
     _plot_cloud_regimes(plot_data, adf, baseline_mode=False)
 
 
@@ -1119,16 +1142,14 @@ def _add_figure_labels(fig, ax, plot_data, baseline_mode):
 def _save_figure(fig, plot_data, adf):
     """Save figure and add to website if requested."""
     data = plot_data['data_product']
-    save_path = adf.plot_location[0] + f"/{data}{plot_data['save_suffix']}"
+    img_type = adf.read_config_var("diag_basic_info").get('plot_type', 'png')
+    save_path = plot_data['plot_loc'] / f"{data}{plot_data['save_suffix']}.{img_type}"
     plt.savefig(save_path)
-    
+
     if adf.create_html:
-        if hasattr(adf, 'compare_obs') and adf.compare_obs:
-            # For obs comparison mode
-            adf.add_website_data(save_path + ".png", plot_data['field'], case_name=None, multi_case=True)
-        else:
-            # For baseline comparison mode  
-            adf.add_website_data(save_path + ".png", plot_data['field'], adf.get_baseline_info("cam_case_name"))
+        # Attribute the figure to the test case it was made from, in both obs and
+        # baseline mode: the reference is one of three panels, not the subject.
+        adf.add_website_data(str(save_path), plot_data['field'], plot_data['case_name'])
 
 # ---------------------
 # Data handling helpers
@@ -1190,75 +1211,40 @@ def _calculate_weighted_mean_xr(cluster_i, cluster_labels, hists, ht_var_name, t
 # --------------
 # LAND MASK CODE (probably need to simplify and move out of here)
 # --------------
-def apply_land_ocean_mask(ds, only_ocean_or_land, landfrac_present=None):
+def apply_land_ocean_mask(ds, only_ocean_or_land):
     """
-    Apply land or ocean mask to dataset.
-    
+    Apply land or ocean mask to a histogram DataArray.
+
     Parameters:
     -----------
-    ds : xarray.Dataset
-        Input dataset with lat/lon coordinates
+    ds : xarray.DataArray
+        Input data with lat/lon coordinates
     only_ocean_or_land : str or False
         "L" for land only, "O" for ocean only, False for no masking
-    landfrac_present : bool, optional
-        Whether LANDFRAC variable is available. Auto-detected if None.
-        
+
     Returns:
     --------
-    ds : xarray.Dataset
-        Masked dataset, or None if invalid option
+    ds : xarray.DataArray
+        Masked data, or None if invalid option
+
+    ponytail: masks from the cartopy coastline only. An earlier LANDFRAC branch was
+    dead code -- callers always pass a single-variable DataArray, so LANDFRAC was
+    never reachable on it. If a fractional land mask is wanted, load LANDFRAC in the
+    caller and pass it in rather than reinstating the auto-detect.
     """
     # No masking requested
     if only_ocean_or_land is False:
         return ds
-    
+
     # Validate input
     if only_ocean_or_land not in ["L", "O"]:
-        warnings.warn(f'[ERROR] Invalid option for only_ocean_or_land: {only_ocean_or_land}'
+        warnings.warn(f'[ERROR] Invalid option for only_ocean_or_land: {only_ocean_or_land}. '
               'Please enter "O" for ocean only, "L" for land only, or set to False for both')
         return None
-    
-    # Auto-detect LANDFRAC if not specified
-    if landfrac_present is None:
-        landfrac_present = "LANDFRAC" in ds.data_vars or "LANDFRAC" in ds.coords
-    
-    # Use LANDFRAC if available
-    if landfrac_present:
-        land_mask_value = 1 if only_ocean_or_land == "L" else 0
-        return ds.where(ds.LANDFRAC == land_mask_value)
-    
-    # Otherwise use cartopy-based land mask
+
     land_mask = create_land_mask(ds)
-    
-    # Make land mask broadcastable with dataset
-    land_mask = _make_mask_broadcastable(land_mask, ds)
-    
-    # Apply mask
     mask_value = 1 if only_ocean_or_land == "L" else 0
     return ds.where(land_mask == mask_value)
-
-
-def _make_mask_broadcastable(mask, ds):
-    """
-    Make 2D land mask broadcastable with dataset by adding dimensions.
-    
-    Parameters:
-    -----------
-    mask : numpy.ndarray
-        2D mask array (lat, lon)
-    ds : xarray.Dataset
-        Target dataset
-        
-    Returns:
-    --------
-    mask : numpy.ndarray
-        Broadcastable mask array
-    """
-    # Add dimensions for any dims that aren't lat/lon
-    for i, dim in enumerate(ds.dims):
-        if dim not in ("lat", "lon"):
-            mask = np.expand_dims(mask, axis=i)
-    return mask
 
 
 def create_land_mask(ds):
@@ -1267,13 +1253,15 @@ def create_land_mask(ds):
 
     Parameters:
     -----------
-    ds : xarray.Dataset
-        Dataset with lat/lon coordinates
+    ds : xarray.Dataset or xarray.DataArray
+        Data with lat/lon coordinates
 
     Returns:
     --------
-    land_mask : numpy.ndarray
-        2D array (lat, lon) with 1 for land, 0 for ocean
+    land_mask : xarray.DataArray
+        (lat, lon) array with 1 for land, 0 for ocean. Returned as a DataArray so
+        xarray broadcasts it by dimension name; the previous numpy version had to
+        insert dummy axes positionally, which assumed lat/lon were the trailing dims.
     """
     from cartopy import feature as cfeature
 
@@ -1296,7 +1284,12 @@ def create_land_mask(ds):
         if any(polygon.covers(point) for polygon in land_polygons):
             mask_flat[idx] = 1
     # Reshape to original grid
-    return mask_flat.reshape(len(lats), len(lons))
+    return xr.DataArray(
+        mask_flat.reshape(len(lats), len(lons)),
+        dims=("lat", "lon"),
+        coords={"lat": ds.lat, "lon": ds.lon},
+        name="land_mask",
+    )
 
 #---------------------
 # Regridding functions
