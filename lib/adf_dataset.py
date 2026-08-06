@@ -124,16 +124,6 @@ class AdfData:
             return self._as_hist_str_list(test_hist_strs[caseindex])
         return []
 
-    def _regrid_loc_for_case(self, case):
-        """Return the regrid directory for case; cam_regrid_loc may be a per-case list."""
-        loc = self.model_rgrid_loc
-        if isinstance(loc, list):
-            return Path(loc[self.case_names.index(case)])
-        if isinstance(loc, (str, Path)):
-            return Path(loc)
-        warnings.warn(f"\t    WARNING: Did not find regrid location for case: {case}")
-        return None
-
     def _hist_strs_for_reference(self):
         """Ordered history streams configured for the reference/baseline case."""
         return self._as_hist_str_list(self.adf.hist_string["base_hist_str"])
@@ -264,7 +254,17 @@ class AdfData:
         ds = self.load_dataset(fils)
         if ds is None:
             return None
+        # xarray arithmetic drops attrs, so carry them across by hand -- otherwise
+        # the regridded files lose 'units' and the plotting scripts KeyError on it.
+        attrs = ds[variablename].attrs.copy()
         ds[variablename] = ds[variablename] * scale_factor + add_offset
+        ds[variablename].attrs = attrs
+        if scale_factor != 1 or add_offset != 0:
+            new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
+            if new_unit:
+                ds[variablename].attrs['units'] = new_unit
+                # int, not bool: netCDF4 cannot store a Python bool as an attribute
+                ds[variablename].attrs['transformed'] = 1
         return ds
 
     def load_climo_da(self, case, variablename, apply_scaling=True):
@@ -336,7 +336,8 @@ class AdfData:
         ds[vname] = ds[vname] * scale_factor + add_offset
         ds[vname].attrs = attrs
         if scale_factor != 1 or add_offset != 0:
-            ds[vname].attrs['transformed'] = True
+            # int, not bool: netCDF4 cannot store a Python bool as an attribute
+            ds[vname].attrs['transformed'] = 1
         return ds
     
     def load_reference_climo_da(self, case, variablename, apply_scaling=True):
@@ -374,9 +375,7 @@ class AdfData:
     # Test case(s)
     def get_regrid_file(self, case, field):
         """Return list of test regridded files"""
-        model_rg_loc = self._regrid_loc_for_case(case)
-        if model_rg_loc is None:
-            return None
+        model_rg_loc = Path(self.model_rgrid_loc)
         # rlbl = "reference label" = name of the reference data that defines the target grid
         rlbl = self.ref_labels[field]
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
@@ -417,9 +416,7 @@ class AdfData:
             else:
                 fils = []
         else:
-            model_rg_loc = self._regrid_loc_for_case(case)
-            if model_rg_loc is None:
-                return None
+            model_rg_loc = Path(self.model_rgrid_loc)
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
 
@@ -490,7 +487,8 @@ class AdfData:
                 new_unit = self.adf.variable_defaults[variablename].get("new_unit")
                 if new_unit:
                     da.attrs['units'] = new_unit
-                    da.attrs['transformed'] = True
+                    # int, not bool: netCDF4 cannot store a Python bool as an attribute
+                    da.attrs['transformed'] = 1
         return da
 
     # Get variable conversion defaults, if applicable

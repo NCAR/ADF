@@ -264,13 +264,10 @@ def regrid_to_target(adf, casename, source_da, target_da, method='conservative')
     target_grid = _create_clean_grid(target_da.reset_coords(drop=True))
     
     # Manage weights files -- MULTI-CASE NEEDS TO KNOW CASENAME
-    regrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
+    regrid_loc = Path(adf.get_basic_info("cam_regrid_loc", required=True))
     case_list = adf.get_cam_info("cam_case_name", required=True)
-    if isinstance(regrid_loc, list):
-        idx = case_list.index(casename) if casename in case_list else 0
-        regrid_loc = regrid_loc[idx] if len(regrid_loc) > 1 else regrid_loc[0]
     subdir = "regrid_weights" if casename in case_list else "obs_regrid_weights"
-    regrid_weights_dir = Path(regrid_loc) / subdir
+    regrid_weights_dir = regrid_loc / subdir
     regrid_weights_dir.mkdir(parents=True, exist_ok=True)
     
     # Generate grid descriptions
@@ -392,22 +389,40 @@ def _load_ref_ds(adf, variable):
     return ds
 
 
-def get_prect(adf, casename, **kwargs):
+def _load_field(adf, casename, variable):
+    """Load `variable` on the target grid, for a test case or the reference.
+
+    Returns None when the variable is not part of this run, rather than raising,
+    so callers can fall back to deriving it (e.g. PRECT from PRECC + PRECL).
+    """
+    if variable not in adf.data.ref_var_nam:
+        return None
     if _is_ref(adf, casename):
-        return _load_ref_da(adf, 'PRECT')
-    else:
-        # Try regridded PRECT first
-        prect = adf.data.load_regrid_da(casename, 'PRECT')
-        if prect is not None:
-            return prect
-        # Fallback: derive from PRECC + PRECL using regridded versions
-        logger.info("\t Need to derive PRECT = PRECC + PRECL (using regridded data)")
-        precc = adf.data.load_regrid_da(casename, 'PRECC')
-        precl = adf.data.load_regrid_da(casename, 'PRECL')
-        if precc is None or precl is None:
-            logger.warning(f"\t WARNING: Could not derive PRECT for {casename} (missing PRECC or PRECL)")
-            return None
-        return precc + precl
+        return _load_ref_da(adf, variable)
+    return adf.data.load_regrid_da(casename, variable)
+
+
+def _load_field_ds(adf, casename, variable):
+    """Dataset form of _load_field; needed where hyam/hybm are also required."""
+    if variable not in adf.data.ref_var_nam:
+        return None
+    if _is_ref(adf, casename):
+        return _load_ref_ds(adf, variable)
+    return adf.data.load_regrid_dataset(casename, variable)
+
+
+def get_prect(adf, casename, **kwargs):
+    prect = _load_field(adf, casename, 'PRECT')
+    if prect is not None:
+        return prect
+    logger.info("\t Need to derive PRECT = PRECC + PRECL")
+    precc = _load_field(adf, casename, 'PRECC')
+    precl = _load_field(adf, casename, 'PRECL')
+    if precc is None or precl is None:
+        logger.warning(f"\t WARNING: Could not derive PRECT for {casename} "
+                       "(missing PRECC or PRECL)")
+        return None
+    return precc + precl
 
 def get_tropical_land_precip(adf, casename, **kwargs):
     landfrac = find_landmask(adf, casename)
@@ -450,10 +465,7 @@ def get_surface_pressure(adf, dset, casename):
     if isinstance(dset, xr.Dataset) and 'PS' in dset.data_vars:
         ps = dset['PS']
     else:
-        if _is_ref(adf, casename):
-            ps = _load_ref_da(adf, 'PS')
-        else:
-            ps = adf.data.load_regrid_da(casename, 'PS')    
+        ps = _load_field(adf, casename, 'PS')
     if ps is None:
         logger.warning(f"\t WARNING: Could not load PS for {casename}.")
         return None    
@@ -467,10 +479,7 @@ def get_var_at_plev(adf, casename, variable, plev):
     the vertical interpolation), so this is a nearest-level selection; only the
     units of the level coordinate have to be sorted out.
     """
-    if _is_ref(adf, casename):
-        da = _load_ref_da(adf, variable)
-    else:
-        da = adf.data.load_regrid_da(casename, variable)
+    da = _load_field(adf, casename, variable)
     if da is None:
         logger.warning(f"\t WARNING: {variable} unavailable for {casename}.")
         return None
@@ -492,10 +501,7 @@ def get_vertical_average(adf, casename, varname):
     
     NOTE: the height coordinate is not weighted by density, so is biased.
     '''
-    if _is_ref(adf, casename):
-        ds = _load_ref_ds(adf, varname)
-    else:
-        ds = adf.data.load_regrid_dataset(casename, varname)
+    ds = _load_field_ds(adf, casename, varname)
 
     if ds is None: return None
     
@@ -577,10 +583,7 @@ def get_vit(adf, casename, **kwargs):
 
 def get_landt2m(adf, casename):
     '''Get 2-meter temperature over land'''
-    if _is_ref(adf, casename):
-        t = _load_ref_da(adf, 'TREFHT')
-    else:
-        t = adf.data.load_regrid_da(casename, 'TREFHT')
+    t = _load_field(adf, casename, 'TREFHT')
     if t is None:
         return None
     
@@ -599,10 +602,7 @@ def get_landt2m(adf, casename):
 
 def get_eqpactaux(adf, casename):
     """Get zonal surface wind stress 5°S to 5°N."""
-    if _is_ref(adf, casename):
-        taux = _load_ref_da(adf, 'TAUX')
-    else:
-        taux = adf.data.load_regrid_da(casename, 'TAUX')
+    taux = _load_field(adf, casename, 'TAUX')
     if taux is None:
         logger.warning(f"\t WARNING: Could not load TAUX for {casename}")
         return None
@@ -641,12 +641,7 @@ def _retrieve(adfobj, variable, casename, return_dataset=False):
             logger.warning(f"Derivation function for {variable} returned None for {casename}")
             return None
     else:
-        if _is_ref(adfobj, casename):
-            logger.debug(f"Loading reference data for {variable}")
-            da = _load_ref_da(adfobj, variable)
-        else:
-            logger.debug(f"Loading regrid data for {variable} in {casename}")
-            da = adfobj.data.load_regrid_da(casename, variable)
+        da = _load_field(adfobj, casename, variable)
         if da is None:
             logger.warning(f"Failed to load {variable} for {casename}")
             return None

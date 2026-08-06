@@ -7,7 +7,6 @@ import xarray as xr
 import xesmf as xe
 
 import adf_utils as utils
-from adf_base import AdfError
 
 
 # Default pressure levels for vertical interpolation
@@ -15,7 +14,9 @@ DEFAULT_PLEVS = [
     1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
     30, 20, 10, 7, 5, 3, 2, 1
 ]
-DEFAULT_PLEVS_Pa = [p*100.0 for p in DEFAULT_PLEVS]
+# ndarray, not a list: geocat's interp_hybrid_to_pressure and utils.vert_remap
+# both index it as an array (.size / .shape).
+DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
 
 def regrid_and_vert_interp(adf):
     """
@@ -28,10 +29,8 @@ def regrid_and_vert_interp(adf):
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     overwrite_regrid = adf.get_basic_info("cam_overwrite_regrid", required=True)
-    output_loc = adf.get_basic_info("cam_regrid_loc", required=True)
-    if isinstance(output_loc, (str, Path)):
-        output_loc = [output_loc]
-    output_loc = [Path(i) for i in output_loc]
+    output_loc = Path(adf.get_basic_info("cam_regrid_loc", required=True))
+    output_loc.mkdir(parents=True, exist_ok=True)
     var_list = adf.diag_var_list
     var_defaults = adf.variable_defaults
 
@@ -39,44 +38,28 @@ def regrid_and_vert_interp(adf):
     syear_cases = adf.climo_yrs["syears"]
     eyear_cases = adf.climo_yrs["eyears"]
 
-    # cam_regrid_loc may be a single location shared by all cases, or one per case:
-    if len(output_loc) == 1:
-        output_loc = output_loc * len(case_names)
-    if len(output_loc) != len(case_names):
-        raise AdfError(f"cam_regrid_loc has {len(output_loc)} entries but there are "
-                       f"{len(case_names)} cases.")
-
     # Move critical variables to the front of the list
     for var in ["PMID", "OCNFRAC", "LANDFRAC", "PS"]:
         if var in var_list:
             var_list.insert(0, var_list.pop(var_list.index(var)))
 
+    # The reference does not depend on the test cases, so do it once, up front:
+    if not adf.compare_obs:
+        _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite_regrid)
+
     for case_idx, case_name in enumerate(case_names):
         # print(f"\t Regridding case '{case_name}':")
         syear = syear_cases[case_idx]
         eyear = eyear_cases[case_idx]
-        case_output_loc = output_loc[case_idx]
-        case_output_loc.mkdir(parents=True, exist_ok=True)
 
         for var in var_list:
-            # print(f"Regridding variable: {var}")
-            # reset variables
-            model_ds = None
-            ref_ds = None
-            target_name = None
-            regridded_file_loc = None
-            model_da = None
-            ref_da = None
-            regridder = None
-            interp_da = None
-
             if var in adf.data.ref_var_nam:
                 target_name = adf.data.ref_labels[var]
             else:
                 print(f"\t ERROR: No reference data available for {var}.")
                 continue
 
-            regridded_file_loc = case_output_loc / f'{target_name}_{case_name}_{var}_regridded.nc'
+            regridded_file_loc = output_loc / f'{target_name}_{case_name}_{var}_regridded.nc'
 
             if regridded_file_loc.is_file() and not overwrite_regrid:
                 print(f"\t INFO: Regridded file already exists, skipping: {regridded_file_loc}")
@@ -96,11 +79,10 @@ def regrid_and_vert_interp(adf):
                 continue
 
             model_da = model_ds[var].squeeze()
-            ref_da = ref_ds[adf.data.ref_var_nam[var]].squeeze()
             original_attrs = model_da.attrs.copy()
 
             # --- Horizontal Regridding ---
-            regridded_da = _handle_horizontal_regridding(model_da, ref_ds, adf, case_index=case_idx)
+            regridded_da = _handle_horizontal_regridding(model_da, ref_ds, output_loc)
             regridded_da.attrs.update(original_attrs)
             # --- Vertical Interpolation ---
             # pass the Dataset: the hyam/hybm fallback check needs the other variables
@@ -108,23 +90,23 @@ def regrid_and_vert_interp(adf):
             ps_da = None
             if vert_type == 'hybrid':
                 # For hybrid, we need surface pressure on the target grid.
-                # It's assumed PS is processed first and is available.
-                ps_regridded_path = case_output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
+                ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
                 if ps_regridded_path.exists():
                     ps_da = xr.open_dataset(ps_regridded_path)['PS']
                 else:
-                    # Regrid PS on the fly if not found
-                    ps_da_source = adf.data.load_climo_da(case_name, 'PS').squeeze()
+                    ps_da_source = _find_surface_pressure(model_ds, adf, case=case_name)
+                    if ps_da_source is None:
+                        print(f"\t    WARNING: No PS available, unable to interpolate '{var}'")
+                        continue
                     original_ps_attrs = ps_da_source.attrs.copy()
-                    ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, adf,
-                                                          case_index=case_idx)
+                    ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
                     ps_da.attrs.update(original_ps_attrs)
             interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds, ps_da=ps_da)
             interp_da.attrs.update(original_attrs)
             # --- Masking ---
             var_default_dict = var_defaults.get(var, {})
             if 'mask' in var_default_dict and var_default_dict['mask'].lower() == 'ocean':
-                ocn_frac_regridded_path = case_output_loc / f'{target_name}_{case_name}_OCNFRAC_regridded.nc'
+                ocn_frac_regridded_path = output_loc / f'{target_name}_{case_name}_OCNFRAC_regridded.nc'
                 if ocn_frac_regridded_path.exists():
                     ocn_frac_da = xr.open_dataset(ocn_frac_regridded_path)['OCNFRAC']
                     interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
@@ -144,7 +126,87 @@ def regrid_and_vert_interp(adf):
 
     print("  ...CAM climatologies have been regridded successfully.")
 
-def _handle_horizontal_regridding(source_da, target_grid, adf, method='conservative', case_index=None):
+def _find_surface_pressure(dset, adf, case=None):
+    """Surface pressure for hybrid-level interpolation, on the grid of `dset`.
+
+    ADF climo files for a 3-D variable carry PS alongside hyam/hybm, so prefer
+    that; fall back to a standalone PS climo file, which only exists when PS is
+    itself in diag_var_list. Returns None if neither is available.
+
+    Pass `case` for a test case; omit it for the reference.
+    """
+    if 'PS' in dset:
+        return dset['PS'].squeeze()
+    if case is None:
+        # get_reference_climo_file avoids load_reference_climo_da's ref_var_nam
+        # lookup, which raises KeyError when PS is not in diag_var_list.
+        fils = adf.data.get_reference_climo_file('PS')
+        ps_ds = adf.data.load_dataset(fils) if fils else None
+    else:
+        ps_ds = adf.data.load_climo_ds(case, 'PS')
+    if ps_ds is None or 'PS' not in ps_ds:
+        return None
+    return ps_ds['PS'].squeeze()
+
+
+def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
+    """Write the reference climo on the target grid as {base}_{var}_baseline.nc.
+
+    The reference defines the target grid, so it needs no horizontal regridding,
+    but 3-D fields still have to land on the same pressure levels as the test
+    cases. 2-D fields are written as a pass-through, because the plotting
+    scripts read this file for every variable, not just the 3-D ones.
+    """
+    base = adf.data.ref_case_label
+    syear = adf.climo_yrs["syear_baseline"]
+    eyear = adf.climo_yrs["eyear_baseline"]
+
+    for var in var_list:
+        baseline_file = output_loc / f'{base}_{var}_baseline.nc'
+        if baseline_file.is_file() and not overwrite:
+            print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
+            continue
+
+        ref_ds = adf.data.load_reference_climo_ds(base, var)
+        if ref_ds is None:
+            print(f"\t ERROR: Missing reference data for {var}. Skipping.")
+            continue
+        ref_da = ref_ds[adf.data.ref_var_nam[var]].squeeze()
+        original_attrs = ref_da.attrs.copy()
+
+        # --- Vertical Interpolation (no horizontal regrid: this IS the target grid) ---
+        vert_type = _determine_vertical_coord_type(ref_ds)
+        ps_da = None
+        if vert_type == 'hybrid':
+            # No horizontal regrid needed: the reference already defines the target grid.
+            ps_da = _find_surface_pressure(ref_ds, adf)
+            if ps_da is None:
+                print(f"\t    WARNING: No baseline PS, unable to interpolate '{var}'")
+                continue
+        interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds, ps_da=ps_da)
+        interp_da.attrs.update(original_attrs)
+
+        # --- Masking ---
+        var_default_dict = var_defaults.get(var, {})
+        if 'mask' in var_default_dict and var_default_dict['mask'].lower() == 'ocean':
+            # var_list is sorted so OCNFRAC is written before anything that needs it:
+            ocn_frac_path = output_loc / f'{base}_OCNFRAC_baseline.nc'
+            if ocn_frac_path.exists():
+                ocn_frac_da = xr.open_dataset(ocn_frac_path)['OCNFRAC']
+                interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
+            else:
+                print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
+
+        final_ds = interp_da.to_dataset(name=var)
+        final_ds = final_ds.assign_attrs({
+            "adf_user": adf.user,
+            "climo_yrs": f"{base}: {syear}-{eyear}",
+            "climatology_files": str(adf.data.get_reference_climo_file(var)),
+        })
+        save_to_nc(final_ds, baseline_file)
+
+
+def _handle_horizontal_regridding(source_da, target_grid, regrid_loc, method='conservative'):
     """
     Performs horizontal regridding using xesmf.
     Manages and reuses regridding weight files.
@@ -155,12 +217,11 @@ def _handle_horizontal_regridding(source_da, target_grid, adf, method='conservat
         The DataArray to regrid.
     target_grid : xarray.Dataset
         A dataset defining the target grid.
-    adf : adf_diag.AdfDiag
-        The ADF diagnostics object, used to get output locations.
+    regrid_loc : pathlib.Path
+        The regrid output directory; weight files go in a subdirectory of it.
     method : str, optional
         Regridding method. Defaults to 'conservative'.
-    case_index: str
-        For multi-case, need to provide the case name.
+
     Returns
     -------
     xarray.DataArray
@@ -179,9 +240,6 @@ def _handle_horizontal_regridding(source_da, target_grid, adf, method='conservat
         target_grid = _create_clean_grid(target_grid)
     source_grid = _create_clean_grid(source_da) if source_grid_type == "structured" else source_da
 
-    regrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
-    if isinstance(regrid_loc, list):
-        regrid_loc = regrid_loc[case_index] if len(regrid_loc) > 1 else regrid_loc[0]
     regrid_weights_dir = Path(regrid_loc) / "regrid_weights"
     regrid_weights_dir.mkdir(parents=True, exist_ok=True)
     weights_file = regrid_weights_dir / f"weights_{source_grid_desc}_to_{target_grid_desc}_{method}.nc"
@@ -212,9 +270,10 @@ def _create_clean_grid(da):
         print("ERROR: Found NaNs or Infs in latitude centers!")
         lat_centers = np.nan_to_num(lat_centers, nan=0.0, posinf=90.0, neginf=-90.0)
 
-
-    # Clip to avoid ESMF range errors
-    lat_centers = np.clip(lat_centers, -89.999999, 89.999999).astype(np.float64)
+    # NOTE: do NOT nudge the centers off the poles. These become the output
+    # coordinate, and a target grid at -89.999999 instead of -90 will not align
+    # with the reference in xarray arithmetic, silently dropping both polar rows
+    # from every difference field.
 
     # Build basic Dataset
     clean_ds = xr.Dataset(
@@ -251,8 +310,9 @@ def _create_clean_grid(da):
         lat_v = _edges_from_centers(lat_centers)
         lon_v = _edges_from_centers(lon_centers)
 
-    # Clip to avoid ESMF range errors
-    lat_v = np.clip(lat_v, -89.9999, 89.9999).astype(np.float64)
+    # Cell edges may be extrapolated past the poles; clamp them to the valid range.
+    # This is the bounds array, not the centers, so it does not affect the output grid.
+    lat_v = np.clip(lat_v, -90.0, 90.0).astype(np.float64)
 
     # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
     clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
