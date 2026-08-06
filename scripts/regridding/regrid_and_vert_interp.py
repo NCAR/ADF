@@ -103,7 +103,8 @@ def regrid_and_vert_interp(adf):
             regridded_da = _handle_horizontal_regridding(model_da, ref_ds, adf, case_index=case_idx)
             regridded_da.attrs.update(original_attrs)
             # --- Vertical Interpolation ---
-            vert_type = _determine_vertical_coord_type(model_da)
+            # pass the Dataset: the hyam/hybm fallback check needs the other variables
+            vert_type = _determine_vertical_coord_type(model_ds)
             ps_da = None
             if vert_type == 'hybrid':
                 # For hybrid, we need surface pressure on the target grid.

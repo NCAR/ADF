@@ -16,12 +16,10 @@ import os
 import sys
 import logging
 from pathlib import Path
-import warnings
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
 import pandas as pd
-import geocat.comp as gc  # use geocat's interpolation
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -463,58 +461,26 @@ def get_surface_pressure(adf, dset, casename):
 
 
 def get_var_at_plev(adf, casename, variable, plev):
+    """Select `variable` at pressure level `plev` (hPa).
+
+    Regridded files are already on pressure levels (regrid_and_vert_interp does
+    the vertical interpolation), so this is a nearest-level selection; only the
+    units of the level coordinate have to be sorted out.
+    """
     if _is_ref(adf, casename):
-        dset = _load_ref_da(adf, variable)
-        if dset is None:
-            logger.warning(f"\t WARNING: Obs data for {variable} is unavailable.")
-            return None
-        level_dim = get_level_dim(dset)
-        if level_dim is None:
-            logger.warning(f"\t WARNING: Obs data for {variable} lacks level dimension (lev/level/ilev).")
-            return None
-        # For obs, assume already on pressure levels, just select
-        # Detect pressure units: if max(lev) > 2000, assume Pa, else hPa
-        lev_max = dset[level_dim].max().item()
-        if lev_max > 2000:
-            adjusted_plev = plev * 100  # Convert hPa to Pa
-        else:
-            adjusted_plev = plev
-        return dset.sel(**{level_dim: adjusted_plev}, method='nearest')
+        da = _load_ref_da(adf, variable)
     else:
-        dset = adf.data.load_regrid_da(casename, variable)
-        if dset is None:
-            return None
-        
-        # Check if data is already on pressure levels (no hybrid coords)
-        if 'hyam' not in dset and 'hybm' not in dset:
-            # Assume already on pressure levels
-            level_dim = get_level_dim(dset)
-            if level_dim is not None:
-                # Detect pressure units: if max(lev) > 2000, assume Pa, else hPa
-                lev_max = dset[level_dim].max().item()
-                if lev_max > 2000:
-                    adjusted_plev = plev * 100  # Convert hPa to Pa
-                else:
-                    adjusted_plev = plev
-                return dset.sel(**{level_dim: adjusted_plev}, method='nearest')
-            else:
-                logger.warning(f"\t WARNING: No level dimension in regridded {variable} for {casename}")
-                return None
-        
-        # Data is on hybrid levels, need to interpolate
-        level_dim = get_level_dim(dset)
-        if level_dim is None:
-            logger.warning(f"\t WARNING: No level dimension in regridded {variable} for {casename}")
-            return None
-        ps = get_surface_pressure(adf, dset, casename)
-        if ps is None:
-            logger.warning(f"\t WARNING: Could not load PS for {variable} interpolation in {casename}")
-            return None
-        with silence_output():
-            # Proceed with gc.interp_hybrid_to_pressure using regridded data
-            vplev = gc.interp_hybrid_to_pressure(dset, ps, dset['hyam'], dset['hybm'],
-                                             new_levels=np.array([100. * plev]), lev_dim=level_dim)
-        return vplev.squeeze(drop=True).load()
+        da = adf.data.load_regrid_da(casename, variable)
+    if da is None:
+        logger.warning(f"\t WARNING: {variable} unavailable for {casename}.")
+        return None
+    level_dim = get_level_dim(da)
+    if level_dim is None:
+        logger.warning(f"\t WARNING: {variable} for {casename} lacks a level dimension.")
+        return None
+    # Detect pressure units: if max(lev) > 2000, assume Pa, else hPa
+    adjusted_plev = plev * 100 if da[level_dim].max().item() > 2000 else plev
+    return da.sel(**{level_dim: adjusted_plev}, method='nearest')
 
 
 def get_u_at_plev(adf, casename):
