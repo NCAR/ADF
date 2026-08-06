@@ -257,7 +257,13 @@ class AdfData:
         """Return Dataset from climo file; applies scale factor and offset to `variablename`."""
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_climo_file(case, variablename)
+        if not fils:
+            warnings.warn("\t    WARNING: Did not find climo file for case: "
+                          f"{case}, variable: {variablename}")
+            return None
         ds = self.load_dataset(fils)
+        if ds is None:
+            return None
         ds[variablename] = ds[variablename] * scale_factor + add_offset
         return ds
 
@@ -309,11 +315,17 @@ class AdfData:
         """
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_reference_climo_file(variablename)
+        if not fils:
+            warnings.warn("\t    WARNING: Did not find reference climo file for "
+                          f"variable: {variablename}")
+            return None
         ds = self.load_dataset(fils)
+        if ds is None:
+            return None
         vname = self.ref_var_nam[variablename]  # name of variable in the reference data
         # Check if already transformed (via attribute or units)
-        # Check if already transformed (via attribute or units)
-        unit_match = ds[vname].attrs.get('units') == self.adf.variable_defaults[variablename].get('new_unit')
+        new_unit = self.adf.variable_defaults.get(variablename, {}).get('new_unit')
+        unit_match = new_unit is not None and ds[vname].attrs.get('units') == new_unit
         if ds[vname].attrs.get('transformed', False) or unit_match:
             apply_scaling = False
         if not apply_scaling:
