@@ -670,7 +670,11 @@ def plev_to_plev(data, new_levels=None, convert_to_mb=False):
 
     # save name of DataArray:
     data_name = data.name
-    
+
+    # vert_remap uses np.interp, which needs the source pressures increasing:
+    if data[vert_coord][0] > data[vert_coord][-1]:
+        data = data.isel({vert_coord: slice(None, None, -1)})
+
     # Create a pressure field that matches the data shape
     p_mdl = data[vert_coord] * xr.ones_like(data)
 
