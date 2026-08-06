@@ -258,10 +258,10 @@ def regrid_to_target(adf, casename, source_da, target_da, method='conservative')
     logger.debug(f"Regridding from {source_da.lat.shape} x {source_da.lon.shape} to {target_da.lat.shape} x {target_da.lon.shape}")
 
     # Create clean grids for xesmf
-    # source_grid = _create_clean_grid(source_da)
-    # target_grid = _create_clean_grid(target_da)
-    source_grid = _create_clean_grid(source_da.reset_coords(drop=True))
-    target_grid = _create_clean_grid(target_da.reset_coords(drop=True))
+    # source_grid = utils.create_clean_grid(source_da)
+    # target_grid = utils.create_clean_grid(target_da)
+    source_grid = utils.create_clean_grid(source_da.reset_coords(drop=True))
+    target_grid = utils.create_clean_grid(target_da.reset_coords(drop=True))
     
     # Manage weights files -- MULTI-CASE NEEDS TO KNOW CASENAME
     regrid_loc = Path(adf.get_basic_info("cam_regrid_loc", required=True))
@@ -300,68 +300,6 @@ def regrid_to_target(adf, casename, source_da, target_da, method='conservative')
     return regridded
 
 
-def _create_clean_grid(da):
-    """
-    Creates a minimal, CF-compliant xarray Dataset for xesmf from a DataArray.
-    Adapted from regrid_and_vert_interp.py
-    """
-    logger.debug("STARTING _create_clean_grid")
-    # Convert DataArray to Dataset if needed
-    if isinstance(da, xr.DataArray):
-        ds = da.to_dataset()
-    else:
-        ds = da
-
-    # Extract raw values
-    lat_centers = ds.lat.values.astype(np.float64)
-    lon_centers = ds.lon.values.astype(np.float64)
-
-    if np.any(np.isnan(lat_centers)) or np.any(np.isinf(lat_centers)):
-        logger.critical("Found NaNs or Infs in latitude centers!")
-        lat_centers = np.nan_to_num(lat_centers, nan=0.0, posinf=90.0, neginf=-90.0)
-
-
-    # Clip to avoid ESMF range errors
-    lat_centers = np.clip(lat_centers, -89.999999, 89.999999)
-
-    # Build basic Dataset
-    clean_ds = xr.Dataset(
-        coords={
-            "lat": (["lat"], lat_centers, {"units": "degrees_north", "standard_name": "latitude"}),
-            "lon": (["lon"], lon_centers, {"units": "degrees_east", "standard_name": "longitude"}),
-        }
-    )
-
-    # Add Bounds as vertices if they exist
-    # Check for various possible bounds names
-    lat_bnds_names = ['lat_bnds', 'lat_bounds', 'latitude_bnds', 'latitude_bounds']
-    lon_bnds_names = ['lon_bnds', 'lon_bounds', 'longitude_bnds', 'longitude_bounds']
-    
-    lat_bnds = None
-    lon_bnds = None
-    
-    for name in lat_bnds_names:
-        if name in ds:
-            lat_bnds = ds[name]
-            break
-    
-    for name in lon_bnds_names:
-        if name in ds:
-            lon_bnds = ds[name]
-            break
-    
-    if lat_bnds is not None and lon_bnds is not None:
-        lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
-        lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
-
-        # Clip to avoid ESMF range errors
-        lat_v = np.clip(lat_v, -89.9999, 89.9999).astype(np.float64)
-
-        # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
-        clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
-        clean_ds["lon_b"] = (["lon_f"], lon_v, {"units": "degrees_east"})
-    logger.debug("Returning clean_ds")
-    return clean_ds
 
 def _is_ref(adf, casename):
     """True if casename refers to the reference/baseline data rather than a test case."""
@@ -754,9 +692,12 @@ def plot_taylor_data(wks, df, **kwargs):
             # assume we should use this as an index
             color = mpl.cm.tab20(color) # convert to RGBA
             # TODO: allow colormap to be specified.
-    annos = []  # list will hold strings for legend
-    k = 1
-    for ndx, row in df.iterrows():
+    # NOTE: number by position in the DataFrame, NOT by a running count of the
+    # points actually drawn. The figure legend is built from the full variable
+    # list, so a counter that skips missing variables shifts every later label
+    # onto the wrong name -- which is the normal case when comparing to obs,
+    # where several variables have no observational counterpart.
+    for k, (ndx, row) in enumerate(df.iterrows(), start=1):
         # NOTE: ndx will be the DataFrame index, and we expect that to be the variable name
         if np.isnan(row['corr']) or np.isnan(row['ratio']):
             continue  # Skip plotting if data is missing
@@ -767,11 +708,9 @@ def plot_taylor_data(wks, df, **kwargs):
             wks.plot(theta, row['ratio'], marker=mk, markersize=mksz, color=color)
         else:
             wks.plot(theta, row['ratio'], marker='o', markersize=16, color=color)
-        annos.append(f"{k} - {ndx.replace('_','')}")
         wks.annotate(str(k), (theta, row['ratio']), ha='center', va='bottom',
                             xytext=(0,5), textcoords='offset points', fontsize='x-large',
                             color=color)
-        k += 1  # increment the annotation number (THIS REQUIRES CASES TO HAVE SAME ORDER IN DataFrame)
     return wks
 
 

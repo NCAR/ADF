@@ -710,6 +710,82 @@ def plev_to_plev(data, new_levels=None, convert_to_mb=False):
     #Return interpolated output:
     return output
 
+def create_clean_grid(da):
+    """
+    Creates a minimal, CF-compliant xarray Dataset for xesmf from a DataArray.
+    Used by both the regridder and the Taylor diagram's derived variables.
+    """
+    if isinstance(da, xr.DataArray):
+        # name it if it isn't: only the coordinates are used below, but
+        # to_dataset() refuses an unnamed DataArray
+        ds = da.to_dataset(name=da.name or "field")
+    else:
+        ds = da
+
+    # Extract raw values
+    lat_centers = ds.lat.values.astype(np.float64)
+    lon_centers = ds.lon.values.astype(np.float64)
+
+    if np.any(np.isnan(lat_centers)) or np.any(np.isinf(lat_centers)):
+        warnings.warn("\t    WARNING: Found NaNs or Infs in latitude centers!")
+        lat_centers = np.nan_to_num(lat_centers, nan=0.0, posinf=90.0, neginf=-90.0)
+
+    # NOTE: do NOT nudge the centers off the poles. These become the output
+    # coordinate, and a target grid at -89.999999 instead of -90 will not align
+    # with the reference in xarray arithmetic, silently dropping both polar rows
+    # from every difference field.
+
+    # Build basic Dataset
+    clean_ds = xr.Dataset(
+        coords={
+            "lat": (["lat"], lat_centers, {"units": "degrees_north", "standard_name": "latitude"}),
+            "lon": (["lon"], lon_centers, {"units": "degrees_east", "standard_name": "longitude"}),
+        }
+    )
+
+    # Add Bounds as vertices if they exist
+    # Check for various possible bounds names
+    lat_bnds_names = ['lat_bnds', 'lat_bounds', 'latitude_bnds', 'latitude_bounds']
+    lon_bnds_names = ['lon_bnds', 'lon_bounds', 'longitude_bnds', 'longitude_bounds']
+    
+    lat_bnds = None
+    lon_bnds = None
+    
+    for name in lat_bnds_names:
+        if name in ds:
+            lat_bnds = ds[name]
+            break
+    
+    for name in lon_bnds_names:
+        if name in ds:
+            lon_bnds = ds[name]
+            break
+    
+    if lat_bnds is not None and lon_bnds is not None:
+        lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
+        lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
+    else:
+        # CAM history/climo files carry no bounds, but conservative regridding needs
+        # them, so infer cell edges as the midpoints between centers:
+        lat_v = _edges_from_centers(lat_centers)
+        lon_v = _edges_from_centers(lon_centers)
+
+    # Cell edges may be extrapolated past the poles; clamp them to the valid range.
+    # This is the bounds array, not the centers, so it does not affect the output grid.
+    lat_v = np.clip(lat_v, -90.0, 90.0).astype(np.float64)
+
+    # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
+    clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
+    clean_ds["lon_b"] = (["lon_f"], lon_v.astype(np.float64), {"units": "degrees_east"})
+    return clean_ds
+
+
+def _edges_from_centers(centers):
+    """Cell edges midway between centers, with the outer two extrapolated."""
+    mids = (centers[:-1] + centers[1:]) / 2.0
+    return np.concatenate([[2 * centers[0] - mids[0]], mids, [2 * centers[-1] - mids[-1]]])
+
+
 def validate_dims(fld, list_of_dims):
     """Check if specified dimensions are in a DataArray.
 
