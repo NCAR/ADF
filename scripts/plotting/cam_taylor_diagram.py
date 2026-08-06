@@ -268,15 +268,12 @@ def regrid_to_target(adf, casename, source_da, target_da, method='conservative')
     # Manage weights files -- MULTI-CASE NEEDS TO KNOW CASENAME
     regrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
     case_list = adf.get_cam_info("cam_case_name", required=True)
-    if casename == "Obs":
-        first_case = Path(case_list[0])
-        regrid_weights_dir = first_case.parent / "obs_regrid_weights"
-    else:
-        case_index = case_list.index(casename)
-        regrid_loc = regrid_loc[case_index]
-        regrid_loc = Path(regrid_loc)           
-        regrid_weights_dir = regrid_loc / "regrid_weights"
-    regrid_weights_dir.mkdir(exist_ok=True)
+    if isinstance(regrid_loc, list):
+        idx = case_list.index(casename) if casename in case_list else 0
+        regrid_loc = regrid_loc[idx] if len(regrid_loc) > 1 else regrid_loc[0]
+    subdir = "regrid_weights" if casename in case_list else "obs_regrid_weights"
+    regrid_weights_dir = Path(regrid_loc) / subdir
+    regrid_weights_dir.mkdir(parents=True, exist_ok=True)
     
     # Generate grid descriptions
     source_grid_type = "unstructured" if "ncol" in source_da.dims else "structured"
@@ -371,9 +368,35 @@ def _create_clean_grid(da):
     logger.debug("Returning clean_ds")
     return clean_ds
 
+def _is_ref(adf, casename):
+    """True if casename refers to the reference/baseline data rather than a test case."""
+    return casename == adf.data.ref_case_label
+
+
+def _load_ref_da(adf, variable):
+    """Reference field on the target grid.
+
+    Observations (and baseline fields that needed vertical interpolation) have a
+    regridded file; a baseline simulation defines the target grid, so its plain
+    climo file is already on that grid.
+    """
+    da = adf.data.load_reference_regrid_da(adf.data.ref_labels[variable], variable)
+    if da is None:
+        da = adf.data.load_reference_climo_da(adf.data.ref_case_label, variable)
+    return da
+
+
+def _load_ref_ds(adf, variable):
+    """Reference dataset on the target grid; see _load_ref_da."""
+    ds = adf.data.load_reference_regrid_dataset(adf.data.ref_labels[variable], variable)
+    if ds is None:
+        ds = adf.data.load_reference_climo_ds(adf.data.ref_case_label, variable)
+    return ds
+
+
 def get_prect(adf, casename, **kwargs):
-    if casename == 'Obs':
-        return adf.data.load_reference_regrid_da(adf.data.ref_labels["PRECT"], 'PRECT')
+    if _is_ref(adf, casename):
+        return _load_ref_da(adf, 'PRECT')
     else:
         # Try regridded PRECT first
         prect = adf.data.load_regrid_da(casename, 'PRECT')
@@ -429,8 +452,8 @@ def get_surface_pressure(adf, dset, casename):
     if isinstance(dset, xr.Dataset) and 'PS' in dset.data_vars:
         ps = dset['PS']
     else:
-        if casename == 'Obs':
-            ps = adf.data.load_reference_regrid_da(adf.data.ref_labels['PS'], 'PS')
+        if _is_ref(adf, casename):
+            ps = _load_ref_da(adf, 'PS')
         else:
             ps = adf.data.load_regrid_da(casename, 'PS')    
     if ps is None:
@@ -440,8 +463,8 @@ def get_surface_pressure(adf, dset, casename):
 
 
 def get_var_at_plev(adf, casename, variable, plev):
-    if casename == 'Obs':
-        dset = adf.data.load_reference_regrid_da(adf.data.ref_labels[variable], variable)
+    if _is_ref(adf, casename):
+        dset = _load_ref_da(adf, variable)
         if dset is None:
             logger.warning(f"\t WARNING: Obs data for {variable} is unavailable.")
             return None
@@ -503,8 +526,8 @@ def get_vertical_average(adf, casename, varname):
     
     NOTE: the height coordinate is not weighted by density, so is biased.
     '''
-    if casename == 'Obs':
-        ds = adf.data.load_reference_regrid_dataset(adf.data.ref_labels[varname], varname)
+    if _is_ref(adf, casename):
+        ds = _load_ref_ds(adf, varname)
     else:
         ds = adf.data.load_regrid_dataset(casename, varname)
 
@@ -588,8 +611,8 @@ def get_vit(adf, casename, **kwargs):
 
 def get_landt2m(adf, casename):
     '''Get 2-meter temperature over land'''
-    if casename == 'Obs':
-        t = adf.data.load_reference_regrid_da(adf.data.ref_labels["TREFHT"], 'TREFHT')
+    if _is_ref(adf, casename):
+        t = _load_ref_da(adf, 'TREFHT')
     else:
         t = adf.data.load_regrid_da(casename, 'TREFHT')
     if t is None:
@@ -610,8 +633,8 @@ def get_landt2m(adf, casename):
 
 def get_eqpactaux(adf, casename):
     """Get zonal surface wind stress 5°S to 5°N."""
-    if casename == 'Obs':
-        taux = adf.data.load_reference_regrid_da(adf.data.ref_labels["TAUX"], 'TAUX')
+    if _is_ref(adf, casename):
+        taux = _load_ref_da(adf, 'TAUX')
     else:
         taux = adf.data.load_regrid_da(casename, 'TAUX')
     if taux is None:
@@ -652,9 +675,9 @@ def _retrieve(adfobj, variable, casename, return_dataset=False):
             logger.warning(f"Derivation function for {variable} returned None for {casename}")
             return None
     else:
-        if casename == 'Obs':
+        if _is_ref(adfobj, casename):
             logger.debug(f"Loading reference data for {variable}")
-            da = adfobj.data.load_reference_regrid_da(adfobj.data.ref_labels[variable], variable)
+            da = _load_ref_da(adfobj, variable)
         else:
             logger.debug(f"Loading regrid data for {variable} in {casename}")
             da = adfobj.data.load_regrid_da(casename, variable)
@@ -757,13 +780,11 @@ def plot_taylor_data(wks, df, **kwargs):
           look for 'case_color'
     """
     # option is whether to stylize the markers by the bias:
-    use_bias = False
-    if 'use_bias' in kwargs:
-        if kwargs['use_bias']:
-            use_bias = True
-            df['bias_digi'] = np.digitize(df['bias'].values, [-20, -10, -5, -1, 1, 5, 10, 20])
-            marker_list = ["v", "v", "v", "v", "o", "^", "^", "^", "^"]
-            marker_size = [24, 16, 8, 4, 4, 4, 8, 16, 24]
+    marker_list = ["v", "v", "v", "v", "o", "^", "^", "^", "^"]
+    marker_size = [24, 16, 8, 4, 4, 4, 8, 16, 24]
+    use_bias = bool(kwargs.get('use_bias', False))
+    if use_bias:
+        df['bias_digi'] = np.digitize(df['bias'].values, [-20, -10, -5, -1, 1, 5, 10, 20])
     # option: has color been specified as case_color?
     # --> expect the case labeling to be done external to this function
     if 'case_color' in kwargs:

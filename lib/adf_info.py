@@ -392,7 +392,7 @@ class AdfInfo(AdfConfig):
 
         #Initialize CAM history string nested list
         self.__hist_str = hist_str
-        
+
         #Check if using pre-made ts files
         cam_ts_done   = self.get_cam_info("cam_ts_done")
 
@@ -449,7 +449,6 @@ class AdfInfo(AdfConfig):
             if any(cam_hist_locs):
                 #Grab first possible hist string, just looking for years of run
                 hist_str_use = hist_str_case[0]
-                print(f"HIST_STR_USE: {hist_str_use = }, as type: {type(hist_str_use)}")
 
                 #Get climo years for verification or assignment if missing
                 starting_location = Path(cam_hist_locs[case_idx])
@@ -648,9 +647,10 @@ class AdfInfo(AdfConfig):
         if result is None:
             raise ValueError(f"Invalid format for {conf_var}: {conf_val}")
 
-        self.__cam_climo_info[conf_var] = result    # Create property needed to return "user" name to user:
+        self.__cam_climo_info[conf_var] = result
+    #########
 
-
+    # Create property needed to return "user" name to user:
     @property
     def user(self):
         """Return the "user" name if requested."""

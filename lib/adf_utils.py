@@ -535,7 +535,7 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     #Temporary print statement to notify users to ignore warning messages.
     #This should be replaced by a debug-log stdout filter at some point:
     print("Please ignore the interpolation warnings that follow!")
-    
+
     #Apply GeoCAT hybrid->pressure interpolation:
     if new_levels is not None:
         data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,

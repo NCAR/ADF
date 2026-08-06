@@ -7,6 +7,7 @@ import xarray as xr
 import xesmf as xe
 
 import adf_utils as utils
+from adf_base import AdfError
 
 
 # Default pressure levels for vertical interpolation
@@ -28,6 +29,8 @@ def regrid_and_vert_interp(adf):
 
     overwrite_regrid = adf.get_basic_info("cam_overwrite_regrid", required=True)
     output_loc = adf.get_basic_info("cam_regrid_loc", required=True)
+    if isinstance(output_loc, (str, Path)):
+        output_loc = [output_loc]
     output_loc = [Path(i) for i in output_loc]
     var_list = adf.diag_var_list
     var_defaults = adf.variable_defaults
@@ -35,6 +38,13 @@ def regrid_and_vert_interp(adf):
     case_names = adf.get_cam_info("cam_case_name", required=True)
     syear_cases = adf.climo_yrs["syears"]
     eyear_cases = adf.climo_yrs["eyears"]
+
+    # cam_regrid_loc may be a single location shared by all cases, or one per case:
+    if len(output_loc) == 1:
+        output_loc = output_loc * len(case_names)
+    if len(output_loc) != len(case_names):
+        raise AdfError(f"cam_regrid_loc has {len(output_loc)} entries but there are "
+                       f"{len(case_names)} cases.")
 
     # Move critical variables to the front of the list
     for var in ["PMID", "OCNFRAC", "LANDFRAC", "PS"]:
@@ -103,9 +113,10 @@ def regrid_and_vert_interp(adf):
                     ps_da = xr.open_dataset(ps_regridded_path)['PS']
                 else:
                     # Regrid PS on the fly if not found
-                    ps_da_source = adf.data.load_climo_da(case_name, 'PS')['PS'].squeeze()
+                    ps_da_source = adf.data.load_climo_da(case_name, 'PS').squeeze()
                     original_ps_attrs = ps_da_source.attrs.copy()
-                    ps_da = _handle_horizontal_regridding(ps_da_source, ref_da, adf, case_index=case_idx)
+                    ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, adf,
+                                                          case_index=case_idx)
                     ps_da.attrs.update(original_ps_attrs)
             interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds, ps_da=ps_da)
             interp_da.attrs.update(original_attrs)
@@ -121,14 +132,7 @@ def regrid_and_vert_interp(adf):
 
             # --- Save to file ---
             final_ds = interp_da.to_dataset(name=var)
-            
-            # Add back other variables if they were in the original file (like PS, OCNFRAC)
-            if var == 'OCNFRAC':
-                 final_ds = final_ds # it is already there
-            if var == 'PS':
-                 final_ds = final_ds # it is already there
-            
-            
+
             test_attrs_dict = {
                 "adf_user": adf.user,
                 "climo_yrs": f"{case_name}: {syear}-{eyear}",
@@ -172,24 +176,18 @@ def _handle_horizontal_regridding(source_da, target_grid, adf, method='conservat
 
     if target_grid_type == "structured":
         target_grid = _create_clean_grid(target_grid)
-    if source_grid_type == "structured":
-        source_grid = _create_clean_grid(source_da)
+    source_grid = _create_clean_grid(source_da) if source_grid_type == "structured" else source_da
 
     regrid_loc = adf.get_basic_info("cam_regrid_loc", required=True)
-    if isinstance(regrid_loc, list) and len(regrid_loc)>1: 
-        regrid_loc = regrid_loc[case_index]
-    else:
-        regrid_loc = regrid_loc[0]
-    regrid_loc = Path(regrid_loc)
-    regrid_weights_dir = regrid_loc / "regrid_weights"
-    regrid_weights_dir.mkdir(exist_ok=True)
+    if isinstance(regrid_loc, list):
+        regrid_loc = regrid_loc[case_index] if len(regrid_loc) > 1 else regrid_loc[0]
+    regrid_weights_dir = Path(regrid_loc) / "regrid_weights"
+    regrid_weights_dir.mkdir(parents=True, exist_ok=True)
     weights_file = regrid_weights_dir / f"weights_{source_grid_desc}_to_{target_grid_desc}_{method}.nc"
     if weights_file.exists():
-        # print(f"INFO: Using existing regridding weights file: {weights_file}")
         # xesmf can accept a path to a weights file
-        regridder = xe.Regridder(source_da, target_grid, method, weights=str(weights_file))
+        regridder = xe.Regridder(source_grid, target_grid, method, weights=str(weights_file))
     else:
-        # print(f"INFO: Creating new regridding weights file: {weights_file}")
         regridder = xe.Regridder(source_grid, target_grid, method)
         regridder.to_netcdf(weights_file)
     return regridder(source_da)
@@ -246,14 +244,25 @@ def _create_clean_grid(da):
     if lat_bnds is not None and lon_bnds is not None:
         lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
         lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
+    else:
+        # CAM history/climo files carry no bounds, but conservative regridding needs
+        # them, so infer cell edges as the midpoints between centers:
+        lat_v = _edges_from_centers(lat_centers)
+        lon_v = _edges_from_centers(lon_centers)
 
-        # Clip to avoid ESMF range errors
-        lat_v = np.clip(lat_v, -89.9999, 89.9999).astype(np.float64)
+    # Clip to avoid ESMF range errors
+    lat_v = np.clip(lat_v, -89.9999, 89.9999).astype(np.float64)
 
-        # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
-        clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
-        clean_ds["lon_b"] = (["lon_f"], lon_v, {"units": "degrees_east"})
+    # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
+    clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
+    clean_ds["lon_b"] = (["lon_f"], lon_v.astype(np.float64), {"units": "degrees_east"})
     return clean_ds
+
+
+def _edges_from_centers(centers):
+    """Cell edges midway between centers, with the outer two extrapolated."""
+    mids = (centers[:-1] + centers[1:]) / 2.0
+    return np.concatenate([[2 * centers[0] - mids[0]], mids, [2 * centers[-1] - mids[-1]]])
 
 
 def _determine_vertical_coord_type(dset):
