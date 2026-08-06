@@ -358,6 +358,15 @@ def seasonal_mean(data, season=None, is_climo=None):
     elif season is None:
         season = "ANN"
 
+    if isinstance(data, (xr.DataArray, xr.Dataset)) and 'time' in data.coords \
+            and 'time' not in data.dims:
+        # Time-invariant field: a scalar time coordinate, which is what is left
+        # after squeeze() collapses the length-1 time dimension of a
+        # single-timestamp file (e.g. a land-sea mask). Every season is the same
+        # field, so there is nothing to average, and .sel(time=...) below would
+        # fail with "no index found for coordinate 'time'".
+        return data.drop_vars('time')
+
     try:
         month_length = data.time.dt.days_in_month
     except (AttributeError, TypeError):
