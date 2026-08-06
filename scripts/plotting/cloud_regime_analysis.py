@@ -1,4 +1,3 @@
-import joblib
 from math import ceil
 import warnings
 from pathlib import Path
@@ -12,7 +11,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 import cartopy.crs as ccrs
 
-import dask
 import xarray as xr
 import matplotlib as mpl
 from shapely.geometry import Point
@@ -158,9 +156,13 @@ def cloud_regime_analysis(
         Only needed when the test case is on an unstructured grid; cases on such a grid
         are skipped with a warning if this is not provided.
         Default is None (assume data is already on a lat/lon grid).
-    """
-    dask.config.set({"array.slicing.split_large_chunks": False})
 
+    REFERENCE
+    ---------
+    Davis, I., and B. Medeiros, 2024: Assessing CESM2 Clouds and Their Response to
+    Climate Change Using Cloud Regimes. J. Climate.
+    https://doi.org/10.1175/JCLI-D-23-0337.1
+    """
     # 1. Validate user inputs & set configuration
     opts = _validate_user_inputs(
         wasserstein_or_euclidean,
@@ -196,7 +198,7 @@ def cloud_regime_analysis(
         cluster_spec = premade_cloud_regimes if premade_cloud_regimes is not None else opts['distance']
         cl = load_cluster_centers(adf, cluster_spec, field)
         if cl is None:
-            warnings.warn(f"WARNING: Skipping {field} due to failed cluster center loading.")
+            print(f"WARNING: Skipping {field} due to failed cluster center loading.")
             continue
         opts['cl_shape'] = cl.shape
 
@@ -209,7 +211,7 @@ def cloud_regime_analysis(
         # or the labels and the histograms disagree on time range and tau/ht binning.
         ref_labels, processed_ref = _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts)
         if ref_labels is None:
-            warnings.warn(f"WARNING: Could not generate reference labels for {field}. Skipping.")
+            print(f"WARNING: Could not generate reference labels for {field}. Skipping.")
             continue
 
         # 5. Process each test case against the reference
@@ -226,13 +228,13 @@ def cloud_regime_analysis(
 
             c_ts_da = adf.data.load_timeseries_da(case_name, field)
             if c_ts_da is None:
-                warnings.warn(f"WARNING: Variable {field} for case '{case_name}' is None. Skipping.")
+                print(f"WARNING: Variable {field} for case '{case_name}' is None. Skipping.")
                 continue
 
             # Regrid if on unstructured grid (e.g., 'ncol' dimension)
             if "ncol" in c_ts_da.dims:
                 if regrid_weights_file is None:
-                    warnings.warn(
+                    print(
                         f"WARNING: '{field}' for case '{case_name}' is on an unstructured grid, but no "
                         "`regrid_weights_file` was given to cloud_regime_analysis. Skipping this case. "
                         "Supply an ESMF weights file for your grid to enable regridding."
@@ -272,7 +274,7 @@ def _validate_user_inputs(distance, regimes, lat_r, lon_r, land_ocean):
     """Validates inputs, returning an options dictionary."""
     opts = {}
     if distance not in ["euclidean", "wasserstein"]:
-        warnings.warn('WARNING: Invalid distance metric. Defaulting to "euclidean".')
+        print('WARNING: Invalid distance metric. Defaulting to "euclidean".')
         opts['distance'] = "euclidean"
     else:
         opts['distance'] = distance
@@ -283,7 +285,7 @@ def _validate_user_inputs(distance, regimes, lat_r, lon_r, land_ocean):
         print("INFO: Default to using both LAND and OCEAN points.")
         opts['only_ocean_or_land'] = False
     elif land_ocean not in ["L", "O"]:
-        warnings.warn('WARNING: Invalid land/ocean flag. Defaulting to False (land and ocean).')
+        print('WARNING: Invalid land/ocean flag. Defaulting to False (land and ocean).')
         opts['only_ocean_or_land'] = False
     else:
         opts['only_ocean_or_land'] = land_ocean
@@ -365,7 +367,7 @@ def _preprocess_data(ds, field_name, var_info, opts, is_obs=False):
     ds = spatial_subset(ds, opts['lat_range'], opts['lon_range'])
     ds = temporal_subset(ds, opts.get('time_range'))
     if ds is None or 'time' not in ds.dims or ds.time.size == 0:
-        warnings.warn(f"WARNING: No data remains for {field_name} after subsetting.")
+        print(f"WARNING: No data remains for {field_name} after subsetting.")
         return None
 
     ds = select_valid_tau_height(ds, var_info.tau_var, var_info.ht_var)
@@ -419,7 +421,7 @@ def compute_cluster_labels(ds, tau_var_name, ht_var_name, cl, wasserstein_or_euc
     mat = histograms.values
     is_valid = ~np.isnan(mat).any(axis=1)
     if not np.any(is_valid):
-        warnings.warn("ERROR: No valid histograms found after removing NaNs.")
+        print("ERROR: No valid histograms found after removing NaNs.")
         return None
     mat_valid = mat[is_valid]
     print(f"INFO: Fitting {len(mat_valid)} valid histograms to cluster centers.")
@@ -431,7 +433,7 @@ def compute_cluster_labels(ds, tau_var_name, ht_var_name, cl, wasserstein_or_euc
     data_scale = np.nanmedian(mat_valid.sum(axis=1))
     center_scale = np.nanmedian(cl.sum(axis=1))
     if data_scale > 0 and not (0.1 < center_scale / data_scale < 10):
-        warnings.warn(
+        print(
             f"WARNING: histogram totals (median {data_scale:.4g} per profile) and cluster center "
             f"totals (median {center_scale:.4g}) differ by a factor of {center_scale / data_scale:.4g}. "
             "These are probably in different units (fraction vs percent). Cluster assignments "
@@ -487,11 +489,11 @@ def precomputed_clusters(mat, cl, wasserstein_or_euclidean, ds, tau_var_name, ht
         elif (ot_library is None) or (ot_library == 'wasserstein'):
             distances = _compute_distances_wasserstein(mat, cl, ds, tau_var_name, ht_var_name, num_cpus=num_cpus)
         else:
-            warnings.warn(f"precomputed_clusters needs calculation backend in (`pot`,`wasserstein`), got {ot_library}")
+            print(f"ERROR: precomputed_clusters needs calculation backend in (`pot`,`wasserstein`), got {ot_library}")
             return None
         
     if distances is None:
-        warnings.warn(f"ERROR: [precomputed_clusters] Calculation failed. Neither POT nor wasserstein library could be used successfully.")
+        print(f"ERROR: [precomputed_clusters] Calculation failed. Neither POT nor wasserstein library could be used successfully.")
         return None
 
     # find the smallest distance for each - that is the cluster classification
@@ -506,12 +508,16 @@ def _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=None, 
     num_cpus sets the joblib worker count; it comes from the ADF `num_procs`
     setting so the calculation matches the resources the run was given.
     """
+    # Imported here rather than at module scope: both are needed only for the
+    # non-default wasserstein path, and a missing one should skip that path rather
+    # than stop the whole script from importing.
     try:
+        import joblib
         import ot
         from ot.lp import emd2
         from ot import sinkhorn2
-    except ImportError:
-        warnings.warn("Python Optimal Transport (POT) package not found or corrupt. Cannot use 'pot' library.")
+    except ImportError as e:
+        print(f"WARNING: Cannot use the 'pot' library for Wasserstein distances: {e}")
         return None
 
     print("\t INFO: Using Python Optimal Transport (POT) library with joblib for parallel execution.")
@@ -547,7 +553,7 @@ def _compute_distances_pot(mat, cl, ds, tau_var_name, ht_var_name, method=None, 
             # Use stabilized version. Somewhat faster than exact calculation.
             return [sinkhorn2(hist_normalized, center, cost_matrix, reg=reg_val, method='sinkhorn_stabilized', log=False) for center in centers_normalized]
         else:
-            warnings.warn(f"ERROR: compute_single_histogram_distances method must be (None, sinkhorn, exact), got {method}")
+            print(f"ERROR: compute_single_histogram_distances method must be (None, sinkhorn, exact), got {method}")
             return None
 
     n_jobs = num_cpus if num_cpus else 1
@@ -570,7 +576,7 @@ def _compute_distances_wasserstein(mat, cl, ds, tau_var_name, ht_var_name, num_c
     try:
         import wasserstein
     except ImportError:
-        warnings.warn("'wasserstein' package not found. Cannot use 'wasserstein' library.")
+        print("WARNING: 'wasserstein' package not found. Cannot use 'wasserstein' library.")
         return None
 
     print("\t INFO: Using 'wasserstein' library. Will try to JIT compile `stacking` function.")
@@ -623,7 +629,7 @@ def _calculate_rfo(labels, cluster_index):
     if not isinstance(labels, xr.DataArray):
         # Return the tuple shape callers unpack; a bare None would raise TypeError
         # at the call site and hide the real problem reported here.
-        warnings.warn(f"ERROR: Input 'labels' must be an xarray.DataArray, got {type(labels)}")
+        print(f"ERROR: Input 'labels' must be an xarray.DataArray, got {type(labels)}")
         return None, np.nan
 
     # Spatial RFO map (% of valid time steps in the cluster). Masking to valid
@@ -652,7 +658,7 @@ def load_reference_data(adfobj, varname):
             fils = [fils]
         ds = adfobj.data.load_dataset(fils)
         if ds is None:
-            warnings.warn(f"\t    WARNING: Load failed reference data for {varname}")
+            print(f"\t    WARNING: Load failed reference data for {varname}")
             return None
         # The whole Dataset is needed here (the histogram plus any stored cluster
         # labels), so load_dataset is used rather than load_da. That bypasses the
@@ -683,8 +689,8 @@ def load_cluster_centers(adf, cluster_spec, variablename):
                 algo = 'euclidean'
             obs_data_loc = adf.get_basic_info("obs_data_loc")
             if not obs_data_loc:
-                warnings.warn(
-                    "[ERROR] 'obs_data_loc' is not set, so the default cluster centers "
+                print(
+                    "ERROR: 'obs_data_loc' is not set, so the default cluster centers "
                     f"cannot be found. Set it, or pass premade_cloud_regimes for {variablename}."
                 )
                 return None
@@ -696,8 +702,8 @@ def load_cluster_centers(adf, cluster_spec, variablename):
                 cluster_centers_path = adf.variable_defaults[data_key]["obs_file"]
                 file_path = obs_data_loc / cluster_centers_path
             except KeyError as e:
-                warnings.warn(
-                    f"[ERROR] Could not find '{variablename}' in ALL_VARS or default file path for '{cluster_spec} with {algo = }'. "
+                print(
+                    f"ERROR: Could not find '{variablename}' in ALL_VARS or default file path for '{cluster_spec} with {algo = }'. "
                     f"Original error: {e}"
                 )
                 return None
@@ -706,11 +712,11 @@ def load_cluster_centers(adf, cluster_spec, variablename):
     elif isinstance(cluster_spec, Path):
         file_path = cluster_spec
     else:
-        warnings.warn(f"ERROR: cluster_spec must be a string or Path, not {type(cluster_spec)}")
+        print(f"ERROR: cluster_spec must be a string or Path, not {type(cluster_spec)}")
         return None
 
     if not file_path.exists():
-        warnings.warn(f"[ERROR] Cluster center file not found at: {file_path}")
+        print(f"ERROR: Cluster center file not found at: {file_path}")
         return None
 
     try:
@@ -719,10 +725,10 @@ def load_cluster_centers(adf, cluster_spec, variablename):
         elif file_path.suffix == ".npy":
             cl = np.load(file_path)
         else:
-            warnings.warn(f"[ERROR] Unsupported file type: {file_path.suffix}")
+            print(f"ERROR: Unsupported file type: {file_path.suffix}")
             return None
     except Exception as e:
-        warnings.warn(f"[ERROR] Could not load {file_path.name}: {e}")
+        print(f"ERROR: Could not load {file_path.name}: {e}")
         return None
 
     return cl
@@ -804,7 +810,7 @@ def plot_rfo_maps(test_labels, ref_labels, adf, field, plot_loc, case_name):
         rfo_ref, total_rfo_ref = _calculate_rfo(ref_labels, cluster)
         rfo_test, total_rfo_test = _calculate_rfo(test_labels, cluster)
         if (rfo_ref is None) or (rfo_test is None):
-            warnings.warn(f"WARNING: Could not compute RFO for {field} CR{cluster+1}; skipping its map.")
+            print(f"WARNING: Could not compute RFO for {field} CR{cluster+1}; skipping its map.")
             plt.close(fig)
             continue
         _plot_map(ax[0], rfo_ref.lon, rfo_ref.lat, rfo_ref,
@@ -901,7 +907,7 @@ def _prepare_plot_data(fld, cl, cluster_labels, cluster_labels_o, histograms, hi
     # Each cluster center is a flattened (tau x ht) histogram; a mismatch here
     # means the centers file does not correspond to this product's binning.
     if cl.shape[1] != len(xlabels) * len(ylabels):
-        warnings.warn(
+        print(
             f"WARNING: cluster centers for {fld} have {cl.shape[1]} bins, but the data has "
             f"{len(xlabels)} tau x {len(ylabels)} ht = {len(xlabels) * len(ylabels)}."
         )
@@ -1238,7 +1244,7 @@ def apply_land_ocean_mask(ds, only_ocean_or_land):
 
     # Validate input
     if only_ocean_or_land not in ["L", "O"]:
-        warnings.warn(f'[ERROR] Invalid option for only_ocean_or_land: {only_ocean_or_land}. '
+        print(f'ERROR: Invalid option for only_ocean_or_land: {only_ocean_or_land}. '
               'Please enter "O" for ocean only, "L" for land only, or set to False for both')
         return None
 
@@ -1347,8 +1353,8 @@ def regrid_se_data_bilinear(regridder, data_to_regrid, column_dim_name="ncol"):
             "dummy", axis=-2
         )
     else:
-        warnings.warn(
-            f"[ERROR] Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}"
+        print(
+            f"ERROR: Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}"
         )
         return None
     regridded = regridder(updated)
