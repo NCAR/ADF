@@ -1,3 +1,4 @@
+from functools import lru_cache
 from math import ceil
 import warnings
 from pathlib import Path
@@ -650,7 +651,7 @@ def load_reference_data(adfobj, varname):
     """Load reference data, which could be an observation or a baseline simulation."""
     base_name = adfobj.data.ref_case_label
     ref_var_nam = adfobj.data.ref_var_nam[varname]  # should work for obs/sim
-    print(f"[CRA: load_reference_data] {base_name = }, {ref_var_nam = }")
+    adfobj.debug_log(f"[cloud_regime_analysis] {base_name = }, {ref_var_nam = }")
 
     if adfobj.compare_obs:
         fils = adfobj.data.ref_var_loc.get(varname, None)
@@ -670,13 +671,11 @@ def load_reference_data(adfobj, varname):
             adfobj.data.ref_labels.get(varname), varname
         )
         if (scale_factor != 1) or (add_offset != 0):
-            print(f"[CRA: load_reference_data] applying obs scale_factor={scale_factor}, "
+            print(f"INFO: applying obs scale_factor={scale_factor}, "
                   f"add_offset={add_offset} to {ref_var_nam}")
             ds[ref_var_nam] = ds[ref_var_nam] * scale_factor + add_offset
-        print(f"[CRA: load_reference_data] return observation dataset")
         return ds
     else:
-        print(f"[CRA: load_reference_data] returning simulation dataarray")
         return adfobj.data.load_reference_timeseries_da(varname) 
 
 def load_cluster_centers(adf, cluster_spec, variablename):
@@ -764,9 +763,7 @@ def _configure_map_axes(ax, is_left, is_bottom):
 def _add_colorbar(fig, ax, cmap, norm):
     """Add colorbar to the figure."""
     p = [0, 0.2, 1, 2, 3, 4, 6, 8, 10, 15, 99]
-    # cbar_ax = fig.add_axes([1.01, 0.25, 0.04, 0.5])
     sm = ScalarMappable(norm=norm, cmap=cmap)
-    # sm.set_array([])  # Required for colorbar
     cb = fig.colorbar(sm, 
                       ax=ax, 
                       orientation='vertical', 
@@ -950,7 +947,7 @@ def _plot_cloud_regimes(plot_data, adf, baseline_mode=True):
         figsize=plot_data['figsize'],
         ncols=ncols,
         nrows=plot_data['k'],
-        sharex=True, # was "all"
+        sharex=True,
         sharey=True
     )
     fig.subplots_adjust(right=0.88)  # Leave space for colorbar
@@ -993,7 +990,7 @@ def _plot_observation_column(ax_col, plot_data, cmap, norm, include_rfo=False):
         # Set title with optional RFO
         if include_rfo:
             _, rfo = _calculate_rfo(plot_data['cluster_labels_o'], i)
-            ax_col[i].set_title(f"Observation CR {i+1}, RFO = {np.round(float(rfo), 1)}%")
+            ax_col[i].set_title(f"Observation CR {i+1}, RFO = {np.round(rfo, 1)}%")
         else:
             # These are the observationally-derived cluster centers being fit to,
             # not a case, so name them for what they are.
@@ -1124,9 +1121,6 @@ def _add_figure_labels(fig, ax, plot_data, baseline_mode):
     else:
         ht_label = "Height"
         ht_unit = "m"
-
-    # Determine height or pressure
-    # height_or_pressure = "h" if data == "MISR" else "p"
 
     # Y-label
     x_pos = 0.07 if baseline_mode else 0.05
@@ -1269,16 +1263,32 @@ def create_land_mask(ds):
         xarray broadcasts it by dimension name; the previous numpy version had to
         insert dummy axes positionally, which assumed lat/lon were the trailing dims.
     """
+    lats, lons = ds.lat.values, ds.lon.values
+    return xr.DataArray(
+        _land_mask_values(tuple(lats.tolist()), tuple(lons.tolist())),
+        dims=("lat", "lon"),
+        coords={"lat": ds.lat, "lon": ds.lon},
+        name="land_mask",
+    )
+
+
+@lru_cache(maxsize=4)
+def _land_mask_values(lats, lons):
+    """Point-in-polygon land mask for one lat/lon grid, as a (nlat, nlon) int array.
+
+    lats/lons are tuples so the result can be cached: the mask depends only on the
+    grid, but create_land_mask is called once per case per variable, and each call
+    costs O(n_points x n_polygons) point-in-polygon tests.
+
+    ponytail: brute-force point-in-polygon. Fine at ~1-degree resolution given the
+    cache; if a high-resolution grid makes the first call too slow, regionmask does
+    this properly.
+    """
     from cartopy import feature as cfeature
 
-    #TODO: Replace this with a regionmask approach
-    # Get land polygons
     land_110m = cfeature.NaturalEarthFeature("physical", "land", "110m")
     land_polygons = [prep(geom) for geom in land_110m.geometries()]
-    # Create coordinate arrays
-    lats, lons = ds.lat.values, ds.lon.values
-    lon_grid, lat_grid = np.meshgrid(lons, lats)
-    # Flatten coordinates for easier processing
+    lon_grid, lat_grid = np.meshgrid(np.asarray(lons), np.asarray(lats))
     lon_flat, lat_flat = lon_grid.flatten(), lat_grid.flatten()
     # Test each grid point against the land polygons and record the result
     # directly. (An earlier version collected the land coordinates and then
@@ -1289,13 +1299,7 @@ def create_land_mask(ds):
         point = Point(lon, lat)
         if any(polygon.covers(point) for polygon in land_polygons):
             mask_flat[idx] = 1
-    # Reshape to original grid
-    return xr.DataArray(
-        mask_flat.reshape(len(lats), len(lons)),
-        dims=("lat", "lon"),
-        coords={"lat": ds.lat, "lon": ds.lon},
-        name="land_mask",
-    )
+    return mask_flat.reshape(len(lats), len(lons))
 
 #---------------------
 # Regridding functions
