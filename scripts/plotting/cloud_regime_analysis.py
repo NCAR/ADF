@@ -86,6 +86,16 @@ ALL_VARS = {
     ),
 }
 
+# Website plot-type tab for this diagnostic. It is also embedded in every figure
+# filename, so it must contain no spaces (see plot_rfo_maps).
+#
+# A dedicated "CloudRegimes" tab would suit this diagnostic better, but any
+# plot_type outside default_ptypes in adf_variable_defaults.yaml currently breaks
+# website generation: adf_web.py appends the plot_types dict, rather than the plot
+# type, to avail_plot_types, and the index template then fails on an unhashable
+# dict. Switch this to "CloudRegimes" once that is fixed.
+WEB_PLOT_TYPE = "Special"
+
 # =============================================================================
 # MAIN ANALYSIS FUNCTION
 # =============================================================================
@@ -840,12 +850,18 @@ def plot_rfo_maps(test_labels, ref_labels, adf, field, plot_loc, case_name):
 
         fig.suptitle(f"CR{cluster+1} Relative Frequency of Occurrence", fontsize=16, y=0.95)
         
-        # Save figure
-        save_path = plot_loc / f"{field}_CR{cluster+1}_LatLon_mean.{img_type}"
+        # Save figure. The stem must be "{var}_{season}_{plot_type}_Mean" because
+        # template_mean_diag.html builds its links as
+        # plot_page_{var}_{season}_{plot_type}_Mean.html rather than using the
+        # registered filename; any other name leaves a dead link on the index page.
+        # The regime number goes in the "season" slot, as QBO does with QBOts/QBOamp.
+        save_path = plot_loc / f"{field}_CR{cluster+1}_{WEB_PLOT_TYPE}_Mean.{img_type}"
         plt.savefig(save_path, bbox_inches='tight')
 
         if adf.create_html:
-            adf.add_website_data(str(save_path), field, case_name)
+            adf.add_website_data(str(save_path), field, case_name,
+                                 season=f"CR{cluster+1}", non_season=True,
+                                 plot_type=WEB_PLOT_TYPE)
         
         plt.close(fig)
 
@@ -855,7 +871,6 @@ def plot_hists_baseline(fld, cl, cluster_labels, cluster_labels_o, histograms, h
     plot_data = _prepare_plot_data(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord)
     plot_data['columns'] = ['observation', 'baseline', 'test_case']
     plot_data['figsize'] = (17, plot_data['fig_height'])
-    plot_data['save_suffix'] = '_CR_centers'
     plot_data['plot_loc'] = plot_loc
     plot_data['case_name'] = case_name
 
@@ -867,7 +882,6 @@ def plot_hists_obs(fld, cl, cluster_labels, cluster_labels_o, histograms, histog
     plot_data = _prepare_plot_data(fld, cl, cluster_labels, cluster_labels_o, histograms, histograms_ref, ht_var_name, tau_var_name, htcoord, taucoord)
     plot_data['columns'] = ['observation', 'test_case']
     plot_data['figsize'] = (12, plot_data['fig_height'])
-    plot_data['save_suffix'] = '_CR_centers'
     plot_data['plot_loc'] = plot_loc
     plot_data['case_name'] = case_name
 
@@ -1141,15 +1155,19 @@ def _add_figure_labels(fig, ax, plot_data, baseline_mode):
 
 def _save_figure(fig, plot_data, adf):
     """Save figure and add to website if requested."""
-    data = plot_data['data_product']
     img_type = adf.read_config_var("diag_basic_info").get('plot_type', 'png')
-    save_path = plot_data['plot_loc'] / f"{data}{plot_data['save_suffix']}.{img_type}"
+    # Named for the variable, not the data product, so this figure groups with the
+    # RFO maps under one variable on the website. See plot_rfo_maps for why the
+    # "{var}_{season}_{plot_type}_Mean" stem is mandatory.
+    save_path = plot_data['plot_loc'] / f"{plot_data['field']}_Centers_{WEB_PLOT_TYPE}_Mean.{img_type}"
     plt.savefig(save_path)
 
     if adf.create_html:
         # Attribute the figure to the test case it was made from, in both obs and
         # baseline mode: the reference is one of three panels, not the subject.
-        adf.add_website_data(str(save_path), plot_data['field'], plot_data['case_name'])
+        adf.add_website_data(str(save_path), plot_data['field'], plot_data['case_name'],
+                             season="Centers", non_season=True,
+                             plot_type=WEB_PLOT_TYPE)
 
 # ---------------------
 # Data handling helpers
