@@ -130,6 +130,16 @@ def cam_taylor_diagram(adfobj):
     # Check for precipitation (Needs PRECT OR both PRECL and PRECC)
     has_prect = 'PRECT' in available_vars
     has_precl_precc = {'PRECL', 'PRECC'}.issubset(available_vars)
+    if adfobj.compare_obs and has_precl_precc and not has_prect:
+        # PRECC and PRECL have no observational counterpart, so deriving PRECT
+        # from them only works against a baseline simulation. Comparing to obs
+        # needs PRECT itself in diag_var_list -- ADF derives it from PRECC +
+        # PRECL when making the time series. Without it the two tropical precip
+        # entries drop out of the diagram silently.
+        logger.warning("\t WARNING: comparing against observations, so the tropical "
+                       "precipitation entries need 'PRECT' in diag_var_list; PRECC and "
+                       "PRECL have no observations to compare against. ADF will derive "
+                       "PRECT for you if you add it.")
     if missing_vars or not (has_prect or has_precl_precc):
         logger.warning("\tTaylor Diagrams skipped due to missing variables:")
         if missing_vars:
