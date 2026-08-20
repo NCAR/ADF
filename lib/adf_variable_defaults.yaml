@@ -2512,17 +2512,10 @@ budget_tables:
 
   # list of the aerosol variables to be caculated.
   AEROSOL_VARIABLES: ['AOD','SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
-
   # For the case that outputs are saved for a specific region.
   # i.e., when using fincllonlat in user_nl_cam
   ext1_SE: ''
 
-  # Tropospheric Values
-  # -------------------
-  # if True, calculate only Tropospheric values
-  # if False, all layers
-  # tropopause is defiend as o3>150ppb. If needed, change accordingly.
-  Tropospheric: True
 
   ### NOT WORKING FOR NOW
   # To calculate the budgets only for a region
@@ -2560,8 +2553,12 @@ budget_tables:
 
   # The variables in the list below must be aerosols - do not add AOD and DAOD
   # WARNING: no need to change this list, unless for a specific need!
-  AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
-
+  AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4',
+           'so4_a1','so4_a2','so4_a3','so4_a5',
+            'pom_a1','pom_a4',
+            'bc_a1','bc_a4',
+           'ncl_a1','ncl_a2','ncl_a3',
+           'dst_a1','dst_a2','dst_a3']
 #-----------
 
 

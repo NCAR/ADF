@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 from pathlib import Path
-
+import subprocess
 from datetime import datetime
 import numpy as np
 import itertools
@@ -10,7 +10,8 @@ import pandas as pd
 # Import necessary ADF modules:
 from adf_base import AdfError
 
-def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
+def aerosol_gas_tables(adfobj, trop_val=None, Tropospheric=None ,Climate=None , **kwargs):
+
     '''
     Calculate aerosol and gaseous budget tables
 
@@ -103,6 +104,15 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
             * Added DMS to gases list - reported as DMS not S
             * Automatic addition of gaseous compounds even when not defined in the default list, 
             *   based on Carbon MW (12). It still needs ADF modification to read a list from yaml file. 
+
+        Behrooz Roozitalab, 18 Apr, 2026
+        - fixed:
+            * the option added in YAML file to choose between tropospheric or global budgets. The default is tropospheric.
+    	    * The CESM model's 'AREA' variable is not correct in some versions. It was causing issues for cases when it was available. It is now completely removed.
+            * To increase the speed, we added an option "Climate". When True, we first make the annual mean files using nco, and then calculate the budget.
+            *                        This is not recommended for 1-2 year periods, but it works well with climate simulations that run for 20 years. 
+            *                        The default is False. 
+
     '''
 
     #Notify user that script has started:
@@ -113,6 +123,13 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
     if trop_val is None:
         trop_val = 'tropopause'
 
+    # Check which type of tables to be created, default to 'True'
+    if Tropospheric is None:
+        Tropospheric = True
+
+    # Check which type of tables to be created, default to 'False'
+    if Climate is None:
+        Climate = False
     # Inputs
     #-------
     # Variable defaults info
@@ -136,7 +153,7 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
     # if True, calculate only Tropospheric values
     # if False, all layers
     # tropopause is defiend as either directly or indirectly. Look for tropopause to see the definition
-    Tropospheric = bres['Tropospheric']
+    #Tropospheric = bres['Tropospheric']
 
     ### NOT WORKING FOR NOW
     # To calculate the budgets only for a region
@@ -152,8 +169,11 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
     # automatic generation of MW
     for var in VARIABLES:
         if var not in MW.keys():
-            print(f"using Carbon molecular weight for {var}")
-            MW[var]=12
+            if 'so4' in var:
+                MW[var]=32.066 # using sulfur molecular weight.
+            else:    
+                print(f"using Carbon molecular weight for {var}")
+                MW[var]=12
 
                 
     # Avogadro's Number
@@ -266,11 +286,16 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
         end_period = datetime.strptime(end_date, "%Y-%m-%d")
 
         # Calculated duration of time period in seconds?
-        durations[case] = (end_period-start_period).days*86400 #+365*86400
+        if Climate:
+            # Use annual mean file
+            durations[case] = 365*86400
+            num_yrs[case]=1
 
-
-        # Get number of years for calculations
-        num_yrs[case] = (int(end_year)-int(start_year)) #+1
+        else:
+            # Calculate the duration
+            durations[case] = (end_period-start_period).days*86400 #+365*86400
+            # Get number of years for calculations
+            num_yrs[case] = (int(end_year)-int(start_year)) #+1
 
         # Get currenty history file directory
         data_dir = data_dirs[i]
@@ -289,10 +314,35 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
         text = f'\n\t Calculating values for {case}'
         print(text)
         print("\t " + "-" * (len(text) - 2))
-
         # Gather dictionary data for current case
-        # NOTE: The calculations can take a long time...
-        Dic_crit, Dic_scn_var_comp[case],Tropospheric,tropospheric_method = make_Dic_scn_var_comp(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS,Tropospheric,trop_val)
+        if Climate:
+            # NOTE: The calculations based on annual mean files
+            Files_str= [str(f) for f in Files]
+
+            #Special ADF variable which contains the output paths for
+            #all generated plots and tables for each case:
+            output_locs = adfobj.plot_location
+            #Convert output location string to a Path object:
+            output_location = Path(output_locs[0])
+
+            cmd = ["ncra", "-O", *Files_str, f"{output_location}/{case}_ANN.nc"]
+            subprocess.run(cmd, check=True)
+            try:
+                subprocess.run(cmd, check=True, capture_output=True, text=True)
+            except FileNotFoundError:
+                print("Error: 'ncra' command not found. Please install NCO utilities.")
+            except subprocess.CalledProcessError as e:
+                print(f"NCO Error (Exit Code {e.returncode}): {e.stderr}")
+
+            #os.sys(f"ncra {Files} {output_location}/{case}_ANN.nc")
+            File_mean=[f"{case}_ANN.nc"]
+
+            Dic_crit, Dic_scn_var_comp[case],Tropospheric,tropospheric_method = make_Dic_scn_var_comp(adfobj, VARIABLES, output_location, dic_SE, File_mean, ext1_SE, AEROSOLS,Tropospheric,trop_val)
+        else:
+            print(f'Using raw files instead of annual mean files.')
+
+            # NOTE: The calculations can take a long time...
+            Dic_crit, Dic_scn_var_comp[case],Tropospheric,tropospheric_method = make_Dic_scn_var_comp(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS,Tropospheric,trop_val)
         # Regional refinement
         # NOTE: This function 'Inside_SE' is unavailable at the moment! - JR 10/2024
         if regional:
@@ -310,7 +360,7 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
             if tropospheric_method=='pressure':
                 # using pressure > 500hPa
                 trop = np.where(current_crit<500,np.nan,current_crit)
-            if tropospheric_method=='ozone':
+            elif tropospheric_method=='ozone':
                 # using ozone <150 ppb
                 trop = np.where(current_crit>150,np.nan,current_crit)
             elif tropospheric_method=='tropopause':
@@ -401,23 +451,17 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
 
             areas = tmp_area*Earth_area/np.nansum(tmp_area)
         except KeyError:
-            try:
-                tmp_area = tmp_file['AREA'+ext1_SE].isel(time=0).data
-                areas=tmp_area
-                #Earth_area = 4 * np.pi * Earth_rad**(2)
-                #areas = tmp_area*Earth_area/np.nansum(tmp_area)
-            except:
-                dlon = np.abs(lon[1]-lon[0])
-                dlat = np.abs(lat[1]-lat[0])
+            dlon = np.abs(lon[1]-lon[0])
+            dlat = np.abs(lat[1]-lat[0])
 
-                lon2d,lat2d = np.meshgrid(lon,lat)
-                #area=np.zeros_like(lat2d)
+            lon2d,lat2d = np.meshgrid(lon,lat)
+            #area=np.zeros_like(lat2d)
 
-                dy = Earth_rad*dlat*np.pi/180
-                dx = Earth_rad*np.cos(lat2d*np.pi/180)*dlon*np.pi/180
+            dy = Earth_rad*dlat*np.pi/180
+            dx = Earth_rad*np.cos(lat2d*np.pi/180)*dlon*np.pi/180
 
-                tmp_area = dx*dy
-                areas = tmp_area
+            tmp_area = dx*dy
+            areas = tmp_area
     # End if
 
     # Variables to return
@@ -926,39 +970,21 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
 
     # Critical threshholds, just run this once
     # this is for finding tropospheric values
-    tropospheric_method='NA'
-    print("trop_val",trop_val,"*****")
-    if trop_val == 'pres500':
-        try:
-            current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['Pressure'],ext1_SE)
-            Dic_crit=current_crit['Pressure']
-            tropospheric_method='pressure'
-            msg += f"\n\t WARNING: Troposphere is defined as Pressure>500 hPa"
-            print(msg)
-        except:
-            current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE) 
-            Dic_crit=current_crit['U']
-            Tropospheric=False
-            msg += f"\n\t WARNING: No way of defining troposphere was found in the model, budgets are total column"
-            print(msg)
-        # Log info to logging file
-        msg = f"chem/aerosol tables:"
-        msg += f"\n\t - potential missing variables from budget? {missing_vars_tot}"
-        adfobj.debug_log(msg)
+    if not Tropospheric:
+        current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE)
+        Dic_crit=current_crit['U']
+        tropospheric_method='NA'
+        msg += f"\n\t WARNING: User has set the model to calcualte total column budgets"
         print(msg)
-    elif trop_val == 'tropopause':
-        try:
-            current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['O3'],ext1_SE)
-            Dic_crit=current_crit['O3']
-            tropospheric_method='ozone'
-            msg += f"\n\t WARNING: Troposphere is defined as O3<150 ppb"
-            print(msg)        
-        except:
+    else:
+        tropospheric_method='NA'
+        print("trop_val",trop_val,"*****")
+        if trop_val == 'pres500':
             try:
-                current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['TROP_P','Pressure'],ext1_SE)
-                Dic_crit=current_crit #[['TROP_P','Pressure']]
-                tropospheric_method='tropopause'
-                msg += f"\n\t WARNING: Troposphere is defined as pressure>trop_p"
+                current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['Pressure'],ext1_SE)
+                Dic_crit=current_crit['Pressure']
+                tropospheric_method='pressure'
+                msg += f"\n\t WARNING: Troposphere is defined as Pressure>500 hPa"
                 print(msg)
             except:
                 current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE) 
@@ -966,6 +992,31 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
                 Tropospheric=False
                 msg += f"\n\t WARNING: No way of defining troposphere was found in the model, budgets are total column"
                 print(msg)
+            # Log info to logging file
+            msg = f"chem/aerosol tables:"
+            msg += f"\n\t - potential missing variables from budget? {missing_vars_tot}"
+            adfobj.debug_log(msg)
+            print(msg)
+        elif trop_val == 'tropopause':
+            try:
+                current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['O3'],ext1_SE)
+                Dic_crit=current_crit['O3']
+                tropospheric_method='ozone'
+                msg += f"\n\t WARNING: Troposphere is defined as O3<150 ppb"
+                print(msg)        
+            except:
+                try:
+                    current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['TROP_P','Pressure'],ext1_SE)
+                    Dic_crit=current_crit #[['TROP_P','Pressure']]
+                    tropospheric_method='tropopause'
+                    msg += f"\n\t WARNING: Troposphere is defined as pressure>trop_p"
+                    print(msg)
+                except:
+                    current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE) 
+                    Dic_crit=current_crit['U']
+                    Tropospheric=False
+                    msg += f"\n\t WARNING: No way of defining troposphere was found in the model, budgets are total column"
+                    print(msg)        
 
     msg = f"chem/aerosol tables:"
     msg += f"\n\t - needed variables for budget {needed_vars_tot}"
@@ -1145,27 +1196,39 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
     # Calculate values for given variable
     if 'AOD' in current_var:
         # Burden
-        spc_burd = Dic_scn_var_comp[current_var][current_var+'_AOD']
+        try:
+            spc_burd = Dic_scn_var_comp[current_var][current_var+'_AOD']
+        except:
+            spc_burd=0
         burden = np.ma.masked_where(inside==False,spc_burd)  #convert Kg/m2 to Tg
         BURDEN = np.ma.sum(burden*area)/np.ma.sum(area)
         chem_dict[f"{current_var}_mean"] = np.round(BURDEN,5)
     else:
         # Surface Emissions
-        spc_sf = Dic_scn_var_comp[current_var][current_var+'_SF']
+        try:
+            spc_sf = Dic_scn_var_comp[current_var][current_var+'_SF']
+        except:
+            spc_sf=0
         tmp_sf = spc_sf
         sf = np.ma.masked_where(inside==False,tmp_sf*area)  #convert Kg/m2/s to Tg/yr
         SF = np.ma.sum(sf*duration*1e-9)/num_yrs
         chem_dict[f"{current_var}_EMIS (Tg{specifier}/yr)"] = np.round(SF,5)
 
         # Elevated Emissions
-        spc_clxf = Dic_scn_var_comp[current_var][current_var+'_CLXF']
+        try:
+            spc_clxf = Dic_scn_var_comp[current_var][current_var+'_CLXF']
+        except:
+            spc_clxf=0
         tmp_clxf = spc_clxf
         clxf = np.ma.masked_where(inside==False,tmp_clxf*area)  #convert Kg/m2/s to Tg/yr
         CLXF = np.ma.sum(clxf*duration*1e-9)/num_yrs
         chem_dict[f"{current_var}_EMIS_elevated (Tg{specifier}/yr)"] = np.round(CLXF,5)
 
         # Burden
-        spc_burd = Dic_scn_var_comp[current_var][current_var+'_BURDEN']
+        try:
+            spc_burd = Dic_scn_var_comp[current_var][current_var+'_BURDEN']
+        except:
+            spc_burd = 0
         spc_burd = np.where(np.isnan(trop),np.nan,spc_burd)
         tmp_burden = np.nansum(spc_burd*area,axis=0)
         burden = np.ma.masked_where(inside==False,tmp_burden)  #convert Kg/m2 to Tg
@@ -1173,7 +1236,10 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         chem_dict[f"{current_var}_BURDEN (Tg{specifier})"] = np.round(BURDEN,5)
 
         # Chemical Loss
-        spc_chml = Dic_scn_var_comp[current_var][current_var+'_CHML']
+        try:
+            spc_chml = Dic_scn_var_comp[current_var][current_var+'_CHML']
+        except:
+            spc_chml = 0 
         spc_chml = np.where(np.isnan(trop),np.nan,spc_chml)
         tmp_chml = np.nansum(spc_chml*area,axis=0)
         chml = np.ma.masked_where(inside==False,tmp_chml)  #convert Kg/m2/s to Tg/yr
@@ -1185,7 +1251,10 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                                # We have removed it for SO4 budget. and put 0 here, so, we don't report it
             chem_dict[f"{current_var}_CHEM_PROD (Tg{specifier}/yr)"] = 0
         else:
-            spc_chmp = Dic_scn_var_comp[current_var][current_var+'_CHMP']
+            try:
+                spc_chmp = Dic_scn_var_comp[current_var][current_var+'_CHMP']
+            except:
+                spc_chml =0
             spc_chmp = np.where(np.isnan(trop),np.nan,spc_chmp)
             tmp_chmp = np.nansum(spc_chmp*area,axis=0)
             chmp = np.ma.masked_where(inside==False,tmp_chmp)  #convert Kg/m2/s to Tg/yr
@@ -1198,18 +1267,24 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         if current_var in AEROSOLS:
 
            # Dry Deposition Flux
-            spc_ddfa = Dic_scn_var_comp[current_var][current_var+'_DDF']
-            spc_ddfc = Dic_scn_var_comp[current_var][current_var+'_DDFC']
-            spc_ddf = spc_ddfa +spc_ddfc
+            try:
+                spc_ddfa = Dic_scn_var_comp[current_var][current_var+'_DDF']
+                spc_ddfc = Dic_scn_var_comp[current_var][current_var+'_DDFC']
+                spc_ddf = spc_ddfa +spc_ddfc
+            except:
+                spc_ddf = 0
             tmp_ddf = spc_ddf
             ddf = np.ma.masked_where(inside==False,tmp_ddf*area)  #convert Kg/m2/s to Tg/yr
             DDF = np.ma.sum(ddf*duration*1e-9)/num_yrs
             chem_dict[f"{current_var}_DRYDEP (Tg{specifier}/yr)"] = np.round(DDF,5)
 
             # Wet deposition
-            spc_wdfa = Dic_scn_var_comp[current_var][current_var+'_WDF']
-            spc_wdfc = Dic_scn_var_comp[current_var][current_var+'_WDFC']
-            spc_wdf = spc_wdfa +spc_wdfc
+            try:
+                spc_wdfa = Dic_scn_var_comp[current_var][current_var+'_WDF']
+                spc_wdfc = Dic_scn_var_comp[current_var][current_var+'_WDFC']
+                spc_wdf = spc_wdfa +spc_wdfc
+            except:
+                spc_wdf = 0
             tmp_wdf = spc_wdf
             wdf = np.ma.masked_where(inside==False,tmp_wdf*area)  #convert Kg/m2/s to Tg/yr
             WDF = -1*np.ma.sum(wdf*duration*1e-9)/num_yrs
@@ -1217,7 +1292,10 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
 
             if current_var in ["SOA",'SO4']:
                 # gas-aerosol Exchange
-                spc_gaex = Dic_scn_var_comp[current_var][current_var+'_GAEX']
+                try:
+                    spc_gaex = Dic_scn_var_comp[current_var][current_var+'_GAEX']
+                except: 
+                    spc_gaex = 0
                 tmp_gaex = spc_gaex
                 gaex = np.ma.masked_where(inside==False,tmp_gaex*area)  #convert Kg/m2/s to Tg/yr
                 GAEX = np.ma.sum(gaex*duration*1e-9)/num_yrs
@@ -1229,14 +1307,20 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
 
             if current_var == 'SO4':
                 # Aqueous Chemistry
-                spc_aqs = Dic_scn_var_comp[current_var][current_var+'_AQS']
+                try:
+                    spc_aqs = Dic_scn_var_comp[current_var][current_var+'_AQS']
+                except:
+                    spc_aqs = 0
                 tmp_aqs = spc_aqs
                 aqs = np.ma.masked_where(inside==False,tmp_aqs*area)  #convert Kg/m2/s to Tg/yr
                 AQS = np.ma.sum(aqs*duration*1e-9)/num_yrs
                 chem_dict[f"{current_var}_AQUEOUS (Tg{specifier}/yr)"] = np.round(AQS,5)
 
                 # Nucleation
-                spc_nucl = Dic_scn_var_comp[current_var][current_var+'_NUCL']
+                try:
+                    spc_nucl = Dic_scn_var_comp[current_var][current_var+'_NUCL']
+                except:
+                    spc_nucl = 0
                 tmp_nucl = spc_nucl
                 nucl = np.ma.masked_where(inside==False,tmp_nucl*area)  #convert Kg/m2/s to Tg/yr
                 NUCL = np.ma.sum(nucl*duration*1e-9)/num_yrs
@@ -1246,14 +1330,20 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         #---------------------
         else:
             # Dry Deposition Flux
-            spc_ddf = Dic_scn_var_comp[current_var][current_var+'_DDF']
+            try:
+                spc_ddf = Dic_scn_var_comp[current_var][current_var+'_DDF']
+            except:
+                spc_ddf = 0
             tmp_ddf = spc_ddf
             ddf = np.ma.masked_where(inside==False,tmp_ddf*area)  #convert Kg/m2/s to Tg/yr
             DDF = np.ma.sum(ddf*duration*1e-9)/num_yrs
             chem_dict[f"{current_var}_DRYDEP (Tg/yr)"] = np.round(DDF,5)
 
             # Wet Deposition Flux
-            spc_wdf = Dic_scn_var_comp[current_var][current_var+'_WDF']
+            try:
+                spc_wdf = Dic_scn_var_comp[current_var][current_var+'_WDF']
+            except:
+                spc_wdf = 0
             tmp_wdf = spc_wdf
             wdf = np.ma.masked_where(inside==False,tmp_wdf*area)  #convert Kg/m2/s to Tg/yr
             WDF = -1*np.ma.sum(wdf*duration*1e-9)/num_yrs
@@ -1282,7 +1372,10 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
 
             #NET = CHMP-CHML
             # Chemical Tendency
-            spc_tnd = Dic_scn_var_comp[current_var][current_var+'_TEND']
+            try:
+                spc_tnd = Dic_scn_var_comp[current_var][current_var+'_TEND']
+            except:
+                spc_tnd = 0
             spc_tnd = np.where(np.isnan(trop),np.nan,spc_tnd)
             tmp_tnd = np.nansum(spc_tnd,axis=0)
             tnd = np.ma.masked_where(inside==False,tmp_tnd)  #convert Kg/s to Tg/yr
@@ -1296,7 +1389,10 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 chem_dict[f"{current_var}_STE (Tg/yr)"] = np.round(STE,5)
 
                 # Lightning NOX production
-                spc_lno = Dic_scn_var_comp[current_var][current_var+'_LNO']
+                try:
+                    spc_lno = Dic_scn_var_comp[current_var][current_var+'_LNO']
+                except:
+                    spc_lno = 0
                 tmp_lno = np.ma.masked_where(inside==False,spc_lno)
                 LNO = np.ma.sum(tmp_lno)
                 chem_dict[f"{current_var}_LNO (Tg N/yr)"] = np.round(LNO,5)
