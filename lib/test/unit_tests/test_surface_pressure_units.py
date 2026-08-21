@@ -13,7 +13,7 @@ import xarray as xr
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "regridding"))
 sys.path.append(str(Path(__file__).parents[2]))
 
-from regrid_and_vert_interp import _surface_pressure_in_pa  # noqa: E402
+from regrid_and_vert_interp import _pressure_in_pa  # noqa: E402
 
 
 def _ps(values, units=None):
@@ -24,22 +24,22 @@ def _ps(values, units=None):
 
 
 def test_hpa_is_converted():
-    out = _surface_pressure_in_pa(_ps([968.0, 1013.0], units="hPa"))
+    out = _pressure_in_pa(_ps([968.0, 1013.0], units="hPa"))
     assert np.allclose(out.values, [96800.0, 101300.0])
     assert out.attrs["units"] == "Pa"
 
 
 def test_pa_is_left_alone():
     inp = _ps([96800.0, 101300.0], units="Pa")
-    out = _surface_pressure_in_pa(inp)
+    out = _pressure_in_pa(inp)
     assert np.allclose(out.values, inp.values)
 
 
 def test_missing_units_inferred_from_magnitude():
     #Looks like Pa, so leave it:
-    assert np.allclose(_surface_pressure_in_pa(_ps([96800.0])).values, [96800.0])
+    assert np.allclose(_pressure_in_pa(_ps([96800.0])).values, [96800.0])
     #Looks like hPa, so scale it:
-    assert np.allclose(_surface_pressure_in_pa(_ps([968.0])).values, [96800.0])
+    assert np.allclose(_pressure_in_pa(_ps([968.0])).values, [96800.0])
 
 
 def test_hpa_ps_would_lose_the_troposphere():
@@ -58,7 +58,7 @@ def test_hpa_ps_would_lose_the_troposphere():
     assert covered(96800.0) == len(plevs_pa)
     assert covered(968.0) < len(plevs_pa)
     #And the fix turns the broken input into the good one:
-    fixed = _surface_pressure_in_pa(_ps([968.0], units="hPa"))
+    fixed = _pressure_in_pa(_ps([968.0], units="hPa"))
     assert covered(float(fixed.max())) == len(plevs_pa)
 
 

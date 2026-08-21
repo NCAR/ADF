@@ -88,22 +88,35 @@ def regrid_and_vert_interp(adf):
             # pass the Dataset: the hyam/hybm fallback check needs the other variables
             vert_type = _determine_vertical_coord_type(model_ds)
             ps_da = None
-            if vert_type == 'hybrid':
-                # For hybrid, we need surface pressure on the target grid.
-                ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
-                if ps_regridded_path.exists():
-                    ps_da = xr.open_dataset(ps_regridded_path)['PS']
+            pres_da = None
+            if vert_type in ('hybrid', 'height'):
+                # Prefer the model's own pressure field; fall back to PS + hybrid
+                # coefficients. Either way it has to land on the target grid.
+                lev_dim = 'lev' if 'lev' in model_ds.dims else 'ilev'
+                pres_source = _find_pressure_field(model_ds, adf, lev_dim, case=case_name)
+                if pres_source is not None:
+                    original_pres_attrs = pres_source.attrs.copy()
+                    pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
+                    pres_da.attrs.update(original_pres_attrs)
+                    pres_da = _pressure_in_pa(pres_da, name=('PMID' if lev_dim == 'lev' else 'PINT'))
+                elif vert_type == 'hybrid':
+                    ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
+                    if ps_regridded_path.exists():
+                        ps_da = xr.open_dataset(ps_regridded_path)['PS']
+                    else:
+                        ps_da_source = _find_surface_pressure(model_ds, adf, case=case_name)
+                        if ps_da_source is None:
+                            print(f"\t    WARNING: No PS available, unable to interpolate '{var}'")
+                            continue
+                        original_ps_attrs = ps_da_source.attrs.copy()
+                        ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
+                        ps_da.attrs.update(original_ps_attrs)
+                    ps_da = _pressure_in_pa(ps_da, name="PS")
                 else:
-                    ps_da_source = _find_surface_pressure(model_ds, adf, case=case_name)
-                    if ps_da_source is None:
-                        print(f"\t    WARNING: No PS available, unable to interpolate '{var}'")
-                        continue
-                    original_ps_attrs = ps_da_source.attrs.copy()
-                    ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
-                    ps_da.attrs.update(original_ps_attrs)
-            if ps_da is not None:
-                ps_da = _surface_pressure_in_pa(ps_da)
-            interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds, ps_da=ps_da)
+                    print(f"\t    WARNING: No PMID/PINT available, unable to interpolate '{var}'")
+                    continue
+            interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds,
+                                                      ps_da=ps_da, pres_da=pres_da)
             interp_da.attrs.update(original_attrs)
             # --- Masking ---
             var_default_dict = var_defaults.get(var, {})
@@ -128,28 +141,29 @@ def regrid_and_vert_interp(adf):
 
     print("  ...CAM climatologies have been regridded successfully.")
 
-def _surface_pressure_in_pa(ps_da):
-    """Return `ps_da` in Pascals.
+def _pressure_in_pa(pres_da, name="PS"):
+    """Return a pressure field in Pascals.
 
-    The hybrid-to-pressure interpolation needs Pa, but a surface pressure read
-    back from a "*_PS_regridded.nc" file has already had the variable defaults
-    applied, and those convert PS to hPa. Feeding hPa in silently squeezes the
-    whole model column into a few hPa, so every target level below it comes out
-    NaN -- the troposphere disappears without an error anywhere.
+    The interpolation routines need Pa, but a pressure read back from a
+    "*_regridded.nc" file has already had the variable defaults applied, and
+    those convert pressures to hPa. Feeding hPa in silently squeezes the whole
+    model column into a few hPa, so every target level below it comes out NaN --
+    the troposphere disappears without an error anywhere.
     """
-    units = str(ps_da.attrs.get('units', '')).strip().lower()
+    units = str(pres_da.attrs.get('units', '')).strip().lower()
     if units in ('hpa', 'mb', 'millibar', 'millibars'):
-        scaled = ps_da * 100.0
+        scaled = pres_da * 100.0
     elif units in ('pa', 'pascal', 'pascals'):
-        return ps_da
+        return pres_da
     else:
-        # No usable units attribute: surface pressure in Pa is ~1e5, in hPa ~1e3.
-        if float(ps_da.max()) > 2000.0:
-            return ps_da
-        print("\t    WARNING: PS has no units attribute and looks like hPa; "
+        # No usable units attribute: tropospheric pressure in Pa is ~1e4-1e5,
+        # in hPa ~1e2-1e3.
+        if float(pres_da.max()) > 2000.0:
+            return pres_da
+        print(f"\t    WARNING: {name} has no units attribute and looks like hPa; "
               "converting to Pa for vertical interpolation.")
-        scaled = ps_da * 100.0
-    scaled.attrs = dict(ps_da.attrs)
+        scaled = pres_da * 100.0
+    scaled.attrs = dict(pres_da.attrs)
     scaled.attrs['units'] = 'Pa'
     return scaled
 
@@ -175,6 +189,65 @@ def _find_surface_pressure(dset, adf, case=None):
     if ps_ds is None or 'PS' not in ps_ds:
         return None
     return ps_ds['PS'].squeeze()
+
+
+def _find_pressure_field(dset, adf, level_dim, case=None):
+    """The model's own 3-D pressure field, on the grid of `dset`.
+
+    PMID for data on layer midpoints, PINT for data on interfaces. This is
+    preferred over reconstructing pressure from PS and the hybrid coefficients:
+    it is what the model actually used, and it is the only option for vertical
+    coordinates that are not hybrid-sigma. Returns None when neither is
+    available, in which case the caller falls back to PS + hyam/hybm.
+
+    Note this deliberately does not look at "*_PMID_regridded.nc". PMID is a 3-D
+    field, so if it is in diag_var_list then that file has already been
+    interpolated onto the output pressure levels and is useless as a source
+    pressure. The climo file is the honest source.
+
+    Pass `case` for a test case; omit it for the reference.
+    """
+    name = 'PMID' if level_dim == 'lev' else 'PINT'
+    if name in dset:
+        return dset[name].squeeze()
+    if case is None:
+        # get_reference_climo_file avoids load_reference_climo_da's ref_var_nam
+        # lookup, which raises KeyError when the field is not in diag_var_list.
+        fils = adf.data.get_reference_climo_file(name)
+        pres_ds = adf.data.load_dataset(fils) if fils else None
+    else:
+        pres_ds = adf.data.load_climo_ds(case, name)
+    if pres_ds is None or name not in pres_ds:
+        return None
+    return pres_ds[name].squeeze()
+
+
+def _interp_with_pressure_field(da, pres_da):
+    """Interpolate `da` to DEFAULT_PLEVS using an explicit 3-D pressure field."""
+    level_dim = 'lev' if 'lev' in da.dims else 'ilev'
+
+    # utils.pmid_to_plev stacks on a dimension literally named "lev", so
+    # interface data has to be renamed on the way in. The output lands on
+    # pressure levels named "lev" either way.
+    if level_dim != 'lev':
+        da = da.rename({level_dim: 'lev'})
+        pres_da = pres_da.rename({level_dim: 'lev'})
+
+    # vert_remap pairs the two stacked arrays column by column, so the pressure
+    # field has to carry exactly the same dimensions in the same order.
+    pres_da = pres_da.broadcast_like(da).transpose(*da.dims)
+
+    out = utils.pmid_to_plev(da, pres_da, new_levels=DEFAULT_PLEVS_Pa,
+                            convert_to_mb=True)
+
+    # vert_remap interpolates with np.interp, which clamps to the end values
+    # instead of returning NaN outside the source range. The hybrid path (geocat)
+    # returns NaN there, so mask below-ground and above-model-top levels to keep
+    # the two paths comparable -- otherwise a 1000 hPa level over Tibet quietly
+    # reports the lowest model level's value.
+    lev_pa = out['lev'] * 100.0
+    in_range = (lev_pa >= pres_da.min(dim='lev')) & (lev_pa <= pres_da.max(dim='lev'))
+    return out.where(in_range)
 
 
 def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
@@ -205,15 +278,25 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
         # --- Vertical Interpolation (no horizontal regrid: this IS the target grid) ---
         vert_type = _determine_vertical_coord_type(ref_ds)
         ps_da = None
-        if vert_type == 'hybrid':
+        pres_da = None
+        if vert_type in ('hybrid', 'height'):
             # No horizontal regrid needed: the reference already defines the target grid.
-            ps_da = _find_surface_pressure(ref_ds, adf)
-            if ps_da is None:
-                print(f"\t    WARNING: No baseline PS, unable to interpolate '{var}'")
+            lev_dim = 'lev' if 'lev' in ref_ds.dims else 'ilev'
+            pres_da = _find_pressure_field(ref_ds, adf, lev_dim)
+            if pres_da is not None:
+                pres_da = _pressure_in_pa(pres_da,
+                                          name=('PMID' if lev_dim == 'lev' else 'PINT'))
+            elif vert_type == 'hybrid':
+                ps_da = _find_surface_pressure(ref_ds, adf)
+                if ps_da is None:
+                    print(f"\t    WARNING: No baseline PS, unable to interpolate '{var}'")
+                    continue
+                ps_da = _pressure_in_pa(ps_da, name="PS")
+            else:
+                print(f"\t    WARNING: No baseline PMID/PINT, unable to interpolate '{var}'")
                 continue
-        if ps_da is not None:
-            ps_da = _surface_pressure_in_pa(ps_da)
-        interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds, ps_da=ps_da)
+        interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds,
+                                                  ps_da=ps_da, pres_da=pres_da)
         interp_da.attrs.update(original_attrs)
 
         # --- Masking ---
@@ -323,7 +406,7 @@ def _determine_vertical_coord_type(dset):
 
     return 'none'
 
-def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None):
+def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da=None):
     """
     Performs vertical interpolation to default pressure levels.
 
@@ -336,7 +419,13 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None):
     source_ds : xarray.Dataset
         The source dataset containing auxiliary variables (e.g., hyam, hybm).
     ps_da : xarray.DataArray, optional
-        Surface pressure DataArray, required for hybrid coordinates.
+        Surface pressure (Pa), used to rebuild pressure from hybrid coefficients
+        when no explicit pressure field is available.
+    pres_da : xarray.DataArray, optional
+        The model's own 3-D pressure field (Pa) -- PMID on midpoints, PINT on
+        interfaces -- already on the same grid as `da`. Takes precedence over
+        `ps_da`: it is the pressure the model used, rather than a reconstruction,
+        and it is the only option for non-hybrid vertical coordinates.
 
     Returns
     -------
@@ -345,6 +434,10 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None):
     """
     if vert_type == 'none':
         return da
+
+    # An explicit pressure field wins whenever we have one.
+    if pres_da is not None:
+        return _interp_with_pressure_field(da, pres_da)
 
     if vert_type == "hybrid":
         if ps_da is None:
@@ -377,10 +470,10 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None):
         return utils.lev_to_plev(da, ps_da, hyam, hybm, P0=p0, convert_to_mb=True, new_levels=DEFAULT_PLEVS_Pa)
 
     elif vert_type == "height":
-        pmid = source_ds.get('PMID')
-        if pmid is None:
-            raise ValueError("'PMID' is required for height vertical interpolation.")
-        return utils.pmid_to_plev(da, pmid, convert_to_mb=True, new_levels=DEFAULT_PLEVS_Pa)
+        # Reaching here means _find_pressure_field came up empty, and a height
+        # coordinate cannot be converted without one.
+        raise ValueError("'PMID' (or 'PINT') is required for height vertical "
+                         "interpolation, and neither was found.")
 
     elif vert_type == "pressure":
         return utils.plev_to_plev(da, new_levels=DEFAULT_PLEVS_Pa, convert_to_mb=True)
