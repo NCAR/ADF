@@ -899,8 +899,12 @@ class AdfWeb(AdfObs):
                     #Extract website directory:
                     website_dir = self.__case_web_paths[case_name]['website_dir']
 
-                    #Copy website directory to "main site" directory:
-                    shutil.copytree(website_dir, main_site_path / case_name)
+                    #Copy website directory to "main site" directory.
+                    #dirs_exist_ok: re-running ADF into an existing plot
+                    #location has to refresh these copies rather than die on
+                    #the directory the previous run left behind.
+                    shutil.copytree(website_dir, main_site_path / case_name,
+                                    dirs_exist_ok=True)
 
                     #Also add path to case_sites dictionary:
                     case_sites[case_name] = os.path.join(os.curdir, case_name, "index.html")
