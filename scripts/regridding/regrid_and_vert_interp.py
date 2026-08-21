@@ -101,6 +101,8 @@ def regrid_and_vert_interp(adf):
                     original_ps_attrs = ps_da_source.attrs.copy()
                     ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
                     ps_da.attrs.update(original_ps_attrs)
+            if ps_da is not None:
+                ps_da = _surface_pressure_in_pa(ps_da)
             interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds, ps_da=ps_da)
             interp_da.attrs.update(original_attrs)
             # --- Masking ---
@@ -125,6 +127,32 @@ def regrid_and_vert_interp(adf):
             save_to_nc(final_ds, regridded_file_loc)
 
     print("  ...CAM climatologies have been regridded successfully.")
+
+def _surface_pressure_in_pa(ps_da):
+    """Return `ps_da` in Pascals.
+
+    The hybrid-to-pressure interpolation needs Pa, but a surface pressure read
+    back from a "*_PS_regridded.nc" file has already had the variable defaults
+    applied, and those convert PS to hPa. Feeding hPa in silently squeezes the
+    whole model column into a few hPa, so every target level below it comes out
+    NaN -- the troposphere disappears without an error anywhere.
+    """
+    units = str(ps_da.attrs.get('units', '')).strip().lower()
+    if units in ('hpa', 'mb', 'millibar', 'millibars'):
+        scaled = ps_da * 100.0
+    elif units in ('pa', 'pascal', 'pascals'):
+        return ps_da
+    else:
+        # No usable units attribute: surface pressure in Pa is ~1e5, in hPa ~1e3.
+        if float(ps_da.max()) > 2000.0:
+            return ps_da
+        print("\t    WARNING: PS has no units attribute and looks like hPa; "
+              "converting to Pa for vertical interpolation.")
+        scaled = ps_da * 100.0
+    scaled.attrs = dict(ps_da.attrs)
+    scaled.attrs['units'] = 'Pa'
+    return scaled
+
 
 def _find_surface_pressure(dset, adf, case=None):
     """Surface pressure for hybrid-level interpolation, on the grid of `dset`.
@@ -183,6 +211,8 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
             if ps_da is None:
                 print(f"\t    WARNING: No baseline PS, unable to interpolate '{var}'")
                 continue
+        if ps_da is not None:
+            ps_da = _surface_pressure_in_pa(ps_da)
         interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds, ps_da=ps_da)
         interp_da.attrs.update(original_attrs)
 

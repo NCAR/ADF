@@ -153,11 +153,11 @@ def cam_taylor_diagram(adfobj):
 
 
     #Set seasonal ranges:
-    seasons = {"ANN": np.arange(1,13,1)}
-            #    "DJF": [12, 1, 2],
-            #    "JJA": [6, 7, 8],
-            #    "MAM": [3, 4, 5],
-            #    "SON": [9, 10, 11]}
+    seasons = {"ANN": np.arange(1,13,1),
+               "DJF": [12, 1, 2],
+               "JJA": [6, 7, 8],
+               "MAM": [3, 4, 5],
+               "SON": [9, 10, 11]}
 
     # TAYLOR PLOT VARIABLES:
     var_list = ['PSL', 'SWCF', 'LWCF',
