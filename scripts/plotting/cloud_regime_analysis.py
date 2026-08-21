@@ -324,6 +324,16 @@ def _get_ref_cluster_labels(adf, ref_data, field, var_info, cl, opts):
                 if 'lon' in labels.coords and labels.lon.max() > 180:
                     print("INFO: Standardizing longitude for pre-computed reference labels.")
                     labels = labels.assign_coords(lon=(((labels.lon + 180) % 360) - 180)).sortby("lon")
+                # Restrict the reference to the same domain as the test case. The
+                # test case reaches _preprocess_data, which applies these; without
+                # them the reference RFO covers the globe while the test RFO covers
+                # only the requested region, so the reported difference compares two
+                # different domains. Time is deliberately left alone: the obs record
+                # is its own climatology and need not overlap the model years.
+                labels = apply_land_ocean_mask(labels, opts['only_ocean_or_land'])
+                if labels is None:
+                    return None, None
+                labels = spatial_subset(labels, opts['lat_range'], opts['lon_range'])
                 # No processed histograms in this branch; the observation column
                 # plots the cluster centers themselves, not an average of the data.
                 return labels, None
@@ -491,7 +501,12 @@ def precomputed_clusters(mat, cl, wasserstein_or_euclidean, ds, tau_var_name, ht
     array of cluster labels (integers)
     """
     if wasserstein_or_euclidean == "euclidean":
-        distances = np.sum((mat[:, :, None] - cl.T[None, :, :]) ** 2, axis=1)        
+        # One center at a time. The fully broadcast form,
+        # np.sum((mat[:, :, None] - cl.T[None, :, :]) ** 2, axis=1), materialises an
+        # (n_profiles, n_bins, n_centers) temporary -- ~17 GB for a decade of MISR on
+        # a 1-degree grid, which is enough to OOM a modest job. This peaks at one
+        # (n_profiles, n_bins) temporary instead, for the same result.
+        distances = np.stack([np.sum((mat - center) ** 2, axis=1) for center in cl], axis=1)
     elif wasserstein_or_euclidean == "wasserstein":
         distances = None
         # Try preferred library first
@@ -1134,7 +1149,9 @@ def _add_figure_labels(fig, ax, plot_data, baseline_mode):
         ht_unit = "hPa"
     else:
         ht_label = "Height"
-        ht_unit = "m"
+        # _configure_misr_axes labels the MISR CTH ticks in kilometres (0.25 ... 20),
+        # so the axis unit is km even though cosp_htmisr itself is in metres.
+        ht_unit = "km"
 
     # Y-label
     x_pos = 0.07 if baseline_mode else 0.05
