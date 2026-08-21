@@ -89,12 +89,11 @@ ALL_VARS = {
 # Website plot-type tab for this diagnostic. It is also embedded in every figure
 # filename, so it must contain no spaces (see plot_rfo_maps).
 #
-# A dedicated "CloudRegimes" tab would suit this diagnostic better, but any
-# plot_type outside default_ptypes in adf_variable_defaults.yaml currently breaks
-# website generation: adf_web.py appends the plot_types dict, rather than the plot
-# type, to avail_plot_types, and the index template then fails on an unhashable
-# dict. Switch this to "CloudRegimes" once that is fixed.
-WEB_PLOT_TYPE = "Special"
+# This is a non-default plot type (it is not in default_ptypes in
+# adf_variable_defaults.yaml). That only became usable with the adf_web.py fix in
+# PR #463, which appends the plot type rather than the whole plot_types dict to
+# avail_plot_types; before it, the index template failed on an unhashable dict.
+WEB_PLOT_TYPE = "CloudRegimes"
 
 # =============================================================================
 # MAIN ANALYSIS FUNCTION
