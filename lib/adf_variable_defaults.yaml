@@ -2232,10 +2232,37 @@ CLWMODIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+CLMODIS:
+  category: "Clouds"
+  obs_file: 'MODIS_obs_data.nc'
+  obs_name: "MODIS"
+  obs_var_name: "MODIS_CLD_HISTO"
+  # MODIS_CLD_HISTO is stored as a cloud fraction (profile totals ~0.5) while CAM's
+  # CLMODIS and the MODIS cluster centers are percent (totals ~60). ISCCP and MISR
+  # obs are already percent and need no conversion.
+  obs_scale_factor: 100
+
+CLD_MISR:
+  category: "Clouds"
+  obs_file: 'MISR_obs_data.nc'
+  obs_name: "MISR"
+  obs_var_name: "clMISR"
+
 FISCCP1_COSP:
-  category: "COSP"
+  category: "Clouds"
+  obs_file: 'ISCCP_obs_data.nc'
+  obs_name: "ISCCP"
+  obs_var_name: "n_pctaudist"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
+ISCCP_emd_centers:
+  category: "Clouds"
+  obs_file: 'ISCCP_emd-means_n_init5_centers_1.npy'
+
+ISCCP_euclidean_centers:
+  category: "Clouds"
+  obs_file: 'CS_qualitative_clusters.npy'
 
 ICE_ICLD_VISTAU:
   category: "COSP"
@@ -2281,6 +2308,22 @@ MEANTBCLR_ISCCP:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
+MISR_euclidean_centers:
+  category: "Clouds"
+  obs_file: 'MISR_6C_weather_state_centers.npy'
+
+MISR_emd_centers:
+  category: "Clouds"
+  obs_file: 'MISR_emd-means_n_init5_centers_1.npy'
+
+MODIS_euclidean_centers:
+  category: "Clouds"
+  obs_file: 'MODIS_6C_weather_state_centers.npy'
+
+MODIS_emd_centers:
+  category: "Clouds"
+  obs_file: 'MODIS_emd-means_n_init5_centers_1.npy'
 
 PCTMODIS:
   category: "COSP"

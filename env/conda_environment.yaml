@@ -15,3 +15,7 @@ dependencies:
   - geocat-comp=2024.04.0
   - python=3.12
   - xesmf>=0.8.8
+  # Wasserstein-distance option of cloud_regime_analysis. Not needed for its
+  # default (euclidean) mode, nor by any other diagnostic.
+  - pot
+  - joblib
