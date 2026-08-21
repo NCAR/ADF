@@ -845,13 +845,15 @@ class AdfWeb(AdfObs):
             #End if
 
             #List of ADF default plot types
-            avail_plot_types = res["default_ptypes"]
+            #Note: this is a copy, as the list is appended to below and
+            #"res" is re-used on every pass through this loop:
+            avail_plot_types = list(res["default_ptypes"])
 
             #Check if current plot type is in ADF default.
             #If not, add it so the index.html file can include it
             for ptype in plot_types.keys():
                 if ptype not in avail_plot_types:
-                    avail_plot_types.append(plot_types)
+                    avail_plot_types.append(ptype)
 
 
             # External packages that can be run through ADF
