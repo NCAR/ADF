@@ -196,13 +196,17 @@ class AdfWeb(AdfObs):
             self._write_run_info_to_log(config_file, active_env)
         #Do nothing if user is not requesting a website to be generated:
         if self.create_html and self.debug_log:
-            plot_path = Path(self.plot_location[0])
-
-            #Create directory path where the website will be built:
-            website_dir = plot_path / "website"
-            Path(website_dir).mkdir(parents=True, exist_ok=True)
-            run_info = f"{website_dir}/{run_info}"
-            self._write_run_info_to_web(run_info, config_file, active_env)
+            #Write the run info into every website directory this run will build.
+            #The content is the same for all of them, but "create_website" reads it
+            #back from the directory belonging to each web_data's case -- including
+            #the "multi-case" entry -- so writing only the first case's copy makes
+            #a multi-case run die on the missing file.
+            for web_paths in self.__case_web_paths.values():
+                website_dir = Path(web_paths['website_dir'])
+                website_dir.mkdir(parents=True, exist_ok=True)
+                self._write_run_info_to_web(f"{website_dir}/{run_info}",
+                                            config_file, active_env)
+            #End for
 
     #########
 
@@ -895,8 +899,12 @@ class AdfWeb(AdfObs):
                     #Extract website directory:
                     website_dir = self.__case_web_paths[case_name]['website_dir']
 
-                    #Copy website directory to "main site" directory:
-                    shutil.copytree(website_dir, main_site_path / case_name)
+                    #Copy website directory to "main site" directory.
+                    #dirs_exist_ok: re-running ADF into an existing plot
+                    #location has to refresh these copies rather than die on
+                    #the directory the previous run left behind.
+                    shutil.copytree(website_dir, main_site_path / case_name,
+                                    dirs_exist_ok=True)
 
                     #Also add path to case_sites dictionary:
                     case_sites[case_name] = os.path.join(os.curdir, case_name, "index.html")

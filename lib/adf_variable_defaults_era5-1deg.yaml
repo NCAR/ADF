@@ -1813,6 +1813,9 @@ TAUY:
   add_offset: 0
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+  obs_file: "TAUY_ERA5_monthly_climo_1degree_197901-202212.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TAUY"
 
 ICEFRAC:
   category: "Surface variables"

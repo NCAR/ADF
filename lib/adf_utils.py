@@ -27,6 +27,8 @@ lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None, convert_to_mb=Fal
     Interpolate model hybrid levels to specified pressure levels.
 pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False)
     Interpolate `data` from hybrid-sigma levels to isobaric levels using provided mid-level pressures.
+plev_to_plev(data, new_levels=None, convert_to_mb=False)
+    Interpolate `data` from isobaric levels to new isobaric levels.
 zonal_mean_xr(fld)
     Average over all dimensions except `lev` and `lat`.
 validate_dims(fld, list_of_dims)
@@ -124,7 +126,7 @@ def mask_land_or_ocean(arr, msk, use_nan=False):
         missing_value = -999.
     #End if
 
-    arr = xr.where(msk>=0.9,arr,missing_value)
+    arr = xr.where(msk>=0.9,arr,missing_value, keep_attrs=True)
     arr.attrs["missing_value"] = missing_value
     return(arr)
 
@@ -356,6 +358,15 @@ def seasonal_mean(data, season=None, is_climo=None):
     elif season is None:
         season = "ANN"
 
+    if isinstance(data, (xr.DataArray, xr.Dataset)) and 'time' in data.coords \
+            and 'time' not in data.dims:
+        # Time-invariant field: a scalar time coordinate, which is what is left
+        # after squeeze() collapses the length-1 time dimension of a
+        # single-timestamp file (e.g. a land-sea mask). Every season is the same
+        # field, so there is nothing to average, and .sel(time=...) below would
+        # fail with "no index found for coordinate 'time'".
+        return data.drop_vars('time')
+
     try:
         month_length = data.time.dt.days_in_month
     except (AttributeError, TypeError):
@@ -502,7 +513,7 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
 
     Parameters
     ----------
-    data :
+    data : xarray.DataArray
     ps :
         surface pressure
     hyam, hybm :
@@ -557,10 +568,22 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     #Rename vertical dimension back to "lev" in order to work with
     #the ADF plotting functions:
     data_interp_rename = data_interp.rename({"plev": "lev"})
+    attrs = data_interp_rename.attrs.copy()
+    lev_orig = data_interp_rename["lev"]
+    lev_orig_attrs = lev_orig.attrs.copy()
 
     #Convert vertical dimension to mb/hPa, if requested:
     if convert_to_mb:
-        data_interp_rename["lev"] = data_interp_rename["lev"] / 100.0
+        lev_new = lev_orig / 100.0
+        lev_new.attrs = lev_orig_attrs
+        lev_new.name = "lev"
+        lev_new.attrs["units"] = "hPa"
+        lev_new.attrs["history"] = f"converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
+        data_interp_rename["lev"] = lev_new
+        data_interp_rename.attrs = attrs
+    else:
+        data_interp_rename.attrs['units'] = "Pa"
+        data_interp_rename.attrs['history'] = f"Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
 
     return data_interp_rename
 
@@ -616,6 +639,151 @@ def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
     return output
 
 
+def plev_to_plev(data, new_levels=None, convert_to_mb=False):
+    """Interpolate data from isobaric levels to new isobaric levels.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        field with a vertical pressure coordinate (e.g., 'lev', 'plev', 'pressure')
+    new_levels : optional
+        the output pressure levels (Pa), defaults to standard levels
+    convert_to_mb : bool, optional
+        flag to convert output to mb (i.e., hPa), defaults to False
+
+    Returns
+    -------
+    output : xarray.DataArray
+        `data` interpolated onto `new_levels`
+    """
+
+    # Try to identify the vertical coordinate name
+    vert_coord_names = ['lev', 'plev', 'pressure']
+    vert_coord = None
+    for name in vert_coord_names:
+        if name in data.dims:
+            vert_coord = name
+            break
+    
+    if vert_coord is None:
+        raise AdfError(f"plev_to_plev: Could not find a vertical coordinate in {vert_coord_names}.")
+
+    # determine pressure levels to interpolate to:
+    if new_levels is None:
+        pnew = 100.0 * np.array([1000, 925, 850, 700, 500, 400,
+                                 300, 250, 200, 150, 100, 70, 50,
+                                 30, 20, 10, 7, 5, 3, 2, 1])  # mandatory levels, converted to Pa
+    else:
+        pnew = new_levels
+    #End if
+
+    # save name of DataArray:
+    data_name = data.name
+
+    # vert_remap uses np.interp, which needs the source pressures increasing:
+    if data[vert_coord][0] > data[vert_coord][-1]:
+        data = data.isel({vert_coord: slice(None, None, -1)})
+
+    # Create a pressure field that matches the data shape
+    p_mdl = data[vert_coord] * xr.ones_like(data)
+
+    # reshape data and pressure
+    zdims = [i for i in data.dims if i != vert_coord]
+    dstack = data.stack(z=zdims)
+    pstack = p_mdl.stack(z=zdims)
+    
+    # Need to transpose to (vert_coord, z)
+    dstack = dstack.transpose(vert_coord, 'z')
+    pstack = pstack.transpose(vert_coord, 'z')
+    
+    output = vert_remap(dstack.values, pstack.values, pnew)
+    output = xr.DataArray(output, name=data_name, dims=("lev", "z"),
+                          coords={"lev":pnew, "z":pstack['z']})
+    output = output.unstack()
+
+    # convert vertical dimension to mb/hPa, if requested:
+    if convert_to_mb:
+        ## DEAL WITH METADATA BETTER HERE
+        output["lev"] = output["lev"] / 100.0
+    #End if
+
+    #Return interpolated output:
+    return output
+
+def create_clean_grid(da):
+    """
+    Creates a minimal, CF-compliant xarray Dataset for xesmf from a DataArray.
+    Used by both the regridder and the Taylor diagram's derived variables.
+    """
+    if isinstance(da, xr.DataArray):
+        # name it if it isn't: only the coordinates are used below, but
+        # to_dataset() refuses an unnamed DataArray
+        ds = da.to_dataset(name=da.name or "field")
+    else:
+        ds = da
+
+    # Extract raw values
+    lat_centers = ds.lat.values.astype(np.float64)
+    lon_centers = ds.lon.values.astype(np.float64)
+
+    if np.any(np.isnan(lat_centers)) or np.any(np.isinf(lat_centers)):
+        warnings.warn("\t    WARNING: Found NaNs or Infs in latitude centers!")
+        lat_centers = np.nan_to_num(lat_centers, nan=0.0, posinf=90.0, neginf=-90.0)
+
+    # NOTE: do NOT nudge the centers off the poles. These become the output
+    # coordinate, and a target grid at -89.999999 instead of -90 will not align
+    # with the reference in xarray arithmetic, silently dropping both polar rows
+    # from every difference field.
+
+    # Build basic Dataset
+    clean_ds = xr.Dataset(
+        coords={
+            "lat": (["lat"], lat_centers, {"units": "degrees_north", "standard_name": "latitude"}),
+            "lon": (["lon"], lon_centers, {"units": "degrees_east", "standard_name": "longitude"}),
+        }
+    )
+
+    # Add Bounds as vertices if they exist
+    # Check for various possible bounds names
+    lat_bnds_names = ['lat_bnds', 'lat_bounds', 'latitude_bnds', 'latitude_bounds']
+    lon_bnds_names = ['lon_bnds', 'lon_bounds', 'longitude_bnds', 'longitude_bounds']
+    
+    lat_bnds = None
+    lon_bnds = None
+    
+    for name in lat_bnds_names:
+        if name in ds:
+            lat_bnds = ds[name]
+            break
+    
+    for name in lon_bnds_names:
+        if name in ds:
+            lon_bnds = ds[name]
+            break
+    
+    if lat_bnds is not None and lon_bnds is not None:
+        lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
+        lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
+    else:
+        # CAM history/climo files carry no bounds, but conservative regridding needs
+        # them, so infer cell edges as the midpoints between centers:
+        lat_v = _edges_from_centers(lat_centers)
+        lon_v = _edges_from_centers(lon_centers)
+
+    # Cell edges may be extrapolated past the poles; clamp them to the valid range.
+    # This is the bounds array, not the centers, so it does not affect the output grid.
+    lat_v = np.clip(lat_v, -90.0, 90.0).astype(np.float64)
+
+    # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
+    clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
+    clean_ds["lon_b"] = (["lon_f"], lon_v.astype(np.float64), {"units": "degrees_east"})
+    return clean_ds
+
+
+def _edges_from_centers(centers):
+    """Cell edges midway between centers, with the outer two extrapolated."""
+    mids = (centers[:-1] + centers[1:]) / 2.0
+    return np.concatenate([[2 * centers[0] - mids[0]], mids, [2 * centers[-1] - mids[-1]]])
 
 
 def validate_dims(fld, list_of_dims):
