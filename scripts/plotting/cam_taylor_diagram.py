@@ -639,6 +639,18 @@ def taylor_stats_single(casedata, refdata, w=True):
         tuple: 
             pattern correlation, ratio of standard deviation (case/ref), bias
     """
+    # Restrict both fields to the points where BOTH are valid. Masked variables
+    # (land/ocean/tropics subsets) do not carry identical masks -- the model and
+    # the observations disagree about coastlines -- and without this every
+    # statistic below is taken over a different population: the case mean over
+    # the case's points, the reference mean over the reference's, the covariance
+    # over the intersection. That can put the correlation outside [-1, 1], and it
+    # did: Land2mTemperature came out at 1.04, hidden on the plot because the
+    # marker placement clips to 1. This is also what NCL's taylor_stats does.
+    both_valid = casedata.notnull() & refdata.notnull()
+    casedata = casedata.where(both_valid)
+    refdata = refdata.where(both_valid)
+
     lat = casedata.lat
     if w:
         wgt = np.cos(np.radians(lat))
