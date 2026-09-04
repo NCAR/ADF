@@ -62,6 +62,16 @@ def describe_dir_problem(path, need_write=False):
     """
     ppath = Path(path)
     if not ppath.is_dir():
+        # An unsearchable parent makes is_dir() report False for a directory
+        # that is really there, so saying "does not exist" would send the user
+        # after the wrong problem again:
+        parent = ppath.parent
+        if parent != ppath and parent.is_dir() and not os.access(parent, os.X_OK):
+            return (
+                f"'{ppath}' cannot be reached, because this user does not have"
+                f" permission to search '{parent}'"
+            )
+        # End if
         return f"'{ppath}' does not exist, or is not a directory"
     # End if
     # Listing a directory needs both read and search permission, and a missing

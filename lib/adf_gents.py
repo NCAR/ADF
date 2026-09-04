@@ -144,16 +144,19 @@ def create_time_series_gents(adf, baseline=False):
     ------
     AdfError
         If GenTS is not installed, if ``gents_compression`` was given without
-        ``gents_compression_level``, if a history file directory is missing,
-        or if ``PS`` is absent from ``diag_var_list`` while model-level
-        variables are being diagnosed.
+        ``gents_compression_level``, if a history file directory is missing or
+        cannot be read, if ``cam_ts_loc`` cannot be written in while there are
+        files to write, or if ``PS`` is absent from ``diag_var_list`` while
+        model-level variables are being diagnosed.
 
     Notes
     -----
     Uses ``adf.get_basic_info``, ``adf.get_ts_case_config``,
     ``adf.diag_var_list``, ``adf.variable_defaults``, ``adf.num_procs``,
-    ``adf.user`` and ``adf.end_diag_fail``, plus ``check_derive`` and
-    ``derive_variable`` from :mod:`adf_derive`.
+    ``adf.user``, ``adf.end_diag_fail`` and
+    ``adf.derive_from_premade_ts``, plus ``check_derive`` and
+    ``derive_variable`` from :mod:`adf_derive` and ``describe_dir_problem``
+    from :mod:`adf_file_utils`.
     """
 
     HFCollection, TSCollection = _import_gents()
@@ -231,17 +234,6 @@ def create_time_series_gents(adf, baseline=False):
 
         #Check if time series directory exists, and if not, then create it:
         Path(ts_dir).mkdir(parents=True, exist_ok=True)
-
-        # An existing directory this user cannot write in is worth stopping for,
-        # rather than letting GenTS fail once per variable:
-        ts_problem = describe_dir_problem(ts_dir, need_write=True)
-        if ts_problem:
-            emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
-            emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory you own,"
-            emsg += " or set 'cam_ts_done: true' to read the time series that are"
-            emsg += " already there."
-            adf.end_diag_fail(emsg)
-        # End if
 
         for hist_str in cfg["hist_str_list"][case_idx]:
 
@@ -330,6 +322,19 @@ def create_time_series_gents(adf, baseline=False):
             #(GenTS records its own version in 'gents_version'):
             tsc = tsc.add_attrs({"adf_user": adf.user,
                                  "hist_file_locs": str(starting_location)})
+
+            # Only now is a write actually required, and only for the files
+            # GenTS still has to make.  Checking before this point would fail a
+            # run that writes nothing, which is how a read-only directory of
+            # finished time series works today:
+            ts_problem = describe_dir_problem(ts_dir, need_write=True)
+            if ts_problem:
+                emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
+                emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory you own,"
+                emsg += " or set 'cam_ts_done: true' to read the time series that are"
+                emsg += " already there."
+                adf.end_diag_fail(emsg)
+            # End if
 
             print(f"\t - generating {len(tsc)} time series file(s) with GenTS")
             tsc.create_directories()

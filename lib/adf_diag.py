@@ -425,19 +425,46 @@ class AdfDiag(AdfWeb):
         -----
         Uses ``self.diag_var_list`` and :func:`derive_variable`.
         """
-        # Only derivable variables are of interest, and only the ones that are
-        # not already sitting in the directory:
-        wanted = {}
+        # Which variables could be derived at all.  A variable can declare
+        # both a CAM-CHEM constituent list and a plain CAM one:
+        derivable = []
         for var in self.diag_var_list:
             vres = res.get(var, {})
-            constit_list = vres.get("derivable_from_cam_chem") or vres.get(
-                "derivable_from"
-            )
-            if constit_list:
-                wanted[var] = constit_list
+            if vres.get("derivable_from") or vres.get("derivable_from_cam_chem"):
+                derivable.append(var)
             # End if
         # End for
-        if not wanted:
+        if not derivable:
+            return
+        # End if
+
+        # An unset stream is legal here: with pre-made time series there are no
+        # history files to name one, and the searches are then meant to match
+        # any stream, which find_constit does when given None.
+        streams = as_hist_str_list(hist_strs) or [None]
+
+        # Work out what is actually missing before writing anything, so that a
+        # directory the ADF cannot write in is only reported when there is
+        # something it would have had to write:
+        todo = []
+        for hist_str in streams:
+            for var in derivable:
+                # Already there, from a previous run or from whoever made them:
+                if find_constit(ts_dir, case_name, var, hist_str, syr=syr, eyr=eyr):
+                    continue
+                # End if
+                todo.append(
+                    (
+                        hist_str,
+                        var,
+                        self._premade_constits(
+                            res[var], ts_dir, case_name, hist_str, syr=syr, eyr=eyr
+                        ),
+                    )
+                )
+            # End for
+        # End for
+        if not todo:
             return
         # End if
 
@@ -445,8 +472,9 @@ class AdfDiag(AdfWeb):
         # user cannot write in cannot gain one:
         ts_problem = describe_dir_problem(ts_dir, need_write=True)
         if ts_problem:
-            wmsg = f"\t WARNING: {sorted(wanted)} would have to be derived, but"
-            wmsg += f" {ts_problem}.\n\t     ** Those variables will be missing. **\n"
+            wmsg = f"\t WARNING: {sorted({var for _, var, _ in todo})} would have"
+            wmsg += f" to be derived, but {ts_problem}."
+            wmsg += "\n\t     ** Those variables will be missing. **\n"
             wmsg += "\t     Set 'cam_ts_done: false' with 'cam_hist_loc' pointing at"
             wmsg += " the history files and 'cam_ts_loc' at a directory you own, to"
             wmsg += " have the ADF make the time series itself."
@@ -455,25 +483,65 @@ class AdfDiag(AdfWeb):
             return
         # End if
 
-        for hist_str in as_hist_str_list(hist_strs):
-            for var, constit_list in wanted.items():
-                # Already there, from a previous run or from whoever made them:
-                if find_constit(ts_dir, case_name, var, hist_str, syr=syr, eyr=eyr):
-                    continue
-                # End if
-                derive_variable(
-                    self,
-                    case_name,
-                    var,
-                    res,
-                    ts_dir,
-                    constit_list,
-                    hist_str=hist_str,
-                    syr=syr,
-                    eyr=eyr,
-                )
-            # End for
+        for hist_str, var, constit_list in todo:
+            derive_variable(
+                self,
+                case_name,
+                var,
+                res,
+                ts_dir,
+                constit_list,
+                hist_str=hist_str,
+                syr=syr,
+                eyr=eyr,
+            )
         # End for
+
+    #########
+
+    def _premade_constits(
+        self, vres, ts_dir, case_name, hist_str, *, syr=None, eyr=None
+    ):
+        """
+        Choose which constituent list to derive a variable from.
+
+        A variable can declare both ``derivable_from_cam_chem`` and
+        ``derivable_from``, and :func:`check_derive` takes the CAM-CHEM list
+        only when every one of its constituents is present, falling back to the
+        plain CAM list otherwise.  The same choice has to be made here, from
+        the time series files rather than from a history file: ``SO4`` and
+        ``SOA`` both carry two lists, so preferring the CAM-CHEM one outright
+        would ask an ordinary CAM run for constituents it never wrote.
+
+        Parameters
+        ----------
+        vres : dict
+            variable defaults for the one variable being derived
+        ts_dir : str or Path
+            directory holding the pre-made time series files
+        case_name : str
+            name of the case being processed
+        hist_str : str or None
+            history stream being processed; ``None`` matches any stream
+        syr, eyr : int, optional
+            first and last year being processed
+
+        Returns
+        -------
+        list
+            The constituent names to derive from.  The plain CAM list is
+            returned when neither list is complete, so that
+            :func:`derive_variable` reports what is missing against the more
+            likely intent.
+        """
+        cam_chem = vres.get("derivable_from_cam_chem")
+        if cam_chem and all(
+            find_constit(ts_dir, case_name, constit, hist_str, syr=syr, eyr=eyr)
+            for constit in cam_chem
+        ):
+            return cam_chem
+        # End if
+        return vres.get("derivable_from") or cam_chem or []
 
     #########
 
@@ -705,19 +773,6 @@ class AdfDiag(AdfWeb):
                 # Use pathlib to create parent directories, if necessary.
                 Path(ts_dir).mkdir(parents=True, exist_ok=True)
 
-                # An existing directory this user cannot write in is worth
-                # stopping for.  "ncrcat" would fail once per variable and
-                # those failures are not inspected, so the run would otherwise
-                # carry on and only report the files as missing much later:
-                ts_problem = describe_dir_problem(ts_dir, need_write=True)
-                if ts_problem:
-                    emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
-                    emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory you"
-                    emsg += " own, or set 'cam_ts_done: true' to read the time series"
-                    emsg += " that are already there."
-                    self.end_diag_fail(emsg)
-                # End if
-
                 # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
                 first_file_split = str(hist_files[0]).split(".")
                 if first_file_split[-1] == "nc":
@@ -871,6 +926,24 @@ class AdfDiag(AdfWeb):
                     #       the files attrs so the global attrs become obtrusive...
                     list_of_hist_commands.append(cmd_remove_history)
                 # End variable loop
+
+                # Only now is a write actually required.  Checking earlier
+                # would fail a run that writes nothing because every file is
+                # already there and 'cam_overwrite_ts' is false -- which is how
+                # a read-only directory of finished time series works today.
+                # "ncrcat" would otherwise fail once per variable, and those
+                # failures are not inspected, so the run would carry on and
+                # only report the files as missing much later:
+                if list_of_commands:
+                    ts_problem = describe_dir_problem(ts_dir, need_write=True)
+                    if ts_problem:
+                        emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
+                        emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory"
+                        emsg += " you own, or set 'cam_ts_done: true' to read the"
+                        emsg += " time series that are already there."
+                        self.end_diag_fail(emsg)
+                    # End if
+                # End if
 
                 # Now run the "ncrcat" subprocesses in parallel:
                 run_pool(list_of_commands, "ncrcat")
