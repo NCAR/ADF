@@ -37,6 +37,7 @@ import xarray as xr
 
 #ADF modules:
 from adf_base import AdfError
+from adf_file_utils import describe_dir_problem
 from adf_derive import check_derive, derive_variable
 
 #++++++++++++++++++++++++++++++
@@ -143,16 +144,19 @@ def create_time_series_gents(adf, baseline=False):
     ------
     AdfError
         If GenTS is not installed, if ``gents_compression`` was given without
-        ``gents_compression_level``, if a history file directory is missing,
-        or if ``PS`` is absent from ``diag_var_list`` while model-level
-        variables are being diagnosed.
+        ``gents_compression_level``, if a history file directory is missing or
+        cannot be read, if ``cam_ts_loc`` cannot be written in while there are
+        files to write, or if ``PS`` is absent from ``diag_var_list`` while
+        model-level variables are being diagnosed.
 
     Notes
     -----
     Uses ``adf.get_basic_info``, ``adf.get_ts_case_config``,
     ``adf.diag_var_list``, ``adf.variable_defaults``, ``adf.num_procs``,
-    ``adf.user`` and ``adf.end_diag_fail``, plus ``check_derive`` and
-    ``derive_variable`` from :mod:`adf_derive`.
+    ``adf.user``, ``adf.end_diag_fail`` and
+    ``adf.derive_from_premade_ts``, plus ``check_derive`` and
+    ``derive_variable`` from :mod:`adf_derive` and ``describe_dir_problem``
+    from :mod:`adf_file_utils`.
     """
 
     HFCollection, TSCollection = _import_gents()
@@ -196,24 +200,35 @@ def create_time_series_gents(adf, baseline=False):
         print(f"\n  Generating CAM time series files for '{case_name}'...")
         print(f"\n    Writing time series files to {ts_dir}")
 
+        start_year = cfg["start_years"][case_idx]
+        end_year = cfg["end_years"][case_idx]
+
         #Check if particular case should be processed:
         if cfg["cam_ts_done"][case_idx]:
             emsg = "\tNOTE: Configuration file indicates time series files have been "
             emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
             print(emsg)
+            # Pre-made time series still need their derived variables; see
+            # AdfDiag.derive_from_premade_ts (issue #431):
+            adf.derive_from_premade_ts(
+                case_name,
+                ts_dir,
+                adf.variable_defaults,
+                cfg["hist_str_list"][case_idx],
+                syr=start_year,
+                eyr=end_year,
+            )
             continue
         #End if
-
-        start_year = cfg["start_years"][case_idx]
-        end_year = cfg["end_years"][case_idx]
 
         #Create path object for the CAM history file(s) location:
         starting_location = Path(cfg["cam_hist_locs"][case_idx])
 
-        #Check that path actually exists:
-        if not starting_location.is_dir():
+        # Check that the path exists and can be read:
+        hist_problem = describe_dir_problem(starting_location)
+        if hist_problem:
             emsg = f"Provided {case_type_string} 'cam_hist_loc' directory"
-            emsg += f" '{starting_location}' not found.  Script is ending here."
+            emsg += f" {hist_problem}.  Script is ending here."
             adf.end_diag_fail(emsg)
         #End if
 
@@ -307,6 +322,19 @@ def create_time_series_gents(adf, baseline=False):
             #(GenTS records its own version in 'gents_version'):
             tsc = tsc.add_attrs({"adf_user": adf.user,
                                  "hist_file_locs": str(starting_location)})
+
+            # Only now is a write actually required, and only for the files
+            # GenTS still has to make.  Checking before this point would fail a
+            # run that writes nothing, which is how a read-only directory of
+            # finished time series works today:
+            ts_problem = describe_dir_problem(ts_dir, need_write=True)
+            if ts_problem:
+                emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
+                emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory you own,"
+                emsg += " or set 'cam_ts_done: true' to read the time series that are"
+                emsg += " already there."
+                adf.end_diag_fail(emsg)
+            # End if
 
             print(f"\t - generating {len(tsc)} time series file(s) with GenTS")
             tsc.create_directories()

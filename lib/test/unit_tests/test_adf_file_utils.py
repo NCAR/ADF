@@ -21,10 +21,16 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 #Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-#adf_file_utils imports nothing but pathlib, so these run in CI, where only
-#PyYAML and pytest are installed:
-from adf_file_utils import (find_ts_files, select_ts_files, ts_files_overlap,
-                            ts_files_need_combining, ts_file_span)
+# adf_file_utils imports nothing but pathlib, so these run in CI, where only
+# PyYAML and pytest are installed:
+from adf_file_utils import (
+    describe_dir_problem,
+    find_ts_files,
+    select_ts_files,
+    ts_files_overlap,
+    ts_files_need_combining,
+    ts_file_span,
+)
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #Main adf_file_utils testing routine, used when script is run directly
@@ -506,6 +512,94 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
         long = "case.cam.h0a.T.0001-0040.nc"
 
         self.assertEqual(select_ts_files([short, long], 1, 40), [long])
+
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # describe_dir_problem: reading another user's output makes an
+    # unreadable directory a likely failure rather than a rare one
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    def test_dir_problem_usable(self):
+        """
+        Check that a readable directory reports no problem.
+        """
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.assertIsNone(describe_dir_problem(tmpdir))
+            self.assertIsNone(describe_dir_problem(tmpdir, need_write=True))
+
+    def test_dir_problem_missing(self):
+        """
+        Check that a path that is not there is reported as such.
+        """
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            missing = os.path.join(tmpdir, "not_there")
+
+            problem = describe_dir_problem(missing)
+
+            self.assertIsNotNone(problem)
+            self.assertIn("does not exist", problem)
+
+    def test_dir_problem_is_a_file(self):
+        """
+        Check that a file given where a directory is wanted is reported.
+        """
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fname = os.path.join(tmpdir, "case.cam.h0a.T.000101-001112.nc")
+            open(fname, "w").close()
+
+            self.assertIsNotNone(describe_dir_problem(fname))
+
+    @unittest.skipIf(os.geteuid() == 0, "root ignores directory permissions")
+    def test_dir_problem_unreadable(self):
+        """
+        Check that an unreadable directory is reported as unreadable.
+
+        This is the case that motivated the helper: such a directory reports
+        ``is_dir() == True`` and then globs to nothing, so a caller that only
+        checks existence tells the user their history files are missing.
+        """
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            unreadable = Path(tmpdir) / "unreadable"
+            unreadable.mkdir()
+            (unreadable / "case.cam.h0a.T.000101-001112.nc").touch()
+            unreadable.chmod(0o000)
+            try:
+                # The misleading behavior this exists to catch:
+                self.assertTrue(unreadable.is_dir())
+                self.assertEqual(find_ts_files(unreadable, "*.nc"), [])
+
+                problem = describe_dir_problem(unreadable)
+
+                self.assertIsNotNone(problem)
+                self.assertIn("permission to read", problem)
+            finally:
+                # Restore, or the temporary directory cannot be cleaned up:
+                unreadable.chmod(0o755)
+
+    @unittest.skipIf(os.geteuid() == 0, "root ignores directory permissions")
+    def test_dir_problem_unwritable(self):
+        """
+        Check that a readable but unwritable directory is reported only when
+        the caller says it needs to write, which is what lets ADF read someone
+        else's time series while refusing to write into them.
+        """
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            readonly = Path(tmpdir) / "readonly"
+            readonly.mkdir()
+            readonly.chmod(0o555)
+            try:
+                self.assertIsNone(describe_dir_problem(readonly))
+
+                problem = describe_dir_problem(readonly, need_write=True)
+
+                self.assertIsNotNone(problem)
+                self.assertIn("permission to write", problem)
+            finally:
+                readonly.chmod(0o755)
 
 #++++++++++++++++++
 
