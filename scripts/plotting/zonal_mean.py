@@ -100,7 +100,7 @@ def zonal_mean(adfobj):
         for var in var_list:
             for s in seasons:
                 #Check zonal log-p:
-                plot_name_log = plot_loc / f"{var}_{s}_Zonal_logp_Mean.{plot_type}"
+                plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
 
                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                 if (not redo_plot) and plot_name_log.is_file():
@@ -252,10 +252,6 @@ def zonal_mean(adfobj):
                 # because we can let any pressure-level interpolation happen there
                 # This could be re-visited for efficiency or improved code structure.
 
-                #Seasonal Averages
-                mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
-                oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
-
                 #Set the file name
                 plot_name = plot_loc / f"{var}_{s}_Zonal_Mean.{plot_type}"
                 plot_name_log = None
@@ -264,6 +260,19 @@ def zonal_mean(adfobj):
                     #Set the file name for log-pressure plots
                     plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
                 #End if
+
+                # Nothing to draw for this season: both plots were found above
+                # and redo_plot is false.  The seasonal averages below are the
+                # expensive part of a re-run, so work that out before doing them.
+                if (plot_name in zonal_skip) and (
+                    (plot_name_log is None) or (plot_name_log in logp_zonal_skip)
+                ):
+                    continue
+                # End if
+
+                # Seasonal Averages
+                mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
+                oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
 
                 #Create plots
                 if plot_name not in zonal_skip:
