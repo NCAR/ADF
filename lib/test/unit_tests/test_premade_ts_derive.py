@@ -3,9 +3,11 @@ Collection of python unit tests for deriving variables from pre-made time
 series, i.e. the 'cam_ts_done: true' path through AdfDiag.
 
 These exercise AdfDiag.derive_from_premade_ts against a stub object rather
-than a configured run, so no config file or history files are needed.  They
-import adf_diag, which needs the scientific stack, so they do not run in the
-ADF unit test workflow (see adf_file_utils for what does).
+than a configured run, so no config file or history files are needed.
+
+NOTE: adf_diag imports xarray and the rest of the scientific stack, so these
+are skipped in CI, which installs only PyYAML and pytest.  They run in a full
+ADF environment.
 """
 
 # +++++++++++++++++++++++
@@ -19,9 +21,6 @@ import os.path
 import tempfile
 from pathlib import Path
 
-import numpy as np
-import xarray as xr
-
 # Set relevant path variables:
 _CURRDIR = os.path.abspath(os.path.dirname(__file__))
 _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
@@ -29,7 +28,17 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-from adf_diag import AdfDiag
+# adf_diag imports xarray and the rest of the scientific stack, so these are
+# skipped in CI, which installs only PyYAML and pytest.  They run in a full ADF
+# environment.
+try:
+    import numpy as np
+    import xarray as xr
+    from adf_diag import AdfDiag
+
+    _HAS_ADF_DIAG = True
+except ImportError:
+    _HAS_ADF_DIAG = False
 
 _CASE = "mycase"
 _STREAM = "cam.h0a"
@@ -75,9 +84,13 @@ class _StubAdf:
         """Record instead of writing a log file."""
         self.debug_msgs.append(msg)
 
-    # Borrow the real implementations under test:
-    derive_from_premade_ts = AdfDiag.derive_from_premade_ts
-    _premade_constits = AdfDiag._premade_constits
+    # Borrow the real implementations under test.  Guarded, because the class
+    # body still runs when the scientific stack is missing and the tests
+    # themselves are skipped:
+    if _HAS_ADF_DIAG:
+        derive_from_premade_ts = AdfDiag.derive_from_premade_ts
+        _premade_constits = AdfDiag._premade_constits
+    # End if
 
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -85,6 +98,7 @@ class _StubAdf:
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
+@unittest.skipUnless(_HAS_ADF_DIAG, "adf_diag dependencies not available")
 class PremadeTsDeriveTestRoutine(unittest.TestCase):
     """
     Unit tests for deriving variables from time series the ADF did not make,
