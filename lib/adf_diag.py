@@ -95,10 +95,15 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 # +++++++++++++++++++++++++++++
 
 # Finally, import needed ADF modules:
-from adf_file_utils import select_ts_files, ts_files_need_combining
+from adf_file_utils import (
+    as_hist_str_list,
+    describe_dir_problem,
+    select_ts_files,
+    ts_files_need_combining,
+)
 from adf_web import AdfWeb
 from adf_dataset import AdfData
-from adf_derive import check_derive, derive_variable
+from adf_derive import check_derive, derive_variable, find_constit
 
 #################
 # Helper functions
@@ -378,6 +383,100 @@ class AdfDiag(AdfWeb):
 
     #########
 
+    def derive_from_premade_ts(
+        self, case_name, ts_dir, res, hist_strs, *, syr=None, eyr=None
+    ):
+        """
+        Derive variables that a set of pre-made time series does not contain.
+
+        A run configured with ``cam_ts_done: true`` skips the time series
+        step, and derivation used to happen only inside that step, decided by
+        looking for constituents in a history file.  A pre-made set therefore
+        never gained its derived variables: with ``FSNT`` and ``FLNT`` present
+        and ``RESTOM`` requested, the climatology step reported ``RESTOM`` as
+        having no time series files and the run still ended "successfully".
+        This derives from the time series that are there instead, so the
+        constituents alone are enough.
+
+        Nothing is written when the directory belongs to someone else, since
+        the derived file is written alongside its constituents.  That case is
+        reported rather than attempted, because the alternative is a
+        ``PermissionError`` traceback partway through a run.
+
+        Parameters
+        ----------
+        case_name : str
+            name of the case being processed
+        ts_dir : str or Path
+            directory holding the pre-made time series files
+        res : dict
+            variable defaults, used for the ``derivable_from`` lists
+        hist_strs : list
+            configured history stream(s) for this case
+        syr, eyr : int, optional
+            first and last year being processed
+
+        Returns
+        -------
+        None
+            Writes a time series file for each variable it can derive.
+
+        Notes
+        -----
+        Uses ``self.diag_var_list`` and :func:`derive_variable`.
+        """
+        # Only derivable variables are of interest, and only the ones that are
+        # not already sitting in the directory:
+        wanted = {}
+        for var in self.diag_var_list:
+            vres = res.get(var, {})
+            constit_list = vres.get("derivable_from_cam_chem") or vres.get(
+                "derivable_from"
+            )
+            if constit_list:
+                wanted[var] = constit_list
+            # End if
+        # End for
+        if not wanted:
+            return
+        # End if
+
+        # The derived file lands next to its constituents, so a directory this
+        # user cannot write in cannot gain one:
+        ts_problem = describe_dir_problem(ts_dir, need_write=True)
+        if ts_problem:
+            wmsg = f"\t WARNING: {sorted(wanted)} would have to be derived, but"
+            wmsg += f" {ts_problem}.\n\t     ** Those variables will be missing. **\n"
+            wmsg += "\t     Set 'cam_ts_done: false' with 'cam_hist_loc' pointing at"
+            wmsg += " the history files and 'cam_ts_loc' at a directory you own, to"
+            wmsg += " have the ADF make the time series itself."
+            print(wmsg)
+            self.debug_log(wmsg)
+            return
+        # End if
+
+        for hist_str in as_hist_str_list(hist_strs):
+            for var, constit_list in wanted.items():
+                # Already there, from a previous run or from whoever made them:
+                if find_constit(ts_dir, case_name, var, hist_str, syr=syr, eyr=eyr):
+                    continue
+                # End if
+                derive_variable(
+                    self,
+                    case_name,
+                    var,
+                    res,
+                    ts_dir,
+                    constit_list,
+                    hist_str=hist_str,
+                    syr=syr,
+                    eyr=eyr,
+                )
+            # End for
+        # End for
+
+    #########
+
     def create_time_series(self, baseline=False):
         """
         Generate time series versions of the CAM history file data.
@@ -471,25 +570,38 @@ class AdfDiag(AdfWeb):
             print(f"\n  Generating CAM time series files for '{case_name}'...")
             print(f"\n    Writing time series files to {ts_dir}")
 
+            # Extract start and end year values:
+            start_year = start_years[case_idx]
+            end_year = end_years[case_idx]
+
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
                 emsg = "\tNOTE: Configuration file indicates time series files have been "
                 emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
+                # Derived variables are normally made as part of writing the
+                # time series, which is exactly the step being skipped here, so
+                # without this nothing would ever create them and the variable
+                # would go quietly missing (issue #431):
+                self.derive_from_premade_ts(
+                    case_name,
+                    ts_dir,
+                    res,
+                    hist_str_list[case_idx],
+                    syr=start_year,
+                    eyr=end_year,
+                )
                 continue
             # End if
-
-            # Extract start and end year values:
-            start_year = start_years[case_idx]
-            end_year = end_years[case_idx]
 
             # Create path object for the CAM history file(s) location:
             starting_location = Path(cam_hist_locs[case_idx])
 
-            # Check that path actually exists:
-            if not starting_location.is_dir():
+            # Check that the path exists and can be read:
+            hist_problem = describe_dir_problem(starting_location)
+            if hist_problem:
                 emsg = f"Provided {case_type_string} 'cam_hist_loc' directory"
-                emsg += f" '{starting_location}' not found.  Script is ending here."
+                emsg += f" {hist_problem}.  Script is ending here."
                 self.end_diag_fail(emsg)
             # End if
 
@@ -592,6 +704,19 @@ class AdfDiag(AdfWeb):
                 # Check if time series directory exists, and if not, then create it:
                 # Use pathlib to create parent directories, if necessary.
                 Path(ts_dir).mkdir(parents=True, exist_ok=True)
+
+                # An existing directory this user cannot write in is worth
+                # stopping for.  "ncrcat" would fail once per variable and
+                # those failures are not inspected, so the run would otherwise
+                # carry on and only report the files as missing much later:
+                ts_problem = describe_dir_problem(ts_dir, need_write=True)
+                if ts_problem:
+                    emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
+                    emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory you"
+                    emsg += " own, or set 'cam_ts_done: true' to read the time series"
+                    emsg += " that are already there."
+                    self.end_diag_fail(emsg)
+                # End if
 
                 # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
                 first_file_split = str(hist_files[0]).split(".")

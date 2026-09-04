@@ -4,10 +4,12 @@ Time series file discovery helpers.
 Kept apart from adf_utils so they can be unit tested without the scientific
 stack: the ADF unit test workflow installs only PyYAML and pytest, so anything
 that imports xarray/geocat at module level cannot be exercised in CI.  This
-module imports nothing but pathlib.
+module imports nothing but os and pathlib.
 
 Functions
 ---------
+describe_dir_problem(path, need_write=False)
+    Report why a configured directory cannot be used, permissions included.
 find_ts_files(ts_loc, pattern, recursive=True)
     Locate time series files matching a glob pattern under a directory.
 select_ts_files(fils, syr, eyr)
@@ -29,7 +31,48 @@ Re-exported by adf_utils, so ``utils.find_ts_files(...)`` keeps working for
 every existing caller.
 """
 
+import os
 from pathlib import Path
+
+
+def describe_dir_problem(path, need_write=False):
+    """
+    Report why a configured directory cannot be used, or ``None`` if it can.
+
+    Existence is not the only way a configured path fails.  A directory the
+    user cannot read reports ``is_dir() == True`` and then globs to nothing,
+    so a caller that only checks existence tells the user their data is
+    missing when the truth is that it cannot be read -- which is the wrong
+    thing to go looking for.  Reading another user's output makes that the
+    likely case rather than a rare one.
+
+    Parameters
+    ----------
+    path : str or Path
+        directory named in the config file
+    need_write : bool, optional
+        Whether the ADF has to write into it as well as read it.  Default is
+        ``False``.
+
+    Returns
+    -------
+    str or None
+        A phrase naming the problem, suitable for appending to a caller's own
+        message, or ``None`` when the directory is usable.
+    """
+    ppath = Path(path)
+    if not ppath.is_dir():
+        return f"'{ppath}' does not exist, or is not a directory"
+    # End if
+    # Listing a directory needs both read and search permission, and a missing
+    # search bit is the one that produces an empty glob rather than an error:
+    if not os.access(ppath, os.R_OK | os.X_OK):
+        return f"'{ppath}' exists but this user does not have permission to read it"
+    # End if
+    if need_write and not os.access(ppath, os.W_OK):
+        return f"'{ppath}' exists but this user does not have permission to write in it"
+    # End if
+    return None
 
 
 def as_hist_str_list(value):

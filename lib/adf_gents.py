@@ -37,6 +37,7 @@ import xarray as xr
 
 #ADF modules:
 from adf_base import AdfError
+from adf_file_utils import describe_dir_problem
 from adf_derive import check_derive, derive_variable
 
 #++++++++++++++++++++++++++++++
@@ -196,29 +197,51 @@ def create_time_series_gents(adf, baseline=False):
         print(f"\n  Generating CAM time series files for '{case_name}'...")
         print(f"\n    Writing time series files to {ts_dir}")
 
+        start_year = cfg["start_years"][case_idx]
+        end_year = cfg["end_years"][case_idx]
+
         #Check if particular case should be processed:
         if cfg["cam_ts_done"][case_idx]:
             emsg = "\tNOTE: Configuration file indicates time series files have been "
             emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
             print(emsg)
+            # Pre-made time series still need their derived variables; see
+            # AdfDiag.derive_from_premade_ts (issue #431):
+            adf.derive_from_premade_ts(
+                case_name,
+                ts_dir,
+                adf.variable_defaults,
+                cfg["hist_str_list"][case_idx],
+                syr=start_year,
+                eyr=end_year,
+            )
             continue
         #End if
-
-        start_year = cfg["start_years"][case_idx]
-        end_year = cfg["end_years"][case_idx]
 
         #Create path object for the CAM history file(s) location:
         starting_location = Path(cfg["cam_hist_locs"][case_idx])
 
-        #Check that path actually exists:
-        if not starting_location.is_dir():
+        # Check that the path exists and can be read:
+        hist_problem = describe_dir_problem(starting_location)
+        if hist_problem:
             emsg = f"Provided {case_type_string} 'cam_hist_loc' directory"
-            emsg += f" '{starting_location}' not found.  Script is ending here."
+            emsg += f" {hist_problem}.  Script is ending here."
             adf.end_diag_fail(emsg)
         #End if
 
         #Check if time series directory exists, and if not, then create it:
         Path(ts_dir).mkdir(parents=True, exist_ok=True)
+
+        # An existing directory this user cannot write in is worth stopping for,
+        # rather than letting GenTS fail once per variable:
+        ts_problem = describe_dir_problem(ts_dir, need_write=True)
+        if ts_problem:
+            emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
+            emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory you own,"
+            emsg += " or set 'cam_ts_done: true' to read the time series that are"
+            emsg += " already there."
+            adf.end_diag_fail(emsg)
+        # End if
 
         for hist_str in cfg["hist_str_list"][case_idx]:
 
