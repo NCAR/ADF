@@ -354,7 +354,7 @@ def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot
             # End for
         # End for
     # End for
-    return plot_utils.first_complete_plot_set([flat, levelled])
+    return plot_utils.first_complete_plot_set([levelled, flat])
 
 
 ##############

@@ -413,12 +413,12 @@ def tem(adf):
                 # converted values is not scaled a second time. Observations
                 # have their own scaling, which is assumed to bring them to the
                 # same units, so they keep the unit string they arrived with.
-                mdata = adfobj.data.apply_conversion(mdata, var)
+                mdata = adf.data.apply_conversion(mdata, var)
                 if obs:
                     odata = (odata * vres.get("obs_scale_factor", 1)
                              + vres.get("obs_add_offset", 0))
                 else:
-                    odata = adfobj.data.apply_conversion(odata, var)
+                    odata = adf.data.apply_conversion(odata, var)
                 #End if
 
                 #Month-length weighted seasonal (or annual) mean. The weighted

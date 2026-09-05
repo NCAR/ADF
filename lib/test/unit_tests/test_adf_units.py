@@ -109,20 +109,64 @@ class AdfUnitsTestRoutine(unittest.TestCase):
 
     def test_dimensionless_forms_agree(self):
         """
-        Check that a unit whose factors cancel is dimensionless.
+        Check that the words for "no units" all mean the same thing.
+
+        A ratio that cancels is dimensionless too, but keeps what cancelled --
+        see test_dimensionless_ratios_keep_what_cancelled.
         """
 
-        for unit in [
-            "kg/kg",
-            "kg kg-1",
-            "fraction",
-            "Fraction",
-            "1",
-            "unitless",
-            "none",
-        ]:
+        for unit in ["fraction", "Fraction", "1", "unitless", "none"]:
             with self.subTest(units=unit):
                 self.assertEqual(normalize_units(unit), "1")
+
+    def test_case_decides_a_run_together_factor(self):
+        """
+        Check that "Nm" and "nm" are not read as the same unit.
+
+        Newton-metre and nanometre differ only in case, so the run-together
+        factors have to be split before anything lower-cases the string.
+        Reporting these two as equal would let a conversion be skipped on a
+        file whose units are nothing like the ones being converted to.
+        """
+
+        self.assertTrue(units_equivalent("N/m2", "Nm-2"))
+        self.assertFalse(units_equivalent("Nm-2", "nm-2"))
+        self.assertNotEqual(normalize_units("nm"), normalize_units("N m"))
+
+    def test_unit_names_are_not_chopped_into_letters(self):
+        """
+        Check that a unit name is left whole rather than read as a product of
+        whatever symbols happen to spell it.
+
+        "Sv" is sieverts, not siemens-volt; "cal" is calories.
+        """
+
+        for unit in ["Sv", "cal", "dam", "DU", "molec"]:
+            with self.subTest(units=unit):
+                self.assertEqual(normalize_units(unit), unit.lower() + "^1")
+        self.assertFalse(units_equivalent("Sv", "vs"))
+
+    def test_dimensionless_ratios_keep_what_cancelled(self):
+        """
+        Check that two dimensionless ratios of different things differ.
+
+        A mass mixing ratio and a volume mixing ratio are both dimensionless
+        and are not the same number.
+        """
+
+        self.assertTrue(units_equivalent("kg/kg", "kg kg-1"))
+        self.assertFalse(units_equivalent("kg/kg", "mol/mol"))
+        self.assertFalse(units_equivalent("kg/kg", "m3/m3"))
+
+    def test_units_with_several_factors(self):
+        """
+        Check units written with more than one solidus or exponent.
+        """
+
+        self.assertTrue(units_equivalent("kg/m2/s", "kg m-2 s-1"))
+        self.assertTrue(units_equivalent("W/m2/K", "W m-2 K-1"))
+        self.assertTrue(units_equivalent("1/s", "s-1"))
+        self.assertFalse(units_equivalent("kg/m2/s", "kg/m2"))
 
     def test_missing_units_match_nothing(self):
         """

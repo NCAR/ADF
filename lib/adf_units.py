@@ -64,47 +64,23 @@ _ALIASES = {
     "microns": "um",
 }
 
-# Unit symbols this knows how to recognise.  Used to split a run-together
-# factor such as "Wm-2" into "W" and "m-2": climate files write units both
-# ways, and the shipped variable defaults contain both spellings.  Note that
-# "ms" is therefore read as metre-second rather than millisecond -- no CAM
-# field is reported in milliseconds, and "ms$^{-1}$" for wind speed is in the
-# defaults today:
-_SYMBOLS = {
-    "w",
-    "m",
-    "s",
-    "k",
-    "g",
-    "kg",
-    "pa",
-    "hpa",
-    "j",
-    "n",
-    "mol",
-    "l",
-    "d",
-    "h",
-    "hr",
-    "yr",
-    "cm",
-    "mm",
-    "um",
-    "nm",
-    "km",
-    "rad",
-    "sr",
-    "ppb",
-    "ppm",
-    "ppt",
-    "ppbv",
-    "ppmv",
-    "pptv",
-    "%",
-    "c",
-    "v",
-    "a",
-    "1",
+# Factors written without a space between them.  Case matters and is still
+# intact here, which is the point: "Nm" is newton-metre while "nm" is
+# nanometre, and lower-casing first makes them the same string.  Only forms
+# that actually occur are listed -- a general splitter guessing where to cut a
+# run of letters reads "Sv" as siemens-volt and "nm" as newton-metre, the
+# second of which reports two different units as equal.  Note that "ms" is
+# read as metre-second: no CAM field is reported in milliseconds, and
+# "ms$^{-1}$" for wind speed is in the shipped variable defaults today.
+_RUN_TOGETHER = {
+    "Wm": "W m",
+    "Nm": "N m",
+    "Jm": "J m",
+    "Km": "K m",
+    "kgm": "kg m",
+    "gm": "g m",
+    "ms": "m s",
+    "Pas": "Pa s",
 }
 
 # LaTeX and unicode fragments that carry no meaning for a comparison:
@@ -148,36 +124,12 @@ def _strip_markup(units):
     # superscript digits are gone:
     text = re.sub(r"\^\s*\{([^}]*)\}", r"^\1", text)
     text = text.replace("$", "").replace("{", "").replace("}", "")
+    # Split the run-together factors before anything lower-cases the string,
+    # because which factors they are depends on their case:
+    for joined, apart in _RUN_TOGETHER.items():
+        text = re.sub(rf"(?<![A-Za-z]){joined}(?=[-^0-9\s]|$)", apart, text)
+    # End for
     return text.strip()
-
-
-def _split_symbols(name):
-    """
-    Return `name` as a list of unit symbols, splitting a run-together factor.
-
-    "wm" is watt-metre written without a space; "hpa" is a symbol in its own
-    right and must not become hecto-pascal.  A name that cannot be covered
-    exactly by known symbols is left alone, so an unfamiliar unit still
-    compares equal to itself.
-    """
-    if name in _SYMBOLS or name in _ALIASES:
-        return [name]
-    # End if
-    parts = []
-    rest = name
-    while rest:
-        # Longest match first, so "kg" wins over "k":
-        for size in range(min(len(rest), 4), 0, -1):
-            if rest[:size] in _SYMBOLS:
-                parts.append(rest[:size])
-                rest = rest[size:]
-                break
-            # End if
-        else:
-            return [name]
-        # End for
-    # End while
-    return parts if len(parts) > 1 else [name]
 
 
 def _tokenize(text, sign):
@@ -194,14 +146,7 @@ def _tokenize(text, sign):
             tokens.append((chunk, sign))
             continue
         name, exponent = match.group(1), match.group(2)
-        power = sign * int(exponent if exponent else 1)
-        # Only the last symbol of a run-together factor carries the exponent:
-        # "Wm-2" is watt per metre squared, not per watt per metre squared.
-        symbols = _split_symbols(name)
-        for symbol in symbols[:-1]:
-            tokens.append((symbol, sign))
-        # End for
-        tokens.append((symbols[-1], power))
+        tokens.append((name, sign * int(exponent if exponent else 1)))
     return tokens
 
 
@@ -245,16 +190,18 @@ def normalize_units(units):
     for name, exponent in tokens:
         name = _ALIASES.get(name, name)
         folded[name] = folded.get(name, 0) + exponent
-    # A factor that cancels out carries no information, and a unit whose
-    # factors all cancel is dimensionless -- "kg/kg" and "kg kg-1" are the same
-    # thing, and both are the same thing as "fraction":
+    # A factor that cancels out carries no dimension, but it does carry an
+    # identity: "kg/kg" and "kg kg-1" are the same thing, and neither is
+    # "mol/mol".  A mass mixing ratio and a volume mixing ratio are both
+    # dimensionless and are not the same number, so what cancelled is kept.
     remaining = {
         name: exponent
         for name, exponent in folded.items()
         if exponent != 0 and name != "1"
     }
     if not remaining:
-        return "1"
+        cancelled = sorted(name for name in folded if name != "1")
+        return f"1[{' '.join(cancelled)}]" if cancelled else "1"
     # End if
     return " ".join(
         f"{name}^{exponent}" for name, exponent in sorted(remaining.items())

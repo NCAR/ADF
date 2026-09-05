@@ -33,7 +33,8 @@ def meridional_mean(adfobj):
 
     Directly uses adfobj for the following:
     plot_var_list, plot_location, climo_yrs, variable_defaults,
-    read_config_var, get_basic_info, add_website_data, debug_log
+    read_config_var, get_basic_info, add_website_data, debug_log,
+    compare_obs
 
     Every plot this makes is named the same way whether or not the variable
     has a `lev` dimension, so a case whose plots are all present can be

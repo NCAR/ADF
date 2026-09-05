@@ -392,6 +392,13 @@ class AdfData:
         ds[vname] = ds[vname] * scale_factor + add_offset
         ds[vname].attrs = attrs
         if scale_factor != 1 or add_offset != 0:
+            # Rename the units as load_climo_ds does for the test cases.  Without
+            # this the reference kept the units it arrived with while holding
+            # converted values, so the file said 'm/s' over data in mm/day.
+            new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
+            if new_unit:
+                ds[vname].attrs["units"] = new_unit
+            # End if
             # int, not bool: netCDF4 cannot store a Python bool as an attribute
             ds[vname].attrs['transformed'] = 1
         return ds
@@ -527,7 +534,15 @@ class AdfData:
         file_field = self.ref_var_nam[field] if self.adf.compare_obs else field
         add_offset, scale_factor = self._regrid_converters(fils, file_field, case, field,
                                                            apply_scaling)
-        return self.load_da(fils, file_field, add_offset=add_offset, scale_factor=scale_factor)
+        # field, not file_field: an observation file names the variable its own
+        # way, and the variable defaults are keyed by the ADF name
+        return self.load_da(
+            fils,
+            file_field,
+            field=field,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+        )
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
         """Return the (add_offset, scale_factor) to use for a regridded file.

@@ -1,5 +1,4 @@
-""".
-Generic plotting helper functions
+"""Generic plotting helper functions.
 
 Functions
 ---------
