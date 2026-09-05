@@ -185,6 +185,32 @@ def global_latlon_vect_map(adfobj):
         # otherwise defaults to 180
         vres['central_longitude'] = plot_utils.get_central_longitude(adfobj)
 
+        # A complete set of plots can be recognised from the file names alone,
+        # because a 2-D vector and a 3-D one are named differently.  Doing that
+        # first means a re-run never opens the four regridded files a vector
+        # pair needs just to find out which of the two it is looking at.
+        settled = _existing_plot_set(
+            plot_locations, case_names, var_name, seasons, pres_levs, plot_type
+        )
+        if settled and not redo_plot:
+            for path, web_name, case_name, season in settled:
+                adfobj.debug_log(f"'{path}' exists and clobber is false.")
+                adfobj.add_website_data(
+                    path,
+                    web_name,
+                    case_name,
+                    category=web_category,
+                    season=season,
+                    plot_type="LatLon_Vector",
+                )
+            # End for
+            print(
+                f"\t    INFO: All plots exist for {var_name}. "
+                f"Redo is {redo_plot}. Existing plots added to website data."
+            )
+            continue
+        # End if
+
         #Determine observations to compare against:
         if adfobj.compare_obs:
             if var not in adfobj.data.ref_var_nam:
@@ -518,6 +544,72 @@ def global_latlon_vect_map(adfobj):
 
     #Notify user that script has ended:
     print("  ...lat/lon vector maps have been generated successfully.")
+
+
+def _existing_plot_set(
+    plot_locations, case_names, var_name, seasons, pres_levs, plot_type
+):
+    """
+    Return the complete set of vector plots for `var_name`, if one is on disk.
+
+    A 2-D vector is plotted as ``{name}_{season}_LatLon_Vector_Mean`` and a
+    3-D one as ``{name}_{pressure}hpa_{season}_LatLon_Vector_Mean``, so which
+    of the two a vector pair is can be read off the file names.
+
+    Parameters
+    ----------
+    plot_locations : list
+        output plot directory for each case
+    case_names : list
+        names of the test cases
+    var_name : str
+        the vector's name from the variable defaults, e.g. "Wind"
+    seasons : list or dict
+        the seasons being plotted
+    pres_levs : list
+        the configured pressure levels, empty when none are set
+    plot_type : str
+        file extension the plots are written with, e.g. "png"
+
+    Returns
+    -------
+    list
+        ``(path, website name, case, season)`` for every plot, when a
+        complete set exists; an empty list when it does not.
+    """
+    import plotting_utils as plot_utils
+
+    flat = []
+    levelled = []
+    for case_idx, case_name in enumerate(case_names):
+        plot_loc = Path(plot_locations[case_idx])
+        for season in seasons:
+            flat.append(
+                (
+                    plot_loc / f"{var_name}_{season}_LatLon_Vector_Mean.{plot_type}",
+                    var_name,
+                    case_name,
+                    season,
+                )
+            )
+            for lev in pres_levs:
+                levelled.append(
+                    (
+                        plot_loc
+                        / (
+                            f"{var_name}_{lev}hpa_{season}"
+                            f"_LatLon_Vector_Mean.{plot_type}"
+                        ),
+                        f"{var_name}_{lev}hpa",
+                        case_name,
+                        season,
+                    )
+                )
+            # End for
+        # End for
+    # End for
+    return plot_utils.first_complete_plot_set([flat, levelled])
+
 
 ##############
 #END OF SCRIPT

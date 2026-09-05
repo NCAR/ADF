@@ -4,6 +4,7 @@ import numpy as np
 
 # ADF library
 import plotting_functions as pf
+import plotting_utils as plot_utils
 import adf_utils as utils
 
 def get_hemisphere(hemi_type):
@@ -318,51 +319,42 @@ def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot
     -------
     list
         ``(path, website name, case, season, hemisphere)`` for every plot,
-        when a complete set exists.  An empty list when it does not, which
-        means the data has to be opened to find out what is missing.
+        when a complete set exists; an empty list when it does not.
     """
-    for pressures in ([None], pres_levs):
-        found = []
-        complete = bool(pressures)
-        for case_idx, case_name in enumerate(case_names):
-            plot_loc = Path(plot_locations[case_idx])
-            for season in seasons:
-                for hemi_type in ["NHPolar", "SHPolar"]:
-                    for pres in pressures:
-                        if pres is None:
-                            name = f"{var}_{season}_{hemi_type}_Mean.{plot_type}"
-                            web_name = var
-                        else:
-                            name = (
+    flat = []
+    levelled = []
+    for case_idx, case_name in enumerate(case_names):
+        plot_loc = Path(plot_locations[case_idx])
+        for season in seasons:
+            for hemi_type in ["NHPolar", "SHPolar"]:
+                flat.append(
+                    (
+                        plot_loc / f"{var}_{season}_{hemi_type}_Mean.{plot_type}",
+                        var,
+                        case_name,
+                        season,
+                        hemi_type,
+                    )
+                )
+                for pres in pres_levs:
+                    levelled.append(
+                        (
+                            plot_loc
+                            / (
                                 f"{var}_{pres}hpa_{season}_{hemi_type}"
                                 f"_Mean.{plot_type}"
-                            )
-                            web_name = f"{var}_{pres}hpa"
-                        # End if
-                        path = plot_loc / name
-                        if not path.is_file():
-                            complete = False
-                            break
-                        # End if
-                        found.append((path, web_name, case_name, season, hemi_type))
-                    # End for
-                    if not complete:
-                        break
-                    # End if
+                            ),
+                            f"{var}_{pres}hpa",
+                            case_name,
+                            season,
+                            hemi_type,
+                        )
+                    )
                 # End for
-                if not complete:
-                    break
-                # End if
             # End for
-            if not complete:
-                break
-            # End if
         # End for
-        if complete and found:
-            return found
-        # End if
     # End for
-    return []
+    return plot_utils.first_complete_plot_set([flat, levelled])
 
 
 ##############

@@ -32,7 +32,18 @@ class AODPlotConfig:
 def aod_latlon(adfobj):
     """Generate AOD comparison plots."""
     config = AODPlotConfig()
-    
+
+    # Every panel is named from the observation source and the season, both
+    # of which are known here.  Settling a re-run first means neither the
+    # observation files nor any case's climatologies are opened, which is
+    # what this script spends its time on:
+    if _register_existing_panels(adfobj, config):
+        print(
+            "\t    INFO: All AOD panels exist. Existing plots added to" " website data."
+        )
+        return
+    # End if
+
     # Load observations
     obs_data = load_observations(adfobj)
     if not obs_data:
@@ -491,3 +502,56 @@ def monthly_to_seasonal(ds, obs=False):
     ds_seasonal = ds_seasonal.transpose('lat', 'lon', 'season')
 
     return ds_seasonal
+
+
+def _register_existing_panels(adfobj, config):
+    """
+    Put the AOD panels that are already on disk onto the website.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object containing configuration
+    config : AODPlotConfig
+        the observation sources and seasons being plotted
+
+    Returns
+    -------
+    bool
+        ``True`` when every panel exists and ``redo_plot`` is false, so there
+        is nothing left to draw.  ``False`` leaves the plots alone: the run
+        goes on to make them, and registers them as it does.
+    """
+    if adfobj.get_basic_info("redo_plot"):
+        return False
+    # End if
+    file_type = adfobj.read_config_var("diag_basic_info").get("plot_type", "png")
+    plot_dir = Path(adfobj.plot_location[0])
+    panels = []
+    for obs_name in config.obs_sources:
+        for season in config.seasons:
+            label = obs_name.replace(" ", "_")
+            panels.append(
+                (
+                    plot_dir / f"AOD_diff_{label}_{season}_LatLon_Mean.{file_type}",
+                    f"AOD_diff_{label}",
+                    season,
+                )
+            )
+        # End for
+    # End for
+    if not all(path.is_file() for path, _, _ in panels):
+        return False
+    # End if
+    for path, web_name, season in panels:
+        adfobj.add_website_data(
+            path,
+            web_name,
+            None,
+            season=season,
+            multi_case=True,
+            plot_type="LatLon",
+            category="4-Panel AOD Diags",
+        )
+    # End for
+    return True

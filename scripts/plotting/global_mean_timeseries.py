@@ -34,6 +34,8 @@ def global_mean_timeseries(adfobj):
     # Gather ADF configurations
     plot_loc = get_plot_loc(adfobj)
     plot_type = adfobj.read_config_var("diag_basic_info").get("plot_type", "png")
+    redo_plot = adfobj.get_basic_info("redo_plot")
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
 
@@ -41,6 +43,24 @@ def global_mean_timeseries(adfobj):
     for field in adfobj.plot_var_list:
         #Notify user of variable being plotted:
         print(f"\t - time series plot for {field}")
+
+        # This field's plot is named the same way whatever the data turns out
+        # to hold, so a re-run can settle it here -- before opening the
+        # reference time series and every case's, and before taking the
+        # global means of them, which is the whole cost of this script:
+        plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
+        if (not redo_plot) and plot_name.is_file():
+            adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
+            adfobj.add_website_data(
+                plot_name,
+                f"{field}_GlobalMean",
+                None,
+                season="ANN",
+                multi_case=True,
+                plot_type="TimeSeries",
+            )
+            continue
+        # End if
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if field in res:
@@ -162,7 +182,6 @@ def global_mean_timeseries(adfobj):
 
         unit = vres.get("new_unit","[-]")
         ax.set_ylabel(getattr(ref_ts_da,"unit", unit)) # add units
-        plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
 
         conditional_save(adfobj, plot_name, fig)
 

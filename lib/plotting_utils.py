@@ -1,8 +1,10 @@
-"""                                                                    .
+""".
 Generic plotting helper functions
 
 Functions
 ---------
+first_complete_plot_set(layouts)
+    pick the set of plots that is already on disk, if there is one
 use_this_norm()
     switches matplotlib color normalization method
 get_difference_colors(values)
@@ -27,6 +29,8 @@ _plot_line(axobject, xdata, ydata, color, **kwargs)
 """
 
 #import statements:
+from pathlib import Path
+
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
@@ -71,6 +75,40 @@ def load_dataset(fils):
 
 
 #######
+
+
+def first_complete_plot_set(layouts):
+    """
+    Return the first set of plots whose files all exist.
+
+    A plotting script can usually tell what it would produce from the
+    variable defaults and the configured seasons and pressure levels, without
+    opening any data -- except that a 2-D variable and a 3-D one are named
+    differently, and which one it has is a property of the data.  Both
+    spellings can be checked instead: if either set is complete on disk, the
+    script knows both that nothing needs drawing and which kind of variable it
+    was looking at, and never has to open the file.
+
+    Parameters
+    ----------
+    layouts : list
+        candidate sets, most specific first.  Each is a list of entries whose
+        first element is the plot's path; the rest is whatever the caller
+        needs to register the plot on the website.
+
+    Returns
+    -------
+    list
+        The first complete set, or an empty list when none is complete, which
+        means the data has to be opened to find out what is missing.
+    """
+    for entries in layouts:
+        if entries and all(Path(entry[0]).is_file() for entry in entries):
+            return entries
+        # End if
+    # End for
+    return []
+
 
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""
