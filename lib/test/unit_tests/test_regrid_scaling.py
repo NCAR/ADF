@@ -25,11 +25,19 @@ CONVERTED = (0, -1)  # (add_offset, scale_factor), as for TAUX
 NO_CONVERSION = (0, 1)
 
 
-def _data(stamped, converters=CONVERTED):
+def _data(stamped, converters=CONVERTED, units=None, new_unit=None):
     """An AdfData stand-in holding one variable, with or without the stamp."""
     attrs = {'transformed': 1} if stamped else {}
+    if units is not None:
+        attrs["units"] = units
+    defaults = {"TAUX": {"new_unit": new_unit}} if new_unit else {}
     obj = SimpleNamespace(
         get_value_converters=lambda case, field: converters,
+        adf=SimpleNamespace(variable_defaults=defaults),
+    )
+    # The real decision, so that this pins down what the loaders actually do:
+    obj.already_converted = lambda attrs_, field: AdfData.already_converted(
+        obj, attrs_, field
     )
     obj.reads = 0
 
@@ -63,3 +71,18 @@ def test_variable_without_a_conversion_never_opens_the_file():
 def test_explicit_override_wins_over_the_stamp():
     assert _call(_data(stamped=False), apply_scaling=False) == NO_CONVERSION
     assert _call(_data(stamped=True), apply_scaling=True) == CONVERTED
+
+
+def test_units_already_the_converted_ones_are_not_converted_again():
+    """A file an older ADF wrote carries no stamp, but its units give it away.
+
+    The comparison has to survive the two being spelled differently: CAM
+    writes "W/m2" where the variable defaults say "Wm$^{-2}$".
+    """
+    obj = _data(stamped=False, units="W/m2", new_unit="Wm$^{-2}$")
+    assert _call(obj) == NO_CONVERSION
+
+
+def test_units_that_differ_still_convert():
+    obj = _data(stamped=False, units="m/s", new_unit="Wm$^{-2}$")
+    assert _call(obj) == CONVERTED

@@ -272,9 +272,12 @@ def global_latlon_vect_map(adfobj):
             uodata = uoclim_ds[data_var[0]].squeeze()  # squeeze in case of degenerate dimensions
             vodata = voclim_ds[data_var[1]].squeeze()  # squeeze in case of degenerate dimensions
 
-            #Convert units if requested (assumes units between model and data are the same):
-            uodata = uodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-            vodata = vodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+            # Convert units if requested (assumes units between model and data are the same).
+            # Through the ADF's data layer, so that a file already holding
+            # converted values -- which is what the regridding stage writes --
+            # is not scaled a second time:
+            uodata = adfobj.data.apply_conversion(uodata, var)
+            vodata = adfobj.data.apply_conversion(vodata, var_pair)
 
             #Check zonal mean dimensions
             has_lat_ref, has_lev_ref = utils.zm_validate_dims(uodata)
@@ -331,9 +334,9 @@ def global_latlon_vect_map(adfobj):
                 umdata = umclim_ds[var].squeeze()
                 vmdata = vmclim_ds[var_pair].squeeze()
 
-                #Convert units if requested:
-                umdata = umdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-                vmdata = vmdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                # Convert units if requested, once -- see above:
+                umdata = adfobj.data.apply_conversion(umdata, var)
+                vmdata = adfobj.data.apply_conversion(vmdata, var_pair)
 
                 #Check dimensions:
                 has_lat, has_lev = utils.zm_validate_dims(umdata)
@@ -346,12 +349,9 @@ def global_latlon_vect_map(adfobj):
                     continue
                 # End if
 
-                # update units
-                # NOTE: looks like our climo files don't have all their metadata
-                uodata.attrs['units'] = vres.get("new_unit", uodata.attrs.get('units', 'none'))
-                vodata.attrs['units'] = vres.get("new_unit", vodata.attrs.get('units', 'none'))
-                umdata.attrs['units'] = vres.get("new_unit", umdata.attrs.get('units', 'none'))
-                vmdata.attrs['units'] = vres.get("new_unit", vmdata.attrs.get('units', 'none'))
+                # Units are set by apply_conversion above, which renames them
+                # only when it actually converts.  Relabelling here regardless
+                # claimed the defaults' units for data still in the file's own.
 
                 #Determine if observations/baseline have the correct dimensions:
                 if has_lev:
