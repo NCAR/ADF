@@ -138,10 +138,32 @@ def polar_map(adfobj):
         vres = res.get(var, {})
         web_category = vres.get("category", None)
 
+        # A complete set of plots can be recognised from the file names alone,
+        # because a 2-D variable and a 3-D one are named differently.  Doing
+        # that first means a re-run never opens the regridded files just to
+        # find out which of the two it is looking at.
+        settled = _existing_plot_set(
+            plot_locations, case_names, var, seasons, pres_levs, plot_type
+        )
+        if settled and not redo_plot:
+            for path, web_name, case_name, season, hemi_type in settled:
+                adfobj.add_website_data(
+                    path,
+                    web_name,
+                    case_name,
+                    category=web_category,
+                    season=season,
+                    plot_type=hemi_type,
+                )
+            # End for
+            print(f"\t    Skipping {var} - all plots already exist")
+            continue
+        # End if
+
         # Get all plot info and check existence
         plot_info = []
         all_plots_exist = True
-        
+
         for case_idx, case_name in enumerate(case_names):
             plot_loc = Path(plot_locations[case_idx])
 
@@ -265,6 +287,83 @@ def polar_map(adfobj):
 
 ##############
 #END OF `polar_map` function
+
+
+def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot_type):
+    """
+    Return the complete set of polar plots for `var`, if one is on disk.
+
+    A 2-D variable is plotted as ``{var}_{season}_{hemisphere}_Mean`` and a
+    3-D one as ``{var}_{pressure}hpa_{season}_{hemisphere}_Mean``, so which
+    of the two a variable is can be read off the file names.  That is what
+    lets a re-run decide there is nothing to do without opening the regridded
+    file to look for a ``lev`` dimension.
+
+    Parameters
+    ----------
+    plot_locations : list
+        output plot directory for each case
+    case_names : list
+        names of the test cases
+    var : str
+        ADF name of the variable being plotted
+    seasons : list or dict
+        the seasons being plotted
+    pres_levs : list
+        the configured pressure levels, empty when none are set
+    plot_type : str
+        file extension the plots are written with, e.g. "png"
+
+    Returns
+    -------
+    list
+        ``(path, website name, case, season, hemisphere)`` for every plot,
+        when a complete set exists.  An empty list when it does not, which
+        means the data has to be opened to find out what is missing.
+    """
+    for pressures in ([None], pres_levs):
+        found = []
+        complete = bool(pressures)
+        for case_idx, case_name in enumerate(case_names):
+            plot_loc = Path(plot_locations[case_idx])
+            for season in seasons:
+                for hemi_type in ["NHPolar", "SHPolar"]:
+                    for pres in pressures:
+                        if pres is None:
+                            name = f"{var}_{season}_{hemi_type}_Mean.{plot_type}"
+                            web_name = var
+                        else:
+                            name = (
+                                f"{var}_{pres}hpa_{season}_{hemi_type}"
+                                f"_Mean.{plot_type}"
+                            )
+                            web_name = f"{var}_{pres}hpa"
+                        # End if
+                        path = plot_loc / name
+                        if not path.is_file():
+                            complete = False
+                            break
+                        # End if
+                        found.append((path, web_name, case_name, season, hemi_type))
+                    # End for
+                    if not complete:
+                        break
+                    # End if
+                # End for
+                if not complete:
+                    break
+                # End if
+            # End for
+            if not complete:
+                break
+            # End if
+        # End for
+        if complete and found:
+            return found
+        # End if
+    # End for
+    return []
+
 
 ##############
 # END OF FILE
