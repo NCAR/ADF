@@ -140,15 +140,18 @@ def _main_prog():
 
     print("Generating list of modified files...")
 
-    #This should eventually be passed in via a command-line
-    #argument, and include everything inside the "lib" directory -JN:
-    testable_files = {"lib/adf_base.py",
-                      "lib/adf_config.py",
-                      "lib/adf_file_utils.py",
-                      "lib/adf_info.py",
-                      "lib/adf_obs.py",
-                      "lib/adf_web.py",
-                      "lib/adf_diag.py"}
+    # This should eventually be passed in via a command-line
+    # argument, and include everything inside the "lib" directory -JN:
+    testable_files = {
+        "lib/adf_base.py",
+        "lib/adf_config.py",
+        "lib/adf_file_utils.py",
+        "lib/adf_info.py",
+        "lib/adf_obs.py",
+        "lib/adf_units.py",
+        "lib/adf_web.py",
+        "lib/adf_diag.py",
+    }
 
     #+++++++++++++++++++++++
     #Read in input arguments

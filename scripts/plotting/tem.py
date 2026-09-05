@@ -408,19 +408,17 @@ def tem(adf):
                 mdata = ds[var].squeeze()
                 odata = ds_base[var].squeeze()
 
-                #Apply the unit conversion from the variable defaults. TEM
-                #files carry little metadata, so the new unit is taken from the
-                #defaults too. Observations have their own scaling, which is
-                #assumed to bring them to the same units, so they keep the unit
-                #string they arrived with.
-                mdata = mdata * vres.get("scale_factor", 1) + vres.get("add_offset", 0)
-                mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
+                # Apply the unit conversion from the variable defaults, through
+                # the ADF's data layer so that a TEM file already holding
+                # converted values is not scaled a second time. Observations
+                # have their own scaling, which is assumed to bring them to the
+                # same units, so they keep the unit string they arrived with.
+                mdata = adf.data.apply_conversion(mdata, var)
                 if obs:
                     odata = (odata * vres.get("obs_scale_factor", 1)
                              + vres.get("obs_add_offset", 0))
                 else:
-                    odata = odata * vres.get("scale_factor", 1) + vres.get("add_offset", 0)
-                    odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
+                    odata = adf.data.apply_conversion(odata, var)
                 #End if
 
                 #Month-length weighted seasonal (or annual) mean. The weighted

@@ -185,6 +185,32 @@ def global_latlon_vect_map(adfobj):
         # otherwise defaults to 180
         vres['central_longitude'] = plot_utils.get_central_longitude(adfobj)
 
+        # A complete set of plots can be recognised from the file names alone,
+        # because a 2-D vector and a 3-D one are named differently.  Doing that
+        # first means a re-run never opens the four regridded files a vector
+        # pair needs just to find out which of the two it is looking at.
+        settled = _existing_plot_set(
+            plot_locations, case_names, var_name, seasons, pres_levs, plot_type
+        )
+        if settled and not redo_plot:
+            for path, web_name, case_name, season in settled:
+                adfobj.debug_log(f"'{path}' exists and clobber is false.")
+                adfobj.add_website_data(
+                    path,
+                    web_name,
+                    case_name,
+                    category=web_category,
+                    season=season,
+                    plot_type="LatLon_Vector",
+                )
+            # End for
+            print(
+                f"\t    INFO: All plots exist for {var_name}. "
+                f"Redo is {redo_plot}. Existing plots added to website data."
+            )
+            continue
+        # End if
+
         #Determine observations to compare against:
         if adfobj.compare_obs:
             if var not in adfobj.data.ref_var_nam:
@@ -272,9 +298,12 @@ def global_latlon_vect_map(adfobj):
             uodata = uoclim_ds[data_var[0]].squeeze()  # squeeze in case of degenerate dimensions
             vodata = voclim_ds[data_var[1]].squeeze()  # squeeze in case of degenerate dimensions
 
-            #Convert units if requested (assumes units between model and data are the same):
-            uodata = uodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-            vodata = vodata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+            # Convert units if requested (assumes units between model and data are the same).
+            # Through the ADF's data layer, so that a file already holding
+            # converted values -- which is what the regridding stage writes --
+            # is not scaled a second time:
+            uodata = adfobj.data.apply_conversion(uodata, var)
+            vodata = adfobj.data.apply_conversion(vodata, var_pair)
 
             #Check zonal mean dimensions
             has_lat_ref, has_lev_ref = utils.zm_validate_dims(uodata)
@@ -331,9 +360,9 @@ def global_latlon_vect_map(adfobj):
                 umdata = umclim_ds[var].squeeze()
                 vmdata = vmclim_ds[var_pair].squeeze()
 
-                #Convert units if requested:
-                umdata = umdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-                vmdata = vmdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
+                # Convert units if requested, once -- see above:
+                umdata = adfobj.data.apply_conversion(umdata, var)
+                vmdata = adfobj.data.apply_conversion(vmdata, var_pair)
 
                 #Check dimensions:
                 has_lat, has_lev = utils.zm_validate_dims(umdata)
@@ -346,12 +375,9 @@ def global_latlon_vect_map(adfobj):
                     continue
                 # End if
 
-                # update units
-                # NOTE: looks like our climo files don't have all their metadata
-                uodata.attrs['units'] = vres.get("new_unit", uodata.attrs.get('units', 'none'))
-                vodata.attrs['units'] = vres.get("new_unit", vodata.attrs.get('units', 'none'))
-                umdata.attrs['units'] = vres.get("new_unit", umdata.attrs.get('units', 'none'))
-                vmdata.attrs['units'] = vres.get("new_unit", vmdata.attrs.get('units', 'none'))
+                # Units are set by apply_conversion above, which renames them
+                # only when it actually converts.  Relabelling here regardless
+                # claimed the defaults' units for data still in the file's own.
 
                 #Determine if observations/baseline have the correct dimensions:
                 if has_lev:
@@ -518,6 +544,72 @@ def global_latlon_vect_map(adfobj):
 
     #Notify user that script has ended:
     print("  ...lat/lon vector maps have been generated successfully.")
+
+
+def _existing_plot_set(
+    plot_locations, case_names, var_name, seasons, pres_levs, plot_type
+):
+    """
+    Return the complete set of vector plots for `var_name`, if one is on disk.
+
+    A 2-D vector is plotted as ``{name}_{season}_LatLon_Vector_Mean`` and a
+    3-D one as ``{name}_{pressure}hpa_{season}_LatLon_Vector_Mean``, so which
+    of the two a vector pair is can be read off the file names.
+
+    Parameters
+    ----------
+    plot_locations : list
+        output plot directory for each case
+    case_names : list
+        names of the test cases
+    var_name : str
+        the vector's name from the variable defaults, e.g. "Wind"
+    seasons : list or dict
+        the seasons being plotted
+    pres_levs : list
+        the configured pressure levels, empty when none are set
+    plot_type : str
+        file extension the plots are written with, e.g. "png"
+
+    Returns
+    -------
+    list
+        ``(path, website name, case, season)`` for every plot, when a
+        complete set exists; an empty list when it does not.
+    """
+    import plotting_utils as plot_utils
+
+    flat = []
+    levelled = []
+    for case_idx, case_name in enumerate(case_names):
+        plot_loc = Path(plot_locations[case_idx])
+        for season in seasons:
+            flat.append(
+                (
+                    plot_loc / f"{var_name}_{season}_LatLon_Vector_Mean.{plot_type}",
+                    var_name,
+                    case_name,
+                    season,
+                )
+            )
+            for lev in pres_levs:
+                levelled.append(
+                    (
+                        plot_loc
+                        / (
+                            f"{var_name}_{lev}hpa_{season}"
+                            f"_LatLon_Vector_Mean.{plot_type}"
+                        ),
+                        f"{var_name}_{lev}hpa",
+                        case_name,
+                        season,
+                    )
+                )
+            # End for
+        # End for
+    # End for
+    return plot_utils.first_complete_plot_set([levelled, flat])
+
 
 ##############
 #END OF SCRIPT

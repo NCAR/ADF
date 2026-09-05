@@ -7,6 +7,9 @@ describe_dir_problem(), find_ts_files(), select_ts_files(), ts_files_overlap(),
 ts_file_span(),
 as_hist_str_list(), pick_hist_str()
     re-exported from adf_file_utils; time series file discovery
+normalize_units(), units_equivalent()
+    re-exported from adf_units; compare unit strings that are spelled
+    differently but mean the same thing
 plain_text_units()
     render a unit string from the variable defaults as plain text
 use_time_bounds_midpoint()
@@ -63,6 +66,7 @@ from adf_base import AdfError
 #tested without importing the scientific stack (see adf_file_utils).  Re-export
 #here so `utils.find_ts_files(...)` keeps working for every existing caller:
 # pylint: disable=unused-import
+from adf_units import normalize_units, units_equivalent
 from adf_file_utils import (
     as_hist_str_list,
     describe_dir_problem,
