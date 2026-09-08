@@ -220,7 +220,7 @@ def create_time_series_gents(adf, baseline=False):
         start_year = cfg["start_years"][case_idx]
         end_year = cfg["end_years"][case_idx]
 
-        #Check if particular case should be processed:
+        # Check if particular case should be processed:
         if cfg["cam_ts_done"][case_idx]:
             emsg = "\tNOTE: Configuration file indicates time series files have been "
             emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
@@ -238,7 +238,7 @@ def create_time_series_gents(adf, baseline=False):
             continue
         # End if
 
-        #Create path object for the CAM history file(s) location:
+        # Create path object for the CAM history file(s) location:
         starting_location = Path(cfg["cam_hist_locs"][case_idx])
 
         # Check that the path exists and can be read:

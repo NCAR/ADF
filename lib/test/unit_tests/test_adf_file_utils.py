@@ -574,7 +574,8 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
             finally:
                 readonly.chmod(0o755)
 
-#++++++++++++++++++
+
+# ++++++++++++++++++
 
 # ++++++++++++++++++
 
