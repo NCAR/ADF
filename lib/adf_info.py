@@ -278,16 +278,15 @@ class AdfInfo(AdfConfig):
                 starting_location = Path(baseline_hist_locs)
                 print(f"\tChecking history files in '{starting_location}'")
 
-                # Check if the history file location exists
-                if not starting_location.is_dir():
+                # Check that the history file location exists and can be read
+                hist_problem = utils.describe_dir_problem(starting_location)
+                if hist_problem:
                     msg = "Checking history file location:\n"
-                    msg += (
-                        f"\tThere is no history file location: '{starting_location}'."
-                    )
+                    msg += f"\tCannot use the history file location: {hist_problem}."
                     self.debug_log(msg)
-                    emsg = f"{data_name} starting_location: History file location not found!\n"
-                    emsg += "\tTry checking the path 'cam_hist_loc' in 'diag_cam_baseline_climo' "
-                    emsg += "section in your config file is correct..."
+                    emsg = f"{data_name} starting_location: {hist_problem}!\n"
+                    emsg += "\tCheck the path 'cam_hist_loc' in the "
+                    emsg += "'diag_cam_baseline_climo' section of your config file."
                     self.end_diag_fail(emsg)
                 file_list = sorted(
                     starting_location.glob("*" + base_hist_str + ".*.nc")
@@ -502,18 +501,15 @@ class AdfInfo(AdfConfig):
 
                 file_list = sorted(starting_location.glob("*" + hist_str_use + ".*.nc"))
 
-                # Check if the history file location exists
-                if not starting_location.is_dir():
+                # Check that the history file location exists and can be read
+                hist_problem = utils.describe_dir_problem(starting_location)
+                if hist_problem:
                     msg = "Checking history file location:\n"
-                    msg += (
-                        f"\tThere is no history file location: '{starting_location}'."
-                    )
+                    msg += f"\tCannot use the history file location: {hist_problem}."
                     self.debug_log(msg)
-                    emsg = f"{case_name} starting_location: History file location not found!\n"
-                    emsg += (
-                        "\tTry checking the path 'cam_hist_loc' in 'diag_cam_climo' "
-                    )
-                    emsg += "section in your config file is correct..."
+                    emsg = f"{case_name} starting_location: {hist_problem}!\n"
+                    emsg += "\tCheck the path 'cam_hist_loc' in the 'diag_cam_climo' "
+                    emsg += "section of your config file."
                     self.end_diag_fail(emsg)
 
                 # Check if there are any history files
@@ -945,9 +941,12 @@ class AdfInfo(AdfConfig):
         # Create "Path" objects:
         input_location = Path(input_ts_loc)
 
-        # Check that time series input directory actually exists:
-        if not input_location.is_dir():
-            errmsg = f"\t ERROR: Time series directory '{input_ts_loc}' not found.  Script is exiting."
+        # Check that the time series input directory exists and can be read:
+        ts_problem = utils.describe_dir_problem(input_location)
+        if ts_problem:
+            errmsg = (
+                f"\t ERROR: Time series directory {ts_problem}.  Script is exiting."
+            )
             raise AdfError(errmsg)
 
         # Normalize the configured history stream(s) into a list:

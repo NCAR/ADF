@@ -156,7 +156,7 @@ def check_derive(
 ########
 
 
-def _find_constit(ts_dir, case_name, constit, hist_str=None, *, syr=None, eyr=None):
+def find_constit(ts_dir, case_name, constit, hist_str=None, *, syr=None, eyr=None):
     """
     Locate a constituent's time series file(s) for one case and stream.
 
@@ -258,7 +258,7 @@ def derive_variable(
     constit_matches = {}
     for constit in constit_list:
         # Check if the constituent file(s) are present, if so add them to the dict
-        matches = _find_constit(ts_dir, case_name, constit, hist_str, syr=syr, eyr=eyr)
+        matches = find_constit(ts_dir, case_name, constit, hist_str, syr=syr, eyr=eyr)
         if not matches:
             continue
         if utils.ts_files_overlap(matches):
@@ -372,7 +372,7 @@ def derive_variable(
             # a single chunk, which time-axis alignment turns silently into NaN.
             # Check if PMID is in file:
             ds_pmid = self.data.load_dataset(
-                _find_constit(ts_dir, case_name, "PMID", hist_str, syr=syr, eyr=eyr)
+                find_constit(ts_dir, case_name, "PMID", hist_str, syr=syr, eyr=eyr)
             )
             if not ds_pmid:
                 errmsg = "Missing necessary files for dry air density (rho) "
@@ -386,7 +386,7 @@ def derive_variable(
 
             # Check if T is in file:
             ds_t = self.data.load_dataset(
-                _find_constit(ts_dir, case_name, "T", hist_str, syr=syr, eyr=eyr)
+                find_constit(ts_dir, case_name, "T", hist_str, syr=syr, eyr=eyr)
             )
             if not ds_t:
                 errmsg = "Missing necessary files for dry air density (rho) "
@@ -458,6 +458,4 @@ def derive_variable(
             ds_final[tvar] = ds_final[tvar].load()
         ds_final.to_netcdf(derived_file, unlimited_dims="time", mode="w")
     # End if (all the necessary constituent files exist)
-
-
 ########

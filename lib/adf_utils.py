@@ -3,7 +3,8 @@ Generic computation helper functions
 
 Functions
 ---------
-find_ts_files(), select_ts_files(), ts_files_overlap(), ts_file_span(),
+describe_dir_problem(), find_ts_files(), select_ts_files(), ts_files_overlap(),
+ts_file_span(),
 as_hist_str_list(), pick_hist_str()
     re-exported from adf_file_utils; time series file discovery
 plain_text_units()
@@ -64,6 +65,7 @@ from adf_base import AdfError
 # pylint: disable=unused-import
 from adf_file_utils import (
     as_hist_str_list,
+    describe_dir_problem,
     find_ts_files,
     pick_hist_str,
     select_ts_files,
