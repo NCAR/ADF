@@ -255,9 +255,6 @@ def load_dataset(fils, use_time_bounds=False):
 # End def
 
 
-# End def
-
-
 # CAM writes fields either on layer midpoints or on layer interfaces, and which
 # one a given field uses is not always predictable -- the WACCM zonal-mean stream
 # has used both. These are the dimension names for the two.

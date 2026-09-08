@@ -190,25 +190,47 @@ blocking findings.
 
 ## 6. Style conventions
 
-Two of the rules below — `black` formatting and Sphinx-ready docstrings — are **conventions for
-new code, not yet enforced by CI**. Neither `black` nor `sphinx` is in
-`env/conda_environment.yaml` or `.pre-commit-config.yaml`, and there is no `docs/` tree or
-`conf.py` in the repo. So: hold new code to them, and do not fail a PR because the
-existing file around it does not comply.
+`black` formatting is **enforced by CI, but only for `lib/`** (§3): that tree is black-clean and
+the pinned `black` hook in `.pre-commit-config.yaml` runs over it on every PR. Elsewhere — and
+for the Sphinx-ready docstring rules of §6.2 — the rules below are **conventions for new code,
+not enforced by CI**: `sphinx` is not in `env/conda_environment.yaml`, and there is no `docs/`
+tree or `conf.py` in the repo. For the unenforced rules, hold new code to them, and do not fail
+a PR because the existing file around it does not comply.
 
-### 6.1 Formatting: `black` on new code
+### 6.1 Formatting: `black`
 
-All code **added or rewritten** by a PR should be `black`-formatted (default settings, 88-column
-target). The existing tree is not black-clean, and converting it is out of scope for any PR that
-is not explicitly a formatting PR — `black` normalizes `#comment` to `# comment`, so running it
-over a file written in the older ADF idiom (`#Comment`, `#+++++` banners, `#End if`) rewrites
-essentially every line and buries the real change.
+All black settings — line length, excluded paths — live in the `[tool.black]` section of the
+top-level `pyproject.toml`, and the black *version* is pinned in exactly one place, the
+`rev:` of the `psf/black` hook in `.pre-commit-config.yaml`. Local runs and CI therefore always
+agree. Never pass `--line-length` or similar on the command line; change `pyproject.toml`
+instead.
 
-How to check without demanding a whole-file reformat:
+#### `lib/` — enforced
+
+`lib/` is black-clean (`lib/externals/` is force-excluded) and the `ADF_pre-commit.yaml`
+workflow checks it on every PR, so **a formatting deviation in `lib/` is a CI failure, not a
+style suggestion**. Review it as such, and check the whole file, not just the changed hunks:
 
 ```bash
-pip install black                                    # not in the conda env
-git diff main...HEAD --name-only -- '*.py' | xargs black --check --diff
+pre-commit run -a          # exactly what CI runs; "pre-commit" is in the conda env
+black --check --diff lib/  # equivalent for the black hook alone
+```
+
+The easiest way to never hit this is `pre-commit install` once in a clone, which runs the same
+hook on every `git commit`.
+
+#### `scripts/` — convention for new code only
+
+`scripts/` is deliberately *not* covered by the hook. Code **added or rewritten** there should
+still be `black`-formatted, but the existing tree is not black-clean, and converting it is out
+of scope for any PR that is not explicitly a formatting PR — `black` normalizes `#comment` to
+`# comment`, so running it over a file written in the older ADF idiom (`#Comment`, `#+++++`
+banners, `#End if`) rewrites essentially every line and buries the real change.
+
+How to check `scripts/` without demanding a whole-file reformat:
+
+```bash
+git diff main...HEAD --name-only -- 'scripts/*.py' | xargs black --check --diff
 ```
 
 Read the resulting diff and **only report hunks that overlap lines the PR added or changed**;
@@ -216,7 +238,7 @@ ignore the rest. To get just those lines, `darker` (black restricted to changed 
 tool that does this properly:
 
 ```bash
-pip install darker && darker --check --diff --revision main...HEAD .
+pip install darker && darker --check --diff --revision main...HEAD scripts/
 ```
 
 Notes:
@@ -224,11 +246,12 @@ Notes:
   black-formatted code will not trip the length check. black does *not* wrap comments,
   docstrings, or long string literals, though — those can still exceed 100 and fail pylint on
   the six linted files (§3).
-- Where black and the surrounding file disagree on comment style, black wins **for the new
-  lines only**. Mixed style within a file during the transition is expected and acceptable.
+- In `scripts/`, where black and the surrounding file disagree on comment style, black wins
+  **for the new lines only**. Mixed style within such a file is expected and acceptable. This
+  does not apply to `lib/`, which is uniformly black-formatted already.
 - Keep whitespace-only churn out of the diff; it hides the real change from reviewers. If a PR
-  genuinely needs to reformat a file, that belongs in a separate commit — ideally a separate PR
-  — so the functional diff stays reviewable.
+  genuinely needs to reformat a `scripts/` file, that belongs in a separate commit — ideally a
+  separate PR — so the functional diff stays reviewable.
 
 ### 6.2 Docstrings: Sphinx/ReadTheDocs-ready
 
@@ -267,6 +290,14 @@ Require of new or modified public functions, classes, and modules:
   - A `*args`/`**kwargs` or a bare `*` in prose starts emphasis in reST — escape it or wrap it
     in double backticks.
   - Docstrings containing `\n`, `\t`, LaTeX, or Windows paths must be raw strings (`r"""..."""`).
+    The same goes for *any* string literal holding a backslash that Python does not
+    recognize as an escape — LaTeX in a matplotlib label (`r"$\mathbf{Test}$"`) is the
+    common case in `lib/plotting_functions.py`. Without the `r`, Python 3.12+ emits a
+    `SyntaxWarning` and a future release will make it a `SyntaxError`; the unit tests run
+    on 3.13, so this is worth catching in review:
+    ```bash
+    python -W error::SyntaxWarning -c "import compileall,sys; sys.exit(not compileall.compile_dir('lib', quiet=1))"
+    ```
   - Lists and indented blocks need a blank line before them.
 - **Keep the ADF-specific `Notes` convention** for stage scripts: `scripts/` entry points list
   which `adfobj` attributes/methods and which helper functions they use. It is the fastest way

@@ -357,7 +357,7 @@ def make_polar_plot(
 
     # Set plot titles
     case_title = (
-        "$\mathbf{Test}:$"
+        r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
     ax1.set_title(case_title, loc="left", fontsize=6)  # fontsize=tiFontSize
@@ -366,16 +366,16 @@ def make_polar_plot(
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + obs_title
             + "\n"
-            + "$\mathbf{Variable}:$"
+            + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
         ax2.set_title(base_title, loc="left", fontsize=6)  # fontsize=tiFontSize
     else:
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         )
         ax2.set_title(base_title, loc="left", fontsize=6)
@@ -408,7 +408,7 @@ def make_polar_plot(
         f"Mean: {dif_region_mean:5.2f}\nMax: {dif_region_max:5.2f}\nMin: {dif_region_min:5.2f}",
         transform=ax4.transAxes,
     )
-    ax4.set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
+    ax4.set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
 
     if "units" in kwargs:
         ax2.set_ylabel(kwargs["units"])
@@ -681,7 +681,7 @@ def plot_map_vect_and_save(
 
     # Set plot titles
     case_title = (
-        "$\mathbf{Test}:$"
+        r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
     ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
@@ -690,16 +690,16 @@ def plot_map_vect_and_save(
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + obs_title
             + "\n"
-            + "$\mathbf{Variable}:$"
+            + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
         ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
     else:
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         )
         ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
@@ -724,7 +724,7 @@ def plot_map_vect_and_save(
     # set rmse title:
     ax[-1].set_title(f"RMSE: ", fontsize=tiFontSize)
     ax[-1].set_title(
-        "$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+        r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
     )
 
     if "units" in kwargs:
@@ -991,7 +991,7 @@ def plot_map_and_save(
 
     # Set plot titles
     case_title = (
-        "$\mathbf{Test}:$"
+        r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
     ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
@@ -1000,16 +1000,16 @@ def plot_map_and_save(
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + obs_title
             + "\n"
-            + "$\mathbf{Variable}:$"
+            + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
         ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
     else:
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         )
         ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
@@ -1039,7 +1039,7 @@ def plot_map_and_save(
     # set rmse title:
     ax[3].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
     ax[3].set_title(
-        "$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+        r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
     )
     ax[2].set_title(
         "Test % Diff Baseline", loc="left", fontsize=tiFontSize, fontweight="bold"
@@ -1234,7 +1234,7 @@ def plot_zonal_mean_and_save(
 
     # Set plot titles
     case_title = (
-        "$\mathbf{Test}:$"
+        r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
 
@@ -1242,15 +1242,15 @@ def plot_zonal_mean_and_save(
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + obs_title
             + "\n"
-            + "$\mathbf{Variable}:$"
+            + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
     else:
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         )
     if has_lev:
@@ -1350,7 +1350,7 @@ def plot_zonal_mean_and_save(
         ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
         ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
         ax[2].set_title(
-            "$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+            r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
         )
         ax[3].set_title(
             "Test % Diff Baseline", loc="left", fontsize=tiFontSize, fontweight="bold"
@@ -1370,7 +1370,7 @@ def plot_zonal_mean_and_save(
         line = Line2D(
             [0],
             [0],
-            label="$\mathbf{Test}:$"
+            label=r"$\mathbf{Test}:$"
             + f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
             color="#1f77b4",
         )  # #1f77b4 -> matplotlib standard blue
@@ -1413,7 +1413,7 @@ def plot_zonal_mean_and_save(
         )
 
         zonal_plot(adata["lat"], diff, ax=ax[1], color="k")
-        ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=10)
+        ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=10)
 
         zonal_plot(adata["lat"], pct, ax=ax[2], color="k")
         ax[2].set_title(
@@ -1580,7 +1580,7 @@ def plot_meridional_mean_and_save(
     pltfunc = meridional_plot  # the plotting function ... maybe we can generalize to get zonal/meridional into one function (?)
 
     case_title = (
-        "$\mathbf{Test}:$"
+        r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
 
@@ -1588,15 +1588,15 @@ def plot_meridional_mean_and_save(
         obs_var = kwargs["obs_var_name"]
         obs_title = kwargs["obs_file"][:-3]
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + obs_title
             + "\n"
-            + "$\mathbf{Variable}:$"
+            + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
     else:
         base_title = (
-            "$\mathbf{Baseline}:$"
+            r"$\mathbf{Baseline}:$"
             + f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         )
 
@@ -1687,7 +1687,7 @@ def plot_meridional_mean_and_save(
         ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
         ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
         ax[2].set_title(
-            "$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+            r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
         )
         ax[3].set_title(
             "Test % Diff Baseline", loc="left", fontsize=tiFontSize, fontweight="bold"
@@ -1706,7 +1706,7 @@ def plot_meridional_mean_and_save(
         line = Line2D(
             [0],
             [0],
-            label="$\mathbf{Test}:$"
+            label=r"$\mathbf{Test}:$"
             + f"{case_nickname} - years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}",
             color="#1f77b4",
         )  # #1f77b4 -> matplotlib standard blue
@@ -1727,7 +1727,7 @@ def plot_meridional_mean_and_save(
         pltfunc(adata[xdim], diff, ax=ax[1], color="k")
         pltfunc(adata[xdim], pct, ax=ax[2], color="k")
 
-        ax[1].set_title("$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=10)
+        ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=10)
         ax[2].set_title(
             "Test % Diff Baseline", loc="left", fontsize=10, fontweight="bold"
         )

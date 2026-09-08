@@ -577,10 +577,6 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
 
 # ++++++++++++++++++
 
-# ++++++++++++++++++
-
-# ++++++++++++++++++
-
 # Run unit tests if this script is called directly:
 if __name__ == "__main__":
     unittest.main()
