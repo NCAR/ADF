@@ -12,9 +12,9 @@ Currently this class does three things:
 3.  Expands any keywords into their relevant variable values.
 """
 
-#++++++++++++++++++++++++++++++
-#Import standard python modules
-#++++++++++++++++++++++++++++++
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
 
 import os.path
 import re
@@ -22,19 +22,19 @@ import copy
 import os
 import subprocess
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++
-#import non-standard python modules, including ADF
-#+++++++++++++++++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
 
 import yaml
 from adf_base import AdfBase
 
-#+++++++++++++++++++
-#Define config class
-#+++++++++++++++++++
+# +++++++++++++++++++
+# Define config class
+# +++++++++++++++++++
+
 
 class AdfConfig(AdfBase):
-
     """
     Config class, which reads in
     config (YAML) files and provides
@@ -43,37 +43,35 @@ class AdfConfig(AdfBase):
     """
 
     def __init__(self, config_file, debug=False):
-
         """
         Initalize ADF Config object.
         """
 
-        #Initialize Base attributes:
+        # Initialize Base attributes:
         super().__init__(debug=debug)
 
-        #Expand any environmental user name variables in the path:
+        # Expand any environmental user name variables in the path:
         config_file = os.path.expanduser(config_file)
 
-        #Check that YAML file actually exists:
+        # Check that YAML file actually exists:
         if not os.path.exists(config_file):
             emsg = f"File '{config_file}' not found. Please provide full path."
             raise FileNotFoundError(emsg)
 
-        #Open YAML file:
-        with open(config_file, encoding='UTF-8') as nfil:
-            #Load YAML file:
+        # Open YAML file:
+        with open(config_file, encoding="UTF-8") as nfil:
+            # Load YAML file:
             self.__config_dict = yaml.load(nfil, Loader=yaml.SafeLoader)
 
-        #Create search dictionary for variable expansion:
+        # Create search dictionary for variable expansion:
         self.__search_dict = self.__create_search_dict(self.__config_dict)
 
-        #Create YAML self-reference keyword regex:
-        self.__kword_pattern = re.compile(r'\$\{[a-z_\.\d]+\}')
+        # Create YAML self-reference keyword regex:
+        self.__kword_pattern = re.compile(r"\$\{[a-z_\.\d]+\}")
 
     #########
 
     def __create_search_dict(self, config_dict, sub_dict=None):
-
         """
         Recursive function that creates a non-hierarchical
         dictionary for use in global key/value searches.
@@ -83,149 +81,149 @@ class AdfConfig(AdfBase):
         so no need to check here.
         """
 
-        #Create empty dictionary:
+        # Create empty dictionary:
         config_search_dict = {}
 
-        #Loop over all top-level config variables:
+        # Loop over all top-level config variables:
         for key, value in config_dict.items():
 
-            #Check if value is a string, integer, or another dict:
+            # Check if value is a string, integer, or another dict:
             if isinstance(value, (str, int)):
 
-                #Check if sub dictionary is present:
+                # Check if sub dictionary is present:
                 if sub_dict:
-                    #Create new key with sub dictionary prefix:
-                    key = sub_dict+"."+key
+                    # Create new key with sub dictionary prefix:
+                    key = sub_dict + "." + key
 
-                #Add key/value to search dict:
+                # Add key/value to search dict:
                 config_search_dict[key] = str(value)
 
-            #Check if value is a dictionary instead:
+            # Check if value is a dictionary instead:
             elif isinstance(value, dict):
-                #Currently this routine only handles one level of
-                #nested dictionaries, so throw an error if one has
-                #gone beyond that:
+                # Currently this routine only handles one level of
+                # nested dictionaries, so throw an error if one has
+                # gone beyond that:
                 if sub_dict:
                     ermsg = "ADF currently only allows for a single nested dict"
                     ermsg += f" in the config (YAML) file.\n  Variable '{value}' is nested too far."
                     self.end_diag_fail(ermsg)
 
-                #Apply routine to sub dictionary:
-                sub_config_search_dict = self.__create_search_dict(value,
-                                                                 sub_dict = key)
+                # Apply routine to sub dictionary:
+                sub_config_search_dict = self.__create_search_dict(value, sub_dict=key)
 
-                #Append sub-dict search dictionary to top-level dictionary:
+                # Append sub-dict search dictionary to top-level dictionary:
                 config_search_dict.update(sub_config_search_dict)
 
-        #Return search dictionary:
+        # Return search dictionary:
         return config_search_dict
 
     #########
 
     def __expand_yaml_var_ref(self, var_val):
-
         """
         Recursive function to replace all keywords with their
         associated values from the provided dictionary.
         """
 
-        #If variable value is not a string, then convert it:
+        # If variable value is not a string, then convert it:
         if not isinstance(var_val, str):
             var_val = str(var_val)
 
-        #Look for keyword using provided regular expression:
+        # Look for keyword using provided regular expression:
         kword_match = self.__kword_pattern.search(var_val)
 
-        #Continue if at least one match is found:
+        # Continue if at least one match is found:
         if kword_match:
 
-            #Copy input variable value string,
-            #which is needed for generating
-            #proper error messages:
+            # Copy input variable value string,
+            # which is needed for generating
+            # proper error messages:
             new_var_val = var_val
 
-            #Start while loop:
+            # Start while loop:
             another_match = True
 
             while another_match:
 
-                #Extract match string:
+                # Extract match string:
                 kword_match_str = kword_match.group(0)
 
-                #Remove special characters ("${" and "}"):
+                # Remove special characters ("${" and "}"):
                 kword_match_str = kword_match_str[2:-1]
 
-                #Initalize kword_match_str_key value:
+                # Initalize kword_match_str_key value:
                 kword_match_str_key = kword_match_str
 
-                #Check if period (".") is in string,
-                #If so, then the keyword will be used directly,
-                #otherwise do the following:
-                #--------------------------
+                # Check if period (".") is in string,
+                # If so, then the keyword will be used directly,
+                # otherwise do the following:
+                # --------------------------
                 if kword_match_str.find(".") == -1:
 
-                    #Initalize match counter:
+                    # Initalize match counter:
                     match_count = 0
 
-                    #Loop through search dictionary keys:
+                    # Loop through search dictionary keys:
                     for key in self.__search_dict:
 
-                        #Attempt to find period string index:
+                        # Attempt to find period string index:
                         pidx = key.find(".")
 
-                        #Compare kword to text on the right side of period
-                        #or at start of string if no period exists:
-                        if kword_match_str == key[pidx+1:]:
-                            #Set match string to full key string:
+                        # Compare kword to text on the right side of period
+                        # or at start of string if no period exists:
+                        if kword_match_str == key[pidx + 1 :]:
+                            # Set match string to full key string:
                             kword_match_str_key = key
 
-                            #Add one to counter:
+                            # Add one to counter:
                             match_count += 1
 
-                    #If more than one match, then throw an error:
+                    # If more than one match, then throw an error:
                     if match_count > 1:
                         ermsg = f"More than one variable matches keyword '{var_val}'"
                         ermsg += "\nPlease use '${section.variable}' keyword method to specify"
                         ermsg += " which variable you want to use."
                         self.end_diag_fail(ermsg)
-                #--------------------------
+                # --------------------------
 
-                #Throw an error if keyword not in dictionary:
+                # Throw an error if keyword not in dictionary:
                 if kword_match_str_key not in self.__search_dict.keys():
                     ermsg = f"ERROR: Variable '{kword_match_str}'"
                     ermsg += " not found in config (YAML) file."
                     self.end_diag_fail(ermsg)
 
-                #Extract keyword value from config dictionary:
+                # Extract keyword value from config dictionary:
                 kword_val = self.__search_dict[kword_match_str_key]
 
-                #Expand keyword if found:
+                # Expand keyword if found:
                 final_kword_val = self.__expand_yaml_var_ref(kword_val)
 
-                #Substitute keyword with final kword_val:
-                new_var_val = new_var_val[:kword_match.start()] + final_kword_val + \
-                                                                new_var_val[kword_match.end():]
+                # Substitute keyword with final kword_val:
+                new_var_val = (
+                    new_var_val[: kword_match.start()]
+                    + final_kword_val
+                    + new_var_val[kword_match.end() :]
+                )
 
-                #Search the string again for keyword values:
+                # Search the string again for keyword values:
                 kword_match = self.__kword_pattern.search(new_var_val)
 
-                #End loop if no other matches found:
+                # End loop if no other matches found:
                 if not kword_match:
                     another_match = False
 
-            #End while loop
+            # End while loop
 
-            #Pass back final value:
+            # Pass back final value:
             return new_var_val
-        #End if
+        # End if
 
-        #Return the string un-modified:
+        # Return the string un-modified:
         return var_val
 
     #########
 
     def expand_references(self, config_dict):
-
         """
         Replace keyword (${var} or ${dict.var}) entries
         in the YAML (config) dictionary that reference
@@ -236,26 +234,27 @@ class AdfConfig(AdfBase):
         referenced variable to a string.
         """
 
-        #copy YAML config dictionary:
+        # copy YAML config dictionary:
         config_dict_copy = copy.deepcopy(config_dict)
 
-        #Recursively expand references
+        # Recursively expand references
         self.__expand_refs(config_dict_copy)
 
-        #Update the original dict
+        # Update the original dict
         config_dict.update(config_dict_copy)
 
     def __expand_refs(self, container):
-
         """
         Recursive helper: expand keyword references in a nested dict or list, in place.
         """
 
-        items = container.items() if isinstance(container, dict) else enumerate(container)
+        items = (
+            container.items() if isinstance(container, dict) else enumerate(container)
+        )
 
         for key, value in items:
             if isinstance(value, str):
-                #expand any keywords to their full values:
+                # expand any keywords to their full values:
                 container[key] = self.__expand_yaml_var_ref(value)
             elif isinstance(value, (dict, list)):
                 self.__expand_refs(value)
@@ -263,7 +262,6 @@ class AdfConfig(AdfBase):
     #########
 
     def read_config_var(self, varname, conf_dict=None, required=False):
-
         """
         Checks if variable/list/dictionary exists in
         configure dictionary,and if so returns it.
@@ -273,7 +271,7 @@ class AdfConfig(AdfBase):
         values are returned to the user.
         """
 
-        #Check if the config dictionary has been specified:
+        # Check if the config dictionary has been specified:
         if isinstance(conf_dict, dict):
             var_dict = conf_dict
         elif isinstance(conf_dict, type(None)):
@@ -282,44 +280,43 @@ class AdfConfig(AdfBase):
             emsg = "Supplied 'conf_dict' variable should be a dictionary,"
             emsg += f" not type '{type(conf_dict)}'"
             raise TypeError(emsg)
-        #End if
+        # End if
 
         if varname == "ALL":
             return copy.deepcopy(var_dict)
-        #End if
+        # End if
 
-        #Check that variable name exists in dictionary:
+        # Check that variable name exists in dictionary:
         if varname not in var_dict.keys():
-            #If variable is required, then throw an error:
+            # If variable is required, then throw an error:
             if required:
                 emsg = f"Required variable '{varname}' not found in config file."
-                emsg +=" Please see 'config_cam_baseline_example.yaml'."
+                emsg += " Please see 'config_cam_baseline_example.yaml'."
                 raise KeyError(emsg)
-            #End if
+            # End if
 
-            #If not, then just return None:
+            # If not, then just return None:
             return None
-        #End if
+        # End if
 
-        #Extract variable from dictionary:
+        # Extract variable from dictionary:
         var = var_dict[varname]
 
-        #If variable is required, then check that
-        #configure variable is not empty (None):
+        # If variable is required, then check that
+        # configure variable is not empty (None):
         if required and var is None:
             emsg = f"Required variable '{varname}' has not been set to a value."
             emsg += " Please see 'config_cam_baseline_example.yaml'."
             raise ValueError(emsg)
-        #End if
+        # End if
 
-        #return a copy of the variable/list/dictionary,
-        #this is done so that scripts can modify the copy
-        #without worrying about modifying the actual
-        #config variables dictionary:
+        # return a copy of the variable/list/dictionary,
+        # this is done so that scripts can modify the copy
+        # without worrying about modifying the actual
+        # config variables dictionary:
         return copy.deepcopy(var)
 
     def config_dict(self):
-        
         """
         Return a copy of the entire config dictionary.
         """
@@ -328,7 +325,6 @@ class AdfConfig(AdfBase):
         return copy.copy(config_dict)
 
     def get_git_info(self):
-
         """
         Gather currnet Git info during ADF run.
 
@@ -343,29 +339,47 @@ class AdfConfig(AdfBase):
             - is_dirty: Boolean indicating if there are uncommitted changes.
         """
 
-        #Initialize empty dictionary:
+        # Initialize empty dictionary:
         info = {}
 
         try:
             # Current branch
-            info['branch'] = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+            info["branch"] = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                stdout=subprocess.PIPE,
+                text=True,
+                check=True,
+            ).stdout.strip()
 
             # Commit hash
-            info['commit'] = subprocess.run(['git', 'rev-parse', 'HEAD'],
-                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+            info["commit"] = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                stdout=subprocess.PIPE,
+                text=True,
+                check=True,
+            ).stdout.strip()
 
             # Remote URL
-            remote_url = subprocess.run(['git', 'remote', 'get-url', 'origin'],
-                                      stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
-            info['remote_url'] = remote_url
+            remote_url = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                stdout=subprocess.PIPE,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            info["remote_url"] = remote_url
 
             # Repo name
-            info['repo_name'] = os.path.splitext(os.path.basename(remote_url))[0]
+            info["repo_name"] = os.path.splitext(os.path.basename(remote_url))[0]
 
             # Check if any modified files in ADF directory
-            info['is_dirty'] = bool(subprocess.run(['git', 'status', '--short'],
-                                    stdout=subprocess.PIPE, text=True, check=True).stdout.strip())
+            info["is_dirty"] = bool(
+                subprocess.run(
+                    ["git", "status", "--short"],
+                    stdout=subprocess.PIPE,
+                    text=True,
+                    check=True,
+                ).stdout.strip()
+            )
 
         except subprocess.CalledProcessError as e:
             print("Git command failed:", e)
@@ -376,7 +390,7 @@ class AdfConfig(AdfBase):
     def get_active_conda_environment(self):
         """
         Utility function to get the name of the active conda environment.
-        
+
         Returns:
         --------
         env_name (str or None): Name of the active conda environment, or None if not found.
@@ -396,22 +410,22 @@ class AdfConfig(AdfBase):
             print(f"Error executing conda command: {e}")
         return env_name"""
         # 'CONDA_DEFAULT_ENV' is the most reliable and direct way to get the env name.
-        env_name = os.environ.get('CONDA_DEFAULT_ENV')
+        env_name = os.environ.get("CONDA_DEFAULT_ENV")
         if env_name:
             return env_name
 
         # As a fallback, we can derive the name from the 'CONDA_PREFIX' path.
         # The environment name is the last part of the path.
-        env_path = os.environ.get('CONDA_PREFIX')
+        env_path = os.environ.get("CONDA_PREFIX")
         if env_path:
             return os.path.basename(env_path)
 
         # If neither are set, we are likely not in a conda environment.
         return None
 
-    
     #########
 
-#++++++++++++++++++++
-#End Class definition
-#++++++++++++++++++++
+
+# ++++++++++++++++++++
+# End Class definition
+# ++++++++++++++++++++

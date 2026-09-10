@@ -51,7 +51,7 @@ Notes
 
 """
 
-#import statements:
+# import statements:
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -59,9 +59,9 @@ import geocat.comp as gcomp
 
 from adf_base import AdfError
 
-#Time series file discovery lives in its own module so that it can be unit
-#tested without importing the scientific stack (see adf_file_utils).  Re-export
-#here so `utils.find_ts_files(...)` keeps working for every existing caller:
+# Time series file discovery lives in its own module so that it can be unit
+# tested without importing the scientific stack (see adf_file_utils).  Re-export
+# here so `utils.find_ts_files(...)` keeps working for every existing caller:
 # pylint: disable=unused-import
 from adf_file_utils import (
     as_hist_str_list,
@@ -77,23 +77,27 @@ from adf_file_utils import (
 
 import warnings  # use to warn user about missing files.
 
-#Format warning messages:
+
+# Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
     """Issue `msg` as warning."""
-    return str(msg) + '\n'
+    return str(msg) + "\n"
+
+
 warnings.formatwarning = my_formatwarning
 
-#Set seasonal ranges:
-seasons = {"ANN": np.arange(1,13,1),
-            "DJF": [12, 1, 2],
-            "JJA": [6, 7, 8],
-            "MAM": [3, 4, 5],
-            "SON": [9, 10, 11]
-            }
+# Set seasonal ranges:
+seasons = {
+    "ANN": np.arange(1, 13, 1),
+    "DJF": [12, 1, 2],
+    "JJA": [6, 7, 8],
+    "MAM": [3, 4, 5],
+    "SON": [9, 10, 11],
+}
 
 
 #################
-#HELPER FUNCTIONS
+# HELPER FUNCTIONS
 #################
 
 # Simple LaTeX seen in the units of the variable defaults, and what each means
@@ -246,12 +250,14 @@ def load_dataset(fils, use_time_bounds=False):
         ds = use_time_bounds_midpoint(ds)
     # End if
     return ds
-#End def
 
 
-#CAM writes fields either on layer midpoints or on layer interfaces, and which
-#one a given field uses is not always predictable -- the WACCM zonal-mean stream
-#has used both. These are the dimension names for the two.
+# End def
+
+
+# CAM writes fields either on layer midpoints or on layer interfaces, and which
+# one a given field uses is not always predictable -- the WACCM zonal-mean stream
+# has used both. These are the dimension names for the two.
 VERTICAL_DIMS = ("lev", "ilev")
 
 
@@ -301,16 +307,16 @@ def mask_land_or_ocean(arr, msk, use_nan=False):
     if use_nan:
         missing_value = np.nan
     else:
-        missing_value = -999.
-    #End if
+        missing_value = -999.0
+    # End if
 
-    arr = xr.where(msk>=0.9,arr,missing_value, keep_attrs=True)
+    arr = xr.where(msk >= 0.9, arr, missing_value, keep_attrs=True)
     arr.attrs["missing_value"] = missing_value
-    return(arr)
-
+    return arr
 
 
 #######
+
 
 def global_average(fld, wgt, verbose=False):
     """A simple, pure numpy global average.
@@ -336,9 +342,19 @@ def global_average(fld, wgt, verbose=False):
             break
     fld2 = np.ma.masked_invalid(fld)
     if verbose:
-        print("(global_average)-- fraction of mask that is True: {}".format(np.count_nonzero(fld2.mask) / np.size(fld2)))
-        print("(global_average)-- apply ma.average along axis = {} // validate: {}".format(a, fld2.shape))
-    avg1, sofw = np.ma.average(fld2, axis=a, weights=wgt, returned=True) # sofw is sum of weights
+        print(
+            "(global_average)-- fraction of mask that is True: {}".format(
+                np.count_nonzero(fld2.mask) / np.size(fld2)
+            )
+        )
+        print(
+            "(global_average)-- apply ma.average along axis = {} // validate: {}".format(
+                a, fld2.shape
+            )
+        )
+    avg1, sofw = np.ma.average(
+        fld2, axis=a, weights=wgt, returned=True
+    )  # sofw is sum of weights
 
     return np.ma.average(avg1)
 
@@ -374,40 +390,50 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     import warnings
 
     if weights is None:
-        #Calculate spatial weights:
-        if 'lat' in indata.coords:
+        # Calculate spatial weights:
+        if "lat" in indata.coords:
             weights = np.cos(np.deg2rad(indata.lat))
             weights.name = "weights"
-        elif 'ncol' in indata.dims:
-            if 'area' in indata:
-                warnings.warn("area variable being used to generated normalized weights.")
-                weights = indata['area'] / indata['area'].sum()
+        elif "ncol" in indata.dims:
+            if "area" in indata:
+                warnings.warn(
+                    "area variable being used to generated normalized weights."
+                )
+                weights = indata["area"] / indata["area"].sum()
             else:
-                warnings.warn("\t  We need a way to get area variable. Using equal weights.")
-                weights = xr.DataArray(1.)
+                warnings.warn(
+                    "\t  We need a way to get area variable. Using equal weights."
+                )
+                weights = xr.DataArray(1.0)
             weights.name = "weights"
         else:
-            weights = xr.DataArray(1.)
+            weights = xr.DataArray(1.0)
             weights.name = "weights"
-            warnings.warn("Un-recognized spatial dimensions: using equal weights for all grid points.")
-        #End if
-    #End if
+            warnings.warn(
+                "Un-recognized spatial dimensions: using equal weights for all grid points."
+            )
+        # End if
+    # End if
 
-    #Apply weights to input data:
+    # Apply weights to input data:
     weighted = indata.weighted(weights)
 
     # we want to average over all non-time dimensions
     if spatial_dims is None:
-        if 'ncol' in indata.dims:
-            spatial_dims = ['ncol']
+        if "ncol" in indata.dims:
+            spatial_dims = ["ncol"]
         else:
-            spatial_dims = [dimname for dimname in indata.dims if (('lat' in dimname.lower()) or ('lon' in dimname.lower()))]
+            spatial_dims = [
+                dimname
+                for dimname in indata.dims
+                if (("lat" in dimname.lower()) or ("lon" in dimname.lower()))
+            ]
 
     if not spatial_dims:
-        #Scripts using this function likely expect the horizontal dimensions
-        #to be removed via the application of the mean. So in order to avoid
-        #possibly unexpected behavior due to arrays being incorrectly dimensioned
-        #(which could be difficult to debug) the ADF should die here:
+        # Scripts using this function likely expect the horizontal dimensions
+        # to be removed via the application of the mean. So in order to avoid
+        # possibly unexpected behavior due to arrays being incorrectly dimensioned
+        # (which could be difficult to debug) the ADF should die here:
         emsg = "spatial_average: No spatial dimensions were identified,"
         emsg += " so can not perform average."
         raise AdfError(emsg)
@@ -435,7 +461,7 @@ def wgt_rmse(fld1, fld2, wgt):
     Notes:
     ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
     """
-    assert len(fld1.shape) == 2,     "Input fields must have exactly two dimensions."
+    assert len(fld1.shape) == 2, "Input fields must have exactly two dimensions."
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     # in case these fields are in dask arrays, compute them now.
     if hasattr(fld1, "compute"):
@@ -443,23 +469,30 @@ def wgt_rmse(fld1, fld2, wgt):
     if hasattr(fld2, "compute"):
         fld2 = fld2.compute()
     if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
-        return (np.sqrt(((fld1 - fld2)**2).weighted(wgt).mean())).values.item()
+        return (np.sqrt(((fld1 - fld2) ** 2).weighted(wgt).mean())).values.item()
     else:
         check = [len(wgt) == s for s in fld1.shape]
         if ~np.any(check):
-            raise IOError(f"Sorry, weight array has shape {wgt.shape} which is not compatible with data of shape {fld1.shape}")
+            raise IOError(
+                f"Sorry, weight array has shape {wgt.shape} which is not compatible with data of shape {fld1.shape}"
+            )
         check = [len(wgt) != s for s in fld1.shape]
-        dimsize = fld1.shape[np.argwhere(check).item()]  # want to get the dimension length for the dim that does not match the size of wgt
-        warray = np.tile(wgt, (dimsize, 1)).transpose()   # May need more logic to ensure shape is correct.
-        warray = warray / np.sum(warray) # normalize
-        wmse = np.sum(warray * (fld1 - fld2)**2)
-        return np.sqrt( wmse ).item()
+        dimsize = fld1.shape[
+            np.argwhere(check).item()
+        ]  # want to get the dimension length for the dim that does not match the size of wgt
+        warray = np.tile(
+            wgt, (dimsize, 1)
+        ).transpose()  # May need more logic to ensure shape is correct.
+        warray = warray / np.sum(warray)  # normalize
+        wmse = np.sum(warray * (fld1 - fld2) ** 2)
+        return np.sqrt(wmse).item()
 
 
 #######
 # Time-weighted averaging
 
-def annual_mean(data, whole_years=False, time_name='time'):
+
+def annual_mean(data, whole_years=False, time_name="time"):
     """Calculate annual averages from monthly time series data.
 
     Parameters
@@ -484,11 +517,15 @@ def annual_mean(data, whole_years=False, time_name='time'):
 
     `result` includes an attribute that reports the date range used for the average.
     """
-    assert time_name in data.coords, f"Did not find the expected time coordinate '{time_name}' in the data"
+    assert (
+        time_name in data.coords
+    ), f"Did not find the expected time coordinate '{time_name}' in the data"
     if whole_years:
         first_january = np.argwhere((data.time.dt.month == 1).values)[0].item()
         last_december = np.argwhere((data.time.dt.month == 12).values)[-1].item()
-        data_to_avg = data.isel(time=slice(first_january,last_december+1)) # PLUS 1 BECAUSE SLICE DOES NOT INCLUDE END POINT
+        data_to_avg = data.isel(
+            time=slice(first_january, last_december + 1)
+        )  # PLUS 1 BECAUSE SLICE DOES NOT INCLUDE END POINT
     else:
         data_to_avg = data
     date_range_string = f"{data_to_avg['time'][0]} -- {data_to_avg['time'][-1]}"
@@ -496,11 +533,13 @@ def annual_mean(data, whole_years=False, time_name='time'):
     # this provides the normalized monthly weights in each year
     # -- do it for each year to allow for non-standard calendars (360-day)
     # -- and also to provision for data with leap years
-    days_gb = data_to_avg.time.dt.daysinmonth.groupby('time.year').map(lambda x: x / x.sum())
+    days_gb = data_to_avg.time.dt.daysinmonth.groupby("time.year").map(
+        lambda x: x / x.sum()
+    )
     # weighted average with normalized weights: <x> = SUM x_i * w_i  (implied division by SUM w_i)
-    result =  (data_to_avg * days_gb).groupby('time.year').sum(dim='time')
-    result.attrs['averaging_period'] = date_range_string
-    result.attrs['units'] = data.attrs.get("units",None)
+    result = (data_to_avg * days_gb).groupby("time.year").sum(dim="time")
+    result.attrs["averaging_period"] = date_range_string
+    result.attrs["units"] = data.attrs.get("units", None)
     return result
 
 
@@ -532,50 +571,66 @@ def seasonal_mean(data, season=None, is_climo=None):
     it will assume that dimension is time running from January to December.
     """
     if season is not None:
-        assert season in ["ANN", "DJF", "JJA", "MAM", "SON"], f"Unrecognized season string provided: '{season}'"
+        assert season in [
+            "ANN",
+            "DJF",
+            "JJA",
+            "MAM",
+            "SON",
+        ], f"Unrecognized season string provided: '{season}'"
     elif season is None:
         season = "ANN"
 
-    if isinstance(data, (xr.DataArray, xr.Dataset)) and 'time' in data.coords \
-            and 'time' not in data.dims:
+    if (
+        isinstance(data, (xr.DataArray, xr.Dataset))
+        and "time" in data.coords
+        and "time" not in data.dims
+    ):
         # Time-invariant field: a scalar time coordinate, which is what is left
         # after squeeze() collapses the length-1 time dimension of a
         # single-timestamp file (e.g. a land-sea mask). Every season is the same
         # field, so there is nothing to average, and .sel(time=...) below would
         # fail with "no index found for coordinate 'time'".
-        return data.drop_vars('time')
+        return data.drop_vars("time")
 
     try:
         month_length = data.time.dt.days_in_month
     except (AttributeError, TypeError):
         # do our best to determine the temporal dimension and assign weights
         if not is_climo:
-            raise ValueError("Non-climo file provided, but without a decoded time dimension.")
+            raise ValueError(
+                "Non-climo file provided, but without a decoded time dimension."
+            )
         else:
             # CLIMO file: try to determine which dimension is month
             has_time = False
             if isinstance(data, xr.DataArray):
-                has_time = 'time' in data.dims
+                has_time = "time" in data.dims
                 if not has_time:
                     if "month" in data.dims:
-                        data = data.rename({"month":"time"})
+                        data = data.rename({"month": "time"})
                         has_time = True
             if not has_time:
                 # this might happen if a pure numpy array gets passed in
                 # --> assumes ordered January to December.
-                assert ((12 in data.shape) and (data.shape.count(12) == 1)), f"Sorry, {data.shape.count(12)} dimensions have size 12, making determination of which dimension is month ambiguous. Please provide a `time` or `month` dimension."
+                assert (12 in data.shape) and (
+                    data.shape.count(12) == 1
+                ), f"Sorry, {data.shape.count(12)} dimensions have size 12, making determination of which dimension is month ambiguous. Please provide a `time` or `month` dimension."
                 time_dim_num = data.shape.index(12)
                 fakedims = [f"dim{n}" for n in range(len(data.shape))]
                 fakedims[time_dim_num] = "time"
                 data = xr.DataArray(data, dims=fakedims, attrs=data.attrs)
-            timefix = pd.date_range(start='1/1/1999', end='12/1/1999', freq='MS') # generic time coordinate from a non-leap-year
-            data = data.assign_coords({"time":timefix})
+            timefix = pd.date_range(
+                start="1/1/1999", end="12/1/1999", freq="MS"
+            )  # generic time coordinate from a non-leap-year
+            data = data.assign_coords({"time": timefix})
         month_length = data.time.dt.days_in_month
-    #End try/except
+    # End try/except
 
-    data = data.sel(time=data.time.dt.month.isin(seasons[season])) # directly take the months we want based on season kwarg
-    return data.weighted(data.time.dt.daysinmonth).mean(dim='time', keep_attrs=True)
-
+    data = data.sel(
+        time=data.time.dt.month.isin(seasons[season])
+    )  # directly take the months we want based on season kwarg
+    return data.weighted(data.time.dt.daysinmonth).mean(dim="time", keep_attrs=True)
 
 
 #######
@@ -611,20 +666,21 @@ def domain_stats(data, domain):
     spatial_average
 
     """
-    x_region = data.sel(lat=slice(domain[2],domain[3]), lon=slice(domain[0],domain[1]))
-    x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region['lat']))).mean().item()
+    x_region = data.sel(
+        lat=slice(domain[2], domain[3]), lon=slice(domain[0], domain[1])
+    )
+    x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region["lat"]))).mean().item()
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
-
-
 
 
 #
 #  -- vertical interpolation code --
 #
 
-def pres_from_hybrid(psfc, hya, hyb, p0=100000.):
+
+def pres_from_hybrid(psfc, hya, hyb, p0=100000.0):
     """Calculates pressure field
 
     pressure derived with the formula:
@@ -643,9 +699,11 @@ def pres_from_hybrid(psfc, hya, hyb, p0=100000.):
     -------
     pressure, size is same as `psfc` with `len(hya)` levels
     """
-    return hya*p0 + hyb*psfc
+    return hya * p0 + hyb * psfc
+
 
 #####
+
 
 def vert_remap(x_mdl, p_mdl, plev):
     """Apply simple 1-d interpolation to a field
@@ -669,24 +727,27 @@ def vert_remap(x_mdl, p_mdl, plev):
     Interpolation done in log pressure
     """
 
-    #Determine array shape of output array:
+    # Determine array shape of output array:
     out_shape = (plev.shape[0], x_mdl.shape[1])
 
-    #Initialize interpolated output numpy array:
+    # Initialize interpolated output numpy array:
     output = np.full(out_shape, np.nan)
 
-    #Perform 1-D interpolation in log-space:
+    # Perform 1-D interpolation in log-space:
     for i in range(out_shape[1]):
-        output[:,i] = np.interp(np.log(plev), np.log(p_mdl[:,i]), x_mdl[:,i])
-    #End for
+        output[:, i] = np.interp(np.log(plev), np.log(p_mdl[:, i]), x_mdl[:, i])
+    # End for
 
-    #Return interpolated output:
+    # Return interpolated output:
     return output
+
 
 #####
 
-def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
-                convert_to_mb=False):
+
+def lev_to_plev(
+    data, ps, hyam, hybm, P0=100000.0, new_levels=None, convert_to_mb=False
+):
     """Interpolate model hybrid levels to specified pressure levels.
 
     Parameters
@@ -719,53 +780,54 @@ def lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None,
     and so can potentially be sped-up via the use of a DASK cluster.
     """
 
-    #Temporary print statement to notify users to ignore warning messages.
-    #This should be replaced by a debug-log stdout filter at some point:
+    # Temporary print statement to notify users to ignore warning messages.
+    # This should be replaced by a debug-log stdout filter at some point:
     print("Please ignore the interpolation warnings that follow!")
 
-    #Apply GeoCAT hybrid->pressure interpolation:
+    # Apply GeoCAT hybrid->pressure interpolation:
     if new_levels is not None:
-        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,
-                                                                    hyam,
-                                                                    hybm,
-                                                                    p0=P0,
-                                                                    new_levels=new_levels
-                                                                   )
+        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(
+            data, ps, hyam, hybm, p0=P0, new_levels=new_levels
+        )
     else:
-        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(data, ps,
-                                                                    hyam,
-                                                                    hybm,
-                                                                    p0=P0
-                                                                   )
+        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(
+            data, ps, hyam, hybm, p0=P0
+        )
 
     # data_interp may contain a dask array, which can cause
     # trouble downstream with numpy functions, so call compute() here.
     if hasattr(data_interp, "compute"):
         data_interp = data_interp.compute()
 
-    #Rename vertical dimension back to "lev" in order to work with
-    #the ADF plotting functions:
+    # Rename vertical dimension back to "lev" in order to work with
+    # the ADF plotting functions:
     data_interp_rename = data_interp.rename({"plev": "lev"})
     attrs = data_interp_rename.attrs.copy()
     lev_orig = data_interp_rename["lev"]
     lev_orig_attrs = lev_orig.attrs.copy()
 
-    #Convert vertical dimension to mb/hPa, if requested:
+    # Convert vertical dimension to mb/hPa, if requested:
     if convert_to_mb:
         lev_new = lev_orig / 100.0
         lev_new.attrs = lev_orig_attrs
         lev_new.name = "lev"
         lev_new.attrs["units"] = "hPa"
-        lev_new.attrs["history"] = f"converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
+        lev_new.attrs["history"] = (
+            f"converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
+        )
         data_interp_rename["lev"] = lev_new
         data_interp_rename.attrs = attrs
     else:
-        data_interp_rename.attrs['units'] = "Pa"
-        data_interp_rename.attrs['history'] = f"Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
+        data_interp_rename.attrs["units"] = "Pa"
+        data_interp_rename.attrs["history"] = (
+            f"Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
+        )
 
     return data_interp_rename
 
+
 #####
+
 
 def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
     """Interpolate data from hybrid-sigma levels to isobaric levels.
@@ -789,31 +851,57 @@ def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
 
     # determine pressure levels to interpolate to:
     if new_levels is None:
-        pnew = 100.0 * np.array([1000, 925, 850, 700, 500, 400,
-                                 300, 250, 200, 150, 100, 70, 50,
-                                 30, 20, 10, 7, 5, 3, 2, 1])  # mandatory levels, converted to Pa
+        pnew = 100.0 * np.array(
+            [
+                1000,
+                925,
+                850,
+                700,
+                500,
+                400,
+                300,
+                250,
+                200,
+                150,
+                100,
+                70,
+                50,
+                30,
+                20,
+                10,
+                7,
+                5,
+                3,
+                2,
+                1,
+            ]
+        )  # mandatory levels, converted to Pa
     else:
         pnew = new_levels
-    #End if
+    # End if
 
     # save name of DataArray:
     data_name = data.name
 
     # reshape data and pressure assuming "lev" is the name of the coordinate
-    zdims = [i for i in data.dims if i != 'lev']
+    zdims = [i for i in data.dims if i != "lev"]
     dstack = data.stack(z=zdims)
     pstack = pmid.stack(z=zdims)
     output = vert_remap(dstack.values, pstack.values, pnew)
-    output = xr.DataArray(output, name=data_name, dims=("lev", "z"),
-                          coords={"lev":pnew, "z":pstack['z']})
+    output = xr.DataArray(
+        output,
+        name=data_name,
+        dims=("lev", "z"),
+        coords={"lev": pnew, "z": pstack["z"]},
+    )
     output = output.unstack()
 
     # convert vertical dimension to mb/hPa, if requested:
     if convert_to_mb:
         output["lev"] = output["lev"] / 100.0
-    #End if
+    # End if
 
-    #Return interpolated output:
+    # Return interpolated output:
     return output
 
 
@@ -836,24 +924,48 @@ def plev_to_plev(data, new_levels=None, convert_to_mb=False):
     """
 
     # Try to identify the vertical coordinate name
-    vert_coord_names = ['lev', 'plev', 'pressure']
+    vert_coord_names = ["lev", "plev", "pressure"]
     vert_coord = None
     for name in vert_coord_names:
         if name in data.dims:
             vert_coord = name
             break
-    
+
     if vert_coord is None:
-        raise AdfError(f"plev_to_plev: Could not find a vertical coordinate in {vert_coord_names}.")
+        raise AdfError(
+            f"plev_to_plev: Could not find a vertical coordinate in {vert_coord_names}."
+        )
 
     # determine pressure levels to interpolate to:
     if new_levels is None:
-        pnew = 100.0 * np.array([1000, 925, 850, 700, 500, 400,
-                                 300, 250, 200, 150, 100, 70, 50,
-                                 30, 20, 10, 7, 5, 3, 2, 1])  # mandatory levels, converted to Pa
+        pnew = 100.0 * np.array(
+            [
+                1000,
+                925,
+                850,
+                700,
+                500,
+                400,
+                300,
+                250,
+                200,
+                150,
+                100,
+                70,
+                50,
+                30,
+                20,
+                10,
+                7,
+                5,
+                3,
+                2,
+                1,
+            ]
+        )  # mandatory levels, converted to Pa
     else:
         pnew = new_levels
-    #End if
+    # End if
 
     # save name of DataArray:
     data_name = data.name
@@ -869,24 +981,29 @@ def plev_to_plev(data, new_levels=None, convert_to_mb=False):
     zdims = [i for i in data.dims if i != vert_coord]
     dstack = data.stack(z=zdims)
     pstack = p_mdl.stack(z=zdims)
-    
+
     # Need to transpose to (vert_coord, z)
-    dstack = dstack.transpose(vert_coord, 'z')
-    pstack = pstack.transpose(vert_coord, 'z')
-    
+    dstack = dstack.transpose(vert_coord, "z")
+    pstack = pstack.transpose(vert_coord, "z")
+
     output = vert_remap(dstack.values, pstack.values, pnew)
-    output = xr.DataArray(output, name=data_name, dims=("lev", "z"),
-                          coords={"lev":pnew, "z":pstack['z']})
+    output = xr.DataArray(
+        output,
+        name=data_name,
+        dims=("lev", "z"),
+        coords={"lev": pnew, "z": pstack["z"]},
+    )
     output = output.unstack()
 
     # convert vertical dimension to mb/hPa, if requested:
     if convert_to_mb:
         ## DEAL WITH METADATA BETTER HERE
         output["lev"] = output["lev"] / 100.0
-    #End if
+    # End if
 
-    #Return interpolated output:
+    # Return interpolated output:
     return output
+
 
 def create_clean_grid(da):
     """
@@ -916,29 +1033,37 @@ def create_clean_grid(da):
     # Build basic Dataset
     clean_ds = xr.Dataset(
         coords={
-            "lat": (["lat"], lat_centers, {"units": "degrees_north", "standard_name": "latitude"}),
-            "lon": (["lon"], lon_centers, {"units": "degrees_east", "standard_name": "longitude"}),
+            "lat": (
+                ["lat"],
+                lat_centers,
+                {"units": "degrees_north", "standard_name": "latitude"},
+            ),
+            "lon": (
+                ["lon"],
+                lon_centers,
+                {"units": "degrees_east", "standard_name": "longitude"},
+            ),
         }
     )
 
     # Add Bounds as vertices if they exist
     # Check for various possible bounds names
-    lat_bnds_names = ['lat_bnds', 'lat_bounds', 'latitude_bnds', 'latitude_bounds']
-    lon_bnds_names = ['lon_bnds', 'lon_bounds', 'longitude_bnds', 'longitude_bounds']
-    
+    lat_bnds_names = ["lat_bnds", "lat_bounds", "latitude_bnds", "latitude_bounds"]
+    lon_bnds_names = ["lon_bnds", "lon_bounds", "longitude_bnds", "longitude_bounds"]
+
     lat_bnds = None
     lon_bnds = None
-    
+
     for name in lat_bnds_names:
         if name in ds:
             lat_bnds = ds[name]
             break
-    
+
     for name in lon_bnds_names:
         if name in ds:
             lon_bnds = ds[name]
             break
-    
+
     if lat_bnds is not None and lon_bnds is not None:
         lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
         lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
@@ -961,7 +1086,9 @@ def create_clean_grid(da):
 def _edges_from_centers(centers):
     """Cell edges midway between centers, with the outer two extrapolated."""
     mids = (centers[:-1] + centers[1:]) / 2.0
-    return np.concatenate([[2 * centers[0] - mids[0]], mids, [2 * centers[-1] - mids[-1]]])
+    return np.concatenate(
+        [[2 * centers[0] - mids[0]], mids, [2 * centers[-1] - mids[-1]]]
+    )
 
 
 def validate_dims(fld, list_of_dims):
@@ -983,7 +1110,7 @@ def validate_dims(fld, list_of_dims):
     """
     if not isinstance(list_of_dims, list):
         list_of_dims = list(list_of_dims)
-    return { "_".join(["has",f"{v}"]):(v in fld.dims) for v in list_of_dims}
+    return {"_".join(["has", f"{v}"]): (v in fld.dims) for v in list_of_dims}
 
 
 def lat_lon_validate_dims(fld):
@@ -1006,9 +1133,9 @@ def lat_lon_validate_dims(fld):
     # note: we can only handle variables that reduce to (lat,lon)
     if len(fld.dims) > 3:
         return False
-    validate = validate_dims(fld, ['lat','lon'])
+    validate = validate_dims(fld, ["lat", "lon"])
     if not all(validate.values()):
-        return  False
+        return False
     else:
         return True
 
@@ -1034,8 +1161,8 @@ def zm_validate_dims(fld):
     if len(fld.dims) > 4:
         print(f"Sorry, too many dimensions: {fld.dims}")
         return None
-    validate = validate_dims(fld, ['lev','lat'])
-    has_lev, has_lat = validate['has_lev'], validate['has_lat']
+    validate = validate_dims(fld, ["lev", "lat"])
+    has_lev, has_lat = validate["has_lev"], validate["has_lat"]
     return has_lat, has_lev
 
 
@@ -1043,10 +1170,11 @@ def zonal_mean_xr(fld):
     """Average over all dimensions except `lev` and `lat`."""
     if isinstance(fld, xr.DataArray):
         d = fld.dims
-        davgovr = [dim for dim in d if dim not in ('lev','lat')]
+        davgovr = [dim for dim in d if dim not in ("lev", "lat")]
     else:
         raise IOError("zonal_mean_xr requires Xarray DataArray input.")
     return fld.mean(dim=davgovr)
 
+
 #####################
-#END HELPER FUNCTIONS
+# END HELPER FUNCTIONS

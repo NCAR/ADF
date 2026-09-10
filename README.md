@@ -99,6 +99,29 @@ This should generate a collection of time series files, climatology (climo) file
 Jupyter Book detailing the ADF including ADF basics, guided examples, quick runs, and references
   - https://justin-richling.github.io/ADF-Tutorial/README.html
 
+## Developing the ADF
+
+Detailed developer instructions live on the [wiki](https://github.com/NCAR/ADF/wiki); one
+repository-level setting is worth doing right after you clone.
+
+### Formatting checks (`pre-commit`)
+
+The framework code under `lib/` is formatted with [black](https://black.readthedocs.io/), and
+the [`ADF_pre-commit.yaml`](.github/workflows/ADF_pre-commit.yaml) workflow re-checks it on
+every pull request, so an unformatted `lib/` file is a failing CI check. `pre-commit` is part
+of `env/conda_environment.yaml`, so with the ADF environment activated you can run the same
+check CI runs:
+```
+pre-commit run -a
+```
+Better, install it as a git hook so it runs automatically on each commit:
+```
+pre-commit install
+```
+The black version is pinned in [`.pre-commit-config.yaml`](.pre-commit-config.yaml) and all of
+its settings live in [`pyproject.toml`](pyproject.toml), so local runs and CI always agree.
+`scripts/` is intentionally not covered by the hook.
+
 ## Troubleshooting
 
 Any problems or issues with this software should be posted on the ADF discussions page located online [here](https://github.com/NCAR/ADF/discussions).

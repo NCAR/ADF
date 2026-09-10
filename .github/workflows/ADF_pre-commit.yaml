@@ -16,23 +16,33 @@ jobs:
   #This job is designed to run the "pre-commit"
   #set of static analysis, linters, and formatters
   #for Python and YAML.
+  #
+  #Note that this job is the only place in CI where the
+  #"black" python code formatter is checked.  The hook
+  #itself, including the black version and the set of files
+  #it applies to, is configured in ".pre-commit-config.yaml",
+  #and black's own settings live in the "[tool.black]"
+  #section of the top-level "pyproject.toml".
   pre-commit:
     if: github.event_name == 'pull_request' || github.repository == 'NCAR/ADF'
     runs-on: ubuntu-latest
     steps:
     # acquire github action routines
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     # acquire specific version of python
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v6
       with:
-        python-version: '3.10' # Use python 3.10
+        python-version: '3.12' # Use python 3.12
     # install pre-commit package
     - name: Install pre-commit
       run: |
         python -m pip install --upgrade pip  # Install latest version of PIP
         pip install pre-commit
-    # run pre-commit on ADF code
+    # run pre-commit on ADF code.  The "--show-diff-on-failure"
+    # flag makes hooks that rewrite files (e.g. black) print the
+    # changes they would make, so a CI failure shows what is
+    # actually wrong instead of just which files were modified:
     - name: Run pre-commit
-      run: pre-commit run -a
+      run: pre-commit run -a --show-diff-on-failure
 
