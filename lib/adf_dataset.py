@@ -1,11 +1,13 @@
 """Data-access layer: locate and load ADF time series, climo, and regridded files."""
-import warnings # use to warn user about missing files
+
+import warnings  # use to warn user about missing files
 from pathlib import Path
 
 import xarray as xr
 
 import adf_utils as utils
 from adf_units import units_equivalent
+
 warnings.formatwarning = utils.my_formatwarning
 
 # "reference data"
@@ -47,16 +49,18 @@ warnings.formatwarning = utils.my_formatwarning
 #       Therefore the default on loading regridded files is to NOT
 #       apply scaling.
 
+
 class AdfData:
     """A class instantiated with an AdfDiag object.
-       Methods provide means to load data.
-       This class does not interact with plotting,
-       just provides access to data locations and loading data.
+    Methods provide means to load data.
+    This class does not interact with plotting,
+    just provides access to data locations and loading data.
 
-       A future need is to add some kind of frequency/sampling
-       parameters to allow for non-h0 files.
+    A future need is to add some kind of frequency/sampling
+    parameters to allow for non-h0 files.
 
     """
+
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
         # paths
@@ -80,22 +84,28 @@ class AdfData:
         """Set attributes for reference (aka baseline) data location, names, and variables."""
         if self.adf.compare_obs:
             obs = self.adf.var_obs_dict
-            self.ref_var_loc = {v: obs[v]['obs_file'] for v in obs}
-            self.ref_labels = {v: obs[v]['obs_name'] for v in obs}
-            self.ref_var_nam = {v: obs[v]['obs_var'] for v in obs}
+            self.ref_var_loc = {v: obs[v]["obs_file"] for v in obs}
+            self.ref_labels = {v: obs[v]["obs_name"] for v in obs}
+            self.ref_var_nam = {v: obs[v]["obs_var"] for v in obs}
             self.ref_case_label = "Obs"
             if not self.adf.var_obs_dict:
-                warnings.warn("\t    WARNING: reference is observations, but no "
-                              "observations found to plot against.")
+                warnings.warn(
+                    "\t    WARNING: reference is observations, but no "
+                    "observations found to plot against."
+                )
         else:
             self.ref_var_loc = {}
             self.ref_var_nam = {}
             self.ref_labels = {}
             # when using a reference simulation, allow a "special" attribute with the case name:
-            self.ref_case_label = self.adf.get_baseline_info("cam_case_name", required=True)
+            self.ref_case_label = self.adf.get_baseline_info(
+                "cam_case_name", required=True
+            )
             for v in self.adf.diag_var_list:
                 self.ref_var_nam[v] = v
-                self.ref_labels[v] = self.adf.get_baseline_info("cam_case_name", required=True)
+                self.ref_labels[v] = self.adf.get_baseline_info(
+                    "cam_case_name", required=True
+                )
                 f = self.get_reference_climo_file(v)
                 if f:
                     self.ref_var_loc[v] = f
@@ -107,7 +117,7 @@ class AdfData:
             self.ref_var_loc[v] = f
 
     # History stream helpers
-    #------------------
+    # ------------------
     @staticmethod
     def _as_hist_str_list(hist_strs):
         """Coerce a hist_str entry (str, list, None, or empty) to a clean list of streams."""
@@ -129,9 +139,8 @@ class AdfData:
         """Ordered history streams configured for the reference/baseline case."""
         return self._as_hist_str_list(self.adf.hist_string["base_hist_str"])
 
-
     # Time series files
-    #------------------
+    # ------------------
     # Test case(s)
     def _select_ts_files(self, fils, syr, eyr, field):
         """Narrow time series files to the years wanted, saying so in the log.
@@ -144,13 +153,13 @@ class AdfData:
             msg = f"\t    INFO: '{field}' has {len(fils)} time series files that "
             msg += "cannot be used together, so the "
             msg += f"{len(chosen)} needed for years {syr}-{eyr} were used."
-            #Say it on screen as well as in the log: the numbers a user sees
-            #change when this happens, and that should not be silent.
+            # Say it on screen as well as in the log: the numbers a user sees
+            # change when this happens, and that should not be silent.
             print(msg)
             self.adf.debug_log(
-                msg + "  Files used: "
-                + ", ".join(str(Path(f).name) for f in chosen))
-        #End if
+                msg + "  Files used: " + ", ".join(str(Path(f).name) for f in chosen)
+            )
+        # End if
         return chosen
 
     def get_timeseries_file(self, case, field, hist_str=None):
@@ -169,13 +178,14 @@ class AdfData:
         caseindex = (self.case_names).index(case)
         ts_loc = Path(ts_locs[caseindex])
         if hist_str:
-            ts_filenames = f'{case}.{hist_str}.{field}.*nc'
+            ts_filenames = f"{case}.{hist_str}.{field}.*nc"
         else:
-            ts_filenames = f'{case}.*.{field}.*nc'
+            ts_filenames = f"{case}.*.{field}.*nc"
         fils = utils.find_ts_files(ts_loc, ts_filenames)
         climo_yrs = self.adf.climo_yrs
-        return self._select_ts_files(fils, climo_yrs["syears"][caseindex],
-                                     climo_yrs["eyears"][caseindex], field)
+        return self._select_ts_files(
+            fils, climo_yrs["syears"][caseindex], climo_yrs["eyears"][caseindex], field
+        )
 
     # Reference case (baseline/obs)
     def get_ref_timeseries_file(self, field, hist_str=None):
@@ -185,19 +195,21 @@ class AdfData:
         Narrowed to the baseline's climatology years, as for the test cases.
         """
         if self.adf.compare_obs:
-            warnings.warn("\t    WARNING: ADF does not currently expect "
-                          "observational time series files.")
+            warnings.warn(
+                "\t    WARNING: ADF does not currently expect "
+                "observational time series files."
+            )
             return None
         ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
         if hist_str:
-            ts_filenames = f'{self.ref_case_label}.{hist_str}.{field}.*nc'
+            ts_filenames = f"{self.ref_case_label}.{hist_str}.{field}.*nc"
         else:
-            ts_filenames = f'{self.ref_case_label}.*.{field}.*nc'
+            ts_filenames = f"{self.ref_case_label}.*.{field}.*nc"
         fils = utils.find_ts_files(ts_loc, ts_filenames)
         climo_yrs = self.adf.climo_yrs
-        return self._select_ts_files(fils, climo_yrs["syear_baseline"],
-                                     climo_yrs["eyear_baseline"], field)
-
+        return self._select_ts_files(
+            fils, climo_yrs["syear_baseline"], climo_yrs["eyear_baseline"], field
+        )
 
     def load_timeseries_dataset(self, fils):
         """Return DataSet from time series file(s) and assign time to midpoint of interval"""
@@ -227,13 +239,15 @@ class AdfData:
 
     def load_timeseries_da(self, case, variablename):
         """Return DataArray from time series file(s).
-           Uses defaults file to convert units.
+        Uses defaults file to convert units.
         """
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_timeseries_file(case, variablename)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find case time series file(s), "
-                          f"variable: {variablename}")
+            warnings.warn(
+                "\t    WARNING: Did not find case time series file(s), "
+                f"variable: {variablename}"
+            )
             return None
         return self.load_da(
             fils,
@@ -245,24 +259,28 @@ class AdfData:
 
     def load_reference_timeseries_da(self, field, apply_scaling=True):
         """Return a DataArray time series to be used as reference
-          (aka baseline) for variable field.
+        (aka baseline) for variable field.
 
-          apply_scaling: bool
-            If True, apply add_offset and scale_factor to data (if present).
+        apply_scaling: bool
+          If True, apply add_offset and scale_factor to data (if present).
         """
         fils = self.get_ref_timeseries_file(field)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find reference time series file(s), "
-                          f"variable: {field}")
+            warnings.warn(
+                "\t    WARNING: Did not find reference time series file(s), "
+                f"variable: {field}"
+            )
             return None
-        #Change the variable name from CAM standard to what is
+        # Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
         if self.adf.compare_obs:
             field = self.ref_var_nam[field]
             add_offset = 0
             scale_factor = 1
         else:
-            add_offset, scale_factor = self.get_value_converters(self.ref_case_label, field)
+            add_offset, scale_factor = self.get_value_converters(
+                self.ref_case_label, field
+            )
 
         if not apply_scaling:
             add_offset = 0
@@ -276,12 +294,10 @@ class AdfData:
             scale_factor=scale_factor,
         )
 
-
-    #------------------
-
+    # ------------------
 
     # Climatology files
-    #------------------
+    # ------------------
 
     # Test case(s)
     def load_climo_ds(self, case, variablename):
@@ -289,8 +305,10 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find climo file for case: "
-                          f"{case}, variable: {variablename}")
+            warnings.warn(
+                "\t    WARNING: Did not find climo file for case: "
+                f"{case}, variable: {variablename}"
+            )
             return None
         ds = self.load_dataset(fils)
         if ds is None:
@@ -313,12 +331,12 @@ class AdfData:
         if scale_factor != 1 or add_offset != 0:
             new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
             if new_unit:
-                ds[variablename].attrs['units'] = new_unit
+                ds[variablename].attrs["units"] = new_unit
             # Stamp on any conversion, not only one that renames the units:
             # TAUX/TAUY are scaled by -1 with no "new_unit", and an unstamped
             # file is indistinguishable from one that was never converted.
             # int, not bool: netCDF4 cannot store a Python bool as an attribute
-            ds[variablename].attrs['transformed'] = 1
+            ds[variablename].attrs["transformed"] = 1
         return ds
 
     def load_climo_da(self, case, variablename, apply_scaling=True):
@@ -329,18 +347,20 @@ class AdfData:
         else:
             add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_climo_file(case, variablename)
-        return self.load_da(fils, variablename, add_offset=add_offset, scale_factor=scale_factor)
-
+        return self.load_da(
+            fils, variablename, add_offset=add_offset, scale_factor=scale_factor
+        )
 
     def load_climo_file(self, case, variablename):
         """Return Dataset for climo of variablename"""
         fils = self.get_climo_file(case, variablename)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find climo file for variable: "
-                          f"{variablename}. Will try to skip.")
+            warnings.warn(
+                "\t    WARNING: Did not find climo file for variable: "
+                f"{variablename}. Will try to skip."
+            )
             return None
         return self.load_dataset(fils)
-
 
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific case.
@@ -353,15 +373,16 @@ class AdfData:
         """
         # list of paths (could be multiple cases)
         a = self.adf.get_cam_info("cam_climo_loc", required=True)
-        caseindex = (self.case_names).index(case) # the entry for specified case
+        caseindex = (self.case_names).index(case)  # the entry for specified case
         model_cl_loc = Path(a[caseindex])
         for hist_str in self._hist_strs_for_case(case):
-            fils = sorted(model_cl_loc.glob(f"{case}_{hist_str}_{variablename}_climo.nc"))
+            fils = sorted(
+                model_cl_loc.glob(f"{case}_{hist_str}_{variablename}_climo.nc")
+            )
             if fils:
                 return fils
         # Fall back to older naming (no hist_str) for pre-existing climo files:
         return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
-
 
     # Reference case (baseline/obs)
     def load_reference_climo_ds(self, case, variablename, apply_scaling=True):
@@ -372,8 +393,10 @@ class AdfData:
         add_offset, scale_factor = self.get_value_converters(case, variablename)
         fils = self.get_reference_climo_file(variablename)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find reference climo file for "
-                          f"variable: {variablename}")
+            warnings.warn(
+                "\t    WARNING: Did not find reference climo file for "
+                f"variable: {variablename}"
+            )
             return None
         ds = self.load_dataset(fils)
         if ds is None:
@@ -400,7 +423,7 @@ class AdfData:
                 ds[vname].attrs["units"] = new_unit
             # End if
             # int, not bool: netCDF4 cannot store a Python bool as an attribute
-            ds[vname].attrs['transformed'] = 1
+            ds[vname].attrs["transformed"] = 1
         return ds
 
     def load_reference_climo_da(self, case, variablename, apply_scaling=True):
@@ -429,17 +452,18 @@ class AdfData:
         # Prefer stream-aware naming (in priority order), then fall back to the
         # older convention so pre-existing baseline climo files still work:
         for hist_str in self._hist_strs_for_reference():
-            fils = sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{hist_str}_{var}_climo.nc"))
+            fils = sorted(
+                Path(ref_loc).glob(f"{self.ref_case_label}_{hist_str}_{var}_climo.nc")
+            )
             if fils:
                 return fils
         # NOTE: originally had this looking for *_baseline.nc
         return sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
 
-    #------------------
-
+    # ------------------
 
     # Regridded files
-    #------------------
+    # ------------------
 
     # Test case(s)
     def get_regrid_file(self, case, field):
@@ -449,16 +473,16 @@ class AdfData:
         rlbl = self.ref_labels[field]
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
-
     def load_regrid_dataset(self, case, field):
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find regrid file(s) for case: "
-                          f"{case}, variable: {field}")
+            warnings.warn(
+                "\t    WARNING: Did not find regrid file(s) for case: "
+                f"{case}, variable: {field}"
+            )
             return None
         return self.load_dataset(fils)
-
 
     def load_regrid_da(self, case, field, apply_scaling=None):
         """Return a data array of regridded data for case and variable field.
@@ -476,13 +500,17 @@ class AdfData:
         """
         fils = self.get_regrid_file(case, field)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find regrid file(s) for case: "
-                          f"{case}, variable: {field}")
+            warnings.warn(
+                "\t    WARNING: Did not find regrid file(s) for case: "
+                f"{case}, variable: {field}"
+            )
             return None
-        add_offset, scale_factor = self._regrid_converters(fils, field, case, field,
-                                                           apply_scaling)
-        return self.load_da(fils, field, add_offset=add_offset, scale_factor=scale_factor)
-
+        add_offset, scale_factor = self._regrid_converters(
+            fils, field, case, field, apply_scaling
+        )
+        return self.load_da(
+            fils, field, add_offset=add_offset, scale_factor=scale_factor
+        )
 
     # Reference case (baseline/obs)
     def get_ref_regrid_file(self, case, field):
@@ -498,16 +526,16 @@ class AdfData:
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
 
-
     def load_reference_regrid_dataset(self, case, field):
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find regridded file(s) for case: "
-                          f"{case}, variable: {field}")
+            warnings.warn(
+                "\t    WARNING: Did not find regridded file(s) for case: "
+                f"{case}, variable: {field}"
+            )
             return None
         return self.load_dataset(fils)
-
 
     def load_reference_regrid_da(self, case, field, apply_scaling=None):
         """Return a data array to be used as reference (aka baseline) for variable field.
@@ -526,14 +554,17 @@ class AdfData:
         """
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
-            warnings.warn("\t    WARNING: Did not find regridded file(s) for case: "
-                          f"{case}, variable: {field}")
+            warnings.warn(
+                "\t    WARNING: Did not find regridded file(s) for case: "
+                f"{case}, variable: {field}"
+            )
             return None
-        #Change the variable name from CAM standard to what is
+        # Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
         file_field = self.ref_var_nam[field] if self.adf.compare_obs else field
-        add_offset, scale_factor = self._regrid_converters(fils, file_field, case, field,
-                                                           apply_scaling)
+        add_offset, scale_factor = self._regrid_converters(
+            fils, file_field, case, field, apply_scaling
+        )
         # field, not file_field: an observation file names the variable its own
         # way, and the variable defaults are keyed by the ADF name
         return self.load_da(
@@ -568,9 +599,9 @@ class AdfData:
             return 0, 1
         return add_offset, scale_factor
 
-    #---------------------------
+    # ---------------------------
     # DataSet and DataArray load
-    #---------------------------
+    # ---------------------------
     def load_dataset(self, fils, use_time_bounds=False):
         """Return xarray DataSet from file(s).
 
@@ -584,7 +615,7 @@ class AdfData:
             warnings.warn("\t    WARNING: Input file list is empty.")
             return None
         if len(fils) > 1:
-            ds = xr.open_mfdataset(fils, combine='by_coords')
+            ds = xr.open_mfdataset(fils, combine="by_coords")
         else:
             sfil = str(fils[0])
             if not Path(sfil).is_file():
@@ -702,8 +733,8 @@ class AdfData:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = ds[variablename].squeeze()
-        scale_factor = kwargs.get('scale_factor', 1)
-        add_offset = kwargs.get('add_offset', 0)
+        scale_factor = kwargs.get("scale_factor", 1)
+        add_offset = kwargs.get("add_offset", 0)
 
         if (scale_factor != 1 or add_offset != 0) and self.already_converted(
             da.attrs, field if field is not None else variablename
@@ -724,11 +755,11 @@ class AdfData:
                 field if field is not None else variablename, {}
             ).get("new_unit")
             if new_unit:
-                da.attrs['units'] = new_unit
+                da.attrs["units"] = new_unit
             # Stamp on any conversion, not only one that renames the units --
             # see load_climo_ds.
             # int, not bool: netCDF4 cannot store a Python bool as an attribute
-            da.attrs['transformed'] = 1
+            da.attrs["transformed"] = 1
         return da
 
     # Get variable conversion defaults, if applicable
@@ -750,11 +781,11 @@ class AdfData:
             vres = res[variablename]
             if variablename in self.ref_labels:
                 if (case == self.ref_labels[variablename]) and (self.adf.compare_obs):
-                    scale_factor = vres.get("obs_scale_factor",1)
+                    scale_factor = vres.get("obs_scale_factor", 1)
                     add_offset = vres.get("obs_add_offset", 0)
                 else:
-                    scale_factor = vres.get("scale_factor",1)
+                    scale_factor = vres.get("scale_factor", 1)
                     add_offset = vres.get("add_offset", 0)
         return add_offset, scale_factor
 
-    #------------------
+    # ------------------

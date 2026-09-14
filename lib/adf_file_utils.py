@@ -173,7 +173,7 @@ def find_ts_files(ts_loc, pattern, recursive=True):
     found = sorted(ts_loc.glob(pattern))
     if found or not recursive:
         return found
-    #End if
+    # End if
     return sorted(ts_loc.rglob(pattern))
 
 
@@ -224,92 +224,95 @@ def select_ts_files(fils, syr, eyr):
     fils = list(fils)
     if len(fils) < 2:
         return fils
-    #End if
+    # End if
 
-    #Files that can be opened together need no choosing:
+    # Files that can be opened together need no choosing:
     if not ts_files_overlap(fils):
         return fils
-    #End if
+    # End if
 
     if syr is None or eyr is None or syr == "" or eyr == "":
         return fils
-    #End if
+    # End if
     syr, eyr = int(syr), int(eyr)
     if syr > eyr:
-        #A backwards range covers nothing, so there is no choice to make:
+        # A backwards range covers nothing, so there is no choice to make:
         return fils
-    #End if
+    # End if
 
     pairs = _ts_file_span_pairs(fils)
     if pairs is None:
-        #Unrecognized names, so make no promises about the set:
+        # Unrecognized names, so make no promises about the set:
         return fils
-    #End if
+    # End if
 
-    #The requested years as dates, so that what is dropped can be checked
-    #below at the resolution the file names actually use:
+    # The requested years as dates, so that what is dropped can be checked
+    # below at the resolution the file names actually use:
     fill = {4: ("", ""), 6: ("01", "12"), 8: ("0101", "1231")}
     width = len(pairs[0][0])
     if width not in fill:
-        #An unfamiliar date width, so make no promises about the set:
+        # An unfamiliar date width, so make no promises about the set:
         return fils
-    #End if
+    # End if
     req = (f"{syr:04d}{fill[width][0]}", f"{eyr:04d}{fill[width][1]}")
 
-    #Files that hold some of the requested years:
-    candidates = [(int(start[:4]), int(end[:4]), fil) for start, end, fil in pairs
-                  if int(start[:4]) <= eyr and int(end[:4]) >= syr]
+    # Files that hold some of the requested years:
+    candidates = [
+        (int(start[:4]), int(end[:4]), fil)
+        for start, end, fil in pairs
+        if int(start[:4]) <= eyr and int(end[:4]) >= syr
+    ]
 
     chosen = []
     needed = syr
     while needed <= eyr:
         reaching = [c for c in candidates if c[0] <= needed <= c[1]]
         if not reaching:
-            #The requested years are not covered, which is a configuration
-            #problem rather than a choice to be made here:
+            # The requested years are not covered, which is a configuration
+            # problem rather than a choice to be made here:
             return fils
-        #End if
-        #Prefer a file that holds all of what is left to cover, and the
-        #smallest such, so that a 40-year file is not read to build a 20-year
-        #climatology.  Failing that take the one reaching furthest, which is
-        #what lets consecutive chunks be picked up in turn:
+        # End if
+        # Prefer a file that holds all of what is left to cover, and the
+        # smallest such, so that a 40-year file is not read to build a 20-year
+        # climatology.  Failing that take the one reaching furthest, which is
+        # what lets consecutive chunks be picked up in turn:
         covering = [c for c in reaching if c[1] >= eyr]
         if covering:
             _, end_yr, fil = min(covering, key=lambda c: c[1] - c[0])
         else:
             _, end_yr, fil = max(reaching, key=lambda c: c[1])
-        #End if
+        # End if
         chosen.append(fil)
         needed = end_yr + 1
-    #End while
+    # End while
 
-    #A greedy walk can still end up holding two files that overlap (a 25-year
-    #set beside 10-year chunks of the same run, say).  Handing back a set that
-    #cannot be opened would be no better than not choosing at all:
+    # A greedy walk can still end up holding two files that overlap (a 25-year
+    # set beside 10-year chunks of the same run, say).  Handing back a set that
+    # cannot be opened would be no better than not choosing at all:
     if ts_files_overlap(chosen):
         return fils
-    #End if
+    # End if
 
-    #Only years were compared above, so make sure nothing was dropped that
-    #the chosen files do not hold.  Two halves of a year
-    #(00010101-00010630 beside 00010701-00011231) look alike by year, and
-    #dropping one of them would quietly lose half the data; a file that merely
-    #runs on past the requested years (years 10-40 beside years 1-20, with
-    #years 1-20 asked for) is a different matter and is dropped safely:
+    # Only years were compared above, so make sure nothing was dropped that
+    # the chosen files do not hold.  Two halves of a year
+    # (00010101-00010630 beside 00010701-00011231) look alike by year, and
+    # dropping one of them would quietly lose half the data; a file that merely
+    # runs on past the requested years (years 10-40 beside years 1-20, with
+    # years 1-20 asked for) is a different matter and is dropped safely:
     kept = [(start, end) for start, end, fil in pairs if fil in chosen]
     for start, end, fil in pairs:
         if fil in chosen:
             continue
-        #End if
+        # End if
         lower, upper = max(start, req[0]), min(end, req[1])
         if lower > upper:
-            #Holds none of the requested period:
+            # Holds none of the requested period:
             continue
-        #End if
+        # End if
         if not any(k_start <= lower and k_end >= upper for k_start, k_end in kept):
             return fils
-        #End if
-    #End for
+        # End if
+    # End for
 
     return chosen
 
@@ -331,21 +334,21 @@ def _ts_file_span_pairs(fils):
     """
     pairs = []
     for fil in fils:
-        #Last dot-separated token of the stem -- second-to-last of the file
-        #name -- e.g. "001001-001112" in "case.cam.h0a.T.001001-001112.nc":
+        # Last dot-separated token of the stem -- second-to-last of the file
+        # name -- e.g. "001001-001112" in "case.cam.h0a.T.001001-001112.nc":
         date_str = Path(fil).stem.split(".")[-1]
         start, sep, end = date_str.partition("-")
         if not sep or not start.isdigit() or not end.isdigit():
             return None
-        #End if
+        # End if
         pairs.append((start, end, fil))
-    #End for
+    # End for
 
-    #Zero-padded dates of equal width sort chronologically as strings, but
-    #mixed widths (e.g. YYYY next to YYYYMM) would not, so bail out on those:
+    # Zero-padded dates of equal width sort chronologically as strings, but
+    # mixed widths (e.g. YYYY next to YYYYMM) would not, so bail out on those:
     if len({len(d) for start, end, _ in pairs for d in (start, end)}) != 1:
         return None
-    #End if
+    # End if
 
     return pairs
 
@@ -368,9 +371,9 @@ def _ts_file_spans(fils):
     """
     pairs = _ts_file_span_pairs(fils)
     if not pairs:
-        #Unrecognized names, so make no promises about them:
+        # Unrecognized names, so make no promises about them:
         return None
-    #End if
+    # End if
     spans = [(start, end) for start, end, _ in pairs]
 
     return sorted(spans)
@@ -403,17 +406,17 @@ def ts_files_overlap(fils):
     """
     if len(fils) < 2:
         return False
-    #End if
+    # End if
 
     spans = _ts_file_spans(fils)
     if spans is None:
         return True
-    #End if
+    # End if
 
     for (_, prev_end), (next_start, _) in zip(spans, spans[1:]):
         if next_start <= prev_end:
             return True
-    #End for
+    # End for
 
     return False
 
@@ -466,8 +469,8 @@ def ts_file_span(fils):
     spans = _ts_file_spans(fils)
     if not spans:
         return None
-    #End if
+    # End if
 
-    #Sorted by start, so the earliest start leads; take the latest end
-    #explicitly rather than assuming the last entry carries it:
+    # Sorted by start, so the earliest start leads; take the latest end
+    # explicitly rather than assuming the last entry carries it:
     return spans[0][0], max(end for _, end in spans)

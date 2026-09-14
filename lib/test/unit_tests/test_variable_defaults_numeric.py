@@ -30,9 +30,7 @@ NUMERIC_KEYS = (
     "obs_add_offset",
 )
 
-DEFAULTS_FILE = (
-    Path(__file__).parents[3] / "lib" / "adf_variable_defaults.yaml"
-)
+DEFAULTS_FILE = Path(__file__).parents[3] / "lib" / "adf_variable_defaults.yaml"
 
 
 def _numeric_offenders(defaults):
@@ -68,7 +66,7 @@ def test_numeric_settings_parse_as_numbers():
 @pytest.mark.parametrize(
     "text,expected_numeric",
     [
-        ("V:\n  contour_levels: [-5e7,0,5e7]\n", False),   # the bug
+        ("V:\n  contour_levels: [-5e7,0,5e7]\n", False),  # the bug
         ("V:\n  contour_levels: [-5.0e+7,0,5.0e+7]\n", True),
         ("V:\n  contour_levels: [-50000000,0,50000000]\n", True),
     ],
@@ -99,6 +97,6 @@ def test_pmid_is_declared_a_support_variable():
 def test_plot_diagnostics_is_documented():
     """The key is only discoverable if the header block explains it."""
     header = DEFAULTS_FILE.read_text().split("PMID:")[0]
-    assert "plot_diagnostics" in header, (
-        "document 'plot_diagnostics' in the header of adf_variable_defaults.yaml"
-    )
+    assert (
+        "plot_diagnostics" in header
+    ), "document 'plot_diagnostics' in the header of adf_variable_defaults.yaml"

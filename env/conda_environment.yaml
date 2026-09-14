@@ -19,3 +19,9 @@ dependencies:
   # default (euclidean) mode, nor by any other diagnostic.
   - pot
   - joblib
+  # Development tool, not needed to run the ADF.  "pre-commit" is what
+  # the "ADF_pre-commit.yaml" CI workflow runs, and it installs the exact
+  # "black" version pinned in ".pre-commit-config.yaml" into its own
+  # isolated environment, so a local "pre-commit run -a" reproduces the
+  # CI formatting check without pinning "black" a second time here.
+  - pre-commit>=3.5

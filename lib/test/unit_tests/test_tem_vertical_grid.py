@@ -11,6 +11,7 @@ Which grid the output lands on also decides which pressure field the plotting
 script must ask for -- PMID on midpoints, PINT on interfaces -- so getting this
 wrong silently pairs the fields with the wrong pressure.
 """
+
 import sys
 from pathlib import Path
 
@@ -86,8 +87,9 @@ def test_mixed_grids_collapse_onto_midpoints():
         (("UVzm", "UWzm", "VTHzm"), "lev", NMID),
     ],
 )
-def test_calc_tem_runs_on_whatever_harmonize_returns(on_interfaces, expected_dim,
-                                                     expected_size):
+def test_calc_tem_runs_on_whatever_harmonize_returns(
+    on_interfaces, expected_dim, expected_size
+):
     """The point of harmonizing: calc_tem must not hit a broadcasting error."""
     ds, lev_name = harmonize_tem_levels(_dataset(on_interfaces=on_interfaces))
     out = calc_tem(ds, lev_name)

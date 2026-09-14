@@ -4,6 +4,7 @@ Masked variables (land/ocean subsets) do not carry identical masks in the model
 and the observations, and computing each moment over its own population lets the
 correlation leave [-1, 1].
 """
+
 import sys
 from pathlib import Path
 
@@ -26,7 +27,10 @@ def _field(values):
     return xr.DataArray(
         values,
         dims=["lat", "lon"],
-        coords={"lat": np.linspace(-60.0, 60.0, nlat), "lon": np.arange(nlon, dtype=float)},
+        coords={
+            "lat": np.linspace(-60.0, 60.0, nlat),
+            "lon": np.arange(nlon, dtype=float),
+        },
     )
 
 
@@ -46,7 +50,7 @@ def test_correlation_stays_within_bounds_for_mismatched_masks():
     case = _field(base.copy())
     ref = _field(base + 0.5 * rng.normal(size=(24, 48)))
 
-    #Two land masks that overlap but disagree, as a model and obs mask do:
+    # Two land masks that overlap but disagree, as a model and obs mask do:
     case_mask = np.zeros((24, 48), dtype=bool)
     case_mask[5:20, 5:30] = True
     ref_mask = np.zeros((24, 48), dtype=bool)
@@ -72,13 +76,14 @@ def test_masked_points_do_not_influence_the_result():
     ref = _field(np.where(keep, ref_vals, np.nan))
 
     case_a = _field(vals)
-    #Same field, but absurd values where the reference is masked out:
+    # Same field, but absurd values where the reference is masked out:
     poisoned = vals.copy()
     poisoned[:4, :] = 1.0e6
     case_b = _field(poisoned)
 
-    assert np.allclose(taylor_stats_single(case_a, ref),
-                       taylor_stats_single(case_b, ref))
+    assert np.allclose(
+        taylor_stats_single(case_a, ref), taylor_stats_single(case_b, ref)
+    )
 
 
 if __name__ == "__main__":

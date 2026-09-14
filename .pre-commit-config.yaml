@@ -2,8 +2,26 @@
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
+
+  #Run the "black" python code formatter.  The "rev" below is the
+  #single place the black version is pinned, and it is used both by
+  #a developer running "pre-commit" locally and by the "pre-commit"
+  #CI workflow (".github/workflows/ADF_pre-commit.yaml"), so the two
+  #always agree.  Pinning it (rather than tracking black's latest
+  #release) means that a new black "stable style" cannot break CI
+  #unexpectedly.  All of black's actual settings (line length,
+  #excluded paths) live in the "[tool.black]" section of the
+  #top-level "pyproject.toml".
+  - repo: https://github.com/psf/black
+    rev: 25.11.0
+    hooks:
+      - id: black
+        #Only the ADF framework code under "lib" is currently
+        #formatted with black; the "scripts" directory is
+        #intentionally left alone:
+        files: ^lib/
 
 #End of file.

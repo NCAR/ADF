@@ -12,33 +12,34 @@ Currently this class only does two things:
     the diagnostics program, if need be.
 """
 
-#++++++++++++++++++++++++++++++
-#Import standard python modules
-#++++++++++++++++++++++++++++++
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
 
 import logging
 from datetime import datetime
 
-#+++++++++++++++++++++++++
+# +++++++++++++++++++++++++
 # ADF Error-handling class
-#+++++++++++++++++++++++++
+# +++++++++++++++++++++++++
+
 
 class AdfError(RuntimeError):
     """Class used to handle ADF value errors
     (e.g., log user errors without backtrace)"""
 
-#+++++++++++++++++
-#Define base class
-#+++++++++++++++++
+
+# +++++++++++++++++
+# Define base class
+# +++++++++++++++++
+
 
 class AdfBase:
-
     """
     Base class for the ADF
     """
 
-    def __init__(self, debug = False):
-
+    def __init__(self, debug=False):
         """
         Initalize CAM diagnostics object.
         """
@@ -49,7 +50,9 @@ class AdfBase:
             raise TypeError("'debug' must be a boolean type (True or False)")
 
         # Format the datetime object to a string without microseconds
-        self.__debug_fname = f"ADF_debug_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.log"
+        self.__debug_fname = (
+            f"ADF_debug_{datetime.now().strftime('%Y-%m-%d-%H:%M:%S')}.log"
+        )
 
         # Create debug log, if requested:
         if debug:
@@ -57,8 +60,6 @@ class AdfBase:
             self.__debug_log = logging.getLogger("ADF")
         else:
             self.__debug_log = None
-
-
 
     #########
 
@@ -69,31 +70,30 @@ class AdfBase:
         return self.__debug_fname
 
     def debug_log(self, msg: str):
-
         """
         Write message to debug log, if enabled.
         """
 
-        #If debug log exists, then write message to log:
+        # If debug log exists, then write message to log:
         if self.__debug_log:
             self.__debug_log.debug(msg)
 
     #########
 
     def end_diag_fail(self, msg: str):
-
         """
         Prints message to log and screen,
         and then exits program with an
         ADF-specific error.
         """
 
-        #Print message to log, if applicable:
+        # Print message to log, if applicable:
         self.debug_log(msg)
 
         print("\n")
         raise AdfError(msg)
 
-#++++++++++++++++++++
-#End Class definition
-#++++++++++++++++++++
+
+# ++++++++++++++++++++
+# End Class definition
+# ++++++++++++++++++++
