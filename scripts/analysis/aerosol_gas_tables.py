@@ -3,7 +3,6 @@ import xarray as xr
 from pathlib import Path
 import subprocess
 from datetime import datetime
-import numpy as np
 import itertools
 import pandas as pd
 
@@ -153,7 +152,6 @@ def aerosol_gas_tables(adfobj, trop_val=None, Tropospheric=None ,Climate=None , 
     # if True, calculate only Tropospheric values
     # if False, all layers
     # tropopause is defiend as either directly or indirectly. Look for tropopause to see the definition
-    #Tropospheric = bres['Tropospheric']
 
     ### NOT WORKING FOR NOW
     # To calculate the budgets only for a region
@@ -326,15 +324,14 @@ def aerosol_gas_tables(adfobj, trop_val=None, Tropospheric=None ,Climate=None , 
             output_location = Path(output_locs[0])
 
             cmd = ["ncra", "-O", *Files_str, f"{output_location}/{case}_ANN.nc"]
-            subprocess.run(cmd, check=True)
             try:
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
             except FileNotFoundError:
-                print("Error: 'ncra' command not found. Please install NCO utilities.")
+                errmsg = "Error: 'ncra' command not found. Please install NCO utilities."
+                raise AdfError(errmsg)                
             except subprocess.CalledProcessError as e:
-                print(f"NCO Error (Exit Code {e.returncode}): {e.stderr}")
-
-            #os.sys(f"ncra {Files} {output_location}/{case}_ANN.nc")
+                errmsg = f"NCO Error (Exit Code {e.returncode}): {e.stderr}"
+                raise AdfError(errmsg)
             File_mean=[f"{case}_ANN.nc"]
 
             Dic_crit, Dic_scn_var_comp[case],Tropospheric,tropospheric_method = make_Dic_scn_var_comp(adfobj, VARIABLES, output_location, dic_SE, File_mean, ext1_SE, AEROSOLS,Tropospheric,trop_val)
@@ -451,11 +448,11 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
 
             areas = tmp_area*Earth_area/np.nansum(tmp_area)
         except KeyError:
+            print ('Warning: if using SE grid, the calcualted area and budgets are wrong!') 
             dlon = np.abs(lon[1]-lon[0])
             dlat = np.abs(lat[1]-lat[0])
 
             lon2d,lat2d = np.meshgrid(lon,lat)
-            #area=np.zeros_like(lat2d)
 
             dy = Earth_rad*dlat*np.pi/180
             dx = Earth_rad*np.cos(lat2d*np.pi/180)*dlon*np.pi/180
@@ -1254,7 +1251,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
             try:
                 spc_chmp = Dic_scn_var_comp[current_var][current_var+'_CHMP']
             except:
-                spc_chml =0
+                spc_chmp =0
             spc_chmp = np.where(np.isnan(trop),np.nan,spc_chmp)
             tmp_chmp = np.nansum(spc_chmp*area,axis=0)
             chmp = np.ma.masked_where(inside==False,tmp_chmp)  #convert Kg/m2/s to Tg/yr
@@ -1448,7 +1445,7 @@ def make_table(adfobj, vars, chem_type, Dic_scn_var_comp, areas, trops, case_nam
                     rows.append({'variable': key, nickname: np.round(val, 3)})                    
                 else:
                     msg = f"chem/aerosol tables:"
-                    msg += f"\n\t - Variable '{key}' has value of 0, will not add to table"
+                    msg += f"\n\t - Variable '{key}' either is not available or has value of 0, will not add to table"
                     adfobj.debug_log(msg)
                 # End if
             # End for

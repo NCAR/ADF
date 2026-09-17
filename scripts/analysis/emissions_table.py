@@ -3,7 +3,6 @@ import xarray as xr
 from pathlib import Path
 import subprocess
 from datetime import datetime
-import numpy as np
 import itertools
 import pandas as pd
 
@@ -190,10 +189,6 @@ def emissions_table(adfobj, Climate=None,**kwargs):
             num_yrs[case] = (int(end_year)-int(start_year)) #+1
 
 
-        # Calculated duration of time period in seconds?
-        #durations[case] = (end_period-start_period).days*86400 #+365*86400
-        # Get number of years for calculations
-        #num_yrs[case] = (int(end_year)-int(start_year)) #+1
 
         # Get currenty history file directory
         data_dir = data_dirs[i]
@@ -239,15 +234,16 @@ def emissions_table(adfobj, Climate=None,**kwargs):
             output_location = Path(output_locs[0])
 
             cmd = ["ncra", "-O", *Files_str, f"{output_location}/{case}_ANN.nc"]
-            subprocess.run(cmd, check=True)
             try:
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
             except FileNotFoundError:
-                print("Error: 'ncra' command not found. Please install NCO utilities.")
+                errmsg = "Error: 'ncra' command not found. Please install NCO utilities."
+                raise AdfError(errmsg)
             except subprocess.CalledProcessError as e:
-                print(f"NCO Error (Exit Code {e.returncode}): {e.stderr}")
+                errmsg = f"NCO Error (Exit Code {e.returncode}): {e.stderr}"
+                raise AdfError(errmsg)
 
-            #os.sys(f"ncra {Files} {output_location}/{case}_ANN.nc")
+
             File_mean=[f"{case}_ANN.nc"]
 
             Dic_scn_var_comp[case]= make_Dic_scn_var_comp_2D(adfobj, VARIABLES, output_location, dic_SE, File_mean, ext1_SE, AEROSOLS)
@@ -257,14 +253,10 @@ def emissions_table(adfobj, Climate=None,**kwargs):
             # NOTE: The calculations can take a long time...
             Dic_scn_var_comp[case] = make_Dic_scn_var_comp_2D(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS)
 
-        # Gather dictionary data for current case
-        # NOTE: The calculations can take a long time...
-        #Dic_scn_var_comp[case] = make_Dic_scn_var_comp_2D(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS)        
         
         # Regional refinement
         # NOTE: This function 'Inside_SE' is unavailable at the moment! - JR 10/2024
         if regional:
-            #inside = Inside_SE_region(current_lat,current_lon,dir_shapefile)
             inside = Inside_SE(Lats,Lons,limit)
         else:
             if len(np.shape(areas[case])) == 1:
@@ -348,7 +340,7 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
 
             areas = tmp_area*Earth_area/np.nansum(tmp_area)
         except KeyError:
-
+            print ('Warning: if using SE grid, the calcualted area and budgets are wrong!')                
             dlon = np.abs(lon[1]-lon[0])
             dlat = np.abs(lat[1]-lat[0])
 
@@ -646,7 +638,6 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
     needed_vars = []
     Dic_all_data={}
 
-#    all_data=[]
     for file in range(len(files)):
 
         ds=xr.open_dataset(Path(data_dir) / files[file])
@@ -686,7 +677,7 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
             if file == 0:
                     Dic_all_data[var]=[]
 
-       # Star gathering of variable data
+            # Start gathering of variable data
             if var=='TROP_P':
                 data=np.array(ds['TROP_P'+ext1_SE].isel(time=0))/100
             elif var== 'Pressure':
@@ -727,10 +718,11 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                                     missing_vars.append(var)
                                     msg += f"\n\t\t     - no variable was found for var {var}: {i}"
     
-                # End if
+                     # End if
     
                 # Get total summed data for this history file data
                 data=np.sum(data,axis=0)
+            # End if
 
             if ('CHML' in var) or ('CHMP' in var) :
                 Temp=np.array(ds['T'+ext1_SE].isel(time=0))
@@ -753,7 +745,8 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                 data=data*delP
             else:
                 data=data
-        # End if
+            # End if
+
             # Add data to list
             Dic_all_data[var].append(data)
         ds.close()
@@ -850,7 +843,6 @@ def make_table_Emis(adfobj, vars, chem_type, Dic_scn_var_comp, areas, case_names
         nickname = case
 
         # Collect row data in a list of dictionaries
-        #durations[case]
         rows = []
         for current_var in vars:
             chem_dict = calc_budget_data_Emis(current_var, Dic_scn_var_comp[case], areas[case], insides[case],
@@ -865,7 +857,7 @@ def make_table_Emis(adfobj, vars, chem_type, Dic_scn_var_comp, areas, case_names
                     rows.append({'variable': key, nickname: np.round(val, 3)})                    
                 else:
                     msg = f"chem/aerosol emissions table:"
-                    msg += f"\n\t - Variable '{key}' has value of 0, will not add to table"
+                    msg += f"\n\t - Variable '{key}' either is not available or has value of 0, will not add to table"
                     adfobj.debug_log(msg)
                 # End if
             # End for

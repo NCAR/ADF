@@ -1,9 +1,8 @@
 import numpy as np
 import xarray as xr
 from pathlib import Path
-
+import subprocess
 from datetime import datetime
-import numpy as np
 import itertools
 import pandas as pd
 
@@ -118,8 +117,6 @@ def depositions_table(adfobj, Climate=None,**kwargs):
         errmsg = "Error: number of cases does not match number of history file locations. Script is exiting."
         raise AdfError(errmsg)
 
-    # Initialize nicknames dictionary
-    #nicknames = {}
 
     # Filter the list to include only strings that are possible h0 strings
     # - Search for either h0 or h0a
@@ -188,12 +185,6 @@ def depositions_table(adfobj, Climate=None,**kwargs):
             num_yrs[case] = (int(end_year)-int(start_year)) #+1
 
 
-        # Calculated duration of time period in seconds?
-        #durations[case] = (end_period-start_period).days*86400 #+365*86400
-
-
-        # Get number of years for calculations
-        #num_yrs[case] = (int(end_year)-int(start_year)) #+1
 
         # Get currenty history file directory
         data_dir = data_dirs[i]
@@ -245,15 +236,16 @@ def depositions_table(adfobj, Climate=None,**kwargs):
             output_location = Path(output_locs[0])
 
             cmd = ["ncra", "-O", *Files_str, f"{output_location}/{case}_ANN.nc"]
-            subprocess.run(cmd, check=True)
             try:
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
             except FileNotFoundError:
-                print("Error: 'ncra' command not found. Please install NCO utilities.")
+                errmsg = "Error: 'ncra' command not found. Please install NCO utilities."
+                raise AdfError(errmsg)
             except subprocess.CalledProcessError as e:
-                print(f"NCO Error (Exit Code {e.returncode}): {e.stderr}")
+                errmsg = f"NCO Error (Exit Code {e.returncode}): {e.stderr}"
+                raise AdfError(errmsg)
 
-            #os.sys(f"ncra {Files} {output_location}/{case}_ANN.nc")
+
             File_mean=[f"{case}_ANN.nc"]
 
             Dic_scn_var_comp[case]= make_Dic_scn_var_comp_2D(adfobj, VARIABLES, output_location, dic_SE, File_mean, ext1_SE, AEROSOLS)
@@ -264,13 +256,9 @@ def depositions_table(adfobj, Climate=None,**kwargs):
             Dic_scn_var_comp[case] = make_Dic_scn_var_comp_2D(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS)
 
  
-        # Gather dictionary data for current case
-        # NOTE: The calculations can take a long time...
-        #Dic_scn_var_comp[case] = make_Dic_scn_var_comp_2D(adfobj, VARIABLES, data_dir, dic_SE, Files, ext1_SE, AEROSOLS)        
         # Regional refinement
         # NOTE: This function 'Inside_SE' is unavailable at the moment! - JR 10/2024
         if regional:
-            #inside = Inside_SE_region(current_lat,current_lon,dir_shapefile)
             inside = Inside_SE(Lats,Lons,limit)
         else:
             if len(np.shape(areas[case])) == 1:
@@ -354,12 +342,11 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
 
             areas = tmp_area*Earth_area/np.nansum(tmp_area)
         except KeyError:
-
+            print ('Warning: if using SE grid, the calcualted area and budgets are wrong!')                
             dlon = np.abs(lon[1]-lon[0])
             dlat = np.abs(lat[1]-lat[0])
 
             lon2d,lat2d = np.meshgrid(lon,lat)
-            #area=np.zeros_like(lat2d)
 
             dy = Earth_rad*dlat*np.pi/180
             dx = Earth_rad*np.cos(lat2d*np.pi/180)*dlon*np.pi/180
@@ -529,7 +516,6 @@ def fill_dic_SE_Dep(adfobj, dic_SE, variables, ListVars, ext1_SE, AEROSOLS, MW, 
                 # original unit: [kg/m2/s]
                 cloud_key=key[:-2]+'c'+key[-1]
                 if cloud_key+ext1_SE+'DDF' in ListVars: 
-                    #if var=='SO4':                                
                     if var in ['SO4','so4_a1','so4_a2','so4_a3','so4_a5']:
                     
                         dic_SE[var+'_DDFC'][cloud_key+ext1_SE+'DDF']=32.066/115.11        
@@ -543,7 +529,6 @@ def fill_dic_SE_Dep(adfobj, dic_SE, variables, ListVars, ext1_SE, AEROSOLS, MW, 
                 # for SFWET in cloud water:
                 # original unit: [kg/m2/s]
                 if cloud_key+ext1_SE+'SFWET' in ListVars:   
-                    #if var=='SO4':
                     if var in ['SO4','so4_a1','so4_a2','so4_a3','so4_a5']:
                         
                         dic_SE[var+'_WDFC'][cloud_key+ext1_SE+'SFWET']=32.066/115.11        
@@ -654,10 +639,10 @@ def make_Dic_scn_var_comp_2D(adfobj, variables, current_dir, dic_SE, current_fil
                 if var_n not in needed_vars_tot:
                     needed_vars_tot.append(var_n)
         # End for
-    # End for
         # Set dictionary for key of current variable with dictionary values of all
         # necessary constituents for calculating the current variable
         Dic_var_comp[current_var] = Dic_comp
+    # End for        
     Dic_scn_var_comp = Dic_var_comp
 
 
@@ -943,7 +928,7 @@ def make_table_Dep(adfobj, vars, chem_type, Dic_scn_var_comp, areas, case_names,
                     rows.append({'variable': key, nickname: np.round(val, 3)})                   
                 else:
                     msg = f"chem/aerosol depositions table:"
-                    msg += f"\n\t - Variable '{key}' has value of 0, will not add to table"
+                    msg += f"\n\t - Variable '{key}' either is not available or has value of 0, will not add to table"
                     adfobj.debug_log(msg)
                 # End if
             # End for
