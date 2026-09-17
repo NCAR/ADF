@@ -1690,8 +1690,8 @@ PRECT:
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
+  obs_file: "PRECT_GPCP_monthly_climo_197901-200912.nc"
+  obs_name: "GPCP_v2.1"
   obs_var_name: "PRECT"
   category: "Hydrologic cycle"
   derivable_from: ['PRECL','PRECC']
@@ -1782,9 +1782,11 @@ SST:
   mpl:
     colorbar:
       label : "K"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "TS"
+  # HadISST/OI.v2 present day (1999-2008).  The pre-industrial climatology
+  # (1870-1900) is alongside it as HadISST_PI_monthly_climo_187001-190012.nc.
+  obs_file: "HadISST_PD_monthly_climo_199901-200812.nc"
+  obs_name: "HadISST_OIv2_PD"
+  obs_var_name: "SST"
   category: "Surface variables"
   mask: "ocean"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -1825,6 +1827,9 @@ TAUY:
   obs_var_name: "TAUY"
 
 ICEFRAC:
+  obs_file: "HadISST_PD_monthly_climo_199901-200812.nc"
+  obs_name: "HadISST_OIv2_PD"
+  obs_var_name: "ICEFRAC"
   category: "Surface variables"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
