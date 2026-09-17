@@ -113,3 +113,28 @@ GitHub.sublime-settings
 
 
 
+lib/adf_variable_defaults.yaml_VMS
+lib/adf_variable_defaults.yaml_ORIG
+
+scripts/analysis/aerosol_gas_tables_ADF.py_withO3trop
+scripts/analysis/aerosol_gas_tables_AllDefinitions.py
+scripts/analysis/aerosol_gas_tables.py_20260417
+scripts/analysis/aerosol_gas_tables.py_20260424
+scripts/analysis/aerosol_gas_tables.py_20260503
+scripts/analysis/aerosol_gas_tables.py_withTotalCol
+scripts/analysis/aerosol_gas_tables_Tropopause_version0.py_Not_anymore!
+scripts/analysis/aerosol_gas_tables_Tropopause_version1.py
+scripts/analysis/aerosol_gas_tables_withAnnual.py
+scripts/analysis/depositions_table.py_20260527
+scripts/analysis/emissions_table.py_20260424
+scripts/analysis/emissions_table.py_20260527
+
+config_BCMIP6_BCMIP7_500.yaml
+config_DCOTSS.yaml
+config_for_Simone_beta05_new_longrun.yaml
+config_for_Simone_beta05_new.yaml
+config_for_Simone_beta05.yaml
+config_Louisa.yaml
+config_saeideh_test
+config_WACCM_beta06_WACCM_FWHIST.yaml
+

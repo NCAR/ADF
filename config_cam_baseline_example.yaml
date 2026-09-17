@@ -514,7 +514,18 @@ regridding_scripts:
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
     - amwg_table
-    #- aerosol_gas_tables
+     - aerosol_gas_tables:
+        kwargs:
+          Tropospheric: False
+          Climate: True
+          # trop_val options: applicable for when Tropospheric is True
+          # tropopause: (realistic case - default if not listed): use ozone (150ppb) or Trop_P. If not found, calculate total column.
+          # pres500: 500hPa as the tropopause threshold.ca npl-2024a
+          # trop_val: pres500
+
+    - emissions_table
+    - depositions_table
+
 
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":
