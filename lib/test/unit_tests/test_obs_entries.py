@@ -42,6 +42,32 @@ def _is_comparison(block):
     return bool(obs_file) and not str(obs_file).endswith(".npy")
 
 
+class _NoDuplicatesLoader(yaml.SafeLoader):
+    """A loader that refuses duplicate keys instead of silently keeping one.
+
+    PyYAML's default behaviour is to take the last of a repeated key, so a
+    block that sets obs_scale_factor twice parses cleanly and reads correctly
+    while the file itself is wrong.  That happened on this file: an entry kept
+    its old scale factor and gained a second copy of it, and nothing noticed
+    until the repository's check-yaml hook ran.
+    """
+
+
+def _no_duplicates(loader, node, deep=False):
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise AssertionError(f"duplicate key '{key}' at {key_node.start_mark}")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_NoDuplicatesLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no_duplicates
+)
+
+
 def _variable_blocks():
     """Every mapping entry in the defaults file, keyed by variable name."""
     with open(_DEFAULTS, encoding="utf-8") as fil:
@@ -51,6 +77,14 @@ def _variable_blocks():
 
 class AdfObsEntriesTestRoutine(unittest.TestCase):
     """Consistency checks on the observation entries."""
+
+    def test_no_duplicate_keys(self):
+        """A repeated key parses fine and hides a half-finished edit."""
+        with open(_DEFAULTS, encoding="utf-8") as fil:
+            try:
+                yaml.load(fil, Loader=_NoDuplicatesLoader)
+            except AssertionError as err:
+                self.fail(f"adf_variable_defaults.yaml has a {err}")
 
     def test_obs_file_has_variable_and_name(self):
         """A variable compared against observations needs to say which
