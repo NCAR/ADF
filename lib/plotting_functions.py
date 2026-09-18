@@ -1556,7 +1556,11 @@ def plot_meridional_mean_and_save(
         latweight = np.cos(np.radians(adata.lat))
         adata = adata.weighted(latweight).mean(dim="lat", keep_attrs=True)
     if "time" in bdata.dims:
-        adata = bdata.mean(dim="time", keep_attrs=True)
+        # bdata, not adata: this took the reference's time mean and put it in
+        # the test case, throwing away the latitude weighting just applied to
+        # it.  Latent, because seasonal_mean(is_climo=True) has already
+        # removed 'time' by the time the ADF calls this.
+        bdata = bdata.mean(dim="time", keep_attrs=True)
     if "lat" in bdata.dims:
         latweight = np.cos(np.radians(bdata.lat))
         bdata = bdata.weighted(latweight).mean(dim="lat", keep_attrs=True)
