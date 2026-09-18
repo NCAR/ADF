@@ -1867,9 +1867,17 @@ TMQ:
   scale_factor: 1.
   add_offset: 0
   new_unit: "kg m$^{-2}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "PREH2O"
+  # Three observational TPW records are in the observations directory and the
+  # GEWEX Water Vapor Assessment does not crown one, so pick to suit the
+  # question.  Over ocean they agree closely (NVAP-M +0.53, WV_cci -0.12
+  # kg/m2 against RSS, correlation 0.996); they differ in coverage and era:
+  #   TMQ_WV_cci_COMBI_monthly_climo_200301-201712.nc  global, 0.5 deg (default)
+  #   TMQ_NVAP-M_Climate_monthly_climo_198801-200912.nc  global, 1 deg, ends 2009
+  #   TMQ_RSS_TPW_v7_monthly_climo_198801-202512.nc  ocean only, 1 deg, to 2025
+  # ERAI_all_climo.nc ('PREH2O') is still there as the reanalysis alternative.
+  obs_file: "TMQ_WV_cci_COMBI_monthly_climo_200301-201712.nc"
+  obs_name: "WV_cci_COMBI"
+  obs_var_name: "TMQ"
   category: "State"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
