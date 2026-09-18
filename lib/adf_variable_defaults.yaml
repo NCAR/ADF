@@ -2306,11 +2306,146 @@ CLDTOT_ISCCP:
   pct_diff_colormap: "PuOr_r"
 
 CLIMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # MODIS ice cloud fraction.  MODIS MCD06COSP L3 is the like-for-like reference for COSP
+  # output: both sides are daytime, cloud-top, optically limited quantities.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLIMODIS"
   category: "COSP"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
 CLWMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # MODIS liquid cloud fraction.  MODIS MCD06COSP L3 is the like-for-like reference for COSP
+  # output: both sides are daytime, cloud-top, optically limited quantities.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLWMODIS"
+  category: "COSP"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
+CLTMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # MODIS total cloud fraction.  MODIS MCD06COSP L3 is the like-for-like reference for COSP
+  # output: both sides are daytime, cloud-top, optically limited quantities.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLTMODIS"
+  category: "COSP"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+CLLMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # MODIS low-level cloud fraction.  MODIS MCD06COSP L3 is the like-for-like reference for COSP
+  # output: both sides are daytime, cloud-top, optically limited quantities.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLLMODIS"
+  category: "COSP"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+CLMMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # MODIS mid-level cloud fraction.  MODIS MCD06COSP L3 is the like-for-like reference for COSP
+  # output: both sides are daytime, cloud-top, optically limited quantities.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLMMODIS"
+  category: "COSP"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+CLHMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # MODIS high-level cloud fraction.  MODIS MCD06COSP L3 is the like-for-like reference for COSP
+  # output: both sides are daytime, cloud-top, optically limited quantities.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLHMODIS"
+  category: "COSP"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+TAUIMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 2000, 100]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-400, 400, 50]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "optical depth %"
+  obs_scale_factor: 1
+  obs_add_offset: 0
+  mpl:
+    colorbar:
+      label : "optical depth %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Ice Cloud Optical Thickness*CLIMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "TAUIMODIS"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -2354,25 +2489,29 @@ ICE_ICLD_VISTAU:
 
 IWPMODIS:
   colormap: "Blues"
-  contour_levels_range: [0, 500, 25]
+  contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
-  diff_contour_range: [-150, 150, 15]
-  scale_factor: 1000
+  diff_contour_range: [-8, 8, 1]
+  scale_factor: 1
   add_offset: 0
-  new_unit: "g m$^{-2}$"
+  new_unit: "kg m$^{-2}$ %"
+  obs_scale_factor: 1
+  obs_add_offset: 0
   mpl:
     colorbar:
-      label : "g m$^{-2}$"
-  # In-cloud, like COSP's own IWPMODIS: about five times the grid-box mean, so
-  # this file must not be used for TGCLDIWP.
-  obs_file: "IWPMODIS_MODIS-COSP_incloud_monthly_climo_200301-202512.nc"
+      label : "kg m$^{-2}$ %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Cloud Ice Water Path*CLIMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
   obs_name: "MODIS-COSP"
   obs_var_name: "IWPMODIS"
-  obs_scale_factor: 1000
-  obs_add_offset: 0
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 LIQ_ICLD_VISTAU:
   category: "COSP"
@@ -2381,27 +2520,29 @@ LIQ_ICLD_VISTAU:
 
 LWPMODIS:
   colormap: "Blues"
-  contour_levels_range: [0, 400, 10]
+  contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
-  diff_contour_range: [-100, 100, 10]
-  scale_factor: 1000
+  diff_contour_range: [-8, 8, 1]
+  scale_factor: 1
   add_offset: 0
-  new_unit: "g m$^{-2}$"
+  new_unit: "kg m$^{-2}$ %"
+  obs_scale_factor: 1
+  obs_add_offset: 0
   mpl:
     colorbar:
-      label : "g m$^{-2}$"
-  # The MODIS L3 COSP product, which is what COSP's LWPMODIS is meant to be
-  # compared against: both are in-cloud values over liquid-cloud retrievals,
-  # roughly three times the grid-box mean, so this file must not be used for
-  # TGCLDLWP.
-  obs_file: "LWPMODIS_MODIS-COSP_incloud_monthly_climo_200301-202512.nc"
+      label : "kg m$^{-2}$ %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Cloud Liquid Water Path*CLWMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
   obs_name: "MODIS-COSP"
   obs_var_name: "LWPMODIS"
-  obs_scale_factor: 1000
-  obs_add_offset: 0
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 MEANCLDALB_ISCCP:
   category: "COSP"
@@ -2445,19 +2586,82 @@ MODIS_emd_centers:
   obs_file: 'MODIS_emd-means_n_init5_centers_1.npy'
 
 PCTMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 60000, 5000]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10000, 10000, 1000]
+  scale_factor: 0.01
+  add_offset: 0
+  new_unit: "hPa %"
+  obs_scale_factor: 0.01
+  obs_add_offset: 0
+  mpl:
+    colorbar:
+      label : "hPa %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Cloud Top Pressure*CLTMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "PCTMODIS"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 REFFCLIMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 1200, 100]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-300, 300, 50]
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: "$\\mu$m %"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
+  mpl:
+    colorbar:
+      label : "$\\mu$m %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Ice Cloud Particle Size*CLIMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "REFFCLIMODIS"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 REFFCLWMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 1200, 100]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-300, 300, 50]
+  scale_factor: 1000000
+  add_offset: 0
+  new_unit: "$\\mu$m %"
+  obs_scale_factor: 1000000
+  obs_add_offset: 0
+  mpl:
+    colorbar:
+      label : "$\\mu$m %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Liquid Cloud Particle Size*CLWMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "REFFCLWMODIS"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 SNOW_ICLD_VISTAU:
   category: "COSP"
@@ -2465,14 +2669,56 @@ SNOW_ICLD_VISTAU:
   pct_diff_colormap: "PuOr_r"
 
 TAUTMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 2000, 100]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-400, 400, 50]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "optical depth %"
+  obs_scale_factor: 1
+  obs_add_offset: 0
+  mpl:
+    colorbar:
+      label : "optical depth %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Total Cloud Optical Thickness*CLTMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "TAUTMODIS"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 TAUWMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 2000, 100]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-400, 400, 50]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "optical depth %"
+  obs_scale_factor: 1
+  obs_add_offset: 0
+  mpl:
+    colorbar:
+      label : "optical depth %"
+  # CAM writes this COSP field multiplied by its cloud fraction in percent
+  # (see the long_name, "...*CL?MODIS"), so the observations carry the same
+  # weighting.  A physical value is mean(X*f)/mean(f) on either side; comparing
+  # an unweighted reference here is wrong by a factor of the cloud fraction.
+  # MODIS Liquid Cloud Optical Thickness*CLWMODIS
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "TAUWMODIS"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 TOT_CLD_VISTAU:
   category: "COSP"
