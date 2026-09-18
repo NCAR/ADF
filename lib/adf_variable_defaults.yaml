@@ -1690,8 +1690,16 @@ PRECT:
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
-  obs_file: "PRECT_GPCP_monthly_climo_197901-200912.nc"
-  obs_name: "GPCP_v2.1"
+  # Two GPCP releases are current and they disagree: V3.3 (NASA GES DISC,
+  # 0.5 deg) is 14% wetter in the global mean than V2.3 (NOAA PSL, 2.5 deg),
+  # almost all of it over ocean and in the tropics.  V2.3 is the default
+  # because it remains NOAA's record for general use and is what the AMWG
+  # diagnostics have always compared against.  To use V3.3 instead, point
+  # obs_file at PRECT_GPCP_v3.3_monthly_climo_198301-202512.nc and set
+  # obs_name to "GPCP_v3.3".  The AMWG-era V2.1 climatology is also still
+  # there as PRECT_GPCP_v2.1_monthly_climo_197901-200912.nc.
+  obs_file: "PRECT_GPCP_v2.3_monthly_climo_198301-202512.nc"
+  obs_name: "GPCP_v2.3"
   obs_var_name: "PRECT"
   category: "Hydrologic cycle"
   derivable_from: ['PRECL','PRECC']
