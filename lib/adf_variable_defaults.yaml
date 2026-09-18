@@ -1915,13 +1915,20 @@ U10:
   mpl:
     colorbar:
       label : "m s$^{-1}$"
-  # OAFlux, ice-free ocean only, so land shows as missing.
-  obs_file: "OAFlux_monthly_climo_200101-201812.nc"
-  obs_name: "OAFlux"
+  # CCMP v3.1, ice-free ocean only, 0.25 degree, updated monthly.  This is
+  # the mean wind SPEED, as CAM's U10 is, not the speed of the mean wind.
+  # Caveat: CCMP uses an ERA5 10 m neutral-stability background field, so
+  # it is not independent of reanalysis where satellite coverage is thin.
+  # OAFlux_monthly_climo_200101-201812.nc ('U10') is the 1 degree
+  # alternative; the two agree to 0.02 m/s in the ocean mean, correlation
+  # 0.96.
+  obs_file: "U10_CCMP_v3.1_monthly_climo_199301-202512.nc"
+  obs_name: "CCMP_v3.1"
   obs_var_name: "U10"
   category: "Surface variables"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 
 Surface_Wind_Stress:
