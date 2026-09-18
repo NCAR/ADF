@@ -1568,8 +1568,18 @@ TGCLDLWP:
     colorbar:
       label : "g m$^{-2}$"
   category: "Clouds"
-  obs_file: "TGCLDLWP_ERA5_monthly_climo_197901-202112.nc"
-  obs_name: "ERA5"
+  # MAC-LWP is the merged, bias-corrected microwave record (the RSS v7
+  # retrievals behind it), diurnally corrected, and its field is cloud liquid
+  # with the rain component removed -- which is what CAM's TGCLDLWP is.  Ocean
+  # only, so land shows as missing.  In kg/m2, like the ERA5 file it replaces,
+  # so obs_scale_factor stays 1000.
+  #   TGCLDLWP_MODIS-COSP_gridmean_monthly_climo_200301-202512.nc  global, but
+  #     MODIS only sees liquid where the cloud TOP is liquid, so ice-topped
+  #     scenes contribute almost nothing: 9 g/m2 against MAC-LWP's 149 over the
+  #     west Pacific warm pool.  Good in the stratocumulus regions.
+  #   TGCLDLWP_ERA5_monthly_climo_197901-202112.nc  global, but reanalysis
+  obs_file: "TGCLDLWP_MAC-LWP_monthly_climo_198801-201612.nc"
+  obs_name: "MAC-LWP"
   obs_var_name: "TGCLDLWP"
   obs_scale_factor: 1000
   obs_add_offset: 0
@@ -2337,6 +2347,25 @@ LIQ_ICLD_VISTAU:
   pct_diff_colormap: "PuOr_r"
 
 LWPMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 400, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-100, 100, 10]
+  scale_factor: 1000
+  add_offset: 0
+  new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
+  # The MODIS L3 COSP product, which is what COSP's LWPMODIS is meant to be
+  # compared against: both are in-cloud values over liquid-cloud retrievals,
+  # roughly three times the grid-box mean, so this file must not be used for
+  # TGCLDLWP.
+  obs_file: "LWPMODIS_MODIS-COSP_incloud_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "LWPMODIS"
+  obs_scale_factor: 1000
+  obs_add_offset: 0
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
