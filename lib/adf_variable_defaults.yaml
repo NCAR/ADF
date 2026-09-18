@@ -1598,9 +1598,22 @@ TGCLDIWP:
     colorbar:
       label : "g m$^{-2}$"
   category: "Clouds"
-  obs_file: "TGCLDIWP_ERA5_monthly_climo_197901-202112.nc"
-  obs_name: "ERA5"
+  # Ice water path is the hardest of these to observe: products differ by up
+  # to a factor of five (Duncan and Eriksson 2018,
+  # doi:10.5194/acp-18-11205-2018), so treat a bias smaller than a factor of
+  # two as not established.  The radar records that are the recommended best
+  # estimate (CloudSat 2C-ICE and DARDAR, doi:10.5194/acp-26-2741-2026) measure
+  # TOTAL frozen water including snow, 115-140 g/m2 in the global mean, which
+  # is not the cloud-ice-only quantity CAM reports and must not be used as a
+  # TGCLDIWP reference.  MODIS is an optical retrieval, so it excludes
+  # precipitating snow and is the closer match in definition, at the cost of
+  # seeing only ice-topped daytime scenes: 34 g/m2 in the global mean here.
+  #   TGCLDIWP_ERA5_monthly_climo_197901-202112.nc  global, but reanalysis
+  obs_file: "TGCLDIWP_MODIS-COSP_gridmean_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
   obs_var_name: "TGCLDIWP"
+  obs_scale_factor: 1000
+  obs_add_offset: 0
   obs_scale_factor: 1000
   obs_add_offset: 0
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -2337,6 +2350,23 @@ ICE_ICLD_VISTAU:
   pct_diff_colormap: "PuOr_r"
 
 IWPMODIS:
+  colormap: "Blues"
+  contour_levels_range: [0, 500, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-150, 150, 15]
+  scale_factor: 1000
+  add_offset: 0
+  new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
+  # In-cloud, like COSP's own IWPMODIS: about five times the grid-box mean, so
+  # this file must not be used for TGCLDIWP.
+  obs_file: "IWPMODIS_MODIS-COSP_incloud_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "IWPMODIS"
+  obs_scale_factor: 1000
+  obs_add_offset: 0
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
