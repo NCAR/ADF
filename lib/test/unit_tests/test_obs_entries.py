@@ -114,7 +114,12 @@ class AdfObsEntriesTestRoutine(unittest.TestCase):
     def test_scale_factors_are_numbers(self):
         """A quoted scale factor multiplies nothing and raises later."""
         for var, block in _variable_blocks().items():
-            for key in ("scale_factor", "add_offset", "obs_scale_factor", "obs_add_offset"):
+            for key in (
+                "scale_factor",
+                "add_offset",
+                "obs_scale_factor",
+                "obs_add_offset",
+            ):
                 if key in block:
                     self.assertIsInstance(
                         block[key],
