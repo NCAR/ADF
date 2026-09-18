@@ -164,16 +164,25 @@ AODDUST:
   pct_diff_colormap: "PuOr_r"
 
 AODVIS:
-  category: "Aerosols"
   colormap: "Oranges"
-  contour_levels_range: [0.05, 0.6, 0.05]
-  diff_colormap: "PuOr_r"
-  diff_contour_range: [-0.1, 0.1, 0.01]
+  contour_levels_range: [0, 1.0, 0.05]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-0.3, 0.3, 0.05]
   scale_factor: 1
   add_offset: 0
-  new_unit: ""
+  new_unit: "1"
+  mpl:
+    colorbar:
+      label : "AOD 550 nm"
+  # MODIS retrieves aerosol optical depth in daylight only, which is what
+  # CAM's AODVIS is ("day only"); AODVISdn uses the same file.
+  obs_file: "MOD08_M3_192x288_AOD_2001-2020_climo.nc"
+  obs_name: "MODIS"
+  obs_var_name: "AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean"
+  category: "Aerosols"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 AODVISdn:
   category: "Aerosols"
@@ -1479,64 +1488,116 @@ CLDLIQ:
   pct_diff_colormap: "PuOr_r"
 
 CLDTOT:
-  colormap: "Oranges"
-  contour_levels_range: [0.2, 1.1, 0.05]
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
   diff_colormap: "BrBG"
-  diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 100
   add_offset: 0
-  new_unit: "Fraction"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "CLDTOT"
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # CAM reports cloud fraction as a fraction and MODIS as a percentage,
+  # hence scale_factor 100 on the model side only.
+  #
+  # Read this comparison with care.  A satellite sees cloud from above,
+  # so it misses thin cloud and cloud under other cloud, while the model
+  # field counts everything in the column; the two are not the same
+  # quantity.  Against a CAM run (2003-2005) raw CLDTOT scored a small
+  # mean bias (+3.6% vs MODIS) but a poor pattern correlation (0.64),
+  # while the COSP field CLTMODIS showed a genuine -16% bias at
+  # correlation 0.86 -- the mean agreement is two errors cancelling.
+  # Prefer the COSP variables (CLTMODIS, CLDTOT_ISCCP) where a run has
+  # them.  MODIS is used here rather than ISCCP-H because it scored
+  # closer on both counts (RMSE 13.2 vs 13.9, correlation 0.64 vs 0.41).
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLTMODIS"
+  obs_scale_factor: 1
+  obs_add_offset: 0
   category: "Clouds"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 CLDLOW:
-  colormap: "Oranges"
-  contour_levels_range: [0, 1.05, 0.05]
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
   diff_colormap: "BrBG"
-  diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 100
   add_offset: 0
-  new_unit: "Fraction"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "CLDLOW"
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # As for CLDTOT, and worse: a satellite assigns a column to one level
+  # by its cloud top, so "low cloud" seen from space is only the low
+  # cloud with nothing above it.  The model field has no such
+  # restriction.  Use the COSP fields (CLLMODIS, CLMMODIS, CLHMODIS)
+  # for a fair comparison.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLLMODIS"
+  obs_scale_factor: 1
+  obs_add_offset: 0
   category: "Clouds"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 CLDHGH:
-  colormap: "Oranges"
-  contour_levels_range: [0, 1.05, 0.05]
+  colormap: "Blues"
+  contour_levels_range: [0, 80, 5]
   diff_colormap: "BrBG"
-  diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 100
   add_offset: 0
-  new_unit: "Fraction"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "CLDHGH"
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # As for CLDTOT, and worse: a satellite assigns a column to one level
+  # by its cloud top, so "low cloud" seen from space is only the low
+  # cloud with nothing above it.  The model field has no such
+  # restriction.  Use the COSP fields (CLLMODIS, CLMMODIS, CLHMODIS)
+  # for a fair comparison.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLHMODIS"
+  obs_scale_factor: 1
+  obs_add_offset: 0
   category: "Clouds"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 CLDMED:
-  colormap: "Oranges"
-  contour_levels_range: [0, 1.05, 0.05]
+  colormap: "Blues"
+  contour_levels_range: [0, 60, 5]
   diff_colormap: "BrBG"
-  diff_contour_range: [-0.4, 0.4, 0.05]
-  scale_factor: 1.
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 100
   add_offset: 0
-  new_unit: "Fraction"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "CLDMED"
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  # As for CLDTOT, and worse: a satellite assigns a column to one level
+  # by its cloud top, so "low cloud" seen from space is only the low
+  # cloud with nothing above it.  The model field has no such
+  # restriction.  Use the COSP fields (CLLMODIS, CLMMODIS, CLHMODIS)
+  # for a fair comparison.
+  obs_file: "COSP_MODIS_MCD06COSP_monthly_climo_200301-202512.nc"
+  obs_name: "MODIS-COSP"
+  obs_var_name: "CLMMODIS"
+  obs_scale_factor: 1
+  obs_add_offset: 0
   category: "Clouds"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 CLOUD:
   colormap: "Blues"
@@ -2429,9 +2490,23 @@ LHFLX:
 #+++++++++++++++++
 
 CLDTOT_ISCCP:
+  colormap: "Blues"
+  contour_levels_range: [0, 100, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "%"
+  mpl:
+    colorbar:
+      label : "%"
+  obs_file: "ISCCP-H_monthly_climo_198307-201706.nc"
+  obs_name: "ISCCP-H"
+  obs_var_name: "CLDTOT_ISCCP"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 CLIMODIS:
   colormap: "Blues"
@@ -2678,14 +2753,50 @@ MEANCLDALB_ISCCP:
   pct_diff_colormap: "PuOr_r"
 
 MEANPTOP_ISCCP:
+  colormap: "Blues"
+  contour_levels_range: [0, 60000, 5000]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-10000, 10000, 1000]
+  scale_factor: 0.01
+  add_offset: 0
+  new_unit: "hPa %"
+  mpl:
+    colorbar:
+      label : "hPa %"
+  # CAM writes this multiplied by CLDTOT_ISCCP in percent (see its
+  # long_name), so the observations carry the same weighting; a physical
+  # value is mean(X*f)/mean(f) on either side.
+  obs_file: "ISCCP-H_monthly_climo_198307-201706.nc"
+  obs_name: "ISCCP-H"
+  obs_var_name: "MEANPTOP_ISCCP"
+  obs_scale_factor: 0.01
+  obs_add_offset: 0
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 MEANTAU_ISCCP:
+  colormap: "Blues"
+  contour_levels_range: [0, 2000, 100]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-400, 400, 50]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "optical depth %"
+  mpl:
+    colorbar:
+      label : "optical depth %"
+  # CAM writes this multiplied by CLDTOT_ISCCP in percent (see its
+  # long_name), so the observations carry the same weighting; a physical
+  # value is mean(X*f)/mean(f) on either side.
+  obs_file: "ISCCP-H_monthly_climo_198307-201706.nc"
+  obs_name: "ISCCP-H"
+  obs_var_name: "MEANTAU_ISCCP"
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 MEANTB_ISCCP:
   category: "COSP"
