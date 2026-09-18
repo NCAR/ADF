@@ -1733,7 +1733,24 @@ PRECT:
   pct_diff_colormap: "PuOr_r"
 
 QFLX:
+  colormap: "Blues"
+  contour_levels_range: [0, 0.00015, 0.00001]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-0.00004, 0.00004, 0.000005]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ s$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg m$^{-2}$ s$^{-1}$"
+  # OAFlux, ice-free ocean only, so land shows as missing.
+  obs_file: "OAFlux_monthly_climo_200101-201812.nc"
+  obs_name: "OAFlux"
+  obs_var_name: "QFLX"
   category: "Hydrologic cycle"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
 
 #+++++++++++++++++
 # Category: Surface variables
@@ -1827,9 +1844,24 @@ SST:
   pct_diff_colormap: "PuOr_r"
 
 U10:
+  colormap: "Blues"
+  contour_levels_range: [0, 16, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-4, 4, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "m s$^{-1}$"
+  mpl:
+    colorbar:
+      label : "m s$^{-1}$"
+  # OAFlux, ice-free ocean only, so land shows as missing.
+  obs_file: "OAFlux_monthly_climo_200101-201812.nc"
+  obs_name: "OAFlux"
+  obs_var_name: "U10"
   category: "Surface variables"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 Surface_Wind_Stress:
   category: "Surface variables"
@@ -2096,18 +2128,22 @@ LWCF:
 
 FSUTOA:
   colormap: "Blues"
-  contour_levels_range: [-10, 180, 15]
+  contour_levels_range: [0, 250, 10]
   diff_colormap: "BrBG"
-  diff_contour_range: [-15, 15, 1]
+  diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
-  category: "TOA energy flux"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_sw_all_mon"
+  category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 FSNT:
   colormap: "Blues"
@@ -2133,14 +2169,42 @@ FSNTC:
   pct_diff_colormap: "PuOr_r"
 
 FSNTOA:
-  category: "TOA energy flux"
+  colormap: "Blues"
+  contour_levels_range: [0, 400, 20]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "fsnt"
+  category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 FLUT:
-  category: "TOA energy flux"
+  colormap: "Blues"
+  contour_levels_range: [100, 340, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_all_mon"
+  category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 FLNT:
   colormap: "Oranges"
@@ -2183,14 +2247,42 @@ FLNTC:
 #+++++++++++++++++
 
 FSDS:
-  category: "Sfc energy flux"
+  colormap: "Blues"
+  contour_levels_range: [0, 350, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_sw_down_all_mon"
+  category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 FSDSC:
-  category: "Sfc energy flux"
+  colormap: "Blues"
+  contour_levels_range: [0, 400, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_sw_down_clr_t_mon"
+  category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 FSNS:
   colormap: "Blues"
@@ -2247,14 +2339,50 @@ FLDS:
   pct_diff_colormap: "PuOr_r"
 
 FLNS:
-  category: "Sfc energy flux"
+  colormap: "Blues"
+  contour_levels_range: [0, 120, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  # CERES reports surface net longwave positive downward; CAM's FLNS is
+  # positive upward, so the sign is flipped here.
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_lw_all_mon"
+  obs_scale_factor: -1
+  obs_add_offset: 0
+  category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 FLNSC:
-  category: "Sfc energy flux"
+  colormap: "Blues"
+  contour_levels_range: [0, 150, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  # CERES reports surface net longwave positive downward; CAM's FLNS is
+  # positive upward, so the sign is flipped here.
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "sfc_net_lw_clr_t_mon"
+  obs_scale_factor: -1
+  obs_add_offset: 0
+  category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 SHFLX:
   colormap: "Blues"
@@ -3070,3 +3198,40 @@ aod_diags:
 #-----------
 
 #End of File
+
+SOLIN:
+  colormap: "Blues"
+  contour_levels_range: [0, 550, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "solar_mon"
+  category: "Radiation"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
+FLUTC:
+  colormap: "Blues"
+  contour_levels_range: [100, 340, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-30, 30, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
+  obs_name: "CERES_EBAF_Ed4.1"
+  obs_var_name: "toa_lw_clr_t_mon"
+  category: "Radiation"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
