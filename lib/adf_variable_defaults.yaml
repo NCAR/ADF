@@ -1573,6 +1573,9 @@ TGCLDLWP:
   # with the rain component removed -- which is what CAM's TGCLDLWP is.  Ocean
   # only, so land shows as missing.  In kg/m2, like the ERA5 file it replaces,
   # so obs_scale_factor stays 1000.
+  #   TGCLDLWP_CLARA-A3_allsky_monthly_climo_197901-202012.nc  global, 0.25 deg,
+  #     AVHRR: same optical limitation as MODIS, and the two agree with each
+  #     other (correlation 0.96 over ocean) while both differ from MAC-LWP.
   #   TGCLDLWP_MODIS-COSP_gridmean_monthly_climo_200301-202512.nc  global, but
   #     MODIS only sees liquid where the cloud TOP is liquid, so ice-topped
   #     scenes contribute almost nothing: 9 g/m2 against MAC-LWP's 149 over the
