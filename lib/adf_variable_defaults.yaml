@@ -2215,6 +2215,20 @@ FLNSC:
   pct_diff_colormap: "PuOr_r"
 
 SHFLX:
+  colormap: "Blues"
+  contour_levels_range: [-30, 90, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-25, 25, 2.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
+  # Ice-free ocean only; there is no observational SHFLX over land.
+  obs_file: "OAFlux_monthly_climo_200101-201812.nc"
+  obs_name: "OAFlux"
+  obs_var_name: "SHFLX"
   category: "Sfc energy flux"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -2230,8 +2244,11 @@ LHFLX:
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
+  # OAFlux is observational rather than reanalysis, but ice-free ocean only,
+  # so land shows as missing.  ERAI_all_climo.nc ('LHFLX') is the global
+  # reanalysis alternative.
+  obs_file: "OAFlux_monthly_climo_200101-201812.nc"
+  obs_name: "OAFlux"
   obs_var_name: "LHFLX"
   category: "Sfc energy flux"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
