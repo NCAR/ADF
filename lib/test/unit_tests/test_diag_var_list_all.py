@@ -96,7 +96,7 @@ class _StubInfo:
 
 def _expand(stub, var_list):
     """Call the method unbound with the stub standing in for self."""
-    return AdfInfo.expand_var_list_all(stub, var_list)
+    return AdfInfo._expand_var_list_all(stub, var_list)
 
 
 @unittest.skipUnless(_HAS_ADF_INFO, "adf_info dependencies not available")
@@ -147,6 +147,71 @@ class DiagVarListAllTestRoutine(unittest.TestCase):
             )
 
             self.assertEqual(found, {"TS", "PRECT"})
+
+    def test_premade_time_series_stream_is_respected(self):
+        """A time series file from another stream must not contribute."""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for name in (
+                "case.cam.h0a.TS.000101-002012.nc",
+                "case.cam.h1.PRECT.000101-002012.nc",
+            ):
+                (Path(tmpdir) / name).touch()
+
+            found = variables_in_case_files(
+                "case", None, "cam.h0a", tmpdir, ts_done=True
+            )
+
+            self.assertEqual(found, {"TS"})
+
+    def test_premade_time_series_without_a_location(self):
+        """A missing 'cam_ts_loc' reports nothing rather than crashing."""
+
+        self.assertEqual(
+            variables_in_case_files("case", None, "cam.h0a", None, ts_done=True), set()
+        )
+
+    def test_unusable_directory_is_an_error(self):
+        """
+        A directory that cannot be searched is named, rather than looking like
+        a case that holds no variables.
+        """
+
+        stub = _StubInfo(
+            {
+                "cam_case_name": ["case_a"],
+                "cam_hist_loc": [None],
+                "hist_str": [["cam.h0a"]],
+                "cam_ts_loc": ["/no/such/time/series"],
+                "cam_ts_done": [True],
+            }
+        )
+
+        with self.assertRaises(RuntimeError) as err:
+            _expand(stub, ["all"])
+        # End with
+
+        self.assertIn("cam_ts_loc", str(err.exception))
+
+    def test_all_is_matched_without_regard_to_case(self):
+        """ "ALL" and "All" work as well as "all"."""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            (Path(tmpdir) / "case_a.cam.h0a.TS.000101-002012.nc").touch()
+
+            stub = _StubInfo(
+                {
+                    "cam_case_name": ["case_a"],
+                    "cam_hist_loc": [None],
+                    "hist_str": [["cam.h0a"]],
+                    "cam_ts_loc": [tmpdir],
+                    "cam_ts_done": [True],
+                }
+            )
+
+            for entry in ("ALL", "All"):
+                self.assertEqual(_expand(stub, [entry]), ["TS"])
+            # End for
 
     def test_all_expands_and_keeps_listed_variables(self):
         """
