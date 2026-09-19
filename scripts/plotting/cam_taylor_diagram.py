@@ -505,9 +505,11 @@ def calculate_thickness_approx(coord, dim='lev'):
     # Take the distance to the only available neighbor.
     edge_diff = abs(coord.diff(dim=dim))
     
-    # Fill the NaNs at the start and end of the array
-    # bfill handles the first element, ffill handles the last
-    return diff.fillna(edge_diff.bfill(dim).ffill(dim))
+    # Fill the NaNs at the start and end of the array.  edge_diff is one
+    # element shorter than diff, so a bfill/ffill on it would leave the first
+    # element NaN (and needs bottleneck, which is not an ADF dependency);
+    # reindex onto diff's coordinate instead and take the nearest neighbor.
+    return diff.fillna(edge_diff.reindex_like(diff, method="nearest"))
 
 
 def weighted_vertical_average(da, weights, dim='lev'):
