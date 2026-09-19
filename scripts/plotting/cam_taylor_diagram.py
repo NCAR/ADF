@@ -167,6 +167,18 @@ def cam_taylor_diagram(adfobj):
 
     case_colors = [mpl.cm.tab20(i) for i, case in enumerate(case_names)] # change color for each case
 
+    # Every field here is read (and every derived field recomputed) once, not
+    # once per season: the season loop below only takes a time mean of it, but
+    # deriving e.g. ColumnTemperature re-reads the whole 93-level regridded T --
+    # gigabytes -- and used to do it five times. The cached fields are all 2-D
+    # (12 months x lat x lon), so holding them costs little.
+    retrieved = {}
+    def _retrieve_once(variable, casename):
+        if (variable, casename) not in retrieved:
+            da = _retrieve(adfobj, variable, casename)
+            retrieved[(variable, casename)] = da if da is None else da.load()
+        return retrieved[(variable, casename)]
+
     #
     # LOOP OVER SEASON
     #
@@ -191,7 +203,7 @@ def cam_taylor_diagram(adfobj):
         for v in var_list:
             logger.debug(f"TAYLOR DIAGRAM VARIABLE: {v}")
             # Load reference data (already regridded to target grid)
-            ref_data = _retrieve(adfobj, v, data_name)
+            ref_data = _retrieve_once(v, data_name)
             if ref_data is None:
                 logger.warning(f"\t WARNING: No regridded reference data for {v} in {data_name}, skipping.")
                 continue
@@ -200,7 +212,7 @@ def cam_taylor_diagram(adfobj):
 
             for casenumber, case in enumerate(case_names):
                 # Load test case data regridded to match reference grid
-                case_data = _retrieve(adfobj, v, case)
+                case_data = _retrieve_once(v, case)
                 if case_data is None:
                     logger.warning(f"\t WARNING: No regridded data for {v} in {case}, skipping.")
                     continue
