@@ -540,6 +540,16 @@ plotting_scripts:
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+#
+#A single entry of "all" processes every variable found in the test case input
+#files instead (the fields in the history files, or the variables in the
+#pre-made time series files when "cam_ts_done" is true).  Variables listed
+#alongside "all" are still added, which is how a derived variable that is in no
+#input file (e.g. PRECT) can be asked for:
+#
+#diag_var_list:
+#    - all
+#    - PRECT
 diag_var_list:
     - SWCF
     - LWCF

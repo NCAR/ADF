@@ -30,6 +30,7 @@ from adf_file_utils import (
     ts_files_overlap,
     ts_files_need_combining,
     ts_file_span,
+    ts_var_from_filename,
 )
 
 
@@ -583,3 +584,35 @@ if __name__ == "__main__":
 
 #############
 # End of file
+
+
+class TsVarFromFilenameTestRoutine(unittest.TestCase):
+    """
+    Unit tests for reading a variable name out of a time series file name,
+    which is how "diag_var_list: all" finds the variables in a pre-made time
+    series directory without opening every file in it.
+    """
+
+    def test_ordinary_name(self):
+        """The usual $case.$hist_str.$variable.$dates.nc name."""
+        self.assertEqual(ts_var_from_filename("case.cam.h0a.TS.000101-002012.nc"), "TS")
+
+    def test_case_name_with_dots(self):
+        """Case names carry dots, so counting has to start from the end."""
+        self.assertEqual(
+            ts_var_from_filename("b.e30.BHIST.ne30.cam.h0a.PRECT.000101-002012.nc"),
+            "PRECT",
+        )
+
+    def test_full_path(self):
+        """A path is accepted as well as a bare name."""
+        self.assertEqual(
+            ts_var_from_filename(
+                Path("/some/where/case.cam.h0a.RELHUM.000101-002012.nc")
+            ),
+            "RELHUM",
+        )
+
+    def test_name_without_a_variable(self):
+        """A name too short to carry a variable reports nothing."""
+        self.assertIsNone(ts_var_from_filename("case.nc"))

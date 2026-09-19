@@ -12,6 +12,8 @@ describe_dir_problem(path, need_write=False)
     Report why a configured directory cannot be used, permissions included.
 find_ts_files(ts_loc, pattern, recursive=True)
     Locate time series files matching a glob pattern under a directory.
+ts_var_from_filename(fname)
+    Read the variable name out of a time series file name.
 select_ts_files(fils, syr, eyr)
     Narrow a set of time series files to those needed for a year range.
 ts_files_overlap(fils)
@@ -139,6 +141,34 @@ def pick_hist_str(value, wanted):
     """
     matches = [stream for stream in as_hist_str_list(value) if stream in wanted]
     return matches[0] if matches else ""
+
+
+def ts_var_from_filename(fname):
+    """
+    Read the variable name out of a time series file name.
+
+    Time series files are named $case.$hist_str.$variable.$dates.nc, and both
+    the case name and the history stream can themselves contain dots, so the
+    variable is found by counting in from the end rather than from the start.
+
+    Parameters
+    ----------
+    fname : str or Path
+        time series file name or path
+
+    Returns
+    -------
+    str or None
+        the variable name, or ``None`` when the name has too few parts to
+        carry one.
+    """
+    parts = Path(fname).name.split(".")
+    # case . stream . VAR . dates . nc, so a name carrying a variable has at
+    # least four parts (the stream is usually two of them, "cam.h0"):
+    if len(parts) < 4:
+        return None
+    # End if
+    return parts[-3]
 
 
 def find_ts_files(ts_loc, pattern, recursive=True):
