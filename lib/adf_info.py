@@ -59,6 +59,93 @@ def _warn_on_long_climo_range(syr, eyr):
     # End if
 
 
+# Dimensions that make a history file variable a field the ADF can plot.  A
+# history file also holds coefficients, counters and coordinate bookkeeping
+# (hyam, date, nsteph, gw ...), none of which are diagnostics, and all of which
+# lack either a time dimension or a horizontal one:
+_HORIZONTAL_DIMS = {"lat", "lon", "ncol", "lndgrid"}
+
+
+def variables_in_case_files(case_name, hist_loc, hist_strs, ts_loc, ts_done):
+    """
+    Report the variables available for one case, for "diag_var_list: all".
+
+    Parameters
+    ----------
+    case_name : str
+        name of the case
+    hist_loc : str or Path or None
+        directory holding the case's history files
+    hist_strs : str or list or None
+        the case's configured history stream(s)
+    ts_loc : str or Path or None
+        directory holding pre-made time series files, when there are any
+    ts_done : bool
+        whether the time series files are pre-made
+
+    Returns
+    -------
+    set of str
+        variable names found in the case's input files
+
+    Notes
+    -----
+    Pre-made time series hold one variable per file and carry its name in the
+    file name, so they are read from the names rather than by opening every
+    file.  History files are read from the first file of each stream, which is
+    the same assumption the time series step already makes: that every file in
+    a stream holds the same variables.
+    """
+    found = set()
+
+    # An unconfigured stream leaves the search unanchored, which finds the
+    # files whichever stream they are in:
+    hist_str_list = utils.as_hist_str_list(hist_strs) or [""]
+
+    if ts_done:
+        if not ts_loc:
+            return found
+        # End if
+        # Time series files are named {case}.{hist_str}.{variable}.{dates}.nc,
+        # so anchoring on the configured stream keeps a directory holding more
+        # than one stream from contributing variables the run will not use:
+        for hist_str in hist_str_list:
+            pattern = f"{case_name}.{hist_str}.*.nc" if hist_str else f"{case_name}*.nc"
+            for fname in utils.find_ts_files(ts_loc, pattern):
+                var = utils.ts_var_from_filename(fname)
+                if var:
+                    found.add(var)
+                # End if
+            # End for
+        # End for
+        return found
+    # End if
+
+    if not hist_loc:
+        return found
+    # End if
+
+    for hist_str in hist_str_list:
+        pattern = f"*{hist_str}.*.nc" if hist_str else "*.nc"
+        hist_files = sorted(Path(hist_loc).glob(pattern))
+        if not hist_files:
+            continue
+        # End if
+        with xr.open_dataset(
+            hist_files[0], decode_cf=False, decode_times=False
+        ) as hist_ds:
+            found.update(
+                var
+                for var in hist_ds.data_vars
+                if "time" in hist_ds[var].dims
+                and _HORIZONTAL_DIMS.intersection(hist_ds[var].dims)
+            )
+        # End with
+    # End for
+
+    return found
+
+
 # +++++++++++++++++++
 # Define Obs class
 # +++++++++++++++++++
@@ -143,6 +230,14 @@ class AdfInfo(AdfConfig):
 
         # Initialize ADF variable list:
         self.__diag_var_list = self.read_config_var("diag_var_list", required=True)
+
+        # A single entry can be given as a plain string in the config file:
+        if isinstance(self.__diag_var_list, str):
+            self.__diag_var_list = [self.__diag_var_list]
+        # End if
+
+        # Replace an "all" entry with the variables the input files actually hold:
+        self.__diag_var_list = self._expand_var_list_all(self.__diag_var_list)
 
         # Case names:
         case_names = self.get_cam_info("cam_case_name", required=True)
@@ -860,6 +955,91 @@ class AdfInfo(AdfConfig):
         return self.read_config_var(
             var_str, conf_dict=self.__cam_bl_climo_info, required=required
         )
+
+    #########
+
+    def _expand_var_list_all(self, var_list):
+        """
+        Replace an "all" entry in 'diag_var_list' with the variables found in
+        the test case input files.
+
+        Parameters
+        ----------
+        var_list : list
+            'diag_var_list' as the user wrote it
+
+        Returns
+        -------
+        list
+            the same list when it holds no "all" entry, otherwise the
+            variables found in the input files together with any variables
+            the user listed alongside "all".
+
+        Notes
+        -----
+        Only the test case files are searched.  A baseline case that is
+        missing one of the variables is already handled downstream -- the
+        same as when the user lists a variable by hand -- and when the
+        comparison is against observations there is no baseline to search.
+        Variables listed alongside "all" are kept, so a derived variable that
+        is in no input file (PRECT, for instance) can still be asked for.
+        """
+        # The entry is matched without regard to case, so "all", "All" and
+        # "ALL" all work:
+        keep = [var for var in var_list if str(var).lower() != "all"]
+        if len(keep) == len(var_list):
+            return var_list
+        # End if
+
+        case_names = self.get_cam_info("cam_case_name", required=True)
+        hist_locs = self.get_cam_info("cam_hist_loc")
+        hist_strs = self.get_cam_info("hist_str")
+        ts_locs = self.get_cam_info("cam_ts_loc")
+        ts_done = self.get_cam_info("cam_ts_done")
+
+        found = set()
+        for case_idx, case_name in enumerate(case_names):
+            hist_loc = hist_locs[case_idx] if hist_locs else None
+            ts_loc = ts_locs[case_idx] if ts_locs else None
+            case_ts_done = ts_done[case_idx] if ts_done else False
+
+            # Say what is wrong with the directory being searched, rather than
+            # letting an unreadable one look like a case holding no variables:
+            search_loc = ts_loc if case_ts_done else hist_loc
+            loc_name = "cam_ts_loc" if case_ts_done else "cam_hist_loc"
+            loc_problem = (
+                utils.describe_dir_problem(search_loc)
+                if search_loc
+                else "was not provided"
+            )
+            if loc_problem:
+                emsg = f"Test case '{case_name}' '{loc_name}' {loc_problem},"
+                emsg += " so 'diag_var_list: all' cannot find its variables."
+                self.end_diag_fail(emsg)
+            # End if
+
+            found.update(
+                variables_in_case_files(
+                    case_name,
+                    hist_loc,
+                    hist_strs[case_idx] if hist_strs else None,
+                    ts_loc,
+                    case_ts_done,
+                )
+            )
+        # End for
+
+        if not found:
+            emsg = "No variables were found in the test case input files, so"
+            emsg += " 'diag_var_list: all' has nothing to process."
+            self.end_diag_fail(emsg)
+        # End if
+
+        var_list = sorted(found.union(keep))
+        print(f"\t INFO: 'diag_var_list: all' -> {len(var_list)} variables to process.")
+        self.debug_log(f"diag_var_list from input files: {var_list}")
+
+        return var_list
 
     #########
 
