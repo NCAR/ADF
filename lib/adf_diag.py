@@ -104,7 +104,7 @@ from adf_file_utils import (
 from adf_web import AdfWeb
 from adf_dataset import AdfData
 from adf_derive import check_derive, derive_variable, find_constit
-from adf_utils import request_pressure_field
+from adf_utils import request_pressure_field, request_pressure_field_from_ts
 
 #################
 # Helper functions
@@ -663,6 +663,12 @@ class AdfDiag(AdfWeb):
                     syr=start_year,
                     eyr=end_year,
                 )
+                # The history-file scan below is skipped along with everything
+                # else, so look for the pressure field among the time series
+                # themselves.  Without this a run on pre-made time series
+                # always falls back to PS and the hybrid coefficients, even
+                # when the model wrote its own pressure.
+                request_pressure_field_from_ts(self, ts_dir)
                 continue
             # End if
 

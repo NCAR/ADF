@@ -34,6 +34,9 @@ def regrid_and_vert_interp(adf):
     var_list = adf.diag_var_list
     var_defaults = adf.variable_defaults
 
+    # Cases whose pressure source has been reported; see _announce_pressure_source.
+    announced = set()
+
     case_names = adf.get_cam_info("cam_case_name", required=True)
     syear_cases = adf.climo_yrs["syears"]
     eyear_cases = adf.climo_yrs["eyears"]
@@ -55,8 +58,18 @@ def regrid_and_vert_interp(adf):
         for var in var_list:
             if var in adf.data.ref_var_nam:
                 target_name = adf.data.ref_labels[var]
-            else:
+            elif var_defaults.get(var, {}).get("plot_diagnostics", True):
                 print(f"\t ERROR: No reference data available for {var}.")
+                continue
+            else:
+                # A support variable the ADF added for itself -- PMID, PINT --
+                # has no observational counterpart and does not need one: the
+                # interpolation reads it straight from the climo file. Saying
+                # "ERROR" here would report a problem the run does not have.
+                adf.debug_log(
+                    f"No reference data for support variable '{var}';"
+                    " not regridded, which is expected."
+                )
                 continue
 
             regridded_file_loc = output_loc / f'{target_name}_{case_name}_{var}_regridded.nc'
@@ -96,6 +109,7 @@ def regrid_and_vert_interp(adf):
                 # coefficients. Either way it has to land on the target grid.
                 lev_dim = 'lev' if 'lev' in model_ds.dims else 'ilev'
                 pres_source = _find_pressure_field(model_ds, adf, lev_dim, case=case_name)
+                _announce_pressure_source(announced, case_name, lev_dim, pres_source)
                 if pres_source is not None:
                     original_pres_attrs = pres_source.attrs.copy()
                     pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
@@ -142,6 +156,49 @@ def regrid_and_vert_interp(adf):
             save_to_nc(final_ds, regridded_file_loc)
 
     print("  ...CAM climatologies have been regridded successfully.")
+
+
+def _announce_pressure_source(announced, label, level_dim, pres_source):
+    """Say which pressure the vertical interpolation is using, once per case.
+
+    Which pressure a run used is not a detail: the model's own field is the
+    pressure the model actually had, while PS and the hybrid coefficients only
+    reproduce it for a pure hybrid-sigma coordinate -- not for the dry-mass
+    coordinate of recent CAM/WACCM.  Two runs of the same case can therefore
+    differ for no reason visible in the output, so say which one this is.
+
+    Parameters
+    ----------
+    announced : set
+        Labels already announced; added to in place.
+    label : str
+        The case (or reference) name, so each one is announced once.
+    level_dim : str
+        The vertical dimension, ``'lev'`` or ``'ilev'``: a run can hold fields
+        on both, with a pressure field for one and not the other.
+    pres_source : xarray.DataArray or None
+        The pressure field that was found, or ``None`` if there is none.
+    """
+    key = (label, level_dim)
+    if key in announced:
+        return
+    announced.add(key)
+    if pres_source is not None:
+        name = getattr(pres_source, "name", None) or "the pressure field"
+        print(
+            f"\t INFO: '{label}' ({level_dim}): vertical interpolation is using "
+            f"the model's own pressure field, '{name}'."
+        )
+    else:
+        print(
+            f"\t INFO: '{label}' ({level_dim}): no pressure field was found, so "
+            "pressure is being reconstructed from PS and the hybrid "
+            "coefficients.  That reproduces the model's pressure only for a "
+            "pure hybrid-sigma coordinate; for the dry-mass coordinate of "
+            "recent CAM/WACCM it is an approximation.  Add the model's "
+            "pressure field to the run to avoid it."
+        )
+
 
 def _pressure_in_pa(pres_da, name="PS"):
     """Return a pressure field in Pascals.
@@ -272,6 +329,7 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
     scripts read this file for every variable, not just the 3-D ones.
     """
     base = adf.data.ref_case_label
+    announced = set()
     syear = adf.climo_yrs["syear_baseline"]
     eyear = adf.climo_yrs["eyear_baseline"]
 
@@ -296,6 +354,7 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
             # No horizontal regrid needed: the reference already defines the target grid.
             lev_dim = 'lev' if 'lev' in ref_ds.dims else 'ilev'
             pres_da = _find_pressure_field(ref_ds, adf, lev_dim)
+            _announce_pressure_source(announced, base, lev_dim, pres_da)
             if pres_da is not None:
                 pres_da = _pressure_in_pa(pres_da,
                                           name=('PMID' if lev_dim == 'lev' else 'PINT'))

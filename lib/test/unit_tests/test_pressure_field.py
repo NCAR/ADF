@@ -132,6 +132,44 @@ def test_request_covers_both_vertical_dimensions():
     assert utils.request_pressure_field(adf, ds) == ["PMID", "PINT"]
 
 
+def test_cf_scan_ignores_the_vertical_coordinate_itself():
+    """CF labels a pressure-level coordinate 'air_pressure' too.
+
+    Returning the 1-D coordinate as "the pressure field" would interpolate a
+    column against itself, so only a field with horizontal structure counts.
+    """
+    ds = make_dataset()
+    ds["lev"].attrs["standard_name"] = "air_pressure"
+    assert utils.find_pressure_field(ds, "lev") is None
+    # ... but a real 3-D field in the same file is still found:
+    ds["pfull"] = xr.DataArray(
+        np.zeros((2, 3, 4)),
+        dims=("lev", "lat", "lon"),
+        attrs={"standard_name": "air_pressure"},
+    )
+    assert utils.find_pressure_field(ds, "lev") == "pfull"
+
+
+def test_request_from_time_series(tmp_path):
+    """'cam_ts_done: true' skips the history files; the time series remain."""
+    adf = FakeAdf(["T"])
+    assert utils.request_pressure_field_from_ts(adf, tmp_path) == []
+    (tmp_path / "case.cam.h0.PMID.000101-000512.nc").touch()
+    assert utils.request_pressure_field_from_ts(adf, tmp_path) == ["PMID"]
+    assert adf.diag_var_list == ["T", "PMID"]
+    # Asking again adds nothing:
+    assert utils.request_pressure_field_from_ts(adf, tmp_path) == []
+
+
+def test_request_from_time_series_honors_the_config(tmp_path):
+    (tmp_path / "case.cam.h0.pfull.000101-000512.nc").touch()
+    assert utils.request_pressure_field_from_ts(FakeAdf(["T"]), tmp_path) == []
+    adf = FakeAdf(["T"], pressure_field_names={"lev": "pfull"})
+    assert utils.request_pressure_field_from_ts(adf, tmp_path) == ["pfull"]
+    off = FakeAdf(["T"], pressure_field_names=False)
+    assert utils.request_pressure_field_from_ts(off, tmp_path) == []
+
+
 def test_request_skips_an_unused_vertical_dimension():
     """A file can carry 'ilev' while every requested variable is on midpoints.
 

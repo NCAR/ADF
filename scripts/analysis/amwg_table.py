@@ -107,9 +107,12 @@ def amwg_table(adf):
     # VARIABLE-NAME, RUN VALUE, OBS VALUE, RUN-OBS, RMSE
     #----------------------
 
-    #Extract needed quantities from ADF object:
-    #-----------------------------------------
-    var_list     = adf.diag_var_list
+    # Extract needed quantities from ADF object:
+    # -----------------------------------------
+    # "plot_var_list" rather than "diag_var_list": support variables such as
+    # PMID, which the ADF adds by itself to interpolate the vertical coordinate,
+    # are not diagnostics anyone asked to tabulate.
+    var_list = adf.plot_var_list
     var_defaults = adf.variable_defaults
 
     #Check if ocean or land fraction exist

@@ -38,7 +38,7 @@ import xarray as xr
 # ADF modules:
 from adf_base import AdfError
 from adf_file_utils import describe_dir_problem
-from adf_utils import request_pressure_field
+from adf_utils import request_pressure_field, request_pressure_field_from_ts
 from adf_derive import check_derive, derive_variable
 
 # ++++++++++++++++++++++++++++++
@@ -227,7 +227,10 @@ def create_time_series_gents(adf, baseline=False):
             emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
             print(emsg)
             # Pre-made time series still need their derived variables; see
-            # AdfDiag.derive_from_premade_ts (issue #431):
+            # AdfDiag.derive_from_premade_ts (issue #431) -- and the pressure
+            # field the regridder prefers, which the history-file scan below
+            # would otherwise have found:
+            request_pressure_field_from_ts(adf, ts_dir)
             adf.derive_from_premade_ts(
                 case_name,
                 ts_dir,

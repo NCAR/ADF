@@ -55,6 +55,8 @@ Notes
 """
 
 # import statements:
+from pathlib import Path
+
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -342,7 +344,11 @@ def find_pressure_field(dset, level_dim, names=None):
     if name and name in dset:
         return name
     for candidate, var in dset.variables.items():
-        if level_dim not in var.dims:
+        if level_dim not in var.dims or var.ndim < 2:
+            # A 1-D variable on the vertical dimension is the coordinate itself,
+            # not a pressure field.  CF-compliant pressure-level output labels
+            # that coordinate 'air_pressure' too, and interpolating a column
+            # against it would be circular.
             continue
         if str(var.attrs.get("standard_name", "")).strip() == "air_pressure":
             return str(candidate)
@@ -395,6 +401,48 @@ def request_pressure_field(adf, dset):
             adf.add_diag_var(found)
             added.append(found)
         # End if
+    # End for
+    return added
+
+
+def request_pressure_field_from_ts(adf, ts_dir):
+    """Add the model's 3-D pressure field from a directory of time series.
+
+    ``cam_ts_done: true`` skips the history files entirely, so there is nothing
+    to inspect for a pressure field -- but a time series of it may well be
+    sitting in the directory the ADF was pointed at, and using it is the whole
+    point of :func:`request_pressure_field`.  A file named after the variable is
+    the only handle here, so this looks for the configured (or CAM's) name and
+    cannot fall back on CF metadata the way the history-file scan does.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object whose variable list is being added to.
+    ts_dir : str or pathlib.Path
+        The time series directory to look in.
+
+    Returns
+    -------
+    list of str
+        The names added, empty when there was nothing to add.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    if names is False:
+        return []
+    added = []
+    for level_dim in ("lev", "ilev"):
+        name = pressure_field_name(level_dim, names)
+        if not name or name in adf.diag_var_list:
+            continue
+        if not list(Path(ts_dir).glob(f"*.{name}.*.nc")):
+            continue
+        msg = f"\t    INFO: Found a '{name}' time series; adding it to the "
+        msg += "variable list as the pressure field used to interpolate the "
+        msg += "model's vertical coordinate."
+        print(msg)
+        adf.add_diag_var(name)
+        added.append(name)
     # End for
     return added
 
