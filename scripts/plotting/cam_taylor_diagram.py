@@ -173,6 +173,7 @@ def cam_taylor_diagram(adfobj):
     # gigabytes -- and used to do it five times. The cached fields are all 2-D
     # (12 months x lat x lon), so holding them costs little.
     retrieved = {}
+
     def _retrieve_once(variable, casename):
         if (variable, casename) not in retrieved:
             da = _retrieve(adfobj, variable, casename)
@@ -517,11 +518,17 @@ def calculate_thickness_approx(coord, dim='lev'):
     # Take the distance to the only available neighbor.
     edge_diff = abs(coord.diff(dim=dim))
     
-    # Fill the NaNs at the start and end of the array.  edge_diff is one
-    # element shorter than diff, so a bfill/ffill on it would leave the first
-    # element NaN (and needs bottleneck, which is not an ADF dependency);
-    # reindex onto diff's coordinate instead and take the nearest neighbor.
-    return diff.fillna(edge_diff.reindex_like(diff, method="nearest"))
+    # Fill the NaNs at the start and end of the array.  edge_diff is one element
+    # shorter than diff, so the two have to be combined by position, not by
+    # label: a bfill/ffill left the first element NaN (and needed bottleneck,
+    # which is not an ADF dependency), while reindexing raises outright when dim
+    # carries no coordinate or a non-monotonic one.  Repeating the first edge
+    # difference lines the two up; only the first and last elements are used.
+    axis = edge_diff.get_axis_num(dim)
+    padded = np.concatenate(
+        [np.take(edge_diff.values, [0], axis=axis), edge_diff.values], axis=axis
+    )
+    return diff.fillna(xr.DataArray(padded, dims=diff.dims, coords=diff.coords))
 
 
 def weighted_vertical_average(da, weights, dim='lev'):

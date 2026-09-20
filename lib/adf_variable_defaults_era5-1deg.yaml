@@ -1775,9 +1775,13 @@ SST:
   mpl:
     colorbar:
       label : "K"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "TS"
+  # HadISST/OI.v2 present day (1999-2008), on a 1-degree grid.  ERA5 has no sea
+  # surface temperature in the ADF obs collection, and the ERAI "TS" this used to
+  # point at is skin temperature -- valid over land, so the land points it carried
+  # ended up in the reference panel of an "SST" plot.
+  obs_file: "HadISST_PD_monthly_climo_199901-200812.nc"
+  obs_name: "HadISST_OIv2_PD"
+  obs_var_name: "SST"
   category: "Surface variables"
   mask: "ocean"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
