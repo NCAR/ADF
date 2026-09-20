@@ -668,7 +668,9 @@ class AdfDiag(AdfWeb):
                 # themselves.  Without this a run on pre-made time series
                 # always falls back to PS and the hybrid coefficients, even
                 # when the model wrote its own pressure.
-                request_pressure_field_from_ts(self, ts_dir)
+                request_pressure_field_from_ts(
+                    self, ts_dir, case_name, hist_str_list[case_idx]
+                )
                 continue
             # End if
 

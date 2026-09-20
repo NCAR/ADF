@@ -227,10 +227,7 @@ def create_time_series_gents(adf, baseline=False):
             emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
             print(emsg)
             # Pre-made time series still need their derived variables; see
-            # AdfDiag.derive_from_premade_ts (issue #431) -- and the pressure
-            # field the regridder prefers, which the history-file scan below
-            # would otherwise have found:
-            request_pressure_field_from_ts(adf, ts_dir)
+            # AdfDiag.derive_from_premade_ts (issue #431):
             adf.derive_from_premade_ts(
                 case_name,
                 ts_dir,
@@ -238,6 +235,12 @@ def create_time_series_gents(adf, baseline=False):
                 cfg["hist_str_list"][case_idx],
                 syr=start_year,
                 eyr=end_year,
+            )
+            # The history-file scan below is skipped too, so look for the
+            # pressure field the regridder prefers among the time series
+            # themselves.  Same order as the ncrcat back end.
+            request_pressure_field_from_ts(
+                adf, ts_dir, case_name, cfg["hist_str_list"][case_idx]
             )
             continue
         # End if

@@ -30,6 +30,9 @@
 #                         the aerosol derivations, and the ADF adds it to "diag_var_list" on its
 #                         own, so a user who never asked for it would otherwise get a set of
 #                         pressure plots.  Defaults to True.
+#                         The regridding step also reads this as "needs no reference data":
+#                         a support variable with no observational counterpart is skipped
+#                         quietly, rather than reported as a missing reference.
 #
 #
 # OBSERVATIONS:

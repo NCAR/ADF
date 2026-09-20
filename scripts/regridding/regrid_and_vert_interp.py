@@ -104,12 +104,16 @@ def regrid_and_vert_interp(adf):
             vert_type = _determine_vertical_coord_type(model_ds, regridded_da)
             ps_da = None
             pres_da = None
+            pressure_note = None
             if vert_type in ('hybrid', 'height'):
                 # Prefer the model's own pressure field; fall back to PS + hybrid
                 # coefficients. Either way it has to land on the target grid.
                 lev_dim = 'lev' if 'lev' in model_ds.dims else 'ilev'
                 pres_source = _find_pressure_field(model_ds, adf, lev_dim, case=case_name)
-                _announce_pressure_source(announced, case_name, lev_dim, pres_source)
+                _announce_pressure_source(
+                    announced, case_name, lev_dim, vert_type, pres_source
+                )
+                pressure_note = _pressure_note(pres_source, vert_type)
                 if pres_source is not None:
                     original_pres_attrs = pres_source.attrs.copy()
                     pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
@@ -152,13 +156,44 @@ def regrid_and_vert_interp(adf):
                 "climo_yrs": f"{case_name}: {syear}-{eyear}",
                 "climatology_files": str(adf.data.get_climo_file(case_name, var)),
             }
+            if pressure_note:
+                # Provenance: this file may be reused by a later run, which will
+                # not repeat the choice or say anything about it.
+                test_attrs_dict["vert_interp_pressure"] = pressure_note
             final_ds = final_ds.assign_attrs(test_attrs_dict)
             save_to_nc(final_ds, regridded_file_loc)
 
     print("  ...CAM climatologies have been regridded successfully.")
 
 
-def _announce_pressure_source(announced, label, level_dim, pres_source):
+def _pressure_note(pres_source, vert_type):
+    """How the pressure for vertical interpolation was obtained, for the file.
+
+    A regridded file outlives the run that made it: a later run reuses it
+    without repeating the choice, or saying anything about it, so the answer
+    belongs in the file as well as in the log.
+
+    Parameters
+    ----------
+    pres_source : xarray.DataArray or None
+        The pressure field that was found, or ``None``.
+    vert_type : str
+        The vertical coordinate type.
+
+    Returns
+    -------
+    str or None
+        A short description, or ``None`` when nothing was interpolated.
+    """
+    if pres_source is not None:
+        name = getattr(pres_source, "name", None) or "model pressure field"
+        return f"{name} (the model's own pressure field)"
+    if vert_type == "hybrid":
+        return "reconstructed from PS and the hybrid coefficients"
+    return None
+
+
+def _announce_pressure_source(announced, label, level_dim, vert_type, pres_source):
     """Say which pressure the vertical interpolation is using, once per case.
 
     Which pressure a run used is not a detail: the model's own field is the
@@ -176,6 +211,10 @@ def _announce_pressure_source(announced, label, level_dim, pres_source):
     level_dim : str
         The vertical dimension, ``'lev'`` or ``'ilev'``: a run can hold fields
         on both, with a pressure field for one and not the other.
+    vert_type : str
+        The vertical coordinate type, which decides what happens when there is
+        no pressure field: ``'hybrid'`` can fall back on PS and the hybrid
+        coefficients, ``'height'`` has nothing to fall back on.
     pres_source : xarray.DataArray or None
         The pressure field that was found, or ``None`` if there is none.
     """
@@ -189,7 +228,7 @@ def _announce_pressure_source(announced, label, level_dim, pres_source):
             f"\t INFO: '{label}' ({level_dim}): vertical interpolation is using "
             f"the model's own pressure field, '{name}'."
         )
-    else:
+    elif vert_type == "hybrid":
         print(
             f"\t INFO: '{label}' ({level_dim}): no pressure field was found, so "
             "pressure is being reconstructed from PS and the hybrid "
@@ -197,6 +236,15 @@ def _announce_pressure_source(announced, label, level_dim, pres_source):
             "pure hybrid-sigma coordinate; for the dry-mass coordinate of "
             "recent CAM/WACCM it is an approximation.  Add the model's "
             "pressure field to the run to avoid it."
+        )
+    else:
+        # A height coordinate has no PS + hybrid fallback: without a pressure
+        # field there is nothing to interpolate with, and every 3-D variable is
+        # skipped with its own warning.
+        print(
+            f"\t INFO: '{label}' ({level_dim}): no pressure field was found, and a "
+            f"'{vert_type}' vertical coordinate cannot be interpolated without "
+            "one, so its 3-D variables will be skipped."
         )
 
 
@@ -350,11 +398,13 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
         vert_type = _determine_vertical_coord_type(ref_ds, ref_da)
         ps_da = None
         pres_da = None
+        pressure_note = None
         if vert_type in ('hybrid', 'height'):
             # No horizontal regrid needed: the reference already defines the target grid.
             lev_dim = 'lev' if 'lev' in ref_ds.dims else 'ilev'
             pres_da = _find_pressure_field(ref_ds, adf, lev_dim)
-            _announce_pressure_source(announced, base, lev_dim, pres_da)
+            _announce_pressure_source(announced, base, lev_dim, vert_type, pres_da)
+            pressure_note = _pressure_note(pres_da, vert_type)
             if pres_da is not None:
                 pres_da = _pressure_in_pa(pres_da,
                                           name=('PMID' if lev_dim == 'lev' else 'PINT'))
@@ -383,11 +433,14 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
                 print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
 
         final_ds = interp_da.to_dataset(name=var)
-        final_ds = final_ds.assign_attrs({
+        baseline_attrs = {
             "adf_user": adf.user,
             "climo_yrs": f"{base}: {syear}-{eyear}",
             "climatology_files": str(adf.data.get_reference_climo_file(var)),
-        })
+        }
+        if pressure_note:
+            baseline_attrs["vert_interp_pressure"] = pressure_note
+        final_ds = final_ds.assign_attrs(baseline_attrs)
         save_to_nc(final_ds, baseline_file)
 
 

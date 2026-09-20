@@ -405,7 +405,7 @@ def request_pressure_field(adf, dset):
     return added
 
 
-def request_pressure_field_from_ts(adf, ts_dir):
+def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
     """Add the model's 3-D pressure field from a directory of time series.
 
     ``cam_ts_done: true`` skips the history files entirely, so there is nothing
@@ -415,12 +415,22 @@ def request_pressure_field_from_ts(adf, ts_dir):
     the only handle here, so this looks for the configured (or CAM's) name and
     cannot fall back on CF metadata the way the history-file scan does.
 
+    The search is anchored on the case name, since several cases can share one
+    time series tree, and goes through :func:`find_ts_files`, so a GenTS archive
+    laid out as <component>/proc/tseries/<frequency>/ is found as well.
+
     Parameters
     ----------
     adf : AdfDiag
         The ADF object whose variable list is being added to.
     ts_dir : str or pathlib.Path
         The time series directory to look in.
+    case_name : str
+        The case whose time series these are; time series file names start with
+        it.
+    hist_strs : str or list of str, optional
+        The history stream(s) configured for the case, which narrow the search
+        further.  Any stream is accepted when this is left out.
 
     Returns
     -------
@@ -430,16 +440,33 @@ def request_pressure_field_from_ts(adf, ts_dir):
     names = adf.get_basic_info("pressure_field_names")
     if names is False:
         return []
+    streams = as_hist_str_list(hist_strs) or ["*"]
     added = []
     for level_dim in ("lev", "ilev"):
         name = pressure_field_name(level_dim, names)
         if not name or name in adf.diag_var_list:
             continue
-        if not list(Path(ts_dir).glob(f"*.{name}.*.nc")):
+        patterns = [f"{case_name}.{stream}.{name}.*.nc" for stream in streams]
+        # Flat first for every stream, then one recursive pass: a nested GenTS
+        # tree is worth walking once, but not once per pattern.
+        found = []
+        for recursive in (False, True):
+            for pattern in patterns:
+                found = find_ts_files(ts_dir, pattern, recursive=recursive)
+                if found:
+                    break
+                # End if
+            # End for
+            if found:
+                break
+            # End if
+        # End for
+        if not found:
             continue
-        msg = f"\t    INFO: Found a '{name}' time series; adding it to the "
-        msg += "variable list as the pressure field used to interpolate the "
-        msg += "model's vertical coordinate."
+        # End if
+        msg = f"\t    INFO: Found a '{name}' time series for '{case_name}'; adding "
+        msg += "it to the variable list as the pressure field used to interpolate "
+        msg += "the model's vertical coordinate."
         print(msg)
         adf.add_diag_var(name)
         added.append(name)

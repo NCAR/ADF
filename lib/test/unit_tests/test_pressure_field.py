@@ -153,21 +153,59 @@ def test_cf_scan_ignores_the_vertical_coordinate_itself():
 def test_request_from_time_series(tmp_path):
     """'cam_ts_done: true' skips the history files; the time series remain."""
     adf = FakeAdf(["T"])
-    assert utils.request_pressure_field_from_ts(adf, tmp_path) == []
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == []
     (tmp_path / "case.cam.h0.PMID.000101-000512.nc").touch()
-    assert utils.request_pressure_field_from_ts(adf, tmp_path) == ["PMID"]
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == ["PMID"]
     assert adf.diag_var_list == ["T", "PMID"]
-    # Asking again adds nothing:
-    assert utils.request_pressure_field_from_ts(adf, tmp_path) == []
+    # Asking again (the next history stream) adds nothing:
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == []
+
+
+def test_request_from_a_nested_time_series_tree(tmp_path):
+    """A GenTS archive: 'cam_ts_loc' points at the top of the tree.
+
+    See find_ts_files -- the layout is <component>/proc/tseries/<frequency>/,
+    and a flat glob of the top directory finds nothing at all.
+    """
+    nested = tmp_path / "atm" / "proc" / "tseries" / "month_1"
+    nested.mkdir(parents=True)
+    (nested / "case.cam.h0a.PMID.000101-000512.nc").touch()
+    adf = FakeAdf(["T"])
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == ["PMID"]
+
+
+def test_request_from_time_series_is_anchored_on_the_case(tmp_path):
+    """Several cases can share one time series tree.
+
+    Another case's pressure field is not this case's, and acting on it would
+    send the ADF looking for a time series this case does not have.
+    """
+    (tmp_path / "caseA.cam.h0.PMID.000101-000512.nc").touch()
+    adf = FakeAdf(["T"])
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "caseB") == []
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "caseA") == ["PMID"]
+
+
+def test_request_from_time_series_is_anchored_on_the_stream(tmp_path):
+    """A pressure field on a stream this case does not use is not its own."""
+    (tmp_path / "case.cam.h1.PMID.000101-000512.nc").touch()
+    assert (
+        utils.request_pressure_field_from_ts(FakeAdf(["T"]), tmp_path, "case", "cam.h0")
+        == []
+    )
+    adf = FakeAdf(["T"])
+    assert utils.request_pressure_field_from_ts(
+        adf, tmp_path, "case", ["cam.h0", "cam.h1"]
+    ) == ["PMID"]
 
 
 def test_request_from_time_series_honors_the_config(tmp_path):
     (tmp_path / "case.cam.h0.pfull.000101-000512.nc").touch()
-    assert utils.request_pressure_field_from_ts(FakeAdf(["T"]), tmp_path) == []
+    assert utils.request_pressure_field_from_ts(FakeAdf(["T"]), tmp_path, "case") == []
     adf = FakeAdf(["T"], pressure_field_names={"lev": "pfull"})
-    assert utils.request_pressure_field_from_ts(adf, tmp_path) == ["pfull"]
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == ["pfull"]
     off = FakeAdf(["T"], pressure_field_names=False)
-    assert utils.request_pressure_field_from_ts(off, tmp_path) == []
+    assert utils.request_pressure_field_from_ts(off, tmp_path, "case") == []
 
 
 def test_request_skips_an_unused_vertical_dimension():
