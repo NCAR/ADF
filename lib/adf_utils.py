@@ -266,6 +266,58 @@ def load_dataset(fils, use_time_bounds=False):
 VERTICAL_DIMS = ("lev", "ilev")
 
 
+def pressure_levels_pa(levels, default_hpa):
+    """Validate a set of interpolation pressure levels and return them in Pa.
+
+    Parameters
+    ----------
+    levels : sequence of float, float, or None
+        The levels asked for, in hPa -- the ``interp_press_levels`` config
+        entry.  ``None`` or empty means "use the default"; a bare number is
+        taken as a single level.
+    default_hpa : sequence of float
+        The levels to fall back on, in hPa.
+
+    Returns
+    -------
+    numpy.ndarray
+        The levels in Pa, ordered from the largest pressure down, which is how
+        the ADF's default set is ordered.
+
+    Raises
+    ------
+    ValueError
+        If `levels` is not a sequence of positive numbers.  Interpolating onto
+        a level that is zero, negative, or not a number would quietly produce a
+        field of NaN, so this is worth stopping for.
+    """
+    if levels is None or (hasattr(levels, "__len__") and len(levels) == 0):
+        levels = default_hpa
+    if isinstance(levels, (int, float)) and not isinstance(levels, bool):
+        # A single level is a reasonable thing to write without brackets:
+        levels = [levels]
+    if isinstance(levels, (str, bytes)):
+        raise ValueError(f"expected a list of pressure levels in hPa, got {levels!r}")
+    try:
+        arr = np.array([float(lev) for lev in levels], dtype=float)
+    except TypeError as err:
+        raise ValueError(
+            f"expected a list of pressure levels in hPa, got {levels!r}"
+        ) from err
+    except ValueError as err:
+        raise ValueError(
+            f"expected a list of numbers (pressure levels in hPa), got {levels!r}"
+        ) from err
+    if arr.size == 0:
+        raise ValueError("no pressure levels given")
+    if not np.all(np.isfinite(arr)) or np.any(arr <= 0):
+        raise ValueError(
+            "pressure levels must all be finite and greater than zero, got "
+            f"{list(arr)}"
+        )
+    return np.sort(arr)[::-1] * 100.0
+
+
 def vertical_dim(data):
     """Return the name of `data`'s vertical dimension, or None if it has none.
 

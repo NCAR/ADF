@@ -186,20 +186,28 @@ def get_difference_colors(values):
     and 'RdBu_r' centered on zero if there are values of both signs.
     """
     normfunc, mplv = use_this_norm()
-    dmin = np.min(values)
-    dmax = np.max(values)
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        # Nothing to take a range from: a pressure level above the model top,
+        # or a field that is missing everywhere.  Hand back a usable norm so
+        # the caller draws an empty panel instead of raising -- the old code
+        # left 'cmap' unset here and died with an UnboundLocalError.  Note
+        # np.min/np.max were used before, so a single missing point anywhere in
+        # the field was enough to reach this.
+        return mpl.colors.Normalize(vmin=-1.0, vmax=1.0), mpl.cm.RdBu_r
+    dmin = finite.min()
+    dmax = finite.max()
     # color normalization for difference
+    cmap = mpl.cm.RdBu_r
     if (dmin < 0) and (0 < dmax):
-        dnorm = normfunc(vmin=np.min(values), vmax=np.max(values), vcenter=0.0)
-        cmap = mpl.cm.RdBu_r
+        dnorm = normfunc(vmin=dmin, vmax=dmax, vcenter=0.0)
     else:
-        dnorm = mpl.colors.Normalize(vmin=np.min(values), vmax=np.max(values))
+        dnorm = mpl.colors.Normalize(vmin=dmin, vmax=dmax)
         if dmin >= 0:
             cmap = mpl.cm.OrRd
         elif dmax <= 0:
             cmap = mpl.cm.BuPu_r
-        else:
-            dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
     return dnorm, cmap
 
 
