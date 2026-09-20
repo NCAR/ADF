@@ -38,6 +38,7 @@ import xarray as xr
 # ADF modules:
 from adf_base import AdfError
 from adf_file_utils import describe_dir_problem
+from adf_utils import request_pressure_field
 from adf_derive import check_derive, derive_variable
 
 # ++++++++++++++++++++++++++++++
@@ -267,6 +268,16 @@ def create_time_series_gents(adf, baseline=False):
                 emsg += " Script is ending here."
                 adf.end_diag_fail(emsg)
             # End if
+
+            # Ask for the model's own 3-D pressure field before the variable
+            # list is worked out, so GenTS produces it alongside everything
+            # else.  Vertical interpolation prefers it over PS + hybrid
+            # coefficients, and GenTS gives it a file of its own.
+            with xr.open_dataset(
+                hist_files[0], decode_cf=False, decode_times=False
+            ) as first_ds:
+                request_pressure_field(adf, first_ds)
+            # End with
 
             # Work out the variable list before handing over to GenTS, so that
             # constituents of derived variables are generated too:

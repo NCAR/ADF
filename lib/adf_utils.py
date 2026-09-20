@@ -278,15 +278,125 @@ def vertical_dim(data):
     return None
 
 
-def pressure_field_name(level_dim):
-    """CAM's own 3-D pressure for a vertical dimension.
+# CAM's names for the 3-D pressure field, by vertical dimension.  Other models
+# write it under other names; see pressure_field_name and find_pressure_field.
+DEFAULT_PRESSURE_FIELDS = {"lev": "PMID", "ilev": "PINT"}
 
-    PMID on layer midpoints, PINT on interfaces. Preferred over reconstructing
-    pressure from PS and the hybrid coefficients: it is what the model actually
-    used, and it is the only correct option for the dry-mass vertical coordinate
-    in recent CAM/WACCM, where the hybrid coefficients do not give pressure.
+
+def pressure_field_name(level_dim, names=None):
+    """The model's own 3-D pressure for a vertical dimension.
+
+    CAM writes PMID on layer midpoints and PINT on interfaces, and those are the
+    defaults.  Either is preferred over reconstructing pressure from PS and the
+    hybrid coefficients: it is what the model actually used, and it is the only
+    correct option for the dry-mass vertical coordinate in recent CAM/WACCM,
+    where the hybrid coefficients do not give pressure.
+
+    Parameters
+    ----------
+    level_dim : str
+        The vertical dimension the field sits on, ``'lev'`` or ``'ilev'``.
+    names : dict or bool, optional
+        The ``pressure_field_names`` config entry: a mapping of vertical
+        dimension to variable name for a model that does not use CAM's names,
+        or ``False`` to ignore the model's pressure field entirely.
+
+    Returns
+    -------
+    str or None
+        The variable name to look for, or ``None`` when there is none to look
+        for -- an unrecognized ``level_dim``, or ``names`` set to ``False``.
     """
-    return "PMID" if level_dim == "lev" else "PINT"
+    if names is False:
+        return None
+    if isinstance(names, dict) and names.get(level_dim):
+        return names[level_dim]
+    return DEFAULT_PRESSURE_FIELDS.get(level_dim)
+
+
+def find_pressure_field(dset, level_dim, names=None):
+    """The name under which `dset` carries its 3-D pressure field, or ``None``.
+
+    The configured name (CAM's by default) is used when the dataset has it.
+    Failing that the dataset is searched for a variable on `level_dim` that
+    declares itself a pressure through CF metadata, so a model writing, say,
+    ``pfull`` is found without anyone having to name it.
+
+    Parameters
+    ----------
+    dset : xarray.Dataset
+        The dataset to search.
+    level_dim : str
+        The vertical dimension the pressure field must be on.
+    names : dict or bool, optional
+        See :func:`pressure_field_name`.
+
+    Returns
+    -------
+    str or None
+        Name of the pressure field in `dset`, or ``None`` if it has none.
+    """
+    if names is False:
+        return None
+    name = pressure_field_name(level_dim, names)
+    if name and name in dset:
+        return name
+    for candidate, var in dset.variables.items():
+        if level_dim not in var.dims:
+            continue
+        if str(var.attrs.get("standard_name", "")).strip() == "air_pressure":
+            return str(candidate)
+    return None
+
+
+def request_pressure_field(adf, dset):
+    """Add the model's 3-D pressure field to ``diag_var_list``, once.
+
+    Vertical interpolation prefers the pressure the model wrote over
+    reconstructing it from PS and the hybrid coefficients, but that field only
+    exists downstream if the ADF asks for it.  Adding it to ``diag_var_list``
+    gives it one time series and one climatology per case, rather than a copy
+    inside every 3-D variable's file.  It is a support variable -- the variable
+    defaults mark it ``plot_diagnostics: False``, so it stays off the website.
+
+    Only the vertical dimensions the requested variables actually sit on are
+    considered, so a run of midpoint fields does not also make interface
+    pressure. Does nothing when the model writes no pressure field, or when the
+    ``pressure_field_names`` config entry is ``False``; the regridder then falls
+    back to PS and the hybrid coefficients as before.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object whose variable list is being added to.
+    dset : xarray.Dataset
+        A history file to look in, opened by the caller.
+
+    Returns
+    -------
+    list of str
+        The names added, in the order they were found.  Empty when there was
+        nothing to add.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    wanted = adf.diag_var_list
+    added = []
+    for level_dim in ("lev", "ilev"):
+        # Only for a vertical dimension the run actually uses.  A history file
+        # can carry both 'lev' and 'ilev' while every requested variable sits on
+        # midpoints, and interface pressure is a whole extra 3-D field to make.
+        if not any(var in dset and level_dim in dset[var].dims for var in wanted):
+            continue
+        found = find_pressure_field(dset, level_dim, names)
+        if found and found not in adf.diag_var_list:
+            msg = f"\t    INFO: Adding '{found}' to the variable list; it is the "
+            msg += "pressure field used to interpolate the model's vertical coordinate."
+            print(msg)
+            adf.add_diag_var(found)
+            added.append(found)
+        # End if
+    # End for
+    return added
 
 
 def mask_land_or_ocean(arr, msk, use_nan=False):

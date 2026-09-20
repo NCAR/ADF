@@ -196,11 +196,13 @@ def _find_surface_pressure(dset, adf, case=None):
 def _find_pressure_field(dset, adf, level_dim, case=None):
     """The model's own 3-D pressure field, on the grid of `dset`.
 
-    PMID for data on layer midpoints, PINT for data on interfaces. This is
-    preferred over reconstructing pressure from PS and the hybrid coefficients:
-    it is what the model actually used, and it is the only option for vertical
-    coordinates that are not hybrid-sigma. Returns None when neither is
-    available, in which case the caller falls back to PS + hyam/hybm.
+    PMID for data on layer midpoints, PINT for data on interfaces -- or
+    whatever the model calls them, resolved by adf_utils.find_pressure_field.
+    This is preferred over reconstructing pressure from PS and the hybrid
+    coefficients: it is what the model actually used, and it is the only option
+    for vertical coordinates that are not hybrid-sigma. Returns None when no
+    pressure field is available, in which case the caller falls back to
+    PS + hyam/hybm.
 
     Note this deliberately does not look at "*_PMID_regridded.nc". PMID is a 3-D
     field, so if it is in diag_var_list then that file has already been
@@ -209,9 +211,13 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
 
     Pass `case` for a test case; omit it for the reference.
     """
-    name = 'PMID' if level_dim == 'lev' else 'PINT'
-    if name in dset:
-        return dset[name].squeeze()
+    names = adf.get_basic_info("pressure_field_names")
+    found = utils.find_pressure_field(dset, level_dim, names)
+    if found:
+        return dset[found].squeeze()
+    name = utils.pressure_field_name(level_dim, names)
+    if name is None:
+        return None
     if case is None:
         # get_reference_climo_file avoids load_reference_climo_da's ref_var_nam
         # lookup, which raises KeyError when the field is not in diag_var_list.
@@ -249,7 +255,12 @@ def _interp_with_pressure_field(da, pres_da):
     # reports the lowest model level's value.
     lev_pa = out['lev'] * 100.0
     in_range = (lev_pa >= pres_da.min(dim='lev')) & (lev_pa <= pres_da.max(dim='lev'))
-    return out.where(in_range)
+    out = out.where(in_range)
+
+    # pmid_to_plev stacks and unstacks, which leaves 'lev' leading. Put the
+    # dimensions back in the source order so a file written through this path
+    # looks like one written through the hybrid path.
+    return out.transpose(*da.dims)
 
 
 def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):

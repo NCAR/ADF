@@ -104,6 +104,20 @@ diag_basic_info:
     #model vs obs run:
     plot_press_levels: [200,850]
 
+    #Names of the model's own 3-D pressure field, by vertical dimension.
+    #Vertical interpolation prefers the pressure the model wrote over
+    #reconstructing it from PS and the hybrid coefficients, and the ADF adds
+    #that field to 'diag_var_list' by itself so it gets one time series and one
+    #climatology per case.  CAM's names (below) are the default, and a model
+    #that writes neither, but labels its pressure with the CF attribute
+    #'standard_name: air_pressure', is found anyway -- so this is only needed
+    #for a model that uses different names and no CF metadata.
+    #Set it to False to ignore the model's pressure field entirely and always
+    #interpolate from PS and the hybrid coefficients, as ADF used to:
+    #pressure_field_names:
+    #    lev: PMID
+    #    ilev: PINT
+
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
     #longitude will default to 180 degrees E.
