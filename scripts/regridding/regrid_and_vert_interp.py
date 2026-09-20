@@ -45,7 +45,10 @@ def _interp_levels(adf):
             adf.get_basic_info("interp_press_levels"), DEFAULT_PLEVS
         )
     except ValueError as err:
+        # end_diag_fail raises; the raise is explicit so nothing below can run
+        # on an unbound levels_pa if that ever changes.
         adf.end_diag_fail(f"Bad 'interp_press_levels' in the config file: {err}")
+        raise
 
     levels_hpa = levels_pa / 100.0
     if not np.array_equal(levels_hpa, np.array(DEFAULT_PLEVS, dtype=float)):
