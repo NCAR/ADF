@@ -1,5 +1,6 @@
 """Driver for horizontal and vertical interpolation.
 """
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -122,13 +123,25 @@ def regrid_and_vert_interp(adf):
             interp_da.attrs.update(original_attrs)
             # --- Masking ---
             var_default_dict = var_defaults.get(var, {})
-            if 'mask' in var_default_dict and var_default_dict['mask'].lower() == 'ocean':
-                ocn_frac_regridded_path = output_loc / f'{target_name}_{case_name}_OCNFRAC_regridded.nc'
-                if ocn_frac_regridded_path.exists():
-                    ocn_frac_da = xr.open_dataset(ocn_frac_regridded_path)['OCNFRAC']
-                    interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
-                else:
-                     print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
+            if (
+                "mask" in var_default_dict
+                and var_default_dict["mask"].lower() == "ocean"
+            ):
+                ocn_frac_da = _get_ocean_fraction(
+                    adf, case_name, target_name, output_loc, ref_ds
+                )
+                if ocn_frac_da is None:
+                    # Writing the field unmasked is worse than not writing it:
+                    # every plot and statistic downstream would be taken over
+                    # land as well as ocean, and look perfectly plausible.
+                    warnings.warn(
+                        f"\t    WARNING: '{var}' is defined with 'mask: ocean', but no "
+                        f"OCNFRAC is available for case '{case_name}'.  Skipping '{var}' "
+                        "rather than writing it unmasked -- add 'OCNFRAC' to "
+                        "'diag_var_list' to get this variable."
+                    )
+                    continue
+                interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
 
             # --- Save to file ---
             final_ds = interp_da.to_dataset(name=var)
@@ -495,6 +508,44 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
 
     else:
         raise ValueError(f"Unknown vertical coordinate type: '{vert_type}'")
+
+def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
+    """Return the case's OCNFRAC on the target grid, or ``None``.
+
+    The already-regridded file is used when it exists.  In ``compare_obs`` mode
+    it never does: OCNFRAC has no observational counterpart, so the main loop
+    skips it.  The mask only needs the *model's* ocean fraction on the reference
+    grid, though, so it is regridded here on the fly instead.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    case_name : str
+        Name of the test case.
+    target_name : str
+        Label of the reference data set the case is being regridded onto.
+    output_loc : pathlib.Path
+        The regrid output directory.
+    ref_ds : xarray.Dataset
+        Reference dataset defining the target grid.
+
+    Returns
+    -------
+    xarray.DataArray or None
+        Ocean fraction on the target grid, or ``None`` if the case has no
+        OCNFRAC climatology.
+    """
+    ocn_frac_path = output_loc / f"{target_name}_{case_name}_OCNFRAC_regridded.nc"
+    if ocn_frac_path.exists():
+        return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
+    ocn_frac_ds = adf.data.load_climo_ds(case_name, "OCNFRAC")
+    if ocn_frac_ds is None or "OCNFRAC" not in ocn_frac_ds:
+        return None
+    return _handle_horizontal_regridding(
+        ocn_frac_ds["OCNFRAC"].squeeze(), ref_ds, output_loc
+    )
+
 
 def _apply_ocean_mask(da, ocn_frac_da):
     """

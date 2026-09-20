@@ -1883,7 +1883,10 @@ TS:
 
 SST:
   colormap: "Blues"
-  contour_levels_range: [220,320, 5]
+  # 272-306 K in 2 K steps (18 contours).  Seawater freezes near 271.4 K, so
+  # nothing physical is lost below the first level; the top leaves room above
+  # the observed annual maximum (303.2 K in HadISST/OI.v2) for a warmer model.
+  contour_levels_range: [272, 308, 2]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 1]
   scale_factor: 1

@@ -167,6 +167,19 @@ def cam_taylor_diagram(adfobj):
 
     case_colors = [mpl.cm.tab20(i) for i, case in enumerate(case_names)] # change color for each case
 
+    # Every field here is read (and every derived field recomputed) once, not
+    # once per season: the season loop below only takes a time mean of it, but
+    # deriving e.g. ColumnTemperature re-reads the whole 93-level regridded T --
+    # gigabytes -- and used to do it five times. The cached fields are all 2-D
+    # (12 months x lat x lon), so holding them costs little.
+    retrieved = {}
+
+    def _retrieve_once(variable, casename):
+        if (variable, casename) not in retrieved:
+            da = _retrieve(adfobj, variable, casename)
+            retrieved[(variable, casename)] = da if da is None else da.load()
+        return retrieved[(variable, casename)]
+
     #
     # LOOP OVER SEASON
     #
@@ -191,7 +204,7 @@ def cam_taylor_diagram(adfobj):
         for v in var_list:
             logger.debug(f"TAYLOR DIAGRAM VARIABLE: {v}")
             # Load reference data (already regridded to target grid)
-            ref_data = _retrieve(adfobj, v, data_name)
+            ref_data = _retrieve_once(v, data_name)
             if ref_data is None:
                 logger.warning(f"\t WARNING: No regridded reference data for {v} in {data_name}, skipping.")
                 continue
@@ -200,7 +213,7 @@ def cam_taylor_diagram(adfobj):
 
             for casenumber, case in enumerate(case_names):
                 # Load test case data regridded to match reference grid
-                case_data = _retrieve(adfobj, v, case)
+                case_data = _retrieve_once(v, case)
                 if case_data is None:
                     logger.warning(f"\t WARNING: No regridded data for {v} in {case}, skipping.")
                     continue
@@ -505,9 +518,17 @@ def calculate_thickness_approx(coord, dim='lev'):
     # Take the distance to the only available neighbor.
     edge_diff = abs(coord.diff(dim=dim))
     
-    # Fill the NaNs at the start and end of the array
-    # bfill handles the first element, ffill handles the last
-    return diff.fillna(edge_diff.bfill(dim).ffill(dim))
+    # Fill the NaNs at the start and end of the array.  edge_diff is one element
+    # shorter than diff, so the two have to be combined by position, not by
+    # label: a bfill/ffill left the first element NaN (and needed bottleneck,
+    # which is not an ADF dependency), while reindexing raises outright when dim
+    # carries no coordinate or a non-monotonic one.  Repeating the first edge
+    # difference lines the two up; only the first and last elements are used.
+    axis = edge_diff.get_axis_num(dim)
+    padded = np.concatenate(
+        [np.take(edge_diff.values, [0], axis=axis), edge_diff.values], axis=axis
+    )
+    return diff.fillna(xr.DataArray(padded, dims=diff.dims, coords=diff.coords))
 
 
 def weighted_vertical_average(da, weights, dim='lev'):

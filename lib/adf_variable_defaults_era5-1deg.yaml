@@ -1766,7 +1766,10 @@ TS:
 
 SST:
   colormap: "Blues"
-  contour_levels_range: [220,320, 5]
+  # 272-306 K in 2 K steps (18 contours).  Seawater freezes near 271.4 K, so
+  # nothing physical is lost below the first level; the top leaves room above
+  # the observed annual maximum (303.2 K in HadISST/OI.v2) for a warmer model.
+  contour_levels_range: [272, 308, 2]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 1]
   scale_factor: 1
@@ -1775,9 +1778,13 @@ SST:
   mpl:
     colorbar:
       label : "K"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "TS"
+  # HadISST/OI.v2 present day (1999-2008), on a 1-degree grid.  ERA5 has no sea
+  # surface temperature in the ADF obs collection, and the ERAI "TS" this used to
+  # point at is skin temperature -- valid over land, so the land points it carried
+  # ended up in the reference panel of an "SST" plot.
+  obs_file: "HadISST_PD_monthly_climo_199901-200812.nc"
+  obs_name: "HadISST_OIv2_PD"
+  obs_var_name: "SST"
   category: "Surface variables"
   mask: "ocean"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
