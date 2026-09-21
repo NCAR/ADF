@@ -47,6 +47,13 @@ def test_levels_come_back_largest_first():
     assert np.array_equal(out, np.array([50000.0, 10000.0, 100.0, 10.0]))
 
 
+def test_repeated_levels_are_dropped():
+    """A level given twice would be interpolated and written twice."""
+    assert np.array_equal(
+        utils.pressure_levels_pa([500, 100, 500], DEFAULT), np.array([50000.0, 10000.0])
+    )
+
+
 def test_a_top_above_one_hpa_is_allowed():
     """The whole point: a high-top model needs levels finer than 1 hPa."""
     out = utils.pressure_levels_pa([1, 0.5, 0.1, 0.01], DEFAULT)

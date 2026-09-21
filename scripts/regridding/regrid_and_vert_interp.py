@@ -40,15 +40,15 @@ def _interp_levels(adf):
     numpy.ndarray
         The interpolation levels, in Pa, largest pressure first.
     """
+    levels_pa = DEFAULT_PLEVS_Pa
     try:
         levels_pa = utils.pressure_levels_pa(
             adf.get_basic_info("interp_press_levels"), DEFAULT_PLEVS
         )
     except ValueError as err:
-        # end_diag_fail raises; the raise is explicit so nothing below can run
-        # on an unbound levels_pa if that ever changes.
+        # end_diag_fail raises AdfError; starting from the default means the
+        # lines below cannot run on an unbound name if that ever changes.
         adf.end_diag_fail(f"Bad 'interp_press_levels' in the config file: {err}")
-        raise
 
     levels_hpa = levels_pa / 100.0
     if not np.array_equal(levels_hpa, np.array(DEFAULT_PLEVS, dtype=float)):
@@ -58,7 +58,14 @@ def _interp_levels(adf):
         )
 
     plot_levels = adf.get_basic_info("plot_press_levels") or []
-    missing = [lev for lev in plot_levels if float(lev) not in set(levels_hpa)]
+    if isinstance(plot_levels, (int, float)) and not isinstance(plot_levels, bool):
+        plot_levels = [plot_levels]
+    try:
+        missing = [lev for lev in plot_levels if float(lev) not in set(levels_hpa)]
+    except (TypeError, ValueError):
+        # Whatever 'plot_press_levels' holds, it is the plotting scripts' to
+        # complain about; this check is a convenience and must not end the run.
+        missing = []
     if missing:
         print(
             f"\t WARNING: 'plot_press_levels' asks for {missing} hPa, which "

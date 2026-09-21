@@ -281,8 +281,8 @@ def pressure_levels_pa(levels, default_hpa):
     Returns
     -------
     numpy.ndarray
-        The levels in Pa, ordered from the largest pressure down, which is how
-        the ADF's default set is ordered.
+        The levels in Pa, without duplicates, ordered from the largest pressure
+        down, which is how the ADF's default set is ordered.
 
     Raises
     ------
@@ -315,7 +315,9 @@ def pressure_levels_pa(levels, default_hpa):
             "pressure levels must all be finite and greater than zero, got "
             f"{list(arr)}"
         )
-    return np.sort(arr)[::-1] * 100.0
+    # np.unique sorts and drops duplicates: a level given twice would be
+    # interpolated and written twice.
+    return np.unique(arr)[::-1] * 100.0
 
 
 def vertical_dim(data):
