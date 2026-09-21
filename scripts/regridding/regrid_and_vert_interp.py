@@ -117,6 +117,8 @@ def regrid_and_vert_interp(adf):
                     pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
                     pres_da.attrs.update(original_pres_attrs)
                     pres_da = _pressure_in_pa(pres_da, name=pres_name)
+                    _announce_pressure_source(announced, case_name, lev_dim, pres_name)
+                    pressure_note = _pressure_note(pres_name)
                 elif vert_type == 'hybrid':
                     ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
                     if ps_regridded_path.exists():
@@ -130,15 +132,14 @@ def regrid_and_vert_interp(adf):
                         ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
                         ps_da.attrs.update(original_ps_attrs)
                     ps_da = _pressure_in_pa(ps_da, name="PS")
+                    # Announced here, not before the branch: the fallback can
+                    # come up empty too, and that path has already skipped the
+                    # variable with a warning of its own.
+                    _announce_pressure_source(announced, case_name, lev_dim, None)
+                    pressure_note = _pressure_note(None)
                 else:
                     print(f"\t    WARNING: No PMID/PINT available, unable to interpolate '{var}'")
                     continue
-                # Only now is the source settled: the fallback can come up
-                # empty too, and each of those paths has skipped the variable
-                # above with a warning of its own.
-                _announce_pressure_source(announced, case_name, lev_dim, pres_name)
-                pressure_note = _pressure_note(pres_name)
-
             interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds,
                                                       ps_da=ps_da, pres_da=pres_da)
             interp_da.attrs.update(original_attrs)
@@ -412,18 +413,19 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
             if pres_da is not None:
                 pres_name = str(pres_da.name)
                 pres_da = _pressure_in_pa(pres_da, name=pres_name)
+                _announce_pressure_source(announced, base, lev_dim, pres_name)
+                pressure_note = _pressure_note(pres_name)
             elif vert_type == 'hybrid':
                 ps_da = _find_surface_pressure(ref_ds, adf)
                 if ps_da is None:
                     print(f"\t    WARNING: No baseline PS, unable to interpolate '{var}'")
                     continue
                 ps_da = _pressure_in_pa(ps_da, name="PS")
+                _announce_pressure_source(announced, base, lev_dim, None)
+                pressure_note = _pressure_note(None)
             else:
                 print(f"\t    WARNING: No baseline PMID/PINT, unable to interpolate '{var}'")
                 continue
-            _announce_pressure_source(announced, base, lev_dim, pres_name)
-            pressure_note = _pressure_note(pres_name)
-
         interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds,
                                                   ps_da=ps_da, pres_da=pres_da)
         interp_da.attrs.update(original_attrs)
