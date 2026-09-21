@@ -337,6 +337,49 @@ def vertical_dim(data):
 DEFAULT_PRESSURE_FIELDS = {"lev": "PMID", "ilev": "PINT"}
 
 
+def pressure_in_pa(pres_da, name="PS"):
+    """Return a pressure field in Pascals.
+
+    The interpolation routines need Pa, but a pressure field does not always
+    arrive in them: a pressure read back from a "*_regridded.nc" file has had
+    the variable defaults applied, and those convert pressures to hPa.  Feeding
+    hPa in silently squeezes the whole model column into a few hPa, so every
+    target level below it comes out NaN -- the troposphere disappears without an
+    error anywhere.
+
+    Parameters
+    ----------
+    pres_da : xarray.DataArray
+        A pressure field, in Pa or hPa.
+    name : str, optional
+        What to call the field in a warning, when its units have to be guessed.
+
+    Returns
+    -------
+    xarray.DataArray
+        The same field in Pa, with its units attribute set.
+    """
+    units = str(pres_da.attrs.get("units", "")).strip().lower()
+    if units in ("hpa", "mb", "millibar", "millibars"):
+        scaled = pres_da * 100.0
+    elif units in ("pa", "pascal", "pascals"):
+        return pres_da
+    else:
+        # No usable units attribute: tropospheric pressure in Pa is ~1e4-1e5,
+        # in hPa ~1e2-1e3.
+        if float(pres_da.max()) > 2000.0:
+            return pres_da
+        print(
+            f"\t    WARNING: {name} has no units attribute and looks like hPa; "
+            "converting to Pa for vertical interpolation."
+        )
+        scaled = pres_da * 100.0
+    # End if
+    scaled.attrs = dict(pres_da.attrs)
+    scaled.attrs["units"] = "Pa"
+    return scaled
+
+
 def pressure_field_name(level_dim, names=None):
     """The model's own 3-D pressure for a vertical dimension.
 
@@ -407,7 +450,7 @@ def find_pressure_field(dset, level_dim, names=None):
     return None
 
 
-def request_pressure_field(adf, dset):
+def request_pressure_field(adf, dset, variables=None):
     """Add the model's 3-D pressure field to ``diag_var_list``, once.
 
     Vertical interpolation prefers the pressure the model wrote over
@@ -429,6 +472,12 @@ def request_pressure_field(adf, dset):
         The ADF object whose variable list is being added to.
     dset : xarray.Dataset
         A history file to look in, opened by the caller.
+    variables : sequence of str, optional
+        The variables to judge "does this run use model levels?" by.  The
+        default is the ADF's own list; a caller that is about to add a
+        model-level variable to it -- the constituent of a field on a pressure
+        surface -- passes that variable instead, since the list does not have
+        it yet.
 
     Returns
     -------
@@ -437,7 +486,7 @@ def request_pressure_field(adf, dset):
         nothing to add.
     """
     names = adf.get_basic_info("pressure_field_names")
-    wanted = adf.diag_var_list
+    wanted = adf.diag_var_list if variables is None else list(variables)
     added = []
     for level_dim in ("lev", "ilev"):
         # Only for a vertical dimension the run actually uses.  A history file

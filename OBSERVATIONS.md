@@ -85,15 +85,18 @@ The main ones:
 | `U10` | CCMP v3.1 | OAFlux |
 | `LHFLX` | OAFlux | ERA-Interim |
 
-**A level out of a three-dimensional reanalysis is its own file.**  CAM writes
-`U200` as a two-dimensional field, already on the 200 hPa surface, and the ADF
-compares fields of the same shape -- it has no way to pick a level out of an
-observation file.  `U200_ERA5_monthly_climo_197901-202112.nc` is therefore the
-200 hPa level of `U_ERA5_monthly_climo_197901-202112.nc`, written out by
-`make_u200_era5_climo.py` (kept beside the data).  It is the same numbers, not a
-second data set: comparing the 3-D `U` at 200 hPa through `plot_press_levels`
-uses the same reanalysis values.  Other fields CAM writes on a surface -- `U850`,
-`V200` -- can be added the same way.
+**A level out of a three-dimensional reanalysis is taken as it is read.**  CAM
+writes `U200` as a two-dimensional field, already on the 200 hPa surface, and the
+ADF compares fields of the same shape.  Rather than stage a file per level, the
+variable defaults name the level to take: `obs_lev: 200` on the `U200` entry
+reads the 200 hPa surface out of `U_ERA5_monthly_climo_197901-202112.nc`, and
+`U850`, `V200` and `V850` read theirs out of the same two files.  It is the same
+numbers as comparing the 3-D `U` at 200 hPa through `plot_press_levels`, not a
+second data set.  Any other surface is one line in the variable defaults away.
+
+`U200_ERA5_monthly_climo_197901-202112.nc` and its 1-degree twin, written by
+`make_u200_era5_climo.py` before `obs_lev` existed, hold exactly the same values
+and are kept for configurations that point at them.
 
 ## The files
 

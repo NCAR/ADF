@@ -1899,10 +1899,9 @@ U:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 U200:
   colormap: "Blues"
-  # -20 to 70 m/s in 5 m/s steps: the annual-mean jets reach ~45 m/s and the
-  # winter monthly means ~70, with easterlies to about -25 in the deep tropics.
   contour_levels_range: [-20, 75, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 2]
@@ -1912,12 +1911,83 @@ U200:
   mpl:
     colorbar:
       label : "ms$^{-1}$"
-  # The 200 hPa level of the ERA5 zonal wind climatology, taken out into a file
-  # of its own: CAM writes U200 as a 2-D field, and the ADF compares fields of
-  # the same shape.  See make_u200_era5_climo.py alongside the data.
-  obs_file: "U200_ERA5_monthly_climo_1degree_197901-202112.nc"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["U"]
+  derive_level: 200
+  obs_file: "U_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
-  obs_var_name: "U200"
+  obs_var_name: "U"
+  obs_lev: 200
+  category: "State"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
+V200:
+  colormap: "Blues"
+  contour_levels_range: [-10, 11, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-5, 5, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["V"]
+  derive_level: 200
+  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "V"
+  obs_lev: 200
+  category: "State"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
+U850:
+  colormap: "Blues"
+  contour_levels_range: [-16, 17, 2]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-6, 6, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["U"]
+  derive_level: 850
+  obs_file: "U_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "U"
+  obs_lev: 850
+  category: "State"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
+V850:
+  colormap: "Blues"
+  contour_levels_range: [-8, 9, 1]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-4, 4, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["V"]
+  derive_level: 850
+  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "V"
+  obs_lev: 850
   category: "State"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"

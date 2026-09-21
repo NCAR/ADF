@@ -347,30 +347,8 @@ def _announce_pressure_source(announced, label, level_dim, pres_name):
 
 
 def _pressure_in_pa(pres_da, name="PS"):
-    """Return a pressure field in Pascals.
-
-    The interpolation routines need Pa, but a pressure read back from a
-    "*_regridded.nc" file has already had the variable defaults applied, and
-    those convert pressures to hPa. Feeding hPa in silently squeezes the whole
-    model column into a few hPa, so every target level below it comes out NaN --
-    the troposphere disappears without an error anywhere.
-    """
-    units = str(pres_da.attrs.get('units', '')).strip().lower()
-    if units in ('hpa', 'mb', 'millibar', 'millibars'):
-        scaled = pres_da * 100.0
-    elif units in ('pa', 'pascal', 'pascals'):
-        return pres_da
-    else:
-        # No usable units attribute: tropospheric pressure in Pa is ~1e4-1e5,
-        # in hPa ~1e2-1e3.
-        if float(pres_da.max()) > 2000.0:
-            return pres_da
-        print(f"\t    WARNING: {name} has no units attribute and looks like hPa; "
-              "converting to Pa for vertical interpolation.")
-        scaled = pres_da * 100.0
-    scaled.attrs = dict(pres_da.attrs)
-    scaled.attrs['units'] = 'Pa'
-    return scaled
+    """Return a pressure field in Pascals; see adf_utils.pressure_in_pa."""
+    return utils.pressure_in_pa(pres_da, name=name)
 
 
 def _find_surface_pressure(dset, adf, case=None):

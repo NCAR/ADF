@@ -139,6 +139,59 @@ class AdfData:
         """Ordered history streams configured for the reference/baseline case."""
         return self._as_hist_str_list(self.adf.hist_string["base_hist_str"])
 
+    # Observations on a pressure surface
+    # ------------------
+    # Dimension names a reanalysis uses for its vertical coordinate.  CAM's own
+    # names come first; 'level' and 'plev' are what MERRA-2 and CMIP-style files
+    # call it.
+    OBS_LEVEL_DIMS = ("lev", "ilev", "level", "plev", "pressure", "pfull")
+
+    def _at_obs_level(self, da, field):
+        """Take one pressure surface out of a three-dimensional observation.
+
+        A field CAM writes on a surface -- U200 -- has to be compared against
+        the same surface of a reanalysis, and reanalyses are distributed as
+        whole columns.  The ``obs_lev`` variable default (hPa) names the surface
+        to take, so one file can serve every level a run asks for rather than
+        one file per level being staged.
+
+        Parameters
+        ----------
+        da : xarray.DataArray or None
+            The observation as loaded.
+        field : str
+            ADF name of the variable, which is how the defaults are keyed.
+
+        Returns
+        -------
+        xarray.DataArray or None
+            The chosen surface, with the vertical dimension dropped; `da`
+            unchanged when no level was asked for or it has no vertical
+            dimension.
+        """
+        if da is None:
+            return None
+        level = (self.adf.variable_defaults.get(field, {}) or {}).get("obs_lev")
+        if level is None:
+            return da
+        dim = next((d for d in self.OBS_LEVEL_DIMS if d in da.dims), None)
+        if dim is None:
+            # Already a single surface -- a file staged for this level, say.
+            return da
+        coord = da[dim]
+        wanted = float(level)
+        # hPa in the defaults; a coordinate in Pa is an order of magnitude out.
+        if float(coord.max()) > 2000.0:
+            wanted *= 100.0
+        chosen = da.sel({dim: wanted}, method="nearest")
+        actual = float(chosen[dim])
+        if abs(actual - wanted) > 0.01 * wanted:
+            wmsg = f"\t    WARNING: '{field}' asks for {level} hPa in the "
+            wmsg += f"observations, and the nearest level is {actual}; using it."
+            warnings.warn(wmsg)
+        # End if
+        return chosen.drop_vars(dim)
+
     # Time series files
     # ------------------
     # Test case(s)
@@ -286,12 +339,15 @@ class AdfData:
             add_offset = 0
             scale_factor = 1
 
-        return self.load_da(
-            fils,
+        return self._at_obs_level(
+            self.load_da(
+                fils,
+                field,
+                use_time_bounds=True,
+                add_offset=add_offset,
+                scale_factor=scale_factor,
+            ),
             field,
-            use_time_bounds=True,
-            add_offset=add_offset,
-            scale_factor=scale_factor,
         )
 
     # ------------------
@@ -435,12 +491,15 @@ class AdfData:
             scale_factor = 1
         else:
             add_offset, scale_factor = self.get_value_converters(case, variablename)
-        return self.load_da(
-            fils,
-            vname,
-            field=variablename,
-            add_offset=add_offset,
-            scale_factor=scale_factor,
+        return self._at_obs_level(
+            self.load_da(
+                fils,
+                vname,
+                field=variablename,
+                add_offset=add_offset,
+                scale_factor=scale_factor,
+            ),
+            variablename,
         )
 
     def get_reference_climo_file(self, var):
@@ -567,12 +626,15 @@ class AdfData:
         )
         # field, not file_field: an observation file names the variable its own
         # way, and the variable defaults are keyed by the ADF name
-        return self.load_da(
-            fils,
-            file_field,
-            field=field,
-            add_offset=add_offset,
-            scale_factor=scale_factor,
+        return self._at_obs_level(
+            self.load_da(
+                fils,
+                file_field,
+                field=field,
+                add_offset=add_offset,
+                scale_factor=scale_factor,
+            ),
+            field,
         )
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
