@@ -55,8 +55,6 @@ Notes
 """
 
 # import statements:
-from pathlib import Path
-
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -405,6 +403,33 @@ def request_pressure_field(adf, dset):
     return added
 
 
+def _ts_uses_level(ts_dir, case_name, streams, variables, level_dim):
+    """True if one of `variables` has a time series on `level_dim`.
+
+    Only the metadata is read, and the search stops at the first match.
+    """
+    for var in variables:
+        for stream in streams:
+            fils = find_ts_files(ts_dir, f"{case_name}.{stream}.{var}.*.nc")
+            if not fils:
+                continue
+            try:
+                with xr.open_dataset(
+                    fils[0], decode_cf=False, decode_times=False
+                ) as dset:
+                    if var in dset and level_dim in dset[var].dims:
+                        return True
+                    # End if
+            except (OSError, ValueError):
+                # An unreadable time series is the next stage's problem to
+                # report, not this one's.
+                continue
+            # End try
+        # End for
+    # End for
+    return False
+
+
 def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
     """Add the model's 3-D pressure field from a directory of time series.
 
@@ -441,10 +466,16 @@ def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
     if names is False:
         return []
     streams = as_hist_str_list(hist_strs) or ["*"]
+    wanted = [v for v in adf.diag_var_list]
     added = []
     for level_dim in ("lev", "ilev"):
         name = pressure_field_name(level_dim, names)
         if not name or name in adf.diag_var_list:
+            continue
+        if not _ts_uses_level(ts_dir, case_name, streams, wanted, level_dim):
+            # Nothing in this run sits on that vertical dimension, and a 3-D
+            # pressure field is a whole climatology to compute.  The history-file
+            # path makes the same check against the history file.
             continue
         patterns = [f"{case_name}.{stream}.{name}.*.nc" for stream in streams]
         # Flat first for every stream, then one recursive pass: a nested GenTS

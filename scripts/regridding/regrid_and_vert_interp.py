@@ -110,15 +110,13 @@ def regrid_and_vert_interp(adf):
                 # coefficients. Either way it has to land on the target grid.
                 lev_dim = 'lev' if 'lev' in model_ds.dims else 'ilev'
                 pres_source = _find_pressure_field(model_ds, adf, lev_dim, case=case_name)
-                _announce_pressure_source(
-                    announced, case_name, lev_dim, vert_type, pres_source
-                )
-                pressure_note = _pressure_note(pres_source, vert_type)
+                pres_name = None
                 if pres_source is not None:
+                    pres_name = str(pres_source.name)
                     original_pres_attrs = pres_source.attrs.copy()
                     pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
                     pres_da.attrs.update(original_pres_attrs)
-                    pres_da = _pressure_in_pa(pres_da, name=('PMID' if lev_dim == 'lev' else 'PINT'))
+                    pres_da = _pressure_in_pa(pres_da, name=pres_name)
                 elif vert_type == 'hybrid':
                     ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
                     if ps_regridded_path.exists():
@@ -135,6 +133,12 @@ def regrid_and_vert_interp(adf):
                 else:
                     print(f"\t    WARNING: No PMID/PINT available, unable to interpolate '{var}'")
                     continue
+                # Only now is the source settled: the fallback can come up
+                # empty too, and each of those paths has skipped the variable
+                # above with a warning of its own.
+                _announce_pressure_source(announced, case_name, lev_dim, pres_name)
+                pressure_note = _pressure_note(pres_name)
+
             interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds,
                                                       ps_da=ps_da, pres_da=pres_da)
             interp_da.attrs.update(original_attrs)
@@ -166,7 +170,7 @@ def regrid_and_vert_interp(adf):
     print("  ...CAM climatologies have been regridded successfully.")
 
 
-def _pressure_note(pres_source, vert_type):
+def _pressure_note(pres_name):
     """How the pressure for vertical interpolation was obtained, for the file.
 
     A regridded file outlives the run that made it: a later run reuses it
@@ -175,25 +179,21 @@ def _pressure_note(pres_source, vert_type):
 
     Parameters
     ----------
-    pres_source : xarray.DataArray or None
-        The pressure field that was found, or ``None``.
-    vert_type : str
-        The vertical coordinate type.
+    pres_name : str or None
+        Name of the model's own pressure field, or ``None`` when pressure was
+        rebuilt from PS and the hybrid coefficients.
 
     Returns
     -------
-    str or None
-        A short description, or ``None`` when nothing was interpolated.
+    str
+        A short description, for the "vert_interp_pressure" attribute.
     """
-    if pres_source is not None:
-        name = getattr(pres_source, "name", None) or "model pressure field"
-        return f"{name} (the model's own pressure field)"
-    if vert_type == "hybrid":
-        return "reconstructed from PS and the hybrid coefficients"
-    return None
+    if pres_name:
+        return f"{pres_name} (the model's own pressure field)"
+    return "reconstructed from PS and the hybrid coefficients"
 
 
-def _announce_pressure_source(announced, label, level_dim, vert_type, pres_source):
+def _announce_pressure_source(announced, label, level_dim, pres_name):
     """Say which pressure the vertical interpolation is using, once per case.
 
     Which pressure a run used is not a detail: the model's own field is the
@@ -202,33 +202,34 @@ def _announce_pressure_source(announced, label, level_dim, vert_type, pres_sourc
     coordinate of recent CAM/WACCM.  Two runs of the same case can therefore
     differ for no reason visible in the output, so say which one this is.
 
+    Call this only once the source is settled.  A variable whose pressure could
+    not be worked out at all has already been skipped with a warning naming it,
+    and announcing a source for it would contradict that warning.
+
     Parameters
     ----------
     announced : set
-        Labels already announced; added to in place.
+        Case/dimension pairs already announced; added to in place.
     label : str
         The case (or reference) name, so each one is announced once.
     level_dim : str
         The vertical dimension, ``'lev'`` or ``'ilev'``: a run can hold fields
         on both, with a pressure field for one and not the other.
-    vert_type : str
-        The vertical coordinate type, which decides what happens when there is
-        no pressure field: ``'hybrid'`` can fall back on PS and the hybrid
-        coefficients, ``'height'`` has nothing to fall back on.
-    pres_source : xarray.DataArray or None
-        The pressure field that was found, or ``None`` if there is none.
+    pres_name : str or None
+        Name of the model's own pressure field, or ``None`` when pressure was
+        rebuilt from PS and the hybrid coefficients.  A name is passed rather
+        than the field itself because regridding drops it.
     """
     key = (label, level_dim)
     if key in announced:
         return
     announced.add(key)
-    if pres_source is not None:
-        name = getattr(pres_source, "name", None) or "the pressure field"
+    if pres_name:
         print(
             f"\t INFO: '{label}' ({level_dim}): vertical interpolation is using "
-            f"the model's own pressure field, '{name}'."
+            f"the model's own pressure field, '{pres_name}'."
         )
-    elif vert_type == "hybrid":
+    else:
         print(
             f"\t INFO: '{label}' ({level_dim}): no pressure field was found, so "
             "pressure is being reconstructed from PS and the hybrid "
@@ -236,15 +237,6 @@ def _announce_pressure_source(announced, label, level_dim, vert_type, pres_sourc
             "pure hybrid-sigma coordinate; for the dry-mass coordinate of "
             "recent CAM/WACCM it is an approximation.  Add the model's "
             "pressure field to the run to avoid it."
-        )
-    else:
-        # A height coordinate has no PS + hybrid fallback: without a pressure
-        # field there is nothing to interpolate with, and every 3-D variable is
-        # skipped with its own warning.
-        print(
-            f"\t INFO: '{label}' ({level_dim}): no pressure field was found, and a "
-            f"'{vert_type}' vertical coordinate cannot be interpolated without "
-            "one, so its 3-D variables will be skipped."
         )
 
 
@@ -382,6 +374,19 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
     eyear = adf.climo_yrs["eyear_baseline"]
 
     for var in var_list:
+        if var not in adf.data.ref_var_nam:
+            # A support variable the ADF added for itself after AdfData read
+            # the variable list -- PMID, PINT.  It is not part of the reference
+            # bookkeeping, and interpolating it onto pressure levels would be
+            # circular anyway: _find_pressure_field reads the climo file.
+            # Without this, load_reference_climo_ds raises KeyError as soon as
+            # the baseline has a climo file of its own for it.
+            adf.debug_log(
+                f"'{var}' is not a reference variable; not regridded"
+                " for the baseline, which is expected."
+            )
+            continue
+
         baseline_file = output_loc / f'{base}_{var}_baseline.nc'
         if baseline_file.is_file() and not overwrite:
             print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
@@ -403,11 +408,10 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
             # No horizontal regrid needed: the reference already defines the target grid.
             lev_dim = 'lev' if 'lev' in ref_ds.dims else 'ilev'
             pres_da = _find_pressure_field(ref_ds, adf, lev_dim)
-            _announce_pressure_source(announced, base, lev_dim, vert_type, pres_da)
-            pressure_note = _pressure_note(pres_da, vert_type)
+            pres_name = None
             if pres_da is not None:
-                pres_da = _pressure_in_pa(pres_da,
-                                          name=('PMID' if lev_dim == 'lev' else 'PINT'))
+                pres_name = str(pres_da.name)
+                pres_da = _pressure_in_pa(pres_da, name=pres_name)
             elif vert_type == 'hybrid':
                 ps_da = _find_surface_pressure(ref_ds, adf)
                 if ps_da is None:
@@ -417,6 +421,9 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
             else:
                 print(f"\t    WARNING: No baseline PMID/PINT, unable to interpolate '{var}'")
                 continue
+            _announce_pressure_source(announced, base, lev_dim, pres_name)
+            pressure_note = _pressure_note(pres_name)
+
         interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds,
                                                   ps_da=ps_da, pres_da=pres_da)
         interp_da.attrs.update(original_attrs)

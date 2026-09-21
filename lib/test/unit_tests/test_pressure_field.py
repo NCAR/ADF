@@ -132,6 +132,14 @@ def test_request_covers_both_vertical_dimensions():
     assert utils.request_pressure_field(adf, ds) == ["PMID", "PINT"]
 
 
+def write_ts(directory, name, level_dim="lev"):
+    """Write a tiny time series file, 3-D when `level_dim` is given."""
+    dims = ("time", level_dim, "lat") if level_dim else ("time", "lat")
+    shape = (1, 2, 3) if level_dim else (1, 3)
+    var = name.split(".")[-3]
+    xr.Dataset({var: (dims, np.zeros(shape))}).to_netcdf(directory / name)
+
+
 def test_cf_scan_ignores_the_vertical_coordinate_itself():
     """CF labels a pressure-level coordinate 'air_pressure' too.
 
@@ -152,13 +160,27 @@ def test_cf_scan_ignores_the_vertical_coordinate_itself():
 
 def test_request_from_time_series(tmp_path):
     """'cam_ts_done: true' skips the history files; the time series remain."""
+    write_ts(tmp_path, "case.cam.h0.T.000101-000512.nc")
     adf = FakeAdf(["T"])
     assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == []
-    (tmp_path / "case.cam.h0.PMID.000101-000512.nc").touch()
+    write_ts(tmp_path, "case.cam.h0.PMID.000101-000512.nc")
     assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == ["PMID"]
     assert adf.diag_var_list == ["T", "PMID"]
     # Asking again (the next history stream) adds nothing:
     assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == []
+
+
+def test_request_from_time_series_skips_a_two_dimensional_run(tmp_path):
+    """A 3-D pressure field is a whole climatology; do not make one for nothing.
+
+    The time series tree may hold a pressure field left by another run even
+    though nothing in this one sits on model levels.
+    """
+    write_ts(tmp_path, "case.cam.h0.TS.000101-000512.nc", level_dim=None)
+    write_ts(tmp_path, "case.cam.h0.PMID.000101-000512.nc")
+    adf = FakeAdf(["TS"])
+    assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == []
+    assert adf.diag_var_list == ["TS"]
 
 
 def test_request_from_a_nested_time_series_tree(tmp_path):
@@ -169,7 +191,8 @@ def test_request_from_a_nested_time_series_tree(tmp_path):
     """
     nested = tmp_path / "atm" / "proc" / "tseries" / "month_1"
     nested.mkdir(parents=True)
-    (nested / "case.cam.h0a.PMID.000101-000512.nc").touch()
+    write_ts(nested, "case.cam.h0a.T.000101-000512.nc")
+    write_ts(nested, "case.cam.h0a.PMID.000101-000512.nc")
     adf = FakeAdf(["T"])
     assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == ["PMID"]
 
@@ -180,7 +203,9 @@ def test_request_from_time_series_is_anchored_on_the_case(tmp_path):
     Another case's pressure field is not this case's, and acting on it would
     send the ADF looking for a time series this case does not have.
     """
-    (tmp_path / "caseA.cam.h0.PMID.000101-000512.nc").touch()
+    write_ts(tmp_path, "caseA.cam.h0.T.000101-000512.nc")
+    write_ts(tmp_path, "caseA.cam.h0.PMID.000101-000512.nc")
+    write_ts(tmp_path, "caseB.cam.h0.T.000101-000512.nc")
     adf = FakeAdf(["T"])
     assert utils.request_pressure_field_from_ts(adf, tmp_path, "caseB") == []
     assert utils.request_pressure_field_from_ts(adf, tmp_path, "caseA") == ["PMID"]
@@ -188,7 +213,8 @@ def test_request_from_time_series_is_anchored_on_the_case(tmp_path):
 
 def test_request_from_time_series_is_anchored_on_the_stream(tmp_path):
     """A pressure field on a stream this case does not use is not its own."""
-    (tmp_path / "case.cam.h1.PMID.000101-000512.nc").touch()
+    write_ts(tmp_path, "case.cam.h0.T.000101-000512.nc")
+    write_ts(tmp_path, "case.cam.h1.PMID.000101-000512.nc")
     assert (
         utils.request_pressure_field_from_ts(FakeAdf(["T"]), tmp_path, "case", "cam.h0")
         == []
@@ -200,7 +226,8 @@ def test_request_from_time_series_is_anchored_on_the_stream(tmp_path):
 
 
 def test_request_from_time_series_honors_the_config(tmp_path):
-    (tmp_path / "case.cam.h0.pfull.000101-000512.nc").touch()
+    write_ts(tmp_path, "case.cam.h0.T.000101-000512.nc")
+    write_ts(tmp_path, "case.cam.h0.pfull.000101-000512.nc")
     assert utils.request_pressure_field_from_ts(FakeAdf(["T"]), tmp_path, "case") == []
     adf = FakeAdf(["T"], pressure_field_names={"lev": "pfull"})
     assert utils.request_pressure_field_from_ts(adf, tmp_path, "case") == ["pfull"]

@@ -812,7 +812,11 @@ class AdfDiag(AdfWeb):
                 # case, rather than a copy inside every 3-D variable's file.  A
                 # model that writes no pressure field is unaffected: the
                 # regridder falls back to PS and the hybrid coefficients.
-                if vert_coord_type and request_pressure_field(self, hist_file_ds):
+                # No vert_coord_type gate here: request_pressure_field checks
+                # that some requested variable is actually on a model level,
+                # which is the question that matters, and checking it there
+                # keeps the two time series back ends in agreement.
+                if request_pressure_field(self, hist_file_ds):
                     diag_var_list = self.diag_var_list
                 # End if
 
