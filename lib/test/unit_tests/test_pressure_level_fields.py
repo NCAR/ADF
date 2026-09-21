@@ -148,12 +148,12 @@ class FakeDeriveAdf:
 
 def hybrid_dataset():
     """A tiny hybrid-coordinate time series, with U increasing upward."""
-    lev = np.array([850.0, 500.0, 200.0])
-    hyam = np.array([0.0, 0.2, 0.2])
-    hybm = np.array([0.85, 0.3, 0.0])
-    # PS = 100000 Pa gives pressures of 85000, 50000, 20000 Pa
+    lev = np.array([200.0, 500.0, 850.0])
+    hyam = np.array([0.2, 0.2, 0.0])
+    hybm = np.array([0.0, 0.3, 0.85])
+    # PS = 100000 Pa gives pressures of 20000, 50000, 85000 Pa
     time = np.arange(2.0)
-    u = np.tile(np.array([10.0, 20.0, 30.0])[None, :, None], (2, 1, 3))
+    u = np.tile(np.array([30.0, 20.0, 10.0])[None, :, None], (2, 1, 3))
     return xr.Dataset(
         {
             "U200": (("time", "lev", "lat"), u),
@@ -271,3 +271,276 @@ def test_the_constituent_decides_whether_pressure_is_needed():
 def test_a_two_dimensional_run_still_asks_for_nothing():
     adf = ListAdf(["TS"])
     assert utils.request_pressure_field(adf, history_like(), variables=["TS"]) == []
+
+
+# ------------------------------------------------ the wiring, not the arithmetic
+
+
+class HookAdf(ListAdf):
+    """An ADF that can stand in for the one check_derive is given."""
+
+    def __init__(self, variables, defaults):
+        super().__init__(variables)
+        self.variable_defaults = defaults
+        self.logged = []
+
+    def debug_log(self, msg):
+        self.logged.append(msg)
+
+
+DEFAULTS = {
+    "U200": {"derivable_from": ["U"], "derive_level": 200},
+    "U850": {"derivable_from": ["U"], "derive_level": 850},
+    "PRECT": {"derivable_from": ["PRECC", "PRECL"]},
+}
+
+
+def run_check_derive(requested, defaults=None, history=None):
+    """Walk the variable list the way create_time_series does.
+
+    The loop appends to the list it is iterating, which is the part that has
+    gone wrong twice: the returned list has to keep the constituents *and* gain
+    the pressure field.
+    """
+    defaults = DEFAULTS if defaults is None else defaults
+    history = history_like() if history is None else history
+    adf = HookAdf(requested, defaults)
+    diag_var_list = list(requested)
+    constit_dict = {}
+    for var in diag_var_list:
+        if var in history.data_vars:
+            continue
+        diag_var_list, constit_dict = adf_derive.check_derive(
+            adf, defaults, var, "case", diag_var_list, constit_dict, history, "hist0"
+        )
+    # End for
+    return adf, diag_var_list, constit_dict
+
+
+def test_the_constituent_and_the_pressure_field_both_survive_the_loop():
+    """The regression that dropped V200/V850: the list must not be replaced."""
+    adf, diag_var_list, constit_dict = run_check_derive(["U200", "U850"])
+    assert constit_dict == {"U200": ["U"], "U850": ["U"]}
+    for name in ("U200", "U850", "U", "PMID"):
+        assert name in diag_var_list, f"{name} fell out of the variable list"
+    # PMID is asked for once, however many surfaces want it:
+    assert diag_var_list.count("PMID") == 1
+    assert "PMID" in adf.diag_var_list
+
+
+def test_the_pressure_field_is_requested_for_a_derived_surface():
+    """The regression that fell back to PS + hybrid: nothing in the run is on
+    model levels until the constituent is added, so the constituent has to be
+    what the request is judged by."""
+    _, diag_var_list, _ = run_check_derive(["U200"])
+    assert "PMID" in diag_var_list
+
+
+def test_an_ordinary_derived_variable_asks_for_no_pressure():
+    """PRECT has no 'derive_level', so nothing changes for it."""
+    history = xr.Dataset(
+        {
+            "PRECC": (("time", "lat"), np.zeros((1, 3))),
+            "PRECL": (("time", "lat"), np.zeros((1, 3))),
+            "U": (("time", "lev", "lat"), np.zeros((1, 2, 3))),
+            "PMID": (("time", "lev", "lat"), np.zeros((1, 2, 3))),
+        },
+        coords={"lev": [850.0, 200.0]},
+    )
+    _, diag_var_list, constit_dict = run_check_derive(["PRECT"], history=history)
+    assert constit_dict == {"PRECT": ["PRECC", "PRECL"]}
+    assert "PMID" not in diag_var_list
+
+
+def test_a_model_without_a_pressure_field_still_derives():
+    """No PMID in the history files: the constituent is still requested."""
+    history = xr.Dataset(
+        {"U": (("time", "lev", "lat"), np.zeros((1, 2, 3)))},
+        coords={"lev": [850.0, 200.0]},
+    )
+    _, diag_var_list, constit_dict = run_check_derive(["U200"], history=history)
+    assert constit_dict == {"U200": ["U"]}
+    assert "U" in diag_var_list and "PMID" not in diag_var_list
+
+
+# ------------------------------------------- the model's own pressure field path
+
+
+class DataStub:
+    """The one AdfData method interpolate_to_level uses."""
+
+    @staticmethod
+    def load_dataset(fils):
+        if len(fils) == 1:
+            return xr.open_dataset(fils[0])
+        return xr.open_mfdataset(fils, combine="by_coords")
+
+
+class PresAdf(FakeDeriveAdf):
+    """A derive-stage ADF that can read a pressure time series."""
+
+    def __init__(self):
+        super().__init__()
+        self.data = DataStub()
+
+
+def write_pressure_ts(directory, times, surface_pa=100000.0, top_down=True):
+    """A PMID time series whose surface pressure is `surface_pa`.
+
+    CAM writes the column top down; `top_down=False` writes it the other way
+    round, which the interpolation has to cope with rather than quietly
+    returning the wrong end.
+    """
+    lev = (
+        np.array([200.0, 500.0, 850.0]) if top_down else np.array([850.0, 500.0, 200.0])
+    )
+    # Pressures scale with the surface, so a low surface puts 850 hPa below ground
+    fractions = np.array([0.2, 0.5, 0.85]) if top_down else np.array([0.85, 0.5, 0.2])
+    column = fractions * surface_pa
+    pmid = np.tile(column[None, :, None], (len(times), 1, 3))
+    xr.Dataset(
+        {"PMID": (("time", "lev", "lat"), pmid)},
+        coords={
+            "time": np.asarray(times, dtype=float),
+            "lev": lev,
+            "lat": np.arange(3.0),
+        },
+    ).to_netcdf(directory / f"case.cam.h0a.PMID.000101-000212.nc")
+
+
+def field_dataset(times, top_down=True):
+    """The constituent, with values that identify the level they came from."""
+    lev = (
+        np.array([200.0, 500.0, 850.0]) if top_down else np.array([850.0, 500.0, 200.0])
+    )
+    values = np.array([30.0, 20.0, 5.0]) if top_down else np.array([5.0, 20.0, 30.0])
+    u = np.tile(values[None, :, None], (len(times), 1, 3))
+    return xr.Dataset(
+        {"U200": (("time", "lev", "lat"), u)},
+        coords={
+            "time": np.asarray(times, dtype=float),
+            "lev": lev,
+            "lat": np.arange(3.0),
+        },
+    )
+
+
+def test_the_model_pressure_field_is_used_when_there_is_one(tmp_path):
+    write_pressure_ts(tmp_path, [0.0, 1.0])
+    out = adf_derive.interpolate_to_level(
+        PresAdf(),
+        field_dataset([0.0, 1.0]),
+        "U200",
+        200,
+        tmp_path,
+        "case",
+        hist_str="cam.h0a",
+    )
+    assert out is not None
+    assert out.attrs["interpolated_with"] == "PMID"
+    assert np.allclose(out.values, 30.0)
+
+
+def test_below_ground_is_missing_not_clamped(tmp_path):
+    """850 hPa under a 700 hPa surface is not the bottom model level.
+
+    np.interp, which the stacked interpolation uses, clamps to the end value
+    instead of returning NaN -- so without the mask the boundary-layer wind is
+    reported as the 850 hPa wind over Tibet, Greenland and Antarctica, and the
+    hybrid path reports the same point as missing.
+    """
+    write_pressure_ts(tmp_path, [0.0, 1.0], surface_pa=70000.0)
+    out = adf_derive.interpolate_to_level(
+        PresAdf(),
+        field_dataset([0.0, 1.0]),
+        "U200",
+        850,
+        tmp_path,
+        "case",
+        hist_str="cam.h0a",
+    )
+    assert out is not None
+    assert np.all(np.isnan(out.values)), "below-ground points must be missing"
+
+
+def test_a_longer_pressure_series_is_cut_to_the_field(tmp_path):
+    """A pressure field covering more times than the constituent.
+
+    It passes the coverage check, and broadcasting joins on the union, so
+    without the selection the field meets the wrong times' pressure.  The
+    surface pressure changes partway through here, so pairing the field with
+    the wrong end of the series gives a different answer rather than the same
+    one.
+    """
+    lev = np.array([200.0, 500.0, 850.0])
+    times = np.array([-2.0, -1.0, 0.0, 1.0])
+    # The first two times have a much lower surface pressure than the last two:
+    surfaces = np.array([70000.0, 70000.0, 100000.0, 100000.0])
+    column = np.array([0.2, 0.5, 0.85])[None, :] * surfaces[:, None]
+    xr.Dataset(
+        {"PMID": (("time", "lev", "lat"), np.repeat(column[:, :, None], 3, axis=2))},
+        coords={"time": times, "lev": lev, "lat": np.arange(3.0)},
+    ).to_netcdf(tmp_path / "case.cam.h0a.PMID.000101-000212.nc")
+
+    out = adf_derive.interpolate_to_level(
+        PresAdf(),
+        field_dataset([0.0, 1.0]),
+        "U200",
+        200,
+        tmp_path,
+        "case",
+        hist_str="cam.h0a",
+    )
+    assert out is not None
+    assert out.sizes["time"] == 2
+    # 200 hPa is exactly the top level of the *later* columns:
+    assert np.allclose(out.values, 30.0)
+
+
+def test_a_shorter_pressure_series_falls_back(tmp_path):
+    """Genuinely missing times: use PS and the hybrid coefficients instead."""
+    write_pressure_ts(tmp_path, [0.0])
+    ds = field_dataset([0.0, 1.0])
+    ds["PS"] = (("time", "lat"), np.full((2, 3), 100000.0))
+    ds["hyam"] = (("lev",), np.array([0.2, 0.2, 0.0]))
+    ds["hybm"] = (("lev",), np.array([0.0, 0.3, 0.85]))
+    adf = PresAdf()
+    out = adf_derive.interpolate_to_level(
+        adf, ds, "U200", 200, tmp_path, "case", hist_str="cam.h0a"
+    )
+    assert out is not None
+    assert "hybrid" in out.attrs["interpolated_with"]
+    assert adf.logged, "the fallback should say why in the debug log"
+
+
+def test_surface_pressure_may_be_in_its_own_time_series(tmp_path):
+    """GenTS writes PS to its own file, so the fallback has to look for it."""
+    times = [0.0, 1.0]
+    xr.Dataset(
+        {"PS": (("time", "lat"), np.full((2, 3), 100000.0))},
+        coords={"time": np.asarray(times), "lat": np.arange(3.0)},
+    ).to_netcdf(tmp_path / "case.cam.h0a.PS.000101-000212.nc")
+    ds = field_dataset(times)
+    ds["hyam"] = (("lev",), np.array([0.2, 0.2, 0.0]))
+    ds["hybm"] = (("lev",), np.array([0.0, 0.3, 0.85]))
+    out = adf_derive.interpolate_to_level(
+        PresAdf(), ds, "U200", 200, tmp_path, "case", hist_str="cam.h0a"
+    )
+    assert out is not None
+    assert np.allclose(out.values, 30.0)
+
+
+def test_a_column_stored_bottom_up_gives_the_same_answer(tmp_path):
+    """np.interp needs increasing pressures and does not check for them."""
+    write_pressure_ts(tmp_path, [0.0, 1.0], top_down=False)
+    out = adf_derive.interpolate_to_level(
+        PresAdf(),
+        field_dataset([0.0, 1.0], top_down=False),
+        "U200",
+        200,
+        tmp_path,
+        "case",
+        hist_str="cam.h0a",
+    )
+    assert out is not None
+    assert np.allclose(out.values, 30.0)
