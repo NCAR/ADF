@@ -85,6 +85,16 @@ The main ones:
 | `U10` | CCMP v3.1 | OAFlux |
 | `LHFLX` | OAFlux | ERA-Interim |
 
+**A level out of a three-dimensional reanalysis is its own file.**  CAM writes
+`U200` as a two-dimensional field, already on the 200 hPa surface, and the ADF
+compares fields of the same shape -- it has no way to pick a level out of an
+observation file.  `U200_ERA5_monthly_climo_197901-202112.nc` is therefore the
+200 hPa level of `U_ERA5_monthly_climo_197901-202112.nc`, written out by
+`make_u200_era5_climo.py` (kept beside the data).  It is the same numbers, not a
+second data set: comparing the 3-D `U` at 200 hPa through `plot_press_levels`
+uses the same reanalysis values.  Other fields CAM writes on a surface -- `U850`,
+`V200` -- can be added the same way.
+
 ## The files
 
 | file | source | grid | period | coverage | variables served |
@@ -130,6 +140,7 @@ The main ones:
 | `TREFHT_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `TREFHT` |
 | `U10_CCMP_v3.1_monthly_climo_199301-202512.nc` | CCMP_v3.1 | 720x1440 (0.25 deg) | 1993-01 to 2025-12 | ice-free global ocean only; land is missing | `U10` |
 | `U_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U` |
+| `U200_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U200` |
 | `V_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `V` |
 
 ## Keeping this accurate

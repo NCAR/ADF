@@ -1899,6 +1899,29 @@ U:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+U200:
+  colormap: "Blues"
+  # -20 to 70 m/s in 5 m/s steps: the annual-mean jets reach ~45 m/s and the
+  # winter monthly means ~70, with easterlies to about -25 in the deep tropics.
+  contour_levels_range: [-20, 75, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # The 200 hPa level of the ERA5 zonal wind climatology, taken out into a file
+  # of its own: CAM writes U200 as a 2-D field, and the ADF compares fields of
+  # the same shape.  See make_u200_era5_climo.py alongside the data.
+  obs_file: "U200_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "U200"
+  category: "State"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
 V:
   colormap: "Blues"
   contour_levels_range: [-10, 90, 5]
