@@ -123,6 +123,17 @@ diag_basic_info:
     #longitude will default to 180 degrees E.
     central_longitude: 180
 
+    #Pressure levels (in hPa) that 3-D variables are interpolated onto during
+    #regridding.  If missing, the ADF uses its standard set:
+    #  1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
+    #  30, 20, 10, 7, 5, 3, 2, 1
+    #A model whose top is above 1 hPa needs to say so here to get anything
+    #plotted up there.  Every entry in 'plot_press_levels' has to be one of
+    #these levels; the ADF warns at the start of regridding if it is not.
+    #Note that changing this invalidates existing regridded files, so set
+    #'cam_overwrite_regrid: true' the first time you use it:
+    #interp_press_levels: [1000,925,850,700,500,400,300,250,200,150,100,70,50,30,20,10,7,5,3,2,1,0.5,0.1]
+
     #Number of processors on which to run the ADF.
     #If this config variable isn't present then
     #the ADF defaults to one processor.  Also, if

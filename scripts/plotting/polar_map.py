@@ -250,8 +250,20 @@ def polar_map(adfobj):
             if has_lev and pres_levs and plot.get('pressure'):
                 if not all(dim in mdata.dims for dim in ['lat', 'lev']):
                     continue
-                mdata = mdata.sel(lev=plot['pressure'])
-                odata_level = odata.sel(lev=plot['pressure'])
+                pres = plot["pressure"]
+                # The level has to be one that was interpolated to -- see
+                # 'interp_press_levels' in the config file.  Without this an
+                # unavailable level ends the whole run in a KeyError from .sel,
+                # where global_latlon_map warns and moves on.
+                if (pres not in mdata["lev"]) or (pres not in odata["lev"]):
+                    print(
+                        f"\t    WARNING: plot_press_levels value '{pres}' not "
+                        f"present in {var} [test: {pres in mdata['lev']}, "
+                        f"ref: {pres in odata['lev']}], so skipping."
+                    )
+                    continue
+                mdata = mdata.sel(lev=pres)
+                odata_level = odata.sel(lev=pres)
             else:
                 if not utils.lat_lon_validate_dims(mdata):
                     continue

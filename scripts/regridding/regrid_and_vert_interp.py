@@ -10,7 +10,9 @@ import xesmf as xe
 import adf_utils as utils
 
 
-# Default pressure levels for vertical interpolation
+# Default pressure levels (hPa) for vertical interpolation.  A model whose top
+# is above 1 hPa, or a run that wants a different set, overrides these with
+# 'interp_press_levels' in the config file -- see _interp_levels.
 DEFAULT_PLEVS = [
     1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
     30, 20, 10, 7, 5, 3, 2, 1
@@ -18,6 +20,60 @@ DEFAULT_PLEVS = [
 # ndarray, not a list: geocat's interp_hybrid_to_pressure and utils.vert_remap
 # both index it as an array (.size / .shape).
 DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
+
+
+def _interp_levels(adf):
+    """The pressure levels to interpolate onto, in Pa.
+
+    'interp_press_levels' (hPa, in diag_basic_info) replaces DEFAULT_PLEVS.
+    The levels the config asks to *plot* are checked against them here: a
+    'plot_press_levels' entry that was never interpolated to cannot be plotted,
+    and saying so once at the start of regridding beats a plotting script
+    finding an empty selection later on.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object, for the config entries and for end_diag_fail.
+
+    Returns
+    -------
+    numpy.ndarray
+        The interpolation levels, in Pa, largest pressure first.
+    """
+    levels_pa = DEFAULT_PLEVS_Pa
+    try:
+        levels_pa = utils.pressure_levels_pa(
+            adf.get_basic_info("interp_press_levels"), DEFAULT_PLEVS
+        )
+    except ValueError as err:
+        # end_diag_fail raises AdfError; starting from the default means the
+        # lines below cannot run on an unbound name if that ever changes.
+        adf.end_diag_fail(f"Bad 'interp_press_levels' in the config file: {err}")
+
+    levels_hpa = levels_pa / 100.0
+    if not np.array_equal(levels_hpa, np.array(DEFAULT_PLEVS, dtype=float)):
+        print(
+            f"\t INFO: Interpolating onto {len(levels_hpa)} pressure levels "
+            f"(hPa): {[float(lev) for lev in levels_hpa]}"
+        )
+
+    plot_levels = adf.get_basic_info("plot_press_levels") or []
+    if isinstance(plot_levels, (int, float)) and not isinstance(plot_levels, bool):
+        plot_levels = [plot_levels]
+    try:
+        missing = [lev for lev in plot_levels if float(lev) not in set(levels_hpa)]
+    except (TypeError, ValueError):
+        # Whatever 'plot_press_levels' holds, it is the plotting scripts' to
+        # complain about; this check is a convenience and must not end the run.
+        missing = []
+    if missing:
+        print(
+            f"\t WARNING: 'plot_press_levels' asks for {missing} hPa, which "
+            "is not among the levels being interpolated to, so those levels "
+            "cannot be plotted.  Add them to 'interp_press_levels'."
+        )
+    return levels_pa
 
 def regrid_and_vert_interp(adf):
     """
@@ -34,6 +90,7 @@ def regrid_and_vert_interp(adf):
     output_loc.mkdir(parents=True, exist_ok=True)
     var_list = adf.diag_var_list
     var_defaults = adf.variable_defaults
+    levels_pa = _interp_levels(adf)
 
     # Cases whose pressure source has been reported; see _announce_pressure_source.
     announced = set()
@@ -50,7 +107,9 @@ def regrid_and_vert_interp(adf):
 
     # The reference does not depend on the test cases, so do it once, up front:
     if not adf.compare_obs:
-        _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite_regrid)
+        _write_reference_files(
+            adf, var_list, var_defaults, output_loc, overwrite_regrid, levels_pa
+        )
 
     for case_idx, case_name in enumerate(case_names):
         # print(f"\t Regridding case '{case_name}':")
@@ -141,8 +200,14 @@ def regrid_and_vert_interp(adf):
                 else:
                     print(f"\t    WARNING: No PMID/PINT available, unable to interpolate '{var}'")
                     continue
-            interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds,
-                                                      ps_da=ps_da, pres_da=pres_da)
+            interp_da = _handle_vertical_interpolation(
+                regridded_da,
+                vert_type,
+                model_ds,
+                ps_da=ps_da,
+                pres_da=pres_da,
+                levels_pa=levels_pa,
+            )
             interp_da.attrs.update(original_attrs)
             # --- Masking ---
             var_default_dict = var_defaults.get(var, {})
@@ -368,8 +433,13 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
     return pres_ds[name].squeeze()
 
 
-def _interp_with_pressure_field(da, pres_da):
-    """Interpolate `da` to DEFAULT_PLEVS using an explicit 3-D pressure field."""
+def _interp_with_pressure_field(da, pres_da, levels_pa=None):
+    """Interpolate `da` onto `levels_pa` using an explicit 3-D pressure field.
+
+    `levels_pa` defaults to DEFAULT_PLEVS_Pa.
+    """
+    if levels_pa is None:
+        levels_pa = DEFAULT_PLEVS_Pa
     level_dim = 'lev' if 'lev' in da.dims else 'ilev'
 
     # utils.pmid_to_plev stacks on a dimension literally named "lev", so
@@ -383,8 +453,7 @@ def _interp_with_pressure_field(da, pres_da):
     # field has to carry exactly the same dimensions in the same order.
     pres_da = pres_da.broadcast_like(da).transpose(*da.dims)
 
-    out = utils.pmid_to_plev(da, pres_da, new_levels=DEFAULT_PLEVS_Pa,
-                            convert_to_mb=True)
+    out = utils.pmid_to_plev(da, pres_da, new_levels=levels_pa, convert_to_mb=True)
 
     # vert_remap interpolates with np.interp, which clamps to the end values
     # instead of returning NaN outside the source range. The hybrid path (geocat)
@@ -401,7 +470,9 @@ def _interp_with_pressure_field(da, pres_da):
     return out.transpose(*da.dims)
 
 
-def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
+def _write_reference_files(
+    adf, var_list, var_defaults, output_loc, overwrite, levels_pa=None
+):
     """Write the reference climo on the target grid as {base}_{var}_baseline.nc.
 
     The reference defines the target grid, so it needs no horizontal regridding,
@@ -467,8 +538,9 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
             else:
                 print(f"\t    WARNING: No baseline PMID/PINT, unable to interpolate '{var}'")
                 continue
-        interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds,
-                                                  ps_da=ps_da, pres_da=pres_da)
+        interp_da = _handle_vertical_interpolation(
+            ref_da, vert_type, ref_ds, ps_da=ps_da, pres_da=pres_da, levels_pa=levels_pa
+        )
         interp_da.attrs.update(original_attrs)
 
         # --- Masking ---
@@ -594,9 +666,12 @@ def _determine_vertical_coord_type(dset, da=None):
 
     return 'none'
 
-def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da=None):
+
+def _handle_vertical_interpolation(
+    da, vert_type, source_ds, ps_da=None, pres_da=None, levels_pa=None
+):
     """
-    Performs vertical interpolation to default pressure levels.
+    Performs vertical interpolation to a set of pressure levels.
 
     Parameters
     ----------
@@ -614,6 +689,9 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
         interfaces -- already on the same grid as `da`. Takes precedence over
         `ps_da`: it is the pressure the model used, rather than a reconstruction,
         and it is the only option for non-hybrid vertical coordinates.
+    levels_pa : numpy.ndarray, optional
+        The pressure levels to interpolate onto, in Pa.  Defaults to
+        ``DEFAULT_PLEVS_Pa``.
 
     Returns
     -------
@@ -623,9 +701,12 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
     if vert_type == 'none':
         return da
 
+    if levels_pa is None:
+        levels_pa = DEFAULT_PLEVS_Pa
+
     # An explicit pressure field wins whenever we have one.
     if pres_da is not None:
-        return _interp_with_pressure_field(da, pres_da)
+        return _interp_with_pressure_field(da, pres_da, levels_pa)
 
     if vert_type == "hybrid":
         if ps_da is None:
@@ -655,7 +736,9 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
         da[lev_coord_name].attrs["positive"] = "down" # standard for pressure/hybrid
         da[lev_coord_name].attrs["standard_name"] = "atmosphere_hybrid_sigma_pressure_coordinate"
 
-        return utils.lev_to_plev(da, ps_da, hyam, hybm, P0=p0, convert_to_mb=True, new_levels=DEFAULT_PLEVS_Pa)
+        return utils.lev_to_plev(
+            da, ps_da, hyam, hybm, P0=p0, convert_to_mb=True, new_levels=levels_pa
+        )
 
     elif vert_type == "height":
         # Reaching here means _find_pressure_field came up empty, and a height
@@ -664,7 +747,7 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
                          "interpolation, and neither was found.")
 
     elif vert_type == "pressure":
-        return utils.plev_to_plev(da, new_levels=DEFAULT_PLEVS_Pa, convert_to_mb=True)
+        return utils.plev_to_plev(da, new_levels=levels_pa, convert_to_mb=True)
 
     else:
         raise ValueError(f"Unknown vertical coordinate type: '{vert_type}'")
