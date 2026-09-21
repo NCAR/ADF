@@ -104,6 +104,7 @@ from adf_file_utils import (
 from adf_web import AdfWeb
 from adf_dataset import AdfData
 from adf_derive import check_derive, derive_variable, find_constit
+from adf_utils import request_pressure_field, request_pressure_field_from_ts
 
 #################
 # Helper functions
@@ -662,6 +663,14 @@ class AdfDiag(AdfWeb):
                     syr=start_year,
                     eyr=end_year,
                 )
+                # The history-file scan below is skipped along with everything
+                # else, so look for the pressure field among the time series
+                # themselves.  Without this a run on pre-made time series
+                # always falls back to PS and the hybrid coefficients, even
+                # when the model wrote its own pressure.
+                request_pressure_field_from_ts(
+                    self, ts_dir, case_name, hist_str_list[case_idx]
+                )
                 continue
             # End if
 
@@ -797,6 +806,20 @@ class AdfDiag(AdfWeb):
                 # Create copy of var list that can be modified for derivable variables
                 diag_var_list = self.diag_var_list
 
+                # The model's own 3-D pressure field is the preferred source for
+                # vertical interpolation (see regrid_and_vert_interp), so give it
+                # a time series of its own when the model writes one -- once per
+                # case, rather than a copy inside every 3-D variable's file.  A
+                # model that writes no pressure field is unaffected: the
+                # regridder falls back to PS and the hybrid coefficients.
+                # No vert_coord_type gate here: request_pressure_field checks
+                # that some requested variable is actually on a model level,
+                # which is the question that matters, and checking it there
+                # keeps the two time series back ends in agreement.
+                if request_pressure_field(self, hist_file_ds):
+                    diag_var_list = self.diag_var_list
+                # End if
+
                 # Intitialize dictionary for derived variables, if appplicable
                 constit_dict = {}
 
@@ -884,22 +907,6 @@ class AdfDiag(AdfWeb):
                                 print(wmsg)
                             # End if
 
-                            if vert_coord_type == "height":
-                                # Adding PMID here works, but significantly increases
-                                # the storage (disk usage) requirements of the ADF.
-                                # This can be alleviated in the future by figuring out
-                                # a way to determine all of the regridding targets at
-                                # the start of the ADF run, and then regridding a single
-                                # PMID file to each one of those targets separately. -JN
-                                if "PMID" in hist_file_var_list:
-                                    ncrcat_var_list = ncrcat_var_list + ",PMID"
-                                    print("\t     Adding PMID to file")
-                                else:
-                                    wmsg = "WARNING: PMID not found in history file."
-                                    wmsg += " It might be needed at some point."
-                                    print(wmsg)
-                                # End if PMID
-                            # End if height
                         # End if cam
                     # End if has_lev
 

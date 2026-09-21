@@ -35,6 +35,10 @@ def regrid_and_vert_interp(adf):
     var_list = adf.diag_var_list
     var_defaults = adf.variable_defaults
 
+    # Cases whose pressure source has been reported; see _announce_pressure_source.
+    announced = set()
+    pressure_names = _pressure_field_names(adf)
+
     case_names = adf.get_cam_info("cam_case_name", required=True)
     syear_cases = adf.climo_yrs["syears"]
     eyear_cases = adf.climo_yrs["eyears"]
@@ -56,6 +60,16 @@ def regrid_and_vert_interp(adf):
         for var in var_list:
             if var in adf.data.ref_var_nam:
                 target_name = adf.data.ref_labels[var]
+            elif var in pressure_names:
+                # The pressure field the ADF added for itself.  It has no
+                # observational counterpart and needs none: the interpolation
+                # reads it straight from the climo file.  Saying "ERROR" here
+                # would report a problem the run does not have.
+                adf.debug_log(
+                    f"No reference data for the pressure field '{var}';"
+                    " not regridded, which is expected."
+                )
+                continue
             else:
                 print(f"\t ERROR: No reference data available for {var}.")
                 continue
@@ -92,16 +106,20 @@ def regrid_and_vert_interp(adf):
             vert_type = _determine_vertical_coord_type(model_ds, regridded_da)
             ps_da = None
             pres_da = None
+            pressure_note = None
             if vert_type in ('hybrid', 'height'):
                 # Prefer the model's own pressure field; fall back to PS + hybrid
                 # coefficients. Either way it has to land on the target grid.
                 lev_dim = 'lev' if 'lev' in model_ds.dims else 'ilev'
                 pres_source = _find_pressure_field(model_ds, adf, lev_dim, case=case_name)
                 if pres_source is not None:
+                    pres_name = pres_source.name
                     original_pres_attrs = pres_source.attrs.copy()
                     pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
                     pres_da.attrs.update(original_pres_attrs)
-                    pres_da = _pressure_in_pa(pres_da, name=('PMID' if lev_dim == 'lev' else 'PINT'))
+                    pres_da = _pressure_in_pa(pres_da, name=pres_name)
+                    _announce_pressure_source(announced, case_name, lev_dim, pres_name)
+                    pressure_note = _pressure_note(pres_name)
                 elif vert_type == 'hybrid':
                     ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
                     if ps_regridded_path.exists():
@@ -115,6 +133,11 @@ def regrid_and_vert_interp(adf):
                         ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
                         ps_da.attrs.update(original_ps_attrs)
                     ps_da = _pressure_in_pa(ps_da, name="PS")
+                    # Announced here, not before the branch: the fallback can
+                    # come up empty too, and that path has already skipped the
+                    # variable with a warning of its own.
+                    _announce_pressure_source(announced, case_name, lev_dim, None)
+                    pressure_note = _pressure_note(None)
                 else:
                     print(f"\t    WARNING: No PMID/PINT available, unable to interpolate '{var}'")
                     continue
@@ -151,10 +174,112 @@ def regrid_and_vert_interp(adf):
                 "climo_yrs": f"{case_name}: {syear}-{eyear}",
                 "climatology_files": str(adf.data.get_climo_file(case_name, var)),
             }
+            if pressure_note:
+                # Provenance: this file may be reused by a later run, which will
+                # not repeat the choice or say anything about it.
+                test_attrs_dict["vert_interp_pressure"] = pressure_note
             final_ds = final_ds.assign_attrs(test_attrs_dict)
             save_to_nc(final_ds, regridded_file_loc)
 
     print("  ...CAM climatologies have been regridded successfully.")
+
+
+def _pressure_field_names(adf):
+    """The names the ADF may have added to the variable list for itself.
+
+    The pressure fields are the only variables the ADF requests on a user's
+    behalf here, and they are the only ones allowed to have no reference
+    counterpart, so name them exactly rather than inferring it from a variable
+    default that means something else.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object, for the 'pressure_field_names' config entry.
+
+    Returns
+    -------
+    set of str
+        Names to treat as the ADF's own; empty when the model's pressure field
+        has been turned off in the config.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    return {
+        name
+        for name in (utils.pressure_field_name(dim, names) for dim in ("lev", "ilev"))
+        if name
+    }
+
+
+def _pressure_note(pres_name):
+    """How the pressure for vertical interpolation was obtained, for the file.
+
+    A regridded file outlives the run that made it: a later run reuses it
+    without repeating the choice, or saying anything about it, so the answer
+    belongs in the file as well as in the log.
+
+    Parameters
+    ----------
+    pres_name : str or None
+        Name of the model's own pressure field, or ``None`` when pressure was
+        rebuilt from PS and the hybrid coefficients.
+
+    Returns
+    -------
+    str
+        A short description, for the "vert_interp_pressure" attribute.
+    """
+    if pres_name:
+        return f"{pres_name} (the model's own pressure field)"
+    return "reconstructed from PS and the hybrid coefficients"
+
+
+def _announce_pressure_source(announced, label, level_dim, pres_name):
+    """Say which pressure the vertical interpolation is using, once per case.
+
+    Which pressure a run used is not a detail: the model's own field is the
+    pressure the model actually had, while PS and the hybrid coefficients only
+    reproduce it for a pure hybrid-sigma coordinate -- not for the dry-mass
+    coordinate of recent CAM/WACCM.  Two runs of the same case can therefore
+    differ for no reason visible in the output, so say which one this is.
+
+    Call this only once the source is settled.  A variable whose pressure could
+    not be worked out at all has already been skipped with a warning naming it,
+    and announcing a source for it would contradict that warning.
+
+    Parameters
+    ----------
+    announced : set
+        Case/dimension pairs already announced; added to in place.
+    label : str
+        The case (or reference) name, so each one is announced once.
+    level_dim : str
+        The vertical dimension, ``'lev'`` or ``'ilev'``: a run can hold fields
+        on both, with a pressure field for one and not the other.
+    pres_name : str or None
+        Name of the model's own pressure field, or ``None`` when pressure was
+        rebuilt from PS and the hybrid coefficients.  A name is passed rather
+        than the field itself because regridding drops it.
+    """
+    key = (label, level_dim)
+    if key in announced:
+        return
+    announced.add(key)
+    if pres_name:
+        print(
+            f"\t INFO: '{label}' ({level_dim}): vertical interpolation is using "
+            f"the model's own pressure field, '{pres_name}'."
+        )
+    else:
+        print(
+            f"\t INFO: '{label}' ({level_dim}): no pressure field was found, so "
+            "pressure is being reconstructed from PS and the hybrid "
+            "coefficients.  That reproduces the model's pressure only for a "
+            "pure hybrid-sigma coordinate; for the dry-mass coordinate of "
+            "recent CAM/WACCM it is an approximation.  Add the model's "
+            "pressure field to the run to avoid it."
+        )
+
 
 def _pressure_in_pa(pres_da, name="PS"):
     """Return a pressure field in Pascals.
@@ -209,11 +334,13 @@ def _find_surface_pressure(dset, adf, case=None):
 def _find_pressure_field(dset, adf, level_dim, case=None):
     """The model's own 3-D pressure field, on the grid of `dset`.
 
-    PMID for data on layer midpoints, PINT for data on interfaces. This is
-    preferred over reconstructing pressure from PS and the hybrid coefficients:
-    it is what the model actually used, and it is the only option for vertical
-    coordinates that are not hybrid-sigma. Returns None when neither is
-    available, in which case the caller falls back to PS + hyam/hybm.
+    PMID for data on layer midpoints, PINT for data on interfaces -- or
+    whatever the model calls them, resolved by adf_utils.find_pressure_field.
+    This is preferred over reconstructing pressure from PS and the hybrid
+    coefficients: it is what the model actually used, and it is the only option
+    for vertical coordinates that are not hybrid-sigma. Returns None when no
+    pressure field is available, in which case the caller falls back to
+    PS + hyam/hybm.
 
     Note this deliberately does not look at "*_PMID_regridded.nc". PMID is a 3-D
     field, so if it is in diag_var_list then that file has already been
@@ -222,9 +349,13 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
 
     Pass `case` for a test case; omit it for the reference.
     """
-    name = 'PMID' if level_dim == 'lev' else 'PINT'
-    if name in dset:
-        return dset[name].squeeze()
+    names = adf.get_basic_info("pressure_field_names")
+    found = utils.find_pressure_field(dset, level_dim, names)
+    if found:
+        return dset[found].squeeze()
+    name = utils.pressure_field_name(level_dim, names)
+    if name is None:
+        return None
     if case is None:
         # get_reference_climo_file avoids load_reference_climo_da's ref_var_nam
         # lookup, which raises KeyError when the field is not in diag_var_list.
@@ -262,7 +393,12 @@ def _interp_with_pressure_field(da, pres_da):
     # reports the lowest model level's value.
     lev_pa = out['lev'] * 100.0
     in_range = (lev_pa >= pres_da.min(dim='lev')) & (lev_pa <= pres_da.max(dim='lev'))
-    return out.where(in_range)
+    out = out.where(in_range)
+
+    # pmid_to_plev stacks and unstacks, which leaves 'lev' leading. Put the
+    # dimensions back in the source order so a file written through this path
+    # looks like one written through the hybrid path.
+    return out.transpose(*da.dims)
 
 
 def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
@@ -274,10 +410,26 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
     scripts read this file for every variable, not just the 3-D ones.
     """
     base = adf.data.ref_case_label
+    announced = set()
     syear = adf.climo_yrs["syear_baseline"]
     eyear = adf.climo_yrs["eyear_baseline"]
 
+    pressure_names = _pressure_field_names(adf)
+
     for var in var_list:
+        if var in pressure_names and var not in adf.data.ref_var_nam:
+            # The pressure field, added to the variable list after AdfData read
+            # it, so it is not part of the reference bookkeeping.  Interpolating
+            # it onto pressure levels would be circular anyway --
+            # _find_pressure_field reads the climo file.  Without this,
+            # load_reference_climo_ds raises KeyError as soon as the baseline
+            # has a climo file of its own for it.
+            adf.debug_log(
+                f"The pressure field '{var}' is not a reference variable;"
+                " not regridded for the baseline."
+            )
+            continue
+
         baseline_file = output_loc / f'{base}_{var}_baseline.nc'
         if baseline_file.is_file() and not overwrite:
             print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
@@ -294,19 +446,24 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
         vert_type = _determine_vertical_coord_type(ref_ds, ref_da)
         ps_da = None
         pres_da = None
+        pressure_note = None
         if vert_type in ('hybrid', 'height'):
             # No horizontal regrid needed: the reference already defines the target grid.
             lev_dim = 'lev' if 'lev' in ref_ds.dims else 'ilev'
             pres_da = _find_pressure_field(ref_ds, adf, lev_dim)
             if pres_da is not None:
-                pres_da = _pressure_in_pa(pres_da,
-                                          name=('PMID' if lev_dim == 'lev' else 'PINT'))
+                pres_name = pres_da.name
+                pres_da = _pressure_in_pa(pres_da, name=pres_name)
+                _announce_pressure_source(announced, base, lev_dim, pres_name)
+                pressure_note = _pressure_note(pres_name)
             elif vert_type == 'hybrid':
                 ps_da = _find_surface_pressure(ref_ds, adf)
                 if ps_da is None:
                     print(f"\t    WARNING: No baseline PS, unable to interpolate '{var}'")
                     continue
                 ps_da = _pressure_in_pa(ps_da, name="PS")
+                _announce_pressure_source(announced, base, lev_dim, None)
+                pressure_note = _pressure_note(None)
             else:
                 print(f"\t    WARNING: No baseline PMID/PINT, unable to interpolate '{var}'")
                 continue
@@ -326,11 +483,14 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
                 print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
 
         final_ds = interp_da.to_dataset(name=var)
-        final_ds = final_ds.assign_attrs({
+        baseline_attrs = {
             "adf_user": adf.user,
             "climo_yrs": f"{base}: {syear}-{eyear}",
             "climatology_files": str(adf.data.get_reference_climo_file(var)),
-        })
+        }
+        if pressure_note:
+            baseline_attrs["vert_interp_pressure"] = pressure_note
+        final_ds = final_ds.assign_attrs(baseline_attrs)
         save_to_nc(final_ds, baseline_file)
 
 

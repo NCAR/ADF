@@ -278,15 +278,239 @@ def vertical_dim(data):
     return None
 
 
-def pressure_field_name(level_dim):
-    """CAM's own 3-D pressure for a vertical dimension.
+# CAM's names for the 3-D pressure field, by vertical dimension.  Other models
+# write it under other names; see pressure_field_name and find_pressure_field.
+DEFAULT_PRESSURE_FIELDS = {"lev": "PMID", "ilev": "PINT"}
 
-    PMID on layer midpoints, PINT on interfaces. Preferred over reconstructing
-    pressure from PS and the hybrid coefficients: it is what the model actually
-    used, and it is the only correct option for the dry-mass vertical coordinate
-    in recent CAM/WACCM, where the hybrid coefficients do not give pressure.
+
+def pressure_field_name(level_dim, names=None):
+    """The model's own 3-D pressure for a vertical dimension.
+
+    CAM writes PMID on layer midpoints and PINT on interfaces, and those are the
+    defaults.  Either is preferred over reconstructing pressure from PS and the
+    hybrid coefficients: it is what the model actually used, and it is the only
+    correct option for the dry-mass vertical coordinate in recent CAM/WACCM,
+    where the hybrid coefficients do not give pressure.
+
+    Parameters
+    ----------
+    level_dim : str
+        The vertical dimension the field sits on, ``'lev'`` or ``'ilev'``.
+    names : dict or bool, optional
+        The ``pressure_field_names`` config entry: a mapping of vertical
+        dimension to variable name for a model that does not use CAM's names,
+        or ``False`` to ignore the model's pressure field entirely.
+
+    Returns
+    -------
+    str or None
+        The variable name to look for, or ``None`` when there is none to look
+        for -- an unrecognized ``level_dim``, or ``names`` set to ``False``.
     """
-    return "PMID" if level_dim == "lev" else "PINT"
+    if names is False:
+        return None
+    if isinstance(names, dict) and names.get(level_dim):
+        return names[level_dim]
+    return DEFAULT_PRESSURE_FIELDS.get(level_dim)
+
+
+def find_pressure_field(dset, level_dim, names=None):
+    """The name under which `dset` carries its 3-D pressure field, or ``None``.
+
+    The configured name (CAM's by default) is used when the dataset has it.
+    Failing that the dataset is searched for a variable on `level_dim` that
+    declares itself a pressure through CF metadata, so a model writing, say,
+    ``pfull`` is found without anyone having to name it.
+
+    Parameters
+    ----------
+    dset : xarray.Dataset
+        The dataset to search.
+    level_dim : str
+        The vertical dimension the pressure field must be on.
+    names : dict or bool, optional
+        See :func:`pressure_field_name`.
+
+    Returns
+    -------
+    str or None
+        Name of the pressure field in `dset`, or ``None`` if it has none.
+    """
+    if names is False:
+        return None
+    name = pressure_field_name(level_dim, names)
+    if name and name in dset:
+        return name
+    for candidate, var in dset.variables.items():
+        if level_dim not in var.dims or var.ndim < 2:
+            # A 1-D variable on the vertical dimension is the coordinate itself,
+            # not a pressure field.  CF-compliant pressure-level output labels
+            # that coordinate 'air_pressure' too, and interpolating a column
+            # against it would be circular.
+            continue
+        if str(var.attrs.get("standard_name", "")).strip() == "air_pressure":
+            return str(candidate)
+    return None
+
+
+def request_pressure_field(adf, dset):
+    """Add the model's 3-D pressure field to ``diag_var_list``, once.
+
+    Vertical interpolation prefers the pressure the model wrote over
+    reconstructing it from PS and the hybrid coefficients, but that field only
+    exists downstream if the ADF asks for it.  Adding it to ``diag_var_list``
+    gives it one time series and one climatology per case, rather than a copy
+    inside every 3-D variable's file.  It is a support variable -- the variable
+    defaults mark it ``plot_diagnostics: False``, so it stays off the website.
+
+    Only the vertical dimensions the requested variables actually sit on are
+    considered, so a run of midpoint fields does not also make interface
+    pressure. Does nothing when the model writes no pressure field, or when the
+    ``pressure_field_names`` config entry is ``False``; the regridder then falls
+    back to PS and the hybrid coefficients as before.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object whose variable list is being added to.
+    dset : xarray.Dataset
+        A history file to look in, opened by the caller.
+
+    Returns
+    -------
+    list of str
+        The names added, in the order they were found.  Empty when there was
+        nothing to add.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    wanted = adf.diag_var_list
+    added = []
+    for level_dim in ("lev", "ilev"):
+        # Only for a vertical dimension the run actually uses.  A history file
+        # can carry both 'lev' and 'ilev' while every requested variable sits on
+        # midpoints, and interface pressure is a whole extra 3-D field to make.
+        if not any(var in dset and level_dim in dset[var].dims for var in wanted):
+            continue
+        found = find_pressure_field(dset, level_dim, names)
+        if found and found not in adf.diag_var_list:
+            msg = f"\t    INFO: Adding '{found}' to the variable list; it is the "
+            msg += "pressure field used to interpolate the model's vertical coordinate."
+            print(msg)
+            adf.add_diag_var(found)
+            added.append(found)
+        # End if
+    # End for
+    return added
+
+
+def _ts_uses_level(ts_dir, case_name, streams, variables, level_dim):
+    """True if one of `variables` has a time series on `level_dim`.
+
+    Each stream is listed once and the names filtered in Python, rather than
+    globbing per variable: a variable with no time series would otherwise cost a
+    walk of the whole tree, which is what find_ts_files asks callers with many
+    patterns to avoid.  Only metadata is read, and the search stops at the first
+    3-D field.
+    """
+    wanted = set(variables)
+    for stream in streams:
+        for fil in find_ts_files(ts_dir, f"{case_name}.{stream}.*.nc"):
+            var = ts_var_from_filename(fil)
+            if var not in wanted:
+                continue
+            try:
+                with xr.open_dataset(fil, decode_cf=False, decode_times=False) as dset:
+                    if var in dset and level_dim in dset[var].dims:
+                        return True
+                    # End if
+            except (OSError, ValueError):
+                # An unreadable time series is the next stage's problem to
+                # report, not this one's.
+                continue
+            # End try
+            wanted.discard(var)
+        # End for
+    # End for
+    return False
+
+
+def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
+    """Add the model's 3-D pressure field from a directory of time series.
+
+    ``cam_ts_done: true`` skips the history files entirely, so there is nothing
+    to inspect for a pressure field -- but a time series of it may well be
+    sitting in the directory the ADF was pointed at, and using it is the whole
+    point of :func:`request_pressure_field`.  A file named after the variable is
+    the only handle here, so this looks for the configured (or CAM's) name and
+    cannot fall back on CF metadata the way the history-file scan does.
+
+    The search is anchored on the case name, since several cases can share one
+    time series tree, and goes through :func:`find_ts_files`, so a GenTS archive
+    laid out as <component>/proc/tseries/<frequency>/ is found as well.  As with
+    the history-file version, nothing is added for a vertical dimension that no
+    requested variable sits on.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object whose variable list is being added to.
+    ts_dir : str or pathlib.Path
+        The time series directory to look in.
+    case_name : str
+        The case whose time series these are; time series file names start with
+        it.
+    hist_strs : str or list of str, optional
+        The history stream(s) configured for the case, which narrow the search
+        further.  Any stream is accepted when this is left out.
+
+    Returns
+    -------
+    list of str
+        The names added, empty when there was nothing to add.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    if names is False:
+        return []
+    streams = as_hist_str_list(hist_strs) or ["*"]
+    wanted = [v for v in adf.diag_var_list]
+    added = []
+    for level_dim in ("lev", "ilev"):
+        name = pressure_field_name(level_dim, names)
+        if not name or name in adf.diag_var_list:
+            continue
+        patterns = [f"{case_name}.{stream}.{name}.*.nc" for stream in streams]
+        # Flat first for every stream, then one recursive pass: a nested GenTS
+        # tree is worth walking once, but not once per pattern.
+        found = []
+        for recursive in (False, True):
+            for pattern in patterns:
+                found = find_ts_files(ts_dir, pattern, recursive=recursive)
+                if found:
+                    break
+                # End if
+            # End for
+            if found:
+                break
+            # End if
+        # End for
+        if not found:
+            continue
+        # End if
+        if not _ts_uses_level(ts_dir, case_name, streams, wanted, level_dim):
+            # There is a pressure field here, but nothing in this run sits on
+            # that vertical dimension, and a 3-D field is a whole climatology to
+            # compute.  The history-file path makes the same check.  Asked in
+            # this order, the cost is only paid when there is something to gain.
+            continue
+        # End if
+        msg = f"\t    INFO: Found a '{name}' time series for '{case_name}'; adding "
+        msg += "it to the variable list as the pressure field used to interpolate "
+        msg += "the model's vertical coordinate."
+        print(msg)
+        adf.add_diag_var(name)
+        added.append(name)
+    # End for
+    return added
 
 
 def mask_land_or_ocean(arr, msk, use_nan=False):

@@ -1959,6 +1959,9 @@ PINT:
 
 PMID:
   category: "State"
+  #Needed for vertical interpolation and the aerosol derivations, and added to
+  #'diag_var_list' automatically, but not a diagnostic anyone asks to see.
+  plot_diagnostics: False
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
