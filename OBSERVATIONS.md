@@ -142,9 +142,9 @@ and are kept for configurations that point at them.
 | `TMQ_WV_cci_COMBI_monthly_climo_200301-201712.nc` | WV_cci_COMBI | 360x720 (0.5 deg) | 2003-01 to 2017-12 | global land, coast, sea ice (MERIS/MODIS near-infrared) an | `TMQ` |
 | `TREFHT_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `TREFHT` |
 | `U10_CCMP_v3.1_monthly_climo_199301-202512.nc` | CCMP_v3.1 | 720x1440 (0.25 deg) | 1993-01 to 2025-12 | ice-free global ocean only; land is missing | `U10` |
-| `U_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U` |
+| `U_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U`, `U200`, `U850` |
 | `U200_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U200` |
-| `V_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `V` |
+| `V_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `V`, `V200`, `V850` |
 
 ## Keeping this accurate
 

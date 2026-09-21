@@ -544,3 +544,131 @@ def test_a_column_stored_bottom_up_gives_the_same_answer(tmp_path):
     )
     assert out is not None
     assert np.allclose(out.values, 30.0)
+
+
+def test_a_baseline_field_is_never_sliced():
+    """'obs_lev' is about observations; a baseline's own U200 is already 2-D.
+
+    Making that structural rather than incidental means a 3-D baseline field
+    cannot be sliced on the reference side only.
+    """
+    data = adf_dataset.AdfData.__new__(adf_dataset.AdfData)
+    data.adf = FakeAdf({"U200": {"obs_lev": 200}})
+    data.adf.compare_obs = False
+    three_d = obs_data([100.0, 200.0, 850.0])
+    assert data._at_obs_level(three_d, "U200").equals(three_d)
+
+
+def test_an_unknown_vertical_dimension_is_reported():
+    """A 3-D observation the slicer cannot read must not pass silently."""
+    data = adf_dataset.AdfData.__new__(adf_dataset.AdfData)
+    data.adf = FakeAdf({"U200": {"obs_lev": 200}})
+    odd = xr.DataArray(
+        np.zeros((2, 2, 4, 5)),
+        dims=("time", "isobaric", "lat", "lon"),
+        coords={"isobaric": [200.0, 850.0]},
+    )
+    with pytest.warns(UserWarning, match="vertical"):
+        out = data._at_obs_level(odd, "U200")
+    assert out.equals(odd)
+
+
+# --------------------------------------------------------- the derived file
+
+
+class DeriveAdf(PresAdf):
+    """Enough AdfDiag for derive_variable end to end."""
+
+    def __init__(self):
+        super().__init__()
+        self.variable_defaults = {}
+
+    @property
+    def diag_var_list(self):
+        return []
+
+
+def write_constituent(directory, times, name="U"):
+    """A 3-D constituent time series, as the time series stage would leave it."""
+    lev = np.array([200.0, 500.0, 850.0])
+    values = np.array([30.0, 20.0, 5.0])
+    ds = xr.Dataset(
+        {
+            name: (
+                ("time", "lev", "lat"),
+                np.tile(values[None, :, None], (len(times), 1, 3)),
+            )
+        },
+        coords={
+            "time": np.asarray(times, dtype=float),
+            "lev": lev,
+            "lat": np.arange(3.0),
+        },
+    )
+    ds[name].attrs = {"units": "m/s", "long_name": "Zonal wind", "mdims": 1}
+    ds.to_netcdf(directory / f"case.cam.h0a.{name}.000101-000212.nc")
+
+
+@pytest.mark.parametrize("keep_attrs", [True, False])
+def test_the_derived_file_keeps_the_units(tmp_path, keep_attrs):
+    """The units come from the constituent, not from the arithmetic on it.
+
+    Whether `0 + da` keeps attributes depends on the xarray version -- it does
+    not in the one env/conda_environment.yaml pins -- so reading them off the
+    summed field loses the units in some environments and not others, and the
+    AMWG table then prints '--' for every one of these variables.
+    """
+    write_constituent(tmp_path, [0.0, 1.0])
+    write_pressure_ts(tmp_path, [0.0, 1.0])
+    res = {"U200": {"derivable_from": ["U"], "derive_level": 200}}
+    with xr.set_options(keep_attrs=keep_attrs):
+        adf_derive.derive_variable(
+            DeriveAdf(),
+            "case",
+            "U200",
+            res=res,
+            ts_dir=tmp_path,
+            constit_list=["U"],
+            overwrite=True,
+            hist_str="cam.h0a",
+        )
+    written = list(tmp_path.glob("case.cam.h0a.U200.*.nc"))
+    assert written, "no derived file was written"
+    with xr.open_dataset(written[0]) as out:
+        assert "U200" in out
+        assert set(out["U200"].dims) == {"time", "lat"}
+        assert out["U200"].attrs.get("units") == "m/s"
+        assert out["U200"].attrs["long_name"] == "Zonal wind at 200 hPa"
+        assert "mdims" not in out["U200"].attrs
+        assert np.allclose(out["U200"].values, 30.0)
+
+
+def test_a_level_above_twenty_hectopascals(tmp_path):
+    """The mask has to know what units the interpolated levels are in.
+
+    Guessing from their magnitude reads a 10 hPa target (1000 Pa) as hPa and
+    masks the entire field; 5 hPa passes the range test instead and turns the
+    mask off.  QBO levels are exactly where someone would use this.
+    """
+    lev = np.array([5.0, 50.0, 500.0])
+    pmid = np.tile((np.array([0.005, 0.05, 0.5]) * 100000.0)[None, :, None], (2, 1, 3))
+    xr.Dataset(
+        {"PMID": (("time", "lev", "lat"), pmid)},
+        coords={"time": np.arange(2.0), "lev": lev, "lat": np.arange(3.0)},
+    ).to_netcdf(tmp_path / "case.cam.h0a.PMID.000101-000212.nc")
+    ds = xr.Dataset(
+        {
+            "U10hpa": (
+                ("time", "lev", "lat"),
+                np.tile(np.array([40.0, 25.0, 10.0])[None, :, None], (2, 1, 3)),
+            )
+        },
+        coords={"time": np.arange(2.0), "lev": lev, "lat": np.arange(3.0)},
+    )
+    out = adf_derive.interpolate_to_level(
+        PresAdf(), ds, "U10hpa", 10, tmp_path, "case", hist_str="cam.h0a"
+    )
+    assert out is not None
+    assert not np.any(np.isnan(out.values)), "10 hPa is inside this column"
+    # Between the 5 hPa (40) and 50 hPa (25) levels, nearer the 5 hPa end:
+    assert 25.0 < float(out.values.mean()) < 40.0

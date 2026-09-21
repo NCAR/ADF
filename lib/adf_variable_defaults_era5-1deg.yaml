@@ -224,7 +224,6 @@ BURDENPOM:
   pct_diff_colormap: "PuOr_r"
   diff_colormap: "RdBu_r"
 
-
 BURDENSEASALT:
   category: "Aerosols"
   colormap: "plasma_r"
@@ -643,7 +642,6 @@ VGTW_TOTAL:
 
 VTGWORO:
   category: "GW"
-
 
 #+++++++++++++++++
 # Category: Composition
@@ -1450,7 +1448,6 @@ XOOH:
   scale_factor: 1000000000.0
   new_unit: "ppbv"
 
-
 #+++++++++++++++++
 # Category: Clouds
 #+++++++++++++++++
@@ -1899,9 +1896,10 @@ U:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
-
 U200:
   colormap: "Blues"
+  # -20 to 70 m/s in 5 m/s steps: the annual-mean jets reach ~45 m/s and the
+  # winter monthly means ~70, with easterlies to about -25 in the deep tropics.
   contour_levels_range: [-20, 75, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 2]
@@ -1923,31 +1921,10 @@ U200:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
-V200:
-  colormap: "Blues"
-  contour_levels_range: [-10, 11, 1]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-5, 5, 0.5]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "ms$^{-1}$"
-  mpl:
-    colorbar:
-      label : "ms$^{-1}$"
-  # Made from the three-dimensional field when CAM did not write this surface
-  # itself, and compared against the same surface of the reanalysis:
-  derivable_from: ["V"]
-  derive_level: 200
-  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
-  obs_name: "ERA5"
-  obs_var_name: "V"
-  obs_lev: 200
-  category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
-
 U850:
   colormap: "Blues"
+  # -16 to 16 m/s in 2 m/s steps: the trades and the mid-latitude westerlies,
+  # which reach about 18 m/s in the seasonal means.
   contour_levels_range: [-16, 17, 2]
   diff_colormap: "BrBG"
   diff_contour_range: [-6, 6, 1]
@@ -1969,29 +1946,6 @@ U850:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
-V850:
-  colormap: "Blues"
-  contour_levels_range: [-8, 9, 1]
-  diff_colormap: "BrBG"
-  diff_contour_range: [-4, 4, 0.5]
-  scale_factor: 1
-  add_offset: 0
-  new_unit: "ms$^{-1}$"
-  mpl:
-    colorbar:
-      label : "ms$^{-1}$"
-  # Made from the three-dimensional field when CAM did not write this surface
-  # itself, and compared against the same surface of the reanalysis:
-  derivable_from: ["V"]
-  derive_level: 850
-  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
-  obs_name: "ERA5"
-  obs_var_name: "V"
-  obs_lev: 850
-  category: "State"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
-
 V:
   colormap: "Blues"
   contour_levels_range: [-10, 90, 5]
@@ -2008,6 +1962,55 @@ V:
   obs_var_name: "V"
   vector_pair: "U"
   vector_name: "Wind"
+  category: "State"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
+V200:
+  colormap: "Blues"
+  # -14 to 14 m/s in 2 m/s steps: the monsoon outflow is the largest signal.
+  contour_levels_range: [-14, 15, 2]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-5, 5, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["V"]
+  derive_level: 200
+  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "V"
+  obs_lev: 200
+  category: "State"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+
+V850:
+  colormap: "Blues"
+  # -16 to 16 m/s in 2 m/s steps: the Somali jet reaches 18 m/s in the annual
+  # mean and more in JJA, which a tighter range saturates.
+  contour_levels_range: [-16, 17, 2]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-4, 4, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["V"]
+  derive_level: 850
+  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "V"
+  obs_lev: 850
   category: "State"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
@@ -2499,7 +2502,6 @@ CLD_CAL:
   obs_var_name: "CLD_CAL"
   category: "COSP"
 
-
 #+++++++++++++++++
 # Category: Other
 #+++++++++++++++++
@@ -2610,8 +2612,6 @@ utendwtem:
 
 #######
 
-
-
 # Plot Specific formatting
 ##########################
 
@@ -2675,8 +2675,6 @@ budget_tables:
   AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
 
 #-----------
-
-
 
 # Plot Specific formatting
 ##########################

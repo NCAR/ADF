@@ -209,7 +209,11 @@ def _interp_with_pressure_field(da, pres_da, level_dim, new_levels):
         )
         sub_pres = pres.isel(time=slice(start, stop)) if "time" in pres.dims else pres
         block = utils.pmid_to_plev(sub, sub_pres, new_levels=new_levels)
-        lev_pa = block["lev"] * (100.0 if float(block["lev"].max()) < 2000.0 else 1.0)
+        # pmid_to_plev is called with convert_to_mb=False, so the output levels
+        # are the Pa that went in.  Guessing the units from their magnitude
+        # would misread a request for 10 hPa as 1000 Pa-that-must-be-hPa and
+        # mask the whole field.
+        lev_pa = block["lev"]
         in_range = (lev_pa >= sub_pres.min(dim="lev")) & (
             lev_pa <= sub_pres.max(dim="lev")
         )
@@ -313,7 +317,16 @@ def _interp_with_hybrid(
 
 
 def interpolate_to_level(
-    self, ds, field, level_hpa, ts_dir, case_name, hist_str=None, syr=None, eyr=None
+    self,
+    ds,
+    field,
+    level_hpa,
+    ts_dir,
+    case_name,
+    hist_str=None,
+    syr=None,
+    eyr=None,
+    attrs=None,
 ):
     """Interpolate a model-level field onto one pressure surface.
 
@@ -344,6 +357,12 @@ def interpolate_to_level(
         History stream, to keep the search inside one stream.
     syr, eyr : int, optional
         Year range, passed to the pressure field search.
+    attrs : dict, optional
+        Attributes for the result.  Pass the constituent's: `field` is the
+        result of arithmetic on it, and whether arithmetic keeps attributes
+        depends on the xarray version (it does not in the one
+        env/conda_environment.yaml pins), so reading them off `field` loses the
+        units in some environments and not others.
 
     Returns
     -------
@@ -429,8 +448,11 @@ def interpolate_to_level(
     # End if
 
     out = out.squeeze(dim=[d for d in ("lev", "plev") if d in out.dims], drop=True)
-    out.attrs = {k: v for k, v in da.attrs.items() if k != "mdims"}
-    out.attrs["long_name"] = f"{da.attrs.get('long_name', field)} at {level_hpa:g} hPa"
+    source_attrs = dict(da.attrs if attrs is None else attrs)
+    out.attrs = {k: v for k, v in source_attrs.items() if k != "mdims"}
+    out.attrs["long_name"] = (
+        f"{source_attrs.get('long_name', field)} at {level_hpa:g} hPa"
+    )
     out.attrs["pressure_level"] = f"{level_hpa:g} hPa"
     out.attrs["interpolated_with"] = source
     msg = f"\t    INFO: '{field}' interpolated to {level_hpa:g} hPa using {source}."
@@ -688,6 +710,7 @@ def derive_variable(
                 hist_str=hist_str,
                 syr=syr,
                 eyr=eyr,
+                attrs=attrs,
             )
             if on_level is None:
                 return

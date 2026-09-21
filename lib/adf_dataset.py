@@ -165,17 +165,31 @@ class AdfData:
         Returns
         -------
         xarray.DataArray or None
-            The chosen surface, with the vertical dimension dropped; `da`
-            unchanged when no level was asked for or it has no vertical
-            dimension.
+            The chosen surface, with the vertical dimension dropped; ``da``
+            unchanged when no level was asked for, when the reference is a
+            baseline simulation, or when there is no vertical dimension.
         """
         if da is None:
             return None
+        if not self.adf.compare_obs:
+            # A baseline simulation's own field is already on the surface, made
+            # the same way the test case's was.
+            return da
         level = (self.adf.variable_defaults.get(field, {}) or {}).get("obs_lev")
         if level is None:
             return da
         dim = next((d for d in self.OBS_LEVEL_DIMS if d in da.dims), None)
         if dim is None:
+            if da.ndim > 3:
+                # Something vertical, under a name not in OBS_LEVEL_DIMS: the
+                # reference would reach the plotting scripts with a dimension
+                # the model field does not have.
+                wmsg = f"\t    WARNING: '{field}' asks for {level} hPa of the "
+                wmsg += f"observations, whose dimensions are {da.dims} -- none of "
+                wmsg += f"them a vertical one this knows ({self.OBS_LEVEL_DIMS}). "
+                wmsg += "Add the name there, or stage the level as its own file."
+                warnings.warn(wmsg)
+            # End if
             # Already a single surface -- a file staged for this level, say.
             return da
         coord = da[dim]
@@ -339,15 +353,13 @@ class AdfData:
             add_offset = 0
             scale_factor = 1
 
-        return self._at_obs_level(
-            self.load_da(
-                fils,
-                field,
-                use_time_bounds=True,
-                add_offset=add_offset,
-                scale_factor=scale_factor,
-            ),
+        return self.load_da(
+            fils,
             field,
+            use_time_bounds=True,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+            obs_level=True,
         )
 
     # ------------------
@@ -491,15 +503,13 @@ class AdfData:
             scale_factor = 1
         else:
             add_offset, scale_factor = self.get_value_converters(case, variablename)
-        return self._at_obs_level(
-            self.load_da(
-                fils,
-                vname,
-                field=variablename,
-                add_offset=add_offset,
-                scale_factor=scale_factor,
-            ),
-            variablename,
+        return self.load_da(
+            fils,
+            vname,
+            field=variablename,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+            obs_level=True,
         )
 
     def get_reference_climo_file(self, var):
@@ -626,15 +636,13 @@ class AdfData:
         )
         # field, not file_field: an observation file names the variable its own
         # way, and the variable defaults are keyed by the ADF name
-        return self._at_obs_level(
-            self.load_da(
-                fils,
-                file_field,
-                field=field,
-                add_offset=add_offset,
-                scale_factor=scale_factor,
-            ),
-            field,
+        return self.load_da(
+            fils,
+            file_field,
+            field=field,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+            obs_level=True,
         )
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
@@ -778,7 +786,15 @@ class AdfData:
         converted.attrs["transformed"] = 1
         return converted
 
-    def load_da(self, fils, variablename, use_time_bounds=False, field=None, **kwargs):
+    def load_da(
+        self,
+        fils,
+        variablename,
+        use_time_bounds=False,
+        field=None,
+        obs_level=False,
+        **kwargs,
+    ):
         """Return xarray DataArray from file(s) w/ optional scale factor, offset, new units.
 
         `use_time_bounds` is passed to `load_dataset`; see there.
@@ -786,6 +802,12 @@ class AdfData:
         `field` is the ADF name of the variable when it differs from its name
         in the file, which is the case for observations.  The variable
         defaults are keyed by the ADF name.
+
+        `obs_level` applies the ``obs_lev`` variable default -- only the
+        reference loaders ask for it.  It is done here, before the unit
+        conversion below, because that arithmetic reads the whole array in:
+        taking one level out of the 0.25 degree ERA5 files afterwards would
+        mean loading gigabytes to keep megabytes.
 
         A conversion that has already been applied to the file is not applied
         again; see :meth:`already_converted`.
@@ -795,6 +817,9 @@ class AdfData:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = ds[variablename].squeeze()
+        if obs_level:
+            da = self._at_obs_level(da, field if field is not None else variablename)
+        # End if
         scale_factor = kwargs.get("scale_factor", 1)
         add_offset = kwargs.get("add_offset", 0)
 
