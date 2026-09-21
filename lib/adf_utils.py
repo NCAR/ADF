@@ -406,17 +406,20 @@ def request_pressure_field(adf, dset):
 def _ts_uses_level(ts_dir, case_name, streams, variables, level_dim):
     """True if one of `variables` has a time series on `level_dim`.
 
-    Only the metadata is read, and the search stops at the first match.
+    Each stream is listed once and the names filtered in Python, rather than
+    globbing per variable: a variable with no time series would otherwise cost a
+    walk of the whole tree, which is what find_ts_files asks callers with many
+    patterns to avoid.  Only metadata is read, and the search stops at the first
+    3-D field.
     """
-    for var in variables:
-        for stream in streams:
-            fils = find_ts_files(ts_dir, f"{case_name}.{stream}.{var}.*.nc")
-            if not fils:
+    wanted = set(variables)
+    for stream in streams:
+        for fil in find_ts_files(ts_dir, f"{case_name}.{stream}.*.nc"):
+            var = ts_var_from_filename(fil)
+            if var not in wanted:
                 continue
             try:
-                with xr.open_dataset(
-                    fils[0], decode_cf=False, decode_times=False
-                ) as dset:
+                with xr.open_dataset(fil, decode_cf=False, decode_times=False) as dset:
                     if var in dset and level_dim in dset[var].dims:
                         return True
                     # End if
@@ -425,6 +428,7 @@ def _ts_uses_level(ts_dir, case_name, streams, variables, level_dim):
                 # report, not this one's.
                 continue
             # End try
+            wanted.discard(var)
         # End for
     # End for
     return False
@@ -442,7 +446,9 @@ def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
 
     The search is anchored on the case name, since several cases can share one
     time series tree, and goes through :func:`find_ts_files`, so a GenTS archive
-    laid out as <component>/proc/tseries/<frequency>/ is found as well.
+    laid out as <component>/proc/tseries/<frequency>/ is found as well.  As with
+    the history-file version, nothing is added for a vertical dimension that no
+    requested variable sits on.
 
     Parameters
     ----------
@@ -472,11 +478,6 @@ def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
         name = pressure_field_name(level_dim, names)
         if not name or name in adf.diag_var_list:
             continue
-        if not _ts_uses_level(ts_dir, case_name, streams, wanted, level_dim):
-            # Nothing in this run sits on that vertical dimension, and a 3-D
-            # pressure field is a whole climatology to compute.  The history-file
-            # path makes the same check against the history file.
-            continue
         patterns = [f"{case_name}.{stream}.{name}.*.nc" for stream in streams]
         # Flat first for every stream, then one recursive pass: a nested GenTS
         # tree is worth walking once, but not once per pattern.
@@ -493,6 +494,13 @@ def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
             # End if
         # End for
         if not found:
+            continue
+        # End if
+        if not _ts_uses_level(ts_dir, case_name, streams, wanted, level_dim):
+            # There is a pressure field here, but nothing in this run sits on
+            # that vertical dimension, and a 3-D field is a whole climatology to
+            # compute.  The history-file path makes the same check.  Asked in
+            # this order, the cost is only paid when there is something to gain.
             continue
         # End if
         msg = f"\t    INFO: Found a '{name}' time series for '{case_name}'; adding "

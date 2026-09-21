@@ -36,6 +36,7 @@ def regrid_and_vert_interp(adf):
 
     # Cases whose pressure source has been reported; see _announce_pressure_source.
     announced = set()
+    pressure_names = _pressure_field_names(adf)
 
     case_names = adf.get_cam_info("cam_case_name", required=True)
     syear_cases = adf.climo_yrs["syears"]
@@ -58,18 +59,18 @@ def regrid_and_vert_interp(adf):
         for var in var_list:
             if var in adf.data.ref_var_nam:
                 target_name = adf.data.ref_labels[var]
-            elif var_defaults.get(var, {}).get("plot_diagnostics", True):
-                print(f"\t ERROR: No reference data available for {var}.")
-                continue
-            else:
-                # A support variable the ADF added for itself -- PMID, PINT --
-                # has no observational counterpart and does not need one: the
-                # interpolation reads it straight from the climo file. Saying
-                # "ERROR" here would report a problem the run does not have.
+            elif var in pressure_names:
+                # The pressure field the ADF added for itself.  It has no
+                # observational counterpart and needs none: the interpolation
+                # reads it straight from the climo file.  Saying "ERROR" here
+                # would report a problem the run does not have.
                 adf.debug_log(
-                    f"No reference data for support variable '{var}';"
+                    f"No reference data for the pressure field '{var}';"
                     " not regridded, which is expected."
                 )
+                continue
+            else:
+                print(f"\t ERROR: No reference data available for {var}.")
                 continue
 
             regridded_file_loc = output_loc / f'{target_name}_{case_name}_{var}_regridded.nc'
@@ -110,9 +111,8 @@ def regrid_and_vert_interp(adf):
                 # coefficients. Either way it has to land on the target grid.
                 lev_dim = 'lev' if 'lev' in model_ds.dims else 'ilev'
                 pres_source = _find_pressure_field(model_ds, adf, lev_dim, case=case_name)
-                pres_name = None
                 if pres_source is not None:
-                    pres_name = str(pres_source.name)
+                    pres_name = pres_source.name
                     original_pres_attrs = pres_source.attrs.copy()
                     pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
                     pres_da.attrs.update(original_pres_attrs)
@@ -169,6 +169,33 @@ def regrid_and_vert_interp(adf):
             save_to_nc(final_ds, regridded_file_loc)
 
     print("  ...CAM climatologies have been regridded successfully.")
+
+
+def _pressure_field_names(adf):
+    """The names the ADF may have added to the variable list for itself.
+
+    The pressure fields are the only variables the ADF requests on a user's
+    behalf here, and they are the only ones allowed to have no reference
+    counterpart, so name them exactly rather than inferring it from a variable
+    default that means something else.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object, for the 'pressure_field_names' config entry.
+
+    Returns
+    -------
+    set of str
+        Names to treat as the ADF's own; empty when the model's pressure field
+        has been turned off in the config.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    return {
+        name
+        for name in (utils.pressure_field_name(dim, names) for dim in ("lev", "ilev"))
+        if name
+    }
 
 
 def _pressure_note(pres_name):
@@ -374,17 +401,19 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
     syear = adf.climo_yrs["syear_baseline"]
     eyear = adf.climo_yrs["eyear_baseline"]
 
+    pressure_names = _pressure_field_names(adf)
+
     for var in var_list:
-        if var not in adf.data.ref_var_nam:
-            # A support variable the ADF added for itself after AdfData read
-            # the variable list -- PMID, PINT.  It is not part of the reference
-            # bookkeeping, and interpolating it onto pressure levels would be
-            # circular anyway: _find_pressure_field reads the climo file.
-            # Without this, load_reference_climo_ds raises KeyError as soon as
-            # the baseline has a climo file of its own for it.
+        if var in pressure_names and var not in adf.data.ref_var_nam:
+            # The pressure field, added to the variable list after AdfData read
+            # it, so it is not part of the reference bookkeeping.  Interpolating
+            # it onto pressure levels would be circular anyway --
+            # _find_pressure_field reads the climo file.  Without this,
+            # load_reference_climo_ds raises KeyError as soon as the baseline
+            # has a climo file of its own for it.
             adf.debug_log(
-                f"'{var}' is not a reference variable; not regridded"
-                " for the baseline, which is expected."
+                f"The pressure field '{var}' is not a reference variable;"
+                " not regridded for the baseline."
             )
             continue
 
@@ -409,9 +438,8 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
             # No horizontal regrid needed: the reference already defines the target grid.
             lev_dim = 'lev' if 'lev' in ref_ds.dims else 'ilev'
             pres_da = _find_pressure_field(ref_ds, adf, lev_dim)
-            pres_name = None
             if pres_da is not None:
-                pres_name = str(pres_da.name)
+                pres_name = pres_da.name
                 pres_da = _pressure_in_pa(pres_da, name=pres_name)
                 _announce_pressure_source(announced, base, lev_dim, pres_name)
                 pressure_note = _pressure_note(pres_name)
