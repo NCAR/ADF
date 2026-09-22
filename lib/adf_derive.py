@@ -145,6 +145,22 @@ def check_derive(
         for constit in constit_list:
             if constit not in diag_var_list:
                 diag_var_list.append(constit)
+
+        if vres.get("derive_level") is not None:
+            # The constituent is a model-level field, so the interpolation wants
+            # the model's own pressure.  It has to be asked for here rather than
+            # before the variable loop: until this constituent was added,
+            # nothing in the run was on model levels.  Judge that by the
+            # constituent, which the list does not have yet, and append to this
+            # list rather than reassigning it -- the loop is walking it.
+            for pres_name in utils.request_pressure_field(
+                self, hist_file_ds, variables=constit_list
+            ):
+                if pres_name not in diag_var_list:
+                    diag_var_list.append(pres_name)
+                # End if
+            # End for
+        # End if
     else:
         print(exit_msg)
         self.debug_log(exit_msg)
@@ -156,7 +172,304 @@ def check_derive(
 ########
 
 
-def find_constit(ts_dir, case_name, constit, hist_str=None, *, syr=None, eyr=None):
+def _interp_with_pressure_field(da, pres_da, level_dim, new_levels):
+    """Interpolate onto `new_levels` with the model's own 3-D pressure.
+
+    Done a few time steps at a time: pmid_to_plev stacks the whole array and
+    calls .values on it, and a daily time series of a 93-level field does not
+    fit in memory whole.
+
+    Points outside the column's own pressure range are set missing.  np.interp,
+    which the stacked interpolation uses, clamps to the end values instead --
+    850 hPa over Tibet would come back as the lowest model level's value, which
+    is what the hybrid path (geocat) reports as missing.
+    """
+    renamed = da.rename({level_dim: "lev"}) if level_dim != "lev" else da
+    pres = pres_da.rename({level_dim: "lev"}) if level_dim != "lev" else pres_da
+    pres = pres.broadcast_like(renamed).transpose(*renamed.dims)
+
+    # np.interp, underneath, needs the source pressures to increase with index,
+    # and does not check: CAM writes the column top down, which is what that
+    # means for pressure, but a file stored the other way round would be
+    # interpolated against a decreasing axis and come back quietly wrong.
+    if float(pres.isel(lev=0).mean()) > float(pres.isel(lev=-1).mean()):
+        renamed = renamed.isel(lev=slice(None, None, -1))
+        pres = pres.isel(lev=slice(None, None, -1))
+    # End if
+
+    ntime = renamed.sizes.get("time", 1)
+    # ~2e7 columns a block: a few GB for a 93-level field, and one block for
+    # anything of an ordinary size.
+    per_block = max(1, int(2e7 // max(1, renamed.size // max(1, ntime))))
+    blocks = []
+    for start in range(0, ntime, per_block):
+        stop = min(start + per_block, ntime)
+        sub = (
+            renamed.isel(time=slice(start, stop)) if "time" in renamed.dims else renamed
+        )
+        sub_pres = pres.isel(time=slice(start, stop)) if "time" in pres.dims else pres
+        block = utils.pmid_to_plev(sub, sub_pres, new_levels=new_levels)
+        # pmid_to_plev is called with convert_to_mb=False, so the output levels
+        # are the Pa that went in.  Guessing the units from their magnitude
+        # would misread a request for 10 hPa as 1000 Pa-that-must-be-hPa and
+        # mask the whole field.
+        lev_pa = block["lev"]
+        in_range = (lev_pa >= sub_pres.min(dim="lev")) & (
+            lev_pa <= sub_pres.max(dim="lev")
+        )
+        blocks.append(block.where(in_range))
+        if "time" not in renamed.dims:
+            break
+        # End if
+    # End for
+    return xr.concat(blocks, dim="time") if len(blocks) > 1 else blocks[0]
+
+
+def _interp_with_hybrid(
+    self,
+    ds,
+    da,
+    level_dim,
+    new_levels,
+    field,
+    level_hpa,
+    pres_name,
+    ts_dir,
+    case_name,
+    hist_str,
+    syr,
+    eyr,
+):
+    """Interpolate onto `new_levels` from PS and the hybrid coefficients.
+
+    The coefficients pair with the vertical dimension: hyam/hybm for layer
+    midpoints, hyai/hybi for interfaces, which is what the regridding stage
+    does too.  PS may be in this file (the ncrcat back end copies it into every
+    3-D variable's file) or in one of its own (GenTS writes it separately).
+
+    Returns ``None``, having said why, when there is nothing to interpolate
+    with.
+    """
+    if level_dim == "ilev":
+        hya_name, hyb_name = "hyai", "hybi"
+    else:
+        hya_name, hyb_name = "hyam", "hybm"
+    # End if
+
+    ps_da = ds["PS"] if "PS" in ds else None
+    if ps_da is None:
+        ps_files = find_constit(ts_dir, case_name, "PS", hist_str, syr=syr, eyr=eyr)
+        if ps_files:
+            ps_ds = self.data.load_dataset([str(f) for f in ps_files])
+            if ps_ds is not None and "PS" in ps_ds:
+                ps_da = ps_ds["PS"]
+            # End if
+        # End if
+    # End if
+
+    missing = [n for n in (hya_name, hyb_name) if n not in ds]
+    if ps_da is None:
+        missing.insert(0, "PS")
+    # End if
+    if missing:
+        wmsg = f"\t   ** No pressure available for '{field}': neither a "
+        wmsg += f"{pres_name or 'model pressure'} time series nor "
+        wmsg += f"{', '.join(missing)}, so {field} cannot be put on "
+        wmsg += f"{level_hpa:g} hPa. **"
+        print(wmsg)
+        return None
+    # End if
+
+    if ps_da is not None and "time" in ps_da.dims and "time" in da.dims:
+        if len(np.intersect1d(da["time"].values, ps_da["time"].values)) != len(
+            da["time"]
+        ):
+            wmsg = f"\t   ** 'PS' does not cover the times of '{field}', so it "
+            wmsg += f"cannot be put on {level_hpa:g} hPa. **"
+            print(wmsg)
+            return None
+        # End if
+        ps_da = ps_da.sel(time=da["time"])
+    # End if
+
+    p0 = ds.get("P0", 100000.0)
+    if isinstance(p0, xr.DataArray):
+        p0 = float(p0.values)
+    # End if
+    # geocat finds the vertical coordinate through its CF attributes, and a CAM
+    # time series does not carry the ones it looks for.  The regridding stage
+    # patches them the same way before its own call.
+    da = da.copy()
+    da[level_dim].attrs["axis"] = "Z"
+    da[level_dim].attrs["positive"] = "down"
+    da[level_dim].attrs["standard_name"] = "atmosphere_hybrid_sigma_pressure_coordinate"
+    if level_dim != "lev":
+        da = da.rename({level_dim: "lev"})
+    # End if
+    return utils.lev_to_plev(
+        da,
+        utils.pressure_in_pa(ps_da, name="PS"),
+        ds[hya_name].rename({level_dim: "lev"}) if level_dim != "lev" else ds[hya_name],
+        ds[hyb_name].rename({level_dim: "lev"}) if level_dim != "lev" else ds[hyb_name],
+        P0=p0,
+        new_levels=new_levels,
+    )
+
+
+def interpolate_to_level(
+    self,
+    ds,
+    field,
+    level_hpa,
+    ts_dir,
+    case_name,
+    hist_str=None,
+    syr=None,
+    eyr=None,
+    attrs=None,
+):
+    """Interpolate a model-level field onto one pressure surface.
+
+    CAM writes fields such as ``U200`` itself, but only when it was asked to.
+    A run that has the three-dimensional field and not the surface can have the
+    surface made from it here, which is what a variable default's
+    ``derive_level`` asks for.
+
+    The pressure is the model's own field where there is one -- the pressure the
+    model actually used -- and PS with the hybrid coefficients otherwise, which
+    is the same order of preference the regridding stage follows.
+
+    Parameters
+    ----------
+    self : AdfDiag
+        The ADF object, for the data loaders and the debug log.
+    ds : xarray.Dataset
+        The constituent time series, already opened.
+    field : str
+        Name of the variable in `ds` to interpolate.
+    level_hpa : float
+        The pressure surface, in hPa.
+    ts_dir : str or pathlib.Path
+        Time series directory, searched for the pressure field.
+    case_name : str
+        The case these time series belong to.
+    hist_str : str, optional
+        History stream, to keep the search inside one stream.
+    syr, eyr : int, optional
+        Year range, passed to the pressure field search.
+    attrs : dict, optional
+        Attributes for the result.  Pass the constituent's: `field` is the
+        result of arithmetic on it, and whether arithmetic keeps attributes
+        depends on the xarray version (it does not in the one
+        env/conda_environment.yaml pins), so reading them off `field` loses the
+        units in some environments and not others.
+
+    Returns
+    -------
+    xarray.DataArray or None
+        The field on that surface, with the vertical dimension dropped, or
+        ``None`` when there is no pressure to interpolate with.
+    """
+    da = ds[field]
+    level_dim = utils.vertical_dim(da)
+    if level_dim is None:
+        wmsg = f"\t   ** '{field}' has no vertical dimension, so it cannot be "
+        wmsg += f"interpolated to {level_hpa:g} hPa. **"
+        print(wmsg)
+        return None
+    # End if
+
+    new_levels = np.array([float(level_hpa) * 100.0])
+
+    # The model's own pressure field, in its own time series.  Same stream: the
+    # derived file is named for this one.
+    pres_name = utils.pressure_field_name(
+        level_dim, self.get_basic_info("pressure_field_names")
+    )
+    pres_da = None
+    if pres_name:
+        pres_files = find_constit(
+            ts_dir,
+            case_name,
+            pres_name,
+            hist_str,
+            syr=syr,
+            eyr=eyr,
+            same_stream_only=bool(hist_str),
+        )
+        if pres_files:
+            pres_ds = self.data.load_dataset([str(f) for f in pres_files])
+            if pres_ds is not None and pres_name in pres_ds:
+                pres_da = utils.pressure_in_pa(pres_ds[pres_name], name=pres_name)
+            # End if
+        # End if
+    # End if
+
+    if pres_da is not None:
+        if len(np.intersect1d(da["time"].values, pres_da["time"].values)) != len(
+            da["time"]
+        ):
+            dmsg = f"derived time series for {case_name}:"
+            dmsg += f"\n\t '{pres_name}' does not cover the times of '{field}';"
+            dmsg += " falling back to PS and the hybrid coefficients."
+            self.debug_log(dmsg)
+            pres_da = None
+        else:
+            # Down to exactly this field's times.  A pressure series covering
+            # *more* of them passes the check above, and broadcasting joins on
+            # the union, which leaves the two arrays different lengths.
+            pres_da = pres_da.sel(time=da["time"])
+        # End if
+    # End if
+
+    if pres_da is not None:
+        out = _interp_with_pressure_field(da, pres_da, level_dim, new_levels)
+        source = pres_name
+    else:
+        out = _interp_with_hybrid(
+            self,
+            ds,
+            da,
+            level_dim,
+            new_levels,
+            field,
+            level_hpa,
+            pres_name,
+            ts_dir,
+            case_name,
+            hist_str,
+            syr,
+            eyr,
+        )
+        if out is None:
+            return None
+        # End if
+        source = "PS and the hybrid coefficients"
+    # End if
+
+    out = out.squeeze(dim=[d for d in ("lev", "plev") if d in out.dims], drop=True)
+    source_attrs = dict(da.attrs if attrs is None else attrs)
+    out.attrs = {k: v for k, v in source_attrs.items() if k != "mdims"}
+    out.attrs["long_name"] = (
+        f"{source_attrs.get('long_name', field)} at {level_hpa:g} hPa"
+    )
+    out.attrs["pressure_level"] = f"{level_hpa:g} hPa"
+    out.attrs["interpolated_with"] = source
+    msg = f"\t    INFO: '{field}' interpolated to {level_hpa:g} hPa using {source}."
+    print(msg)
+    return out
+
+
+def find_constit(
+    ts_dir,
+    case_name,
+    constit,
+    hist_str=None,
+    *,
+    syr=None,
+    eyr=None,
+    same_stream_only=False,
+):
     """
     Locate a constituent's time series file(s) for one case and stream.
 
@@ -178,6 +491,11 @@ def find_constit(ts_dir, case_name, constit, hist_str=None, *, syr=None, eyr=Non
         variable name to search for
     hist_str : str, optional
         history stream being processed, e.g. "cam.h0a"
+    same_stream_only : bool, optional
+        Search only the stream `hist_str` names, with no looser fallback.  A
+        caller whose output is named after that stream asks for this, so the
+        result cannot be built from another stream's data -- and then written
+        over that stream's own copy of the variable.
     syr, eyr : int, optional
         first and last year being processed.  When given, only the files
         needed to cover them are returned, so a directory holding more than
@@ -192,6 +510,11 @@ def find_constit(ts_dir, case_name, constit, hist_str=None, *, syr=None, eyr=Non
     patterns = []
     if hist_str:
         patterns.append(f"{case_name}.{hist_str}.{constit}.*.nc")
+        if same_stream_only:
+            # No looser fallback: a caller that writes a file named for this
+            # stream must not build it out of another stream's data.
+            patterns = patterns[:1]
+        # End if
     # End if
     patterns += [f"{case_name}.*.{constit}.*.nc", f"*.{constit}.*.nc"]
 
@@ -256,9 +579,22 @@ def derive_variable(
     # can contribute more than one file, so key them by constituent rather than
     # counting files:
     constit_matches = {}
+    # A pressure-surface field is written into this stream's file name, so its
+    # constituent has to come from this stream.  Without that, a stream that
+    # holds neither the surface nor the 3-D field derives one from another
+    # stream's data and writes it over the copy CAM itself produced.
+    same_stream_only = res.get(var, {}).get("derive_level") is not None
     for constit in constit_list:
         # Check if the constituent file(s) are present, if so add them to the dict
-        matches = find_constit(ts_dir, case_name, constit, hist_str, syr=syr, eyr=eyr)
+        matches = find_constit(
+            ts_dir,
+            case_name,
+            constit,
+            hist_str,
+            syr=syr,
+            eyr=eyr,
+            same_stream_only=same_stream_only and bool(hist_str),
+        )
         if not matches:
             continue
         if utils.ts_files_overlap(matches):
@@ -359,6 +695,30 @@ def derive_variable(
         # Set derived variable name and add to dataset
         der_val.name = var
         ds[var] = der_val
+
+        # A field on a pressure surface: the constituent is the model-level
+        # field, and the variable default says which surface to put it on.
+        level_hpa = res.get(var, {}).get("derive_level")
+        if level_hpa is not None:
+            on_level = interpolate_to_level(
+                self,
+                ds,
+                var,
+                level_hpa,
+                ts_dir,
+                case_name,
+                hist_str=hist_str,
+                syr=syr,
+                eyr=eyr,
+                attrs=attrs,
+            )
+            if on_level is None:
+                return
+            # End if
+            attrs = dict(on_level.attrs)
+            der_long_name = attrs["long_name"]
+            ds[var] = on_level
+        # End if
 
         # Aerosol Calculations
         # ----------------------------------------------------------------------------------

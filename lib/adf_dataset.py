@@ -139,6 +139,73 @@ class AdfData:
         """Ordered history streams configured for the reference/baseline case."""
         return self._as_hist_str_list(self.adf.hist_string["base_hist_str"])
 
+    # Observations on a pressure surface
+    # ------------------
+    # Dimension names a reanalysis uses for its vertical coordinate.  CAM's own
+    # names come first; 'level' and 'plev' are what MERRA-2 and CMIP-style files
+    # call it.
+    OBS_LEVEL_DIMS = ("lev", "ilev", "level", "plev", "pressure", "pfull")
+
+    def _at_obs_level(self, da, field):
+        """Take one pressure surface out of a three-dimensional observation.
+
+        A field CAM writes on a surface -- U200 -- has to be compared against
+        the same surface of a reanalysis, and reanalyses are distributed as
+        whole columns.  The ``obs_lev`` variable default (hPa) names the surface
+        to take, so one file can serve every level a run asks for rather than
+        one file per level being staged.
+
+        Parameters
+        ----------
+        da : xarray.DataArray or None
+            The observation as loaded.
+        field : str
+            ADF name of the variable, which is how the defaults are keyed.
+
+        Returns
+        -------
+        xarray.DataArray or None
+            The chosen surface, with the vertical dimension dropped; ``da``
+            unchanged when no level was asked for, when the reference is a
+            baseline simulation, or when there is no vertical dimension.
+        """
+        if da is None:
+            return None
+        if not self.adf.compare_obs:
+            # A baseline simulation's own field is already on the surface, made
+            # the same way the test case's was.
+            return da
+        level = (self.adf.variable_defaults.get(field, {}) or {}).get("obs_lev")
+        if level is None:
+            return da
+        dim = next((d for d in self.OBS_LEVEL_DIMS if d in da.dims), None)
+        if dim is None:
+            if da.ndim > 3:
+                # Something vertical, under a name not in OBS_LEVEL_DIMS: the
+                # reference would reach the plotting scripts with a dimension
+                # the model field does not have.
+                wmsg = f"\t    WARNING: '{field}' asks for {level} hPa of the "
+                wmsg += f"observations, whose dimensions are {da.dims} -- none of "
+                wmsg += f"them a vertical one this knows ({self.OBS_LEVEL_DIMS}). "
+                wmsg += "Add the name there, or stage the level as its own file."
+                warnings.warn(wmsg)
+            # End if
+            # Already a single surface -- a file staged for this level, say.
+            return da
+        coord = da[dim]
+        wanted = float(level)
+        # hPa in the defaults; a coordinate in Pa is an order of magnitude out.
+        if float(coord.max()) > 2000.0:
+            wanted *= 100.0
+        chosen = da.sel({dim: wanted}, method="nearest")
+        actual = float(chosen[dim])
+        if abs(actual - wanted) > 0.01 * wanted:
+            wmsg = f"\t    WARNING: '{field}' asks for {level} hPa in the "
+            wmsg += f"observations, and the nearest level is {actual}; using it."
+            warnings.warn(wmsg)
+        # End if
+        return chosen.drop_vars(dim)
+
     # Time series files
     # ------------------
     # Test case(s)
@@ -272,9 +339,12 @@ class AdfData:
             )
             return None
         # Change the variable name from CAM standard to what is
-        # listed in variable defaults for this observation field
+        # listed in variable defaults for this observation field.  The ADF name
+        # is kept: the variable defaults are keyed by it, which is what decides
+        # whether a level has to be taken out of the file.
+        file_field = field
         if self.adf.compare_obs:
-            field = self.ref_var_nam[field]
+            file_field = self.ref_var_nam[field]
             add_offset = 0
             scale_factor = 1
         else:
@@ -288,10 +358,12 @@ class AdfData:
 
         return self.load_da(
             fils,
-            field,
+            file_field,
+            field=field,
             use_time_bounds=True,
             add_offset=add_offset,
             scale_factor=scale_factor,
+            obs_level=True,
         )
 
     # ------------------
@@ -441,6 +513,7 @@ class AdfData:
             field=variablename,
             add_offset=add_offset,
             scale_factor=scale_factor,
+            obs_level=True,
         )
 
     def get_reference_climo_file(self, var):
@@ -573,6 +646,7 @@ class AdfData:
             field=field,
             add_offset=add_offset,
             scale_factor=scale_factor,
+            obs_level=True,
         )
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
@@ -716,7 +790,15 @@ class AdfData:
         converted.attrs["transformed"] = 1
         return converted
 
-    def load_da(self, fils, variablename, use_time_bounds=False, field=None, **kwargs):
+    def load_da(
+        self,
+        fils,
+        variablename,
+        use_time_bounds=False,
+        field=None,
+        obs_level=False,
+        **kwargs,
+    ):
         """Return xarray DataArray from file(s) w/ optional scale factor, offset, new units.
 
         `use_time_bounds` is passed to `load_dataset`; see there.
@@ -724,6 +806,12 @@ class AdfData:
         `field` is the ADF name of the variable when it differs from its name
         in the file, which is the case for observations.  The variable
         defaults are keyed by the ADF name.
+
+        `obs_level` applies the ``obs_lev`` variable default -- only the
+        reference loaders ask for it.  It is done here, before the unit
+        conversion below, because that arithmetic reads the whole array in:
+        taking one level out of the 0.25 degree ERA5 files afterwards would
+        mean loading gigabytes to keep megabytes.
 
         A conversion that has already been applied to the file is not applied
         again; see :meth:`already_converted`.
@@ -733,6 +821,9 @@ class AdfData:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = ds[variablename].squeeze()
+        if obs_level:
+            da = self._at_obs_level(da, field if field is not None else variablename)
+        # End if
         scale_factor = kwargs.get("scale_factor", 1)
         add_offset = kwargs.get("add_offset", 0)
 

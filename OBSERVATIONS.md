@@ -85,15 +85,21 @@ The main ones:
 | `U10` | CCMP v3.1 | OAFlux |
 | `LHFLX` | OAFlux | ERA-Interim |
 
-**A level out of a three-dimensional reanalysis is its own file.**  CAM writes
-`U200` as a two-dimensional field, already on the 200 hPa surface, and the ADF
-compares fields of the same shape -- it has no way to pick a level out of an
-observation file.  `U200_ERA5_monthly_climo_197901-202112.nc` is therefore the
-200 hPa level of `U_ERA5_monthly_climo_197901-202112.nc`, written out by
-`make_u200_era5_climo.py` (kept beside the data).  It is the same numbers, not a
-second data set: comparing the 3-D `U` at 200 hPa through `plot_press_levels`
-uses the same reanalysis values.  Other fields CAM writes on a surface -- `U850`,
-`V200` -- can be added the same way.
+**A level out of a three-dimensional reanalysis is taken as it is read.**  CAM
+writes `U200` as a two-dimensional field, already on the 200 hPa surface, and the
+ADF compares fields of the same shape.  Rather than stage a file per level, the
+variable defaults can name the level to take: `obs_lev: 850` on the `U850` entry
+reads the 850 hPa surface out of `U_ERA5_monthly_climo_197901-202112.nc`, and
+`V200` and `V850` read theirs out of the ERA5 `V` file.  It is the same numbers
+as comparing the 3-D field at that level through `plot_press_levels`, not a
+second data set, and any other surface is one line in the variable defaults away.
+
+`U200` is the exception, and deliberately: it keeps the two-dimensional file
+staged for it, `U200_ERA5_monthly_climo_197901-202112.nc`, because that file
+already exists and reading 50 MB beats reading 1.8 GB on every plot.  Its values
+are identical to the 200 hPa level of the 3-D file, so the two routes agree; the
+entry carries `obs_lev` as well, so pointing it at the 3-D file gives the same
+answer.  A level worth staging is worth staging; `obs_lev` is for the rest.
 
 ## The files
 
@@ -139,9 +145,9 @@ uses the same reanalysis values.  Other fields CAM writes on a surface -- `U850`
 | `TMQ_WV_cci_COMBI_monthly_climo_200301-201712.nc` | WV_cci_COMBI | 360x720 (0.5 deg) | 2003-01 to 2017-12 | global land, coast, sea ice (MERIS/MODIS near-infrared) an | `TMQ` |
 | `TREFHT_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `TREFHT` |
 | `U10_CCMP_v3.1_monthly_climo_199301-202512.nc` | CCMP_v3.1 | 720x1440 (0.25 deg) | 1993-01 to 2025-12 | ice-free global ocean only; land is missing | `U10` |
-| `U_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U` |
+| `U_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U`, `U850` |
 | `U200_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `U200` |
-| `V_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `V` |
+| `V_ERA5_monthly_climo_197901-202112.nc` | ERA5 | 721x1440 (0.25 deg) | 1979-01 to 2021-12 | 100% of grid points valid | `V`, `V200`, `V850` |
 
 ## Keeping this accurate
 

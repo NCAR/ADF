@@ -575,6 +575,16 @@ plotting_scripts:
 #diag_var_list:
 #    - all
 #    - PRECT
+#
+#A field on a pressure surface -- U200, U850, V200, V850 -- is made from the
+#three-dimensional field when the history files do not have it, using the model's
+#own pressure where there is one, and compared against that level of the
+#reanalysis.  Listing one is all that is needed; the variable defaults say which
+#field and which surface ("derivable_from", "derive_level", "obs_lev").  A run
+#that writes the surface itself keeps what it wrote.  Note the 3-D field it is
+#made from gets a time series of its own, as any constituent does, and so does
+#the model's pressure field: asking for U200 alone writes two more 3-D time
+#series into "cam_ts_loc".
 diag_var_list:
     - SWCF
     - LWCF

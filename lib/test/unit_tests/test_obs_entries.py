@@ -26,7 +26,13 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 _DEFAULTS = os.path.join(_ADF_LIB_DIR, "adf_variable_defaults.yaml")
 
 # Keys that only mean something alongside an "obs_file":
-_OBS_ONLY_KEYS = ("obs_var_name", "obs_name", "obs_scale_factor", "obs_add_offset")
+_OBS_ONLY_KEYS = (
+    "obs_var_name",
+    "obs_name",
+    "obs_scale_factor",
+    "obs_add_offset",
+    "obs_lev",
+)
 
 
 def _is_comparison(block):
