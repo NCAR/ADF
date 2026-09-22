@@ -34,6 +34,11 @@
 # obs_var_name -> Variable in the observations file to compare against.  If this isn't present then the
 #                 variable name is assumed to be the same as the model variable name.
 #
+# obs_lev      -> Pressure surface, in hPa, to take out of a three-dimensional observation file, so
+#                 one reanalysis file can serve every level a run asks for.  Ignored when the
+#                 observation is already a single surface.  The nearest level is used, with a
+#                 warning if it is more than 1% away from the one asked for.
+#
 #
 # VECTORS:
 #
@@ -55,7 +60,14 @@
 #                   other variables that are present (e.g. PRECT can be derived from PRECC and PRECL),
 #                   which are specified in this list
 #                   NOTE: this is not very flexible at the moment! It can only handle variables that
-#                         are sums of the constituents. Futher flexibility is being explored.
+#                         are sums of the constituents, or -- with "derive_level" below -- one
+#                         model-level field to interpolate. Futher flexibility is being explored.
+#
+# derive_level   -> Pressure surface, in hPa, to interpolate "derivable_from" onto, for a field
+#                   CAM writes on a surface (U200, U850). The model's own 3-D pressure field is
+#                   used where there is one, PS and the hybrid coefficients otherwise. Only used
+#                   when the variable is missing from the history files: a run that writes U200
+#                   itself keeps what it wrote.
 #
 #
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
@@ -223,6 +235,7 @@ BURDENPOM:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   diff_colormap: "RdBu_r"
+
 
 BURDENSEASALT:
   category: "Aerosols"
@@ -642,6 +655,7 @@ VGTW_TOTAL:
 
 VTGWORO:
   category: "GW"
+
 
 #+++++++++++++++++
 # Category: Composition
@@ -1448,6 +1462,7 @@ XOOH:
   scale_factor: 1000000000.0
   new_unit: "ppbv"
 
+
 #+++++++++++++++++
 # Category: Clouds
 #+++++++++++++++++
@@ -1896,6 +1911,7 @@ U:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 U200:
   colormap: "Blues"
   # -20 to 70 m/s in 5 m/s steps: the annual-mean jets reach ~45 m/s and the
@@ -1910,12 +1926,15 @@ U200:
     colorbar:
       label : "ms$^{-1}$"
   # Made from the three-dimensional field when CAM did not write this surface
-  # itself, and compared against the same surface of the reanalysis:
+  # itself.  The observation is the file staged for this level rather than the
+  # 200 hPa level of the 3-D file: it holds the same numbers, and reading 50 MB
+  # beats reading 1.8 GB on every plot.  "obs_lev" is kept so that pointing
+  # "obs_file" at the 3-D file instead still gives the right level.
   derivable_from: ["U"]
   derive_level: 200
-  obs_file: "U_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_file: "U200_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
-  obs_var_name: "U"
+  obs_var_name: "U200"
   obs_lev: 200
   category: "State"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -2502,6 +2521,7 @@ CLD_CAL:
   obs_var_name: "CLD_CAL"
   category: "COSP"
 
+
 #+++++++++++++++++
 # Category: Other
 #+++++++++++++++++
@@ -2612,6 +2632,8 @@ utendwtem:
 
 #######
 
+
+
 # Plot Specific formatting
 ##########################
 
@@ -2675,6 +2697,8 @@ budget_tables:
   AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
 
 #-----------
+
+
 
 # Plot Specific formatting
 ##########################

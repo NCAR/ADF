@@ -279,6 +279,9 @@ def create_time_series_gents(adf, baseline=False):
             # list is worked out, so GenTS produces it alongside everything
             # else.  Vertical interpolation prefers it over PS + hybrid
             # coefficients, and GenTS gives it a file of its own.
+            # Before _expand_derived_vars below, which reads the variable list
+            # to decide what GenTS generates: a pressure field added after that
+            # would not be produced.
             with xr.open_dataset(
                 hist_files[0], decode_cf=False, decode_times=False
             ) as first_ds:

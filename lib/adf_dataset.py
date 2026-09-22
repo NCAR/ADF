@@ -339,9 +339,12 @@ class AdfData:
             )
             return None
         # Change the variable name from CAM standard to what is
-        # listed in variable defaults for this observation field
+        # listed in variable defaults for this observation field.  The ADF name
+        # is kept: the variable defaults are keyed by it, which is what decides
+        # whether a level has to be taken out of the file.
+        file_field = field
         if self.adf.compare_obs:
-            field = self.ref_var_nam[field]
+            file_field = self.ref_var_nam[field]
             add_offset = 0
             scale_factor = 1
         else:
@@ -355,7 +358,8 @@ class AdfData:
 
         return self.load_da(
             fils,
-            field,
+            file_field,
+            field=field,
             use_time_bounds=True,
             add_offset=add_offset,
             scale_factor=scale_factor,

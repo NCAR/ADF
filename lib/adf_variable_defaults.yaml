@@ -24,12 +24,6 @@
 #                         Currently only accepts "ocean", which means the variable will be masked
 #                         everywhere that isn't open ocean.
 #
-# obs_lev              -> Pressure surface, in hPa, to take out of a three-dimensional
-#                         observation file, so one reanalysis file can serve every level a
-#                         run asks for.  Ignored when the observation is already a single
-#                         surface.  The nearest level is used, with a warning if it is more
-#                         than 1% away from the one asked for.
-#
 # plot_diagnostics     -> Set to False for a support variable: one the ADF needs as an input to
 #                         other diagnostics but which should not get plots of its own.  PMID is
 #                         the standard case -- it is needed for vertical interpolation and for
@@ -46,6 +40,11 @@
 #                 If this isn't present then the obs_file name is used.
 # obs_var_name -> Variable in the observations file to compare against.  If this isn't present then the
 #                 variable name is assumed to be the same as the model variable name.
+#
+# obs_lev      -> Pressure surface, in hPa, to take out of a three-dimensional observation file, so
+#                 one reanalysis file can serve every level a run asks for.  Ignored when the
+#                 observation is already a single surface.  The nearest level is used, with a
+#                 warning if it is more than 1% away from the one asked for.
 #
 #
 # VECTORS:
@@ -196,6 +195,7 @@ AODVIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 AODVISdn:
   category: "Aerosols"
   colormap: "jet"
@@ -251,6 +251,7 @@ BURDENPOM:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   diff_colormap: "RdBu_r"
+
 
 BURDENSEASALT:
   category: "Aerosols"
@@ -670,6 +671,7 @@ VGTW_TOTAL:
 
 VTGWORO:
   category: "GW"
+
 
 #+++++++++++++++++
 # Category: Composition
@@ -1476,6 +1478,7 @@ XOOH:
   scale_factor: 1000000000.0
   new_unit: "ppbv"
 
+
 #+++++++++++++++++
 # Category: Clouds
 #+++++++++++++++++
@@ -1529,6 +1532,7 @@ CLDTOT:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 CLDLOW:
   colormap: "Blues"
   contour_levels_range: [0, 100, 10]
@@ -1553,6 +1557,7 @@ CLDLOW:
   category: "Clouds"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 CLDHGH:
   colormap: "Blues"
@@ -1579,6 +1584,7 @@ CLDHGH:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 CLDMED:
   colormap: "Blues"
   contour_levels_range: [0, 60, 5]
@@ -1603,6 +1609,7 @@ CLDMED:
   category: "Clouds"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 CLOUD:
   colormap: "Blues"
@@ -1815,6 +1822,7 @@ QFLX:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 #+++++++++++++++++
 # Category: Surface variables
 #+++++++++++++++++
@@ -1934,6 +1942,8 @@ U10:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
+
 Surface_Wind_Stress:
   category: "Surface variables"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -2049,6 +2059,7 @@ U:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 U200:
   colormap: "Blues"
   # -20 to 70 m/s in 5 m/s steps: the annual-mean jets reach ~45 m/s and the
@@ -2063,12 +2074,15 @@ U200:
     colorbar:
       label : "ms$^{-1}$"
   # Made from the three-dimensional field when CAM did not write this surface
-  # itself, and compared against the same surface of the reanalysis:
+  # itself.  The observation is the file staged for this level rather than the
+  # 200 hPa level of the 3-D file: it holds the same numbers, and reading 50 MB
+  # beats reading 1.8 GB on every plot.  "obs_lev" is kept so that pointing
+  # "obs_file" at the 3-D file instead still gives the right level.
   derivable_from: ["U"]
   derive_level: 200
-  obs_file: "U_ERA5_monthly_climo_197901-202112.nc"
+  obs_file: "U200_ERA5_monthly_climo_197901-202112.nc"
   obs_name: "ERA5"
-  obs_var_name: "U"
+  obs_var_name: "U200"
   obs_lev: 200
   category: "State"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -2314,6 +2328,7 @@ FSUTOA:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 FSNT:
   colormap: "Blues"
   contour_levels_range: [120, 320, 10]
@@ -2355,6 +2370,7 @@ FSNTOA:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 FLUT:
   colormap: "Blues"
   contour_levels_range: [100, 340, 10]
@@ -2372,6 +2388,7 @@ FLUT:
   category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 FLNT:
   colormap: "Oranges"
@@ -2431,6 +2448,7 @@ FSDS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 FSDSC:
   colormap: "Blues"
   contour_levels_range: [0, 400, 25]
@@ -2448,6 +2466,7 @@ FSDSC:
   category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 FSNS:
   colormap: "Blues"
@@ -2525,6 +2544,7 @@ FLNS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 FLNSC:
   colormap: "Blues"
   contour_levels_range: [0, 150, 10]
@@ -2546,6 +2566,7 @@ FLNSC:
   category: "Radiation"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 SHFLX:
   colormap: "Blues"
@@ -2608,6 +2629,7 @@ CLDTOT_ISCCP:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 CLIMODIS:
   colormap: "Blues"
@@ -2812,6 +2834,7 @@ IWPMODIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 LIQ_ICLD_VISTAU:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -2842,6 +2865,7 @@ LWPMODIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 MEANCLDALB_ISCCP:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
@@ -2870,6 +2894,7 @@ MEANPTOP_ISCCP:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 MEANTAU_ISCCP:
   colormap: "Blues"
   contour_levels_range: [0, 2000, 100]
@@ -2890,6 +2915,7 @@ MEANTAU_ISCCP:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 MEANTB_ISCCP:
   category: "COSP"
@@ -2942,6 +2968,7 @@ PCTMODIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 REFFCLIMODIS:
   colormap: "Blues"
   contour_levels_range: [0, 1200, 100]
@@ -2967,6 +2994,7 @@ REFFCLIMODIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 REFFCLWMODIS:
   colormap: "Blues"
   contour_levels_range: [0, 1200, 100]
@@ -2991,6 +3019,7 @@ REFFCLWMODIS:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 SNOW_ICLD_VISTAU:
   category: "COSP"
@@ -3022,6 +3051,7 @@ TAUTMODIS:
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
 
+
 TAUWMODIS:
   colormap: "Blues"
   contour_levels_range: [0, 2000, 100]
@@ -3046,6 +3076,7 @@ TAUWMODIS:
   category: "COSP"
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
+
 
 TOT_CLD_VISTAU:
   category: "COSP"
@@ -3121,6 +3152,7 @@ CLD_CAL:
   obs_name: "CALIPSO"
   obs_var_name: "CLD_CAL"
   category: "COSP"
+
 
 #+++++++++++++++++
 # Category: Other
@@ -3307,6 +3339,8 @@ UTENDWTEM:
 
 #######
 
+
+
 # Plot Specific formatting
 ##########################
 
@@ -3370,6 +3404,8 @@ budget_tables:
   AEROSOLS: ['SOA', 'SALT', 'DUST', 'POM', 'BC', 'SO4']
 
 #-----------
+
+
 
 # Plot Specific formatting
 ##########################
