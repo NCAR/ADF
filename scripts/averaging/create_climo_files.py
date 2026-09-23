@@ -88,8 +88,8 @@ def create_climo_files(adf, clobber=False, search=None):
             raise ValueError('Sorry, climo_start_year must be earlier than ts end year.')
         start_year = max(climo_start_year, ts_start_year)
     if climo_end_year:
-        if climo_end_year < ts_end_year:
-            raise ValueError('Sorry, climo_end_year must be later than ts start year.')
+        if climo_end_year > ts_end_year:
+            raise ValueError('Sorry, climo_end_year must not be later than ts_end_year')
         end_year = min(climo_end_year, ts_end_year)
 
     comp = adf.model_component
