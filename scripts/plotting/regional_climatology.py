@@ -75,10 +75,10 @@ def regional_climatology(adfobj):
 
     region_list = adfobj.region_list
     #TODO, make it easier for users decide on these?
-    regional_climo_var_list = ['TSA','PREC','ELAI',
-                               'FSDS','FLDS','GPP','ASA',
-                               'QRUNOFF_TO_COUPLER','ET','FCTR','FCEV',
-                               'SNOWDP','TWS','SOILWATER_10CM','AREA_BURNED',
+    regional_climo_var_list = ['TBOT','PREC','ELAI',
+                               'FSDS','FLDS','WIND','ASA',
+                               'QRUNOFF_TO_COUPLER','FSH','ET','FCEV',
+                               'SNOWDP','BCDEP','NDEP_TO_SMINN','QBOT',
                                ]
 ## For polar focused analyses
 #                            'FSDS','FLDS','RNET','ASA',
