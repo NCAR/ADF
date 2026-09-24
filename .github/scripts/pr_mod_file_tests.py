@@ -7,8 +7,9 @@ Goal:  To generate a list of files modified in the associated
        Github Pull Request (PR), using the PyGithub interface,
        and then to run tests on those files when appropriate.
 
-Note:  This version currently limit the tests to a subset of files,
-       in order to avoid running pylint on non-core python source files.
+Note:  This version currently limits the tests to the python files
+       under the "lib" directory, in order to avoid running pylint on
+       non-core python source files.
 
 Written by:  Jesse Nusbaumer <nusbaume@ucar.edu> - November, 2020
 """
@@ -24,6 +25,8 @@ import shlex
 import argparse
 
 from stat import S_ISREG
+from pathlib import Path
+
 from github import Github
 
 #Local scripts:
@@ -93,6 +96,32 @@ def _file_is_python(filename):
     #Return file type result:
     return is_python
 
+#################
+
+def _file_is_testable(filename, testable_dir, excluded_dirs):
+
+    """
+    Checks whether a given file lives underneath a
+    directory whose python files should be linted, while
+    also skipping any files that live underneath one of
+    the excluded directories.
+    """
+
+    #Determine all directories that contain this file:
+    file_parents = Path(filename).parents
+
+    #File must live somewhere underneath the testable directory:
+    if Path(testable_dir) not in file_parents:
+        return False
+
+    #File must not live underneath an excluded directory:
+    for excluded_dir in excluded_dirs:
+        if Path(excluded_dir) in file_parents:
+            return False
+
+    #If both checks pass, then the file is testable:
+    return True
+
 #++++++++++++++++++++++++++++++
 #Input Argument parser function
 #++++++++++++++++++++++++++++++
@@ -140,18 +169,15 @@ def _main_prog():
 
     print("Generating list of modified files...")
 
-    # This should eventually be passed in via a command-line
-    # argument, and include everything inside the "lib" directory -JN:
-    testable_files = {
-        "lib/adf_base.py",
-        "lib/adf_config.py",
-        "lib/adf_file_utils.py",
-        "lib/adf_info.py",
-        "lib/adf_obs.py",
-        "lib/adf_units.py",
-        "lib/adf_web.py",
-        "lib/adf_diag.py",
-    }
+    #All python files underneath this directory are linted.  This
+    #should eventually be passed in via a command-line argument -JN:
+    testable_dir = "lib"
+
+    #Directories underneath "testable_dir" that should never be linted.
+    #The "lib/externals" directory contains code copied in from other
+    #projects (e.g. CVDP), which needs to stay identical to its upstream
+    #source.
+    excluded_dirs = {"lib/externals"}
 
     #+++++++++++++++++++++++
     #Read in input arguments
@@ -189,7 +215,7 @@ def _main_prog():
     #++++++++++++++++++++++++++++++
 
     #Create empty list to store python files:
-    pyfiles = list()
+    pyfiles = []
 
     #Extract Github file objects:
     file_obj_list = pull_req.get_files()
@@ -215,7 +241,7 @@ def _main_prog():
         # users of python files that will be tested:
         lint_files = []
         for pyfile in pyfiles:
-            if pyfile in testable_files:
+            if _file_is_testable(pyfile, testable_dir, excluded_dirs):
                 lint_files.append(pyfile)
             else:
                 continue
@@ -261,9 +287,10 @@ def _main_prog():
                 print("All pylint tests passed!")
                 sys.exit(0)
 
-        #If no python files in set of testable_files, then exit script:
+        #If no python files are underneath "testable_dir", then exit script:
         else:
-            print("No ADF classes were modified in PR, so there is nothing to test.")
+            print(f"No python files under '{testable_dir}' were modified in PR, "
+                  "so there is nothing to test.")
             sys.exit(0)
 
          #End if (lint_files)
