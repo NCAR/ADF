@@ -55,7 +55,9 @@ def _brute_force(da, lon_ok, lat_ok):
 class DomainStatsTestRoutine(unittest.TestCase):
     """Unit tests for the regional mean, maximum and minimum."""
 
-    lat = np.arange(-89.0, 90.0, 2.0)
+    def setUp(self):
+        """Latitudes for the test grids (built here so CI, without numpy, can import)."""
+        self.lat = np.arange(-89.0, 90.0, 2.0)
 
     def test_same_answer_for_either_longitude_convention(self):
         """The polar cap must not depend on how longitude is numbered."""
