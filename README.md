@@ -92,7 +92,62 @@ To run an example of the ADF diagnostics, simply download this repo, setup your 
 
 `./run_adf_diag config_cam_baseline_example.yaml`
 
-This should generate a collection of time series files, climatology (climo) files, re-gridded climo files, and example ADF diagnostic figures, all in their respective directories.
+This generates time series files, climatology (climo) files, re-gridded climo files, diagnostic figures, tables, and a website, each in its own directory. See [What the ADF produces](#what-the-adf-produces) below for what to expect.
+
+### What the ADF produces
+
+A run goes through the stages below in order. Each writes to a location set in the `diag_basic_info`
+or case block of the config file. Time series can be skipped with `cam_ts_done: true`, the website with
+`create_html: false`, and the other stages by removing their scripts from the config.
+
+| Stage | Output | Config key |
+| --- | --- | --- |
+| Time series | one file per variable | `cam_ts_loc` |
+| Climatologies | 12 monthly means per variable | `cam_climo_loc` |
+| Regridding | fields on the comparison grid and pressure levels | `cam_regrid_loc` |
+| Analysis and plots | figures and tables | `cam_diag_plot_loc` |
+| Website | HTML pages that link to the figures and tables | `cam_diag_plot_loc` (`create_html: true`) |
+
+For a model-vs-model run the files look like this (`<VAR>` is a variable name, `<hist_str>` the history
+stream, for example `cam.h0a`):
+
+```
+<cam_ts_loc>/<case>.<hist_str>.<VAR>.<YYYYMM>-<YYYYMM>.nc
+<cam_climo_loc>/<case>_<hist_str>_<VAR>_climo.nc
+<cam_regrid_loc>/<baseline>_<test>_<VAR>_regridded.nc       (baseline copy: <baseline>_<VAR>_baseline.nc)
+<cam_regrid_loc>/regrid_weights/
+<cam_diag_plot_loc>/<test>_<syr>_<eyr>_vs_<baseline>_<syr>_<eyr>/
+    <VAR>_<SEASON>_LatLon_Mean.png        maps
+    <VAR>_<SEASON>_Zonal_Mean.png         zonal means
+    amwg_table_<case>.csv                 global-mean table for each case
+    amwg_table_comp.csv                   test vs. baseline table
+    website/index.html                    start page of the website
+```
+
+A model-vs-observations run is the same, but the directory is named `<case>_<syr>_<eyr>_vs_Obs` and
+the regridded observations are used in place of a baseline.
+
+**Figures.** Each plotting script in `plotting_scripts` writes one image per variable and season
+(`ANN`, `DJF`, `MAM`, `JJA`, `SON`); the file name ends in the plot type, for example `_LatLon_Mean`,
+`_LatLon_Vector_Mean`, `_Zonal_Mean`, `_Meridional_Mean`, or a polar-map name. A map has four panels: the test case,
+the baseline or observations, the percent difference, and the difference (with its RMSE). A 3-D variable gets one map per level in
+`plot_press_levels` (the file name has the level, for example `T_850hpa_ANN_LatLon_Mean.png`)
+and a zonal mean against pressure. Images are PNG unless `plot_type` says otherwise. The Taylor
+diagram script writes one figure per season with all the test cases on it.
+
+**Tables.** `amwg_table` writes, for each case, the global mean of every variable with its sample
+size, standard deviation, standard error, 95% confidence interval, and linear trend with its
+p-value. The comparison table has the columns `variable`, `unit`, `test`, `control` (the baseline or observations), and `diff`.
+
+**Website.** With `create_html: true`, open `website/index.html` (under the plot directory shown
+above) in a browser. It links to every figure, grouped by variable category and season, to the
+tables, and to a page that records the configuration and software environment of the run. The
+directory is self-contained, so it can be copied to a web server. A run with more than one test case
+also writes a `main_website/` directory under `cam_diag_plot_loc` that covers all the cases. In that case the
+Taylor diagram, the baseline table, and the comparison table are written once, in the first case's plot directory.
+
+The ADF only plots what a run contains. If a variable is missing and cannot be derived from
+other variables, the ADF prints a message and moves on to the next one.
 
 ### ADF Tutorial/Demo
 
