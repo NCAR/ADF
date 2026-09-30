@@ -261,14 +261,23 @@ def regional_timeseries(adfobj):
             else:
                 if unstruct_plotting == True:
                     # uxarray output is time*nface, sum over nface
-                    base_var,wgt_sub  = getRegion_uxarray(uxgrid, base_data, field, area_b, landfrac_b,
-                                                        box_west, box_east, 
-                                                        box_south, box_north)
+                    try:
+                        base_var,wgt_sub  = getRegion_uxarray(uxgrid, base_data, field, area_b, landfrac_b,
+                                                            box_west, box_east, 
+                                                            box_south, box_north)
+                    except ValueError as e:
+                        # e.g. no land in region, so weights sum to zero
+                        warnings.warn(f"\t WARNING: skipping {field} for {region_list[iReg]}: {e}")
+                        continue
                     base_var_wgtd = np.sum(base_var * wgt_sub, axis=-1)
 
-                    case_var,wgt_sub = getRegion_uxarray(uxgrid, case_data, field, area_c, landfrac_c,
-                                                        box_west, box_east, 
-                                                        box_south, box_north)
+                    try:
+                        case_var,wgt_sub = getRegion_uxarray(uxgrid, case_data, field, area_c, landfrac_c,
+                                                            box_west, box_east, 
+                                                            box_south, box_north)
+                    except ValueError as e:
+                        warnings.warn(f"\t WARNING: skipping {field} for {region_list[iReg]}: {e}")
+                        continue
                     case_var_wgtd = np.sum(case_var * wgt_sub, axis=-1)
 
                     # annually averaged
@@ -395,6 +404,12 @@ def regional_timeseries(adfobj):
 
             plt_counter = plt_counter+1
 
+        # Nothing was plotted for this region (e.g. no land in region), so skip it:
+        if plt_counter == 1:
+            warnings.warn(f"\t WARNING: no variables plotted for {region_list[iReg]}, skipping figure.")
+            plt.close(fig)
+            continue
+
         fig.subplots_adjust(hspace=0.3, wspace=0.3)
 
         # Save out figure
@@ -406,9 +421,9 @@ def regional_timeseries(adfobj):
             adfobj.debug_log(f"'{plot_loc}' exists and clobber is false.")
             adfobj.add_website_data(plot_loc, region_list[iReg], None, season=None, multi_case=True, 
                                      category=region_category, non_season=True, plot_type = "RegionalTimeSeries")
-
+            plt.close(fig)
             #Continue to next iteration:
-            return
+            continue
         elif (redo_plot):
             if plot_loc.is_file():
                 plot_loc.unlink()    
@@ -440,7 +455,7 @@ def getRegion_uxarray(gridDS, varDS, varName, area, landfrac, BOX_W, BOX_E, BOX_
     domain_subset = varDS[varName].isel(n_face=node_indices)
     area_subset = area.isel(n_face=node_indices)
     landfrac_subset = landfrac.isel(n_face=node_indices)
-    wgt_subset = area_subset * landfrac_subset  / (area_subset* landfrac_subset).sum() 
+    wgt_subset = pf.normalize_weights(area_subset * landfrac_subset)
 
     return domain_subset,wgt_subset
 

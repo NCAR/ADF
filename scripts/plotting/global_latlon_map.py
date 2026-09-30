@@ -202,7 +202,7 @@ def global_latlon_map(adfobj):
             area = odataset.area.isel(time=0)
             landfrac = odataset.landfrac.isel(time=0)
             # calculate weights
-            wgt_base = area * landfrac / (area * landfrac).sum()
+            wgt_base = pf.normalize_weights(area * landfrac)
         else:
             odata = adfobj.data.load_reference_regrid_da(var)
             if odata is None:
@@ -246,7 +246,7 @@ def global_latlon_map(adfobj):
                 area = mdataset.area.isel(time=0)
                 landfrac = mdataset.landfrac.isel(time=0)
                 # calculate weights
-                wgt = area * landfrac / (area * landfrac).sum()
+                wgt = pf.normalize_weights(area * landfrac)
             else:
                 mdata = adfobj.data.load_regrid_da(case_name, var)
                 #Skip this variable/case if the regridded climo file doesn't exist:
@@ -340,7 +340,7 @@ def global_latlon_map(adfobj):
                     dseasons[s] = mseasons[s] - oseasons[s]
 
                     # percent change
-                    pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
+                    pseasons[s] = pf.pct_change(mseasons[s], oseasons[s]) #relative change
 
                     # If redo_plot set to True: remove old plot, if it already exists:
                     if (not redo_plot) and plot_name.is_file():
@@ -397,7 +397,7 @@ def global_latlon_map(adfobj):
                         dseasons[s] = mseasons[s] - oseasons[s]
                         
                         # percent change
-                        pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 #relative change
+                        pseasons[s] = pf.pct_change(mseasons[s], oseasons[s]) #relative change
 
                         pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
                                                 [syear_cases[case_idx],eyear_cases[case_idx]],

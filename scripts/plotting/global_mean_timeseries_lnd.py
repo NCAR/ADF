@@ -85,8 +85,8 @@ def global_mean_timeseries_lnd(adfobj):
         avg_method = vres.get('avg_method', 'mean')
 
         if avg_method == 'mean':
-            weights = weights/weights.sum()
-            c_weights = c_weights/c_weights.sum()
+            weights = pf.normalize_weights(weights)
+            c_weights = pf.normalize_weights(c_weights)
         
         # get units for variable 
         ref_ts_da.attrs['units'] = vres.get("new_unit", ref_ts_da.attrs.get('units', 'none'))

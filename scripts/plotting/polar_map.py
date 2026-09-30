@@ -189,7 +189,7 @@ def polar_map(adfobj):
                     area = odataset.area.isel(time=0)
                     landfrac = odataset.landfrac.isel(time=0)
                     # calculate weights
-                    wgt_base = area * landfrac / (area * landfrac).sum()
+                    wgt_base = pf.normalize_weights(area * landfrac)
             else:
                 odata = adfobj.data.load_reference_regrid_da(data_var, **kwargs)
             if odata is None:
@@ -224,7 +224,7 @@ def polar_map(adfobj):
                         area = mdataset.area.isel(time=0)
                         landfrac = mdataset.landfrac.isel(time=0)
                         # calculate weights
-                        wgt = area * landfrac / (area * landfrac).sum()
+                        wgt = pf.normalize_weights(area * landfrac)
                 else:
                     mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
 
@@ -294,7 +294,7 @@ def polar_map(adfobj):
                             dseasons[s].attrs['units'] = mseasons[s].attrs['units']
                             
                             # percent change 
-                            pseasons[s] = (mseasons[s] - oseasons[s]) / np.abs(oseasons[s]) * 100.0 # relative change
+                            pseasons[s] = pf.pct_change(mseasons[s], oseasons[s]) # relative change
                             pseasons[s].attrs['units'] = '%'
 
                             # make plots: northern and southern hemisphere separately:
@@ -338,20 +338,21 @@ def polar_map(adfobj):
                                     if (var == 'GRAINC_TO_FOOD'):
                                         print("\t\t Skipping 'GRAINC_TO_FOOD' polar plots")
                                         continue
-                                    elif (var == 'FAREA_BURNED') and (s == 'SON'):
-                                        print("\t\t Skipping FAREA_BURNED in SON plot")
-                                        continue
-                                    elif (var == 'GPP') and (s == 'SON'):
-                                        print("\t\t Skipping GPP in SON plot")
-                                        continue
+                                    # These should work now that we've checked for devide by zeros
+                                    #elif (var == 'FAREA_BURNED') and (s == 'SON'):
+                                    #    print("\t\t Skipping FAREA_BURNED in SON plot")
+                                    #     continue
+                                    #elif (var == 'GPP') and (s == 'SON'):
+                                    #    print("\t\t Skipping GPP in SON plot")
+                                    #    continue
                                     # not working for regular grids?
-                                    elif (var == 'NPP'):
-                                        print("\t\t Skipping NPP polar plot")
-                                        continue
+                                    #elif (var == 'NPP'):
+                                    #    print("\t\t Skipping NPP polar plot")
+                                    #    continue
                                     # not working for regular grids?
-                                    elif (var == 'CH4_SURF_EBUL_UNSAT'):
-                                        print("\t\t Skipping CH4_SURF_EBUL_UNSAT polar plot")
-                                        continue
+                                    #elif (var == 'CH4_SURF_EBUL_UNSAT'):
+                                    #    print("\t\t Skipping CH4_SURF_EBUL_UNSAT polar plot")
+                                    #    continue
                                     else: 
                                         pf.make_polar_plot(plot_name, case_nickname, base_nickname,
                                                            [syear_cases[case_idx],eyear_cases[case_idx]],
