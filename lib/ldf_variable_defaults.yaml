@@ -360,12 +360,29 @@ MEG_isoprene:
   avg_method: 'sum'
   table_unit: "Tg y$^{-1}$"
 
-MEG_mterp: 
+MEG_mterp_a: 
   category: "Surface fluxes"
   derivable_from: ['MEG_carene_3', 'MEG_pinene_a', 'MEG_thujene_a', "MEG_bornene",
     'MEG_terpineol_4', 'MEG_terpineol_a', 'MEG_terpinyl_ACT_a','MEG_myrtenal',
     'MEG_sabinene', 'MEG_pinene_b', "MEG_camphene", "MEG_fenchene_a",'MEG_limonene',
-    'MEG_phellandrene_a', 'MEG_terpinene_a', 'MEG_terpinene_g','MEG_terpinolene',
+    'MEG_phellandrene_a', 'MEG_terpinene_a']
+  colormap: "Blues"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl: 
+    colorbar: 
+      label: "kg m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg y$^{-1}$"
+
+MEG_mterp_b: 
+  category: "Surface fluxes"
+  derivable_from: ['MEG_terpinene_g','MEG_terpinolene',
     'MEG_phellandrene_a', 'MEG_linalool', "MEG_ionone_b", "MEG_geranyl_acetone", 
     'MEG_neryl_acetone', 'MEG_jasmone', 'MEG_verbenene','MEG_ipsenol', 'MEG_myrcene',
     'MEG_ocimene_t_b', 'MEG_ocimene_al', 'MEG_ocimene_c_b']
