@@ -320,6 +320,38 @@ diag_var_list:
     - DSTDRY4
     - ATM_TOPO
  
+# Variables plotted by regional_climatology and regional_timeseries.
+# Max 15 variables (4x4 figure, first panel is the region map).
+regional_var_list:
+    - TBOT
+    - PREC
+    - ELAI
+    - FSDS
+    - FLDS
+    - WIND
+    - ASA
+    - QRUNOFF_TO_COUPLER
+    - FSH
+    - ET
+    - FCEV
+    - SNOWDP
+    - BCDEP
+    - NDEP_TO_SMINN
+    - QBOT
+    ## For polar focused analyses:
+    #- FSDS
+    #- FLDS
+    #- RNET
+    #- ASA
+    #- QRUNOFF_TO_COUPLER
+    #- ET
+    #- TWS
+    #- QBOT
+    #- QRUNOFF_ICE_TO_COUPLER
+    #- QRGWL
+    #- SNOWDP
+    #- ALTMAX
+
 region_list:
     - Global
     - N Hemisphere Land

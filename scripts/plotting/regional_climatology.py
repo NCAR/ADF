@@ -74,21 +74,25 @@ def regional_climatology(adfobj):
     base_nickname = adfobj.get_baseline_info('case_nickname') 
 
     region_list = adfobj.region_list
-    #TODO, make it easier for users decide on these?
-    regional_climo_var_list = ['TBOT','PREC','ELAI',
-                               'FSDS','FLDS','WIND','ASA',
-                               'QRUNOFF_TO_COUPLER','FSH','ET','FCEV',
-                               'SNOWDP','BCDEP','NDEP_TO_SMINN','QBOT',
-                               ]
-## For polar focused analyses
-#                            'FSDS','FLDS','RNET','ASA',
-#                            'QRUNOFF_TO_COUPLER','ET','TWS','QBOT',
-#                            'QRUNOFF_ICE_TO_COUPLER','QRGWL','SNOWDP','ALTMAX',
-#                           ]
 
-#    regional_climo_var_list = ['TBOT','PREC','PBOT', 
-#                               'FSDS','FLDS','QBOT','WIND',
-#                               ]
+    # Variables to plot are set by "regional_var_list" in the config file;
+    # use these defaults if it is not specified:
+    default_var_list = ['TBOT','PREC','ELAI',
+                        'FSDS','FLDS','WIND','ASA',
+                        'QRUNOFF_TO_COUPLER','FSH','ET','FCEV',
+                        'SNOWDP','GPP','FSNO','QBOT',
+                        ]
+    regional_climo_var_list = adfobj.read_config_var('regional_var_list')
+    if not regional_climo_var_list:
+        print("\t NOTE: 'regional_var_list' not found in config file, using default variables")
+        regional_climo_var_list = default_var_list
+
+    # The 4x4 figure uses panel 0 for the region map, leaving 15 panels:
+    max_vars = 15
+    if len(regional_climo_var_list) > max_vars:
+        warnings.warn(f"\t WARNING: regional_var_list has {len(regional_climo_var_list)} "
+                      f"variables; only the first {max_vars} will be plotted.")
+        regional_climo_var_list = regional_climo_var_list[:max_vars]
 
 # Extract variables:
     baseline_name        = adfobj.get_baseline_info("cam_case_name", required=True)
