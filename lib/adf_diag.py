@@ -867,7 +867,7 @@ class AdfDiag(AdfWeb):
                                 ts_ds['pfts1d_active'] = ds.pfts1d_active
                         ts_ds['time'] = time
                         ts_ds.assign_coords(time=time)
-                        ts_ds_fixed = xr.decode_cf(ts_ds)
+                        ts_ds_fixed = xr.decode_cf(ts_ds,use_cftime=True)
 
                         # Add attribute note of time change
                         attrs_dict = {
@@ -1334,7 +1334,9 @@ class AdfDiag(AdfWeb):
                 # end if
                 if glob.glob(os.path.join(ts_dir, const_glob_str)):
                     constit_files.append(glob.glob(os.path.join(ts_dir, const_glob_str ))[0])
-
+            #print(' --- Constit files below -- ')
+            #print(constit_files)
+            
             # Check if all the necessary constituent files were found
             if len(constit_files) != len(constit_list):
                 ermsg = f"\t    WARNING: Not all constituent files present;"
