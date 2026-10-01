@@ -32,8 +32,20 @@ square_contour_difference
     Produce filled contours of fld1, fld2, and their difference with square axes.
 """
 
-# import statements:
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
+
 from typing import Optional
+
+import warnings  # use to warn user about missing files.
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+
+# pylint: disable=unused-import
+
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
@@ -45,20 +57,24 @@ from cartopy.util import add_cyclic_point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 
+# pylint: enable=unused-import
+
 from adf_base import AdfError
 import plotting_utils as plot_utils
 import adf_utils as utils
 
 # Format warning messages:
-import warnings  # use to warn user about missing files.
-
 warnings.formatwarning = utils.my_formatwarning
 
 # Set non-X-window backend for matplotlib:
 mpl.use("Agg")
 
+# pylint: disable=unused-import
+
 # Now import pyplot:
 import matplotlib.pyplot as plt
+
+# pylint: enable=unused-import
 
 empty_message = "No Valid\nData Points"
 props = {"boxstyle": "round", "facecolor": "wheat", "alpha": 0.9}
@@ -72,7 +88,6 @@ seasons = {
     "MAM": [3, 4, 5],
     "SON": [9, 10, 11],
 }
-
 
 #################
 # HELPER FUNCTIONS

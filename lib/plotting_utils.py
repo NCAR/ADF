@@ -27,19 +27,30 @@ _plot_line(axobject, xdata, ydata, color, **kwargs)
     Create a generic line plot
 """
 
-# import statements:
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
+
 from pathlib import Path
+import warnings
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+
+# pylint: disable=unused-import
 
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
 import cartopy.crs as ccrs
 
+# pylint: enable=unused-import
+
 from adf_diag import AdfDiag
 import adf_utils as utils
 
-import warnings  # use to warn user about missing files.
-
+# use to warn user about missing files.
 warnings.formatwarning = utils.my_formatwarning
 
 #################

@@ -33,7 +33,15 @@ out of the regridding step later on.
 import sys
 from pathlib import Path
 
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+
+# pylint: disable=unused-import
+
 import xarray as xr
+
+# pylint: enable=unused-import
 
 # ADF modules:
 from adf_base import AdfError

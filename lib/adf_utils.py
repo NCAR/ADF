@@ -54,11 +54,25 @@ Notes
 
 """
 
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
+
+import warnings  # use to warn user about missing files.
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+
+# pylint: disable=unused-import
+
 # import statements:
 import numpy as np
 import xarray as xr
 import pandas as pd
 import geocat.comp as gcomp
+
+# pylint: enable=unused-import
 
 from adf_base import AdfError
 
@@ -78,16 +92,10 @@ from adf_file_utils import (
     ts_var_from_filename,
 )
 
-# pylint: enable=unused-import
-
-import warnings  # use to warn user about missing files.
-
-
 # Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
     """Issue `msg` as warning."""
     return str(msg) + "\n"
-
 
 warnings.formatwarning = my_formatwarning
 
