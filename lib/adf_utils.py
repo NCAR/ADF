@@ -92,10 +92,12 @@ from adf_file_utils import (
     ts_var_from_filename,
 )
 
+
 # Format warning messages:
 def my_formatwarning(msg, *args, **kwargs):
     """Issue `msg` as warning."""
     return str(msg) + "\n"
+
 
 warnings.formatwarning = my_formatwarning
 
