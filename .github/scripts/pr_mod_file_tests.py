@@ -27,7 +27,7 @@ import argparse
 from stat import S_ISREG
 from pathlib import Path
 
-from github import Github
+from github import Auth, Github
 
 #Local scripts:
 from pylint_threshold_test import pylint_check
@@ -195,7 +195,7 @@ def _main_prog():
     #Log-in to github API using token
     #++++++++++++++++++++++++++++++++
 
-    ghub = Github(token)
+    ghub = Github(auth=Auth.Token(token))
 
     #++++++++++++++++++++
     #Open ESCOMP/CAM repo
