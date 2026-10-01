@@ -642,7 +642,7 @@ def derive_variable(
         ds = self.data.load_dataset(constit_files)
         if not ds:
             dmsg = f"derived time series for {case_name}:"
-            dmsg += f"\n\tNo files to open."
+            dmsg += "\n\tNo files to open."
             self.debug_log(dmsg)
             return
 

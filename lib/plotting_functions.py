@@ -722,7 +722,7 @@ def plot_map_vect_and_save(
     )
 
     # set rmse title:
-    ax[-1].set_title(f"RMSE: ", fontsize=tiFontSize)
+    ax[-1].set_title("RMSE: ", fontsize=tiFontSize)
     ax[-1].set_title(
         r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
     )

@@ -344,7 +344,7 @@ def create_time_series_gents(adf, baseline=False):
                 tsc = _restrict_to_vars(tsc, wanted_vars)
             # End if
 
-            if not len(tsc):
+            if not tsc:
                 wmsg = (
                     f"\t    WARNING: GenTS found nothing to generate for '{hist_str}'."
                 )

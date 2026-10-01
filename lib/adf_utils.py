@@ -240,7 +240,7 @@ def load_dataset(fils, use_time_bounds=False):
     year.  See `use_time_bounds_midpoint`.
     """
     if len(fils) == 0:
-        warnings.warn(f"\t    WARNING: Input file list is empty.")
+        warnings.warn("\t    WARNING: Input file list is empty.")
         return None
     elif len(fils) > 1:
         ds = xr.open_mfdataset(fils, combine="by_coords")

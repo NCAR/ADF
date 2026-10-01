@@ -187,7 +187,7 @@ class AdfConfig(AdfBase):
                 # --------------------------
 
                 # Throw an error if keyword not in dictionary:
-                if kword_match_str_key not in self.__search_dict.keys():
+                if kword_match_str_key not in self.__search_dict:
                     ermsg = f"ERROR: Variable '{kword_match_str}'"
                     ermsg += " not found in config (YAML) file."
                     self.end_diag_fail(ermsg)

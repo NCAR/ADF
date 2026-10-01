@@ -50,7 +50,7 @@ warnings.formatwarning = utils.my_formatwarning
 #       apply scaling.
 
 
-class AdfData:
+class AdfData:  # pylint: disable=too-many-public-methods
     """A class instantiated with an AdfDiag object.
     Methods provide means to load data.
     This class does not interact with plotting,

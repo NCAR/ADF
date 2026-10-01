@@ -291,7 +291,7 @@ def get_central_longitude(*args):
 def _plot_line(axobject, xdata, ydata, color, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""
 
-    if color != None:
+    if color is not None:
         axobject.plot(xdata, ydata, c=color, **kwargs)
     else:
         axobject.plot(xdata, ydata, **kwargs)

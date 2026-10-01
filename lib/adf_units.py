@@ -26,7 +26,7 @@ answers "were these typed the same way", which is not the question being
 asked, and getting it wrong scales the data twice.
 
 Rendering a unit for somewhere with no LaTeX renderer, such as a table cell,
-is `adf_utils.plain_text_units`; this module only compares.
+is :func:`adf_utils.plain_text_units`; this module only compares.
 """
 
 import re

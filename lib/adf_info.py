@@ -32,7 +32,6 @@ from pathlib import Path
 import copy
 import os
 import getpass
-import subprocess
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 # import non-standard python modules, including ADF
