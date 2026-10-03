@@ -68,7 +68,9 @@
 #                   which are specified in this list
 #                   NOTE: this is not very flexible at the moment! It can only handle variables that
 #                         are sums of the constituents, or -- with "derive_level" below -- one
-#                         model-level field to interpolate. Futher flexibility is being explored.
+#                         model-level field to interpolate. The exceptions are RESTOM and RESSURF,
+#                         whose formulas are written out in lib/adf_derive.py. Futher flexibility
+#                         is being explored.
 #
 # derive_level   -> Pressure surface, in hPa, to interpolate "derivable_from" onto, for a field
 #                   CAM writes on a surface (U200, U850). The model's own 3-D pressure field is
@@ -2429,6 +2431,22 @@ FLNTC:
 #+++++++++++++++++
 # Category: Surface energy flux
 #+++++++++++++++++
+
+RESSURF:
+  colormap: "RdBu_r"
+  contour_levels_range: [-100, 100, 5]
+  diff_colormap: "seismic"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+  category: "Sfc energy flux"
+  derivable_from: ['FSNS','FLNS','SHFLX','QFLX','PRECC','PRECL','PRECSC','PRECSL']
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
 
 FSDS:
   colormap: "Blues"
