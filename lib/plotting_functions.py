@@ -13,6 +13,10 @@ mask_land_or_ocean(arr, msk, use_nan=False)
     Apply a land or ocean mask to provided variable.
 get_central_longitude(*args)
     Determine central longitude for maps.
+pct_change(case, base, rel_tol=1e-6)
+    percent change, masked where baseline is ~zero
+normalize_weights(wgt)
+    normalize weights to sum to 1, error if they sum to zero
 global_average(fld, wgt, verbose=False)
     pure numpy global average.
 spatial_average(indata, weights=None, spatial_dims=None)
@@ -339,6 +343,53 @@ def get_central_longitude(*args):
 
 #######
 
+def pct_change(case, base, rel_tol=1e-6):
+    """Percent change (case - base) / |base| * 100, masked where |base| is ~zero.
+
+    Parameters
+    ----------
+    case, base : xr.DataArray or ux.UxDataArray
+        fields to compare, with matching shapes
+    rel_tol : float, optional
+        values of |base| smaller than rel_tol * max(|base|) are treated as zero;
+        relative so that it works for any variable's units
+
+    Returns
+    -------
+    same type as inputs
+        percent change, NaN where the baseline is ~zero (avoids divide-by-zero
+        warnings and very large values that distort the color scale)
+    """
+    abs_base = np.abs(base)
+    thresh = rel_tol * float(abs_base.max())
+    denom = abs_base.where(abs_base > thresh)
+    return (case - base) / denom * 100.0
+
+
+def normalize_weights(wgt):
+    """Return wgt / sum(wgt), raising a clear error if the weights sum to zero.
+
+    Parameters
+    ----------
+    wgt : array-like
+        weights, e.g. area * landfrac
+
+    Returns
+    -------
+    same type as input
+        weights normalized to sum to 1
+
+    Raises
+    ------
+    ValueError
+        if the weights sum to zero or NaN (e.g. empty region or no land)
+    """
+    total = float(np.nansum(wgt))
+    if (not np.isfinite(total)) or (total <= 0):
+        raise ValueError("Weights sum to zero (empty region or no land?); cannot normalize.")
+    return wgt / total
+
+
 def global_average(fld, wgt, verbose=False):
     """A simple, pure numpy global average.
 
@@ -408,7 +459,7 @@ def spatial_average(indata, weights=None, spatial_dims=None):
         elif 'ncol' in indata.dims:
             if 'area' in indata:
                 warnings.warn("area variable being used to generated normalized weights.")
-                weights = indata['area'] / indata['area'].sum()
+                weights = normalize_weights(indata['area'])
             else:
                 warnings.warn("\t  We need a way to get area variable. Using equal weights.")
                 weights = xr.DataArray(1.)
@@ -530,7 +581,7 @@ def wgt_rmse(fld1, fld2, wgt):
         check = [len(wgt) != s for s in fld1.shape]
         dimsize = fld1.shape[np.argwhere(check).item()]  # want to get the dimension length for the dim that does not match the size of wgt
         warray = np.tile(wgt, (dimsize, 1)).transpose()   # May need more logic to ensure shape is correct.
-        warray = warray / np.sum(warray) # normalize
+        warray = normalize_weights(warray) # normalize
         wmse = np.sum(warray * (fld1 - fld2)**2)
         return np.sqrt( wmse ).item()
 
@@ -588,12 +639,9 @@ def annual_mean(data, whole_years=False, time_name='time', use_ux=False):
         
         # Loop over each group and normalize the values (divide by the sum of the group)
         for i, (year, group) in enumerate(grouped_by_year):
-            # Compute the sum of days in the month for the current year
-            print(group)
-            year_sum = group[12*i:12*i+12].sum()
-            
-            # Normalize the group by dividing each value by the sum of the group
-            normalized_group = group[12*i:12*i+12] / year_sum
+            # Normalize the days in each month by the total days in the current year
+            # (group already contains just this year's months)
+            normalized_group = normalize_weights(group)
             
             # Append the normalized values to the list
             normalized_days.append(normalized_group)
@@ -780,13 +828,14 @@ def make_polar_plot(wks, case_nickname, base_nickname,
         dif = difference
         
     if  pctchange is None:
-        pct = (d2 - d1) / np.abs(d1) * 100.0
+        pct = pct_change(d2, d1)
     else:
         pct = pctchange
         
-    #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
+    #check if pct has Inf values and if so set them to NaN to prevent plotting errors
     pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # NaN (masked where baseline ~0) should still allow plotting, shown as blank cells
+    #pct = pct.fillna(0.0)
 
     if isinstance(pct, ux.UxDataArray):
         pct_grid = pct.uxgrid
@@ -880,7 +929,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
     axs = [ax1,ax2,ax3,ax4]
 
     #generate a dictionary of contour plot settings:
-    cp_info = prep_contour_plot(d1, d2, pct, dif, **kwargs)
+    cp_info = prep_contour_plot(d1, d2, dif, pct, **kwargs)
 
     imgs = []
 
@@ -2182,7 +2231,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # determine levels & color normalization:
     minval    = np.min([np.min(adata), np.min(bdata)])
     maxval    = np.max([np.max(adata), np.max(bdata)])
-    absmaxdif = np.max(np.abs(diffdata.data))
+    absmaxdif = float(np.nanmax(np.abs(np.asarray(diffdata))))
     absmaxpct = np.max(np.abs(pctdata))
 
     # determine norm to use (deprecate this once minimum MPL version is high enough)
@@ -2251,11 +2300,15 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
         levelsdiff = np.arange(*kwargs['diff_contour_range'])
     else:
-        # set a symmetric color bar for diff:
-        absmaxdif = np.max(np.abs(diffdata.data))
-        # set levels for difference plot:
+        # set levels for difference plot (symmetric about zero):
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-        
+
+    # force difference levels to be symmetric about zero, mirroring any
+    # user-supplied levels that aren't (keeps the user's spacing)
+    levelsdiff = np.asarray(levelsdiff, dtype=float)
+    if not np.allclose(np.sort(levelsdiff), np.sort(-levelsdiff)):
+        levelsdiff = np.unique(np.concatenate([levelsdiff, -levelsdiff, [0.0]]))
+
     # Percent Difference options -- Check in kwargs for colormap and levels
     if "pct_diff_colormap" in kwargs:
         cmappct = kwargs["pct_diff_colormap"]
@@ -2277,12 +2330,6 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     else:
         plot_log_p = False
 
-    # color normalization for difference
-    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
-        normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
-    else:
-        normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
-
     #NOTE: Sometimes the contour levels chosen in the defaults file
     #can result in the "contourf" software stack generating a
     #'TypologyException', which should manifest itself as a
@@ -2293,18 +2340,26 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     #are calculated, and if the default contour values are significantly
     #larger then the min-max values, then the min-max values are used instead:
     #-------------------------------
-    if max(levels1) > 10*maxval:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-    elif minval < 0 and min(levels1) < 10*minval:
-        levels1 = np.linspace(minval, maxval, 12)
-        norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+    
+    #if max(levels1) > 10*maxval:
+    #    levels1 = np.linspace(minval, maxval, 12)
+    #    norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
+    #elif minval < 0 and min(levels1) < 10*minval:
+    #    levels1 = np.linspace(minval, maxval, 12)
+    #    norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
     #End if
 
-    if max(np.abs(levelsdiff)) > 10*absmaxdif:
+    if (absmaxdif > 0) and (max(np.abs(levelsdiff)) > 10*absmaxdif):
         levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
-
     #End if
+
+    # color normalization for difference, centered on zero
+    # (computed after levelsdiff is final so the norm matches the levels)
+    difflim = np.max(np.abs(levelsdiff))
+    if (difflim > 0) and mplv > 2:
+        normdiff = normfunc(vmin=-difflim, vmax=difflim, vcenter=0.0)
+    else:
+        normdiff = mpl.colors.Normalize(vmin=-difflim, vmax=difflim)
     #-------------------------------
 
     subplots_opt = {}
@@ -2407,11 +2462,10 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         diff = azm - bzm
         
         # calculate the percent change
-        pct = (azm - bzm) / np.abs(bzm) * 100.0
+        pct = pct_change(azm, bzm)
 
-        #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct = pct.where(np.isfinite(pct), np.nan)
-        pct = pct.fillna(0.0)
+        # NaN (masked where baseline ~0) should still allow plotting, shown as blank cells
+        #pct = pct.fillna(0.0)
 
         if isinstance(pct, ux.UxDataArray):
             pct = ux.UxDataArray(pct)
@@ -2482,10 +2536,9 @@ def plot_zonal_mean_and_save(wks, case_nickname, base_nickname,
         diff = azm - bzm
         
         # calculate the percent change
-        pct = (azm - bzm) / np.abs(bzm) * 100.0
-        #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct = pct.where(np.isfinite(pct), np.nan)
-        pct = pct.fillna(0.0)
+        pct = pct_change(azm, bzm)
+        # NaN (masked where baseline ~0) should still allow plotting, shown as blank cells
+        #pct = pct.fillna(0.0)
         if isinstance(pct, ux.UxDataArray):
             pct = ux.UxDataArray(pct)
         else:
@@ -2637,10 +2690,9 @@ def plot_meridional_mean_and_save(wks, case_nickname, base_nickname,
     diff = adata - bdata
     
     # calculate the percent change
-    pct = (adata - bdata) / np.abs(bdata) * 100.0
-    #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    pct = pct_change(adata, bdata)
+    # NaN (masked where baseline ~0) should still allow plotting, shown as blank cells
+    #pct = pct.fillna(0.0)
     if isinstance(pct, ux.UxDataArray):
         pct = ux.UxDataArray(pct)
     else:
@@ -2857,10 +2909,9 @@ def square_contour_difference(fld1, fld2, **kwargs):
 
     diff = fld1 - fld2
     
-    pct = (fld1 - fld2) / np.abs(fld2) * 100.0
-    #check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    pct = pct_change(fld1, fld2)
+    # NaN (masked where baseline ~0) should still allow plotting, shown as blank cells
+    #pct = pct.fillna(0.0)
     if isinstance(pct, ux.UxDataArray):
         pct = ux.UxDataArray(pct)
     else:
