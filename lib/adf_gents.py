@@ -37,11 +37,7 @@ from pathlib import Path
 # import non-standard python modules, including ADF
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 
-# pylint: disable=unused-import
-
 import xarray as xr
-
-# pylint: enable=unused-import
 
 # ADF modules:
 from adf_base import AdfError
@@ -185,7 +181,8 @@ def create_time_series_gents(adf, baseline=False):
     from :mod:`adf_file_utils`.
     """
 
-    HFCollection, TSCollection = _import_gents()
+    # These are classes, so keep their PascalCase names:
+    HFCollection, TSCollection = _import_gents()  # pylint: disable=invalid-name
 
     # Notify user that script has started:
     msg = "\n  Calculating CAM time series with GenTS..."

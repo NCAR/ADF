@@ -37,7 +37,8 @@ vert_remap(x_mdl, p_mdl, plev)
 lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None, convert_to_mb=False)
     Interpolate model hybrid levels to specified pressure levels.
 pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False)
-    Interpolate `data` from hybrid-sigma levels to isobaric levels using provided mid-level pressures.
+    Interpolate `data` from hybrid-sigma levels to isobaric levels using provided
+    mid-level pressures.
 plev_to_plev(data, new_levels=None, convert_to_mb=False)
     Interpolate `data` from isobaric levels to new isobaric levels.
 zonal_mean_xr(fld)
@@ -54,6 +55,9 @@ Notes
 
 """
 
+# This module collects many small helpers, so allow it to be long:
+# pylint: disable=too-many-lines
+
 # ++++++++++++++++++++++++++++++
 # Import standard python modules
 # ++++++++++++++++++++++++++++++
@@ -64,15 +68,11 @@ import warnings  # use to warn user about missing files.
 # import non-standard python modules, including ADF
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 
-# pylint: disable=unused-import
-
 # import statements:
 import numpy as np
 import xarray as xr
 import pandas as pd
 import geocat.comp as gcomp
-
-# pylint: enable=unused-import
 
 from adf_base import AdfError
 
@@ -94,7 +94,7 @@ from adf_file_utils import (
 
 
 # Format warning messages:
-def my_formatwarning(msg, *args, **kwargs):
+def my_formatwarning(msg, *_args, **_kwargs):
     """Issue `msg` as warning."""
     return str(msg) + "\n"
 
@@ -230,7 +230,8 @@ def use_time_bounds_midpoint(ds, time_name="time"):
 
 def load_dataset(fils, use_time_bounds=False):
     """
-    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+    This method exists to get an xarray Dataset from input file information that
+    can be passed into the plotting methods.
 
     Parameters
     ----------
@@ -252,7 +253,7 @@ def load_dataset(fils, use_time_bounds=False):
     if len(fils) == 0:
         warnings.warn("\t    WARNING: Input file list is empty.")
         return None
-    elif len(fils) > 1:
+    if len(fils) > 1:
         ds = xr.open_mfdataset(fils, combine="by_coords")
     else:
         ds = xr.open_dataset(fils[0])
@@ -585,7 +586,7 @@ def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
     if names is False:
         return []
     streams = as_hist_str_list(hist_strs) or ["*"]
-    wanted = [v for v in adf.diag_var_list]
+    wanted = list(adf.diag_var_list)
     added = []
     for level_dim in ("lev", "ilev"):
         name = pressure_field_name(level_dim, names)
@@ -685,18 +686,13 @@ def global_average(fld, wgt, verbose=False):
     fld2 = np.ma.masked_invalid(fld)
     if verbose:
         print(
-            "(global_average)-- fraction of mask that is True: {}".format(
-                np.count_nonzero(fld2.mask) / np.size(fld2)
-            )
+            "(global_average)-- fraction of mask that is True: "
+            f"{np.count_nonzero(fld2.mask) / np.size(fld2)}"
         )
         print(
-            "(global_average)-- apply ma.average along axis = {} // validate: {}".format(
-                a, fld2.shape
-            )
+            f"(global_average)-- apply ma.average along axis = {a} // validate: {fld2.shape}"
         )
-    avg1, sofw = np.ma.average(
-        fld2, axis=a, weights=wgt, returned=True
-    )  # sofw is sum of weights
+    avg1 = np.ma.average(fld2, axis=a, weights=wgt)
 
     return np.ma.average(avg1)
 
@@ -729,8 +725,6 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     Will average over `ncol` if present, and then will check for `lat` and `lon`.
     When none of those three are found, raise an AdfError.
     """
-    import warnings
-
     if weights is None:
         # Calculate spatial weights:
         if "lat" in indata.coords:
@@ -812,22 +806,22 @@ def wgt_rmse(fld1, fld2, wgt):
         fld2 = fld2.compute()
     if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
         return (np.sqrt(((fld1 - fld2) ** 2).weighted(wgt).mean())).values.item()
-    else:
-        check = [len(wgt) == s for s in fld1.shape]
-        if ~np.any(check):
-            raise IOError(
-                f"Sorry, weight array has shape {wgt.shape} which is not compatible with data of shape {fld1.shape}"
-            )
-        check = [len(wgt) != s for s in fld1.shape]
-        dimsize = fld1.shape[
-            np.argwhere(check).item()
-        ]  # want to get the dimension length for the dim that does not match the size of wgt
-        warray = np.tile(
-            wgt, (dimsize, 1)
-        ).transpose()  # May need more logic to ensure shape is correct.
-        warray = warray / np.sum(warray)  # normalize
-        wmse = np.sum(warray * (fld1 - fld2) ** 2)
-        return np.sqrt(wmse).item()
+    check = [len(wgt) == s for s in fld1.shape]
+    if ~np.any(check):
+        raise IOError(
+            f"Sorry, weight array has shape {wgt.shape} which is not compatible "
+            f"with data of shape {fld1.shape}"
+        )
+    check = [len(wgt) != s for s in fld1.shape]
+    dimsize = fld1.shape[
+        np.argwhere(check).item()
+    ]  # want to get the dimension length for the dim that does not match the size of wgt
+    warray = np.tile(
+        wgt, (dimsize, 1)
+    ).transpose()  # May need more logic to ensure shape is correct.
+    warray = warray / np.sum(warray)  # normalize
+    wmse = np.sum(warray * (fld1 - fld2) ** 2)
+    return np.sqrt(wmse).item()
 
 
 #######
@@ -936,37 +930,38 @@ def seasonal_mean(data, season=None, is_climo=None):
         return data.drop_vars("time")
 
     try:
-        month_length = data.time.dt.days_in_month
-    except (AttributeError, TypeError):
+        # Check for a decoded time dimension (the value itself is not needed):
+        _ = data.time.dt.days_in_month
+    except (AttributeError, TypeError) as err:
         # do our best to determine the temporal dimension and assign weights
         if not is_climo:
             raise ValueError(
                 "Non-climo file provided, but without a decoded time dimension."
-            )
-        else:
-            # CLIMO file: try to determine which dimension is month
-            has_time = False
-            if isinstance(data, xr.DataArray):
-                has_time = "time" in data.dims
-                if not has_time:
-                    if "month" in data.dims:
-                        data = data.rename({"month": "time"})
-                        has_time = True
+            ) from err
+        # CLIMO file: try to determine which dimension is month
+        has_time = False
+        if isinstance(data, xr.DataArray):
+            has_time = "time" in data.dims
             if not has_time:
-                # this might happen if a pure numpy array gets passed in
-                # --> assumes ordered January to December.
-                assert (12 in data.shape) and (
-                    data.shape.count(12) == 1
-                ), f"Sorry, {data.shape.count(12)} dimensions have size 12, making determination of which dimension is month ambiguous. Please provide a `time` or `month` dimension."
-                time_dim_num = data.shape.index(12)
-                fakedims = [f"dim{n}" for n in range(len(data.shape))]
-                fakedims[time_dim_num] = "time"
-                data = xr.DataArray(data, dims=fakedims, attrs=data.attrs)
-            timefix = pd.date_range(
-                start="1/1/1999", end="12/1/1999", freq="MS"
-            )  # generic time coordinate from a non-leap-year
-            data = data.assign_coords({"time": timefix})
-        month_length = data.time.dt.days_in_month
+                if "month" in data.dims:
+                    data = data.rename({"month": "time"})
+                    has_time = True
+        if not has_time:
+            # this might happen if a pure numpy array gets passed in
+            # --> assumes ordered January to December.
+            assert (12 in data.shape) and (data.shape.count(12) == 1), (
+                f"Sorry, {data.shape.count(12)} dimensions have size 12, making "
+                "determination of which dimension is month ambiguous. Please "
+                "provide a `time` or `month` dimension."
+            )
+            time_dim_num = data.shape.index(12)
+            fakedims = [f"dim{n}" for n in range(len(data.shape))]
+            fakedims[time_dim_num] = "time"
+            data = xr.DataArray(data, dims=fakedims, attrs=data.attrs)
+        timefix = pd.date_range(
+            start="1/1/1999", end="12/1/1999", freq="MS"
+        )  # generic time coordinate from a non-leap-year
+        data = data.assign_coords({"time": timefix})
     # End try/except
 
     data = data.sel(
@@ -1099,8 +1094,16 @@ def vert_remap(x_mdl, p_mdl, plev):
 #####
 
 
+# "P0" is kept to match the CAM variable name, and callers pass it by keyword:
+# pylint: disable-next=too-many-positional-arguments
 def lev_to_plev(
-    data, ps, hyam, hybm, P0=100000.0, new_levels=None, convert_to_mb=False
+    data,
+    ps,
+    hyam,
+    hybm,
+    P0=100000.0,  # pylint: disable=invalid-name
+    new_levels=None,
+    convert_to_mb=False,
 ):
     """Interpolate model hybrid levels to specified pressure levels.
 
@@ -1167,14 +1170,14 @@ def lev_to_plev(
         lev_new.name = "lev"
         lev_new.attrs["units"] = "hPa"
         lev_new.attrs["history"] = (
-            f"converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
+            "converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
         )
         data_interp_rename["lev"] = lev_new
         data_interp_rename.attrs = attrs
     else:
         data_interp_rename.attrs["units"] = "Pa"
         data_interp_rename.attrs["history"] = (
-            f"Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
+            "Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
         )
 
     return data_interp_rename
@@ -1488,10 +1491,7 @@ def lat_lon_validate_dims(fld):
     if len(fld.dims) > 3:
         return False
     validate = validate_dims(fld, ["lat", "lon"])
-    if not all(validate.values()):
-        return False
-    else:
-        return True
+    return all(validate.values())
 
 
 def zm_validate_dims(fld):

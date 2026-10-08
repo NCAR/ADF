@@ -38,14 +38,10 @@ import warnings
 # import non-standard python modules, including ADF
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 
-# pylint: disable=unused-import
-
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
 import cartopy.crs as ccrs
-
-# pylint: enable=unused-import
 
 from adf_diag import AdfDiag
 import adf_utils as utils
@@ -60,7 +56,8 @@ warnings.formatwarning = utils.my_formatwarning
 
 def load_dataset(fils):
     """
-    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+    This method exists to get an xarray Dataset from input file information that
+    can be passed into the plotting methods.
 
     Parameters
     ----------
@@ -76,13 +73,11 @@ def load_dataset(fils):
     When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
     """
     if len(fils) == 0:
-        warnings.warn(f"\t    WARNING: Input file list is empty.")
+        warnings.warn("\t    WARNING: Input file list is empty.")
         return None
-    elif len(fils) > 1:
+    if len(fils) > 1:
         return xr.open_mfdataset(fils, combine="by_coords")
-    else:
-        return xr.open_dataset(fils[0])
-    # End if
+    return xr.open_dataset(fils[0])
 
 
 # End def
@@ -130,11 +125,10 @@ def use_this_norm():
     mplversion = [int(x) for x in mpl.__version__.split(".")]
     if mplversion[0] < 3:
         return mpl.colors.Normalize, mplversion[0]
-    else:
-        if mplversion[1] < 2:
-            return mpl.colors.DivergingNorm, mplversion[0]
-        else:
-            return mpl.colors.TwoSlopeNorm, mplversion[0]
+    if mplversion[1] < 2:
+        # Only exists in old matplotlib versions:
+        return mpl.colors.DivergingNorm, mplversion[0]  # pylint: disable=no-member
+    return mpl.colors.TwoSlopeNorm, mplversion[0]
 
 
 #######
@@ -196,7 +190,7 @@ def get_difference_colors(values):
     Uses 'OrRd' colormap for positive definite, 'BuPu_r' for negative definite,
     and 'RdBu_r' centered on zero if there are values of both signs.
     """
-    normfunc, mplv = use_this_norm()
+    normfunc, _ = use_this_norm()
     finite = np.asarray(values, dtype=float)
     finite = finite[np.isfinite(finite)]
     if finite.size == 0:
@@ -206,19 +200,19 @@ def get_difference_colors(values):
         # left 'cmap' unset here and died with an UnboundLocalError.  Note
         # np.min/np.max were used before, so a single missing point anywhere in
         # the field was enough to reach this.
-        return mpl.colors.Normalize(vmin=-1.0, vmax=1.0), mpl.cm.RdBu_r
+        return mpl.colors.Normalize(vmin=-1.0, vmax=1.0), mpl.colormaps["RdBu_r"]
     dmin = finite.min()
     dmax = finite.max()
     # color normalization for difference
-    cmap = mpl.cm.RdBu_r
-    if (dmin < 0) and (0 < dmax):
+    cmap = mpl.colormaps["RdBu_r"]
+    if dmin < 0 < dmax:
         dnorm = normfunc(vmin=dmin, vmax=dmax, vcenter=0.0)
     else:
         dnorm = mpl.colors.Normalize(vmin=dmin, vmax=dmax)
         if dmin >= 0:
-            cmap = mpl.cm.OrRd
+            cmap = mpl.colormaps["OrRd"]
         elif dmax <= 0:
-            cmap = mpl.cm.BuPu_r
+            cmap = mpl.colormaps["BuPu_r"]
     return dnorm, cmap
 
 
@@ -245,7 +239,8 @@ def get_central_longitude(*args):
 
     Notes
     -----
-    This allows a script to, for example, allow a config file to specify, but also have a preference:
+    This allows a script to, for example, allow a config file to specify, but also
+    have a preference:
     `get_central_longitude(AdfObj, 30.0)`
     """
     chk_for_adf = [isinstance(arg, AdfDiag) for arg in args]
@@ -254,42 +249,36 @@ def get_central_longitude(*args):
         for arg in args:
             if isinstance(arg, AdfDiag):
                 result = arg.get_basic_info("central_longitude", required=False)
-                if (
-                    (isinstance(result, int) or isinstance(result, float))
-                    and (result >= -180)
-                    and (result <= 360)
-                ):
+                if isinstance(result, (int, float)) and -180 <= result <= 360:
                     return result
-                else:
-                    # If result exists, then write info to debug log:
-                    if result:
-                        msg = f"central_lngitude of type '{type(result).__name__}'"
-                        msg += f" and value '{result}', which is not a valid longitude"
-                        msg += " for the ADF."
-                        arg.debug_log(msg)
-                    # End if
-
-                    # There is only one ADF object per ADF run, so if its
-                    # not present or configured correctly then no
-                    # reason to keep looking:
-                    break
                 # End if
+
+                # If result exists, then write info to debug log:
+                if result:
+                    msg = f"central_lngitude of type '{type(result).__name__}'"
+                    msg += f" and value '{result}', which is not a valid longitude"
+                    msg += " for the ADF."
+                    arg.debug_log(msg)
+                # End if
+
+                # There is only one ADF object per ADF run, so if its
+                # not present or configured correctly then no
+                # reason to keep looking:
+                break
             # End if
         # End for
     # End if
 
     # 2nd pass through arguments, look for numbers:
     for arg in args:
-        if (isinstance(arg, float) or isinstance(arg, int)) and (
-            (arg >= -180) and (arg <= 360)
-        ):
+        if isinstance(arg, (float, int)) and -180 <= arg <= 360:
             return arg
         # End if
-    else:
-        # this is the `else` on the for loop --> if non of the arguments meet the criteria, do this.
-        print("No valid central longitude specified. Defaults to 180.")
-        return 180
-    # End if
+    # End for
+
+    # None of the arguments meet the criteria:
+    print("No valid central longitude specified. Defaults to 180.")
+    return 180
 
 
 #######
@@ -309,9 +298,9 @@ def _plot_line(axobject, xdata, ydata, color, **kwargs):
 
     # Set Y-axis label:
     if hasattr(ydata, "units"):
-        axobject.set_ylabel("[{units}]".format(units=getattr(ydata, "units")))
+        axobject.set_ylabel(f"[{getattr(ydata, 'units')}]")
     elif "units" in kwargs:
-        axobject.set_ylabel("[{units}]".format(kwargs["units"]))
+        axobject.set_ylabel(f"[{kwargs['units']}]")
     # End if
 
     return axobject
@@ -327,9 +316,9 @@ def meridional_plot_line(ax, lon, data, color, **kwargs):
     #
     ax.set_xlabel("LONGITUDE")
     if hasattr(data, "units"):
-        ax.set_ylabel("{units}".format(units=getattr(data, "units")))
+        ax.set_ylabel(f"{getattr(data, 'units')}")
     elif "units" in kwargs:
-        ax.set_ylabel("{units}".format(kwargs["units"]))
+        ax.set_ylabel(f"{kwargs['units']}")
     return ax
 
 
@@ -342,9 +331,9 @@ def zonal_plot_line(ax, lat, data, color, **kwargs):
     #
     ax.set_xlabel("LATITUDE")
     if hasattr(data, "units"):
-        ax.set_ylabel("{units}".format(units=getattr(data, "units")))
+        ax.set_ylabel(f"{getattr(data, 'units')}")
     elif "units" in kwargs:
-        ax.set_ylabel("{units}".format(kwargs["units"]))
+        ax.set_ylabel(f"{kwargs['units']}")
     return ax
 
 
@@ -406,6 +395,8 @@ def colormap_object(cmap):
     return cmap
 
 
+# "pctdata" is unused, but is kept so as to not break existing calls:
+# pylint: disable-next=unused-argument
 def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     """Preparation for making contour plots.
 
@@ -448,11 +439,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # determine norm to use (deprecate this once minimum MPL version is high enough)
     normfunc, mplv = use_this_norm()
 
-    if "colormap" in kwargs:
-        cmap1 = kwargs["colormap"]
-    else:
-        cmap1 = "coolwarm"
-    # End if
+    cmap1 = kwargs.get("colormap", "coolwarm")
 
     if "contour_levels" in kwargs:
         levels1 = kwargs["contour_levels"]
@@ -490,7 +477,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # End if
 
     if ("colormap" not in kwargs) and ("contour_levels" not in kwargs):
-        if ((minval < 0) and (0 < maxval)) and mplv > 2:
+        if (minval < 0 < maxval) and mplv > 2:
             norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
         else:
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
@@ -498,11 +485,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # End if
 
     # Difference options -- Check in kwargs for colormap and levels
-    if "diff_colormap" in kwargs:
-        cmapdiff = kwargs["diff_colormap"]
-    else:
-        cmapdiff = "coolwarm"
-    # End if
+    cmapdiff = kwargs.get("diff_colormap", "coolwarm")
 
     if "diff_contour_levels" in kwargs:
         levelsdiff = kwargs["diff_contour_levels"]  # a list of explicit contour levels
@@ -518,11 +501,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         # set levels for difference plot:
         levelsdiff = np.linspace(-1 * absmaxdif, absmaxdif, 12)
     # Percent Difference options -- Check in kwargs for colormap and levels
-    if "pct_diff_colormap" in kwargs:
-        cmappct = kwargs["pct_diff_colormap"]
-    else:
-        cmappct = "PuOr_r"
-    # End if
+    cmappct = kwargs.get("pct_diff_colormap", "PuOr_r")
 
     if "pct_diff_contour_levels" in kwargs:
         levelspctdiff = kwargs[
@@ -561,13 +540,10 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         ]
     pctnorm = mpl.colors.BoundaryNorm(levelspctdiff, 256)
 
-    if "plot_log_pressure" in kwargs:
-        plot_log_p = kwargs["plot_log_pressure"]
-    else:
-        plot_log_p = False
+    plot_log_p = kwargs.get("plot_log_pressure", False)
 
     # color normalization for difference
-    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
+    if (np.min(levelsdiff) < 0 < np.max(levelsdiff)) and mplv > 2:
         normdiff = normfunc(
             vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0
         )

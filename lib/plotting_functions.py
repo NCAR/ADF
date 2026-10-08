@@ -32,6 +32,9 @@ square_contour_difference
     Produce filled contours of fld1, fld2, and their difference with square axes.
 """
 
+# This module collects many plotting functions, so allow it to be long:
+# pylint: disable=too-many-lines
+
 # ++++++++++++++++++++++++++++++
 # Import standard python modules
 # ++++++++++++++++++++++++++++++
@@ -44,8 +47,6 @@ import warnings  # use to warn user about missing files.
 # import non-standard python modules, including ADF
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 
-# pylint: disable=unused-import
-
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
@@ -57,8 +58,6 @@ from cartopy.util import add_cyclic_point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 
-# pylint: enable=unused-import
-
 from adf_base import AdfError
 import plotting_utils as plot_utils
 import adf_utils as utils
@@ -69,14 +68,10 @@ warnings.formatwarning = utils.my_formatwarning
 # Set non-X-window backend for matplotlib:
 mpl.use("Agg")
 
-# pylint: disable=unused-import
+# Now import pyplot (must come after the backend is set above):
+import matplotlib.pyplot as plt  # pylint: disable=wrong-import-order,ungrouped-imports
 
-# Now import pyplot:
-import matplotlib.pyplot as plt
-
-# pylint: enable=unused-import
-
-empty_message = "No Valid\nData Points"
+EMPTY_MESSAGE = "No Valid\nData Points"
 props = {"boxstyle": "round", "facecolor": "wheat", "alpha": 0.9}
 
 
@@ -94,6 +89,7 @@ seasons = {
 #################
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def make_polar_plot(
     wks,
     case_nickname,
@@ -169,7 +165,8 @@ def make_polar_plot(
         proj = ccrs.SouthPolarStereo()
     else:
         raise AdfError(
-            f"[make_polar_plot] hemisphere not specified, must be NH or SH; hemisphere set as {hemisphere}"
+            "[make_polar_plot] hemisphere not specified, must be NH or SH; "
+            f"hemisphere set as {hemisphere}"
         )
 
     if domain is None:
@@ -204,12 +201,8 @@ def make_polar_plot(
     minval = np.min([np.min(d1), np.min(d2)])
     maxval = np.max([np.max(d1), np.max(d2)])
     absmaxdif = np.max(np.abs(dif))
-    absmaxpct = np.max(np.abs(pct))
 
-    if "colormap" in kwargs:
-        cmap1 = kwargs["colormap"]
-    else:
-        cmap1 = "coolwarm"
+    cmap1 = kwargs.get("colormap", "coolwarm")
 
     if "contour_levels" in kwargs:
         levels1 = kwargs["contour_levels"]
@@ -312,11 +305,7 @@ def make_polar_plot(
         dnorm, cmapdiff = plot_utils.get_difference_colors(levelsdiff)
 
     # Pct Difference options -- Check in kwargs for colormap and levels
-    if "pct_diff_colormap" in kwargs:
-        cmappct = kwargs["pct_diff_colormap"]
-    else:
-        cmappct = "PuOr_r"
-    # End if
+    cmappct = kwargs.get("pct_diff_colormap", "PuOr_r")
 
     # -- end options
     lons, lats = plot_utils.transform_coordinates_for_projection(
@@ -338,21 +327,19 @@ def make_polar_plot(
     # BPM: removing `transform=ccrs.PlateCarree()` from contourf calls & transform_first=True
     if len(levs) < 2:
         img1 = ax1.contourf(lons, lats, d1_cyclic, colors="w", norm=norm1)
-        ax1.text(0.4, 0.4, empty_message, transform=ax1.transAxes, bbox=props)
+        ax1.text(0.4, 0.4, EMPTY_MESSAGE, transform=ax1.transAxes, bbox=props)
 
-        img2 = ax2.contourf(lons, lats, d2_cyclic, colors="w", norm=norm1)
-        ax2.text(0.4, 0.4, empty_message, transform=ax2.transAxes, bbox=props)
+        ax2.contourf(lons, lats, d2_cyclic, colors="w", norm=norm1)
+        ax2.text(0.4, 0.4, EMPTY_MESSAGE, transform=ax2.transAxes, bbox=props)
     else:
         img1 = ax1.contourf(
             lons, lats, d1_cyclic, cmap=cmap1, norm=norm1, levels=levels1
         )
-        img2 = ax2.contourf(
-            lons, lats, d2_cyclic, cmap=cmap1, norm=norm1, levels=levels1
-        )
+        ax2.contourf(lons, lats, d2_cyclic, cmap=cmap1, norm=norm1, levels=levels1)
 
     if len(levs_pctdiff) < 2:
         img3 = ax3.contourf(lons, lats, pct_cyclic, colors="w", norm=pctnorm)
-        ax3.text(0.4, 0.4, empty_message, transform=ax3.transAxes, bbox=props)
+        ax3.text(0.4, 0.4, EMPTY_MESSAGE, transform=ax3.transAxes, bbox=props)
     else:
         img3 = ax3.contourf(
             lons, lats, pct_cyclic, cmap=cmappct, norm=pctnorm, levels=levelspctdiff
@@ -360,7 +347,7 @@ def make_polar_plot(
 
     if len(levs_diff) < 2:
         img4 = ax4.contourf(lons, lats, dif_cyclic, colors="w", norm=dnorm)
-        ax4.text(0.4, 0.4, empty_message, transform=ax4.transAxes, bbox=props)
+        ax4.text(0.4, 0.4, EMPTY_MESSAGE, transform=ax4.transAxes, bbox=props)
     else:
         img4 = ax4.contourf(
             lons, lats, dif_cyclic, cmap=cmapdiff, norm=dnorm, levels=levelsdiff
@@ -375,7 +362,7 @@ def make_polar_plot(
         r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
-    ax1.set_title(case_title, loc="left", fontsize=6)  # fontsize=tiFontSize
+    ax1.set_title(case_title, loc="left", fontsize=6)  # fontsize=ti_font_size
 
     if obs:
         obs_var = kwargs["obs_var_name"]
@@ -387,7 +374,7 @@ def make_polar_plot(
             + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
-        ax2.set_title(base_title, loc="left", fontsize=6)  # fontsize=tiFontSize
+        ax2.set_title(base_title, loc="left", fontsize=6)  # fontsize=ti_font_size
     else:
         base_title = (
             r"$\mathbf{Baseline}:$"
@@ -432,8 +419,9 @@ def make_polar_plot(
         ax2.set_ylabel(f"{d1.units}")
         ax4.set_ylabel(f"{d1.units}")
 
-    [a.set_extent(domain, ccrs.PlateCarree()) for a in [ax1, ax2, ax3, ax4]]
-    [a.coastlines() for a in [ax1, ax2, ax3, ax4]]
+    for a in [ax1, ax2, ax3, ax4]:
+        a.set_extent(domain, ccrs.PlateCarree())
+        a.coastlines()
 
     # __Follow the cartopy gallery example to make circular__:
     # Compute a circle in axes coordinates, which we can use as a boundary
@@ -443,7 +431,8 @@ def make_polar_plot(
     center, radius = [0.5, 0.5], 0.5
     verts = np.vstack([np.sin(theta), np.cos(theta)]).T
     circle = mpl.path.Path(verts * radius + center)
-    [a.set_boundary(circle, transform=a.transAxes) for a in [ax1, ax2, ax3, ax4]]
+    for a in [ax1, ax2, ax3, ax4]:
+        a.set_boundary(circle, transform=a.transAxes)
 
     # __COLORBARS__
     cb_mean_ax = inset_axes(
@@ -491,13 +480,15 @@ def make_polar_plot(
 #######
 
 
+# "plev" is unused, but is kept so as to not break existing calls:
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def plot_map_vect_and_save(
     wks,
     case_nickname,
     base_nickname,
     case_climo_yrs,
     baseline_climo_yrs,
-    plev,
+    plev,  # pylint: disable=unused-argument
     umdlfld_nowrap,
     vmdlfld_nowrap,
     uobsfld_nowrap,
@@ -589,31 +580,6 @@ def plot_map_vect_and_save(
     # too many vectors to see well, so prune by striding through data:
     skip = (slice(None, None, 5), slice(None, None, 8))
 
-    title_string = "Missing title!"
-    title_string_base = title_string
-    if "var_name" in kwargs:
-        var_name = kwargs["var_name"]
-    else:
-        var_name = "missing VAR name"
-    # End if
-
-    if "case_name" in kwargs:
-        case_name = kwargs["case_name"]
-        if plev:
-            title_string = f"{case_name} {var_name} [{plev} hPa]"
-        else:
-            title_string = f"{case_name} {var_name}"
-        # End if
-    # End if
-    if "baseline" in kwargs:
-        data_name = kwargs["baseline"]
-        if plev:
-            title_string_base = f"{data_name} {var_name} [{plev} hPa]"
-        else:
-            title_string_base = f"{data_name} {var_name}"
-        # End if
-    # End if
-
     # Calculate vector magnitudes.
     # Please note that the difference field needs
     # to be calculated from the model and obs fields
@@ -631,7 +597,7 @@ def plot_map_vect_and_save(
     max_diff_val = np.max(diff_mag)
 
     # Color normalization for difference
-    if (min_diff_val < 0) and (0 < max_diff_val):
+    if min_diff_val < 0 < max_diff_val:
         normdiff = mpl.colors.TwoSlopeNorm(
             vmin=min_diff_val, vmax=max_diff_val, vcenter=0.0
         )
@@ -641,8 +607,9 @@ def plot_map_vect_and_save(
 
     # Generate vector plot:
     #  - contourf to show magnitude w/ colorbar
-    #  - vectors (colored or not) to show flow --> subjective (?) choice for how to thin out vectors to be legible
-    img1 = ax1.contourf(
+    #  - vectors (colored or not) to show flow --> subjective (?) choice for how
+    #    to thin out vectors to be legible
+    ax1.contourf(
         lons,
         lats,
         mdl_mag,
@@ -680,15 +647,9 @@ def plot_map_vect_and_save(
 
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
-    if "tiString" in kwargs:
-        tiString = kwargs.pop("tiString")
-    else:
-        tiString = ""
-    if "tiFontSize" in kwargs:
-        tiFontSize = kwargs.pop("tiFontSize")
-    else:
-        tiFontSize = 8
-    # End if
+    # Remove "tiString" so it isn't passed on to matplotlib (it is not used here):
+    kwargs.pop("tiString", None)
+    ti_font_size = kwargs.pop("tiFontSize", 8)
 
     # Set Main title for subplots:
     st = fig.suptitle(wks.stem[:-5].replace("_", " - "), fontsize=18)
@@ -699,7 +660,7 @@ def plot_map_vect_and_save(
         r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
-    ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
+    ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
 
     if obs:
         obs_var = kwargs["obs_var_name"]
@@ -711,35 +672,38 @@ def plot_map_vect_and_save(
             + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
-        ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
+        ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
     else:
         base_title = (
             r"$\mathbf{Baseline}:$"
             + f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         )
-        ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
+        ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
 
     # Set stats: area_avg
     ax[0].set_title(
-        f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\nMax: {mdl_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}",
+        f"Mean: {mdl_mag.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {mdl_mag.max():5.2f}\nMin: {mdl_mag.min():5.2f}",
         loc="right",
-        fontsize=tiFontSize,
+        fontsize=ti_font_size,
     )
     ax[1].set_title(
-        f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\nMax: {obs_mag.max():5.2f}\nMin: {obs_mag.min():5.2f}",
+        f"Mean: {obs_mag.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {obs_mag.max():5.2f}\nMin: {obs_mag.min():5.2f}",
         loc="right",
-        fontsize=tiFontSize,
+        fontsize=ti_font_size,
     )
     ax[-1].set_title(
-        f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\nMax: {diff_mag.max():5.2f}\nMin: {diff_mag.min():5.2f}",
+        f"Mean: {diff_mag.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {diff_mag.max():5.2f}\nMin: {diff_mag.min():5.2f}",
         loc="right",
-        fontsize=tiFontSize,
+        fontsize=ti_font_size,
     )
 
     # set rmse title:
-    ax[-1].set_title("RMSE: ", fontsize=tiFontSize)
+    ax[-1].set_title("RMSE: ", fontsize=ti_font_size)
     ax[-1].set_title(
-        r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+        r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
     )
 
     if "units" in kwargs:
@@ -812,6 +776,7 @@ def plot_map_vect_and_save(
 #######
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def plot_map_and_save(
     wks,
     case_nickname,
@@ -861,9 +826,11 @@ def plot_map_and_save(
     - diff_contour_levels
     - tiString -> str, Title String
     - tiFontSize -> int, Title Font Size
-    - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
+    - mpl -> dict, This should be any matplotlib kwargs that should be passed along.
+      Keep reading:
         + Organize these by the mpl function. In this function (`plot_map_and_save`)
-          we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
+          we will check for an entry called `subplots`, `contourf`, and `colorbar`.
+          So the YAML might looks something like:
           ```
            mpl:
              subplots:
@@ -874,12 +841,11 @@ def plot_map_and_save(
              colorbar:
                shrink: 0.4
           ```
-        + This is experimental, and if you find yourself doing much with this, you probably should write a new plotting script that does not rely on this module.
-    When these are not provided, colormap is set to 'coolwarm' and limits/levels are set by data range.
+        + This is experimental, and if you find yourself doing much with this, you
+          probably should write a new plotting script that does not rely on this module.
+    When these are not provided, colormap is set to 'coolwarm' and limits/levels are
+    set by data range.
     """
-
-    # nice formatting for tick labels
-    from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 
     # preprocess
     # - assume all three fields have same lat/lon
@@ -893,7 +859,8 @@ def plot_map_and_save(
     # mesh for plots:
     lons, lats = np.meshgrid(lon, lat)
     # Note: using wrapped data makes spurious lines across plot (maybe coordinate dependent)
-    lon2, lat2 = np.meshgrid(mdlfld["lon"], mdlfld["lat"])
+    # (Only needed for the contour lines below, which are currently turned off):
+    # lon2, lat2 = np.meshgrid(mdlfld["lon"], mdlfld["lat"])
 
     # get statistics (from non-wrapped)
     fields = (mdlfld, obsfld, diffld, pctld)
@@ -907,17 +874,9 @@ def plot_map_and_save(
 
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
-    if "tiString" in kwargs:
-        tiString = kwargs.pop("tiString")
-    else:
-        tiString = ""
-    # End if
-
-    if "tiFontSize" in kwargs:
-        tiFontSize = kwargs.pop("tiFontSize")
-    else:
-        tiFontSize = 8
-    # End if
+    # Remove "tiString" so it isn't passed on to matplotlib (it is not used here):
+    kwargs.pop("tiString", None)
+    ti_font_size = kwargs.pop("tiFontSize", 8)
 
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(mdlfld, obsfld, diffld, pctld, **kwargs)
@@ -940,8 +899,7 @@ def plot_map_and_save(
     ax = [ax1, ax2, ax3, ax4]
 
     img = []  # contour plots
-    cs = []  # contour lines
-    cb = []  # color bars
+    # cs = []  # contour lines (currently turned off, see below)
 
     # formatting for tick labels
     lon_formatter = LongitudeFormatter(
@@ -976,7 +934,7 @@ def plot_map_and_save(
                     transform_first=True,
                 )
             )
-            ax[i].text(0.4, 0.4, empty_message, transform=ax[i].transAxes, bbox=props)
+            ax[i].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props)
         else:
             img.append(
                 ax[i].contourf(
@@ -992,14 +950,17 @@ def plot_map_and_save(
                 )
             )
         # End if
-        ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc="right", fontsize=11)
+        ax[i].set_title(f"AVG: {area_avg[i]:.3f}", loc="right", fontsize=11)
 
         # add contour lines <- Unused for now -JN
-        # TODO: add an option to turn this on -BM
-        # cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(), colors='k', linewidths=1))
-        # ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=tiFontSize-2, fmt='%1.1f')
-        # ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels), max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
-        # bbox=dict(facecolor='none', edgecolor='black'), fontsize=tiFontSize-2)
+        # TODO: add an option to turn this on -BM  # pylint: disable=fixme
+        # cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(),
+        #                         colors='k', linewidths=1))
+        # ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=ti_font_size-2,
+        #              fmt='%1.1f')
+        # ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels),
+        #            max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
+        # bbox=dict(facecolor='none', edgecolor='black'), fontsize=ti_font_size-2)
 
     st = fig.suptitle(wks.stem[:-5].replace("_", " - "), fontsize=18)
     st.set_y(0.85)
@@ -1009,7 +970,7 @@ def plot_map_and_save(
         r"$\mathbf{Test}:$"
         + f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
     )
-    ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
+    ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
 
     if obs:
         obs_var = kwargs["obs_var_name"]
@@ -1021,43 +982,47 @@ def plot_map_and_save(
             + r"$\mathbf{Variable}:$"
             + f"{obs_var}"
         )
-        ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
+        ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
     else:
         base_title = (
             r"$\mathbf{Baseline}:$"
             + f"{base_nickname}\nyears: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         )
-        ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
+        ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
 
     # Set stats: area_avg
     ax[0].set_title(
-        f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\nMax: {mdlfld.max():5.2f}\nMin: {mdlfld.min():5.2f}",
+        f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {mdlfld.max():5.2f}\nMin: {mdlfld.min():5.2f}",
         loc="right",
-        fontsize=tiFontSize,
+        fontsize=ti_font_size,
     )
     ax[1].set_title(
-        f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\nMax: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}",
+        f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}",
         loc="right",
-        fontsize=tiFontSize,
+        fontsize=ti_font_size,
     )
     ax[2].set_title(
-        f"Mean: {pctld.weighted(wgt).mean().item():5.2f}\nMax: {pctld.max():5.2f}\nMin: {pctld.min():5.2f}",
+        f"Mean: {pctld.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {pctld.max():5.2f}\nMin: {pctld.min():5.2f}",
         loc="right",
-        fontsize=tiFontSize,
+        fontsize=ti_font_size,
     )
     ax[3].set_title(
-        f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}",
+        f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}",
         loc="right",
-        fontsize=tiFontSize,
+        fontsize=ti_font_size,
     )
 
     # set rmse title:
-    ax[3].set_title(f"RMSE: {d_rmse:.3f}", fontsize=tiFontSize)
+    ax[3].set_title(f"RMSE: {d_rmse:.3f}", fontsize=ti_font_size)
     ax[3].set_title(
-        r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+        r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
     )
     ax[2].set_title(
-        "Test % Diff Baseline", loc="left", fontsize=tiFontSize, fontweight="bold"
+        "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
     )
 
     for a in ax:
@@ -1091,8 +1056,8 @@ def plot_map_and_save(
         bbox_transform=ax3.transAxes,
         borderpad=0,
     )
-    PCT_CB = fig.colorbar(img[2], cax=cb_pct_ax, **cp_info["colorbar_opt"])
-    PCT_CB.ax.set_ylabel = "%"
+    pct_cb = fig.colorbar(img[2], cax=cb_pct_ax, **cp_info["colorbar_opt"])
+    pct_cb.ax.set_ylabel = "%"
 
     cb_diff_ax = inset_axes(
         ax4,
@@ -1144,9 +1109,8 @@ def zonal_plot(lat, data, ax=None, color=None, **kwargs):
     if "lev" in data.dims:
         img, ax = plot_utils.zonal_plot_preslat(ax, lat, data["lev"], data, **kwargs)
         return img, ax
-    else:
-        ax = plot_utils.zonal_plot_line(ax, lat, data, color, **kwargs)
-        return ax
+    ax = plot_utils.zonal_plot_line(ax, lat, data, color, **kwargs)
+    return ax
 
 
 def meridional_plot(lon, data, ax=None, color=None, **kwargs):
@@ -1181,14 +1145,14 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
             ax, lon, data["lev"], data, **kwargs
         )
         return img, ax
-    else:
-        ax = plot_utils.meridional_plot_line(ax, lon, data, color, **kwargs)
-        return ax
+    ax = plot_utils.meridional_plot_line(ax, lon, data, color, **kwargs)
+    return ax
 
 
 #######
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def plot_zonal_mean_and_save(
     wks,
     case_nickname,
@@ -1216,16 +1180,19 @@ def plot_zonal_mean_and_save(
           + 3 panels: (top) zonal mean adata, (middle) zonal mean bdata, (bottom) difference
           + pcolormesh/contour plot
     kwargs -> optional dictionary of plotting options
-             ** Expecting this to be variable-specific section, possibly provided by ADF Variable Defaults YAML file.**
+             ** Expecting this to be variable-specific section, possibly provided by
+             ADF Variable Defaults YAML file.**
     - colormap -> str, name of matplotlib colormap
     - contour_levels -> list of explict values or a tuple: (min, max, step)
     - diff_colormap
     - diff_contour_levels
     - tiString -> str, Title String
     - tiFontSize -> int, Title Font Size
-    - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
+    - mpl -> dict, This should be any matplotlib kwargs that should be passed along.
+      Keep reading:
         + Organize these by the mpl function. In this function (`plot_map_and_save`)
-          we will check for an entry called `subplots`, `contourf`, and `colorbar`. So the YAML might looks something like:
+          we will check for an entry called `subplots`, `contourf`, and `colorbar`.
+          So the YAML might looks something like:
           ```
            mpl:
              subplots:
@@ -1241,11 +1208,7 @@ def plot_zonal_mean_and_save(
     # style the plot:
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
-    if "tiFontSize" in kwargs:
-        tiFontSize = kwargs.pop("tiFontSize")
-    else:
-        tiFontSize = 8
-    # End if
+    ti_font_size = kwargs.pop("tiFontSize", 8)
 
     # Set plot titles
     case_title = (
@@ -1302,9 +1265,9 @@ def plot_zonal_mean_and_save(
 
         if len(levs) < 2:
             img0, ax[0] = zonal_plot(adata["lat"], azm, ax=ax[0])
-            ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
+            ax[0].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[0].transAxes, bbox=props)
             img1, ax[1] = zonal_plot(bdata["lat"], bzm, ax=ax[1])
-            ax[1].text(0.4, 0.4, empty_message, transform=ax[1].transAxes, bbox=props)
+            ax[1].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[1].transAxes, bbox=props)
         else:
             img0, ax[0] = zonal_plot(
                 adata["lat"],
@@ -1330,7 +1293,7 @@ def plot_zonal_mean_and_save(
 
         if len(levs_diff) < 2:
             img2, ax[2] = zonal_plot(adata["lat"], diff, ax=ax[2])
-            ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
+            ax[2].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[2].transAxes, bbox=props)
         else:
             img2, ax[2] = zonal_plot(
                 adata["lat"],
@@ -1347,7 +1310,7 @@ def plot_zonal_mean_and_save(
 
         if len(levs_pct_diff) < 2:
             img3, ax[3] = zonal_plot(adata["lat"], pct, ax=ax[3])
-            ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
+            ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
         else:
             img3, ax[3] = zonal_plot(
                 adata["lat"],
@@ -1362,13 +1325,13 @@ def plot_zonal_mean_and_save(
                 img3, ax=ax[3], location="right", **cp_info["pct_colorbar_opt"]
             )
 
-        ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
-        ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
+        ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
+        ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
         ax[2].set_title(
-            r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+            r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
         )
         ax[3].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=tiFontSize, fontweight="bold"
+            "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
         )
 
         # style the plot:
@@ -1378,7 +1341,8 @@ def plot_zonal_mean_and_save(
         ax[-1].set_xlabel("LATITUDE")
 
         if log_p:
-            [a.set_yscale("log") for a in ax]
+            for a in ax:
+                a.set_yscale("log")
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
     else:
@@ -1438,7 +1402,8 @@ def plot_zonal_mean_and_save(
         for a in ax:
             try:
                 a.label_outer()
-            except:
+            # Labeling is cosmetic, so never let it stop the plot from being saved:
+            except Exception:  # pylint: disable=broad-exception-caught
                 pass
             # End except
         # End for
@@ -1454,6 +1419,8 @@ def plot_zonal_mean_and_save(
 #######
 
 
+# "log_p" is unused, but is kept so as to not break existing calls:
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def plot_meridional_mean_and_save(
     wks,
     case_nickname,
@@ -1463,7 +1430,7 @@ def plot_meridional_mean_and_save(
     adata,
     bdata,
     has_lev,
-    log_p=False,
+    log_p=False,  # pylint: disable=unused-argument
     latbounds=None,
     obs=False,
     **kwargs,
@@ -1518,8 +1485,10 @@ def plot_meridional_mean_and_save(
         - diff_contour_levels  -> list of explicit values or a tuple: (min, max, step)
         - tiString             -> str, Title String
         - tiFontSize           -> int, Title Font Size
-        - mpl -> dict, This should be any matplotlib kwargs that should be passed along. Keep reading:
-            + Organize these by the mpl function. In this function (`plot_meridional_mean_and_save`)
+        - mpl -> dict, This should be any matplotlib kwargs that should be passed along.
+          Keep reading:
+            + Organize these by the mpl function. In this function
+            (`plot_meridional_mean_and_save`)
             we will check for an entry called `subplots`, `contourf`, and `colorbar`.
             So the YAML might looks something like:
             ```
@@ -1544,7 +1513,8 @@ def plot_meridional_mean_and_save(
         latbounds, slice
     ):  # If not a slice object, then quit this routine.
         print(
-            f"ERROR: plot_meridonal_mean_and_save - received an invalid value for latbounds ({latbounds}). Must be a number or a slice."
+            "ERROR: plot_meridonal_mean_and_save - received an invalid value for "
+            f"latbounds ({latbounds}). Must be a number or a slice."
         )
         return None
     # End if
@@ -1552,11 +1522,7 @@ def plot_meridional_mean_and_save(
     # style the plot:
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
-    if "tiFontSize" in kwargs:
-        tiFontSize = kwargs.pop("tiFontSize")
-    else:
-        tiFontSize = 8
-    # End if
+    ti_font_size = kwargs.pop("tiFontSize", 8)
 
     # possible that the data has time, but usually it won't
     if len(adata.dims) > 4:
@@ -1582,7 +1548,8 @@ def plot_meridional_mean_and_save(
     # If there are other dimensions, they are still going to be there:
     if len(adata.dims) > 2:
         print(
-            f"ERROR: plot_meridonal_mean_and_save - AFTER averaging, there are too many dimensions: {adata.dims}"
+            "ERROR: plot_meridonal_mean_and_save - AFTER averaging, there are too "
+            f"many dimensions: {adata.dims}"
         )
         return None
 
@@ -1596,7 +1563,9 @@ def plot_meridional_mean_and_save(
 
     # plot-controlling parameters:
     xdim = "lon"  # the name used for the x-axis dimension
-    pltfunc = meridional_plot  # the plotting function ... maybe we can generalize to get zonal/meridional into one function (?)
+    # the plotting function ... maybe we can generalize to get zonal/meridional
+    # into one function (?)
+    pltfunc = meridional_plot
 
     case_title = (
         r"$\mathbf{Test}:$"
@@ -1638,9 +1607,9 @@ def plot_meridional_mean_and_save(
 
         if len(levs) < 2:
             img0, ax[0] = pltfunc(adata[xdim], adata, ax=ax[0])
-            ax[0].text(0.4, 0.4, empty_message, transform=ax[0].transAxes, bbox=props)
+            ax[0].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[0].transAxes, bbox=props)
             img1, ax[1] = pltfunc(bdata[xdim], bdata, ax=ax[1])
-            ax[1].text(0.4, 0.4, empty_message, transform=ax[1].transAxes, bbox=props)
+            ax[1].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[1].transAxes, bbox=props)
         else:
             img0, ax[0] = pltfunc(
                 adata[xdim],
@@ -1660,17 +1629,13 @@ def plot_meridional_mean_and_save(
                 levels=cp_info["levels1"],
                 **cp_info["contourf_opt"],
             )
-            cb0 = fig.colorbar(
-                img0, ax=ax[0], location="right", **cp_info["colorbar_opt"]
-            )
-            cb1 = fig.colorbar(
-                img1, ax=ax[1], location="right", **cp_info["colorbar_opt"]
-            )
+            fig.colorbar(img0, ax=ax[0], location="right", **cp_info["colorbar_opt"])
+            fig.colorbar(img1, ax=ax[1], location="right", **cp_info["colorbar_opt"])
         # End if
 
         if len(levs_diff) < 2:
             img2, ax[2] = pltfunc(adata[xdim], diff, ax=ax[2])
-            ax[2].text(0.4, 0.4, empty_message, transform=ax[2].transAxes, bbox=props)
+            ax[2].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[2].transAxes, bbox=props)
         else:
             img2, ax[2] = pltfunc(
                 adata[xdim],
@@ -1681,13 +1646,11 @@ def plot_meridional_mean_and_save(
                 levels=cp_info["levelsdiff"],
                 **cp_info["contourf_opt"],
             )
-            cb2 = fig.colorbar(
-                img2, ax=ax[2], location="right", **cp_info["colorbar_opt"]
-            )
+            fig.colorbar(img2, ax=ax[2], location="right", **cp_info["colorbar_opt"])
 
         if len(levs_pctdiff) < 2:
             img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
-            ax[3].text(0.4, 0.4, empty_message, transform=ax[3].transAxes, bbox=props)
+            ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
         else:
             img3, ax[3] = pltfunc(
                 adata[xdim],
@@ -1698,18 +1661,16 @@ def plot_meridional_mean_and_save(
                 levels=cp_info["levelspctdiff"],
                 **cp_info["contourf_opt"],
             )
-            cb3 = fig.colorbar(
-                img3, ax=ax[3], location="right", **cp_info["colorbar_opt"]
-            )
+            fig.colorbar(img3, ax=ax[3], location="right", **cp_info["colorbar_opt"])
 
         # Set plot titles
-        ax[0].set_title(case_title, loc="left", fontsize=tiFontSize)
-        ax[1].set_title(base_title, loc="left", fontsize=tiFontSize)
+        ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
+        ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
         ax[2].set_title(
-            r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=tiFontSize
+            r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
         )
         ax[3].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=tiFontSize, fontweight="bold"
+            "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
         )
 
         # style the plot:
@@ -1718,7 +1679,8 @@ def plot_meridional_mean_and_save(
         st.set_y(0.85)
         ax[-1].set_xlabel("LONGITUDE")
         if cp_info["plot_log_p"]:
-            [a.set_yscale("log") for a in ax]
+            for a in ax:
+                a.set_yscale("log")
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
 
     else:
@@ -1767,7 +1729,8 @@ def plot_meridional_mean_and_save(
         for a in ax:
             try:
                 a.label_outer()
-            except:
+            # Labeling is cosmetic, so never let it stop the plot from being saved:
+            except Exception:  # pylint: disable=broad-exception-caught
                 pass
             # End except
         # End for
@@ -1778,6 +1741,8 @@ def plot_meridional_mean_and_save(
 
     # Close plots:
     plt.close()
+
+    return None
 
 
 #######
@@ -1864,11 +1829,6 @@ def square_contour_difference(fld1, fld2, **kwargs):
     cbax_top = plt.subplot(grid[0:2, -1])
     cbax_bot = plt.subplot(grid[-1, 1:3])
 
-    # determine color normalization for means:
-    mx = np.max([fld1.max(), fld2.max()])
-    mn = np.min([fld1.min(), fld2.min()])
-    mnorm = mpl.colors.Normalize(mn, mx)
-
     coord1, coord2 = fld1.coords  # ASSUMES xarray WITH coords AND 2-dimensions
     xx, yy = np.meshgrid(fld1[coord2], fld1[coord1])
 
@@ -1902,13 +1862,13 @@ def square_contour_difference(fld1, fld2, **kwargs):
     dmax = diff.max()
     if dmin > 0:
         dnorm = mpl.colors.Normalize(dmin, dmax)
-        cmap = mpl.cm.OrRd
+        cmap = mpl.colormaps["OrRd"]
     elif dmax < 0:
         dnorm = mpl.colors.Normalize(dmin, dmax)
-        cmap = mpl.cm.BuPu_r
+        cmap = mpl.colormaps["BuPu_r"]
     else:
         dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
-        cmap = mpl.cm.RdBu_r
+        cmap = mpl.colormaps["RdBu_r"]
 
     img3 = ax3.contourf(xx, yy, diff.transpose(), cmap=cmap, norm=dnorm)
     if (coord1 == "month") and (fld1.shape[0] == 12):
@@ -1925,13 +1885,13 @@ def square_contour_difference(fld1, fld2, **kwargs):
     pmax = pct.max()
     if pmin > 0:
         pnorm = mpl.colors.Normalize(pmin, pmax)
-        cmap = mpl.cm.OrRd
+        cmap = mpl.colormaps["OrRd"]
     elif pmax < 0:
         pnorm = mpl.colors.Normalize(pmin, pmax)
-        cmap = mpl.cm.BuPu_r
+        cmap = mpl.colormaps["BuPu_r"]
     else:
         pnorm = mpl.colors.TwoSlopeNorm(vmin=pmin, vcenter=0, vmax=pmax)
-        cmap = mpl.cm.RdBu_r
+        cmap = mpl.colormaps["RdBu_r"]
 
     img4 = ax4.contourf(xx, yy, pct.transpose(), cmap=cmap, norm=pnorm)
     if (coord1 == "month") and (fld1.shape[0] == 12):
@@ -1966,9 +1926,9 @@ def square_contour_difference(fld1, fld2, **kwargs):
 
     fig.suptitle(tstr, fontsize=18)
 
-    cb1 = fig.colorbar(img1, cax=cbax_top)
-    cb2 = fig.colorbar(img3, cax=cbax_bot, orientation="horizontal")
-    cb3 = fig.colorbar(img4, cax=cbax_bot, orientation="horizontal")
+    fig.colorbar(img1, cax=cbax_top)
+    fig.colorbar(img3, cax=cbax_bot, orientation="horizontal")
+    fig.colorbar(img4, cax=cbax_bot, orientation="horizontal")
     return fig
 
 
