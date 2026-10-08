@@ -33,6 +33,10 @@ out of the regridding step later on.
 import sys
 from pathlib import Path
 
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+
 import xarray as xr
 
 # ADF modules:
@@ -177,7 +181,8 @@ def create_time_series_gents(adf, baseline=False):
     from :mod:`adf_file_utils`.
     """
 
-    HFCollection, TSCollection = _import_gents()
+    # These are classes, so keep their PascalCase names:
+    HFCollection, TSCollection = _import_gents()  # pylint: disable=invalid-name
 
     # Notify user that script has started:
     msg = "\n  Calculating CAM time series with GenTS..."
@@ -344,7 +349,7 @@ def create_time_series_gents(adf, baseline=False):
                 tsc = _restrict_to_vars(tsc, wanted_vars)
             # End if
 
-            if not len(tsc):
+            if not tsc:
                 wmsg = (
                     f"\t    WARNING: GenTS found nothing to generate for '{hist_str}'."
                 )

@@ -3,7 +3,7 @@ Observations (obs) class for the Atmospheric
 Diagnostics Framework (ADF).
 This class inherits from the AdfInfo class.
 
-Currently this class does three things:
+Currently this class does four things:
 
 1.  Initializes an instance of AdfInfo.
 

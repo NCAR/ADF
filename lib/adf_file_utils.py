@@ -207,7 +207,7 @@ def find_ts_files(ts_loc, pattern, recursive=True):
     return sorted(ts_loc.rglob(pattern))
 
 
-def select_ts_files(fils, syr, eyr):
+def select_ts_files(fils, syr, eyr):  # pylint: disable=too-many-return-statements
     """
     Narrow a set of time series files to those needed for a year range.
 

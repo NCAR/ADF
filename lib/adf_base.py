@@ -41,7 +41,7 @@ class AdfBase:
 
     def __init__(self, debug=False):
         """
-        Initalize CAM diagnostics object.
+        Initialize CAM diagnostics object.
         """
 
         # Check that debug is in fact a boolean,
