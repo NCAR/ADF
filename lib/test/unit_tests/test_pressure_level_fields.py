@@ -370,10 +370,10 @@ class DataStub:
     """The one AdfData method interpolate_to_level uses."""
 
     @staticmethod
-    def load_dataset(fils):
+    def load_dataset(fils, chunks=None):
         if len(fils) == 1:
-            return xr.open_dataset(fils[0])
-        return xr.open_mfdataset(fils, combine="by_coords")
+            return xr.open_dataset(fils[0], chunks=chunks)
+        return xr.open_mfdataset(fils, combine="by_coords", chunks=chunks)
 
 
 class PresAdf(FakeDeriveAdf):

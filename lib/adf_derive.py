@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 import numpy as np
 import xarray as xr
@@ -527,6 +528,72 @@ def find_constit(
     return []
 
 
+def constit_read_chunks(files, target_bytes=None):
+    """
+    Dask chunks for reading a derived variable's constituent files.
+
+    Each chunk holds whole fields (every dimension but time in one piece) and
+    as many time steps as fit in `target_bytes`, rounded down to a whole
+    number of the files' own time chunks.  Left to itself xarray reads in the
+    on-disk chunks instead: 20 years of 3-hourly output on a 1-degree grid,
+    stored in 27 x 160 x 239 chunks, is over 8000 dask chunks per
+    constituent, and summing two of those took 10 minutes, against 2 when
+    reading whole fields.
+
+    Parameters
+    ----------
+    files : list of str
+        constituent time series files
+    target_bytes : int, optional
+        size to aim for per chunk; dask's "array.chunk-size" setting if not
+        given
+
+    Returns
+    -------
+    dict or None
+        chunks to hand to xarray, or None when no file has a time dimension
+        (xarray's own default is used then).
+    """
+    if target_bytes is None:
+        import dask  # pylint: disable=import-outside-toplevel
+
+        target_bytes = dask.utils.parse_bytes(dask.config.get("array.chunk-size"))
+    # End if
+    dims = set()
+    step_bytes = 0
+    disk_steps = None
+    for fil in files:
+        # Only the metadata is read here:
+        with xr.open_dataset(fil, decode_times=False) as ds:
+            dims.update(ds.sizes)
+            for da in ds.data_vars.values():
+                if "time" not in da.dims:
+                    continue
+                # End if
+                nbytes = da.dtype.itemsize * int(
+                    np.prod([da.sizes[d] for d in da.dims if d != "time"])
+                )
+                if nbytes > step_bytes:
+                    step_bytes = nbytes
+                    disk = da.encoding.get("chunksizes")
+                    disk_steps = disk[da.dims.index("time")] if disk else None
+                # End if
+            # End for
+        # End with
+    # End for
+    if "time" not in dims or step_bytes == 0:
+        return None
+    # End if
+    nsteps = max(1, target_bytes // step_bytes)
+    if disk_steps and nsteps >= disk_steps:
+        # Don't split the file's own chunks between dask chunks:
+        nsteps -= nsteps % disk_steps
+    # End if
+    chunks = {dim: -1 for dim in dims}
+    chunks["time"] = nsteps
+    return chunks
+
+
 def derive_variable(
     self,
     case_name,
@@ -639,7 +706,17 @@ def derive_variable(
         # End if
     else:
         # Open a new dataset with all the constituent files/variables
-        ds = self.data.load_dataset(constit_files)
+        with warnings.catch_warnings():
+            # The read chunks follow the data variables' on-disk chunks, so
+            # xarray warns that they split the small time and bounds
+            # variables' chunks, which costs nothing worth the noise:
+            warnings.filterwarnings(
+                "ignore", message="The specified chunks separate the stored chunks"
+            )
+            ds = self.data.load_dataset(
+                constit_files, chunks=constit_read_chunks(constit_files)
+            )
+        # End with
         if not ds:
             dmsg = f"derived time series for {case_name}:"
             dmsg += f"\n\tNo files to open."

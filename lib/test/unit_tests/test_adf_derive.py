@@ -33,7 +33,7 @@ sys.path.append(_ADF_LIB_DIR)
 try:
     import numpy as np
     import xarray as xr
-    from adf_derive import derive_variable
+    from adf_derive import constit_read_chunks, derive_variable
 
     _HAS_ADF_DERIVE = True
 except ImportError:
@@ -43,13 +43,13 @@ except ImportError:
 class _StubData:
     """Stand-in for AdfData, whose load_dataset is all derive_variable uses."""
 
-    def load_dataset(self, fils):
+    def load_dataset(self, fils, chunks=None):
         """Mirror AdfData.load_dataset: a list in, a Dataset (or None) out."""
         if len(fils) == 0:
             return None
         if len(fils) > 1:
-            return xr.open_mfdataset(fils, combine="by_coords")
-        return xr.open_dataset(str(fils[0]))
+            return xr.open_mfdataset(fils, combine="by_coords", chunks=chunks)
+        return xr.open_dataset(str(fils[0]), chunks=chunks)
 
 
 class _StubAdf:
@@ -454,6 +454,31 @@ class AdfDeriveTestRoutine(unittest.TestCase):
             )
 
             self.assertEqual(sorted(Path(tmpdir).glob("*RESTOM*.nc")), [])
+
+    def test_read_chunks_whole_fields(self):
+        """
+        Constituents are read as whole fields, as many time steps at a time
+        as fit the target size, in whole multiples of the on-disk time chunk.
+        """
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "case.cam.h3a.PRECC.000101-000112.nc"
+            ds = xr.Dataset(
+                {"PRECC": (("time", "lat", "lon"), np.ones((100, 4, 6), "f4"))},
+                coords={"time": np.arange(100.0)},
+            )
+            ds.to_netcdf(
+                path,
+                unlimited_dims="time",
+                encoding={"PRECC": {"chunksizes": [7, 2, 3]}},
+            )
+
+            # One step is 4 x 6 x 4 bytes = 96; 30 steps fit, 28 = 4 x 7.
+            chunks = constit_read_chunks([str(path)], target_bytes=96 * 30)
+            self.assertEqual(chunks, {"time": 28, "lat": -1, "lon": -1})
+            # Less than one disk chunk fits: no rounding, at least one step.
+            chunks = constit_read_chunks([str(path)], target_bytes=10)
+            self.assertEqual(chunks["time"], 1)
 
 
 # ++++++++++++++++++
