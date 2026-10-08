@@ -685,6 +685,21 @@ def derive_variable(
         if var == "RESTOM":
             der_val = ds["FSNT"] - ds["FLNT"]
             der_long_name = "Net radiative flux at top of model (FSNT - FLNT)"
+        elif var == "RESSURF":
+            # CAM shr_const values: latent heat of vaporization and of fusion (J/kg)
+            lat_vap = 2.501e6
+            lat_fus = 3.337e5
+            # Snow is precipitation that arrives frozen; PREC* is m/s, so 1e3 gives kg/m2/s
+            der_val = (
+                ds["FSNS"]
+                - ds["FLNS"]
+                - ds["SHFLX"]
+                - (lat_vap + lat_fus) * ds["QFLX"]
+                + lat_fus
+                * 1.0e3
+                * (ds["PRECC"] + ds["PRECL"] - ds["PRECSC"] - ds["PRECSL"])
+            )
+            der_long_name = "Net surface energy flux residual"
         else:
             # Loop through all constituents and sum
             der_val = 0

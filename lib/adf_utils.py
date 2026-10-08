@@ -984,10 +984,13 @@ def domain_stats(data, domain):
     Parameters
     ----------
     data : xarray.DataArray
-        data values
+        data values on a 2-D `lat` by `lon` grid (no time or level dimension)
     domain : list or tuple or numpy.ndarray
         the domain specification as:
         [west_longitude, east_longitude, south_latitude, north_latitude]
+        Longitudes can be given in either -180 to 180 or 0 to 360, whichever
+        the data uses.  If west is greater than east the region crosses
+        the 0/360 line, and a span of 360 degrees or more is the whole circle.
 
     Returns
     -------
@@ -1000,18 +1003,27 @@ def domain_stats(data, domain):
 
     Notes
     -----
-    Currently assumes 'lat' is a dimension and uses `cos(lat)` as weight.
-    Should use `spatial_average`
+    The average is `spatial_average`, so it uses `cos(lat)` weights.
+    The region is picked with a mask, so latitude can run in either order.
 
     See Also
     --------
     spatial_average
 
     """
-    x_region = data.sel(
-        lat=slice(domain[2], domain[3]), lon=slice(domain[0], domain[1])
-    )
-    x_region_mean = x_region.weighted(np.cos(np.deg2rad(x_region["lat"]))).mean().item()
+    west, east, south, north = domain
+    # Compare longitudes on a common 0-360 basis, so that the data and the
+    # domain do not have to use the same convention:
+    lon = data["lon"] % 360
+    if east - west >= 360:
+        lon_mask = xr.ones_like(lon, dtype=bool)
+    elif (west % 360) <= (east % 360):
+        lon_mask = (lon >= west % 360) & (lon <= east % 360)
+    else:
+        lon_mask = (lon >= west % 360) | (lon <= east % 360)
+    lat_mask = (data["lat"] >= south) & (data["lat"] <= north)
+    x_region = data.where(lon_mask & lat_mask, drop=True)
+    x_region_mean = spatial_average(x_region).item()
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
