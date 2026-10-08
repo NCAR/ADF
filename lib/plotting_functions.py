@@ -155,9 +155,9 @@ def make_polar_plot(
     else:
         pct = pctchange
 
-    # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # Leave masked or undefined (divide by zero) points missing, so they plot
+    # as blank rather than as 0%:
+    pct = pct.where(np.isfinite(pct))
 
     if hemisphere.upper() == "NH":
         proj = ccrs.NorthPolarStereo()
@@ -412,13 +412,6 @@ def make_polar_plot(
     )
     ax4.set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
 
-    if "units" in kwargs:
-        ax2.set_ylabel(kwargs["units"])
-        ax4.set_ylabel(kwargs["units"])
-    else:
-        ax2.set_ylabel(f"{d1.units}")
-        ax4.set_ylabel(f"{d1.units}")
-
     for a in [ax1, ax2, ax3, ax4]:
         a.set_extent(domain, ccrs.PlateCarree())
         a.coastlines()
@@ -444,7 +437,8 @@ def make_polar_plot(
         bbox_transform=ax2.transAxes,
         borderpad=0,
     )
-    fig.colorbar(img1, cax=cb_mean_ax)
+    units = kwargs.get("units", d1.attrs.get("units", ""))
+    fig.colorbar(img1, cax=cb_mean_ax, label=units)
 
     cb_pct_ax = inset_axes(
         ax3,
@@ -466,9 +460,9 @@ def make_polar_plot(
         borderpad=0,
     )
 
-    fig.colorbar(img3, cax=cb_pct_ax)
+    fig.colorbar(img3, cax=cb_pct_ax, label="%")
 
-    fig.colorbar(img4, cax=cb_diff_ax)
+    fig.colorbar(img4, cax=cb_diff_ax, label=units)
 
     # Save files
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -1045,7 +1039,10 @@ def plot_map_and_save(
         bbox_transform=ax2.transAxes,
         borderpad=0,
     )
-    fig.colorbar(img[1], cax=cb_mean_ax, **cp_info["colorbar_opt"])
+    # A label set in the variable defaults ("mpl: colorbar: label") wins.
+    units = kwargs.get("units", mdlfld.attrs.get("units", ""))
+    cbar_opt = {"label": units, **cp_info["colorbar_opt"]}
+    fig.colorbar(img[1], cax=cb_mean_ax, **cbar_opt)
 
     cb_pct_ax = inset_axes(
         ax3,
@@ -1056,8 +1053,7 @@ def plot_map_and_save(
         bbox_transform=ax3.transAxes,
         borderpad=0,
     )
-    pct_cb = fig.colorbar(img[2], cax=cb_pct_ax, **cp_info["colorbar_opt"])
-    pct_cb.ax.set_ylabel = "%"
+    fig.colorbar(img[2], cax=cb_pct_ax, **{**cp_info["colorbar_opt"], "label": "%"})
 
     cb_diff_ax = inset_axes(
         ax4,
@@ -1068,7 +1064,7 @@ def plot_map_and_save(
         bbox_transform=ax4.transAxes,
         borderpad=0,
     )
-    fig.colorbar(img[3], cax=cb_diff_ax, **cp_info["colorbar_opt"])
+    fig.colorbar(img[3], cax=cb_diff_ax, **cbar_opt)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -1242,9 +1238,9 @@ def plot_zonal_mean_and_save(
 
         # calculate the percent change
         pct = (azm - bzm) / np.abs(bzm) * 100.0
-        # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct = pct.where(np.isfinite(pct), np.nan)
-        pct = pct.fillna(0.0)
+        # Leave masked or undefined (divide by zero) points missing, so they plot
+        # as blank rather than as 0%:
+        pct = pct.where(np.isfinite(pct))
 
         # generate dictionary of contour plot settings:
         cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
@@ -1364,9 +1360,9 @@ def plot_zonal_mean_and_save(
 
         # calculate the percent change
         pct = (azm - bzm) / np.abs(bzm) * 100.0
-        # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-        pct = pct.where(np.isfinite(pct), np.nan)
-        pct = pct.fillna(0.0)
+        # Leave masked or undefined (divide by zero) points missing, so they plot
+        # as blank rather than as 0%:
+        pct = pct.where(np.isfinite(pct))
 
         fig, ax = plt.subplots(nrows=3)
         ax = [ax[0], ax[1], ax[2]]
@@ -1557,9 +1553,9 @@ def plot_meridional_mean_and_save(
 
     # calculate the percent change
     pct = (adata - bdata) / np.abs(bdata) * 100.0
-    # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # Leave masked or undefined (divide by zero) points missing, so they plot
+    # as blank rather than as 0%:
+    pct = pct.where(np.isfinite(pct))
 
     # plot-controlling parameters:
     xdim = "lon"  # the name used for the x-axis dimension
@@ -1852,9 +1848,9 @@ def square_contour_difference(fld1, fld2, **kwargs):
     diff = fld1 - fld2
 
     pct = (fld1 - fld2) / np.abs(fld2) * 100.0
-    # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # Leave masked or undefined (divide by zero) points missing, so they plot
+    # as blank rather than as 0%:
+    pct = pct.where(np.isfinite(pct))
 
     ## USE A DIVERGING COLORMAP CENTERED AT ZERO
     ## Special case is when min > 0 or max < 0
