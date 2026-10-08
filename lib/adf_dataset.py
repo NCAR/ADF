@@ -676,7 +676,7 @@ class AdfData:
     # ---------------------------
     # DataSet and DataArray load
     # ---------------------------
-    def load_dataset(self, fils, use_time_bounds=False):
+    def load_dataset(self, fils, use_time_bounds=False, chunks=None):
         """Return xarray DataSet from file(s).
 
         `use_time_bounds` moves the time coordinate to the midpoint of the
@@ -684,18 +684,21 @@ class AdfData:
         off by default: climatology and regridded files carry a time
         coordinate of month numbers, and turning that into dates would change
         the files the ADF writes and reads back.
+
+        `chunks` is handed to xarray as is.  Left as None, several files are
+        read in their on-disk chunks and a single file is not chunked at all.
         """
         if len(fils) == 0:
             warnings.warn("\t    WARNING: Input file list is empty.")
             return None
         if len(fils) > 1:
-            ds = xr.open_mfdataset(fils, combine="by_coords")
+            ds = xr.open_mfdataset(fils, combine="by_coords", chunks=chunks)
         else:
             sfil = str(fils[0])
             if not Path(sfil).is_file():
                 warnings.warn(f"\t    WARNING: Expecting to find file: {sfil}")
                 return None
-            ds = xr.open_dataset(sfil)
+            ds = xr.open_dataset(sfil, chunks=chunks)
         if ds is None:
             warnings.warn("\t    WARNING: invalid data on load_dataset")
             return ds
