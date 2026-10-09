@@ -140,13 +140,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: clm6_hh_ukesm_ctrl
+    cam_case_name: clm6_flat_ukesm_noN_rad
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'ukesm_ctrl'
+    case_nickname: 'noN_rad'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
@@ -204,13 +204,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: clm6_hh_ukesm_cou
+    cam_case_name: clm6_flat_ukesm_noN_bgc
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'ukesm_cou'
+    case_nickname: 'noN_bgc'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
@@ -297,6 +297,9 @@ diag_var_list:
   - CH4_SURF_AERE_SAT
   - CH4_SURF_DIFF_SAT
   - CH4_SURF_EBUL_SAT
+  - CH4_SURF_AERE_UNSAT
+  - CH4_SURF_DIFF_UNSAT
+  - CH4_SURF_EBUL_UNSAT
   - COL_FIRE_CLOSS
   - CROPPROD1N_LOSS
   - CWD_C
@@ -363,7 +366,8 @@ diag_var_list:
   - MEG_acetone
   - MEG_isoprene
   - MEG_methanol
-  - MEG_mterp
+  - MEG_mterp_a
+  - MEG_mterp_b
   - NBP
   - NDEP_TO_SMINN
   - NET_NMIN
@@ -399,8 +403,10 @@ diag_var_list:
   - TBOT
   - TLAI
   - TOT_WOODPRODC
+  - TOTECOSYSC
   - TOTLITC
   - TOTLITN
+  - TOTLITC_1m
   - TOTSOILICE
   - TOTSOILLIQ
   - TOTSOMC
@@ -414,6 +420,38 @@ diag_var_list:
   - WIND
   - WOODC
   - ZWT_PERCH
+
+# Variables plotted by regional_climatology and regional_timeseries.
+# Max 15 variables (4x4 figure, first panel is the region map).
+regional_var_list:
+    - TBOT
+    - PREC
+    - ELAI
+    - FSDS
+    - FLDS
+    - WIND
+    - ASA
+    - QRUNOFF_TO_COUPLER
+    - FSH
+    - ET
+    - FCEV
+    - SNOWDP
+    - BCDEP
+    - NDEP_TO_SMINN
+    - QBOT
+    ## For polar focused analyses:
+    #- FSDS
+    #- FLDS
+    #- RNET
+    #- ASA
+    #- QRUNOFF_TO_COUPLER
+    #- ET
+    #- TWS
+    #- QBOT
+    #- QRUNOFF_ICE_TO_COUPLER
+    #- QRGWL
+    #- SNOWDP
+    #- ALTMAX
 
 region_list:
     - Global
