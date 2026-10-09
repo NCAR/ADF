@@ -8,6 +8,7 @@ import pandas as pd
 from pathlib import Path
 import adf_utils as utils
 
+
 def tape_recorder(adfobj):
     """
     Calculate the weighted latitude average for the simulations and 
@@ -46,13 +47,13 @@ def tape_recorder(adfobj):
     # Filter the list to include only strings that are exactly in the possible h0 strings
     # - Search for either h0 or h0a
     substrings = {"cam.h0","cam.h0a"}
-    case_hist_strs = []
-    for cam_case_str in cam_hist_strs:
-        # Check each possible h0 string
-        for string in cam_case_str:
-            if string in substrings:
-               case_hist_strs.append(string)
-               break
+    # Exactly one entry per case, so that this list stays aligned with the
+    # cases it is indexed by below.  A case with no h0 stream contributes an
+    # empty string, which makes the search match whichever stream the files
+    # are in rather than dropping the case and shifting the rest.
+    case_hist_strs = [
+        utils.pick_hist_str(cam_case_str, substrings) for cam_case_str in cam_hist_strs
+    ]
 
     #Grab test case climo years
     start_years = adfobj.climo_yrs["syears"]
@@ -83,10 +84,12 @@ def tape_recorder(adfobj):
         end_years = end_years+[data_end_year]
 
         #Grab history string:
-        baseline_hist_strs = adfobj.hist_string["base_hist_str"]
-        # Filter the list to include only strings that are exactly in the substrings list
-        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
-        hist_strs = case_hist_strs + base_hist_strs
+        # The baseline stream is a string when one is configured, a list when
+        # several are, and empty when the baseline runs on pre-made time series
+        # with no stream given.  It contributes one entry in every case.
+        hist_strs = case_hist_strs + [
+            utils.pick_hist_str(adfobj.hist_string["base_hist_str"], substrings)
+        ]
     else:
         hist_strs = case_hist_strs
     #End if
@@ -144,7 +147,11 @@ def tape_recorder(adfobj):
     # MLS data
     mls = xr.open_dataset(obs_loc / "mls_h2o_latNpressNtime_3d_monthly_v5.nc")
     mls = mls.rename(x='lat', y='lev', t='time')
-    time = pd.date_range("2004-09","2021-11",freq='M')
+    # Monthly from September 2004, as many steps as the file holds.  'MS'
+    # (month start) is used rather than the month-end alias, which pandas
+    # renamed from 'M' to 'ME' in 2.2 and removed in 3.0; only the month of
+    # each step matters, since the data are grouped by month below.
+    time = pd.date_range("2004-09-01", periods=mls.sizes["time"], freq="MS")
     mls['time'] = time
     mls = cosweightlat(mls.H2O,-10,10)
     mls = mls.groupby('time.month').mean('time')
@@ -181,6 +188,16 @@ def tape_recorder(adfobj):
         ts_loc = Path(case_ts_locs[idx])
         hist_str = hist_strs[idx]
         fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        if not fils and hist_str:
+            # A configured stream need not match the names of pre-made time
+            # series files, so fall back to searching without it rather than
+            # dropping the case out of the plot.  This is what
+            # create_climo_files does for the same reason.
+            fils = sorted(ts_loc.glob(f"*.{var}.*.nc"))
+        # End if
+        #A directory can hold more than one set of files for one variable, so
+        #keep the set needed for this case's years:
+        fils = utils.select_ts_files(fils, start_years[idx], end_years[idx])
         dat = adfobj.data.load_timeseries_dataset(fils)
 
         if not dat:

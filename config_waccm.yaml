@@ -380,7 +380,6 @@ time_averaging_scripts:
 #These scripts must be located in "scripts/regridding":
 regridding_scripts:
     - regrid_and_vert_interp
-    - regrid_and_vert_interp_tem #For TEM cases that have different vertical levels, please un-comment
 
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":

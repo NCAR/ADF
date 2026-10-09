@@ -1,8 +1,9 @@
-"""                                                                    .
-Generic plotting helper functions
+"""Generic plotting helper functions.
 
 Functions
 ---------
+first_complete_plot_set(layouts)
+    pick the set of plots that is already on disk, if there is one
 use_this_norm()
     switches matplotlib color normalization method
 get_difference_colors(values)
@@ -26,26 +27,37 @@ _plot_line(axobject, xdata, ydata, color, **kwargs)
     Create a generic line plot
 """
 
-#import statements:
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
+
+from pathlib import Path
+import warnings
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
-import matplotlib.cm as cm
 import cartopy.crs as ccrs
 
 from adf_diag import AdfDiag
 import adf_utils as utils
 
-import warnings  # use to warn user about missing files.
+# use to warn user about missing files.
 warnings.formatwarning = utils.my_formatwarning
 
 #################
-#HELPER FUNCTIONS
+# HELPER FUNCTIONS
 #################
+
 
 def load_dataset(fils):
     """
-    This method exists to get an xarray Dataset from input file information that can be passed into the plotting methods.
+    This method exists to get an xarray Dataset from input file information that
+    can be passed into the plotting methods.
 
     Parameters
     ----------
@@ -61,37 +73,71 @@ def load_dataset(fils):
     When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
     """
     if len(fils) == 0:
-        warnings.warn(f"\t    WARNING: Input file list is empty.")
+        warnings.warn("\t    WARNING: Input file list is empty.")
         return None
-    elif len(fils) > 1:
-        return xr.open_mfdataset(fils, combine='by_coords')
-    else:
-        return xr.open_dataset(fils[0])
-    #End if
-#End def
+    if len(fils) > 1:
+        return xr.open_mfdataset(fils, combine="by_coords")
+    return xr.open_dataset(fils[0])
+
+
+# End def
 
 
 #######
+
+
+def first_complete_plot_set(layouts):
+    """
+    Return the first set of plots whose files all exist.
+
+    A plotting script can usually tell what it would produce from the
+    variable defaults and the configured seasons and pressure levels, without
+    opening any data -- except that a 2-D variable and a 3-D one are named
+    differently, and which one it has is a property of the data.  Both
+    spellings can be checked instead: if either set is complete on disk, the
+    script knows both that nothing needs drawing and which kind of variable it
+    was looking at, and never has to open the file.
+
+    Parameters
+    ----------
+    layouts : list
+        candidate sets, most specific first.  Each is a list of entries whose
+        first element is the plot's path; the rest is whatever the caller
+        needs to register the plot on the website.
+
+    Returns
+    -------
+    list
+        The first complete set, or an empty list when none is complete, which
+        means the data has to be opened to find out what is missing.
+    """
+    for entries in layouts:
+        if entries and all(Path(entry[0]).is_file() for entry in entries):
+            return entries
+        # End if
+    # End for
+    return []
+
 
 def use_this_norm():
     """Just use the right normalization; avoids a deprecation warning."""
 
-    mplversion = [int(x) for x in mpl.__version__.split('.')]
+    mplversion = [int(x) for x in mpl.__version__.split(".")]
     if mplversion[0] < 3:
         return mpl.colors.Normalize, mplversion[0]
-    else:
-        if mplversion[1] < 2:
-            return mpl.colors.DivergingNorm, mplversion[0]
-        else:
-            return mpl.colors.TwoSlopeNorm, mplversion[0]
+    if mplversion[1] < 2:
+        # Only exists in old matplotlib versions:
+        return mpl.colors.DivergingNorm, mplversion[0]  # pylint: disable=no-member
+    return mpl.colors.TwoSlopeNorm, mplversion[0]
 
 
 #######
 
+
 def transform_coordinates_for_projection(proj, lon, lat):
     """
     Explicitly project coordinates using the projection object.
-    
+
     Parameters
     ----------
     proj : cartopy.ccrs.CRS
@@ -100,7 +146,7 @@ def transform_coordinates_for_projection(proj, lon, lat):
         latitudes (in degrees)
     lon :array.DataArray or numpy.ndarray
         longitudes (in degrees)
-        
+
     Returns
     -------
     x_proj : numpy.ndarray
@@ -112,14 +158,17 @@ def transform_coordinates_for_projection(proj, lon, lat):
     -----
     This is what cartopy's transform_first=True *should* be doing internally.
     We find that it sometimes fails for polar plots, so do it with this manually.
-    This dramatically speeds up polar plots.    
+    This dramatically speeds up polar plots.
     """
     lons, lats = np.meshgrid(lon, lat)
-    x_proj, y_proj, _ = proj.transform_points(ccrs.PlateCarree(), lons, lats).T # .T to unpack, .T again to get x,y,z arrays
+    x_proj, y_proj, _ = proj.transform_points(
+        ccrs.PlateCarree(), lons, lats
+    ).T  # .T to unpack, .T again to get x,y,z arrays
     return x_proj.T, y_proj.T
 
 
 #######
+
 
 def get_difference_colors(values):
     """Provide a color norm and colormap assuming this is a difference field.
@@ -141,25 +190,34 @@ def get_difference_colors(values):
     Uses 'OrRd' colormap for positive definite, 'BuPu_r' for negative definite,
     and 'RdBu_r' centered on zero if there are values of both signs.
     """
-    normfunc, mplv = use_this_norm()
-    dmin = np.min(values)
-    dmax = np.max(values)
+    normfunc, _ = use_this_norm()
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        # Nothing to take a range from: a pressure level above the model top,
+        # or a field that is missing everywhere.  Hand back a usable norm so
+        # the caller draws an empty panel instead of raising -- the old code
+        # left 'cmap' unset here and died with an UnboundLocalError.  Note
+        # np.min/np.max were used before, so a single missing point anywhere in
+        # the field was enough to reach this.
+        return mpl.colors.Normalize(vmin=-1.0, vmax=1.0), mpl.colormaps["RdBu_r"]
+    dmin = finite.min()
+    dmax = finite.max()
     # color normalization for difference
-    if ((dmin < 0) and (0 < dmax)):
-        dnorm = normfunc(vmin=np.min(values), vmax=np.max(values), vcenter=0.0)
-        cmap = mpl.cm.RdBu_r
+    cmap = mpl.colormaps["RdBu_r"]
+    if dmin < 0 < dmax:
+        dnorm = normfunc(vmin=dmin, vmax=dmax, vcenter=0.0)
     else:
-        dnorm = mpl.colors.Normalize(vmin=np.min(values), vmax=np.max(values))
+        dnorm = mpl.colors.Normalize(vmin=dmin, vmax=dmax)
         if dmin >= 0:
-            cmap = mpl.cm.OrRd
+            cmap = mpl.colormaps["OrRd"]
         elif dmax <= 0:
-            cmap = mpl.cm.BuPu_r
-        else:
-            dnorm = mpl.colors.TwoSlopeNorm(vmin=dmin, vcenter=0, vmax=dmax)
+            cmap = mpl.colormaps["BuPu_r"]
     return dnorm, cmap
 
 
 #######
+
 
 def get_central_longitude(*args):
     """Determine central longitude for maps.
@@ -181,7 +239,8 @@ def get_central_longitude(*args):
 
     Notes
     -----
-    This allows a script to, for example, allow a config file to specify, but also have a preference:
+    This allows a script to, for example, allow a config file to specify, but also
+    have a preference:
     `get_central_longitude(AdfObj, 30.0)`
     """
     chk_for_adf = [isinstance(arg, AdfDiag) for arg in args]
@@ -189,38 +248,38 @@ def get_central_longitude(*args):
     if any(chk_for_adf):
         for arg in args:
             if isinstance(arg, AdfDiag):
-                result = arg.get_basic_info('central_longitude', required=False)
-                if (isinstance(result, int) or isinstance(result, float)) and \
-                   (result >= -180) and (result <= 360):
+                result = arg.get_basic_info("central_longitude", required=False)
+                if isinstance(result, (int, float)) and -180 <= result <= 360:
                     return result
-                else:
-                    #If result exists, then write info to debug log:
-                    if result:
-                        msg = f"central_lngitude of type '{type(result).__name__}'"
-                        msg += f" and value '{result}', which is not a valid longitude"
-                        msg += " for the ADF."
-                        arg.debug_log(msg)
-                    #End if
+                # End if
 
-                    #There is only one ADF object per ADF run, so if its
-                    #not present or configured correctly then no
-                    #reason to keep looking:
-                    break
-                #End if
-            #End if
-        #End for
-    #End if
+                # If result exists, then write info to debug log:
+                if result:
+                    msg = f"central_lngitude of type '{type(result).__name__}'"
+                    msg += f" and value '{result}', which is not a valid longitude"
+                    msg += " for the ADF."
+                    arg.debug_log(msg)
+                # End if
+
+                # There is only one ADF object per ADF run, so if its
+                # not present or configured correctly then no
+                # reason to keep looking:
+                break
+            # End if
+        # End for
+    # End if
 
     # 2nd pass through arguments, look for numbers:
     for arg in args:
-        if (isinstance(arg, float) or isinstance(arg, int)) and ((arg >= -180) and (arg <= 360)):
+        if isinstance(arg, (float, int)) and -180 <= arg <= 360:
             return arg
-        #End if
-    else:
-        # this is the `else` on the for loop --> if non of the arguments meet the criteria, do this.
-        print("No valid central longitude specified. Defaults to 180.")
-        return 180
-    #End if
+        # End if
+    # End for
+
+    # None of the arguments meet the criteria:
+    print("No valid central longitude specified. Defaults to 180.")
+    return 180
+
 
 #######
 
@@ -228,22 +287,24 @@ def get_central_longitude(*args):
 #  -- zonal & meridional mean code --
 #
 
+
 def _plot_line(axobject, xdata, ydata, color, **kwargs):
     """Create a generic line plot and check for some ways to annotate."""
 
-    if color != None:
+    if color is not None:
         axobject.plot(xdata, ydata, c=color, **kwargs)
     else:
         axobject.plot(xdata, ydata, **kwargs)
 
-    #Set Y-axis label:
+    # Set Y-axis label:
     if hasattr(ydata, "units"):
-        axobject.set_ylabel("[{units}]".format(units=getattr(ydata,"units")))
+        axobject.set_ylabel(f"[{getattr(ydata, 'units')}]")
     elif "units" in kwargs:
-        axobject.set_ylabel("[{units}]".format(kwargs["units"]))
-    #End if
+        axobject.set_ylabel(f"[{kwargs['units']}]")
+    # End if
 
     return axobject
+
 
 def meridional_plot_line(ax, lon, data, color, **kwargs):
     """Create line plot with longitude as the X-axis."""
@@ -255,58 +316,87 @@ def meridional_plot_line(ax, lon, data, color, **kwargs):
     #
     ax.set_xlabel("LONGITUDE")
     if hasattr(data, "units"):
-        ax.set_ylabel("{units}".format(units=getattr(data,"units")))
+        ax.set_ylabel(f"{getattr(data, 'units')}")
     elif "units" in kwargs:
-        ax.set_ylabel("{units}".format(kwargs["units"]))
+        ax.set_ylabel(f"{kwargs['units']}")
     return ax
+
 
 def zonal_plot_line(ax, lat, data, color, **kwargs):
     """Create line plot with latitude as the X-axis."""
     ax = _plot_line(ax, lat, data, color, **kwargs)
-    ax.set_xlim([max([lat.min(), -90.]), min([lat.max(), 90.])])
+    ax.set_xlim([max([lat.min(), -90.0]), min([lat.max(), 90.0])])
     #
     # annotate
     #
     ax.set_xlabel("LATITUDE")
     if hasattr(data, "units"):
-        ax.set_ylabel("{units}".format(units=getattr(data,"units")))
+        ax.set_ylabel(f"{getattr(data, 'units')}")
     elif "units" in kwargs:
-        ax.set_ylabel("{units}".format(kwargs["units"]))
+        ax.set_ylabel(f"{kwargs['units']}")
     return ax
+
 
 def zonal_plot_preslat(ax, lat, lev, data, **kwargs):
     """Create plot with latitude as the X-axis, and pressure as the Y-axis."""
     mlev, mlat = np.meshgrid(lev, lat)
-    if 'cmap' in kwargs:
-        cmap = kwargs.pop('cmap')
+    if "cmap" in kwargs:
+        cmap = kwargs.pop("cmap")
     else:
-        cmap = 'Spectral_r'
+        cmap = "Spectral_r"
 
-    img = ax.contourf(mlat, mlev, data.transpose('lat', 'lev'), cmap=cmap, **kwargs)
+    img = ax.contourf(mlat, mlev, data.transpose("lat", "lev"), cmap=cmap, **kwargs)
 
     minor_locator = mpl.ticker.FixedLocator(lev)
     ax.yaxis.set_minor_locator(minor_locator)
-    ax.tick_params(which='minor', length=4, color='r')
+    ax.tick_params(which="minor", length=4, color="r")
     ax.set_ylim([np.max(lev), np.min(lev)])
     return img, ax
+
 
 def meridional_plot_preslon(ax, lon, lev, data, **kwargs):
     """Create plot with longitude as the X-axis, and pressure as the Y-axis."""
 
     mlev, mlon = np.meshgrid(lev, lon)
-    if 'cmap' in kwargs:
-        cmap = kwargs.pop('cmap')
+    if "cmap" in kwargs:
+        cmap = kwargs.pop("cmap")
     else:
-        cmap = 'Spectral_r'
+        cmap = "Spectral_r"
 
-    img = ax.contourf(mlon, mlev, data.transpose('lon', 'lev'), cmap=cmap, **kwargs)
+    img = ax.contourf(mlon, mlev, data.transpose("lon", "lev"), cmap=cmap, **kwargs)
 
     minor_locator = mpl.ticker.FixedLocator(lev)
     ax.yaxis.set_minor_locator(minor_locator)
-    ax.tick_params(which='minor', length=4, color='r')
+    ax.tick_params(which="minor", length=4, color="r")
     ax.set_ylim([np.max(lev), np.min(lev)])
     return img, ax
 
+
+def colormap_object(cmap):
+    """
+    Return a matplotlib Colormap, given either one or the name of one.
+
+    Parameters
+    ----------
+    cmap : str or matplotlib.colors.Colormap
+        a colormap, or the name the variable defaults give for one
+
+    Returns
+    -------
+    matplotlib.colors.Colormap
+
+    Notes
+    -----
+    Replaces the lookup matplotlib removed in 3.9, which the ADF still called.
+    """
+    if isinstance(cmap, str):
+        return mpl.colormaps[cmap]
+    # End if
+    return cmap
+
+
+# "pctdata" is unused, but is kept so as to not break existing calls:
+# pylint: disable-next=unused-argument
 def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     """Preparation for making contour plots.
 
@@ -349,103 +439,118 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     # determine norm to use (deprecate this once minimum MPL version is high enough)
     normfunc, mplv = use_this_norm()
 
-    if 'colormap' in kwargs:
-        cmap1 = kwargs['colormap']
-    else:
-        cmap1 = 'coolwarm'
-    #End if
+    cmap1 = kwargs.get("colormap", "coolwarm")
 
-    if 'contour_levels' in kwargs:
-        levels1 = kwargs['contour_levels']
-        levels1 = np.array(levels1, dtype=float)
-
-        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
-            cmap_obj = cm.get_cmap(cmap1)
+    if "contour_levels" in kwargs:
+        levels1 = np.array(kwargs["contour_levels"], dtype=float)
+        if ("non_linear" in kwargs) and (kwargs["non_linear"]):
+            cmap_obj = colormap_object(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
-    elif 'contour_levels_range' in kwargs:
-        assert len(kwargs['contour_levels_range']) == 3, \
-        "contour_levels_range must have exactly three entries: min, max, step"
+    elif "contour_levels_range" in kwargs:
+        assert (
+            len(kwargs["contour_levels_range"]) == 3
+        ), "contour_levels_range must have exactly three entries: min, max, step"
 
-        levels1 = np.arange(*kwargs['contour_levels_range'])
-        levels1 = np.array(levels1, dtype=float)
-        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
-            cmap_obj = cm.get_cmap(cmap1)
+        levels1 = np.arange(*np.array(kwargs["contour_levels_range"], dtype=float))
+        if ("non_linear" in kwargs) and (kwargs["non_linear"]):
+            cmap_obj = colormap_object(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=min(levels1), vmax=max(levels1))
     else:
         levels1 = np.linspace(minval, maxval, 12)
-        if ('non_linear_levels' in kwargs) and (kwargs['non_linear_levels']):
-            cmap_obj = cm.get_cmap(cmap1)
+        if ("non_linear" in kwargs) and (kwargs["non_linear"]):
+            cmap_obj = colormap_object(cmap1)
             norm1 = mpl.colors.BoundaryNorm(levels1, cmap_obj.N)
         else:
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-    #End if
+    # End if
 
-    #Check if the minval and maxval are actually different.  If not,
-    #then set "levels1" to be an empty list, which will cause the
-    #plotting scripts to add a label instead of trying to plot a variable
-    #with no contours:
+    # Check if the minval and maxval are actually different.  If not,
+    # then set "levels1" to be an empty list, which will cause the
+    # plotting scripts to add a label instead of trying to plot a variable
+    # with no contours:
     if minval == maxval:
         levels1 = []
-    #End if
+    # End if
 
-    if ('colormap' not in kwargs) and ('contour_levels' not in kwargs):
-        if ((minval < 0) and (0 < maxval)) and mplv > 2:
+    if ("colormap" not in kwargs) and ("contour_levels" not in kwargs):
+        if (minval < 0 < maxval) and mplv > 2:
             norm1 = normfunc(vmin=minval, vmax=maxval, vcenter=0.0)
         else:
             norm1 = mpl.colors.Normalize(vmin=minval, vmax=maxval)
-        #End if
-    #End if
+        # End if
+    # End if
 
     # Difference options -- Check in kwargs for colormap and levels
-    if "diff_colormap" in kwargs:
-        cmapdiff = kwargs["diff_colormap"]
-    else:
-        cmapdiff = 'coolwarm'
-    #End if
+    cmapdiff = kwargs.get("diff_colormap", "coolwarm")
 
     if "diff_contour_levels" in kwargs:
-        levelsdiff = kwargs['diff_contour_levels']
+        levelsdiff = kwargs["diff_contour_levels"]
     elif "diff_contour_range" in kwargs:
-        assert len(kwargs['diff_contour_range']) == 3, \
-        "diff_contour_range must have exactly three entries: min, max, step"
+        assert (
+            len(kwargs["diff_contour_range"]) == 3
+        ), "diff_contour_range must have exactly three entries: min, max, step"
 
-        levelsdiff = kwargs['diff_contour_range']
-        levelsdiff = np.array(levelsdiff, dtype=float)
-        levelsdiff = np.arange(*levelsdiff)
+        levelsdiff = np.arange(*np.array(kwargs["diff_contour_range"], dtype=float))
     else:
         # set a symmetric color bar for diff:
         absmaxdif = np.max(np.abs(diffdata.data))
         # set levels for difference plot:
-        levelsdiff = np.linspace(-1*absmaxdif, absmaxdif, 12)
+        levelsdiff = np.linspace(-1 * absmaxdif, absmaxdif, 12)
     # Percent Difference options -- Check in kwargs for colormap and levels
-    if "pct_diff_colormap" in kwargs:
-        cmappct = kwargs["pct_diff_colormap"]
-    else:
-        cmappct = "PuOr_r"
-    #End if
+    cmappct = kwargs.get("pct_diff_colormap", "PuOr_r")
 
     if "pct_diff_contour_levels" in kwargs:
-        levelspctdiff = kwargs["pct_diff_contour_levels"]  # a list of explicit contour levels
+        levelspctdiff = kwargs[
+            "pct_diff_contour_levels"
+        ]  # a list of explicit contour levels
     elif "pct_diff_contour_range" in kwargs:
-            assert len(kwargs['pct_diff_contour_range']) == 3, "pct_diff_contour_range must have exactly three entries: min, max, step"
-            levelspctdiff = np.arange(*kwargs['pct_diff_contour_range'])
+        assert (
+            len(kwargs["pct_diff_contour_range"]) == 3
+        ), "pct_diff_contour_range must have exactly three entries: min, max, step"
+        levelspctdiff = np.arange(*kwargs["pct_diff_contour_range"])
     else:
-        levelspctdiff = [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-    pctnorm = mpl.colors.BoundaryNorm(levelspctdiff,256)
+        levelspctdiff = [
+            -100,
+            -75,
+            -50,
+            -40,
+            -30,
+            -20,
+            -10,
+            -8,
+            -6,
+            -4,
+            -2,
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            20,
+            30,
+            40,
+            50,
+            75,
+            100,
+        ]
+    pctnorm = mpl.colors.BoundaryNorm(levelspctdiff, 256)
 
-    if "plot_log_pressure" in kwargs:
-        plot_log_p = kwargs["plot_log_pressure"]
-    else:
-        plot_log_p = False
+    plot_log_p = kwargs.get("plot_log_pressure", False)
+
     # color normalization for difference
-    if ((np.min(levelsdiff) < 0) and (0 < np.max(levelsdiff))) and mplv > 2:
-        normdiff = normfunc(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0)
+    if (np.min(levelsdiff) < 0 < np.max(levelsdiff)) and mplv > 2:
+        normdiff = normfunc(
+            vmin=np.min(levelsdiff), vmax=np.max(levelsdiff), vcenter=0.0
+        )
     else:
-        normdiff = mpl.colors.Normalize(vmin=np.min(levelsdiff), vmax=np.max(levelsdiff))
+        normdiff = mpl.colors.Normalize(
+            vmin=np.min(levelsdiff), vmax=np.max(levelsdiff)
+        )
 
     subplots_opt = {}
     contourf_opt = {}
@@ -454,30 +559,31 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     pct_colorbar_opt = {}
 
     # extract any MPL kwargs that should be passed on:
-    if 'mpl' in kwargs:
-        subplots_opt.update(kwargs['mpl'].get('subplots',{}))
-        contourf_opt.update(kwargs['mpl'].get('contourf',{}))
-        colorbar_opt.update(kwargs['mpl'].get('colorbar',{}))
-        diff_colorbar_opt.update(kwargs['mpl'].get('diff_colorbar',{}))
-        pct_colorbar_opt.update(kwargs['mpl'].get('pct_diff_colorbar',{}))
-    #End if
-    return {'subplots_opt': subplots_opt,
-            'contourf_opt': contourf_opt,
-            'colorbar_opt': colorbar_opt,
-            'diff_colorbar_opt': diff_colorbar_opt,
-            'pct_colorbar_opt': pct_colorbar_opt,
-            'normdiff': normdiff,
-            'cmapdiff': cmapdiff,
-            'levelsdiff': levelsdiff,
-            'pctnorm': pctnorm,
-            'cmappct': cmappct,
-            'levelspctdiff':levelspctdiff,
-            'cmap1': cmap1,
-            'norm1': norm1,
-            'levels1': levels1,
-            'plot_log_p': plot_log_p
-            }
+    if "mpl" in kwargs:
+        subplots_opt.update(kwargs["mpl"].get("subplots", {}))
+        contourf_opt.update(kwargs["mpl"].get("contourf", {}))
+        colorbar_opt.update(kwargs["mpl"].get("colorbar", {}))
+        diff_colorbar_opt.update(kwargs["mpl"].get("diff_colorbar", {}))
+        pct_colorbar_opt.update(kwargs["mpl"].get("pct_diff_colorbar", {}))
+    # End if
+    return {
+        "subplots_opt": subplots_opt,
+        "contourf_opt": contourf_opt,
+        "colorbar_opt": colorbar_opt,
+        "diff_colorbar_opt": diff_colorbar_opt,
+        "pct_colorbar_opt": pct_colorbar_opt,
+        "normdiff": normdiff,
+        "cmapdiff": cmapdiff,
+        "levelsdiff": levelsdiff,
+        "pctnorm": pctnorm,
+        "cmappct": cmappct,
+        "levelspctdiff": levelspctdiff,
+        "cmap1": cmap1,
+        "norm1": norm1,
+        "levels1": levels1,
+        "plot_log_p": plot_log_p,
+    }
 
 
 #####################
-#END HELPER FUNCTIONS
+# END HELPER FUNCTIONS

@@ -1,3 +1,7 @@
+"""
+Module to plot the Transformed Eulerian Mean (TEM) diagnostics.
+"""
+
 #Import standard modules:
 from pathlib import Path
 import numpy as np
@@ -5,29 +9,38 @@ import xarray as xr
 import warnings  # use to warn user about missing files.
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import metpy.calc.thermo as thermo
-from metpy.units import units
 import plotting_utils as plot_utils
 
 #Format warning messages:
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-warnings.formatwarning = my_formatwarning
+import adf_utils as utils
+warnings.formatwarning = utils.my_formatwarning
+
+#Constants for the potential temperature -> temperature conversion:
+P0 = 1.0e5              # reference pressure, Pa
+KAPPA = 287.0 / 1004.0  # R_dry / cp_dry
+
+#TEM variables to plot. TZM is derived here from THZM (and PMID):
+TEM_PLOT_VARS = ["UZM","THZM","TZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF"]
 
 def tem(adf):
     """
-    Plot the contents of the TEM dignostic ouput of 2-D latitude vs vertical pressure maps.
-    
+    Plot the contents of the TEM diagnostic output as 2-D latitude vs pressure maps.
+
     Steps:
      - loop through TEM variables
-     - calculate all-time fields (from individual months)
-     - take difference, calculate statistics
+     - calculate seasonal/annual fields (from individual months)
+     - take difference (interpolating onto the baseline grid if need be)
      - make plots
 
     Notes:
-     - If any of the TEM cases are missing, the ADF skips this plotting script and moves on.
-
+     - If any of the TEM files are missing, the ADF skips this plotting script and moves on.
+     - THZM is plotted as potential temperature; TZM is derived from it using
+       each case's own zonal mean PMID, which create_TEM_files copies into the
+       TEM file. Without PMID the hybrid 'lev' coordinate is used instead.
+     - When the test case and baseline/obs are on different vertical (or
+       latitude) grids, the test case is interpolated onto the baseline grid
+       (linearly in log-pressure) for the difference panel, over the range
+       the two have in common.
     """
 
     #Notify user that script has started:
@@ -36,12 +49,15 @@ def tem(adf):
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
-    plot_location = Path(adf.plot_location[0])
+    plot_locations = [Path(loc) for loc in adf.plot_location]
 
-    #Check if plot output directory exists, and if not, then create it:
-    if not plot_location.is_dir():
-        print(f"    {plot_location} not found, making new directory")
-        plot_location.mkdir(parents=True)
+    #Check if plot output directories exist, and if not, then create them:
+    for plot_loc in plot_locations:
+        if not plot_loc.is_dir():
+            print(f"    {plot_loc} not found, making new directory")
+            plot_loc.mkdir(parents=True)
+        #End if
+    #End for
 
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adf.get_cam_info("cam_case_name", required=True)
@@ -68,8 +84,7 @@ def tem(adf):
     #Grab all case nickname(s)
     test_nicknames = adf.case_nicknames["test_nicknames"]
     base_nickname = adf.case_nicknames["base_nickname"]
-    case_nicknames = test_nicknames + [base_nickname]
- 
+
     #Set plot file type:
     # -- this should be set in basic_info_dict, but is not required
     # -- So check for it, and default to png
@@ -82,345 +97,167 @@ def tem(adf):
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
-    tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
-    #Initialize list of input TEM file locations
-    tem_locs = []
-
     #Extract TEM file save locations
-    output_loc       = adf.get_basic_info("cam_regrid_loc", required=True)
-    regrid_tem_files = False
-    kwargs = {}
-    if Path(f"{output_loc}/tem").is_dir():
-        regrid_tem_files = True
-        tem_case_locs = [f"{output_loc}/tem"]
-        if not adf.compare_obs:
-            tem_base_loc = f"{output_loc}/tem"
-    else:
-        tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
-        tem_base_loc = adf.get_baseline_info("cam_tem_loc")
-        kwargs['decode_times'] = False
+    tem_case_locs = adf.get_cam_info("cam_tem_loc")
+    tem_base_loc = adf.get_baseline_info("cam_tem_loc")
 
-    #If path not specified, skip TEM calculation?
+    #If path not specified, skip TEM plots:
     if tem_case_locs is None:
         print("\t 'cam_tem_loc' not found for test case(s) in config file, so no TEM plots will be generated.")
         return
-    else:
-        for tem_case_loc in tem_case_locs:
-            tem_case_loc = Path(tem_case_loc)
-            #Check if TEM directory exists, and if not, then create it:
-            if not tem_case_loc.is_dir():
-                print(f"    {tem_case_loc} not found, making new directory")
-                tem_case_loc.mkdir(parents=True)
-            #End if
-            tem_locs.append(tem_case_loc)
-        #End for
-
-    #Set seasonal ranges:
-    seasons = {"ANN": np.arange(1,13,1),
-               "DJF": [12, 1, 2],
-               "JJA": [6, 7, 8],
-               "MAM": [3, 4, 5],
-               "SON": [9, 10, 11]
-               }
-
-    #Suggestion from Rolando, if QBO is being produced, add utendvtem and utendwtem?
-    var_list = ["UZM","THZM","TZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","DELF"]
+    #End if
 
     #Check if comparing against obs
-    if adf.compare_obs:
-        obs = True
-        #Set TEM file for observations
-        base_file_name = 'Obs.TEMdiag.nc'
-        if regrid_tem_files:
-            tem_base_loc = Path(adf.get_cam_info("cam_tem_loc",required=True)[0])
-        else:
-            tem_base_loc = Path(tem_locs[0])
+    if obs:
+        #Observation TEM file is saved to the first test case location
+        base_file = Path(tem_case_locs[0]) / 'Obs.TEMdiag.nc'
     else:
-        #Set TEM file for baseline
-        #input_loc_idx = Path(tem_base_loc)
-        if regrid_tem_files:
-            base_file_name = f'{base_name}.TEMdiag_regridded_baseline.nc'
-        else:
-            base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
+        if tem_base_loc is None:
+            print("\t 'cam_tem_loc' not found for baseline in config file, so no TEM plots will be generated.")
+            return
+        #End if
+        base_file = Path(tem_base_loc) / f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
+    #End if
 
-    #Baseline TEM location
-    input_loc_idx = Path(tem_base_loc)
-    
-    #Set full path for baseline/obs file
-    tem_base = input_loc_idx / base_file_name
-
-    #Check to see if baseline/obs TEM file exists    
-    if tem_base.is_file():
-        ds_base = xr.open_dataset(tem_base, **kwargs)#,decode_times=False
-    else:
-        print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
+    #Check to see if baseline/obs TEM file exists
+    if not base_file.is_file():
+        print(f"\t'{base_file}' does not exist. TEM plots will be skipped.")
         return
+    #End if
+    ds_base = _open_tem_file(base_file)
 
-    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
+    #Open each test case's TEM file once, up front, so a missing file is
+    #reported before any plotting work is done:
+    case_datasets = []
+    for idx, case_name in enumerate(case_names):
+        tem_case = Path(tem_case_locs[idx]) / \
+                   f'{case_name}.TEMdiag_{syear_cases[idx]}-{eyear_cases[idx]}.nc'
+        if not tem_case.is_file():
+            print(f"\t'{tem_case}' does not exist. TEM plots will be skipped.")
+            return
+        #End if
+        case_datasets.append(_open_tem_file(tem_case))
+    #End for
 
     #Loop over variables:
-    for var in var_list:
-        """
-        if adf.compare_obs:
-            #Check if obs exist for the variable:
-            if var in var_obs_dict:
-                #Note: In the future these may all be lists, but for
-                #now just convert the target_list.
-                #Extract target file:
-                dclimo_loc = var_obs_dict[var]["obs_file"]
-                #Extract target list (eventually will be a list, for now need to convert):
-                data_list = [var_obs_dict[var]["obs_name"]]
-                #Extract target variable name:
-                data_var = var_obs_dict[var]["obs_var"]
+    for var in TEM_PLOT_VARS:
+
+        #TZM is derived from THZM, so that is the field that has to be in the files:
+        file_var = "THZM" if var == "TZM" else var
+
+        if file_var not in ds_base:
+            if obs and file_var == "THZM":
+                print(f"\t - Observations have no potential temperature, so {var} will be skipped.")
             else:
-                dmsg = f"No obs found for variable `{var}`, zonal mean plotting skipped."
-                adfobj.debug_log(dmsg)
-                continue
+                warnings.warn(f"\t    INFO: '{file_var}' not in {base_name} TEM file, so {var} will be skipped.")
             #End if
-        else:
-            #Set "data_var" for consistent use below:
-            data_var = var
-        #End if
-        """
-        if (adf.compare_obs) and (var == "THZM" or var == "TZM"):
-            print("Obs case is missing potential temperature, so this variable will be skipped.")
             continue
+        #End if
+
+        if var not in res:
+            warnings.warn(f"\t    INFO: '{var}' not in variable defaults, skipping.")
+            continue
+        #End if
 
         #Notify user of variable being plotted:
         print(f"\t - TEM plots for {var}")
 
+        #Grab variable defaults for this variable
+        vres = res[var]
+
         #Loop over model cases:
-        for idx,case_name in enumerate(case_names):
+        for idx, case_name in enumerate(case_names):
 
-            """# Check redo_plot. If set to True: remove old plot, if it already exists:
-            if (not redo_plot) and plot_name.is_file():
-                #Add already-existing plot to website (if enabled):
-                adf.debug_log(f"'{plot_name}' exists and clobber is false.")
-                adf.add_website_data(plot_name, "TEM", case_name, season=s, plot_type="WACCM",ext="Mean",category="Seasonal Cycle")
+            ds = case_datasets[idx]
+            plot_location = plot_locations[idx]
 
-                #Continue to next iteration:
+            if file_var not in ds:
+                warnings.warn(f"\t    INFO: '{file_var}' not in {case_name} TEM file, skipping.")
                 continue
-            elif (redo_plot) and plot_name.is_file():
-                plot_name.unlink()"""
-
-            tem_loc = tem_case_locs[idx]
+            #End if
 
             #Extract start and end year values:
             start_year = syear_cases[idx]
             end_year   = eyear_cases[idx]
 
-            #Open the TEM file
-            output_loc_idx = Path(tem_loc)
-
-            if regrid_tem_files:
-                case_file_name = f'{base_name}_{case_name}.TEMdiag_regridded.nc'
-            else:
-                case_file_name = f'{case_name}.TEMdiag_{start_year}-{end_year}.nc'
-            tem_case = output_loc_idx / case_file_name
-
-            #Grab the data for the TEM netCDF files
-            if tem_case.is_file():
-                ds = xr.open_dataset(tem_case, **kwargs)#,decode_times=False
-            else:
-                print(f"\t'{tem_case}' does not exist. TEM plots will be skipped.")
-                return
-
-            #Loop over season dictionary:
-            for s in seasons:
+            #Loop over the seasons the ADF knows about:
+            for s in utils.seasons:
 
                 #Location to save plots
-                plot_name = plot_location / f"{var}_{s}_WACCM_TEM_Mean.png"
+                plot_name = plot_location / f"{var}_{s}_WACCM_TEM_Mean.{plot_type}"
 
                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                 if (not redo_plot) and plot_name.is_file():
                     #Add already-existing plot to website (if enabled):
                     adf.debug_log(f"'{plot_name}' exists and clobber is false.")
-                    adf.add_website_data(plot_name, var, None, season=s, plot_type="WACCM",ext="TEM_Mean",category="TEM",multi_case=True)
-
-                elif ((redo_plot) and plot_name.is_file()) or (not plot_name.is_file()):
-                    if plot_name.is_file():
-                        plot_name.unlink()
-
-                #Grab variable defaults for this variable
-                if var == "TZM":
-                    vres = res["THZM"]
-                else:   
-                    vres = res[var.upper()]
-
-                vres = res[var.upper()]
+                    adf.add_website_data(plot_name, var, case_name, season=s, plot_type="WACCM",
+                                         ext="TEM_Mean", category="TEM")
+                    continue
+                elif redo_plot and plot_name.is_file():
+                    plot_name.unlink()
+                #End if
 
                 #Gather data for both cases
-                if var == "TZM":
-                    mdata = ds["THZM"].squeeze()
-                    odata = ds_base["THZM"].squeeze()
-                else:
-                    mdata = ds[var].squeeze()
-                    if adf.compare_obs:
-                        odata = ds_base[var.lower()].squeeze()
-                    else:
-                        odata = ds_base[var].squeeze()
-                if regrid_tem_files == False:
-                    mdata['time'] = xr.conventions.times.decode_cf_datetime(mdata.time, mdata.time.attrs['units'])
-                    odata['time'] = xr.conventions.times.decode_cf_datetime(odata.time, odata.time.attrs['units'])
+                mdata = ds[file_var].squeeze()
+                odata = ds_base[file_var].squeeze()
 
-                # APPLY UNITS TRANSFORMATION IF SPECIFIED:
-                # NOTE: looks like our climo files don't have all their metadata
-                mdata = mdata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-                # update units
-                mdata.attrs['units'] = vres.get("new_unit", mdata.attrs.get('units', 'none'))
-
-                # Do the same for the baseline case if need be:
-                if not obs:
-                    odata = odata * vres.get("scale_factor",1) + vres.get("add_offset", 0)
-                    # update units
-                    odata.attrs['units'] = vres.get("new_unit", odata.attrs.get('units', 'none'))
-                # Or for observations
-                else:
-                    odata = odata * vres.get("obs_scale_factor",1) + vres.get("obs_add_offset", 0)
-                    # Note: we are going to assume that the specification ensures the conversion makes the units the same. Doesn't make sense to add a different unit.
-
-                #Create array to avoid weighting missing values:
-                md_ones = xr.where(mdata.isnull(), 0.0, 1.0)
-                od_ones = xr.where(odata.isnull(), 0.0, 1.0)
-
-                month_length = mdata.time.dt.days_in_month
-                weights = (month_length.groupby("time.season") / month_length.groupby("time.season").sum())
-
-                #Calculate monthly-weighted seasonal averages:
-                if s == 'ANN':
-
-                    #Calculate annual weights (i.e. don't group by season):
-                    weights_ann = month_length / month_length.sum()
-
-                    mseasons = (mdata * weights_ann).sum(dim='time')
-                    mseasons = mseasons / (md_ones*weights_ann).sum(dim='time')
-
-                    #Calculate monthly weights based on number of days:
+                # Apply the unit conversion from the variable defaults. This is
+                # done directly rather than through adf.data.apply_conversion,
+                # which only converts variables in 'diag_var_list' (the TEM
+                # variables are not). The TEM files are always written
+                # unconverted by create_TEM_files, so there is no risk of
+                # scaling twice. Observations have their own scaling, which is
+                # assumed to bring them to the same units.
+                if var != "TZM":
+                    mdata = _convert_units(mdata, vres)
                     if obs:
-                        month_length_obs = odata.time.dt.days_in_month
-                        weights_ann_obs = month_length_obs / month_length_obs.sum()
-                        oseasons = (odata * weights_ann_obs).sum(dim='time')
-                        oseasons = oseasons / (od_ones*weights_ann_obs).sum(dim='time')
+                        odata = _convert_units(odata, vres, prefix="obs_")
                     else:
-                        month_length_base = odata.time.dt.days_in_month
-                        weights_ann_base = month_length_base / month_length_base.sum()
-                        oseasons = (odata * weights_ann_base).sum(dim='time')
-                        oseasons = oseasons / (od_ones*weights_ann_base).sum(dim='time')
+                        odata = _convert_units(odata, vres)
+                    #End if
+                #End if
 
-                else:
-                    #this is inefficient because we do same calc over and over
-                    mseasons = (mdata * weights).groupby("time.season").sum(dim="time").sel(season=s)
-                    wgt_denom = (md_ones*weights).groupby("time.season").sum(dim="time").sel(season=s)
-                    mseasons = mseasons / wgt_denom
+                #Month-length weighted seasonal (or annual) mean. The weighted
+                #mean renormalizes around missing values.
+                mseasons = utils.seasonal_mean(mdata, season=s, is_climo=False)
+                oseasons = utils.seasonal_mean(odata, season=s, is_climo=False)
 
-                    if obs:
-                        month_length_obs = odata.time.dt.days_in_month
-                        weights_obs = (month_length_obs.groupby("time.season") / month_length_obs.groupby("time.season").sum())
-                        oseasons = (odata * weights_obs).groupby("time.season").sum(dim="time").sel(season=s)
-                        wgt_denom = (od_ones*weights_obs).groupby("time.season").sum(dim="time").sel(season=s)
-                        oseasons = oseasons / wgt_denom
-                    else:
-                        month_length_base = odata.time.dt.days_in_month
-                        weights_base = (month_length_base.groupby("time.season") / month_length_base.groupby("time.season").sum())
-                        oseasons = (odata * weights_base).groupby("time.season").sum(dim="time").sel(season=s)
-                        wgt_denom_base = (od_ones*weights_base).groupby("time.season").sum(dim="time").sel(season=s)
-                        oseasons = oseasons / wgt_denom_base
-
+                # Derive zonal mean temperature from potential temperature,
+                # each side with its own pressure:
                 if var == "TZM":
-                    """
-                    from metpy.calc import temperature_from_potential_temperature
-                    # potential temperature
-                    theta = np.array([ 286.12859679, 288.22362587]) * units.kelvin
-                    p = 850 * units.mbar
-                    T = temperature_from_potential_temperature(p, theta)
-                    """
+                    if s == "ANN":
+                        print("\t       INFO: deriving zonal mean temperature from potential temperature")
+                    #End if
+                    mseasons = _to_temperature(ds, mseasons, s, case_name)
+                    oseasons = _to_temperature(ds_base, oseasons, s, base_name)
+                #End if
 
-                    pmid = ds["PMID"].squeeze()
-                    if regrid_tem_files == False:
-                        pmid['time'] = xr.conventions.times.decode_cf_datetime(pmid.time, pmid.time.attrs['units'])
+                #Difference, on the baseline grid:
+                dseasons = _difference(mseasons, oseasons)
+                comparable = dseasons is not None
+                if not comparable:
+                    dseasons = xr.zeros_like(oseasons)
+                #End if
 
-                    #Create array to avoid weighting missing values:
-                    pmid_ones = xr.where(pmid.isnull(), 0.0, 1.0)
-
-                    if s == 'ANN':
-                        print(f"\t       INFO: deriving zonal mean temperature from potential temperature")
-                        #Calculate annual weights (i.e. don't group by season):
-                        weights_ann = month_length / month_length.sum()
-
-                        pmid = (pmid * weights_ann).sum(dim='time')
-                        pmid = pmid / (pmid_ones*weights_ann).sum(dim='time')
-                    else:
-                        #this is inefficient because we do same calc over and over
-                        pmid = (pmid * weights).groupby("time.season").sum(dim="time").sel(season=s)
-                        wgt_denom = (pmid_ones*weights).groupby("time.season").sum(dim="time").sel(season=s)
-                        pmid = pmid / wgt_denom
-
-                    mseasons = thermo.temperature_from_potential_temperature(pmid* units.Pa,
-                                                                             mseasons* units.kelvin)
-
-                    oseasons = thermo.temperature_from_potential_temperature(pmid* units.Pa,
-                                                                             oseasons* units.kelvin)
-
-                    mseasons.attrs['units'] = "K"
-                    oseasons.attrs['units'] = "K"
-
-                if var == "DELF":
-                    mseasons = mseasons*1000
-                    oseasons = oseasons*1000
-
-                # Find which zonal lat variable is present in the dataset and use it for interpolation
-                if 'zalat' in mseasons.coords:
-                    mlat = mseasons['zalat']
-                elif 'zmlat' in mseasons.coords:
-                    mlat = mseasons['zmlat']
-                else:
-                    raise ValueError("Neither 'zalat' nor 'zmlat' found in dataset. Cannot determine number of latitudes for TEM calculations.")
-                
-                if 'zalat' in oseasons.coords:
-                    olat = oseasons['zalat']
-                elif 'zmlat' in oseasons.coords:
-                    olat = oseasons['zmlat']
-                else:
-                    raise ValueError("Neither 'zalat' nor 'zmlat' found in dataset. Cannot determine number of latitudes for TEM calculations.")
-                
-                if 'zalat' in mseasons.coords and 'zmlat' in mseasons.coords:
-                    print("Both 'zalat' and 'zmlat' found in dataset. Defaulting to 'zalat' for model latitudes.")
-                    print("Test",np.allclose(mseasons.zalat, mseasons.zmlat))
-                    mseasons = mseasons.drop_vars("zmlat")
-                    continue
-                if 'zalat' in oseasons.coords and 'zmlat' in oseasons.coords:
-                    print("Both 'zalat' and 'zmlat' found in dataset. Defaulting to 'zalat' for model latitudes.")
-                    print("Test",np.allclose(oseasons.zalat, oseasons.zmlat))
-                    oseasons = oseasons.drop_vars("zmlat")
-                    continue
-
-                mlev = mseasons['lev']
-                olev = oseasons['lev']
-
-                #difference: each entry should be (lat, lon)
-                if (mseasons.dims == oseasons.dims) and (mseasons.shape == oseasons.shape):
-                    dseasons = mseasons-oseasons
-                else:
-                    print("Mismatched shape between model and baseline, will skip difference plots but still show the data?")
-                    dseasons = None
-                
-                #Gather contour plot options
-                cp_info = plot_utils.prep_contour_plot(mseasons, oseasons, dseasons, None, **vres)
+                #Gather contour plot options (NaNs outside the common range of
+                #the two grids are left out of the automatic levels):
+                cp_info = plot_utils.prep_contour_plot(mseasons, oseasons,
+                                                       dseasons.fillna(0.0), None, **vres)
                 clevs = np.unique(np.array(cp_info['levels1']))
-
                 norm = cp_info['norm1']
                 cmap = cp_info['cmap1']
                 clevs_diff = np.unique(np.array(cp_info['levelsdiff']))
 
-                # mesh for plots:
-                mlats, mlevs = np.meshgrid(mlat, mlev)
-                olats, olevs = np.meshgrid(olat, olev)
+                # mesh for plots -- each panel gets its own, because the baseline
+                # (especially observations) can be on a different grid than the
+                # test case. The difference is on the baseline grid.
+                mlats, mlevs = _mesh(mseasons)
+                olats, olevs = _mesh(oseasons)
 
                 # Find the next value below highest vertical level
-                prev_major_ticks = []
-                prev_major_ticks.append(10 ** (np.floor(np.log10(np.min(mlevs)))))
-                prev_major_ticks.append(10 ** (np.floor(np.log10(np.min(olevs)))))
-                prev_major_tick = min(prev_major_ticks)
+                prev_major_tick = min(10 ** (np.floor(np.log10(np.min(mlevs)))),
+                                      10 ** (np.floor(np.log10(np.min(olevs)))))
+
                 # Set padding for colorbar form axis
                 cmap_pad = 0.005
 
@@ -434,74 +271,31 @@ def tem(adf):
                 ax3 = plt.subplot(gs[2:, 2:6], **cp_info['subplots_opt'])
                 ax = [ax1,ax2,ax3]
 
-                #Contour fill
+                #Contour fill, then black highlight contours with labels
                 img0 = ax[0].contourf(mlats, mlevs, mseasons, levels=clevs, norm=norm, cmap=cmap)
                 img1 = ax[1].contourf(olats, olevs, oseasons, levels=clevs, norm=norm, cmap=cmap)
-                    
-                #Add contours for highlighting
-                c0 = ax[0].contour(mlats,mlevs,mseasons,levels=clevs[::2], norm=norm,
-                                    colors="k", linewidths=0.5)
+                _labelled_contours(ax[0], mlats, mlevs, mseasons, clevs[::2], norm, vres)
+                _labelled_contours(ax[1], olats, olevs, oseasons, clevs[::2], norm, vres)
 
-                #Check if contour labels need to be adjusted
-                #ie if the values are large and/or in scientific notation, just label the 
-                #contours with the leading numbers.
-                #EXAMPLE: plot values are 200000; plot the contours as 2.0 and let the colorbar
-                #         indicate that it is e5.
-                fmt = {}
-                if 'contour_adjust' in vres:
-                    test_strs = c0.levels/float(vres['contour_adjust'])
-                    for l, str0 in zip(c0.levels, test_strs):
-                        fmt[l] = str0
-
-                    # Add contour labels
-                    plt.clabel(c0, inline=True, fontsize=8, levels=c0.levels, fmt=fmt)
-                else:
-                    # Add contour labels
-                    plt.clabel(c0, inline=True, fontsize=8, levels=c0.levels)
-
-                #Add contours for highlighting
-                c1 = ax[1].contour(olats,olevs,oseasons,levels=clevs[::2], norm=norm,
-                                    colors="k", linewidths=0.5)
-
-                #Check if contour labels need to be adjusted
-                #ie if the values are large and/or in scientific notation, just label the 
-                #contours with the leading numbers.
-                #EXAMPLE: plot values are 200000; plot the contours as 2.0 and let the colorbar
-                #         indicate that it is e5.
-                fmt = {}
-                if 'contour_adjust' in vres:
-                    base_strs = c1.levels/float(vres['contour_adjust'])
-                    for l, str0 in zip(c1.levels, base_strs):
-                        fmt[l] = str0
-
-                    # Add contour labels
-                    plt.clabel(c1, inline=True, fontsize=8, levels=c1.levels, fmt=fmt)
-                else:
-                    # Add contour labels
-                    plt.clabel(c1, inline=True, fontsize=8, levels=c1.levels)
-
-                #Check if difference plot has contour levels, if not print notification
-                if (dseasons is None) or (len(dseasons.lev) == 0):
-                    #Set empty message for comparison of cases with different vertical levels
-                    #TODO: Work towards getting the vertical and horizontal interpolations!! - JR
-                    empty_message = "These have different vertical levels\nCan't compare cases currently"
+                #Check if difference plot can be made, if not print notification
+                if not comparable:
+                    #Set empty message for comparison of cases with no common vertical levels
+                    empty_message = "These have no vertical levels in common\nCan't compare cases currently"
                     props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.9}
                     prop_x = 0.18
                     prop_y = 0.42
                     ax[2].text(prop_x, prop_y, empty_message,
                                     transform=ax[2].transAxes, bbox=props)
                 else:
-                    img2 = ax[2].contourf(mlats, mlevs, dseasons,
+                    img2 = ax[2].contourf(olats, olevs, dseasons,
                                             cmap=cp_info['cmapdiff'],
                                             levels=clevs_diff,
                                             norm=cp_info['normdiff'])
-                    ax[2].contour(mlats, mlevs, dseasons, colors="k", linewidths=0.5,
+                    ax[2].contour(olats, olevs, dseasons, colors="k", linewidths=0.5,
                                     levels=clevs_diff[::2], norm=cp_info['normdiff'])
                     cp_info['diff_colorbar_opt']["label"] = cp_info['colorbar_opt']["label"]
                     plt.colorbar(img2, ax=ax[2], location='right', pad=cmap_pad,**cp_info['diff_colorbar_opt'])
-                
-
-                #print("prev_major_ticks",prev_major_ticks,"\n")
+                #End if
 
                 #Format y-axis
                 for i,a in enumerate(ax[:]):
@@ -512,14 +306,12 @@ def tem(adf):
                         a.set_ylabel('Pressure [hPa]', va='center', rotation='vertical')
                     if 'ylim' in vres:
                         y_lims = [float(lim) for lim in vres['ylim']]
-
-                        #print("y_lims",y_lims,"\n")
-                        #np.min(levs)
-                        y_lims[-1]=prev_major_tick #np.min(levs)
-                        #print("y_lims",y_lims,"\n")
+                        y_lims[-1]=prev_major_tick
                         a.set_ylim(y_lims)
                     else:
                         a.set_ylim(a.get_ylim()[::-1])
+                    #End if
+                #End for
 
                 # Format color bars
                 plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,**cp_info['colorbar_opt'])
@@ -532,30 +324,171 @@ def tem(adf):
                 plt.suptitle(f'{longname}: {s}', fontsize=20, y=.97)
 
                 test_yrs = f"{start_year}-{end_year}"
-                plot_title = "$\mathbf{Test}:$"+f"{test_nicknames[idx]}\nyears: {test_yrs}"
+                plot_title = r"$\mathbf{Test}:$"+f"{test_nicknames[idx]}\nyears: {test_yrs}"
                 ax[0].set_title(plot_title, loc='left', fontsize=10)
 
                 if obs:
                     obs_title = Path(vres["obs_name"]).stem
                     ax[1].set_title(f"{obs_title}\n",fontsize=10)
-
                 else:
                     base_yrs = f"{syear_baseline}-{eyear_baseline}"
-                    plot_title = "$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {base_yrs}"
+                    plot_title = r"$\mathbf{Baseline}:$"+f"{base_nickname}\nyears: {base_yrs}"
                     ax[1].set_title(plot_title, loc='left', fontsize=10)
-                
+                #End if
+
                 #Set main title for difference plots column
-                ax[2].set_title("$\mathbf{Test} - \mathbf{Baseline}$",fontsize=10)
+                ax[2].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$",fontsize=10)
 
                 #Write the figure to provided workspace/file:
                 fig.savefig(plot_name, bbox_inches='tight', dpi=300)
 
                 #Add plot to website (if enabled):
                 adf.add_website_data(plot_name, var, case_name, season=s, plot_type="WACCM",
-                                     ext="TEM_Mean",category="TEM")
+                                     ext="TEM_Mean", category="TEM")
 
                 plt.close()
+            #End for (seasons)
+        #End for (cases)
+    #End for (variables)
     print("  ...TEM plots have been generated successfully.")
 
 # Helper functions
 ##################
+
+def _open_tem_file(path):
+    """
+    Open a TEM file, with interval-midpoint time stamps and the zonal mean
+    latitude called 'zalat' (newer CESM output calls it 'zmlat').
+    """
+    ds = xr.open_dataset(path)
+    ds = utils.use_time_bounds_midpoint(ds)
+    if 'zmlat' in ds.dims or 'zmlat' in ds.variables:
+        if 'zalat' in ds.dims:
+            ds = ds.drop_vars('zmlat')
+        else:
+            ds = ds.rename({'zmlat': 'zalat'})
+        #End if
+    #End if
+    return ds
+
+#########
+
+def _convert_units(data, vres, prefix=""):
+    """
+    Apply the variable defaults' '<prefix>scale_factor' and '<prefix>add_offset'
+    to `data`, and set its units to 'new_unit' if given.
+    """
+    attrs = data.attrs
+    data = data * float(vres.get(f"{prefix}scale_factor", 1)) \
+           + float(vres.get(f"{prefix}add_offset", 0))
+    data.attrs = attrs
+    if "new_unit" in vres:
+        data.attrs['units'] = vres["new_unit"]
+    #End if
+    return data
+
+#########
+
+def _mesh(da):
+    """Return the (latitude, level) meshes for plotting `da`."""
+    return np.meshgrid(da['zalat'], da[utils.vertical_dim(da)])
+
+#########
+
+def _to_temperature(ds, theta, season, label):
+    """
+    Convert the seasonal mean potential temperature `theta` to temperature,
+    using the seasonal mean zonal mean PMID from the TEM dataset `ds`.
+
+    Falls back to the hybrid vertical coordinate (with a warning) when PMID is
+    not available, since that coordinate is only approximately pressure.
+    """
+    lev_name = utils.vertical_dim(theta)
+    pres = None
+    if "PMID" in ds and lev_name == "lev":
+        pmid = ds["PMID"].squeeze()
+        #CAM writes PMID in Pa:
+        if str(pmid.attrs.get("units", "Pa")).lower() in ("hpa", "mb", "millibars"):
+            pmid = pmid * 100.0
+        #End if
+        pres = utils.seasonal_mean(pmid, season=season, is_climo=False)
+        #Only use it if it is on the same grid as theta:
+        if (pres.sizes.get(lev_name) != theta.sizes[lev_name]
+                or pres.sizes.get("zalat") != theta.sizes["zalat"]):
+            pres = None
+        #End if
+    #End if
+    if pres is None:
+        if season == "ANN":
+            warnings.warn(f"\t    WARNING: no usable PMID found for {label}, converting "
+                          f"THZM with the hybrid '{lev_name}' coordinate instead.")
+        #End if
+        pres = theta[lev_name] * 100.0
+    #End if
+    temperature = theta * (pres / P0) ** KAPPA
+    temperature.attrs['units'] = "K"
+    return temperature
+
+#########
+
+def _difference(mseasons, oseasons):
+    """
+    Return test minus baseline on the baseline grid, or None if the two have
+    fewer than two vertical levels in common.
+
+    If the grids differ, the test case is interpolated onto the baseline
+    latitudes (linearly) and levels (linearly in log-pressure). Points outside
+    the range the two grids share are left as NaN rather than extrapolated.
+
+    NOTE: the TEM fields are calculated with the model 'lev' values taken as
+    pressure (see create_TEM_files.calc_tem), so the same is assumed here.
+    This is accurate in the stratosphere, but only approximate near the
+    surface where the hybrid levels follow the terrain.
+    """
+    lev_m = utils.vertical_dim(mseasons)
+    lev_b = utils.vertical_dim(oseasons)
+    if lev_m is None or lev_b is None:
+        return None
+    #End if
+
+    same_grid = (lev_m == lev_b
+                 and np.array_equal(mseasons[lev_m].values, oseasons[lev_b].values)
+                 and np.array_equal(mseasons['zalat'].values, oseasons['zalat'].values))
+    if same_grid:
+        return mseasons - oseasons
+    #End if
+
+    #Interpolate in log-pressure, so make the vertical coordinate log(p):
+    mlog = mseasons.assign_coords({lev_m: np.log(mseasons[lev_m].values)})
+    if lev_m != lev_b:
+        mlog = mlog.rename({lev_m: lev_b})
+    #End if
+    target_lev = np.log(oseasons[lev_b].values)
+    minterp = mlog.interp({lev_b: target_lev, 'zalat': oseasons['zalat'].values},
+                          method="linear")
+    minterp = minterp.assign_coords({lev_b: oseasons[lev_b].values})
+
+    #Need at least two levels with data to plot a difference:
+    if int(minterp.notnull().any(dim='zalat').sum()) < 2:
+        return None
+    #End if
+    return minterp - oseasons
+
+#########
+
+def _labelled_contours(axis, xmesh, ymesh, data, levels, norm, vres):
+    """
+    Draw labelled black contours over a filled contour plot.
+
+    A 'contour_adjust' entry in the variable defaults divides the labels by a
+    common factor, so a field plotted in units of 1e7 is labelled 2.0 rather
+    than 20000000.0 and the colorbar carries the exponent.
+    """
+    contours = axis.contour(xmesh, ymesh, data, levels=levels, norm=norm,
+                            colors="k", linewidths=0.5)
+    fmt = None
+    if 'contour_adjust' in vres:
+        adjust = float(vres['contour_adjust'])
+        fmt = {level: level / adjust for level in contours.levels}
+    #End if
+    plt.clabel(contours, inline=True, fontsize=8, levels=contours.levels, fmt=fmt)
