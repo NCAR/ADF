@@ -39,6 +39,13 @@ month_dict = {1:'JAN',
 
 delta_symbol = r'$\Delta$'
 
+#Monthly history streams the zonal means are made from:
+H0_STREAMS = ("cam.h0a", "cam.h0")
+
+#Specific humidity (kg/kg) -> water vapor volume mixing ratio (ppmv):
+#multiply by the ratio of the molar masses of dry air and water.
+Q_TO_PPMV = 1.0e6 * 28.966 / 18.015
+
 #
 # --- Main Function Shares Name with Module: regional_map_multicase ---
 #
@@ -83,16 +90,8 @@ def seasonal_cycle(adfobj):
     # Grab history strings:
     cam_hist_strs = adfobj.hist_string["test_hist_str"]
 
-    # Filter the list to include only strings that are exactly in the possible h0 strings
-    # - Search for either h0 or h0a
-    substrings = {"cam.h0","cam.h0a"}
-    case_hist_strs = []
-    for cam_case_str in cam_hist_strs:
-        # Check each possible h0 string
-        for string in cam_case_str:
-            if string in substrings:
-               case_hist_strs.append(string)
-               break
+    # Pick the monthly h0 (or h0a) stream for each case:
+    case_hist_strs = [_h0_stream(strs, case) for strs, case in zip(cam_hist_strs, case_names)]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -148,8 +147,7 @@ def seasonal_cycle(adfobj):
 
         # Grab history string:
         baseline_hist_strs = adfobj.hist_string["base_hist_str"]
-        # Filter the list to include only strings that are exactly in the substrings list
-        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
+        base_hist_strs = [_h0_stream(baseline_hist_strs, data_name)]
         hist_strs = case_hist_strs + base_hist_strs
     else:
         print("\t ** The seasonal cycle plots currently don't work when comparing against obs. Exiting script.")
@@ -174,6 +172,9 @@ def seasonal_cycle(adfobj):
 
         # Make or access the WACCM zonal mean file
         ncfile = make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,return_ds=True)
+        if ncfile is None:
+            print(f"\t ** No zonal mean data for '{case_name}', so the seasonal cycle plots will be skipped.")
+            return
 
         # Set up creation of individual CAM data dictionaries
         case_coords = {}
@@ -241,7 +242,7 @@ def seasonal_cycle(adfobj):
     #for cam_var in ["U","T"]:
     for cam_var in comp_plots_dict['cam_vars']:
         #Notify user of variable being plotted:
-        print(f"\t - zonal mean maps for {var}")
+        print(f"\t - zonal mean maps for {cam_var}")
 
         #for interval in [6,12,"DJF", "JJA"]:
         for interval in comp_plots_dict['interval']:
@@ -268,7 +269,7 @@ def seasonal_cycle(adfobj):
             plot_name = plot_loc / f"{cam_var}_zm_{interval}_WACCM_SeasonalCycle_Mean.{plot_type}"
             if (not redo_plot) and plot_name.is_file():
                 adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-                adfobj.add_website_data(plot_name, f"{cam_var}_zm", case_name, season=interval,
+                adfobj.add_website_data(plot_name, f"{cam_var}_zm", case_names[0], season=interval,
                                         plot_type="WACCM", category="Seasonal Cycle",
                                         ext="SeasonalCycle_Mean",non_season=True)
             
@@ -279,7 +280,7 @@ def seasonal_cycle(adfobj):
             
                 comparison_plots(plot_name, cam_var, case_names, nicknames, case_ds_dict,
                                     obs_ds_dict, season, interval, comp_plots_dict, obs_cam_vars, highest_lev)
-                adfobj.add_website_data(plot_name, f"{cam_var}_zm", case_name, season=interval,
+                adfobj.add_website_data(plot_name, f"{cam_var}_zm", case_names[0], season=interval,
                                         plot_type="WACCM", category="Seasonal Cycle",
                                         ext="SeasonalCycle_Mean",non_season=True)
             #End if
@@ -305,7 +306,7 @@ def seasonal_cycle(adfobj):
         if (not redo_plot) and plot_name.is_file():
             #Add already-existing plot to website (if enabled):
             adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-            adfobj.add_website_data(plot_name, f"{hemi.upper()}PolarCapT", case_name, season="ANN",
+            adfobj.add_website_data(plot_name, f"{hemi.upper()}PolarCapT", case_names[0], season="ANN",
                                     plot_type="WACCM", category="Seasonal Cycle",
                                     ext="SeasonalCycle_Mean")
         elif ((redo_plot) and plot_name.is_file()) or (not plot_name.is_file()):
@@ -313,8 +314,8 @@ def seasonal_cycle(adfobj):
             if plot_name.is_file():
                 plot_name.unlink()
 
-            polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, merra2_monthly, pcap_dict)
-            adfobj.add_website_data(plot_name, f"{hemi.upper()}PolarCapT", case_name, season="ANN",
+            polar_cap_temp(plot_name, hemi, case_names, nicknames, cases_coords, cases_monthly, merra2_monthly, pcap_dict)
+            adfobj.add_website_data(plot_name, f"{hemi.upper()}PolarCapT", case_names[0], season="ANN",
                                     plot_type="WACCM", category="Seasonal Cycle",
                                     ext="SeasonalCycle_Mean")
         #End if
@@ -342,11 +343,11 @@ def seasonal_cycle(adfobj):
     for vert_lev in vert_levs:
         #Notify user of variable being plotted:
         print(f"\t - cold point temp maps for {vert_lev}hPa")
-        plot_name = plot_loc / f"CPT_ANN_WACCM_SeasonalCycle_Mean.{plot_type}"
+        plot_name = plot_loc / f"CPT_{vert_lev}hPa_ANN_WACCM_SeasonalCycle_Mean.{plot_type}"
 
         if (not redo_plot) and plot_name.is_file():
             adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-            adfobj.add_website_data(plot_name, "CPT", case_name, season="ANN",
+            adfobj.add_website_data(plot_name, f"CPT_{vert_lev}hPa", case_names[0], season="ANN",
                                         plot_type="WACCM",
                                         ext="SeasonalCycle_Mean",
                                         category="Seasonal Cycle",
@@ -358,7 +359,7 @@ def seasonal_cycle(adfobj):
                 plot_name.unlink()
 
             month_vs_lat_plot(var, var_dict, plot_name, case_names, nicknames, climo_yrs, cases_coords, cases_monthly, vert_lev)
-            adfobj.add_website_data(plot_name, "CPT", case_name, season="ANN",
+            adfobj.add_website_data(plot_name, f"CPT_{vert_lev}hPa", case_names[0], season="ANN",
                                         plot_type="WACCM",
                                         ext="SeasonalCycle_Mean",
                                         category="Seasonal Cycle",
@@ -387,7 +388,7 @@ def seasonal_cycle(adfobj):
 
         if (not redo_plot) and plot_name.is_file():
             adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-            adfobj.add_website_data(plot_name, f"MixRatio_{vert_lev}hPa", case_name, season="ANN",
+            adfobj.add_website_data(plot_name, f"MixRatio_{vert_lev}hPa", case_names[0], season="ANN",
                                         plot_type="WACCM",
                                         ext="SeasonalCycle_Mean",
                                         category="Seasonal Cycle",
@@ -399,7 +400,7 @@ def seasonal_cycle(adfobj):
                 plot_name.unlink()
 
             month_vs_lat_plot(var, var_dict, plot_name, case_names, nicknames, climo_yrs, cases_coords, cases_monthly, vert_lev)
-            adfobj.add_website_data(plot_name, f"MixRatio_{vert_lev}hPa", case_name, season="ANN",
+            adfobj.add_website_data(plot_name, f"MixRatio_{vert_lev}hPa", case_names[0], season="ANN",
                                         plot_type="WACCM",
                                         ext="SeasonalCycle_Mean",
                                         category="Seasonal Cycle",
@@ -414,7 +415,7 @@ def seasonal_cycle(adfobj):
     plot_name = plot_loc / f"QBO_ANN_WACCM_SeasonalCycle_Mean.{plot_type}"
     if (not redo_plot) and plot_name.is_file():
         adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-        adfobj.add_website_data(plot_name, "QBO", case_name, season="ANN",
+        adfobj.add_website_data(plot_name, "QBO", case_names[0], season="ANN",
                                     plot_type="WACCM",
                                     ext="SeasonalCycle_Mean",
                                     category="Seasonal Cycle",
@@ -426,7 +427,7 @@ def seasonal_cycle(adfobj):
             plot_name.unlink()
 
         waccm_qbo(plot_name, case_names, nicknames, cases_coords, merra2, syear_cases, eyear_cases)
-        adfobj.add_website_data(plot_name, "QBO", case_name, season="ANN",
+        adfobj.add_website_data(plot_name, "QBO", case_names[0], season="ANN",
                                     plot_type="WACCM",
                                     ext="SeasonalCycle_Mean",
                                     category="Seasonal Cycle",
@@ -440,6 +441,25 @@ def seasonal_cycle(adfobj):
 
 # Helper functions
 ##################
+
+def _h0_stream(hist_strs, case_name):
+    """
+    Return the monthly h0 (or h0a) history stream for a case.
+
+    Falls back to the case's first stream, with a warning, so that every case
+    keeps a stream and the per-case lists stay aligned.
+    """
+    if isinstance(hist_strs, str):
+        hist_strs = [hist_strs]
+    hist_strs = list(hist_strs or [])
+    for string in hist_strs:
+        if string in H0_STREAMS:
+            return string
+    fallback = hist_strs[0] if hist_strs else "cam.h0a"
+    print(f"\t    WARNING: no 'cam.h0' or 'cam.h0a' stream for '{case_name}', using '{fallback}'.")
+    return fallback
+
+########
 
 def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,return_ds=True):
     """
@@ -475,23 +495,53 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
         print(f"\t    {save_path} not found, making new directory")
         output_location.mkdir(parents=True)
 
-    plot_locations = adfobj.plot_location[0]
-    save_path = Path(plot_locations)
-    zm_file = save_path / f"waccm_zm_{case_name}.nc"
+    zm_file = output_location / f"waccm_zm_{case_name}_{syr}-{eyr}.nc"
 
-    #Check if file exists. If so, open the file or make it if not
+    #Check if file exists (and has all the variables). If so, open the file or make it if not
+    waccm_zm = None
     if zm_file.exists():
-        waccm_zm = xr.open_mfdataset(zm_file)
-    else:
+        waccm_zm = xr.open_dataset(zm_file)
+        missing = [var for var in calc_var_list if var not in waccm_zm]
+        if missing:
+            print(f"\t  ...{zm_file.name} is missing {', '.join(missing)}, so it will be remade")
+            waccm_zm.close()
+            waccm_zm = None
+        #End if
+    #End if
+
+    if waccm_zm is None:
         print(f"\t  ...Making zonal mean average file from history files for {case_name}")
         h0_lists = []
 
         for yr in np.arange(int(syr),int(eyr)+1):
-            h0_lists.append(sorted(glob.glob(f'{hist_loc}/*{hist_str}.{yr}-*.nc')))
+            #Zero-pad the year to match CAM file names (e.g. 0001-01)
+            h0_lists.append(sorted(glob.glob(f'{hist_loc}/*{hist_str}.{yr:04d}-*.nc')))
 
         h0_list = list(chain(*h0_lists))
+        if not h0_list:
+            print(f"\t    WARNING: no '{hist_str}' history files found in '{hist_loc}' for years {syr}-{eyr}.")
+            return None
+        #End if
 
         waccm_zm = xr.open_mfdataset(h0_list, use_cftime=True, data_vars=calc_var_list)
+
+        #Use the middle of each averaging interval as the time stamp, so each
+        #month is counted as the right month (CAM stamps the end of the interval):
+        waccm_zm = utils.use_time_bounds_midpoint(waccm_zm)
+
+        #The zonal mean needs a regular lat/lon grid:
+        if 'lon' not in waccm_zm.dims:
+            print(f"\t    WARNING: '{hist_str}' files for '{case_name}' are not on a lat/lon grid "
+                  "(no 'lon' dimension), so zonal means can't be made.")
+            return None
+        #End if
+
+        missing = [var for var in calc_var_list if var not in waccm_zm]
+        if missing:
+            print(f"\t    WARNING: {', '.join(missing)} not found in '{hist_str}' files for '{case_name}'.")
+            return None
+        #End if
+
         waccm_zm = waccm_zm[calc_var_list].mean(dim='lon')
 
         attrs_dict = {"Description":"Zonal averaged mean of history files",
@@ -503,6 +553,7 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
 
         #Output zonal mean climatology to NetCDF-4 file:
         waccm_zm.to_netcdf(zm_file)
+    #End if
 
     if return_ds:
         return waccm_zm
@@ -667,12 +718,8 @@ def time_mean(ncfile, data, time_avg, interval, is_climo=None, obs=False):
     #End try/except
     
     if not obs:
-        syr = ncfile.time.dt.year.values[0]
-        eyr = ncfile.time.dt.year.values[-2]
-
-        data.attrs["year_range"] = f"{syr}-{eyr}"
-        timefix = pd.date_range(start=f'1/1/{syr}', end=f'12/1/{eyr}', freq='MS')
-        data['time']=timefix
+        years = data.time.dt.year.values
+        data.attrs["year_range"] = f"{years[0]}-{years[-1]}"
     data.attrs[time_avg] = interval
     if time_avg == "season":
         #data.attrs[time_avg] = interval
@@ -802,7 +849,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
 
         #Add a legend for the contour lines for first plot only
         legend_elements = [Line2D([0], [0],
-                               color=contour.collections[0].get_edgecolor(),
+                               color='black',
                                label=f'MERRA2 interp {cam_var}')]
 
         ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
@@ -865,7 +912,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
             #if idx == 0:
             #Add a legend for the contour lines for first plot only
             legend_elements = [Line2D([0], [0],
-                                color=contour.collections[0].get_edgecolor(),
+                                color='black',
                                 label='SABER interp T')]
 
             ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
@@ -924,7 +971,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
 
 
 
-def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, merra2_monthly, pcap_dict):
+def polar_cap_temp(plot_name, hemi, case_names, case_nicknames, cases_coords, cases_monthly, merra2_monthly, pcap_dict):
     """
     """
     if "levs" in pcap_dict["T"][f"{hemi}h"]:
@@ -1003,7 +1050,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
         if idx == 0:
             plt.ylabel('hPa',fontsize=10)
         #Set title
-        local_title=f"{case_names[idx]}"
+        local_title=f"{case_nicknames[idx]}"
         plt.title(local_title, fontsize=font_size)
 
         #Make colorbar on last plot only
@@ -1039,7 +1086,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
 
         #Add a legend for the contour lines for first plot only
         legend_elements = [Line2D([0], [0],
-                               color=c.collections[0].get_edgecolor(),
+                               color='black',
                                label='MERRA2 interp T')]
 
         ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
@@ -1053,7 +1100,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
             plt.ylabel('hPa',fontsize=10)
 
         #Set title
-        local_title=f"{case_names[idx]}\n {delta_symbol} from MERRA2"
+        local_title=f"{case_nicknames[idx]}\n {delta_symbol} from MERRA2"
         plt.title(local_title, fontsize=font_size)
 
         #Make colorbar on last plot only
@@ -1071,7 +1118,7 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
             # Set the font size for the colorbar label
             cbar.set_label("K", fontsize=10, labelpad=1)
 
-    fig.suptitle(f"{hemi.upper()}H Polar Cap Temp Anomolies - {title_ext}",fontsize=12,y=0.93)
+    fig.suptitle(f"{hemi.upper()}H Polar Cap Temperature - {title_ext}",fontsize=12,y=0.93)
  
     fig.savefig(plot_name, bbox_inches='tight', dpi=300)
     
@@ -1083,6 +1130,14 @@ def polar_cap_temp(plot_name, hemi, case_names, cases_coords, cases_monthly, mer
 def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, climo_yrs, case_runs, cases_monthly, vert_lev):
     """
     """
+
+    #These plots have three panels: test, baseline, and their difference.
+    #Use the first test case and the baseline (always last in the lists):
+    if len(case_names) > 2:
+        print("\t    NOTE: only the first test case is compared to the baseline in these plots.")
+    case_names = [case_names[0], case_names[-1]]
+    case_nicknames = [case_nicknames[0], case_nicknames[-1]]
+    climo_yrs = [[climo_yrs[0][0], climo_yrs[0][-1]], [climo_yrs[1][0], climo_yrs[1][-1]]]
 
     ahh = []
     for i in list(month_dict.keys())[::3]:
@@ -1134,11 +1189,10 @@ def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, clim
 
             case_seas[m] = ds_month[var][month_dict[month+1]]
 
-        #Average over set of latitudes
-        case_pcap = utils.coslat_average(case_seas,slat,nlat)
+        #Select the level nearest the requested pressure, over the latitude band:
         case_pcap = case_seas.sel(lev=vert_lev,method="nearest").sel(lat=slice(slat, nlat))
         if var == "Q":
-            case_pcap = case_pcap*1e6
+            case_pcap = case_pcap*Q_TO_PPMV
 
         pcap_vals[case_name] = case_pcap
 
@@ -1171,9 +1225,9 @@ def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, clim
 
         #Set title
         if idx == 0:
-            plot_title = "$\mathbf{Test}:$"+f"{case_nicknames[0]}\nyears: {climo_yrs[0][0]}-{climo_yrs[1][0]}"
+            plot_title = r"$\mathbf{Test}:$"+f"{case_nicknames[0]}\nyears: {climo_yrs[0][0]}-{climo_yrs[1][0]}"
         if idx == 1:
-            plot_title = "$\mathbf{Baseline}:$"+f"{case_nicknames[1]}\nyears: {climo_yrs[0][1]}-{climo_yrs[1][1]}"
+            plot_title = r"$\mathbf{Baseline}:$"+f"{case_nicknames[1]}\nyears: {climo_yrs[0][1]}-{climo_yrs[1][1]}"
         ax[idx].set_title(plot_title, loc='left', fontsize=10)
 
         ax[idx].set_ylabel('Latitude',fontsize=10)
@@ -1242,7 +1296,7 @@ def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, clim
     ax[idx].set_xticklabels(ahh+ahh+["Jan"],rotation=40)
 
     #Set title
-    local_title="$\mathbf{Test} - \mathbf{Baseline}$" #"Test - Baseline"#case_names[idx]
+    local_title=r"$\mathbf{Test} - \mathbf{Baseline}$" #"Test - Baseline"#case_names[idx]
 
     ax[idx].set_title(local_title, fontsize=10)
 
@@ -1271,6 +1325,9 @@ def month_vs_lat_plot(var, var_dict, plot_name, case_names, case_nicknames, clim
     plt.suptitle(f"{title} - {vert_lev}hPa",fontsize=20,y=0.97)
 
     fig.savefig(plot_name, bbox_inches='tight', dpi=300)
+
+    #Close plots:
+    plt.close()
 
 
 ########
@@ -1441,7 +1498,7 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
         else:
             nt_sub = nt
 
-        [time_grid, lev_grid] = np.meshgrid(case_data['lev'],np.arange(0,nt_sub+12,1))
+        [time_grid, lev_grid] = np.meshgrid(case_data['lev'],np.arange(0,nt_sub,1))
 
         contour_levels = np.arange(-35, 35, 2.5)
 
@@ -1453,7 +1510,7 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
         #Curently this is finding (start_idx)th month and then going out 9 years
         #QUESTION: what if the data doesn't have 9 years? - we will need to clip this...
         start_idx = 0
-        end_idx = start_idx+nt_sub+1
+        end_idx = start_idx+nt_sub
 
         yr0 = int(yrs+int(start_idx/12))
         cf = axes[main_key[idx]].contourf(lev_grid[start_idx:end_idx,:], time_grid[start_idx:end_idx,:], plotdata[start_idx:end_idx,:],
