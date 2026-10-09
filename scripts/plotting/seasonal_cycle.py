@@ -42,6 +42,12 @@ delta_symbol = r'$\Delta$'
 #Monthly history streams the zonal means are made from:
 H0_STREAMS = ("cam.h0a", "cam.h0")
 
+#MERRA2 years shown in the QBO plot when 'obs_yrs' is not set:
+DEFAULT_QBO_YRS = (2000, 2009)
+
+#Obs-year warnings already printed (each variable would otherwise repeat them):
+_WARNED = set()
+
 #Specific humidity (kg/kg) -> water vapor volume mixing ratio (ppmv):
 #multiply by the ratio of the molar masses of dry air and water.
 Q_TO_PPMV = 1.0e6 * 28.966 / 18.015
@@ -112,6 +118,11 @@ def seasonal_cycle(adfobj):
     obs_cam_vars = seas_cyc_res['obs_cam_vars']
 
     calc_var_list = seas_cyc_res['calc_var_list']
+
+    # Optional obs years, [start, end]. If set, MERRA2 and SABER are averaged
+    # over these years only, and the QBO plot shows them. If not set, the full
+    # obs records are used for the averages and the QBO plot shows 2000-2009.
+    obs_yrs = _check_obs_yrs(seas_cyc_res.get('obs_yrs'))
 
     # Grab location of ADF default obs files
     adf_obs_loc = Path(adfobj.get_basic_info("obs_data_loc"))
@@ -215,14 +226,15 @@ def seasonal_cycle(adfobj):
 
 
     # Get Obs and seasonal and monthly averages
-    saber, saber_monthly, saber_seasonal = saber_data(saber_file, saber_vars)
-    merra2, merra2_monthly, merra2_seasonal = merra_data(merra_file, merra2_vars)
+    saber, saber_monthly, saber_seasonal, saber_yrs = saber_data(saber_file, saber_vars, obs_yrs)
+    merra2, merra2_monthly, merra2_seasonal, merra2_yrs = merra_data(merra_file, merra2_vars, obs_yrs)
     #swoosh, swoosh_monthly, swoosh_seasonal = swoosh_data(filename = "/glade/work/richling/ADF/ADF_dev/notebooks/chem-diags/MERRA2_met.nc")
 
     obs_seas_dict = {"saber":saber_seasonal, "merra":merra2_seasonal}
     obs_month_dict = {"saber":saber_monthly, "merra":merra2_monthly}
     obs_ds_dict = {"monthly":obs_month_dict,
-                   "seasonal":obs_seas_dict}
+                   "seasonal":obs_seas_dict,
+                   "years":{"saber":saber_yrs, "merra":merra2_yrs}}
     
     #End gather data
     
@@ -314,7 +326,7 @@ def seasonal_cycle(adfobj):
             if plot_name.is_file():
                 plot_name.unlink()
 
-            polar_cap_temp(plot_name, hemi, case_names, nicknames, cases_coords, cases_monthly, merra2_monthly, pcap_dict)
+            polar_cap_temp(plot_name, hemi, case_names, nicknames, cases_coords, cases_monthly, merra2_monthly, pcap_dict, merra2_yrs)
             adfobj.add_website_data(plot_name, f"{hemi.upper()}PolarCapT", case_names[0], season="ANN",
                                     plot_type="WACCM", category="Seasonal Cycle",
                                     ext="SeasonalCycle_Mean")
@@ -426,7 +438,7 @@ def seasonal_cycle(adfobj):
         if plot_name.is_file():
             plot_name.unlink()
 
-        waccm_qbo(plot_name, case_names, nicknames, cases_coords, merra2, syear_cases, eyear_cases)
+        waccm_qbo(plot_name, case_names, nicknames, cases_coords, merra2, syear_cases, eyear_cases, obs_yrs)
         adfobj.add_website_data(plot_name, "QBO", case_names[0], season="ANN",
                                     plot_type="WACCM",
                                     ext="SeasonalCycle_Mean",
@@ -441,6 +453,71 @@ def seasonal_cycle(adfobj):
 
 # Helper functions
 ##################
+
+def _check_obs_yrs(obs_yrs):
+    """
+    Return the 'obs_yrs' config entry as a (start, end) tuple of ints, or None
+    if it is missing or not a pair of years.
+    """
+    if obs_yrs is None:
+        return None
+    try:
+        start, end = (int(yr) for yr in obs_yrs)
+    except (TypeError, ValueError):
+        print(f"\t    WARNING: 'obs_yrs' should be [start_year, end_year], not {obs_yrs}; "
+              "using the default obs years.")
+        return None
+    if start > end:
+        start, end = end, start
+    return (start, end)
+
+########
+
+def _year_range(data):
+    """Return the (first, last) year of `data`'s time coordinate."""
+    years = data.time.dt.year.values
+    return (int(years[0]), int(years[-1]))
+
+########
+
+def _year_label(data):
+    """Return the years covered by `data`, e.g. '1980-2014'."""
+    start, end = _year_range(data)
+    return f"{start}-{end}"
+
+########
+
+def _select_years(data, obs_yrs, name):
+    """
+    Return `data` for the years `obs_yrs` = (start, end), or all of `data` if
+    `obs_yrs` is None.
+
+    If the obs only partly cover the years, the overlap is used; if they don't
+    cover them at all, all of `data` is used. Either way a warning says so.
+    """
+    if not obs_yrs:
+        return data
+    years = data.time.dt.year
+    subset = data.sel(time=(years >= obs_yrs[0]) & (years <= obs_yrs[1]))
+    avail = _year_label(data)
+    if subset.sizes["time"] == 0:
+        _warn_once(f"\t    WARNING: {name} covers {avail}, which does not overlap 'obs_yrs' "
+                   f"{obs_yrs[0]}-{obs_yrs[1]}, so all {name} years are used.")
+        return data
+    if _year_range(subset) != tuple(obs_yrs):
+        _warn_once(f"\t    WARNING: {name} covers {avail}, so only {_year_label(subset)} "
+                   f"of 'obs_yrs' {obs_yrs[0]}-{obs_yrs[1]} is used.")
+    return subset
+
+########
+
+def _warn_once(msg):
+    """Print `msg` unless it has already been printed."""
+    if msg not in _WARNED:
+        _WARNED.add(msg)
+        print(msg)
+
+########
 
 def _h0_stream(hist_strs, case_name):
     """
@@ -559,7 +636,7 @@ def make_zm_files(adfobj,hist_loc,hist_str,case_name,calc_var_list,syr,eyr,retur
         return waccm_zm
 ########
 
-def saber_data(filename, saber_vars):
+def saber_data(filename, saber_vars, obs_yrs=None):
     """
 
     """
@@ -597,19 +674,21 @@ def saber_data(filename, saber_vars):
         if index < len(saber_vars)-2:
             saber_ncfile[var] = saber_ncfile[var].assign_coords({"time": datetime_list})
             saber[var] = saber_ncfile[var]
+            saber_sub = _select_years(saber[var], obs_yrs, "SABER")
+            saber_yrs = _year_label(saber_sub)
             for season in seasons:
-                saber_seasonal[var][season] = time_mean(saber_ncfile, saber_ncfile[var],
+                saber_seasonal[var][season] = time_mean(saber_ncfile, saber_sub,
                                                         time_avg="season", interval=season,
                                                         is_climo=None, obs=True)
             for month in np.arange(1,13,1):
-                saber_monthly[var][month_dict[month]] = time_mean(saber_ncfile, saber_ncfile[var],
+                saber_monthly[var][month_dict[month]] = time_mean(saber_ncfile, saber_sub,
                                                                 time_avg="month", interval=month,
                                                                 is_climo=None, obs=True)
-    return saber, saber_monthly, saber_seasonal
+    return saber, saber_monthly, saber_seasonal, saber_yrs
 
 ########
 
-def merra_data(filename, merra2_vars):
+def merra_data(filename, merra2_vars, obs_yrs=None):
     """
     """
 
@@ -647,12 +726,14 @@ def merra_data(filename, merra2_vars):
                 merra2_monthly[var] = {}
             merra2[var] = merra_ncfile[var]
 
+            merra_sub = _select_years(merra2[var], obs_yrs, "MERRA2")
+            merra2_yrs = _year_label(merra_sub)
             for season in seasons:
-                merra2_seasonal[var][season] = time_mean(merra_ncfile, merra2[var], time_avg="season", interval=season, is_climo=None, obs=True)
+                merra2_seasonal[var][season] = time_mean(merra_ncfile, merra_sub, time_avg="season", interval=season, is_climo=None, obs=True)
             for month in np.arange(1,13,1):
-                merra2_monthly[var][month_dict[month]] = time_mean(merra_ncfile, merra2[var], time_avg="month", interval=month, is_climo=None, obs=True)
+                merra2_monthly[var][month_dict[month]] = time_mean(merra_ncfile, merra_sub, time_avg="month", interval=month, is_climo=None, obs=True)
 
-    return merra2, merra2_monthly, merra2_seasonal
+    return merra2, merra2_monthly, merra2_seasonal, merra2_yrs
 ########
 
 def time_mean(ncfile, data, time_avg, interval, is_climo=None, obs=False):
@@ -739,6 +820,10 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
     levs = np.arange(*comp_plots_dict[cam_var]["levs"])
     diff_levs = np.arange(*comp_plots_dict[cam_var]["diff_levs"])
     units = comp_plots_dict[cam_var]["units"]
+
+    #Years of obs data used (for labels)
+    merra_yrs = obs_ds_dict["years"]["merra"]
+    saber_yrs = obs_ds_dict["years"]["saber"]
 
     #Grab obs variable corresponding to CAM variable
     saber_var = obs_cam_vars['saber'][cam_var]
@@ -850,7 +935,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
         #Add a legend for the contour lines for first plot only
         legend_elements = [Line2D([0], [0],
                                color='black',
-                               label=f'MERRA2 interp {cam_var}')]
+                               label=f'MERRA2 {merra_yrs} interp {cam_var}')]
 
         ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
         #End if
@@ -884,7 +969,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
         ax.tick_params(axis='y', labelsize=8)
 
         #Set individual plot title
-        local_title = f'{case_nicknames[idx]}\n {delta_symbol} from MERRA2'
+        local_title = f'{case_nicknames[idx]}\n {delta_symbol} from MERRA2 {merra_yrs}'
         plt.title(local_title, fontsize=font_size)
 
         #Make colorbar on last plot only
@@ -913,7 +998,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
             #Add a legend for the contour lines for first plot only
             legend_elements = [Line2D([0], [0],
                                 color='black',
-                                label='SABER interp T')]
+                                label=f'SABER {saber_yrs} interp T')]
 
             ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
             #End if
@@ -946,7 +1031,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
             ax.tick_params(axis='y', labelsize=8)
 
             #Set individual plot title
-            local_title = f'{case_nicknames[idx]}\n {delta_symbol} from SABER'
+            local_title = f'{case_nicknames[idx]}\n {delta_symbol} from SABER {saber_yrs}'
             plt.title(local_title, fontsize=font_size)
 
             #Make colorbar on last plot only
@@ -971,7 +1056,7 @@ def comparison_plots(plot_name, cam_var, case_names, case_nicknames, case_ds_dic
 
 
 
-def polar_cap_temp(plot_name, hemi, case_names, case_nicknames, cases_coords, cases_monthly, merra2_monthly, pcap_dict):
+def polar_cap_temp(plot_name, hemi, case_names, case_nicknames, cases_coords, cases_monthly, merra2_monthly, pcap_dict, merra2_yrs=""):
     """
     """
     if "levs" in pcap_dict["T"][f"{hemi}h"]:
@@ -1087,7 +1172,7 @@ def polar_cap_temp(plot_name, hemi, case_names, case_nicknames, cases_coords, ca
         #Add a legend for the contour lines for first plot only
         legend_elements = [Line2D([0], [0],
                                color='black',
-                               label='MERRA2 interp T')]
+                               label=f'MERRA2 {merra2_yrs} interp T')]
 
         ax.legend(handles=legend_elements, loc='upper right', fontsize=5, bbox_to_anchor=(1., 1.))
         #Format the axes
@@ -1100,7 +1185,7 @@ def polar_cap_temp(plot_name, hemi, case_names, case_nicknames, cases_coords, ca
             plt.ylabel('hPa',fontsize=10)
 
         #Set title
-        local_title=f"{case_nicknames[idx]}\n {delta_symbol} from MERRA2"
+        local_title=f"{case_nicknames[idx]}\n {delta_symbol} from MERRA2 {merra2_yrs}"
         plt.title(local_title, fontsize=font_size)
 
         #Make colorbar on last plot only
@@ -1370,7 +1455,7 @@ def qbo_frequency(data):
     return period
   
 
-def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, eyear_cases):
+def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, eyear_cases, obs_yrs=None):
     """
     
     """
@@ -1437,18 +1522,23 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
     #Plot MERRA2 last; this will be based on number of CAM cases
     merra_idx = len(case_names)
 
-    #nt = 108
-    nt = 120
     plotdata = utils.coslat_average(merra2['U'],-10,10)
 
     plotdata_clip = np.clip(np.abs(plotdata), None, 35)
     plotdata=np.sign(plotdata)*plotdata_clip
+
+    #MERRA2 years to show: 'obs_yrs' if set, otherwise the default window
+    qbo_yrs = obs_yrs if obs_yrs else DEFAULT_QBO_YRS
+    years = plotdata.time.dt.year
+    if not bool(((years >= qbo_yrs[0]) & (years <= qbo_yrs[1])).any()):
+        #No overlap with 'obs_yrs', so fall back to the default window:
+        print(f"\t    WARNING: MERRA2 covers {_year_label(plotdata)}, which does not overlap "
+              f"'obs_yrs' {qbo_yrs[0]}-{qbo_yrs[1]}, so the QBO plot shows "
+              f"{DEFAULT_QBO_YRS[0]}-{DEFAULT_QBO_YRS[1]}.")
+        qbo_yrs = DEFAULT_QBO_YRS
+    data = _select_years(plotdata, qbo_yrs, "MERRA2 (QBO)")
+    nt = data.sizes["time"]
     [time_grid, lev_grid] = np.meshgrid(merra2['lev'],np.arange(1,nt+1,1))
-
-    start_ind=240
-    end_ind=start_ind+nt
-
-    data = plotdata[start_ind:end_ind,:]
     cf = axes[main_key[merra_idx]].contourf(lev_grid, time_grid, data,
                                         levels=contour_levels, cmap='RdBu_r',extend="both")
 
@@ -1468,19 +1558,23 @@ def waccm_qbo(plot_name, case_names, nicknames, case_runs, merra2, syear_cases, 
     axes[main_key[merra_idx]].set_yscale("log")
     axes[main_key[merra_idx]].set_ylabel('hPa',fontsize=10)
     axes[main_key[merra_idx]].tick_params(axis='y', labelsize=8)
-    axes[main_key[merra_idx]].set_title("MERRA2",y=y,fontsize=10)
+    axes[main_key[merra_idx]].set_title(f"MERRA2 {_year_label(data)}",y=y,fontsize=10)
     axes[main_key[merra_idx]].set_xticks(np.arange(1,nt+1,12))#,rotation=40
     axes[main_key[merra_idx]].set_xticklabels(np.arange(1,nt+1,12),rotation=40)
 
-    start_year = int(str(plotdata[start_ind].time.values)[0:4])
+    start_year = int(data.time.dt.year.values[0])
     axes[main_key[merra_idx]].set_xticklabels(np.arange(start_year,start_year+(nt/12),1).astype(int),fontsize=8)
 
+    #MERRA QBO amplitude and period: over the whole record by default, or
+    #over 'obs_yrs' if they are set
+    amp_data = data if obs_yrs else plotdata
+
     #MERRA QBO Amplitude side axis
-    amp_m = qbo_amplitude(plotdata)
+    amp_m = qbo_amplitude(amp_data)
     axes = format_side_axes(axes,side1_key[merra_idx],"amplitude",amp_m,merra=True)
 
     #MERRA QBO Period side axis
-    period_m = qbo_frequency(plotdata)
+    period_m = qbo_frequency(amp_data)
     axes = format_side_axes(axes,side2_key[merra_idx],"period",period_m,merra=True)
 
     #Loop over CAM case data

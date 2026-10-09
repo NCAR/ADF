@@ -3483,6 +3483,12 @@ waccm_seasonal_cycle:
   
   merra2_file: "MERRA2_met.nc"
   saber_file: "SABER_monthly_2002-2014.nc"
+
+  #Optional obs years [start, end]. If set, MERRA2 and SABER are averaged over
+  #these years only, and the QBO plot shows them. If not set, the full obs
+  #records are averaged (MERRA2 1980-2014, SABER 2002-2014) and the QBO plot
+  #shows MERRA2 2000-2009.
+  #obs_yrs: [2000, 2009]
   #swoosh_file: 
 
   obs_cam_vars:
