@@ -8,6 +8,7 @@ import pandas as pd
 from pathlib import Path
 import adf_utils as utils
 
+
 def tape_recorder(adfobj):
     """
     Calculate the weighted latitude average for the simulations and 
@@ -34,8 +35,6 @@ def tape_recorder(adfobj):
     plot_location = adfobj.plot_location
     plot_loc = Path(plot_location[0])
 
-    unstruct_plotting = adfobj.unstructured_plotting
-    var_defaults = adfobj.variable_defaults
 
     #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
@@ -49,13 +48,13 @@ def tape_recorder(adfobj):
     # Filter the list to include only strings that are exactly in the possible h0 strings
     # - Search for either h0 or h0a
     substrings = {"cam.h0","cam.h0a"}
-    case_hist_strs = []
-    for cam_case_str in cam_hist_strs:
-        # Check each possible h0 string
-        for string in cam_case_str:
-            if string in substrings:
-               case_hist_strs.append(string)
-               break
+    # Exactly one entry per case, so that this list stays aligned with the
+    # cases it is indexed by below.  A case with no h0 stream contributes an
+    # empty string, which makes the search match whichever stream the files
+    # are in rather than dropping the case and shifting the rest.
+    case_hist_strs = [
+        utils.pick_hist_str(cam_case_str, substrings) for cam_case_str in cam_hist_strs
+    ]
 
     #Grab test case climo years
     start_years = adfobj.climo_yrs["syears"]
@@ -86,10 +85,12 @@ def tape_recorder(adfobj):
         end_years = end_years+[data_end_year]
 
         #Grab history string:
-        baseline_hist_strs = adfobj.hist_string["base_hist_str"]
-        # Filter the list to include only strings that are exactly in the substrings list
-        base_hist_strs = [string for string in baseline_hist_strs if string in substrings]
-        hist_strs = case_hist_strs + base_hist_strs
+        # The baseline stream is a string when one is configured, a list when
+        # several are, and empty when the baseline runs on pre-made time series
+        # with no stream given.  It contributes one entry in every case.
+        hist_strs = case_hist_strs + [
+            utils.pick_hist_str(adfobj.hist_string["base_hist_str"], substrings)
+        ]
     else:
         hist_strs = case_hist_strs
     #End if
@@ -147,7 +148,11 @@ def tape_recorder(adfobj):
     # MLS data
     mls = xr.open_dataset(obs_loc / "mls_h2o_latNpressNtime_3d_monthly_v5.nc")
     mls = mls.rename(x='lat', y='lev', t='time')
-    time = pd.date_range("2004-09","2021-11",freq='M')
+    # Monthly from September 2004, as many steps as the file holds.  'MS'
+    # (month start) is used rather than the month-end alias, which pandas
+    # renamed from 'M' to 'ME' in 2.2 and removed in 3.0; only the month of
+    # each step matters, since the data are grouped by month below.
+    time = pd.date_range("2004-09-01", periods=mls.sizes["time"], freq="MS")
     mls['time'] = time
     mls = cosweightlat(mls.H2O,-10,10)
     mls = mls.groupby('time.month').mean('time')
@@ -185,27 +190,20 @@ def tape_recorder(adfobj):
         # Search for files
         ts_loc = Path(case_ts_locs[idx])
         hist_str = hist_strs[idx]
-
-        grid_path = Path(ts_loc) / "gridded"
-        if grid_path.is_dir():
-            #print("Using gridded file, eh?")
-            ts_loc = grid_path
-
-        #fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
-        #dat = adfobj.data.load_timeseries_dataset(fils)
-
-        var = "Q"
-        vres = var_defaults.get(var, {})
-        vres["unstructured_plotting"] = unstruct_plotting
-        #Create list of time series files present for variable:
-        #if idx != len(case_names)-1:
-        if case_name != adfobj.data.ref_case_label:
-            ts_files = adfobj.data.get_timeseries_file(case_names[idx], var)
-            vres["mesh_file"] = adfobj.mesh_files["test_mesh_file"][idx]
-        else:
-            ts_files = adfobj.data.get_ref_timeseries_file(var)
-            vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
-        dat = adfobj.data.load_dataset(ts_files, **vres)
+        #The "gridded" copy of native-grid time series, where the ADF made one:
+        ts_loc = adfobj.data.timeseries_dir(case_name, ts_loc)
+        fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
+        if not fils and hist_str:
+            # A configured stream need not match the names of pre-made time
+            # series files, so fall back to searching without it rather than
+            # dropping the case out of the plot.  This is what
+            # create_climo_files does for the same reason.
+            fils = sorted(ts_loc.glob(f"*.{var}.*.nc"))
+        # End if
+        #A directory can hold more than one set of files for one variable, so
+        #keep the set needed for this case's years:
+        fils = utils.select_ts_files(fils, start_years[idx], end_years[idx])
+        dat = adfobj.data.load_timeseries_dataset(fils)
 
         if not dat:
             dmsg = f"\t No data for `{var}` found in {ts_loc}, {key} will be skipped."
@@ -214,18 +212,20 @@ def tape_recorder(adfobj):
             continue
 
         #Grab time slice based on requested years (if applicable)
-        #dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
-        print("dat",dat,"\n\n")
-        if unstruct_plotting:
-            datzm = ux_zonal_mean(dat[var])
+        dat = dat.sel(time=slice(str(start_years[idx]).zfill(4),str(end_years[idx]).zfill(4)))
+
+        #Tropical average: from the zonal mean on a lat/lon grid, or directly
+        #from the cells in that band on a native (ncol) grid:
+        if 'ncol' in dat[var].dims:
+            dat_tropics = nativeweightlat(dat, var, -10, 10)
         else:
             has_dims = utils.validate_dims(dat[var], ['lon'])
             if not has_dims['has_lon']:
                 print(f"\t    WARNING: Variable {var} is missing a lat dimension for '{key}', cannot continue to plot.")
-            else:
-                datzm = dat[var].mean('lon')
-
-        dat_tropics = cosweightlat(datzm, -10, 10)
+                continue
+            #End if
+            dat_tropics = cosweightlat(dat[var].mean('lon'), -10, 10)
+        #End if
         dat_mon = dat_tropics.groupby('time.month').mean('time').load()
         ax = plot_pre_mon(fig, dat_mon,
                                 plot_step, plot_min, plot_max, key,
@@ -572,46 +572,25 @@ def plot_pre_mon(fig, data, ci, cmin, cmax, expname, x1=None, x2=None, y1=None, 
 #########
 
 
-def ux_zonal_mean(da, bins=2):
+def nativeweightlat(dset, var, lat1, lat2):
+    """Average `var` over the cells of a native (ncol) grid between lat1 and lat2.
 
-        lat = np.asarray(da.uxgrid.face_lat)
-        area = np.asarray(da.uxgrid.face_areas)
-
-        lat_bins = np.arange(-90, 90 + bins, bins)
-        lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
-
-        bin_index = np.clip(
-            np.digitize(lat, lat_bins) - 1,
-            0,
-            len(lat_mid) - 1
-        )
-
-        zonal = []
-        for i in range(len(lat_mid)):
-            mask = bin_index == i
-            if not np.any(mask):
-                continue
-
-            idx = np.where(mask)[0]
-            subset = da.isel(n_face=idx)
-
-            w = xr.DataArray(area[idx], dims=["n_face"])
-
-            zonal_mean = ((subset * w).sum("n_face")/ w.sum())
-            zonal.append(zonal_mean)
-
-        result = xr.concat(zonal, dim="lat").assign_coords(
-            lat=lat_mid[:len(zonal)]
-        )
-
-        # strip UXARRAY wrapper
-        result = xr.DataArray(
-            result.data,
-            coords=result.coords,
-            dims=result.dims,
-            attrs=result.attrs,
-        )
-
-        return result
-
-###############
+    Weighted by the cells' areas, which the ADF adds to native-grid time series
+    as 'area'; equally when there are none, which on a near-uniform SE grid is
+    close (and closer than cos(latitude), which is only right for lat/lon).
+    """
+    lat = dset['lat']
+    if 'time' in lat.dims:
+        lat = lat.isel(time=0)
+    inband = ((lat >= lat1) & (lat <= lat2)).values
+    # Picking scattered columns out of the file directly is very slow, so read
+    # whole, contiguous blocks of time and select the band from those:
+    region = dset[var].chunk({'time': 12}).isel(ncol=inband)
+    if 'area' in dset:
+        weights = dset['area']
+        if 'time' in weights.dims:
+            weights = weights.isel(time=0)
+        weights = weights.isel(ncol=inband)
+    else:
+        weights = xr.ones_like(lat.isel(ncol=inband))
+    return region.weighted(weights).mean('ncol')

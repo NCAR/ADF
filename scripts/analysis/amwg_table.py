@@ -44,8 +44,12 @@ def amwg_table(adf):
     case_names      -> Name(s) of CAM case provided by "cam_case_name"
     input_ts_locs   -> Location(s) of CAM time series files provided by "cam_ts_loc"
     output_loc      -> Location to write AMWG table files to, provided by "cam_diag_plot_loc"
-    var_list        -> List of CAM output variables provided by "diag_var_list"
+    var_list        -> List of CAM output variables to tabulate, from "plot_var_list"
+                       ("diag_var_list" without the ADF's own support variables)
     var_defaults    -> Dict that has keys that are variable names and values that are plotting preferences/defaults.
+    adf.data        -> The ADF's data layer, used to read the time series so
+                       that the scale factor, offset and units from the
+                       variable defaults are applied.
 
     and if doing a CAM baseline comparison:
 
@@ -57,7 +61,6 @@ def amwg_table(adf):
     #Import necessary modules:
     from adf_base import AdfError
     import adf_utils as utils
-    import plotting_functions as pf
 
     #Additional information:
     #----------------------
@@ -105,9 +108,12 @@ def amwg_table(adf):
     # VARIABLE-NAME, RUN VALUE, OBS VALUE, RUN-OBS, RMSE
     #----------------------
 
-    #Extract needed quantities from ADF object:
-    #-----------------------------------------
-    var_list     = adf.diag_var_list
+    # Extract needed quantities from ADF object:
+    # -----------------------------------------
+    # "plot_var_list" rather than "diag_var_list": support variables such as
+    # PMID, which the ADF adds by itself to interpolate the vertical coordinate,
+    # are not diagnostics anyone asked to tabulate.
+    var_list = adf.plot_var_list
     var_defaults = adf.variable_defaults
 
     #Check if ocean or land fraction exist
@@ -163,17 +169,14 @@ def amwg_table(adf):
     #Initialize list of case name csv files for case comparison check later
     csv_list = []
     for case_idx, case_name in enumerate(case_names):
-        unstruct = adf.unstructured_plotting
 
         #Convert output location string to a Path object:
         output_location = Path(output_locs[case_idx])
 
-        #Generate input file path:
-        if adf.native_grid[case_name] and not unstruct:
-            input_location = Path(input_ts_locs[case_idx]) / "gridded"
-        else:
-            input_location = Path(input_ts_locs[case_idx])
-        #print("AMWG table input_location",input_location)
+        #Generate input file path (the "gridded" copy of native-grid time
+        #series, where the ADF made one):
+        input_location = adf.data.timeseries_dir(case_name, input_ts_locs[case_idx])
+
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
             errmsg = f"Time series directory '{input_location}' not found.  Script is exiting."
@@ -207,15 +210,15 @@ def amwg_table(adf):
             #Notify users of variable being added to table:
             print(f"\t - Variable '{var}' being added to table")
 
-            vres = var_defaults.get(var, {})
-
             #Create list of time series files present for variable:
-            if case_idx != len(case_names)-1:
-                ts_files = adf.data.get_timeseries_file(case_name, var)
-                vres["mesh_file"] = adf.mesh_files["test_mesh_file"][case_idx]
-            else:
-                ts_files = adf.data.get_ref_timeseries_file(var)
-                vres["mesh_file"] = adf.mesh_files["baseline_mesh_file"]
+            ts_filenames = f'{case_name}.*.{var}.*nc'
+            ts_files = utils.find_ts_files(input_location, ts_filenames)
+
+            #Keep only the files needed for this case's years, so that a
+            #directory holding more than one set for the same variable
+            #(years 1-20 alongside years 1-40, say) is not a problem:
+            ts_files = utils.select_ts_files(ts_files, syear_cases[case_idx],
+                                             eyear_cases[case_idx])
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
@@ -224,39 +227,47 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #TEMPORARY:  For now, make sure only one file exists:
-            if len(ts_files) != 1:
-                errmsg =  "\t    WARNING: Currently the AMWG table script can only handle one time series file per variable."
-                errmsg += f" Multiple files were found for the variable '{var}', so it will be skipped."
+            #A variable split into consecutive chunks, which is what GenTS
+            #produces when 'slice_years' is set, can be opened together.
+            #Overlapping sets cannot, because the combined time axis would
+            #contain duplicates.  Only ADF/GenTS names have readable dates, so
+            #anything else is skipped rather than combined on a guess:
+            if utils.ts_files_overlap(ts_files):
+                errmsg =  "\t    WARNING: Time series files for the variable "
+                errmsg += f"'{var}' cover overlapping or unrecognized periods, so it will be"
+                errmsg += " skipped.  Please leave only one set of time series files per"
+                errmsg += " variable in the directory."
                 print(errmsg)
                 continue
             #End if
 
-            #Load model variable data from time series file(s).
-            #Use time-series-specific loader so time bounds are converted to midpoint
-            #and decoded properly for unstructured files.
-            ds = adf.data.load_timeseries_dataset(ts_files)
-            if ds is None:
-                errmsg = f"\t    WARNING: Could not load time series files for variable '{var}'. Skipping..."
-                warnings.warn(errmsg)
-                continue
-            data = ds[var].squeeze()
+            # Load model variable data from file, through the ADF's own data
+            # layer so that the scale factor, offset and units named in the
+            # variable defaults are applied.  Reading the files directly gave
+            # tables in the model's raw units, which is not what the defaults
+            # say the variable should be reported in.
             add_offset, scale_factor = adf.data.get_value_converters(case_name, var)
-            data = data * scale_factor + add_offset
-            raw_units = data.attrs.get('units', '--')
-            if var in adf.variable_defaults:
-                vres = adf.variable_defaults[var]
-                data.attrs['units'] = vres.get('new_unit', raw_units)
+            data = adf.data.load_da(
+                ts_files,
+                var,
+                use_time_bounds=True,
+                add_offset=add_offset,
+                scale_factor=scale_factor,
+            )
+            if data is None:
+                errmsg = f"\t    WARNING: Load failed for variable '{var}', "
+                errmsg += "so it will be skipped."
+                print(errmsg)
+                continue
+            # End if
+
+            # Extract units string, if available.  The defaults write units
+            # for plot labels, where matplotlib renders the LaTeX in them, so
+            # they are resolved to plain text before going into a table:
+            if hasattr(data, "units"):
+                unit_str = utils.plain_text_units(data.units)
             else:
-                data.attrs['units'] = raw_units
-            
-            # Print a short debug of units (use attrs to support UxDataArray)
-            #print("data units", data.attrs.get('units', '--'), "\n\n")
-            # Extract units string from attrs for robustness
-            unit_str = data.attrs.get('units', '--')
-            #print("unit_st BEFORE:",unit_str,"\n\n")
-            unit_str = latex_to_unicode_units(unit_str)
-            #print("unit_str AFTER:",unit_str,"\n\n")
+                unit_str = '--'
 
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
@@ -299,29 +310,16 @@ def amwg_table(adf):
                 ocn_frc_da = data
             #End if
 
-            # In order to get correct statistics, average to annual or seasonal
-            data = utils.annual_mean(data, whole_years=True, time_name='time')
-
-            if unstruct:
-                unstruct_case = True
-
             # we should check if we need to do area averaging:
             if len(data.dims) > 1:
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                if unstruct:
-                    ds = adf.data.load_dataset(ts_files, **vres)
-                    if 'n_face' in data.dims:
-                        weights = ds['area']
-                    elif 'ncol' in data.dims:
-                        weights = ds['area']
-                    else:
-                        weights = None
+                weights = utils.native_grid_weights(ts_files[0]) if "ncol" in data.dims else None
+                data = utils.spatial_average(data, weights=weights)  # changes data "in place"
 
-                    data = utils.spatial_average(data, weights=weights)
-                else:
-                    data = utils.spatial_average(data)
+            # In order to get correct statistics, average to annual or seasonal
+            data = utils.annual_mean(data, whole_years=True, time_name='time')
 
             # Set values for columns
             cols = ['variable', 'unit', 'mean', 'sample size', 'standard dev.',
@@ -394,10 +392,15 @@ def amwg_table(adf):
 # Helper functions
 ##################
 
+#####
+
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:
 
-    data_mean = data.data.mean()
+    #Reduce to plain floats up front.  When a variable spans several time
+    #series files these arrays are dask-backed (open_mfdataset), and a dask
+    #scalar has no .item() and does not honour a numeric format spec.
+    data_mean = float(data.data.mean())
     #Conditional Formatting depending on type of float
     if np.abs(data_mean) < 1:
         formatter = ".3g"
@@ -405,14 +408,14 @@ def _get_row_vals(data):
         formatter = ".3f"
 
     data_sample = len(data)
-    data_std = data.std()
+    data_std = float(data.std())
     data_sem = data_std / data_sample
     data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
     data_trend = stats.linregress(data.year, data.values)
 
-    stdev = f'{data_std.data.item() : {formatter}}'
-    sem = f'{data_sem.data.item() : {formatter}}'
-    ci = f'{data_ci.data.item() : {formatter}}'
+    stdev = f'{data_std : {formatter}}'
+    sem = f'{data_sem : {formatter}}'
+    ci = f'{data_ci : {formatter}}'
     slope_int = f'{data_trend.intercept : {formatter}} + {data_trend.slope : {formatter}} t'
     pval = f'{data_trend.pvalue : {formatter}}'
 
@@ -453,33 +456,6 @@ def _df_comp_table(adf, output_location, case_names):
 
     #Add comparison table dataframe to website (if enabled):
     adf.add_website_data(df_comp, "Case Comparison", case_names[0], plot_type="Tables")
-
-
-import re
-SUPERSCRIPTS = str.maketrans({
-                "0": "⁰",
-                "1": "¹",
-                "2": "²",
-                "3": "³",
-                "4": "⁴",
-                "5": "⁵",
-                "6": "⁶",
-                "7": "⁷",
-                "8": "⁸",
-                "9": "⁹",
-                "-": "⁻",
-            })
-
-def latex_to_unicode_units(unit_str):
-    """
-    Convert LaTeX-style exponents like $^{-1}$ to Unicode superscripts.
-    """
-
-    def repl(match):
-        exponent = match.group(1)
-        return exponent.translate(SUPERSCRIPTS)
-
-    return re.sub(r"\$\^\{([^}]*)\}\$", repl, unit_str)
 
 ##############
 #END OF SCRIPT

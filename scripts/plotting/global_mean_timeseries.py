@@ -34,13 +34,33 @@ def global_mean_timeseries(adfobj):
     # Gather ADF configurations
     plot_loc = get_plot_loc(adfobj)
     plot_type = adfobj.read_config_var("diag_basic_info").get("plot_type", "png")
+    redo_plot = adfobj.get_basic_info("redo_plot")
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
 
     # Loop over variables
-    for field in adfobj.diag_var_list:
+    for field in adfobj.plot_var_list:
         #Notify user of variable being plotted:
         print(f"\t - time series plot for {field}")
+
+        # This field's plot is named the same way whatever the data turns out
+        # to hold, so a re-run can settle it here -- before opening the
+        # reference time series and every case's, and before taking the
+        # global means of them, which is the whole cost of this script:
+        plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
+        if (not redo_plot) and plot_name.is_file():
+            adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
+            adfobj.add_website_data(
+                plot_name,
+                f"{field}_GlobalMean",
+                None,
+                season="ANN",
+                multi_case=True,
+                plot_type="TimeSeries",
+            )
+            continue
+        # End if
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if field in res:
@@ -55,14 +75,6 @@ def global_mean_timeseries(adfobj):
 
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
-
-        """grid_path = Path(case_locs[i]) / "gridded"
-        if grid_path.is_dir():
-            print("Using gridded file, eh?")
-            case_ts_loc = grid_path
-        else:
-            case_ts_loc = case_locs[i]
-        casedat.append(pf.load_dataset(sorted(Path(case_ts_loc).glob(f"{case_names[i]}.*.U.*.nc"))))"""
 
         base_name = adfobj.data.ref_case_label
 
@@ -85,8 +97,8 @@ def global_mean_timeseries(adfobj):
                 continue
             # End if
             
-            # check if there is a lat dimension:
-            if not has_lat_ref:
+            # check if there is a lat dimension (native-grid data has none):
+            if not has_lat_ref and "ncol" not in ref_ts_da.dims:
                 print(
                     f"\t    WARNING: Variable {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
                 )
@@ -94,7 +106,9 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # reference time series global average
-            ref_ts_da_ga = utils.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+            ref_ts_da_ga = utils.spatial_average(
+                ref_ts_da, weights=_native_weights(adfobj, field, ref_ts_da), spatial_dims=None
+            )
 
             # annually averaged
             ref_ts_da = utils.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
@@ -120,13 +134,6 @@ def global_mean_timeseries(adfobj):
         for case_name in adfobj.data.case_names:
 
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
-            """grid_path = Path(case_locs[i]) / "gridded"
-            if grid_path.is_dir():
-                print("Using gridded file, eh?")
-                case_ts_loc = grid_path
-            else:
-                case_ts_loc = case_locs[i]
-            casedat.append(pf.load_dataset(sorted(Path(case_ts_loc).glob(f"{case_names[i]}.*.U.*.nc"))))"""
 
             if c_ts_da is None:
                 print(
@@ -150,8 +157,8 @@ def global_mean_timeseries(adfobj):
                 continue
             # End if
 
-            # check if there is a lat dimension:
-            if not has_lat_case:
+            # check if there is a lat dimension (native-grid data has none):
+            if not has_lat_case and "ncol" not in c_ts_da.dims:
                 print(
                     f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
@@ -160,7 +167,9 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # Gather spatial avg for test case
-            c_ts_da_ga = utils.spatial_average(c_ts_da)
+            c_ts_da_ga = utils.spatial_average(
+                c_ts_da, weights=_native_weights(adfobj, field, c_ts_da, case_name)
+            )
             case_ts[labels[case_name]] = utils.annual_mean(c_ts_da_ga)
 
         # If this case is 3-d or missing variable, then break the loop and go to next variable
@@ -179,7 +188,6 @@ def global_mean_timeseries(adfobj):
 
         unit = vres.get("new_unit","[-]")
         ax.set_ylabel(getattr(ref_ts_da,"unit", unit)) # add units
-        plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
 
         conditional_save(adfobj, plot_name, fig)
 
@@ -251,6 +259,22 @@ def get_plot_loc(adfobj, verbose=None):
     print(f"\t Determined plot location: {plot_loc}")
     return plot_loc
 ######
+
+
+def _native_weights(adfobj, field, data, case_name=None):
+    """Cell-area weights for native-grid (ncol) data, else None.
+
+    None leaves the weighting to utils.spatial_average, which uses cos(lat)
+    for lat/lon data.  The areas are read from the case's time series files,
+    as the loaded data array does not carry them.
+    """
+    if "ncol" not in data.dims:
+        return None
+    if case_name is None:
+        fils = adfobj.data.get_ref_timeseries_file(field)
+    else:
+        fils = adfobj.data.get_timeseries_file(case_name, field)
+    return utils.native_grid_weights(fils[0])
 
 
 class Lens2Data:

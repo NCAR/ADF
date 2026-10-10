@@ -48,7 +48,7 @@ def global_latlon_map(adfobj):
     It uses the AdfDiag object's methods to get necessary information.
     Makes use of AdfDiag's data sub-class.
     Explicitly accesses:
-    adfobj.diag_var_list
+    adfobj.plot_var_list
         List of variables
     adfobj.plot_location
         output plot path
@@ -88,7 +88,7 @@ def global_latlon_map(adfobj):
     config = get_plot_config(adfobj)
     
     # Process regular variables
-    for var in adfobj.diag_var_list:
+    for var in adfobj.plot_var_list:
         process_variable(adfobj, var, **config)
         
     # Handle AOD special case
@@ -140,19 +140,12 @@ def load_reference_data(adfobj, var, vres):
 
     if vres["unstructured_plotting"]:
         vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
-        comp = "atm"
         unstruct_base = True
         odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
         odata = adfobj.data.load_reference_regrid_da(base_name, var, **vres)
         vres["odataset"] = odataset
 
-        if comp == "lnd": 
-            area = odataset.area.isel(time=0)
-            landfrac = odataset.landfrac.isel(time=0)
-            # calculate weights
-            wgt_base = area * landfrac / (area * landfrac).sum()
-        if comp == "atm":
-            wgt_base = odataset.isel(time=0)[var]
+        wgt_base = odataset.isel(time=0)[var]
 
         vres["wgt_base"] = wgt_base
         vres["unstruct_base"] = unstruct_base
@@ -175,7 +168,6 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
     """Process individual case data and generate plots."""
     plot_loc = Path(adfobj.plot_location[case_idx])
     plot_loc.mkdir(parents=True, exist_ok=True)
-    comp = "atm"
     #mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
     if vres["unstructured_plotting"]:
         mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
@@ -187,13 +179,7 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
         mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
         vres["dataset"] = mdataset
         #mdata = mdataset[var]
-        if comp == "lnd": 
-            area = mdataset.area.isel(time=0)
-            landfrac = mdataset.landfrac.isel(time=0)
-            # calculate weights
-            wgt = area * landfrac / (area * landfrac).sum()
-        if comp == "atm":
-            wgt = mdataset.isel(time=0)[var]
+        wgt = mdataset.isel(time=0)[var]
 
         #Determine dimensions of variable:
         #has_dims = {}

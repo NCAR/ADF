@@ -61,9 +61,8 @@ def polar_map(adfobj):
     #Notify user that script has started:
     msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
-    comp = "atm"
 
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
@@ -101,11 +100,6 @@ def polar_map(adfobj):
     test_nicknames = adfobj.case_nicknames["test_nicknames"]
     base_nickname = adfobj.case_nicknames["base_nickname"]
 
-    comp = adfobj.model_component
-    if comp == "atm":
-        hemis = ["NHPolar", "SHPolar"]
-    if comp == "lnd":
-        hemis = ["Arctic"]
 
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
@@ -157,10 +151,32 @@ def polar_map(adfobj):
         web_category = vres.get("category", None)
         vres["plot_type"] = __name__
 
+        # A complete set of plots can be recognised from the file names alone,
+        # because a 2-D variable and a 3-D one are named differently.  Doing
+        # that first means a re-run never opens the regridded files just to
+        # find out which of the two it is looking at.
+        settled = _existing_plot_set(
+            plot_locations, case_names, var, seasons, pres_levs, plot_type
+        )
+        if settled and not redo_plot:
+            for path, web_name, case_name, season, hemi_type in settled:
+                adfobj.add_website_data(
+                    path,
+                    web_name,
+                    case_name,
+                    category=web_category,
+                    season=season,
+                    plot_type=hemi_type,
+                )
+            # End for
+            print(f"\t    Skipping {var} - all plots already exist")
+            continue
+        # End if
+
         # Get all plot info and check existence
         plot_info = []
         all_plots_exist = True
-        
+
         for case_idx, case_name in enumerate(case_names):
             plot_loc = Path(plot_locations[case_idx])
 
@@ -223,21 +239,17 @@ def polar_map(adfobj):
         if unstruct_plotting:
             kwargs["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
             unstruct_base = True
-            if comp == "lnd":
-                if adfobj.native_grid[case_name] and not adfobj.unstructured_plotting:
-                    area = odataset.area.isel(time=0)
-                    landfrac = odataset.landfrac.isel(time=0)
-                    # calculate weights
-                    wgt_base = area * landfrac / (area * landfrac).sum()
-            if comp == "atm":
-                if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
-                    wgt_base = odataset.isel(time=0)[var]
 
         odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
         odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
         if odataset is None:
             print(f"\t    WARNING: No reference data found for {var}")
             continue
+
+        # Reference weights for native-grid plotting (checked against each
+        # case's below):
+        if unstruct_plotting and adfobj.native_grid.get(base_name, False):
+            wgt_base = odataset.isel(time=0)[var]
 
         # Process each case
         for plot in plot_info:
@@ -253,15 +265,12 @@ def polar_map(adfobj):
             if unstruct_plotting:
                 vres["mesh_file"] = info["mesh_file"]
 
-            if comp == "atm":
-                #Determine hemisphere to plot based on plot file name:
-                if hemi_type == "NHPolar":
-                    hemi = "NH"
-                if hemi_type == "SHPolar":
-                    hemi = "SH"
-                #End if
-            if comp == "lnd":
-                hemi = hemi_type
+            #Determine hemisphere to plot based on plot file name:
+            if hemi_type == "NHPolar":
+                hemi = "NH"
+            if hemi_type == "SHPolar":
+                hemi = "SH"
+            #End if
 
             # Ensure plot directory exists
             plot_loc.mkdir(parents=True, exist_ok=True)
@@ -275,15 +284,8 @@ def polar_map(adfobj):
                 unstruct_case = True
                 #mdataset = adfobj.data.load_climo_dataset(case_name, var, **kwargs)
                 mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
-                if comp == "lnd": 
-                    if adfobj.native_grid[case_name] and not adfobj.unstructured_plotting:
-                        area = mdataset.area.isel(time=0)
-                        landfrac = mdataset.landfrac.isel(time=0)
-                        # calculate weights
-                        wgt = area * landfrac / (area * landfrac).sum()
-                if comp == "atm":
-                    if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
-                        wgt = mdataset.isel(time=0)[var]
+                if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
+                    wgt = mdataset.isel(time=0)[var]
             else:
                 mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
                 """#Skip this variable/case if the regridded climo file doesn't exist:
@@ -352,9 +354,21 @@ def polar_map(adfobj):
                         continue
 
             if has_lev and pres_levs and plot.get('lev'):
-                mdata = mdata.sel(lev=plot['lev'])
-                odata_level = odata.sel(lev=plot['lev'])
-                vres["lev"] = plot['lev']
+                pres = plot['lev']
+                # The level has to be one that was interpolated to -- see
+                # 'interp_press_levels' in the config file.  Without this an
+                # unavailable level ends the whole run in a KeyError from .sel,
+                # where global_latlon_map warns and moves on.
+                if (pres not in mdata["lev"]) or (pres not in odata["lev"]):
+                    print(
+                        f"\t    WARNING: plot_press_levels value '{pres}' not "
+                        f"present in {var} [test: {pres in mdata['lev']}, "
+                        f"ref: {pres in odata['lev']}], so skipping."
+                    )
+                    continue
+                mdata = mdata.sel(lev=pres)
+                odata_level = odata.sel(lev=pres)
+                vres["lev"] = pres
 
             # Calculate seasonal means and differences
             use_odata = odata_level if has_lev else odata
@@ -389,6 +403,74 @@ def polar_map(adfobj):
 
 ##############
 #END OF `polar_map` function
+
+
+def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot_type):
+    """
+    Return the complete set of polar plots for `var`, if one is on disk.
+
+    A 2-D variable is plotted as ``{var}_{season}_{hemisphere}_Mean`` and a
+    3-D one as ``{var}_{pressure}hpa_{season}_{hemisphere}_Mean``, so which
+    of the two a variable is can be read off the file names.  That is what
+    lets a re-run decide there is nothing to do without opening the regridded
+    file to look for a ``lev`` dimension.
+
+    Parameters
+    ----------
+    plot_locations : list
+        output plot directory for each case
+    case_names : list
+        names of the test cases
+    var : str
+        ADF name of the variable being plotted
+    seasons : list or dict
+        the seasons being plotted
+    pres_levs : list
+        the configured pressure levels, empty when none are set
+    plot_type : str
+        file extension the plots are written with, e.g. "png"
+
+    Returns
+    -------
+    list
+        ``(path, website name, case, season, hemisphere)`` for every plot,
+        when a complete set exists; an empty list when it does not.
+    """
+    flat = []
+    levelled = []
+    for case_idx, case_name in enumerate(case_names):
+        plot_loc = Path(plot_locations[case_idx])
+        for season in seasons:
+            for hemi_type in ["NHPolar", "SHPolar"]:
+                flat.append(
+                    (
+                        plot_loc / f"{var}_{season}_{hemi_type}_Mean.{plot_type}",
+                        var,
+                        case_name,
+                        season,
+                        hemi_type,
+                    )
+                )
+                for pres in pres_levs:
+                    levelled.append(
+                        (
+                            plot_loc
+                            / (
+                                f"{var}_{pres}hpa_{season}_{hemi_type}"
+                                f"_Mean.{plot_type}"
+                            ),
+                            f"{var}_{pres}hpa",
+                            case_name,
+                            season,
+                            hemi_type,
+                        )
+                    )
+                # End for
+            # End for
+        # End for
+    # End for
+    return plot_utils.first_complete_plot_set([levelled, flat])
+
 
 ##############
 # END OF FILE

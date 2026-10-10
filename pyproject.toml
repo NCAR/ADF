@@ -1,0 +1,47 @@
+#Repository-wide tool configuration for the ADF.
+#
+#Note that the ADF is not a pip-installable package, so this
+#file exists purely to give command-line tools (currently just
+#"black") a single, version-controlled source of truth.  This
+#way a developer running "black" locally gets exactly the same
+#result as the "black" hook run by the "pre-commit" CI workflow.
+
+#++++++++++++++++++++++++++++++++++
+#Configuration for the "black" tool
+#++++++++++++++++++++++++++++++++++
+
+#Please note that this file does not pin the black version
+#itself.  That is done in one other place, which is what both
+#a local "pre-commit" run and the "pre-commit" CI workflow use:
+#
+#  .pre-commit-config.yaml  (the "rev" of the "black" hook)
+
+[tool.black]
+
+#Maximum line length.  This is black's own default, but is
+#stated explicitly here so that it is obvious how it relates
+#to the "max-line-length" setting in "lib/test/pylintrc",
+#which must always be greater than or equal to this value:
+line-length = 88
+
+#Note that "target-version" is deliberately left unset, which
+#tells black to auto-detect the python version from each file's
+#own syntax.  Pinning it to "py39" would make black rewrite
+#multi-context "with" statements into the parenthesized form,
+#which CPython 3.9 only accepts as a side-effect of its PEG
+#parser and which is not officially valid until python 3.10.
+
+#Only ADF-authored code should be formatted by black.  The
+#"lib/externals" directory contains code copied in from other
+#projects (e.g. CVDP), which needs to stay byte-for-byte
+#identical to its upstream source, otherwise re-syncing that
+#external package would fail CI and produce noisy diffs.
+#
+#Note the use of "force-exclude" instead of "extend-exclude":
+#black only applies "extend-exclude" when it discovers files by
+#walking a directory, so an excluded file handed to black
+#explicitly (which is how the pre-commit hook invokes it) would
+#still get formatted.  "force-exclude" applies in both cases:
+force-exclude = "^/lib/externals/"
+
+#End of file.
