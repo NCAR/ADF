@@ -1713,59 +1713,6 @@ import xesmf as xe
 from pathlib import Path
 
 
-def build_regridder(ds, latlon_file, method, weights_file=None):
-
-    target = xr.open_dataset(latlon_file)
-
-    ds_out = xr.Dataset(
-        {
-            "lat": (["lat"], target["lat"].values),
-            "lon": (["lon"], target["lon"].values),
-        }
-    )
-
-    # If weights exist, don't rebuild grid
-    if weights_file and Path(weights_file).exists():
-        print(f"Using existing weights: {weights_file}")
-
-        regridder = xe.Regridder(
-            ds, ds_out, method, filename=weights_file, reuse_weights=True
-        )
-
-        return regridder
-
-    # -----------------------------
-    # OTHERWISE: build weights fresh
-    # -----------------------------
-    print("Creating new weights")
-
-    is_unstructured = "ncol" in ds.dims
-
-    if is_unstructured:
-        if "lat" not in ds or "lon" not in ds:
-            raise ValueError("SE grid requires lat/lon on ncol")
-
-        ds_in = xr.Dataset(
-            {
-                "lat": ("ncol", ds["lat"].values),
-                "lon": ("ncol", ds["lon"].values),
-            }
-        )
-    else:
-        ds_in = xr.Dataset(
-            {
-                "lat": (["lat"], ds["lat"].values),
-                "lon": (["lon"], ds["lon"].values),
-            }
-        )
-
-    regridder = xe.Regridder(
-        ds_in, ds_out, method, filename=weights_file, reuse_weights=False, periodic=True
-    )
-
-    return regridder
-
-
 # =========================
 # Core regrid function
 # =========================

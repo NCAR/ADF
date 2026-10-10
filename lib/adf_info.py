@@ -329,10 +329,6 @@ class AdfInfo(AdfConfig):
             baseline_mesh_file = None  # self.get_baseline_info("mesh_file")
             self.__baseline_mesh_file = baseline_mesh_file
 
-            # Check if any a FV file exists if using native grid
-            baseline_latlon_file = None  # self.get_baseline_info("latlon_file")
-            self.__baseline_latlon_file = baseline_latlon_file
-
             # Check if any a weights file exists if using native grid, OPTIONAL
             baseline_wgts_file = None  # self.get_baseline_info("weights_file")
             self.__baseline_wgts_file = baseline_wgts_file
@@ -383,10 +379,6 @@ class AdfInfo(AdfConfig):
             baseline_ts_done = self.get_baseline_info("cam_ts_done")
             baseline_mesh_file = self.get_baseline_info("mesh_file")
             self.__baseline_mesh_file = baseline_mesh_file
-
-            # Check if any a FV file exists if using native grid
-            baseline_latlon_file = self.get_baseline_info("latlon_file")
-            self.__baseline_latlon_file = baseline_latlon_file
 
             # Check if any a weights file exists if using native grid, OPTIONAL
             baseline_wgts_file = self.get_baseline_info("weights_file")
@@ -633,12 +625,6 @@ class AdfInfo(AdfConfig):
         if cam_mesh_files is None:
             cam_mesh_files = [None] * len(case_names)
         self.__cam_mesh_files = cam_mesh_files
-
-        # Check if any a FV file exists if using native grid
-        cam_latlon_files = self.get_cam_info("latlon_file")
-        if cam_latlon_files is None:
-            cam_latlon_files = [None] * len(case_names)
-        self.__cam_latlon_files = cam_latlon_files
 
         # Check if any a weights file exists if using native grid, OPTIONAL
         cam_wgts_files = self.get_cam_info("weights_file")
@@ -1022,20 +1008,6 @@ class AdfInfo(AdfConfig):
         # Note that a copy is needed in order to avoid having a script mistakenly
         # modify this variable:
         return copy.copy(self.__plot_location)
-
-    # Create property needed to return the lat/lon file to user:
-    @property
-    def latlon_files(self):
-        """Return the test case and baseline lat/lon file to the user if requested."""
-
-        # Note that copies are needed in order to avoid having a script mistakenly
-        # modify these variables, as they are mutable and thus passed by reference:
-        cam_latlon_files = copy.copy(self.__cam_latlon_files)
-        baseline_latlon_file = self.__baseline_latlon_file
-        return {
-            "test_latlon_file": cam_latlon_files,
-            "baseline_latlon_file": baseline_latlon_file,
-        }
 
     # Create property needed to return the weight file dictionary to user:
     @property
