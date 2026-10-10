@@ -211,6 +211,24 @@ class AdfObs(AdfInfo):
         #modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__variable_defaults)
 
+    # Create property that returns only the variables that should be plotted:
+    @property
+    def plot_var_list(self):
+        """Return "diag_var_list" without the variables that are inputs to other
+        diagnostics rather than diagnostics themselves.
+
+        A support variable is declared in adf_variable_defaults.yaml with
+        'plot_diagnostics: False'.  PMID is the standard case: the ADF adds it to
+        'diag_var_list' by itself so that vertical interpolation and the aerosol
+        derivations have a pressure field, and a user who never requested it
+        should not end up with plots of it.  Plotting scripts that loop over every
+        requested variable should use this; anything that needs to know what data
+        is actually available still wants 'diag_var_list'.
+        """
+        defaults = self.__variable_defaults or {}
+        return [var for var in self.diag_var_list
+                if defaults.get(var, {}).get("plot_diagnostics", True)]
+
     # Create property needed to return "var_obs_dict" dictionary to user:
     @property
     def var_obs_dict(self):

@@ -38,7 +38,7 @@ def global_mean_timeseries(adfobj):
     # or an empty dictionary if use_defaults was not specified in YAML.
 
     # Loop over variables
-    for field in adfobj.diag_var_list:
+    for field in adfobj.plot_var_list:
         #Notify user of variable being plotted:
         print(f"\t - time series plot for {field}")
 

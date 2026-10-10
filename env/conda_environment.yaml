@@ -1,4 +1,4 @@
-name: adf_v1.0.0
+name: adf_v1.0.3
 channels:
   - conda-forge
   - defaults
@@ -12,8 +12,10 @@ dependencies:
   - matplotlib=3.9.4
   - pandas=2.2.0
   - pint=0.23
-  - xskillscore=0.0.24
   - geocat-comp=2024.04.0
   - python=3.12
   - xesmf>=0.8.8
-prefix: /glade/work/$USER/conda-envs/adf_v1.0.0
+  # Wasserstein-distance option of cloud_regime_analysis. Not needed for its
+  # default (euclidean) mode, nor by any other diagnostic.
+  - pot
+  - joblib

@@ -48,7 +48,7 @@ def global_latlon_map(adfobj):
     It uses the AdfDiag object's methods to get necessary information.
     Makes use of AdfDiag's data sub-class.
     Explicitly accesses:
-    adfobj.diag_var_list
+    adfobj.plot_var_list
         List of variables
     adfobj.plot_location
         output plot path
@@ -88,7 +88,7 @@ def global_latlon_map(adfobj):
     config = get_plot_config(adfobj)
     
     # Process regular variables
-    for var in adfobj.diag_var_list:
+    for var in adfobj.plot_var_list:
         process_variable(adfobj, var, **config)
         
     # Handle AOD special case

@@ -58,6 +58,7 @@ class _WebData:
 
     def __init__(self, web_data, web_name, case_name,
                  category = None,
+                 ext = "Mean",
                  season = None,
                  non_season = False,
                  plot_type = "Special",
@@ -74,6 +75,7 @@ class _WebData:
         self.season     = season
         self.non_season = non_season
         self.plot_type  = plot_type
+        self.ext        = ext
         self.data_frame = data_frame
         self.html_file  = html_file
         self.asset_path = asset_path
@@ -196,13 +198,17 @@ class AdfWeb(AdfObs):
             self._write_run_info_to_log(config_file, active_env)
         #Do nothing if user is not requesting a website to be generated:
         if self.create_html and self.debug_log:
-            plot_path = Path(self.plot_location[0])
-
-            #Create directory path where the website will be built:
-            website_dir = plot_path / "website"
-            Path(website_dir).mkdir(parents=True, exist_ok=True)
-            run_info = f"{website_dir}/{run_info}"
-            self._write_run_info_to_web(run_info, config_file, active_env)
+            #Write the run info into every website directory this run will build.
+            #The content is the same for all of them, but "create_website" reads it
+            #back from the directory belonging to each web_data's case -- including
+            #the "multi-case" entry -- so writing only the first case's copy makes
+            #a multi-case run die on the missing file.
+            for web_paths in self.__case_web_paths.values():
+                website_dir = Path(web_paths['website_dir'])
+                website_dir.mkdir(parents=True, exist_ok=True)
+                self._write_run_info_to_web(f"{website_dir}/{run_info}",
+                                            config_file, active_env)
+            #End for
 
     #########
 
@@ -310,6 +316,7 @@ class AdfWeb(AdfObs):
 
     def add_website_data(self, web_data, web_name, case_name,
                          category = None,
+                         ext = "Mean",
                          season = None,
                          non_season = False,
                          plot_type = "Special",
@@ -422,6 +429,7 @@ class AdfWeb(AdfObs):
                             season = season,
                             non_season = non_season,
                             plot_type = plot_type,
+                            ext = ext,
                             data_frame = data_frame,
                             html_file = html_file,
                             asset_path = asset_path,
@@ -772,6 +780,7 @@ class AdfWeb(AdfObs):
 
                 rend_kwarg_dict = {"title": main_title,
                                    "var_title": web_data.name,
+                                   "ext": web_data.ext,
                                    "season_title": web_data.season,
                                    "case_name": web_data.case,
                                    "case_yrs": case_yrs,
@@ -845,13 +854,15 @@ class AdfWeb(AdfObs):
             #End if
 
             #List of ADF default plot types
-            avail_plot_types = res["default_ptypes"]
+            #Note: this is a copy, as the list is appended to below and
+            #"res" is re-used on every pass through this loop:
+            avail_plot_types = list(res["default_ptypes"])
 
             #Check if current plot type is in ADF default.
             #If not, add it so the index.html file can include it
             for ptype in plot_types.keys():
                 if ptype not in avail_plot_types:
-                    avail_plot_types.append(plot_types)
+                    avail_plot_types.append(ptype)
 
 
             # External packages that can be run through ADF
@@ -875,7 +886,6 @@ class AdfWeb(AdfObs):
             with open(index_html_file, 'w', encoding='utf-8') as ofil:
                 ofil.write(index_rndr)
             #End with
-
         #End for (web data loop)
 
         #If this is a multi-case instance, then copy website to "main" directory:
@@ -894,8 +904,12 @@ class AdfWeb(AdfObs):
                     #Extract website directory:
                     website_dir = self.__case_web_paths[case_name]['website_dir']
 
-                    #Copy website directory to "main site" directory:
-                    shutil.copytree(website_dir, main_site_path / case_name)
+                    #Copy website directory to "main site" directory.
+                    #dirs_exist_ok: re-running ADF into an existing plot
+                    #location has to refresh these copies rather than die on
+                    #the directory the previous run left behind.
+                    shutil.copytree(website_dir, main_site_path / case_name,
+                                    dirs_exist_ok=True)
 
                     #Also add path to case_sites dictionary:
                     case_sites[case_name] = os.path.join(os.curdir, case_name, "index.html")

@@ -17,43 +17,63 @@ Finally, if you are interested in general (but non-supported) tools used by AMP 
 
 ## Required software environment
 
-These diagnostics currently require Python version 3.6 or higher.  They also require the following non-standard python libraries/modules:
+These diagnostics require Python 3.9 or higher (CI runs the test suite on 3.9-3.13). The exact, version-pinned
+set of non-standard python libraries/modules (PyYAML, Xarray, Matplotlib, Cartopy, GeoCAT, uxarray, xESMF,
+xskillscore, Pint, netCDF4, Scipy, Pandas, ...) is kept in [`env/conda_environment.yaml`](env/conda_environment.yaml)
+rather than duplicated here, so it doesn't go stale.
 
-- PyYAML
-- Numpy
-- Xarray
-- Matplotlib
-- Cartopy
-- GeoCAT
-
-If one wants to generate the "AMWG" model variable statistics table as well, then these additional python libraries are also needed:
-
-- Scipy
-- Pandas
-
-On NCAR's CISL machines (cheyenne and casper), these can be loaded by running the following on the command line:
-```
-module load conda
-conda activate npl
-```
-If you are using conda on a non-CISL machine, then you can create and activate the appropriate python enviroment using the `env/conda_environment.yaml` file like so:
+Create and activate the environment from that file with:
 
 ```
 conda env create -f env/conda_environment.yaml
 conda activate adf_v1.0.0
 ```
 
-Also, along with these python requirements, the `ncrcat` NetCDF Operator (NCO) is also needed.  On the CISL machines this can be loaded by simply running:
+### On NCAR HPC (derecho/casper)
+
+Load the NCAR-provided conda module first, then create the environment as above:
+```
+module load conda
+conda env create -f env/conda_environment.yaml
+conda activate adf_v1.0.0
+```
+By default this places the environment under `/glade/work/$USER/conda-envs/`. See the
+[NCAR HPC conda documentation](https://ncar-hpc-docs.readthedocs.io/en/v24.08/environment-and-software/user-environment/conda/)
+for details (e.g. changing the environment location, using conda in batch jobs).
+
+### If your machine has no conda module (e.g. CGD machines)
+
+Some machines don't provide a `conda` module, so you'll need your own. Install
+[Miniforge](https://github.com/conda-forge/miniforge), which defaults to the conda-forge channel that supplies
+nearly all of `env/conda_environment.yaml`:
+```
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash Miniforge3-$(uname)-$(uname -m).sh
+```
+[Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install) is an equivalent alternative. Once
+installed, create the environment with the same `conda env create` command above; it lands under your own conda
+installation's `envs/` directory. Note that on NCAR HPC systems a personal conda install is shadowed by
+`module load conda` whenever that module is loaded.
+
+### Non-python requirements (all machines)
+
+The `ncrcat` NetCDF Operator (NCO) is also needed.  On NCAR HPC (derecho/casper) it can be loaded by simply
+running:
 ```
 module load nco
-``` 
-or on the CGD machines by simply running:
-```
-module load tool/nco
 ```
 on the command line.
 
-Finally, if you also want to run the [Climate Variability Diagnostics Package](https://www.cesm.ucar.edu/working_groups/CVC/cvdp/) (CVDP) as part of the ADF then you'll also need NCL.  On the CISL machines this can be done using the command:
+On CGD machines the `tool/nco` modules are currently not usable: the unversioned `tool/nco` resolves to a
+modulefile for an install that isn't present and adds nothing to `PATH`, and `tool/nco/4.5.2` puts `ncrcat` on
+`PATH` but fails at runtime looking for `libexpat.so.0`, which current CGD systems no longer ship. Install NCO
+from conda-forge into your ADF environment instead:
+```
+conda activate adf_v1.0.0
+conda install -c conda-forge nco
+```
+
+Finally, if you also want to run the [Climate Variability Diagnostics Package](https://www.cesm.ucar.edu/working_groups/CVC/cvdp/) (CVDP) as part of the ADF then you'll also need NCL.  On NCAR HPC (derecho/casper) this can be done using the command:
 ```
 module load ncl
 ```
@@ -68,7 +88,7 @@ on the command line.
 Detailed instructions for users and developers are availabe on this repository's [wiki](https://github.com/NCAR/ADF/wiki).
 
 
-To run an example of the ADF diagnostics, simply download this repo, setup your computing environment as described in the [Required software environment](https://github.com/NCAR/CAM_diagnostics/blob/main/README.md#required-software-environment) section above, modify the `config_cam_baseline_example.yaml` file (or create one of your own) to point to the relevant diretories and run:
+To run an example of the ADF diagnostics, simply download this repo, setup your computing environment as described in the [Required software environment](#required-software-environment) section above, modify the `config_cam_baseline_example.yaml` file (or create one of your own) to point to the relevant directories and run:
 
 `./run_adf_diag config_cam_baseline_example.yaml`
 

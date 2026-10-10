@@ -9,6 +9,7 @@ import pandas as pd
 
 # Import necessary ADF modules:
 from adf_base import AdfError
+import adf_utils as utils
 
 def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
     '''
@@ -214,13 +215,13 @@ def aerosol_gas_tables(adfobj, trop_val=None, **kwargs):
     # Filter the list to include only strings that are possible h0 strings
     # - Search for either h0 or h0a
     substrings = {"cam.h0","cam.h0a","cam.hm"}
-    case_hist_strs = []
-    for cam_case_str in hist_strs:
-        # Check each possible h0 string
-        for string in cam_case_str:
-            if string in substrings:
-                case_hist_strs.append(string)
-                break
+    # Exactly one entry per case, so that this list stays aligned with the
+    # cases it is indexed by below.  A case with none of these streams
+    # contributes an empty string rather than dropping out and shifting every
+    # case after it onto another case's stream.
+    case_hist_strs = [
+        utils.pick_hist_str(cam_case_str, substrings) for cam_case_str in hist_strs
+    ]
 
     # Create path object for the CAM history file(s) location:
     data_dirs = []
@@ -390,9 +391,13 @@ def Get_files(adfobj, data_dir, start_year, end_year, h_case, **kwargs):
     current_files = list_files(adfobj, data_dir, start_year, end_year,h_case)
     # get the Lat and Lons for each case
     tmp_file = xr.open_dataset(Path(data_dir) / current_files[0])
-    lon = tmp_file['lon'+ext1_SE].data
-    lon[lon > 180.] -= 360 # shift longitude from 0-360˚ to -180-180˚
-    lat = tmp_file['lat'+ext1_SE].data
+    # Copy before shifting: the array belongs to the open file, and recent
+    # xarray hands it back read-only, so shifting it in place raises
+    # "assignment destination is read-only" -- and where it did work, it was
+    # editing the file's own cached values.
+    lon = tmp_file["lon" + ext1_SE].data.copy()
+    lon[lon > 180.0] -= 360  # shift longitude from 0-360˚ to -180-180˚
+    lat = tmp_file["lat" + ext1_SE].data
 
     if area == True:
         try:

@@ -237,20 +237,28 @@ class AdfConfig(AdfBase):
         """
 
         #copy YAML config dictionary:
-        config_dict_copy = copy.copy(config_dict)
+        config_dict_copy = copy.deepcopy(config_dict)
 
-        #Loop through dictionary:
-        for key, value in config_dict_copy.items():
+        #Recursively expand references
+        self.__expand_refs(config_dict_copy)
 
-            #Skip non-strings (as they won't contain a keyword):
-            if not isinstance(value, str):
-                continue
+        #Update the original dict
+        config_dict.update(config_dict_copy)
 
-            #expand any keywords to their full values:
-            new_value = self.__expand_yaml_var_ref(value)
+    def __expand_refs(self, container):
 
-            #Set config variable to new, expanded value:
-            config_dict[key] = new_value
+        """
+        Recursive helper: expand keyword references in a nested dict or list, in place.
+        """
+
+        items = container.items() if isinstance(container, dict) else enumerate(container)
+
+        for key, value in items:
+            if isinstance(value, str):
+                #expand any keywords to their full values:
+                container[key] = self.__expand_yaml_var_ref(value)
+            elif isinstance(value, (dict, list)):
+                self.__expand_refs(value)
 
     #########
 

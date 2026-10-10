@@ -58,7 +58,7 @@ seasons = {"ANN": np.arange(1,13,1),
             "SON": [9, 10, 11]}
 
 def adf_histogram(adfobj):
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
 
     if use_time_series:
         load_ref_func = adfobj.data.load_reference_timeseries_da # field [this is a mistake, the args should have been the same for all of these functions]
@@ -245,7 +245,7 @@ def make_histograms(data, land, vres):
         bins = np.arange(*vres['contour_levels_range'])
     else:
         print("WARNING: no sensible defaults found -- histogram will use 25 bins (bins may differ across cases)")
-        bins = np.linspace(data.min(), data.max(), 26)
+        bins = np.linspace(data.min().values, data.max().values, 26)
 
     # extend bins to catch all values
     hbins = np.insert(bins, 0, np.finfo(float).min)

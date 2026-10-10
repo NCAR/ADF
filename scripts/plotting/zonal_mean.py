@@ -30,7 +30,7 @@ def zonal_mean(adfobj):
     Uses AdfData for loading data described by adfobj. 
 
     Directly uses adfobj for the following:
-    diag_var_list, climo_yrs, variable_defaults, read_config_var, 
+    plot_var_list, climo_yrs, variable_defaults, read_config_var, 
     get_basic_info, add_website_data, debug_log
 
     Determines whether `lev` dimension is present. If not, makes
@@ -43,7 +43,7 @@ def zonal_mean(adfobj):
     msg = "\n  Generating zonal mean plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables:

@@ -1437,6 +1437,9 @@ TAUY:
   category: "Surface variables"
   scale_factor: -1
   add_offset: 0
+  obs_file: "TAUY_ERA5_monthly_climo_1degree_197901-202212.nc"
+  obs_name: "ERA5"
+  obs_var_name: "TAUY"
 
 ICEFRAC:
   category: "Surface variables"

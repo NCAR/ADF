@@ -16,7 +16,7 @@ def global_latlon_vect_map(adfobj):
     data_loc          -> Location of comparison data, which is either "obs_data_loc"
                          or "cam_baseline_climo_loc", depending on whether
                          "compare_obs" is true or false.
-    var_list          -> List of CAM output variables provided by "diag_var_list"
+    var_list          -> List of CAM output variables to plot, from "plot_var_list"
     data_list         -> List of data sets CAM will be compared against, which
                          is simply the baseline case name in situations when
                          "compare_obs" is false.
@@ -58,7 +58,7 @@ def global_latlon_vect_map(adfobj):
     #
     # Use ADF api to get all necessary information
     #
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
     model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
     #Special ADF variable which contains the output path for

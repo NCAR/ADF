@@ -285,6 +285,24 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
+    def test_AdfConfig_expand_references_nested(self):
+
+        """
+        Check that expand_references reaches keywords inside
+        lists and nested lists.
+        """
+
+        keyword_example_file = os.path.join(_TEST_FILES_DIR, "config_cam_keywords.yaml")
+        adf_test = AdfConfig(keyword_example_file)
+
+        test_dict = adf_test.read_config_var("nested_dict")
+        adf_test.expand_references(test_dict)
+
+        self.assertEqual(test_dict["a_list"], ["yay!", "5"])
+        self.assertEqual(test_dict["a_nested_list"], [["yay!"], ["5"]])
+
+    #####
+
     def test_AdfConfig_expand_references_non_specific_var(self):
 
        """

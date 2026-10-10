@@ -78,6 +78,9 @@ def regional_map_multicase(adfobj):
         print("ERROR: regional_map_multicase is limited to <= 10 cases.")
         return
     case_loc = adfobj.get_cam_info("cam_ts_loc", required=True)
+    #Years are needed only to choose between sets of time series files that
+    #could not be opened together:
+    climo_yrs = adfobj.climo_yrs
     #
     # Determine input "reference case"
     #
@@ -101,7 +104,7 @@ def regional_map_multicase(adfobj):
     #
     # Determine the list of variables to use (defaults to ADF's diag_var_list)
     #
-    var_list = regional_opts.get("region_variables", adfobj.diag_var_list)
+    var_list = regional_opts.get("region_variables", adfobj.plot_var_list)
     #
     # LOOP OVER VARIABLES
     #
@@ -112,7 +115,8 @@ def regional_map_multicase(adfobj):
         # the reference case
         data_to_plot = {}
         refcasetmp = _retrieve(
-            regional_opts, v, data_name, data_loc
+            regional_opts, v, data_name, data_loc,
+            syr=climo_yrs["syear_baseline"], eyr=climo_yrs["eyear_baseline"]
         )  # get the baseline field
 
         if refcasetmp is None:
@@ -135,7 +139,9 @@ def regional_map_multicase(adfobj):
 
         # each of the other cases
         for casenumber, case in enumerate(case_names):
-            casetmp = _retrieve(regional_opts, v, case, case_loc[casenumber])
+            casetmp = _retrieve(regional_opts, v, case, case_loc[casenumber],
+                                syr=climo_yrs["syears"][casenumber],
+                                eyr=climo_yrs["eyears"][casenumber])
             if casetmp is None:
                  wmsg = f"Variable '{v}' not found for case '{case}',"
                  wmsg += " so skipping that case/variable combo."
@@ -183,7 +189,8 @@ def regional_map_multicase(adfobj):
 # - autoscale_title
 # - simple_case_shortener
 
-def _retrieve(ropt, variable, casename, location, return_dataset=False):
+def _retrieve(ropt, variable, casename, location, return_dataset=False,
+              syr=None, eyr=None):
     """Custom function that retrieves a variable.
        Returns the variable as a DataArray, unless keyword return_dataset=True.
 
@@ -200,9 +207,16 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False):
     kwarg:
     return_dataset -> bool, if true, return the dataset object, otherwise return the DataArray
                       with `variable`
+
+    kwarg:
+    syr, eyr -> int, the case's climatology years.  Used only to choose between
+                sets of time series files that could not be opened together;
+                the time selection applied below is the regional one from
+                `ropt`, which is unchanged.
     """
     # note: this function assumes monthly data
     fils = sorted(Path(location).glob(f"{casename}*.{variable}.*.nc"))
+    fils = utils.select_ts_files(fils, syr, eyr)
     if len(fils) == 0:
         #The variable doesn't appear to have been output during this
         #particular case run, so return None:
@@ -369,7 +383,10 @@ def regional_map_multicase_plot(adf, datadict, opt=None):
         #
         # to do: check opt for all the things: cmap, contour levels, etc.
         #
-        popts = prep_contour_plot(datadict[xreg], datadict[xreg], datadict[xreg] - datadict[xreg], **opt)
+        #prep_contour_plot takes (a, b, difference, percent difference); this
+        #panel only draws the field itself, so the last three are placeholders.
+        zeros = datadict[xreg] - datadict[xreg]
+        popts = prep_contour_plot(datadict[xreg], datadict[xreg], zeros, zeros, **opt)
         popts2 = {
             **popts["contourf_opt"],
             "cmap": popts["cmap_sim"],

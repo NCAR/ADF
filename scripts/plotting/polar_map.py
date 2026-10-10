@@ -62,7 +62,7 @@ def polar_map(adfobj):
     msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:

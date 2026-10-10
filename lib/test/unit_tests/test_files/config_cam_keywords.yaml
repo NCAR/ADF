@@ -57,6 +57,12 @@ good_dict_two:
 
   good_var: ${good_dict.good_var}
 
+nested_dict:
+
+  a_list: ["${test_var}", "${another_var}"]
+
+  a_nested_list: [["${test_var}"], ["${another_var}"]]
+
 bad_dict:
 
   bad_var: ${good_var}

@@ -46,6 +46,9 @@ def amwg_table(adf):
     output_loc      -> Location to write AMWG table files to, provided by "cam_diag_plot_loc"
     var_list        -> List of CAM output variables provided by "diag_var_list"
     var_defaults    -> Dict that has keys that are variable names and values that are plotting preferences/defaults.
+    adf.data        -> The ADF's data layer, used to read the time series so
+                       that the scale factor, offset and units from the
+                       variable defaults are applied.
 
     and if doing a CAM baseline comparison:
 
@@ -204,7 +207,13 @@ def amwg_table(adf):
 
             #Create list of time series files present for variable:
             ts_filenames = f'{case_name}.*.{var}.*nc'
-            ts_files = sorted(input_location.glob(ts_filenames))
+            ts_files = utils.find_ts_files(input_location, ts_filenames)
+
+            #Keep only the files needed for this case's years, so that a
+            #directory holding more than one set for the same variable
+            #(years 1-20 alongside years 1-40, say) is not a problem:
+            ts_files = utils.select_ts_files(ts_files, syear_cases[case_idx],
+                                             eyear_cases[case_idx])
 
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
@@ -213,21 +222,45 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #TEMPORARY:  For now, make sure only one file exists:
-            if len(ts_files) != 1:
-                errmsg =  "\t    WARNING: Currently the AMWG table script can only handle one time series file per variable."
-                errmsg += f" Multiple files were found for the variable '{var}', so it will be skipped."
+            #A variable split into consecutive chunks, which is what GenTS
+            #produces when 'slice_years' is set, can be opened together.
+            #Overlapping sets cannot, because the combined time axis would
+            #contain duplicates.  Only ADF/GenTS names have readable dates, so
+            #anything else is skipped rather than combined on a guess:
+            if utils.ts_files_overlap(ts_files):
+                errmsg =  "\t    WARNING: Time series files for the variable "
+                errmsg += f"'{var}' cover overlapping or unrecognized periods, so it will be"
+                errmsg += " skipped.  Please leave only one set of time series files per"
+                errmsg += " variable in the directory."
                 print(errmsg)
                 continue
             #End if
 
-            #Load model variable data from file:
-            ds = utils.load_dataset(ts_files)
-            data = ds[var]
+            # Load model variable data from file, through the ADF's own data
+            # layer so that the scale factor, offset and units named in the
+            # variable defaults are applied.  Reading the files directly gave
+            # tables in the model's raw units, which is not what the defaults
+            # say the variable should be reported in.
+            add_offset, scale_factor = adf.data.get_value_converters(case_name, var)
+            data = adf.data.load_da(
+                ts_files,
+                var,
+                use_time_bounds=True,
+                add_offset=add_offset,
+                scale_factor=scale_factor,
+            )
+            if data is None:
+                errmsg = f"\t    WARNING: Load failed for variable '{var}', "
+                errmsg += "so it will be skipped."
+                print(errmsg)
+                continue
+            # End if
 
-            #Extract units string, if available:
-            if hasattr(data, 'units'):
-                unit_str = data.units
+            # Extract units string, if available.  The defaults write units
+            # for plot labels, where matplotlib renders the LaTeX in them, so
+            # they are resolved to plain text before going into a table:
+            if hasattr(data, "units"):
+                unit_str = utils.plain_text_units(data.units)
             else:
                 unit_str = '--'
 
@@ -356,7 +389,10 @@ def amwg_table(adf):
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:
 
-    data_mean = data.data.mean()
+    #Reduce to plain floats up front.  When a variable spans several time
+    #series files these arrays are dask-backed (open_mfdataset), and a dask
+    #scalar has no .item() and does not honour a numeric format spec.
+    data_mean = float(data.data.mean())
     #Conditional Formatting depending on type of float
     if np.abs(data_mean) < 1:
         formatter = ".3g"
@@ -364,14 +400,14 @@ def _get_row_vals(data):
         formatter = ".3f"
 
     data_sample = len(data)
-    data_std = data.std()
+    data_std = float(data.std())
     data_sem = data_std / data_sample
     data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
     data_trend = stats.linregress(data.year, data.values)
 
-    stdev = f'{data_std.data.item() : {formatter}}'
-    sem = f'{data_sem.data.item() : {formatter}}'
-    ci = f'{data_ci.data.item() : {formatter}}'
+    stdev = f'{data_std : {formatter}}'
+    sem = f'{data_sem : {formatter}}'
+    ci = f'{data_ci : {formatter}}'
     slope_int = f'{data_trend.intercept : {formatter}} + {data_trend.slope : {formatter}} t'
     pval = f'{data_trend.pvalue : {formatter}}'
 

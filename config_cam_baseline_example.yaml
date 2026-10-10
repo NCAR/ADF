@@ -117,6 +117,52 @@ diag_basic_info:
     #single node/machine:
     num_procs: 8
 
+    #Which tool generates the time series files:
+    #  adf   - (default) ADF's built-in "ncrcat" path
+    #  gents - hand off to the GenTS package (https://github.com/AgentOxygen/GenTS),
+    #          the tool the CESM project is standardizing on.
+    #NOTE: GenTS is an optional dependency and is NOT part of the provided conda
+    #      environment, because it may require newer numpy/netCDF4 than the ADF
+    #      env pins.  Install it separately with "pip install gents".
+    #      One thing to check afterwards: numba (used by xarray/flox during the
+    #      climatology step) caps the numpy version it accepts, and that cap
+    #      moves with the numba release -- numba 0.65 allows numpy<2.5, older
+    #      numba allowed much less.  If pip pulls a numpy your numba rejects,
+    #      every climatology fails while ADF still reports success, so check the
+    #      pair after installing rather than forcing a pin that may be wrong for
+    #      your environment.
+    ts_tool: adf
+
+    #Options for the GenTS back end (ignored unless "ts_tool" is "gents").
+    #Every entry is optional; leaving them out reproduces what the built-in
+    #ADF back end produces.
+    #NOTE: these are flat entries rather than a nested "gents_options" block,
+    #      because the ADF config reader allows only one level of nesting.
+
+    #Generate every variable in the history stream instead of just the
+    #variables listed in "diag_var_list":
+    #gents_all_vars: false
+
+    #Write GenTS's native <component>/proc/tseries/<frequency>/ layout instead
+    #of writing flat into "cam_ts_loc":
+    #gents_nested_layout: false
+
+    #Years per time series file.  If missing or blank, a single file spanning
+    #start_year through end_year is written for each variable, which is what
+    #the built-in ADF back end does:
+    #gents_slice_years: 10
+
+    #netCDF compression.  If missing or blank, no compression is applied.
+    #A level is required whenever an algorithm is given.
+    #The CESM3 convention is zlib at level 2:
+    #gents_compression: zlib
+    #gents_compression_level: 2
+
+    #IMPORTANT: unlike ADF's built-in back end, GenTS writes "PS" to its own
+    #time series file rather than copying it into every 3-D variable's file.
+    #ADF needs "PS" for vertical interpolation, so add "PS" to "diag_var_list"
+    #whenever "ts_tool" is "gents" and any 3-D variables are being diagnosed.
+
     #If set to true, then redo all plots even if they already exist.
     #If set to false, then if a plot is found it will be skipped:
     redo_plot: false
@@ -486,6 +532,11 @@ plotting_scripts:
     #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
                               #the "region_multicase" section below
+    #- cloud_regime_analysis  #Requires COSP output: add FISCCP1_COSP, CLD_MISR
+                              #and/or CLMODIS to "diag_var_list" below, and set
+                              #"obs_data_loc" so the cluster centers can be found.
+                              #Options are passed as kwargs, for example:
+    #- {cloud_regime_analysis: {kwargs: {only_ocean_or_land: "O", lat_range: [-30, 30]}}}
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed

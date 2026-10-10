@@ -34,6 +34,10 @@ def qbo(adfobj):
     base_name = adfobj.get_baseline_info('cam_case_name')
     base_loc = adfobj.get_baseline_info('cam_ts_loc')
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
+    #Years are needed only to choose between sets of time series files that
+    #cannot be opened together; the plot itself shows the whole record:
+    syears = adfobj.climo_yrs["syears"]
+    eyears = adfobj.climo_yrs["eyears"]
     plot_locations = adfobj.plot_location
     plot_type = adfobj.get_basic_info('plot_type')
 
@@ -88,6 +92,8 @@ def qbo(adfobj):
     if not adfobj.compare_obs:
         case_loc.append(base_loc)
         case_names.append(base_name)
+        syears.append(adfobj.climo_yrs["syear_baseline"])
+        eyears.append(adfobj.climo_yrs["eyear_baseline"])
     #End if
 
     #----Read in the OBS (ERA5, 5S-5N average already
@@ -95,7 +101,17 @@ def qbo(adfobj):
 
     #----Read in the case data and baseline
     ncases = len(case_loc)
-    casedat = [utils.load_dataset(sorted(Path(case_loc[i]).glob(f"{case_names[i]}.*.U.*.nc"))) for i in range(0,ncases,1)]
+    casedat = [
+        utils.load_dataset(
+            utils.select_ts_files(
+                sorted(Path(case_loc[i]).glob(f"{case_names[i]}.*.U.*.nc")),
+                syears[i],
+                eyears[i],
+            ),
+            use_time_bounds=True,
+        )
+        for i in range(0, ncases, 1)
+    ]
 
     #Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []

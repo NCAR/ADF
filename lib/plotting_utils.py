@@ -30,7 +30,6 @@ _plot_line(axobject, xdata, ydata, color, **kwargs)
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
-import matplotlib.cm as cm
 import matplotlib.lines as mlines
 import cartopy.crs as ccrs
 import os
@@ -687,6 +686,29 @@ def resolve_levels(adfobj, plotty, plot_type_dict, kwargs, polar_names):
         return levels_sim
 
 
+def colormap_object(cmap):
+    """
+    Return a matplotlib Colormap, given either one or the name of one.
+
+    Parameters
+    ----------
+    cmap : str or matplotlib.colors.Colormap
+        a colormap, or the name the variable defaults give for one
+
+    Returns
+    -------
+    matplotlib.colors.Colormap
+
+    Notes
+    -----
+    Replaces the lookup matplotlib removed in 3.9, which the ADF still called.
+    """
+    if isinstance(cmap, str):
+        return mpl.colormaps[cmap]
+    # End if
+    return cmap
+
+
 def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     """Preparation for making contour plots.
 
@@ -792,7 +814,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         extend = 'max'
     
     if kwargs.get('non_linear', False):
-        cmap_obj = cm.get_cmap(cmap_case)
+        cmap_obj = colormap_object(cmap_case)
         norm_sim = mpl.colors.BoundaryNorm(levels_sim, cmap_obj.N)
     else:
         norm_sim = mpl.colors.Normalize(vmin=min(levels_sim), vmax=max(levels_sim))
