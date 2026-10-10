@@ -24,29 +24,29 @@ the observational data and meta-data for use
 in various scripts.
 """
 
-#++++++++++++++++++++++++++++++
-#Import standard python modules
-#++++++++++++++++++++++++++++++
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
 
 import copy
 
 from pathlib import Path
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++
-#import non-standard python modules, including ADF
-#+++++++++++++++++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
 
 import yaml
 
-#ADF modules:
+# ADF modules:
 from adf_info import AdfInfo
 
-#+++++++++++++++++++
-#Define Obs class
-#+++++++++++++++++++
+# +++++++++++++++++++
+# Define Obs class
+# +++++++++++++++++++
+
 
 class AdfObs(AdfInfo):
-
     """
     Observations class, which initializes
     an AdfInfo object and provides
@@ -55,151 +55,157 @@ class AdfObs(AdfInfo):
     """
 
     def __init__(self, config_file, debug=False):
-
         """
         Initalize ADF Obs object.
         """
 
-        #Initialize Config attributes:
+        # Initialize Config attributes:
         super().__init__(config_file, debug=debug)
 
-        #Determine local directory:
+        # Determine local directory:
         _adf_lib_dir = Path(__file__).parent
 
         # Check whether user wants to use defaults:
-        #-----------------------------------------
-        #Determine whether to use adf defaults or custom:
-        _defaults_file = self.get_basic_info('defaults_file')
+        # -----------------------------------------
+        # Determine whether to use adf defaults or custom:
+        _defaults_file = self.get_basic_info("defaults_file")
         if _defaults_file is None:
-            _defaults_file = _adf_lib_dir/'adf_variable_defaults.yaml'
+            _defaults_file = _adf_lib_dir / "adf_variable_defaults.yaml"
         else:
-            print(f"\n\t Not using ADF default variables yaml file, instead using {_defaults_file}\n")
-        #End if
+            print(
+                f"\n\t Not using ADF default variables yaml file, instead using {_defaults_file}\n"
+            )
+        # End if
 
-        #Open YAML file:
-        with open(_defaults_file, encoding='UTF-8') as dfil:
+        # Open YAML file:
+        with open(_defaults_file, encoding="UTF-8") as dfil:
             self.__variable_defaults = yaml.load(dfil, Loader=yaml.SafeLoader)
 
         _variable_defaults = self.__variable_defaults
-        #-----------------------------------------
+        # -----------------------------------------
 
-        #Check if land or ocean mask is requested, and if so then add OCNFRAC
-        #to the variable list.  Note that this setting, and the defaults_file
-        #code above, should probably be moved to AdfInfo, or somewhere else
-        #farther down in the ADF inheritance chain:
-        #----------------------------------------
+        # Check if land or ocean mask is requested, and if so then add OCNFRAC
+        # to the variable list.  Note that this setting, and the defaults_file
+        # code above, should probably be moved to AdfInfo, or somewhere else
+        # farther down in the ADF inheritance chain:
+        # ----------------------------------------
         if self.__variable_defaults:
-            #Variable defaults exist, so check if any want a land or ocean mask:
+            # Variable defaults exist, so check if any want a land or ocean mask:
             for var in self.diag_var_list:
-                #Check if any variable wants a land or ocean mask:
+                # Check if any variable wants a land or ocean mask:
                 if var in self.__variable_defaults:
-                    if 'mask' in self.__variable_defaults[var]:
-                        #Variable needs a mask, so add "OCNFRAC" to
-                        #the variable list:
-                        self.add_diag_var('OCNFRAC')
+                    if "mask" in self.__variable_defaults[var]:
+                        # Variable needs a mask, so add "OCNFRAC" to
+                        # the variable list:
+                        self.add_diag_var("OCNFRAC")
                         break
-                   #End if
-                #End if
-            #End for
-        #End if
-        #-----------------------------------------
+                # End if
+                # End if
+            # End for
+        # End if
+        # -----------------------------------------
 
-        #Initialize observations dictionary:
+        # Initialize observations dictionary:
         self.__var_obs_dict = {}
 
-        #If this is not a model vs obs run, then stop here:
+        # If this is not a model vs obs run, then stop here:
         if not self.compare_obs:
             return
-        #End if
+        # End if
 
-        #Extract the "obs_data_loc" default observational data location:
+        # Extract the "obs_data_loc" default observational data location:
         obs_data_loc = self.get_basic_info("obs_data_loc")
 
-        #Loop over variable list:
+        # Loop over variable list:
         for var in self.diag_var_list:
 
-            #Check if variable is in defaults dictionary:
+            # Check if variable is in defaults dictionary:
             if var in _variable_defaults:
-                #Extract variable sub-dictionary:
+                # Extract variable sub-dictionary:
                 default_var_dict = _variable_defaults[var]
 
-                #Check if an observations file is specified:
+                # Check if an observations file is specified:
                 if "obs_file" in default_var_dict:
-                    #Set found variable:
+                    # Set found variable:
                     found = False
 
-                    #Extract path/filename:
+                    # Extract path/filename:
                     obs_file_path = Path(default_var_dict["obs_file"])
 
-                    #Check if file exists:
+                    # Check if file exists:
                     if not obs_file_path.is_file():
-                        #If not, then check if it is in "obs_data_loc"
+                        # If not, then check if it is in "obs_data_loc"
                         if obs_data_loc:
-                            obs_file_path = Path(obs_data_loc)/obs_file_path
+                            obs_file_path = Path(obs_data_loc) / obs_file_path
 
                             if obs_file_path.is_file():
                                 found = True
 
                     else:
-                        #File was found:
+                        # File was found:
                         found = True
-                    #End if
+                    # End if
 
-                    #If found, then set observations dataset and variable names:
+                    # If found, then set observations dataset and variable names:
                     if found:
-                        #Check if observations dataset name is specified:
+                        # Check if observations dataset name is specified:
                         if "obs_name" in default_var_dict:
                             obs_name = default_var_dict["obs_name"]
                         else:
-                            #If not, then just use obs file name:
+                            # If not, then just use obs file name:
                             obs_name = obs_file_path.name
 
-                        #Check if observations variable name is specified:
+                        # Check if observations variable name is specified:
                         if "obs_var_name" in default_var_dict:
-                            #If so, then set obs_var_name variable:
+                            # If so, then set obs_var_name variable:
                             obs_var_name = default_var_dict["obs_var_name"]
                         else:
-                            #Assume observation variable name is the same ad model variable:
+                            # Assume observation variable name is the same ad model variable:
                             obs_var_name = var
-                        #End if
+                        # End if
 
-                        #Add variable to observations dictionary:
-                        self.__var_obs_dict[var] = \
-                            {"obs_file" : obs_file_path,
-                             "obs_name" : obs_name,
-                             "obs_var" : obs_var_name}
+                        # Add variable to observations dictionary:
+                        self.__var_obs_dict[var] = {
+                            "obs_file": obs_file_path,
+                            "obs_name": obs_name,
+                            "obs_var": obs_var_name,
+                        }
 
                     else:
-                        #If not found, then print to log and skip variable:
-                        msg = f'''Unable to find obs file '{default_var_dict["obs_file"]}' '''
+                        # If not found, then print to log and skip variable:
+                        msg = f"""Unable to find obs file '{default_var_dict["obs_file"]}' """
                         msg += f"for variable '{var}'."
                         self.debug_log(msg)
                         continue
-                    #End if
+                    # End if
 
                 else:
-                    #No observation file was specified, so print
-                    #to log and skip variable:
-                    self.debug_log(f"No observations file was listed for variable '{var}'.")
+                    # No observation file was specified, so print
+                    # to log and skip variable:
+                    self.debug_log(
+                        f"No observations file was listed for variable '{var}'."
+                    )
                     continue
             else:
-                #Variable not in defaults file, so print to log and skip variable:
+                # Variable not in defaults file, so print to log and skip variable:
                 msg = f"Variable '{var}' not found in variable defaults file: `{_defaults_file}`"
                 self.debug_log(msg)
-            #End if
-        #End for (var)
+            # End if
+        # End for (var)
 
-        #If variable dictionary is still empty, then print warning to screen:
+        # If variable dictionary is still empty, then print warning to screen:
         if not self.__var_obs_dict:
             wmsg = "!!!!WARNING!!!!\n"
             wmsg += "No observations found for any variables, but this is a model vs obs run!\n"
-            wmsg += "ADF will still calculate time series and climatologies if requested,"
+            wmsg += (
+                "ADF will still calculate time series and climatologies if requested,"
+            )
             wmsg += " but will stop there.\n"
             wmsg += "If this result is unexpected, then run with '--debug'"
             wmsg += " and check the log for messages.\n"
             wmsg += "!!!!!!!!!!!!!!!\n"
             print(wmsg)
-        #End if
+        # End if
 
     #########
 
@@ -207,8 +213,8 @@ class AdfObs(AdfInfo):
     @property
     def variable_defaults(self):
         """Return a copy of the '__variable_defaults' dictionary to the user if requested."""
-        #Note that a copy is needed in order to avoid having a script mistakenly
-        #modify this variable, as it is mutable and thus passed by reference:
+        # Note that a copy is needed in order to avoid having a script mistakenly
+        # modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__variable_defaults)
 
     # Create property that returns only the variables that should be plotted:
@@ -226,17 +232,21 @@ class AdfObs(AdfInfo):
         is actually available still wants 'diag_var_list'.
         """
         defaults = self.__variable_defaults or {}
-        return [var for var in self.diag_var_list
-                if defaults.get(var, {}).get("plot_diagnostics", True)]
+        return [
+            var
+            for var in self.diag_var_list
+            if defaults.get(var, {}).get("plot_diagnostics", True)
+        ]
 
     # Create property needed to return "var_obs_dict" dictionary to user:
     @property
     def var_obs_dict(self):
         """Return a copy of the "var_obs_dict" list to the user if requested."""
-        #Note that a copy is needed in order to avoid having a script mistakenly
-        #modify this variable, as it is mutable and thus passed by reference:
+        # Note that a copy is needed in order to avoid having a script mistakenly
+        # modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__var_obs_dict)
 
-#++++++++++++++++++++
-#End Class definition
-#++++++++++++++++++++
+
+# ++++++++++++++++++++
+# End Class definition
+# ++++++++++++++++++++

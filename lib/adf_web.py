@@ -16,39 +16,39 @@ a website, as well as a method to add an image
 file or pandas dataframe to the website.
 """
 
-#++++++++++++++++++++++++++++++
-#Import standard python modules
-#++++++++++++++++++++++++++++++
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
 
 import os
 import os.path
 from pathlib import Path
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++
-#import non-standard python modules, including ADF
-#+++++++++++++++++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
 
 import markdown
 
-#ADF modules:
+# ADF modules:
 from adf_obs import AdfObs
 
-#Try to import Pandas.  If not available
-#then simply notify website generator that
-#no pandas dataframes will be passed in.
+# Try to import Pandas.  If not available
+# then simply notify website generator that
+# no pandas dataframes will be passed in.
 _PANDAS_DF = True
 try:
     import pandas as pd
 except ImportError:
     _PANDAS_DF = False
-#End except
+# End except
 
-#++++++++++++++++++++++++++++
-#Define web data helper class
-#++++++++++++++++++++++++++++
+# ++++++++++++++++++++++++++++
+# Define web data helper class
+# ++++++++++++++++++++++++++++
+
 
 class _WebData:
-
     """
     Class that stores all of
     the data and metadata from
@@ -56,37 +56,43 @@ class _WebData:
     needed by the website generator.
     """
 
-    def __init__(self, web_data, web_name, case_name,
-                 category = None,
-                 ext = "Mean",
-                 season = None,
-                 non_season = False,
-                 plot_type = "Special",
-                 data_frame = False,
-                 html_file  = None,
-                 asset_path = None,
-                 multi_case = False):
+    def __init__(
+        self,
+        web_data,
+        web_name,
+        case_name,
+        category=None,
+        ext="Mean",
+        season=None,
+        non_season=False,
+        plot_type="Special",
+        data_frame=False,
+        html_file=None,
+        asset_path=None,
+        multi_case=False,
+    ):
 
-        #Initialize relevant website variables:
-        self.name       = web_name
-        self.data       = web_data
-        self.case       = case_name
-        self.category   = category
-        self.season     = season
+        # Initialize relevant website variables:
+        self.name = web_name
+        self.data = web_data
+        self.case = case_name
+        self.category = category
+        self.season = season
         self.non_season = non_season
-        self.plot_type  = plot_type
-        self.ext        = ext
+        self.plot_type = plot_type
+        self.ext = ext
         self.data_frame = data_frame
-        self.html_file  = html_file
+        self.html_file = html_file
         self.asset_path = asset_path
         self.multi_case = multi_case
 
-#+++++++++++++++++++++
-#Define main web class
-#+++++++++++++++++++++
+
+# +++++++++++++++++++++
+# Define main web class
+# +++++++++++++++++++++
+
 
 class AdfWeb(AdfObs):
-
     """
     Website class, which initializes
     an AdfObs object and provides
@@ -95,120 +101,124 @@ class AdfWeb(AdfObs):
     """
 
     def __init__(self, config_file, debug=False):
-
         """
         Initalize ADF Web object.
         """
 
-        #Initialize Obs attributes:
+        # Initialize Obs attributes:
         super().__init__(config_file, debug=debug)
 
-        #Initialize website mean plots dictionary:
+        # Initialize website mean plots dictionary:
         self.__website_data = []
 
-        #Initialize website plot type order lists:
+        # Initialize website plot type order lists:
         self.__plot_type_order = []
 
-        #Initialize another plot type list for multi-case plots:
+        # Initialize another plot type list for multi-case plots:
         self.__plot_type_multi = []
 
-        #Initialize website plot type
+        # Initialize website plot type
 
-        #Set case website path dictionary:
-        #--------------------------------
+        # Set case website path dictionary:
+        # --------------------------------
         self.__case_web_paths = {}
 
-        #Extract needed variables from yaml file:
-        case_names = self.get_cam_info('cam_case_name', required=True)
-        #Also extract baseline case (if applicable), and append to case_names list:
+        # Extract needed variables from yaml file:
+        case_names = self.get_cam_info("cam_case_name", required=True)
+        # Also extract baseline case (if applicable), and append to case_names list:
         if not self.compare_obs:
-            baseline_name = self.get_baseline_info('cam_case_name', required=True)
-            #Append baseline to case list:
+            baseline_name = self.get_baseline_info("cam_case_name", required=True)
+            # Append baseline to case list:
             case_names.append(baseline_name)
-        #End if
+        # End if
 
-        #Loop over model cases and generate relevant website directories:
+        # Loop over model cases and generate relevant website directories:
         for case_idx, case_name in enumerate(case_names):
 
-            #Create new path object from user-specified plot directory path:
+            # Create new path object from user-specified plot directory path:
             plot_path = Path(self.plot_location[case_idx])
 
-            #Create directory path where the website will be built:
+            # Create directory path where the website will be built:
             website_dir = plot_path / "website"
 
-            #Create a directory path that will hold just the html files for individual images:
+            # Create a directory path that will hold just the html files for individual images:
             img_pages_dir = website_dir / "html_img"
 
-            #Create a directory path that will hold copies of the actual images:
+            # Create a directory path that will hold copies of the actual images:
             assets_dir = website_dir / "assets"
 
-            #Create a directory that will hold table html files:
+            # Create a directory that will hold table html files:
             table_pages_dir = website_dir / "html_table"
 
-            #Specify where CSS files will be stored:
+            # Specify where CSS files will be stored:
             css_files_dir = website_dir / "templates"
 
-            #Add links to external packages (if applicable)
+            # Add links to external packages (if applicable)
             self.external_package_links = {}
 
-            #MDTF puts directory under case[0]
-            if self.get_mdtf_info('mdtf_run'):
+            # MDTF puts directory under case[0]
+            if self.get_mdtf_info("mdtf_run"):
                 syear = self.climo_yrs["syears"]
                 eyear = self.climo_yrs["eyears"]
                 mdtf_path = f"../mdtf/MDTF_{case_name}"
                 mdtf_path += f"_{syear[0]}_{eyear[0]}"
-                self.external_package_links['MDTF'] = mdtf_path
-            #End if
+                self.external_package_links["MDTF"] = mdtf_path
+            # End if
 
-            #Add all relevant paths to dictionary for specific case:
-            self.__case_web_paths[case_name] = {'website_dir': website_dir,
-                                                'img_pages_dir': img_pages_dir,
-                                                'assets_dir': assets_dir,
-                                                'table_pages_dir': table_pages_dir,
-                                                'css_files_dir': css_files_dir}
-        #End for
-        #--------------------------------
+            # Add all relevant paths to dictionary for specific case:
+            self.__case_web_paths[case_name] = {
+                "website_dir": website_dir,
+                "img_pages_dir": img_pages_dir,
+                "assets_dir": assets_dir,
+                "table_pages_dir": table_pages_dir,
+                "css_files_dir": css_files_dir,
+            }
+        # End for
+        # --------------------------------
 
-        #Finally, if this is a multi-case run, then add a "multi-case" option as well:
+        # Finally, if this is a multi-case run, then add a "multi-case" option as well:
         if self.num_cases > 1:
-            website_dir     = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
-            website_dir     = website_dir / "main_website"
-            img_pages_dir   = website_dir / "html_img"
-            assets_dir      = website_dir / "assets"
+            website_dir = Path(self.get_basic_info("cam_diag_plot_loc", required=True))
+            website_dir = website_dir / "main_website"
+            img_pages_dir = website_dir / "html_img"
+            assets_dir = website_dir / "assets"
             table_pages_dir = website_dir / "html_table"
             css_files_dir = website_dir / "templates"
 
-            self.__case_web_paths['multi-case'] = {'website_dir': website_dir,
-                                                   'img_pages_dir': img_pages_dir,
-                                                   'assets_dir': assets_dir,
-                                                   'table_pages_dir': table_pages_dir,
-                                                   'css_files_dir': css_files_dir}
-        #End if
-        
+            self.__case_web_paths["multi-case"] = {
+                "website_dir": website_dir,
+                "img_pages_dir": img_pages_dir,
+                "assets_dir": assets_dir,
+                "table_pages_dir": table_pages_dir,
+                "css_files_dir": css_files_dir,
+            }
+        # End if
+
         # Gather ADF run env info
         active_env = self.get_active_conda_environment()
         if not active_env:
             active_env = "--"
 
-        run_info = ''
+        run_info = ""
         if self.debug_log:
             log_name = self.debug_fname
-            run_info = f"{log_name}".replace("debug","run_info").replace(".log",".md")
+            run_info = f"{log_name}".replace("debug", "run_info").replace(".log", ".md")
             self.run_info = run_info
             self._write_run_info_to_log(config_file, active_env)
-        #Do nothing if user is not requesting a website to be generated:
+        # Do nothing if user is not requesting a website to be generated:
         if self.create_html and self.debug_log:
-            #Write the run info into every website directory this run will build.
-            #The content is the same for all of them, but "create_website" reads it
-            #back from the directory belonging to each web_data's case -- including
-            #the "multi-case" entry -- so writing only the first case's copy makes
-            #a multi-case run die on the missing file.
+            # Write the run info into every website directory this run will build.
+            # The content is the same for all of them, but "create_website" reads it
+            # back from the directory belonging to each web_data's case -- including
+            # the "multi-case" entry -- so writing only the first case's copy makes
+            # a multi-case run die on the missing file.
             for web_paths in self.__case_web_paths.values():
-                website_dir = Path(web_paths['website_dir'])
+                website_dir = Path(web_paths["website_dir"])
                 website_dir.mkdir(parents=True, exist_ok=True)
-                self._write_run_info_to_web(f"{website_dir}/{run_info}",
-                                            config_file, active_env)
-            #End for
+                self._write_run_info_to_web(
+                    f"{website_dir}/{run_info}", config_file, active_env
+                )
+            # End for
 
     #########
 
@@ -216,7 +226,7 @@ class AdfWeb(AdfObs):
     @property
     def create_html(self):
         """Return the "create_html" logical to user if requested."""
-        return self.get_basic_info('create_html')
+        return self.get_basic_info("create_html")
 
     #########
     def _write_run_info_to_web(self, run_info, config_file, active_env):
@@ -237,17 +247,21 @@ class AdfWeb(AdfObs):
             f.write(f"{two_space}<a {font_16}>{config_file}</a><br><br>")
 
             f.write(f"&nbsp;<u><a {font_18}>Config file options</a></u><br>")
-            for key,val in self.config_dict().items():
-                if isinstance(val,dict):
+            for key, val in self.config_dict().items():
+                if isinstance(val, dict):
                     f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
-                    for key2,val2 in val.items():
-                        f.write(f"{four_space}<a {font_16}><strong>{key2}:</strong> {val2}</a><br>")
-                elif isinstance(val,list):
+                    for key2, val2 in val.items():
+                        f.write(
+                            f"{four_space}<a {font_16}><strong>{key2}:</strong> {val2}</a><br>"
+                        )
+                elif isinstance(val, list):
                     f.write(f"{two_space}<a {font_16}><strong>{key}:</strong></a><br>")
                     for val2 in val:
                         f.write(f"{four_space}<a {font_16}>{val2}</a><br>")
                 else:
-                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a><br>")
+                    f.write(
+                        f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a><br>"
+                    )
 
             # Gather Conda environment
             f.write("\n")
@@ -258,13 +272,17 @@ class AdfWeb(AdfObs):
             git_info = self.get_git_info()
             if git_info is None:
                 f.write("\n")
-                f.write(f"<br><br><strong><a {font_22}>No git info found</a></strong><br>")
+                f.write(
+                    f"<br><br><strong><a {font_22}>No git info found</a></strong><br>"
+                )
                 f.write("</p>")
             else:
                 f.write("\n")
                 f.write(f"<br><br><strong><a {font_22}>Git Info</a></strong><br>")
-                for key,val in git_info.items():
-                    f.write(f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a></><br>")
+                for key, val in git_info.items():
+                    f.write(
+                        f"{two_space}<a {font_16}><strong>{key}:</strong> {val}</a></><br>"
+                    )
                 f.write("</p>")
 
     def _write_run_info_to_log(self, config_file, active_env):
@@ -276,17 +294,16 @@ class AdfWeb(AdfObs):
         msg = f"{config_file_msg}\n{'-' * (len(config_file_msg))}\n  {config_file}\n"
         log_msg += msg
 
-
         config_msg = "\n  Config file options:"
         msg = f"{config_msg}\n  {'- ' * (int(len(config_msg)/2)-1)}"
         log_msg += msg
 
-        for key,val in self.config_dict().items():
-            if isinstance(val,dict):
+        for key, val in self.config_dict().items():
+            if isinstance(val, dict):
                 log_msg += f"\n  {key}:"
-                for key2,val2 in val.items():
+                for key2, val2 in val.items():
                     log_msg += f"\n    {key2}: {val2}"
-            elif isinstance(val,list):
+            elif isinstance(val, list):
                 log_msg += f"\n  {key}:"
                 for val2 in val:
                     log_msg += f"\n    {val2}"
@@ -309,19 +326,23 @@ class AdfWeb(AdfObs):
             msg = f"{git_msg}\n{'-' * (len(git_msg)-1)}\n"
             log_msg += f"\n  {msg}"
 
-            for key,val in git_info.items():
+            for key, val in git_info.items():
                 log_msg += f"  {key}: {val}\n"
 
         self.debug_log(log_msg)
 
-    def add_website_data(self, web_data, web_name, case_name,
-                         category = None,
-                         ext = "Mean",
-                         season = None,
-                         non_season = False,
-                         plot_type = "Special",
-                         multi_case=False):
-
+    def add_website_data(
+        self,
+        web_data,
+        web_name,
+        case_name,
+        category=None,
+        ext="Mean",
+        season=None,
+        non_season=False,
+        plot_type="Special",
+        multi_case=False,
+    ):
         """
         Method that provides scripts a way to add an image file or
         Pandas dataframe to the website generator.
@@ -350,20 +371,20 @@ class AdfWeb(AdfObs):
 
         """
 
-        #Do nothing if user is not requesting a website to be generated:
+        # Do nothing if user is not requesting a website to be generated:
         if not self.create_html:
             return
-        #End if
+        # End if
 
-        #Initialize Pandas data frame logical:
+        # Initialize Pandas data frame logical:
         data_frame = False
 
-        #Check that the web_data is either a path
-        #or a pandas dataframe:
+        # Check that the web_data is either a path
+        # or a pandas dataframe:
         try:
             web_data = Path(web_data)
 
-            #Make sure the path is to an actual file:
+            # Make sure the path is to an actual file:
             if not web_data.is_file():
                 wmsg = f"The provided web data path '{web_data}'"
                 wmsg += " either doesn't exist or is not a file."
@@ -371,7 +392,7 @@ class AdfWeb(AdfObs):
                 wmsg += " particular web entry."
                 print(wmsg)
                 return
-            #End if
+            # End if
 
         except TypeError:
             bad_input = False
@@ -380,10 +401,10 @@ class AdfWeb(AdfObs):
                     bad_input = True
                 else:
                     data_frame = True
-                #End if
+                # End if
             else:
                 bad_input = True
-            #End if
+            # End if
             if bad_input:
                 wmsg = "WARNING: Inputs to 'add_website_data' can currently"
                 wmsg += " only be paths to files or Pandas Dataframes, not"
@@ -391,178 +412,194 @@ class AdfWeb(AdfObs):
                 wmsg += "\nSkipping this website data entry..."
                 print(wmsg)
                 return
-            #End if
-        #End except
+            # End if
+        # End except
 
-        #If multi-case and more than one case in ADF run, then
-        #set to "multi-case".  Otherwise set to first case:
+        # If multi-case and more than one case in ADF run, then
+        # set to "multi-case".  Otherwise set to first case:
         if multi_case and not case_name:
             if self.num_cases > 1:
                 case_name = "multi-case"
             else:
                 case_name = self.get_cam_info("cam_case_name")[0]
-            #End if
-        #End if
+            # End if
+        # End if
 
-        #Create HTML file path variable,
-        #which will be used in "create_website":
+        # Create HTML file path variable,
+        # which will be used in "create_website":
         if data_frame:
-            #Use web data name instead of case name for tables:
+            # Use web data name instead of case name for tables:
             html_name = f"amwg_table_{web_name}.html"
 
-            #If multi-case, then save under the "multi-case" directory:
+            # If multi-case, then save under the "multi-case" directory:
             if self.num_cases > 1:
-                html_file = self.__case_web_paths['multi-case']["table_pages_dir"] / html_name
+                html_file = (
+                    self.__case_web_paths["multi-case"]["table_pages_dir"] / html_name
+                )
             else:
-                html_file = self.__case_web_paths[case_name]["table_pages_dir"] / html_name
-            #End if
+                html_file = (
+                    self.__case_web_paths[case_name]["table_pages_dir"] / html_name
+                )
+            # End if
             asset_path = None
         else:
-            html_name = f'plot_page_{web_data.stem}.html'
+            html_name = f"plot_page_{web_data.stem}.html"
             html_file = self.__case_web_paths[case_name]["img_pages_dir"] / html_name
-            asset_path = self.__case_web_paths[case_name]['assets_dir'] / web_data.name
-        #End if
+            asset_path = self.__case_web_paths[case_name]["assets_dir"] / web_data.name
+        # End if
 
-        #Initialize web data object:
-        web_data = _WebData(web_data, web_name, case_name,
-                            category = category,
-                            season = season,
-                            non_season = non_season,
-                            plot_type = plot_type,
-                            ext = ext,
-                            data_frame = data_frame,
-                            html_file = html_file,
-                            asset_path = asset_path,
-                            multi_case = multi_case)
+        # Initialize web data object:
+        web_data = _WebData(
+            web_data,
+            web_name,
+            case_name,
+            category=category,
+            season=season,
+            non_season=non_season,
+            plot_type=plot_type,
+            ext=ext,
+            data_frame=data_frame,
+            html_file=html_file,
+            asset_path=asset_path,
+            multi_case=multi_case,
+        )
 
-        #Add web data object to list:
+        # Add web data object to list:
         self.__website_data.append(web_data)
 
-        #Add plot type to plot order list:
-        if (multi_case or data_frame) and self.num_cases > 1: #Actual multi-case
+        # Add plot type to plot order list:
+        if (multi_case or data_frame) and self.num_cases > 1:  # Actual multi-case
             if plot_type not in self.__plot_type_multi:
                 self.__plot_type_multi.append(plot_type)
-            #End if
-        else: #single case plot/ADF run
+            # End if
+        else:  # single case plot/ADF run
             if plot_type not in self.__plot_type_order:
                 self.__plot_type_order.append(plot_type)
-            #End if
-        #End if
+            # End if
+        # End if
 
     #########
 
     def create_website(self):
-
         """
         Generate webpages to display diagnostic results.
         """
 
-        #import needed standard modules:
+        # import needed standard modules:
         import shutil
         from collections import OrderedDict
 
-        #Import "special" modules:
+        # Import "special" modules:
         try:
             import jinja2
         except ImportError:
             emsg = "Jinja2 module does not exist in python path, but is needed for website."
             emsg += "\nPlease install module, e.g. 'pip install Jinja2'"
             self.end_diag_fail(emsg)
-        #End except
+        # End except
 
-        #Make jinja functions that mimics python functions.
+        # Make jinja functions that mimics python functions.
         #  - This will allow for the use of 'list' in the html rendering.
         def jinja_list(seas_list):
             return list(seas_list)
+
         #   - This will allow for the use of 'enumerate' in the html rendering.
         def jinja_enumerate(arg):
             return enumerate(arg)
 
-        #Notify user that script has started:
+        # Notify user that script has started:
         print("\n  Generating Diagnostics webpages...")
 
         case_sites = OrderedDict()
 
-        #If there is more than one non-baseline case, then create new website directory:
+        # If there is more than one non-baseline case, then create new website directory:
         if self.num_cases > 1:
-            main_site_path = Path(self.get_basic_info('cam_diag_plot_loc', required=True))
+            main_site_path = Path(
+                self.get_basic_info("cam_diag_plot_loc", required=True)
+            )
             main_site_path = main_site_path / "main_website"
             main_site_path.mkdir(exist_ok=True)
         else:
-            main_site_path = "" #Set main_site_path to blank value
-        #End if
+            main_site_path = ""  # Set main_site_path to blank value
+        # End if
 
-        #Access variable defaults yaml file
+        # Access variable defaults yaml file
         res = self.variable_defaults
 
-        #Extract needed variables from yaml file:
-        case_names = self.get_cam_info('cam_case_name', required=True)
+        # Extract needed variables from yaml file:
+        case_names = self.get_cam_info("cam_case_name", required=True)
 
-        #Grab case climo years
+        # Grab case climo years
         syear_cases = self.climo_yrs["syears"]
         eyear_cases = self.climo_yrs["eyears"]
 
-        #Grab baseline years (which may be empty strings if using Obs):
+        # Grab baseline years (which may be empty strings if using Obs):
         syear_baseline = self.climo_yrs["syear_baseline"]
         eyear_baseline = self.climo_yrs["eyear_baseline"]
 
-        #Set name of comparison data, which depends on "compare_obs":
+        # Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
             data_name = "Obs"
             baseline_yrs = ""
 
         else:
-            data_name = self.get_baseline_info('cam_case_name', required=True)
+            data_name = self.get_baseline_info("cam_case_name", required=True)
 
-            baseline_yrs=f"{syear_baseline} - {eyear_baseline}"
-        #End if
+            baseline_yrs = f"{syear_baseline} - {eyear_baseline}"
+        # End if
 
-        #Set climo years format for html file headers
-        case_yrs=f"{syear_cases[0]} - {eyear_cases[0]}"
+        # Set climo years format for html file headers
+        case_yrs = f"{syear_cases[0]} - {eyear_cases[0]}"
 
-        #Extract variable defaults dictionary (for categories):
+        # Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
 
-        #Set plot type html dictionary (for Jinja templating):
+        # Set plot type html dictionary (for Jinja templating):
         plot_type_html = OrderedDict()
         for plot_type in self.__plot_type_order:
-            if plot_type == 'Tables':
-                plot_type_html[plot_type] = os.path.join("html_table", "mean_tables.html")
+            if plot_type == "Tables":
+                plot_type_html[plot_type] = os.path.join(
+                    "html_table", "mean_tables.html"
+                )
             else:
-                plot_type_html[plot_type] = os.path.join("html_img", f"mean_diag_{plot_type}.html")
-            #End if
-        #End for
+                plot_type_html[plot_type] = os.path.join(
+                    "html_img", f"mean_diag_{plot_type}.html"
+                )
+            # End if
+        # End for
 
-        #Do the same for multi-case:
+        # Do the same for multi-case:
         if self.num_cases > 1:
             multi_plot_type_html = OrderedDict()
             for plot_type in self.__plot_type_multi:
-                if plot_type == 'Tables':
-                    multi_plot_type_html[plot_type] = os.path.join("html_table",
-                                                                   "mean_tables.html")
+                if plot_type == "Tables":
+                    multi_plot_type_html[plot_type] = os.path.join(
+                        "html_table", "mean_tables.html"
+                    )
                 else:
-                    multi_plot_type_html[plot_type] = os.path.join("html_img",
-                                                                   f"mean_diag_{plot_type}.html")
-                #End if
-            #End for
+                    multi_plot_type_html[plot_type] = os.path.join(
+                        "html_img", f"mean_diag_{plot_type}.html"
+                    )
+                # End if
+            # End for
         else:
-            #Set to match standard plot type dict:
+            # Set to match standard plot type dict:
             multi_plot_type_html = plot_type_html
-        #End if
+        # End if
 
-        #Set main title for website:
+        # Set main title for website:
         main_title = "CAM Diagnostics"
 
-        #List of seasons
-        seasons = ["ANN","DJF","MAM","JJA","SON"]
+        # List of seasons
+        seasons = ["ANN", "DJF", "MAM", "JJA", "SON"]
 
-        #Determine local directory:
+        # Determine local directory:
         adf_lib_dir = Path(__file__).parent
 
-        #Set path to Jinja2 template files:
-        jinja_template_dir = Path(adf_lib_dir, 'website_templates')
+        # Set path to Jinja2 template files:
+        jinja_template_dir = Path(adf_lib_dir, "website_templates")
 
-        #Create the jinja Environment object:
+        # Create the jinja Environment object:
         jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
 
         # this is going to hold the data for building the mean
@@ -571,165 +608,178 @@ class AdfWeb(AdfObs):
         # values -> dict w/ keys being "TYPE" of plots
         # w/ values being dict w/ keys being TEMPORAL sampling,
         # values being the URL
-        #Note: It might be better if the "mean_html_info"
-        #dictionary was created in the "add_website_data",
-        #so that we only had to do the web_data loop once,
-        #but for now this will do. -JN
+        # Note: It might be better if the "mean_html_info"
+        # dictionary was created in the "add_website_data",
+        # so that we only had to do the web_data loop once,
+        # but for now this will do. -JN
         mean_html_info = OrderedDict()
 
         non_seasons = OrderedDict()
 
-        #Create another dictionary needed for HTML pages that render tables:
+        # Create another dictionary needed for HTML pages that render tables:
         table_html_info = OrderedDict()
 
-        #Loop over all web data objects:
+        # Loop over all web data objects:
         for web_data in self.__website_data:
 
-            #Create the directory where the website will be built:
-            self.__case_web_paths[web_data.case]['website_dir'].mkdir(exist_ok=True)
+            # Create the directory where the website will be built:
+            self.__case_web_paths[web_data.case]["website_dir"].mkdir(exist_ok=True)
 
-            #Create a directory where CSS files will be stored:
-            css_files_dir = self.__case_web_paths[web_data.case]['css_files_dir']
+            # Create a directory where CSS files will be stored:
+            css_files_dir = self.__case_web_paths[web_data.case]["css_files_dir"]
             css_files_dir.mkdir(exist_ok=True)
 
-            #Copy CSS files over to output directory:
-            for css_file in jinja_template_dir.glob('*.css'):
+            # Copy CSS files over to output directory:
+            for css_file in jinja_template_dir.glob("*.css"):
                 shutil.copyfile(css_file, css_files_dir / css_file.name)
-            #End for
+            # End for
 
-            #Copy GIF files over to output directory as well:
-            for gif_file in jinja_template_dir.glob('*.gif'):
+            # Copy GIF files over to output directory as well:
+            for gif_file in jinja_template_dir.glob("*.gif"):
                 shutil.copyfile(gif_file, css_files_dir / gif_file.name)
-            #End for
+            # End for
 
-            #Check first for AMWG tables data frame
+            # Check first for AMWG tables data frame
             if web_data.data_frame:
 
-                #Create a directory that will hold table html files, if a table is present:
+                # Create a directory that will hold table html files, if a table is present:
                 if self.num_cases > 1:
-                    self.__case_web_paths['multi-case']['table_pages_dir'].mkdir(exist_ok=True)
+                    self.__case_web_paths["multi-case"]["table_pages_dir"].mkdir(
+                        exist_ok=True
+                    )
                 else:
-                    self.__case_web_paths[web_data.case]['table_pages_dir'].mkdir(exist_ok=True)
-                #End if
+                    self.__case_web_paths[web_data.case]["table_pages_dir"].mkdir(
+                        exist_ok=True
+                    )
+                # End if
 
-                #Add table HTML file to dictionary:
-                #Note:  Need to use data name instead of case name for tables.
+                # Add table HTML file to dictionary:
+                # Note:  Need to use data name instead of case name for tables.
                 table_html_info[web_data.name] = web_data.html_file.name
 
-           #Now check all plot types
+            # Now check all plot types
             if not web_data.data_frame:
-                #Determine season value:
+                # Determine season value:
                 if web_data.season:
                     season = web_data.season
                 else:
-                    season = "plot" #Just have the link be labeled "plot".
-                #End if
+                    season = "plot"  # Just have the link be labeled "plot".
+                # End if
 
-                #Extract web data name (usually the variable name):
+                # Extract web data name (usually the variable name):
                 var = web_data.name
 
-                #Extract whether plot has traditional seasons or not
+                # Extract whether plot has traditional seasons or not
                 non_season = web_data.non_season
 
-                #Create a directory that will hold just the html files for individual images:
-                self.__case_web_paths[web_data.case]['img_pages_dir'].mkdir(exist_ok=True)
+                # Create a directory that will hold just the html files for individual images:
+                self.__case_web_paths[web_data.case]["img_pages_dir"].mkdir(
+                    exist_ok=True
+                )
 
-                #Create a directory that will hold copies of the actual images:
-                self.__case_web_paths[web_data.case]['assets_dir'].mkdir(exist_ok=True)
+                # Create a directory that will hold copies of the actual images:
+                self.__case_web_paths[web_data.case]["assets_dir"].mkdir(exist_ok=True)
 
-                #Move file to assets directory:
+                # Move file to assets directory:
                 shutil.copy(web_data.data, web_data.asset_path)
 
-                #Extract plot_type:
+                # Extract plot_type:
                 ptype = web_data.plot_type
 
-                #Check if category has been provided for this web data:
+                # Check if category has been provided for this web data:
                 if web_data.category:
-                    #If so, then just use directly:
+                    # If so, then just use directly:
                     category = web_data.category
                 else:
 
-                    #Check if variable in defaults dictionary:
+                    # Check if variable in defaults dictionary:
                     if web_data.name in var_defaults_dict:
-                        #If so, then extract category from dictionary:
-                        category = var_defaults_dict[web_data.name].get("category",
-                                                                        "No category yet")
+                        # If so, then extract category from dictionary:
+                        category = var_defaults_dict[web_data.name].get(
+                            "category", "No category yet"
+                        )
                     else:
-                        category = 'No category yet'
-                    #End if
-                #End if
+                        category = "No category yet"
+                    # End if
+                # End if
 
-                #Initialize Ordered Dictionary for plot type:
+                # Initialize Ordered Dictionary for plot type:
                 if ptype not in mean_html_info:
                     mean_html_info[ptype] = OrderedDict()
-                #End if
+                # End if
 
                 if category not in mean_html_info[ptype]:
                     mean_html_info[ptype][category] = OrderedDict()
-                #End if
+                # End if
 
-                #Initialize Ordered Dictionary for variable:
+                # Initialize Ordered Dictionary for variable:
                 if var not in mean_html_info[ptype][category]:
                     mean_html_info[ptype][category][var] = OrderedDict()
-                #End if
+                # End if
 
-                #Initialize Ordered Dictionary for season:
+                # Initialize Ordered Dictionary for season:
                 mean_html_info[ptype][category][var][season] = web_data.html_file.name
 
-
-                #Initialize Ordered Dictionary for non season kwarg:
+                # Initialize Ordered Dictionary for non season kwarg:
                 if ptype not in non_seasons:
                     non_seasons[ptype] = OrderedDict()
-                #End if
+                # End if
                 if category not in non_seasons[ptype]:
                     non_seasons[ptype][category] = OrderedDict()
-                #End if
+                # End if
                 if var not in non_seasons[ptype][category]:
                     non_seasons[ptype][category][var] = non_season
-                #End if
+                # End if
 
-            #End if (data-frame check)
-        #End for (web_data list loop)
+            # End if (data-frame check)
+        # End for (web_data list loop)
 
-        #Loop over all web data objects again:
+        # Loop over all web data objects again:
         for web_data in self.__website_data:
 
             if web_data.data_frame:
 
-                #Create output HTML file path:
+                # Create output HTML file path:
                 if self.num_cases > 1:
-                    table_pages_dir = self.__case_web_paths['multi-case']['table_pages_dir']
+                    table_pages_dir = self.__case_web_paths["multi-case"][
+                        "table_pages_dir"
+                    ]
                     plot_types = multi_plot_type_html
                 else:
-                    table_pages_dir = self.__case_web_paths[web_data.case]['table_pages_dir']
+                    table_pages_dir = self.__case_web_paths[web_data.case][
+                        "table_pages_dir"
+                    ]
                     plot_types = plot_type_html
-                #End if
+                # End if
 
-                #Check if plot image already handles multiple cases,
-                #and if so change the case name:
+                # Check if plot image already handles multiple cases,
+                # and if so change the case name:
                 if web_data.multi_case:
                     case1 = "Listed in tables"
                 else:
                     case1 = case_names[0]
-                #End if
+                # End if
 
-                #Write table dataframe HTML as a string:
-                #Note:  One could generate an image file here instead of raw HTML code,
-                #which might be beneficial for colored tables and other more advance
-                #formatting features.
-                table_html = web_data.data.to_html(index=False, border=1, justify='center',
-                                                   float_format='{:6g}'.format)
+                # Write table dataframe HTML as a string:
+                # Note:  One could generate an image file here instead of raw HTML code,
+                # which might be beneficial for colored tables and other more advance
+                # formatting features.
+                table_html = web_data.data.to_html(
+                    index=False, border=1, justify="center", float_format="{:6g}".format
+                )
 
-                #Construct amwg_table.html
-                rend_kwarg_dict = {"title": main_title,
-                                  "case_name": case1,
-                                  "case_yrs": case_yrs,
-                                  "base_name": data_name,
-                                  "baseline_yrs": baseline_yrs,
-                                  "amwg_tables": table_html_info,
-                                  "table_name": web_data.name,
-                                  "table_html": table_html,
-                                  "multi_head": False}
+                # Construct amwg_table.html
+                rend_kwarg_dict = {
+                    "title": main_title,
+                    "case_name": case1,
+                    "case_yrs": case_yrs,
+                    "base_name": data_name,
+                    "baseline_yrs": baseline_yrs,
+                    "amwg_tables": table_html_info,
+                    "table_name": web_data.name,
+                    "table_html": table_html,
+                    "multi_head": False,
+                }
                 rend_kwarg_dict["plot_types"] = multi_plot_type_html
 
                 if web_data.name == case1:
@@ -740,90 +790,96 @@ class AdfWeb(AdfObs):
                     rend_kwarg_dict["disp_table_name"] = "Case Comparison"
                     rend_kwarg_dict["disp_table_html"] = table_html
 
-                table_tmpl = jinenv.get_template('template_table.html')
+                table_tmpl = jinenv.get_template("template_table.html")
                 table_rndr = table_tmpl.render(rend_kwarg_dict)
 
-                #Write mean diagnostic tables HTML file:
-                with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
+                # Write mean diagnostic tables HTML file:
+                with open(web_data.html_file, "w", encoding="utf-8") as ofil:
                     ofil.write(table_rndr)
-                #End with
+                # End with
 
-                #Check if the mean plot type page exists for this case (or for multi-case):
+                # Check if the mean plot type page exists for this case (or for multi-case):
                 mean_table_file = table_pages_dir / "mean_tables.html"
 
-                #Construct mean_table.html
-                mean_table_tmpl = jinenv.get_template('template_mean_tables.html')
-                #Reuse the rend_kwarg_dict
+                # Construct mean_table.html
+                mean_table_tmpl = jinenv.get_template("template_mean_tables.html")
+                # Reuse the rend_kwarg_dict
                 mean_table_rndr = mean_table_tmpl.render(rend_kwarg_dict)
-                #Write mean diagnostic tables HTML file:
-                with open(mean_table_file, 'w', encoding='utf-8') as ofil:
+                # Write mean diagnostic tables HTML file:
+                with open(mean_table_file, "w", encoding="utf-8") as ofil:
                     ofil.write(mean_table_rndr)
-                #End with
+                # End with
 
-            #End if (tables)
+            # End if (tables)
 
-            else: #Plot image
+            else:  # Plot image
                 plot_types = plot_type_html
 
-                #Create output HTML file path:
-                img_pages_dir = self.__case_web_paths[web_data.case]['img_pages_dir']
-                img_data = [os.path.relpath(web_data.asset_path, start=img_pages_dir),
-                            web_data.asset_path.stem]
-                #Check if plot image already handles multiple cases:
+                # Create output HTML file path:
+                img_pages_dir = self.__case_web_paths[web_data.case]["img_pages_dir"]
+                img_data = [
+                    os.path.relpath(web_data.asset_path, start=img_pages_dir),
+                    web_data.asset_path.stem,
+                ]
+                # Check if plot image already handles multiple cases:
                 if web_data.multi_case:
                     case1 = "Listed in plots."
                     plot_types = multi_plot_type_html
                 else:
                     case1 = web_data.case
                     plot_types = plot_type_html
-                #End if
+                # End if
 
-                rend_kwarg_dict = {"title": main_title,
-                                   "var_title": web_data.name,
-                                   "ext": web_data.ext,
-                                   "season_title": web_data.season,
-                                   "case_name": web_data.case,
-                                   "case_yrs": case_yrs,
-                                   "base_name": data_name,
-                                   "baseline_yrs": baseline_yrs,
-                                   "plottype_title": web_data.plot_type,
-                                   "imgs": img_data,
-                                   "mydata": mean_html_info[web_data.plot_type],
-                                   "plot_types": plot_types,
-                                   "seasons": seasons,
-                                   "non_seasons": non_seasons[web_data.plot_type]}
+                rend_kwarg_dict = {
+                    "title": main_title,
+                    "var_title": web_data.name,
+                    "ext": web_data.ext,
+                    "season_title": web_data.season,
+                    "case_name": web_data.case,
+                    "case_yrs": case_yrs,
+                    "base_name": data_name,
+                    "baseline_yrs": baseline_yrs,
+                    "plottype_title": web_data.plot_type,
+                    "imgs": img_data,
+                    "mydata": mean_html_info[web_data.plot_type],
+                    "plot_types": plot_types,
+                    "seasons": seasons,
+                    "non_seasons": non_seasons[web_data.plot_type],
+                }
 
-                tmpl = jinenv.get_template('template.html')  #Set template
-                rndr = tmpl.render(rend_kwarg_dict) #The template rendered
+                tmpl = jinenv.get_template("template.html")  # Set template
+                rndr = tmpl.render(rend_kwarg_dict)  # The template rendered
 
-                #Write HTML file:
-                with open(web_data.html_file, 'w', encoding='utf-8') as ofil:
+                # Write HTML file:
+                with open(web_data.html_file, "w", encoding="utf-8") as ofil:
                     ofil.write(rndr)
-                #End with
+                # End with
 
-                #Mean plot type html file name
+                # Mean plot type html file name
                 mean_ptype_file = img_pages_dir / f"mean_diag_{web_data.plot_type}.html"
 
-                #Construct individual plot type mean_diag html files
-                mean_tmpl = jinenv.get_template('template_mean_diag.html')
+                # Construct individual plot type mean_diag html files
+                mean_tmpl = jinenv.get_template("template_mean_diag.html")
 
                 rend_kwarg_dict["enumerate"] = jinja_enumerate
                 rend_kwarg_dict["list"] = jinja_list
                 mean_rndr = mean_tmpl.render(rend_kwarg_dict)
 
-                #Write mean diagnostic plots HTML file:
-                with open(mean_ptype_file,'w', encoding='utf-8') as ofil:
+                # Write mean diagnostic plots HTML file:
+                with open(mean_ptype_file, "w", encoding="utf-8") as ofil:
                     ofil.write(mean_rndr)
-                #End with
-            #End if (data frame)
+                # End with
+            # End if (data frame)
 
-            #Also check if index page exists for this case:
-            index_html_file = \
-                self.__case_web_paths[web_data.case]['website_dir'] / "index.html"
+            # Also check if index page exists for this case:
+            index_html_file = (
+                self.__case_web_paths[web_data.case]["website_dir"] / "index.html"
+            )
 
             # Create run info web page
-            run_info_md_file = \
-                self.__case_web_paths[web_data.case]['website_dir'] / self.run_info
+            run_info_md_file = (
+                self.__case_web_paths[web_data.case]["website_dir"] / self.run_info
+            )
 
             # Read the markdown file
             with open(run_info_md_file, "r", encoding="utf-8") as mdfile:
@@ -832,114 +888,130 @@ class AdfWeb(AdfObs):
             # Convert markdown to HTML
             run_info_html = markdown.markdown(md_text)
             index_title = "CAM Diagnostics"
-            run_info_html_file = self.__case_web_paths[web_data.case]['website_dir'] / "run_info.html"
-            run_info_tmpl = jinenv.get_template('template_run_info.html')
-            run_info_rndr = run_info_tmpl.render(title=index_title,
-                                            case_name=web_data.case,
-                                            base_name=data_name,
-                                            case_yrs=case_yrs,
-                                            baseline_yrs=baseline_yrs,
-                                            plot_types=plot_types,
-                                            run_info=run_info_html)
+            run_info_html_file = (
+                self.__case_web_paths[web_data.case]["website_dir"] / "run_info.html"
+            )
+            run_info_tmpl = jinenv.get_template("template_run_info.html")
+            run_info_rndr = run_info_tmpl.render(
+                title=index_title,
+                case_name=web_data.case,
+                base_name=data_name,
+                case_yrs=case_yrs,
+                baseline_yrs=baseline_yrs,
+                plot_types=plot_types,
+                run_info=run_info_html,
+            )
 
             with open(run_info_html_file, "w", encoding="utf-8") as htmlfile:
                 htmlfile.write(run_info_rndr)
 
-            #Re-et plot types list:
-            if web_data.case == 'multi-case':
+            # Re-et plot types list:
+            if web_data.case == "multi-case":
                 plot_types = multi_plot_type_html
             else:
                 plot_types = plot_type_html
             plot_types = plot_type_html
-            #End if
+            # End if
 
-            #List of ADF default plot types
-            #Note: this is a copy, as the list is appended to below and
-            #"res" is re-used on every pass through this loop:
+            # List of ADF default plot types
+            # Note: this is a copy, as the list is appended to below and
+            # "res" is re-used on every pass through this loop:
             avail_plot_types = list(res["default_ptypes"])
 
-            #Check if current plot type is in ADF default.
-            #If not, add it so the index.html file can include it
+            # Check if current plot type is in ADF default.
+            # If not, add it so the index.html file can include it
             for ptype in plot_types.keys():
                 if ptype not in avail_plot_types:
                     avail_plot_types.append(ptype)
 
-
             # External packages that can be run through ADF
-            avail_external_packages = {'MDTF':'mdtf_html_path', 'CVDP':'cvdp_html_path'}
+            avail_external_packages = {
+                "MDTF": "mdtf_html_path",
+                "CVDP": "cvdp_html_path",
+            }
 
-            #Construct index.html
+            # Construct index.html
             index_title = "CAM Diagnostics"
-            index_tmpl = jinenv.get_template('template_index.html')
-            index_rndr = index_tmpl.render(title=index_title,
-                                            case_name=web_data.case,
-                                            base_name=data_name,
-                                            case_yrs=case_yrs,
-                                            baseline_yrs=baseline_yrs,
-                                            plot_types=plot_types,
-                                            avail_plot_types=avail_plot_types,
-                                            avail_external_packages=avail_external_packages,
-                                            external_package_links=self.external_package_links,
-                                            run_info=run_info_html)
+            index_tmpl = jinenv.get_template("template_index.html")
+            index_rndr = index_tmpl.render(
+                title=index_title,
+                case_name=web_data.case,
+                base_name=data_name,
+                case_yrs=case_yrs,
+                baseline_yrs=baseline_yrs,
+                plot_types=plot_types,
+                avail_plot_types=avail_plot_types,
+                avail_external_packages=avail_external_packages,
+                external_package_links=self.external_package_links,
+                run_info=run_info_html,
+            )
 
-            #Write Mean diagnostics index HTML file:
-            with open(index_html_file, 'w', encoding='utf-8') as ofil:
+            # Write Mean diagnostics index HTML file:
+            with open(index_html_file, "w", encoding="utf-8") as ofil:
                 ofil.write(index_rndr)
-            #End with
-        #End for (web data loop)
+            # End with
+        # End for (web data loop)
 
-        #If this is a multi-case instance, then copy website to "main" directory:
+        # If this is a multi-case instance, then copy website to "main" directory:
         if main_site_path:
-            #Add "multi-case" to start of case_names:
+            # Add "multi-case" to start of case_names:
             case_names.insert(0, "multi-case")
 
-            #Create CSS templates file path:
+            # Create CSS templates file path:
             main_templates_path = main_site_path / "templates"
 
-            #loop over cases:
+            # loop over cases:
             for case_name in case_names:
 
-                #Check if case name is present in plot
+                # Check if case name is present in plot
                 if case_name in self.__case_web_paths:
-                    #Extract website directory:
-                    website_dir = self.__case_web_paths[case_name]['website_dir']
+                    # Extract website directory:
+                    website_dir = self.__case_web_paths[case_name]["website_dir"]
 
-                    #Copy website directory to "main site" directory.
-                    #dirs_exist_ok: re-running ADF into an existing plot
-                    #location has to refresh these copies rather than die on
-                    #the directory the previous run left behind.
-                    shutil.copytree(website_dir, main_site_path / case_name,
-                                    dirs_exist_ok=True)
+                    # Copy website directory to "main site" directory.
+                    # dirs_exist_ok: re-running ADF into an existing plot
+                    # location has to refresh these copies rather than die on
+                    # the directory the previous run left behind.
+                    shutil.copytree(
+                        website_dir, main_site_path / case_name, dirs_exist_ok=True
+                    )
 
-                    #Also add path to case_sites dictionary:
-                    case_sites[case_name] = os.path.join(os.curdir, case_name, "index.html")
+                    # Also add path to case_sites dictionary:
+                    case_sites[case_name] = os.path.join(
+                        os.curdir, case_name, "index.html"
+                    )
 
-                    #Also make sure CSS template files have been copied over:
+                    # Also make sure CSS template files have been copied over:
                     if not main_templates_path.is_dir():
-                        css_files_dir = self.__case_web_paths[case_name]['css_files_dir']
+                        css_files_dir = self.__case_web_paths[case_name][
+                            "css_files_dir"
+                        ]
                         shutil.copytree(css_files_dir, main_site_path / "templates")
-                    #End if
-                #End if
-            #End for (model case loop)
+                    # End if
+                # End if
+            # End for (model case loop)
 
-            #Create multi-case site:
+            # Create multi-case site:
             main_title = "ADF Diagnostics"
-            main_tmpl = jinenv.get_template('template_multi_case_index.html')
-            main_rndr = main_tmpl.render(title=main_title,
-                            case_sites=case_sites,
-                            base_name=data_name,
-                            baseline_yrs=baseline_yrs,
-                            )
+            main_tmpl = jinenv.get_template("template_multi_case_index.html")
+            main_rndr = main_tmpl.render(
+                title=main_title,
+                case_sites=case_sites,
+                base_name=data_name,
+                baseline_yrs=baseline_yrs,
+            )
 
-            #Write multi-case main HTML file:
+            # Write multi-case main HTML file:
             outputfile = main_site_path / "index.html"
-            with open(outputfile, 'w', encoding='utf-8') as ofil:
+            with open(outputfile, "w", encoding="utf-8") as ofil:
                 ofil.write(main_rndr)
-            #End with
-        #End if
+            # End with
+        # End if
 
-        #Notify user that script has finishedd:
+        # Notify user that script has finishedd:
         print("  ...Webpages have been generated successfully.")
-#++++++++++++++++++++
-#End Class definition
-#++++++++++++++++++++
+
+
+# ++++++++++++++++++++
+# End Class definition
+# ++++++++++++++++++++

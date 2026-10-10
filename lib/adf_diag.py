@@ -144,7 +144,6 @@ def construct_index_info(page_dict, fnam, opf):
 
 
 class AdfDiag(AdfWeb):
-
     """
     Main ADF diagnostics object.
 
@@ -231,7 +230,7 @@ class AdfDiag(AdfWeb):
                 func_name = list(func_name.keys())[0]
             elif isinstance(func_name, str):
                 has_opt = False
-                opt = ''
+                opt = ""
             else:
                 raise TypeError(
                     "Provided script must either be a string or a dictionary."
@@ -558,6 +557,7 @@ class AdfDiag(AdfWeb):
         ts_tool = self.get_basic_info("ts_tool") or "adf"
         if str(ts_tool).lower() == "gents":
             from adf_gents import create_time_series_gents
+
             return create_time_series_gents(self, baseline=baseline)
         # End if
         if str(ts_tool).lower() != "adf":
@@ -566,7 +566,7 @@ class AdfDiag(AdfWeb):
             self.end_diag_fail(emsg)
         # End if
 
-        #Notify user that script has started:
+        # Notify user that script has started:
         msg = "\n  Calculating CAM time series..."
         print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
@@ -579,6 +579,7 @@ class AdfDiag(AdfWeb):
             It is declared as global to avoid AttributeError.
             """
             return subprocess.run(cmd, shell=False)
+
         # End def
 
         def run_pool(commands, label):
@@ -644,7 +645,9 @@ class AdfDiag(AdfWeb):
 
             # Check if particular case should be processed:
             if cam_ts_done[case_idx]:
-                emsg = "\tNOTE: Configuration file indicates time series files have been "
+                emsg = (
+                    "\tNOTE: Configuration file indicates time series files have been "
+                )
                 emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
                 print(emsg)
                 # Derived variables are normally made as part of writing the
@@ -677,11 +680,11 @@ class AdfDiag(AdfWeb):
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
 
-                print(f"\t Processing time series for {case_type_string} {case_name}, {hist_str} files:")
+                print(
+                    f"\t Processing time series for {case_type_string} {case_name}, {hist_str} files:"
+                )
                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
-                    emsg = (
-                        f"No history *{hist_str}.*.nc files found in '{starting_location}'."
-                    )
+                    emsg = f"No history *{hist_str}.*.nc files found in '{starting_location}'."
                     emsg += " Script is ending here."
                     self.end_diag_fail(emsg)
                 # End if
@@ -740,23 +743,23 @@ class AdfDiag(AdfWeb):
                             else:
                                 # Print a warning, and assume that no vertical
                                 # level information is needed.
-                                wmsg = (
-                                    "WARNING! Unable to determine the vertical coordinate"
-                                )
+                                wmsg = "WARNING! Unable to determine the vertical coordinate"
                                 wmsg = " type from the 'lev' long name,"
                                 wmsg += f" which is:\n'{lev_long_name}'."
                                 wmsg += "\nNo additional vertical coordinate information will be"
-                                wmsg += " transferred beyond the 'lev' dimension itself."
+                                wmsg += (
+                                    " transferred beyond the 'lev' dimension itself."
+                                )
                                 print(wmsg)
 
                                 vert_coord_type = None
                             # End if
                         else:
                             # Print a warning, and assume hybrid levels (for now):
-                            wmsg = "WARNING!  No long name found for the 'lev' dimension,"
-                            wmsg += (
-                                " so no additional vertical coordinate information will be"
+                            wmsg = (
+                                "WARNING!  No long name found for the 'lev' dimension,"
                             )
+                            wmsg += " so no additional vertical coordinate information will be"
                             wmsg += " transferred beyond the 'lev' dimension itself."
                             print(wmsg)
 
@@ -823,18 +826,30 @@ class AdfDiag(AdfWeb):
                     # Check if current variable is not in history file(s)
                     if var not in hist_file_var_list:
                         # Let user know variable is not
-                        print(f"\t     {var} not in history file, will try to derive if possible")
+                        print(
+                            f"\t     {var} not in history file, will try to derive if possible"
+                        )
 
                         # Check if variable can be derived
-                        diag_var_list, constit_dict = check_derive(self, res, var, case_name,
-                                                                    diag_var_list, constit_dict,
-                                                                    hist_file_ds, hist_files[0])
+                        diag_var_list, constit_dict = check_derive(
+                            self,
+                            res,
+                            var,
+                            case_name,
+                            diag_var_list,
+                            constit_dict,
+                            hist_file_ds,
+                            hist_files[0],
+                        )
                         # Move to the next variable
                         continue
                     # End if
 
                     # Check if variable has a "lev" dimension according to first file:
-                    has_lev = bool("lev" in hist_file_ds[var].dims or "ilev" in hist_file_ds[var].dims)
+                    has_lev = bool(
+                        "lev" in hist_file_ds[var].dims
+                        or "ilev" in hist_file_ds[var].dims
+                    )
 
                     # Check if files already exist in time series directory:
                     ts_file_list = glob.glob(ts_outfil_str)
@@ -889,30 +904,45 @@ class AdfDiag(AdfWeb):
                     # End if has_lev
 
                     cmd = (
-                        ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
+                        [
+                            "ncrcat",
+                            "-O",
+                            "-4",
+                            "-h",
+                            "--no_cll_mth",
+                            "-v",
+                            ncrcat_var_list,
+                        ]
                         + hist_files
                         + ["-o", ts_outfil_str]
                     )
 
-                    # Convert Path objects to strings and concatenate the list of 
+                    # Convert Path objects to strings and concatenate the list of
                     # historical files into a single string
-                    hist_files_str = ', '.join(str(f.name) for f in hist_files)
-                    hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
+                    hist_files_str = ", ".join(str(f.name) for f in hist_files)
+                    hist_locs_str = ", ".join(str(loc) for loc in cam_hist_locs)
 
                     # Create the ncatted command to add both global attributes
                     cmd_ncatted = [
-                        "ncatted", "-O",
-                        "-a", "adf_user,global,a,c," + f"{self.user}",
-                        "-a", "hist_file_locs,global,a,c," + f"{hist_locs_str}",
-                        "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
-                        ts_outfil_str
+                        "ncatted",
+                        "-O",
+                        "-a",
+                        "adf_user,global,a,c," + f"{self.user}",
+                        "-a",
+                        "hist_file_locs,global,a,c," + f"{hist_locs_str}",
+                        "-a",
+                        "hist_file_list,global,a,c," + f"{hist_files_str}",
+                        ts_outfil_str,
                     ]
 
                     # Create the ncatted command to remove the history attribute
                     cmd_remove_history = [
-                        "ncatted", "-O", "-h",
-                        "-a", "history,global,d,,",
-                        ts_outfil_str
+                        "ncatted",
+                        "-O",
+                        "-h",
+                        "-a",
+                        "history,global,d,,",
+                        ts_outfil_str,
                     ]
 
                     # Add to command list for use in multi-processing pool:
@@ -958,9 +988,17 @@ class AdfDiag(AdfWeb):
                 # Finally, run through the derived variables if applicable
                 if constit_dict:
                     for der_var, constit_list in constit_dict.items():
-                        derive_variable(self, case_name, der_var, res,
-                                        ts_dir, constit_list, hist_str=hist_str,
-                                        syr=start_year, eyr=end_year)
+                        derive_variable(
+                            self,
+                            case_name,
+                            der_var,
+                            res,
+                            ts_dir,
+                            constit_list,
+                            hist_str=hist_str,
+                            syr=start_year,
+                            eyr=end_year,
+                        )
             # End for hist_str
         # End cases loop
 
@@ -1205,9 +1243,7 @@ class AdfDiag(AdfWeb):
 
         cvdp_dir = os.path.abspath(cvdp_dir)
         if not os.path.isdir(cvdp_dir):
-            shutil.copytree(
-                self.get_cvdp_info("cvdp_codebase_loc"), cvdp_dir
-            )
+            shutil.copytree(self.get_cvdp_info("cvdp_codebase_loc"), cvdp_dir)
         # End if
 
         # intialize objects that might not be declared later
@@ -1223,10 +1259,10 @@ class AdfDiag(AdfWeb):
             eyears_baseline = self.climo_yrs["eyear_baseline"]
             baseline_ts_loc = self.get_baseline_info("cam_ts_loc")
         else:
-            case_name_baseline = ''
+            case_name_baseline = ""
             syears_baseline = 0
             eyears_baseline = 0
-            baseline_ts_loc = ''
+            baseline_ts_loc = ""
         # End if
 
         # Loop over cases to create individual text array to be written to namelist file.
@@ -1342,7 +1378,6 @@ class AdfDiag(AdfWeb):
 
     #########
 
-
     ######### MDTF functions #########
     def setup_run_mdtf(self):
         """
@@ -1352,7 +1387,9 @@ class AdfDiag(AdfWeb):
 
         """
 
-        copy_files_only = False  # True (copy files but don't run), False (copy files and run MDTF)
+        copy_files_only = (
+            False  # True (copy files but don't run), False (copy files and run MDTF)
+        )
         # Note that the MDTF variable test_mode (set in the mdtf_info of the yaml file)
         # has a different meaning: Data is fetched but PODs are not run.
 
@@ -1459,9 +1496,9 @@ class AdfDiag(AdfWeb):
         # Going to need a dict to translate.
         # Use cesm_freq_strings = freq_string_options.keys
         # and then freq = freq_string_option(freq_string_found)
-        freq_string_cesm    = ["month", "day", "hour_6", "hour_3", "hour_1"]  #keys
-        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]           #values
-        freq_string_dict    = dict(zip(freq_string_cesm,freq_string_options)) #make dict
+        freq_string_cesm = ["month", "day", "hour_6", "hour_3", "hour_1"]  # keys
+        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]  # values
+        freq_string_dict = dict(zip(freq_string_cesm, freq_string_options))  # make dict
 
         hist_str_list = self.get_cam_info("hist_str")
         case_names = self.get_cam_info("cam_case_name", required=True)
@@ -1485,13 +1522,14 @@ class AdfDiag(AdfWeb):
                     )  # * to match timestamp: could be multiples
                     adf_file_list = glob.glob(adf_file_str)
 
-                    #Keep only the files needed for this case's years, so that
-                    #a directory holding more than one set for the same
-                    #variable does not come down to a guess:
+                    # Keep only the files needed for this case's years, so that
+                    # a directory holding more than one set for the same
+                    # variable does not come down to a guess:
                     adf_file_list = select_ts_files(
                         adf_file_list,
                         self.climo_yrs["syears"][case_idx],
-                        self.climo_yrs["eyears"][case_idx])
+                        self.climo_yrs["eyears"][case_idx],
+                    )
 
                     # Consecutive files, which is what GenTS writes when
                     # 'gents_slice_years' is set, are combined below, since
@@ -1527,7 +1565,7 @@ class AdfDiag(AdfWeb):
                     adf_file_list = sorted(adf_file_list)
                     adf_file = adf_file_list[0]
 
-                    # If freq is not set, it means we just started this hist_str. 
+                    # If freq is not set, it means we just started this hist_str.
                     # So check the first ADF file to find it
                     hist_file_ds = xr.open_dataset(
                         adf_file, decode_cf=False, decode_times=False
@@ -1582,9 +1620,7 @@ class AdfDiag(AdfWeb):
                     mdtf_file_list = glob.glob(
                         mdtf_file
                     )  # Check if file already exists in MDTF directory
-                    if (
-                        mdtf_file_list
-                    ):  # If file exists, don't overwrite:
+                    if mdtf_file_list:  # If file exists, don't overwrite:
                         # To do in the future: add logic that says to over-write or not
                         if verbose > 1:
                             print(

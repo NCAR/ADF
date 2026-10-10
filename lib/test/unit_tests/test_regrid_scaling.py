@@ -6,6 +6,7 @@ stamps ``transformed`` on the result. Converting again at load time double-scale
 files written by an older ADF -- which did the conversion at plot time -- in raw
 units. Neither failure raises anything, so this pins the choice down.
 """
+
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,7 +28,7 @@ NO_CONVERSION = (0, 1)
 
 def _data(stamped, converters=CONVERTED):
     """An AdfData stand-in holding one variable, with or without the stamp."""
-    attrs = {'transformed': 1} if stamped else {}
+    attrs = {"transformed": 1} if stamped else {}
     obj = SimpleNamespace(
         get_value_converters=lambda case, field: converters,
     )
@@ -35,15 +36,16 @@ def _data(stamped, converters=CONVERTED):
 
     def load_dataset(fils, _obj=obj):
         _obj.reads += 1
-        return {'TAUX': SimpleNamespace(attrs=attrs)}
+        return {"TAUX": SimpleNamespace(attrs=attrs)}
 
     obj.load_dataset = load_dataset
     return obj
 
 
 def _call(obj, apply_scaling=None):
-    return AdfData._regrid_converters(obj, ['f.nc'], 'TAUX', 'case', 'TAUX',
-                                      apply_scaling)
+    return AdfData._regrid_converters(
+        obj, ["f.nc"], "TAUX", "case", "TAUX", apply_scaling
+    )
 
 
 def test_stamped_file_is_not_converted_again():

@@ -5,7 +5,9 @@ import xarray as xr
 import adf_utils as utils
 
 
-def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_file_ds, hist0):
+def check_derive(
+    self, res, var, case_name, diag_var_list, constit_dict, hist_file_ds, hist0
+):
     """
     For incoming variable, look for list of constituents if available
      - as a list in variable defaults file
@@ -35,7 +37,7 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
             - history file dataset for checking if constituents are available
         hist0: str
             - history number for case
-    
+
     Returns
     -------
         constit_list: list
@@ -43,13 +45,13 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
            - empty list:
              * if missing `derived_from` argument(s)
              * if `derived_from` argument(s) exist but not declared
-        
+
         diag_var_list: list
            - updated list (if applicable) of ADF variables for time series creation
     """
 
     # Aerosol Calcs
-    #--------------
+    # --------------
 
     # Always make sure PMID is made if aerosols are desired in config file
     # Since there's no requirement for `aerosol_zonal_list`, allow it to be absent:
@@ -110,7 +112,7 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
             constit_errmsg_written = True
         # End if
     # End if
-    
+
     # If not CAM-CHEM, check regular CAM runs
     if try_cam_constits:
         if "derivable_from" in vres:
@@ -129,7 +131,7 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
         # End if
     # End if
 
-   # Log if this variable can be derived but is missing list of constituents
+    # Log if this variable can be derived but is missing list of constituents
     # (only if not already logged above)
     if not constit_list and not constit_errmsg_written:
         self.debug_log(constit_errmsg)
@@ -149,6 +151,7 @@ def check_derive(self, res, var, case_name, diag_var_list, constit_dict, hist_fi
     # End if
 
     return diag_var_list, constit_dict
+
 
 ########
 
@@ -189,21 +192,31 @@ def find_constit(ts_dir, case_name, constit, hist_str=None, *, syr=None, eyr=Non
     patterns = []
     if hist_str:
         patterns.append(f"{case_name}.{hist_str}.{constit}.*.nc")
-    #End if
+    # End if
     patterns += [f"{case_name}.*.{constit}.*.nc", f"*.{constit}.*.nc"]
 
     for pattern in patterns:
         found = utils.find_ts_files(ts_dir, pattern)
         if found:
             return utils.select_ts_files(found, syr, eyr)
-        #End if
-    #End for
+        # End if
+    # End for
     return []
 
 
-def derive_variable(self, case_name, var, res=None, ts_dir=None,
-                         constit_list=None, overwrite=None, hist_str=None, *,
-                         syr=None, eyr=None):
+def derive_variable(
+    self,
+    case_name,
+    var,
+    res=None,
+    ts_dir=None,
+    constit_list=None,
+    overwrite=None,
+    hist_str=None,
+    *,
+    syr=None,
+    eyr=None,
+):
     """
     Derive variables acccording to steps given here.  Since derivations will depend on the
     variable, each variable to derive will need its own set of steps below.
@@ -261,8 +274,9 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
     # End for
 
     # Flattened, in constituent order, for opening as one dataset:
-    constit_files = [f for constit in constit_list
-                     for f in constit_matches.get(constit, [])]
+    constit_files = [
+        f for constit in constit_list for f in constit_matches.get(constit, [])
+    ]
 
     # Check if all the necessary constituent files were found
     if len(constit_matches) != len(constit_list):
@@ -276,7 +290,9 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
             dmsg += f"\n\tneeded constituents for derivation of "
             dmsg += f"{var}:\n\t\t- {constit_list}\n\tfound constituent file(s) in "
             dmsg += f"{Path(constit_files[0]).parent}:\n\t\t"
-            dmsg += f"- {[Path(f).parts[-1] for f in constit_files if Path(f).is_file()]}"
+            dmsg += (
+                f"- {[Path(f).parts[-1] for f in constit_files if Path(f).is_file()]}"
+            )
             self.debug_log(dmsg)
         else:
             dmsg = f"derived time series for {case_name}:"
@@ -329,9 +345,9 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
                 msg += "and overwrite is False. Will use existing file."
                 print(msg)
 
-        #NOTE: this will need to be changed when derived equations are more complex! - JR
+        # NOTE: this will need to be changed when derived equations are more complex! - JR
         if var == "RESTOM":
-            der_val = ds["FSNT"]-ds["FLNT"]
+            der_val = ds["FSNT"] - ds["FLNT"]
             der_long_name = "Net radiative flux at top of model (FSNT - FLNT)"
         else:
             # Loop through all constituents and sum
@@ -345,7 +361,7 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
         ds[var] = der_val
 
         # Aerosol Calculations
-        #----------------------------------------------------------------------------------
+        # ----------------------------------------------------------------------------------
         # These will be multiplied by rho (density of dry air)
 
         # User-defined defaults might not include aerosol zonal list
@@ -379,7 +395,9 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
                 print(errmsg)
 
                 dmsg = "derived time series:"
-                dmsg += f"\n\t missing 'T' in {ts_dir}, can't make time series for {var} "
+                dmsg += (
+                    f"\n\t missing 'T' in {ts_dir}, can't make time series for {var} "
+                )
                 self.debug_log(dmsg)
                 return
 
@@ -389,11 +407,10 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
             # an all-NaN field that looks like a real one.  Check before
             # multiplying rather than shipping that.
             for aux_name, aux_ds in (("PMID", ds_pmid), ("T", ds_t)):
-                shared = np.intersect1d(ds[var]["time"].values,
-                                        aux_ds["time"].values)
+                shared = np.intersect1d(ds[var]["time"].values, aux_ds["time"].values)
                 if len(shared) == len(ds[var]["time"]):
                     continue
-                #End if
+                # End if
                 errmsg = f"\t   ** '{aux_name}' covers {len(shared)} of the "
                 errmsg += f"{len(ds[var]['time'])} times needed for {var}, so the "
                 errmsg += "dry air density calculation would be incomplete. **\n"
@@ -405,19 +422,19 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
                 dmsg += "skipping derivation."
                 self.debug_log(dmsg)
                 return
-            #End for
+            # End for
 
             # Multiply aerosol by dry air density (rho): (P/Rd*T)
-            ds[var] = ds[var]*(ds_pmid["PMID"]/(res["Rgas"]*ds_t["T"]))
+            ds[var] = ds[var] * (ds_pmid["PMID"] / (res["Rgas"] * ds_t["T"]))
 
             # Sulfate conversion factor
             if var == "SO4":
-                ds[var] = ds[var]*(96./115.)
+                ds[var] = ds[var] * (96.0 / 115.0)
 
-            #Multiplying by density turned a mixing ratio into a concentration:
+            # Multiplying by density turned a mixing ratio into a concentration:
             der_long_name += ", times dry air density"
             attrs = {**attrs, "units": "kg/m3"}
-        #----------------------------------------------------------------------------------
+        # ----------------------------------------------------------------------------------
 
         # Drop all constituents from final saved dataset
         # These are not necessary because they have their own time series files
@@ -425,16 +442,22 @@ def derive_variable(self, case_name, var, res=None, ts_dir=None,
         # Copy attributes from constituent file to derived variable, but not its
         # name: the constituent's 'long_name' describes the constituent, not the
         # variable just derived from it.
-        ds_final[var].attrs = {**attrs,
-                               "long_name": res.get(var, {}).get("long_name",
-                                                                 der_long_name)}
+        ds_final[var].attrs = {
+            **attrs,
+            "long_name": res.get(var, {}).get("long_name", der_long_name),
+        }
         # open_mfdataset leaves time bounds as a *chunked* datetime array, and
         # xarray refuses to encode one of those when the units it inherits from
         # 'time' come without a dtype.  They are tiny, so just load them.
         # ponytail: load, not re-encode; revisit if a bounds variable is ever large
-        for tvar in [v for v in ds_final.variables
-                     if ds_final[v].dtype.kind in "OM" and ds_final[v].chunks]:
+        for tvar in [
+            v
+            for v in ds_final.variables
+            if ds_final[v].dtype.kind in "OM" and ds_final[v].chunks
+        ]:
             ds_final[tvar] = ds_final[tvar].load()
-        ds_final.to_netcdf(derived_file, unlimited_dims='time', mode='w')
+        ds_final.to_netcdf(derived_file, unlimited_dims="time", mode="w")
     # End if (all the necessary constituent files exist)
+
+
 ########
