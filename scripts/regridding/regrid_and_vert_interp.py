@@ -25,9 +25,6 @@ DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
 # output.  See _to_latlon for how such data is handled.
 UNSTRUCTURED_DIMS = ("ncol",)
 
-# The fraction field that each 'mask' variable default masks with:
-MASK_FRACTIONS = {"ocean": "OCNFRAC"}
-
 
 def _interp_levels(adf):
     """The pressure levels to interpolate onto, in Pa.
@@ -233,23 +230,26 @@ def regrid_and_vert_interp(adf):
             )
             interp_da.attrs.update(original_attrs)
             # --- Masking ---
-            frac_var = _mask_fraction_name(var, var_defaults)
-            if frac_var:
-                frac_da = _get_mask_fraction(
-                    adf, case_name, target_name, output_loc, ref_ds, frac_var
+            var_default_dict = var_defaults.get(var, {})
+            if (
+                "mask" in var_default_dict
+                and var_default_dict["mask"].lower() == "ocean"
+            ):
+                ocn_frac_da = _get_ocean_fraction(
+                    adf, case_name, target_name, output_loc, ref_ds
                 )
-                if frac_da is None:
+                if ocn_frac_da is None:
                     # Writing the field unmasked is worse than not writing it:
                     # every plot and statistic downstream would be taken over
-                    # the whole globe instead, and look perfectly plausible.
+                    # land as well as ocean, and look perfectly plausible.
                     warnings.warn(
-                        f"\t    WARNING: '{var}' is defined with a mask, but no "
-                        f"{frac_var} is available for case '{case_name}'.  Skipping "
-                        f"'{var}' rather than writing it unmasked -- add '{frac_var}' "
-                        "to 'diag_var_list' to get this variable."
+                        f"\t    WARNING: '{var}' is defined with 'mask: ocean', but no "
+                        f"OCNFRAC is available for case '{case_name}'.  Skipping '{var}' "
+                        "rather than writing it unmasked -- add 'OCNFRAC' to "
+                        "'diag_var_list' to get this variable."
                     )
                     continue
-                interp_da = _apply_ocean_mask(interp_da, frac_da)
+                interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
 
             # --- Save to file ---
             final_ds = interp_da.to_dataset(name=var)
@@ -548,15 +548,15 @@ def _write_reference_files(
         interp_da.attrs.update(original_attrs)
 
         # --- Masking ---
-        frac_var = _mask_fraction_name(var, var_defaults)
-        if frac_var:
+        var_default_dict = var_defaults.get(var, {})
+        if 'mask' in var_default_dict and var_default_dict['mask'].lower() == 'ocean':
             # var_list is sorted so OCNFRAC is written before anything that needs it:
-            frac_path = output_loc / f'{base}_{frac_var}_baseline.nc'
-            if frac_path.exists():
-                frac_da = xr.open_dataset(frac_path)[frac_var]
-                interp_da = _apply_ocean_mask(interp_da, frac_da)
+            ocn_frac_path = output_loc / f'{base}_OCNFRAC_baseline.nc'
+            if ocn_frac_path.exists():
+                ocn_frac_da = xr.open_dataset(ocn_frac_path)['OCNFRAC']
+                interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
             else:
-                print(f"\t    WARNING: {frac_var} not found, unable to apply mask to '{var}'")
+                print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
 
         final_ds = interp_da.to_dataset(name=var)
         _keep_native_area(final_ds, ref_ds)
@@ -762,12 +762,12 @@ def _handle_vertical_interpolation(
     else:
         raise ValueError(f"Unknown vertical coordinate type: '{vert_type}'")
 
-def _get_mask_fraction(adf, case_name, target_name, output_loc, ref_ds, frac_var):
-    """Return the case's ocean fraction on the target grid, or ``None``.
+def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
+    """Return the case's OCNFRAC on the target grid, or ``None``.
 
     The already-regridded file is used when it exists.  In ``compare_obs`` mode
-    it never does: the fraction has no observational counterpart, so the main
-    loop skips it.  The mask only needs the *model's* fraction on the reference
+    it never does: OCNFRAC has no observational counterpart, so the main loop
+    skips it.  The mask only needs the *model's* ocean fraction on the reference
     grid, though, so it is regridded here on the fly instead.
 
     Parameters
@@ -782,24 +782,22 @@ def _get_mask_fraction(adf, case_name, target_name, output_loc, ref_ds, frac_var
         The regrid output directory.
     ref_ds : xarray.Dataset
         Reference dataset defining the target grid.
-    frac_var : str
-        The fraction field, ``'OCNFRAC'``.
 
     Returns
     -------
     xarray.DataArray or None
-        The fraction on the target grid, or ``None`` if the case has no
-        climatology for it.
+        Ocean fraction on the target grid, or ``None`` if the case has no
+        OCNFRAC climatology.
     """
-    frac_path = output_loc / f"{target_name}_{case_name}_{frac_var}_regridded.nc"
-    if frac_path.exists():
-        return xr.open_dataset(frac_path)[frac_var]
-    frac_ds = adf.data.load_climo_ds(case_name, frac_var)
-    frac_ds = _to_latlon(adf, frac_ds, frac_var, case_name=case_name)
-    if frac_ds is None or frac_var not in frac_ds:
+    ocn_frac_path = output_loc / f"{target_name}_{case_name}_OCNFRAC_regridded.nc"
+    if ocn_frac_path.exists():
+        return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
+    ocn_frac_ds = adf.data.load_climo_ds(case_name, "OCNFRAC")
+    ocn_frac_ds = _to_latlon(adf, ocn_frac_ds, "OCNFRAC", case_name=case_name)
+    if ocn_frac_ds is None or "OCNFRAC" not in ocn_frac_ds:
         return None
     return _handle_horizontal_regridding(
-        frac_ds[frac_var].squeeze(), ref_ds, output_loc
+        ocn_frac_ds["OCNFRAC"].squeeze(), ref_ds, output_loc
     )
 
 
@@ -812,14 +810,14 @@ def _apply_ocean_mask(da, ocn_frac_da):
     da : xarray.DataArray
         The DataArray to mask.
     ocn_frac_da : xarray.DataArray
-        The ocean fraction DataArray; points below 0.9 are masked.
+        The ocean fraction DataArray.
 
     Returns
     -------
     xarray.DataArray
         The masked DataArray.
     """
-    # Ensure the fraction is between 0 and 1
+    # Ensure ocean fraction is between 0 and 1
     ocn_frac_da = ocn_frac_da.clip(0, 1)
     
     # Apply the mask
@@ -850,33 +848,6 @@ def _same_native_grid(da, target_grid):
         dim in da.dims and target_grid.sizes.get(dim) == da.sizes[dim]
         for dim in UNSTRUCTURED_DIMS
     )
-
-
-def _mask_fraction_name(var, var_defaults):
-    """The fraction field to mask `var` with, or ``None`` when it is not masked.
-
-    Parameters
-    ----------
-    var : str
-        The variable.
-    var_defaults : dict
-        The ADF variable defaults; the variable's 'mask' entry is used.
-
-    Returns
-    -------
-    str or None
-        ``'OCNFRAC'`` for 'mask: ocean'.
-    """
-    mask = var_defaults.get(var, {}).get("mask")
-    if not mask:
-        return None
-    frac_var = MASK_FRACTIONS.get(str(mask).lower())
-    if frac_var is None:
-        print(
-            f"\t    WARNING: Unknown mask '{mask}' for '{var}' (expected one of "
-            f"{list(MASK_FRACTIONS)}), so it will not be masked."
-        )
-    return frac_var
 
 
 def _keep_native_area(final_ds, source_ds):

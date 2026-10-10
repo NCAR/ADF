@@ -940,7 +940,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
         msg += f" Trying if this an NCL color map"
 
         url = guess_ncl_url(cmap_pctdiff)
-        locfil = "." / f"{cmap_pctdiff}.rgb"
+        locfil = Path(".") / f"{cmap_pctdiff}.rgb"
         if locfil.is_file():
             data = read_ncl_colormap(adfobj, locfil)
         else:

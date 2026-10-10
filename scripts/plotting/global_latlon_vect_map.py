@@ -256,6 +256,10 @@ def global_latlon_vect_map(adfobj):
                 vdclimo_loc = var_obs_dict[var_pair]["obs_file"]
                 #Extract target variable name:
                 data_var.append(var_obs_dict[var_pair]["obs_var"])
+                #The loaders find each component's obs file by its ADF
+                #name and its own reference label:
+                base_name = adfobj.data.ref_labels[var]
+                pair_base_name = adfobj.data.ref_labels[var_pair]
             else:
                 dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
                 adfobj.debug_log(dmsg)
@@ -269,6 +273,7 @@ def global_latlon_vect_map(adfobj):
 
             # reference (baseline) name
             base_name = adfobj.data.ref_case_label
+            pair_base_name = base_name
         #End if
 
         #loop over different data sets to plot model against:
@@ -276,19 +281,20 @@ def global_latlon_vect_map(adfobj):
             if unstruct_plotting:
                 mesh_file = adfobj.mesh_files["baseline_mesh_file"]
                 kwargs["mesh_file"] = mesh_file
-                uodata = adfobj.data.load_reference_regrid_da(base_name, data_var[0], **kwargs)
-                vodata = adfobj.data.load_reference_regrid_da(base_name, data_var[1], **kwargs)
+                uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+                vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
                 unstruct_base = True
-                odataset = adfobj.data.load_reference_regrid_dataset(base_name, data_var[0], **kwargs)
+                odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
                 o_has_dims = utils.validate_dims(uodata, [ "lev"])
                 wgt_base = odataset.isel(time=0)[var]
             else:
-                uodata = adfobj.data.load_reference_regrid_da(base_name, data_var[0], **kwargs)
-                vodata = adfobj.data.load_reference_regrid_da(base_name, data_var[1], **kwargs)
+                uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+                vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
                 if (uodata is None) or (vodata is None):
                     
                     dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
                     adfobj.debug_log(dmsg)
+                    print(dmsg)
                     continue
                 o_has_dims = utils.validate_dims(uodata    , ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
                 if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
@@ -327,22 +333,23 @@ def global_latlon_vect_map(adfobj):
                     mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
                     kwargs["mesh_file"] = mesh_file
                     vres["mesh_file"] = mesh_file
-                    umdata = adfobj.data.load_regrid_da(case_name, data_var[0], **kwargs)
-                    vmdata = adfobj.data.load_regrid_da(case_name, data_var[1], **kwargs)
+                    umdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
+                    vmdata = adfobj.data.load_regrid_da(case_name, var_pair, **kwargs)
 
                     unstruct_case = True
-                    mdataset = adfobj.data.load_regrid_dataset(case_name, data_var[0], **kwargs)
+                    mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
                     #Determine dimensions of variable:
                     m_has_dims = utils.validate_dims(umdata, [ "lev"])
                     wgt = mdataset.isel(time=0)[var]
                     #print("LATLON FUNC wgt",wgt,"\n")
                 else:
-                    umdata = adfobj.data.load_regrid_da(case_name, data_var[0])
-                    vmdata = adfobj.data.load_regrid_da(case_name, data_var[1])
+                    umdata = adfobj.data.load_regrid_da(case_name, var)
+                    vmdata = adfobj.data.load_regrid_da(case_name, var_pair)
                     #Skip this variable/case if the regridded climo file doesn't exist:
                     if (umdata is None) or (vmdata is None):
                         dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
                         adfobj.debug_log(dmsg)
+                        print(dmsg)
                         continue
                     #Determine dimensions of variable:
                     m_has_dims = utils.validate_dims(umdata, ["lat", "lon", "lev"])

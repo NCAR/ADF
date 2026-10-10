@@ -65,7 +65,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
         # paths
-        # self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
+        self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
         # variables (and info for unit transform)
         # use self.adf.diag_var_list and self.adf.self.adf.variable_defaults
@@ -463,6 +463,17 @@ class AdfData:  # pylint: disable=too-many-public-methods
             fils, variablename, add_offset=add_offset, scale_factor=scale_factor
         )
 
+    def load_climo_file(self, case, variablename):
+        """Return Dataset for climo of variablename"""
+        fils = self.get_climo_file(case, variablename)
+        if not fils:
+            warnings.warn(
+                "\t    WARNING: Did not find climo file for variable: "
+                f"{variablename}. Will try to skip."
+            )
+            return None
+        return self.load_dataset(fils)
+
     def load_climo_dataset(self, case, field, **kwargs):
         """Return a data set to be used as reference (aka baseline) for variable field."""
         fils = self.get_climo_file(case, field)
@@ -594,7 +605,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
     # Test case(s)
     def get_regrid_file(self, case, field):
         """Return list of test regridded files"""
-        model_rg_loc = Path(self.adf.get_basic_info("cam_regrid_loc", required=True))
+        model_rg_loc = Path(self.model_rgrid_loc)
         # rlbl = "reference label" = name of the reference data that defines the target grid
         rlbl = self.ref_labels[field]
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
@@ -659,9 +670,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             else:
                 fils = []
         else:
-            model_rg_loc = Path(
-                self.adf.get_basic_info("cam_regrid_loc", required=True)
-            )
+            model_rg_loc = Path(self.model_rgrid_loc)
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
 
@@ -674,7 +683,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(
-                "\t  DATASET  WARNING: Did not find regridded file(s) for case: "
+                "\t    WARNING: Did not find regridded file(s) for case: "
                 f"{case}, variable: {field}"
             )
             return None
@@ -704,7 +713,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(
-                "\t  DATAARRAY  WARNING: Did not find regridded file(s) for case: "
+                "\t    WARNING: Did not find regridded file(s) for case: "
                 f"{case}, variable: {field}"
             )
             return None

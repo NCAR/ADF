@@ -815,7 +815,7 @@ class AdfDiag(AdfWeb):
                 # End if
 
                 # Notify user that script has started:
-                print(f"\n\t Writing time series files to:\n\t\t{ts_dir}\n")
+                print(f"\n\t Writing time series files to:\n\t{ts_dir}")
 
                 # Create empty list:
                 files_list = []
@@ -1000,7 +1000,15 @@ class AdfDiag(AdfWeb):
                             continue
 
                     # Variable list starts with just the variable
-                    ncrcat_var_list = f"{var},lat,lon"
+                    ncrcat_var_list = f"{var}"
+
+                    # On a native grid the cell centres and areas are separate
+                    # variables, not coordinates, so ncrcat has to be asked for
+                    # them (the GenTS back end copies them by itself):
+                    if "ncol" in hist_file_ds[var].dims:
+                        for extra in ("lat", "lon", "area"):
+                            if extra in hist_file_var_list:
+                                ncrcat_var_list += f",{extra}"
 
                     # Determine "ncrcat" command to generate time series file:
                     if "date" in hist_file_ds[var].dims:
@@ -1107,84 +1115,6 @@ class AdfDiag(AdfWeb):
                 # Run ncatted command to remove history attribute
                 # after the global attributes are set
                 run_pool(list_of_hist_commands, "history attribute")
-
-                # Loop over the created time series files again and fix the time if necessary
-                # NOTE: There is no solution to do this with NCO operators,
-                #      but there is with CDO operators. We can switch to using CDO,
-                #      but it would require the user to have/load CDO as well.
-
-                unstruct_plotting = self.unstructured_plotting
-
-                # fils = glob.glob(f"{ts_dir}/*{time_string}.nc")
-                for var in diag_var_list:
-                    # for fil in fils:
-                    fils = glob.glob(f"{ts_dir}/*.{var}.{time_string}.nc")
-                    if not fils:
-                        print(
-                            f"Uh oh, no files found for {var} with time string"
-                            f"{time_string} in {ts_dir}"
-                        )
-                        print("Will check for derived vars later.")
-                        continue
-                    if len(fils) > 1:
-                        print(
-                            "Uh oh, too many files :("
-                            "\nCheck the time series directory for duplicates."
-                        )
-                        continue
-
-                    fil = fils[0]
-                    ts_ds = xr.open_dataset(fil, decode_times=False)
-
-                    units = ts_ds[var].attrs.get("units", "--")
-                    if ("time_bnds" in ts_ds) or ("time_bounds" in ts_ds):
-                        if "time_bnds" in ts_ds:
-                            ts_ds.time_bnds.attrs["units"] = ts_ds.time.attrs["units"]
-                            ts_ds.time_bnds.attrs["calendar"] = ts_ds.time.attrs[
-                                "calendar"
-                            ]
-                        if "time_bounds" in ts_ds:
-                            ts_ds.time_bounds.attrs["units"] = ts_ds.time.attrs["units"]
-                            ts_ds.time_bounds.attrs["calendar"] = ts_ds.time.attrs[
-                                "calendar"
-                            ]
-                        time = ts_ds["time"]
-
-                        if "time_bnds" in ts_ds:
-                            time = xr.DataArray(
-                                ts_ds["time_bnds"].load().mean(dim="nbnd").values,
-                                dims=time.dims,
-                                attrs=time.attrs,
-                            )
-                        if "time_bounds" in ts_ds:
-                            time = xr.DataArray(
-                                ts_ds["time_bounds"].load().mean(dim="nbnd").values,
-                                dims=time.dims,
-                                attrs=time.attrs,
-                            )
-                        # Optional, add additional variables to cam.h0* files
-                        if "h0" in hist_str:
-                            ds = xr.open_dataset(hist_files[0], decode_times=False)
-                            if unstruct_plotting:
-                                ts_ds["area"] = ds.areawt
-
-                        ts_ds["time"] = time
-                        ts_ds.assign_coords(time=time)
-                        ts_ds_fixed = xr.decode_cf(ts_ds)
-
-                        # Add attribute note of time change
-                        attrs_dict = {
-                            "adf_timeseries_info": "Time series files have been computed using ncrcat'",
-                            "adf_note": "The time values have been modified to middle of month",
-                            "units": units,
-                        }
-                        ts_ds_fixed = ts_ds_fixed.assign_attrs(attrs_dict)
-
-                        # Save to a temporary file
-                        temp_file_path = fil + ".tmp"
-                        ts_ds_fixed.to_netcdf(temp_file_path)
-                        # Replace the original file with the modified file
-                        os.replace(temp_file_path, fil)
 
                 # Finally, run through the derived variables if applicable
                 if constit_dict:

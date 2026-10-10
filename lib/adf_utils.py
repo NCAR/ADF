@@ -758,60 +758,72 @@ def spatial_average(indata, weights=None, spatial_dims=None):
 
     Notes
     -----
-    When `spatial_dims` is None, averages over `ncol` (SE native grid),
-    `n_face` (uxarray unstructured grid), or `lat` and `lon`, in that order
-    of preference; otherwise all non-time dimensions.
+    When `weights` is not provided, tries to find sensible values.
+    If there is a 'lat' dimension, use `cos(lat)`.
+    If there is a 'ncol' dimension, looks for `area` in `indata`.
+    If there is an 'n_face' dimension (uxarray), uses the mesh's face areas.
+    Otherwise, set to equal weights.
 
-    When `weights` is not provided, uses an `area` coordinate or variable if
-    present, otherwise `cos(lat)`. Raises ValueError if no weights can be found.
+    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
+    Will average over `ncol` (or `n_face`) if present, and then will check for
+    `lat` and `lon`.
+    When none of those three are found, raise an AdfError.
     """
-    # Detect spatial dimensions
-    if spatial_dims is None:
-        dims = list(indata.dims)
-
-        if "ncol" in dims:
-            spatial_dims = ["ncol"]
-        elif "n_face" in dims:
-            spatial_dims = ["n_face"]
-        elif "lat" in dims and "lon" in dims:
-            spatial_dims = ["lat", "lon"]
+    if weights is None:
+        # Calculate spatial weights:
+        if "lat" in indata.coords:
+            weights = np.cos(np.deg2rad(indata.lat))
+            weights.name = "weights"
+        elif "ncol" in indata.dims:
+            if "area" in indata:
+                warnings.warn(
+                    "area variable being used to generated normalized weights."
+                )
+                weights = indata["area"] / indata["area"].sum()
+            else:
+                warnings.warn(
+                    "\t  We need a way to get area variable. Using equal weights."
+                )
+                weights = xr.DataArray(1.0)
+            weights.name = "weights"
+        elif "n_face" in indata.dims and hasattr(indata, "uxgrid"):
+            weights = xr.DataArray(indata.uxgrid.face_areas.values, dims=["n_face"])
+            weights.name = "weights"
         else:
-            # fallback: anything not time
-            spatial_dims = [d for d in dims if d != "time"]
+            weights = xr.DataArray(1.0)
+            weights.name = "weights"
+            warnings.warn(
+                "Un-recognized spatial dimensions: using equal weights for all grid points."
+            )
+        # End if
+    # End if
+
+    # Apply weights to input data:
+    weighted = indata.weighted(weights)
+
+    # we want to average over all non-time dimensions
+    if spatial_dims is None:
+        if "ncol" in indata.dims:
+            spatial_dims = ["ncol"]
+        elif "n_face" in indata.dims:
+            spatial_dims = ["n_face"]
+        else:
+            spatial_dims = [
+                dimname
+                for dimname in indata.dims
+                if (("lat" in dimname.lower()) or ("lon" in dimname.lower()))
+            ]
 
     if not spatial_dims:
-        raise ValueError("No spatial dimensions found for averaging")
+        # Scripts using this function likely expect the horizontal dimensions
+        # to be removed via the application of the mean. So in order to avoid
+        # possibly unexpected behavior due to arrays being incorrectly dimensioned
+        # (which could be difficult to debug) the ADF should die here:
+        emsg = "spatial_average: No spatial dimensions were identified,"
+        emsg += " so can not perform average."
+        raise AdfError(emsg)
 
-    # Build weights if needed
-    if weights is None:
-        # area weights for unstructured grids
-        if "area" in indata.coords:
-            weights = indata["area"]
-        elif "area" in indata:
-            weights = indata["area"]
-        # lat/lon cosine weights
-        elif "lat" in indata.dims:
-            weights = np.cos(np.deg2rad(indata["lat"]))
-        # fallback
-        else:
-            warnings.warn("Using equal weights")
-            # weights = xr.ones_like(indata.isel({spatial_dims[0]: 0}))
-            if weights is None:
-                if "lat" in indata.coords:
-                    weights = np.cos(np.deg2rad(indata["lat"]))
-                else:
-                    raise ValueError(
-                        "No valid weights provided. For unstructured grids, pass 'area'."
-                    )
-
-    # Normalize weights (optional but safer)
-    try:
-        weights = weights / weights.sum()
-    except Exception:
-        pass  # e.g., lat weights (broadcasted later)
-
-    # Weighted average
-    return indata.weighted(weights).mean(dim=spatial_dims, keep_attrs=True)
+    return weighted.mean(dim=spatial_dims, keep_attrs=True)
 
 
 def wgt_rmse(fld1, fld2, wgt):
@@ -834,8 +846,10 @@ def wgt_rmse(fld1, fld2, wgt):
     Notes:
     ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
     """
-    wgt.fillna(0)
-    assert len(fld1.shape) <= 2, "Input fields must have less than two dimensions."
+    # Native-grid (n_face) fields are 1-D; lat/lon fields are 2-D:
+    assert len(fld1.shape) <= 2, "Input fields must have no more than two dimensions."
+    if hasattr(wgt, "fillna"):
+        wgt = wgt.fillna(0)
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     # in case these fields are in dask arrays, compute them now.
     if hasattr(fld1, "compute"):
