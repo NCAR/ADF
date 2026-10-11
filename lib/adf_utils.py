@@ -28,6 +28,8 @@ annual_mean(data, whole_years=False, time_name='time'):
     Calculate annual averages from time series data.
 seasonal_mean(data, season=None, is_climo=None):
     Calculates the time-weighted seasonal average (or average over all time).
+seasonal_diffs(test_data, ref_data, season):
+    Seasonal means of two climatologies, their difference and percent difference.
 domain_stats(data, domain):
     Provides statistics in specified region.
 pres_from_hybrid(psfc, hya, hyb, p0=100000.):
@@ -968,6 +970,54 @@ def seasonal_mean(data, season=None, is_climo=None):
         time=data.time.dt.month.isin(seasons[season])
     )  # directly take the months we want based on season kwarg
     return data.weighted(data.time.dt.daysinmonth).mean(dim="time", keep_attrs=True)
+
+
+#######
+
+
+def seasonal_diffs(test_data, ref_data, season):
+    """Seasonal means of two climatologies, their difference and percent difference.
+
+    Parameters
+    ----------
+    test_data : xarray.DataArray
+        test case climatology, with 12 months on a ``time`` or ``month`` dimension
+    ref_data : xarray.DataArray
+        reference (baseline or observations) climatology, same layout as `test_data`
+    season : str
+        season to average, one of ANN, DJF, JJA, MAM, SON
+
+    Returns
+    -------
+    test_season : xarray.DataArray
+        month-length weighted seasonal mean of `test_data`
+    ref_season : xarray.DataArray
+        month-length weighted seasonal mean of `ref_data`
+    diff_season : xarray.DataArray
+        ``test_season - ref_season``, with the units of `test_data` when it has any
+    pct_season : xarray.DataArray
+        ``100 * diff_season / abs(ref_season)``, in units of ``%``
+
+    Notes
+    -----
+    Points where the percent difference cannot be computed -- masked or
+    missing in either field, or a reference value of zero -- are left
+    missing (NaN), so that they plot as blank rather than as 0%.
+    """
+    test_season = seasonal_mean(test_data, season=season, is_climo=True)
+    ref_season = seasonal_mean(ref_data, season=season, is_climo=True)
+
+    diff_season = test_season - ref_season
+    # Some CAM fields (e.g. AODVISdn) are written with no units at all.
+    if "units" in test_season.attrs:
+        diff_season.attrs["units"] = test_season.attrs["units"]
+
+    pct_season = diff_season / np.abs(ref_season) * 100.0
+    # Dividing by a zero reference gives +/-inf; treat it like a masked point.
+    pct_season = pct_season.where(np.isfinite(pct_season))
+    pct_season.attrs["units"] = "%"
+
+    return test_season, ref_season, diff_season, pct_season
 
 
 #######

@@ -22,40 +22,6 @@ def get_hemisphere(hemi_type):
     """
     return "NH" if hemi_type == "NHPolar" else "SH"
 
-def process_seasonal_data(mdata, odata, season):
-    """Helper function to calculate seasonal means and differences.
-    Parameters
-    ----------
-    mdata : xarray.DataArray
-        test case data
-    odata : xarray.DataArray
-        reference case data
-    season : str
-        season (JJA, DJF, MAM, SON)
-
-    Returns
-    -------
-    mseason : xarray.DataArray
-    oseason : xarray.DataArray
-    dseason : xarray.DataArray
-    pseason : xarray.DataArray
-        Seasonal means for test, reference, difference, and percent difference    
-    """
-    mseason = utils.seasonal_mean(mdata, season=season, is_climo=True)
-    oseason = utils.seasonal_mean(odata, season=season, is_climo=True)
-    
-    # Calculate differences
-    dseason = mseason - oseason
-    dseason.attrs['units'] = mseason.attrs['units']
-    
-    # Calculate percent change
-    pseason = (mseason - oseason) / np.abs(oseason) * 100.0
-    pseason.attrs['units'] = '%'
-    pseason = pseason.where(np.isfinite(pseason), np.nan)
-    pseason = pseason.fillna(0.0)
-    
-    return mseason, oseason, dseason, pseason
-
 def polar_map(adfobj):
     """Generate polar maps of model fields with continental overlays."""
     #Notify user that script has started:
@@ -270,10 +236,8 @@ def polar_map(adfobj):
 
             # Calculate seasonal means and differences
             use_odata = odata_level if has_lev else odata
-            mseason, oseason, dseason, pseason = process_seasonal_data(
-                mdata, 
-                use_odata,
-                plot['season']
+            mseason, oseason, dseason, pseason = utils.seasonal_diffs(
+                mdata, use_odata, plot['season']
             )
 
             # Create plot

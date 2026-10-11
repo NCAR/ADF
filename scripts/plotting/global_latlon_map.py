@@ -73,8 +73,8 @@ def global_latlon_map(adfobj):
         determine central longitude for global plots
     utils.lat_lon_validate_dims()
         makes sure latitude and longitude are valid
-    utils.seasonal_mean()
-        calculate seasonal mean
+    utils.seasonal_diffs()
+        seasonal means, difference and percent difference
     plot_utils.plot_map_and_save()
         send information to make the plot and save the file
     utils.zm_validate_dims()
@@ -186,25 +186,6 @@ def get_plot_config(adfobj):
         'redo_plot': adfobj.get_basic_info('redo_plot'),
         'pres_levs': adfobj.get_basic_info("plot_press_levels")
     }
-
-
-def process_seasonal_data(mdata, odata, season, weight_season=True):
-    """Helper function to calculate seasonal means and differences."""
-    if weight_season:
-        mseason = utils.seasonal_mean(mdata, season=season, is_climo=True)
-        oseason = utils.seasonal_mean(odata, season=season, is_climo=True)
-    else:
-        mseason = mdata.sel(time=season).mean(dim='time')
-        oseason = odata.sel(time=season).mean(dim='time')
-    
-    # Calculate differences
-    dseason = mseason - oseason
-    
-    # Calculate percent change
-    pseason = (mseason - oseason) / np.abs(oseason) * 100.0
-    pseason = pseason.where(np.isfinite(pseason), np.nan)
-    
-    return mseason, oseason, dseason, pseason
 
 
 def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_plot, plot_type):
@@ -375,7 +356,7 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
             
         # Calculate seasonal means and differences
         mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
-            process_seasonal_data(mdata, odata, s)
+            utils.seasonal_diffs(mdata, odata, s)
 
         # Generate plot
         pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
@@ -410,7 +391,7 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
 
             # Calculate seasonal means and differences
             mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
-                process_seasonal_data(mdata, odata, s)
+                utils.seasonal_diffs(mdata, odata, s)
 
             # Generate plot
             pf.plot_map_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
