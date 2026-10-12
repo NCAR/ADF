@@ -120,6 +120,62 @@ class AdfDeriveTestRoutine(unittest.TestCase):
             with xr.open_dataset(out[0]) as ds:
                 self.assertEqual(len(ds.time), 240)
 
+    def test_ressurf_formula_and_stream_name(self):
+        """
+        RESSURF is built from eight constituents, whatever the history stream is
+        called, and the result matches the formula.
+        """
+
+        # Constant values, so the expected answer is a single number:
+        vals = dict(
+            FSNS=200.0,
+            FLNS=60.0,
+            SHFLX=20.0,
+            QFLX=2.0e-5,
+            PRECC=1.0e-8,
+            PRECL=2.0e-8,
+            PRECSC=0.3e-8,
+            PRECSL=0.7e-8,
+        )
+        lat_vap, lat_fus = 2.501e6, 3.337e5
+        expected = (
+            200.0
+            - 60.0
+            - 20.0
+            - (lat_vap + lat_fus) * 2.0e-5
+            + lat_fus * 1.0e3 * (1.0e-8 + 2.0e-8 - 0.3e-8 - 0.7e-8)
+        )
+
+        for stream in ("cam.h0", "cam.h0a"):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                for var, val in vals.items():
+                    fil = Path(tmpdir) / f"case.{stream}.{var}.000101-000112.nc"
+                    _write_ts(fil, var, 1, 1)
+                    with xr.open_dataset(fil) as ds:
+                        ds = ds.load()
+                    ds[var][:] = val
+                    ds.to_netcdf(fil)
+
+                derive_variable(
+                    _StubAdf(),
+                    "case",
+                    "RESSURF",
+                    res={},
+                    ts_dir=tmpdir,
+                    constit_list=list(vals),
+                    hist_str=stream,
+                )
+
+                out = sorted(Path(tmpdir).glob("*RESSURF*.nc"))
+                self.assertEqual(
+                    [f.name for f in out], [f"case.{stream}.RESSURF.000101-000112.nc"]
+                )
+                with xr.open_dataset(out[0]) as ds:
+                    self.assertEqual(ds["RESSURF"].attrs["units"], "W/m2")
+                    np.testing.assert_allclose(
+                        ds["RESSURF"].values, expected, rtol=1e-4
+                    )
+
     def test_chunked_constituents_span_all_chunks(self):
         """
         A constituent split into consecutive chunks must produce one derived

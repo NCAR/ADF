@@ -104,10 +104,35 @@ diag_basic_info:
     #model vs obs run:
     plot_press_levels: [200,850]
 
+    #Names of the model's own 3-D pressure field, by vertical dimension.
+    #Vertical interpolation prefers the pressure the model wrote over
+    #reconstructing it from PS and the hybrid coefficients, and the ADF adds
+    #that field to 'diag_var_list' by itself so it gets one time series and one
+    #climatology per case.  CAM's names (below) are the default, and a model
+    #that writes neither, but labels its pressure with the CF attribute
+    #'standard_name: air_pressure', is found anyway -- so this is only needed
+    #for a model that uses different names and no CF metadata.
+    #Set it to False to ignore the model's pressure field entirely and always
+    #interpolate from PS and the hybrid coefficients, as ADF used to:
+    #pressure_field_names:
+    #    lev: PMID
+    #    ilev: PINT
+
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
     #longitude will default to 180 degrees E.
     central_longitude: 180
+
+    #Pressure levels (in hPa) that 3-D variables are interpolated onto during
+    #regridding.  If missing, the ADF uses its standard set:
+    #  1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
+    #  30, 20, 10, 7, 5, 3, 2, 1
+    #A model whose top is above 1 hPa needs to say so here to get anything
+    #plotted up there.  Every entry in 'plot_press_levels' has to be one of
+    #these levels; the ADF warns at the start of regridding if it is not.
+    #Note that changing this invalidates existing regridded files, so set
+    #'cam_overwrite_regrid: true' the first time you use it:
+    #interp_press_levels: [1000,925,850,700,500,400,300,250,200,150,100,70,50,30,20,10,7,5,3,2,1,0.5,0.1]
 
     #Number of processors on which to run the ADF.
     #If this config variable isn't present then
@@ -540,6 +565,26 @@ plotting_scripts:
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+#
+#A single entry of "all" processes every variable found in the test case input
+#files instead (the fields in the history files, or the variables in the
+#pre-made time series files when "cam_ts_done" is true).  Variables listed
+#alongside "all" are still added, which is how a derived variable that is in no
+#input file (e.g. PRECT) can be asked for:
+#
+#diag_var_list:
+#    - all
+#    - PRECT
+#
+#A field on a pressure surface -- U200, U850, V200, V850 -- is made from the
+#three-dimensional field when the history files do not have it, using the model's
+#own pressure where there is one, and compared against that level of the
+#reanalysis.  Listing one is all that is needed; the variable defaults say which
+#field and which surface ("derivable_from", "derive_level", "obs_lev").  A run
+#that writes the surface itself keeps what it wrote.  Note the 3-D field it is
+#made from gets a time series of its own, as any constituent does, and so does
+#the model's pressure field: asking for U200 alone writes two more 3-D time
+#series into "cam_ts_loc".
 diag_var_list:
     - SWCF
     - LWCF

@@ -44,7 +44,8 @@ def amwg_table(adf):
     case_names      -> Name(s) of CAM case provided by "cam_case_name"
     input_ts_locs   -> Location(s) of CAM time series files provided by "cam_ts_loc"
     output_loc      -> Location to write AMWG table files to, provided by "cam_diag_plot_loc"
-    var_list        -> List of CAM output variables provided by "diag_var_list"
+    var_list        -> List of CAM output variables to tabulate, from "plot_var_list"
+                       ("diag_var_list" without the ADF's own support variables)
     var_defaults    -> Dict that has keys that are variable names and values that are plotting preferences/defaults.
     adf.data        -> The ADF's data layer, used to read the time series so
                        that the scale factor, offset and units from the
@@ -107,9 +108,12 @@ def amwg_table(adf):
     # VARIABLE-NAME, RUN VALUE, OBS VALUE, RUN-OBS, RMSE
     #----------------------
 
-    #Extract needed quantities from ADF object:
-    #-----------------------------------------
-    var_list     = adf.diag_var_list
+    # Extract needed quantities from ADF object:
+    # -----------------------------------------
+    # "plot_var_list" rather than "diag_var_list": support variables such as
+    # PMID, which the ADF adds by itself to interpolate the vertical coordinate,
+    # are not diagnostics anyone asked to tabulate.
+    var_list = adf.plot_var_list
     var_defaults = adf.variable_defaults
 
     #Check if ocean or land fraction exist

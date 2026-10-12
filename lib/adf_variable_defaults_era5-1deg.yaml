@@ -34,6 +34,11 @@
 # obs_var_name -> Variable in the observations file to compare against.  If this isn't present then the
 #                 variable name is assumed to be the same as the model variable name.
 #
+# obs_lev      -> Pressure surface, in hPa, to take out of a three-dimensional observation file, so
+#                 one reanalysis file can serve every level a run asks for.  Ignored when the
+#                 observation is already a single surface.  The nearest level is used, with a
+#                 warning if it is more than 1% away from the one asked for.
+#
 #
 # VECTORS:
 #
@@ -55,7 +60,14 @@
 #                   other variables that are present (e.g. PRECT can be derived from PRECC and PRECL),
 #                   which are specified in this list
 #                   NOTE: this is not very flexible at the moment! It can only handle variables that
-#                         are sums of the constituents. Futher flexibility is being explored.
+#                         are sums of the constituents, or -- with "derive_level" below -- one
+#                         model-level field to interpolate. Futher flexibility is being explored.
+#
+# derive_level   -> Pressure surface, in hPa, to interpolate "derivable_from" onto, for a field
+#                   CAM writes on a surface (U200, U850). The model's own 3-D pressure field is
+#                   used where there is one, PS and the hybrid coefficients otherwise. Only used
+#                   when the variable is missing from the history files: a run that writes U200
+#                   itself keeps what it wrote.
 #
 #
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
@@ -275,6 +287,9 @@ BC:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["bc_a1", "bc_a4"]
 
@@ -284,6 +299,9 @@ POM:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["pom_a1", "pom_a4"]
 
@@ -293,6 +311,9 @@ SO4:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["so4_a1", "so4_a2", "so4_a3"]
   derivable_from_cam_chem: ["so4_a1", "so4_a2", "so4_a3", "so4_a5"]
@@ -303,6 +324,9 @@ SOA:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["soa_a1", "soa_a2"]
   derivable_from_cam_chem: ["soa1_a1", "soa2_a1", "soa3_a1", "soa4_a1", "soa5_a1", "soa1_a2", "soa2_a2", "soa3_a2", "soa4_a2", "soa5_a2"]
@@ -315,6 +339,9 @@ DUST:
   scale_factor: 1000000000
   add_offset: 0
   new_unit: '$\mu$g/m3'
+  mpl:
+    colorbar:
+      label : '$\mu$g/m3'
   category: "Aerosols"
   derivable_from: ["dst_a1", "dst_a2", "dst_a3"]
 
@@ -328,8 +355,10 @@ SeaSalt:
   new_unit: '$\mu$g/m3'
   mpl:
     colorbar:
+      label : '$\mu$g/m3'
       ticks: [0.05,0.2,0.4,1,2,6,24,90]
     diff_colorbar:
+      label : '$\mu$g/m3'
       ticks: [-10,8,6,4,2,0,-2,-4,-6,-8,-10]
   category: "Aerosols"
   derivable_from: ["ncl_a1", "ncl_a2", "ncl_a3"]
@@ -1228,6 +1257,9 @@ CLOUD:
   scale_factor: 100
   add_offset: 0
   new_unit: "Percent"
+  mpl:
+    colorbar:
+      label : "Percent"
   category: "Clouds"
 
 CONCLD:
@@ -1241,6 +1273,9 @@ TGCLDLWP:
   scale_factor: 1000
   add_offset: 0
   new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
   category: "Clouds"
   obs_file: "TGCLDLWP_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1256,6 +1291,9 @@ TGCLDIWP:
   scale_factor: 1000
   add_offset: 0
   new_unit: "g m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "g m$^{-2}$"
   category: "Clouds"
   obs_file: "TGCLDIWP_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1294,6 +1332,9 @@ PRECC:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm/d"
   category: "Hydrologic cycle"
 
 PRECL:
@@ -1304,6 +1345,9 @@ PRECL:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECSC:
@@ -1314,6 +1358,9 @@ PRECSC:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECSL:
@@ -1324,6 +1371,9 @@ PRECSL:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECT:
@@ -1334,6 +1384,9 @@ PRECT:
   scale_factor: 86400000
   add_offset: 0
   new_unit: "mm d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "PRECT"
@@ -1361,6 +1414,9 @@ PSL:
   scale_factor: 0.01
   add_offset: 0
   new_unit: "hPa"
+  mpl:
+    colorbar:
+      label : "hPa"
   category: "Surface variables"
   obs_file: "PSL_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1374,6 +1430,9 @@ PS:
   scale_factor: 0.01
   add_offset: 0
   new_unit: "hPa"
+  mpl:
+    colorbar:
+      label : "hPa"
   category: "Surface variables"
   obs_file: "PS_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1393,6 +1452,9 @@ TS:
   scale_factor: 1
   add_offset: 0
   new_unit: "K"
+  mpl:
+    colorbar:
+      label : "K"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "TS"
@@ -1400,15 +1462,25 @@ TS:
 
 SST:
   colormap: "Blues"
-  contour_levels_range: [220,320, 5]
+  # 272-306 K in 2 K steps (18 contours).  Seawater freezes near 271.4 K, so
+  # nothing physical is lost below the first level; the top leaves room above
+  # the observed annual maximum (303.2 K in HadISST/OI.v2) for a warmer model.
+  contour_levels_range: [272, 308, 2]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 1]
   scale_factor: 1
   add_offset: 0
   new_unit: "K"
-  obs_file: "ERAI_all_climo.nc"
-  obs_name: "ERAI"
-  obs_var_name: "TS"
+  mpl:
+    colorbar:
+      label : "K"
+  # HadISST/OI.v2 present day (1999-2008), on a 1-degree grid.  ERA5 has no sea
+  # surface temperature in the ADF obs collection, and the ERAI "TS" this used to
+  # point at is skin temperature -- valid over land, so the land points it carried
+  # ended up in the reference panel of an "SST" plot.
+  obs_file: "HadISST_PD_monthly_climo_199901-200812.nc"
+  obs_name: "HadISST_OIv2_PD"
+  obs_var_name: "SST"
   category: "Surface variables"
   mask: "ocean"
 
@@ -1478,6 +1550,9 @@ RELHUM:
   scale_factor: 1
   add_offset: 0
   new_unit: "Fraction"
+  mpl:
+    colorbar:
+      label : "Fraction"
   obs_file: "RELHUM_ERA5_monthly_climo_1degree_197901-202212.nc"
   obs_name: "ERA5"
   obs_var_name: "RELHUM"
@@ -1491,11 +1566,64 @@ U:
   scale_factor: 1
   add_offset: 0
   new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
   obs_file: "U_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "U"
   vector_pair: "V"
   vector_name: "Wind"
+  category: "State"
+
+
+U200:
+  colormap: "Blues"
+  # -20 to 70 m/s in 5 m/s steps: the annual-mean jets reach ~45 m/s and the
+  # winter monthly means ~70, with easterlies to about -25 in the deep tropics.
+  contour_levels_range: [-20, 75, 5]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself.  The observation is the file staged for this level rather than the
+  # 200 hPa level of the 3-D file: it holds the same numbers, and reading 50 MB
+  # beats reading 1.8 GB on every plot.  "obs_lev" is kept so that pointing
+  # "obs_file" at the 3-D file instead still gives the right level.
+  derivable_from: ["U"]
+  derive_level: 200
+  obs_file: "U200_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "U200"
+  obs_lev: 200
+  category: "State"
+
+U850:
+  colormap: "Blues"
+  # -16 to 16 m/s in 2 m/s steps: the trades and the mid-latitude westerlies,
+  # which reach about 18 m/s in the seasonal means.
+  contour_levels_range: [-16, 17, 2]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-6, 6, 1]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["U"]
+  derive_level: 850
+  obs_file: "U_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "U"
+  obs_lev: 850
   category: "State"
 
 V:
@@ -1506,11 +1634,59 @@ V:
   scale_factor: 1
   add_offset: 0
   new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
   obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "V"
   vector_pair: "U"
   vector_name: "Wind"
+  category: "State"
+
+V200:
+  colormap: "Blues"
+  # -14 to 14 m/s in 2 m/s steps: the monsoon outflow is the largest signal.
+  contour_levels_range: [-14, 15, 2]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-5, 5, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["V"]
+  derive_level: 200
+  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "V"
+  obs_lev: 200
+  category: "State"
+
+V850:
+  colormap: "Blues"
+  # -16 to 16 m/s in 2 m/s steps: the Somali jet reaches 18 m/s in the annual
+  # mean and more in JJA, which a tighter range saturates.
+  contour_levels_range: [-16, 17, 2]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-4, 4, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "ms$^{-1}$"
+  mpl:
+    colorbar:
+      label : "ms$^{-1}$"
+  # Made from the three-dimensional field when CAM did not write this surface
+  # itself, and compared against the same surface of the reanalysis:
+  derivable_from: ["V"]
+  derive_level: 850
+  obs_file: "V_ERA5_monthly_climo_1degree_197901-202112.nc"
+  obs_name: "ERA5"
+  obs_var_name: "V"
+  obs_lev: 850
   category: "State"
 
 Q:
@@ -1543,6 +1719,9 @@ PINT:
 
 PMID:
   category: "State"
+  #Needed for vertical interpolation and the aerosol derivations, and added to
+  #'diag_var_list' automatically, but not a diagnostic anyone asks to see.
+  plot_diagnostics: False
 
 Z3:
   category: "State"
@@ -1572,6 +1751,9 @@ RESTOM:
   scale_factor: 1
   add_offset: 0
   new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
   category: "TOA energy flux"
   derivable_from: ['FLNT','FSNT']
 
@@ -1583,6 +1765,9 @@ SWCF:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_sw_mon"
@@ -1598,6 +1783,9 @@ LWCF:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_cre_lw_mon"
@@ -1611,6 +1799,9 @@ FSUTOA:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   category: "TOA energy flux"
 
 FSNT:
@@ -1621,6 +1812,9 @@ FSNT:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "fsnt"
@@ -1643,6 +1837,9 @@ FLNT:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_all_mon"
@@ -1656,6 +1853,9 @@ FLNTC:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "toa_lw_clr_t_mon"
@@ -1664,6 +1864,20 @@ FLNTC:
 #+++++++++++++++++
 # Category: Surface energy flux
 #+++++++++++++++++
+
+RESSURF:
+  colormap: "RdBu_r"
+  contour_levels_range: [-100, 100, 5]
+  diff_colormap: "seismic"
+  diff_contour_range: [-10, 10, 0.5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+  category: "Sfc energy flux"
+  derivable_from: ['FSNS','FLNS','SHFLX','QFLX','PRECC','PRECL','PRECSC','PRECSL']
 
 FSDS:
   category: "Sfc energy flux"
@@ -1679,6 +1893,9 @@ FSNS:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_all_mon"
@@ -1692,6 +1909,9 @@ FSNSC:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_net_sw_clr_t_mon"
@@ -1705,6 +1925,9 @@ FLDS:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "CERES_EBAF_Ed4.1_2001-2020.nc"
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_lw_down_all_mon"
@@ -1727,6 +1950,9 @@ LHFLX:
   scale_factor: 1
   add_offset: 0
   new_unit: "Wm$^{-2}$"
+  mpl:
+    colorbar:
+      label : "Wm$^{-2}$"
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "LHFLX"
@@ -1875,6 +2101,9 @@ H2O:
   scale_factor: 1
   add_offset: 0
   new_unit: "mol mol$^{-1}$"
+  mpl:
+    colorbar:
+      label: "mol mol$^{-1}$"
   plot_log_pressure: True
 
 OMEGAT:

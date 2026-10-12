@@ -31,6 +31,9 @@ NUMERIC_KEYS = (
 )
 
 DEFAULTS_FILE = Path(__file__).parents[3] / "lib" / "adf_variable_defaults.yaml"
+ERA5_DEFAULTS_FILE = (
+    Path(__file__).parents[3] / "lib" / "adf_variable_defaults_era5-1deg.yaml"
+)
 
 
 def _numeric_offenders(defaults):
@@ -86,12 +89,15 @@ def test_pmid_is_declared_a_support_variable():
     the lint/test CI environment does not install, so a test that imported it
     would silently skip instead of running.
     """
-    defaults = yaml.safe_load(DEFAULTS_FILE.read_text())
-    assert "PMID" in defaults, "PMID lost its variable_defaults entry"
-    assert defaults["PMID"].get("plot_diagnostics") is False, (
-        "PMID must declare 'plot_diagnostics: False' or the ADF will plot the "
-        "pressure field it adds to diag_var_list on the user's behalf"
-    )
+    for defaults_file in (DEFAULTS_FILE, ERA5_DEFAULTS_FILE):
+        defaults = yaml.safe_load(defaults_file.read_text())
+        assert "PMID" in defaults, f"PMID lost its entry in {defaults_file.name}"
+        assert defaults["PMID"].get("plot_diagnostics") is False, (
+            f"PMID must declare 'plot_diagnostics: False' in {defaults_file.name} "
+            "or the ADF will plot the pressure field it adds to diag_var_list on "
+            "the user's behalf.  The two defaults files have to agree: the ADF "
+            "reads this flag for more than plotting."
+        )
 
 
 def test_plot_diagnostics_is_documented():

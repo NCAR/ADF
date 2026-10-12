@@ -6,6 +6,7 @@ from pathlib import Path
 import xarray as xr
 
 import adf_utils as utils
+from adf_units import units_equivalent
 
 warnings.formatwarning = utils.my_formatwarning
 
@@ -49,7 +50,7 @@ warnings.formatwarning = utils.my_formatwarning
 #       apply scaling.
 
 
-class AdfData:
+class AdfData:  # pylint: disable=too-many-public-methods
     """A class instantiated with an AdfDiag object.
     Methods provide means to load data.
     This class does not interact with plotting,
@@ -137,6 +138,73 @@ class AdfData:
     def _hist_strs_for_reference(self):
         """Ordered history streams configured for the reference/baseline case."""
         return self._as_hist_str_list(self.adf.hist_string["base_hist_str"])
+
+    # Observations on a pressure surface
+    # ------------------
+    # Dimension names a reanalysis uses for its vertical coordinate.  CAM's own
+    # names come first; 'level' and 'plev' are what MERRA-2 and CMIP-style files
+    # call it.
+    OBS_LEVEL_DIMS = ("lev", "ilev", "level", "plev", "pressure", "pfull")
+
+    def _at_obs_level(self, da, field):
+        """Take one pressure surface out of a three-dimensional observation.
+
+        A field CAM writes on a surface -- U200 -- has to be compared against
+        the same surface of a reanalysis, and reanalyses are distributed as
+        whole columns.  The ``obs_lev`` variable default (hPa) names the surface
+        to take, so one file can serve every level a run asks for rather than
+        one file per level being staged.
+
+        Parameters
+        ----------
+        da : xarray.DataArray or None
+            The observation as loaded.
+        field : str
+            ADF name of the variable, which is how the defaults are keyed.
+
+        Returns
+        -------
+        xarray.DataArray or None
+            The chosen surface, with the vertical dimension dropped; ``da``
+            unchanged when no level was asked for, when the reference is a
+            baseline simulation, or when there is no vertical dimension.
+        """
+        if da is None:
+            return None
+        if not self.adf.compare_obs:
+            # A baseline simulation's own field is already on the surface, made
+            # the same way the test case's was.
+            return da
+        level = (self.adf.variable_defaults.get(field, {}) or {}).get("obs_lev")
+        if level is None:
+            return da
+        dim = next((d for d in self.OBS_LEVEL_DIMS if d in da.dims), None)
+        if dim is None:
+            if da.ndim > 3:
+                # Something vertical, under a name not in OBS_LEVEL_DIMS: the
+                # reference would reach the plotting scripts with a dimension
+                # the model field does not have.
+                wmsg = f"\t    WARNING: '{field}' asks for {level} hPa of the "
+                wmsg += f"observations, whose dimensions are {da.dims} -- none of "
+                wmsg += f"them a vertical one this knows ({self.OBS_LEVEL_DIMS}). "
+                wmsg += "Add the name there, or stage the level as its own file."
+                warnings.warn(wmsg)
+            # End if
+            # Already a single surface -- a file staged for this level, say.
+            return da
+        coord = da[dim]
+        wanted = float(level)
+        # hPa in the defaults; a coordinate in Pa is an order of magnitude out.
+        if float(coord.max()) > 2000.0:
+            wanted *= 100.0
+        chosen = da.sel({dim: wanted}, method="nearest")
+        actual = float(chosen[dim])
+        if abs(actual - wanted) > 0.01 * wanted:
+            wmsg = f"\t    WARNING: '{field}' asks for {level} hPa in the "
+            wmsg += f"observations, and the nearest level is {actual}; using it."
+            warnings.warn(wmsg)
+        # End if
+        return chosen.drop_vars(dim)
 
     # Time series files
     # ------------------
@@ -271,9 +339,12 @@ class AdfData:
             )
             return None
         # Change the variable name from CAM standard to what is
-        # listed in variable defaults for this observation field
+        # listed in variable defaults for this observation field.  The ADF name
+        # is kept: the variable defaults are keyed by it, which is what decides
+        # whether a level has to be taken out of the file.
+        file_field = field
         if self.adf.compare_obs:
-            field = self.ref_var_nam[field]
+            file_field = self.ref_var_nam[field]
             add_offset = 0
             scale_factor = 1
         else:
@@ -287,10 +358,12 @@ class AdfData:
 
         return self.load_da(
             fils,
-            field,
+            file_field,
+            field=field,
             use_time_bounds=True,
             add_offset=add_offset,
             scale_factor=scale_factor,
+            obs_level=True,
         )
 
     # ------------------
@@ -312,6 +385,16 @@ class AdfData:
         ds = self.load_dataset(fils)
         if ds is None:
             return None
+        if (scale_factor != 1 or add_offset != 0) and self.already_converted(
+            ds[variablename].attrs, variablename
+        ):
+            self.adf.debug_log(
+                f"\t    INFO: '{variablename}' climo file is already"
+                " in converted units; not converting again."
+            )
+            scale_factor = 1
+            add_offset = 0
+        # End if
         # xarray arithmetic drops attrs, so carry them across by hand -- otherwise
         # the regridded files lose 'units' and the plotting scripts KeyError on it.
         attrs = ds[variablename].attrs.copy()
@@ -391,10 +474,10 @@ class AdfData:
         if ds is None:
             return None
         vname = self.ref_var_nam[variablename]  # name of variable in the reference data
-        # Check if already transformed (via attribute or units)
-        new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
-        unit_match = new_unit is not None and ds[vname].attrs.get("units") == new_unit
-        if ds[vname].attrs.get("transformed", False) or unit_match:
+        # Check if already transformed.  The units comparison was a literal
+        # string match, which almost never fired: an observation file says
+        # "W/m2" where the defaults say "Wm$^{-2}$".
+        if self.already_converted(ds[vname].attrs, variablename):
             apply_scaling = False
         if not apply_scaling:
             add_offset = 0
@@ -404,6 +487,13 @@ class AdfData:
         ds[vname] = ds[vname] * scale_factor + add_offset
         ds[vname].attrs = attrs
         if scale_factor != 1 or add_offset != 0:
+            # Rename the units as load_climo_ds does for the test cases.  Without
+            # this the reference kept the units it arrived with while holding
+            # converted values, so the file said 'm/s' over data in mm/day.
+            new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
+            if new_unit:
+                ds[vname].attrs["units"] = new_unit
+            # End if
             # int, not bool: netCDF4 cannot store a Python bool as an attribute
             ds[vname].attrs["transformed"] = 1
         return ds
@@ -418,7 +508,12 @@ class AdfData:
         else:
             add_offset, scale_factor = self.get_value_converters(case, variablename)
         return self.load_da(
-            fils, vname, add_offset=add_offset, scale_factor=scale_factor
+            fils,
+            vname,
+            field=variablename,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+            obs_level=True,
         )
 
     def get_reference_climo_file(self, var):
@@ -543,8 +638,15 @@ class AdfData:
         add_offset, scale_factor = self._regrid_converters(
             fils, file_field, case, field, apply_scaling
         )
+        # field, not file_field: an observation file names the variable its own
+        # way, and the variable defaults are keyed by the ADF name
         return self.load_da(
-            fils, file_field, add_offset=add_offset, scale_factor=scale_factor
+            fils,
+            file_field,
+            field=field,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+            obs_level=True,
         )
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
@@ -567,7 +669,7 @@ class AdfData:
         if apply_scaling or (scale_factor == 1 and add_offset == 0):
             return add_offset, scale_factor
         ds = self.load_dataset(fils)
-        if ds is not None and ds[file_field].attrs.get("transformed", 0):
+        if ds is not None and self.already_converted(ds[file_field].attrs, field):
             return 0, 1
         return add_offset, scale_factor
 
@@ -604,24 +706,145 @@ class AdfData:
         # End if
         return ds
 
-    def load_da(self, fils, variablename, use_time_bounds=False, **kwargs):
+    def already_converted(self, attrs, field):
+        """Report whether the conversion for `field` has already been applied.
+
+        Parameters
+        ----------
+        attrs : dict
+            attributes of the variable as it was read from the file
+        field : str
+            ADF name of the variable, i.e. the key into the variable defaults
+
+        Returns
+        -------
+        bool
+            ``True`` when the file already holds converted values.
+
+        Notes
+        -----
+        Two things say so.  A file the ADF wrote carries ``transformed``,
+        stamped by whichever load applied the conversion.  A file it did not
+        write -- an observation file, or a regridded file from an older ADF --
+        carries no stamp, and then the only evidence is that its units are
+        already the units the defaults are converting to.  That comparison is
+        made with :func:`units_equivalent`, because the two strings come from
+        different hands: CAM writes ``W/m2`` where the defaults say
+        ``Wm$^{-2}$``, and comparing them literally answers the wrong
+        question.
+        """
+        if attrs.get("transformed", False):
+            return True
+        # End if
+        new_unit = self.adf.variable_defaults.get(field, {}).get("new_unit")
+        return units_equivalent(attrs.get("units"), new_unit)
+
+    def apply_conversion(self, data, field, case=None):
+        """Apply the variable-defaults conversion to `data`, once.
+
+        For a script that opens a file itself rather than through one of the
+        loaders here -- the TEM files and the vector plots do -- so that it
+        makes the same decision they do.
+
+        Parameters
+        ----------
+        data : xarray.DataArray
+            the variable as it was read from the file
+        field : str
+            ADF name of the variable, i.e. the key into the variable defaults
+        case : str, optional
+            case the data belongs to, which decides whether the observation
+            converters are used.  Defaults to `field`'s test-case converters.
+
+        Returns
+        -------
+        xarray.DataArray
+            The converted data, carrying its attributes, with ``units`` set
+            to the defaults' ``new_unit`` and ``transformed`` stamped on when
+            a conversion was applied.  Returned unchanged when the file
+            already holds converted values.
+        """
+        if data is None:
+            return None
+        # End if
+        add_offset, scale_factor = self.get_value_converters(
+            case if case is not None else field, field
+        )
+        if scale_factor == 1 and add_offset == 0:
+            return data
+        # End if
+        if self.already_converted(data.attrs, field):
+            dmsg = f"\t    INFO: '{field}' is already in converted units in the"
+            dmsg += " file, so the conversion is not applied again."
+            self.adf.debug_log(dmsg)
+            return data
+        # End if
+        attrs = data.attrs.copy()
+        converted = data * scale_factor + add_offset
+        converted.attrs = attrs
+        new_unit = self.adf.variable_defaults.get(field, {}).get("new_unit")
+        if new_unit:
+            converted.attrs["units"] = new_unit
+        # End if
+        # int, not bool: netCDF4 cannot store a Python bool as an attribute
+        converted.attrs["transformed"] = 1
+        return converted
+
+    def load_da(
+        self,
+        fils,
+        variablename,
+        use_time_bounds=False,
+        field=None,
+        obs_level=False,
+        **kwargs,
+    ):
         """Return xarray DataArray from file(s) w/ optional scale factor, offset, new units.
 
         `use_time_bounds` is passed to `load_dataset`; see there.
+
+        `field` is the ADF name of the variable when it differs from its name
+        in the file, which is the case for observations.  The variable
+        defaults are keyed by the ADF name.
+
+        `obs_level` applies the ``obs_lev`` variable default -- only the
+        reference loaders ask for it.  It is done here, before the unit
+        conversion below, because that arithmetic reads the whole array in:
+        taking one level out of the 0.25 degree ERA5 files afterwards would
+        mean loading gigabytes to keep megabytes.
+
+        A conversion that has already been applied to the file is not applied
+        again; see :meth:`already_converted`.
         """
         ds = self.load_dataset(fils, use_time_bounds=use_time_bounds)
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
         da = ds[variablename].squeeze()
+        if obs_level:
+            da = self._at_obs_level(da, field if field is not None else variablename)
+        # End if
         scale_factor = kwargs.get("scale_factor", 1)
         add_offset = kwargs.get("add_offset", 0)
+
+        if (scale_factor != 1 or add_offset != 0) and self.already_converted(
+            da.attrs, field if field is not None else variablename
+        ):
+            dmsg = f"\t    INFO: '{variablename}' is already in converted units"
+            dmsg += " in the file, so the conversion is not applied again."
+            self.adf.debug_log(dmsg)
+            scale_factor = 1
+            add_offset = 0
+        # End if
+
         attrs = da.attrs.copy()
         da = da * scale_factor + add_offset
         da.attrs = attrs
 
         if scale_factor != 1 or add_offset != 0:
-            new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
+            new_unit = self.adf.variable_defaults.get(
+                field if field is not None else variablename, {}
+            ).get("new_unit")
             if new_unit:
                 da.attrs["units"] = new_unit
             # Stamp on any conversion, not only one that renames the units --

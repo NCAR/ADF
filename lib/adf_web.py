@@ -239,7 +239,7 @@ class AdfWeb(AdfObs):
         font_18 = "style='font-size:18px;'"
         font_16 = "style='font-size:16px;'"
 
-        with open(run_info, "w") as f:
+        with open(run_info, "w", encoding="utf-8") as f:
 
             # Gather config yaml file info
             f.write("<p style=color:black>")
