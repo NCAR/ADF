@@ -37,7 +37,6 @@ _plot_line(axobject, xdata, ydata, color, **kwargs)
 import os
 import re
 from pathlib import Path
-import urllib.error
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
 import warnings
@@ -518,13 +517,17 @@ def read_ncl_colormap(adfobj, fil):
             try:
                 row = [float(r) for r in line_vals]
             except ValueError:
+                # Skip it, rather than adding the previous line's row again:
                 msg += f"\n\tERROR reading RGB file {line_vals}"
+                continue
             if table_exists:
                 table = np.vstack([table, row])
             else:
                 table = np.array(row)
                 table_exists = True
     adfobj.debug_log(msg)
+    if not table_exists:
+        raise ValueError(f"no RGB values found in NCL colormap file {filename}")
     return table
 
 
@@ -554,7 +557,7 @@ def ncl_to_mpl(adfobj, nclmap, name):
             msg += f"\n\tERROR: could not divide by 255. {type(nclmap) = }"
             msg += f" {nclmap}"
             adfobj.debug_log(msg)
-            return None
+            return None, None
     else:
         msg += f"\n\t{name} seems to be 0-1"
         vals = nclmap
@@ -599,53 +602,47 @@ def load_colormap(adfobj, cmap_name):
     if cmap_name in plt.colormaps():
         adfobj.debug_log(msg)
         return cmap_name
-    msg += f"\n\t{cmap_name} not a standard Matplotlib colormap. Trying NCL..."
-    url = guess_ncl_url(cmap_name)
-    locfil = Path(".") / f"{cmap_name}.rgb"
-    data = (
-        read_ncl_colormap(adfobj, locfil, msg)
-        if locfil.is_file()
-        else read_ncl_colormap(adfobj, url)
+    adfobj.debug_log(
+        msg + f"\n\t{cmap_name} not a standard Matplotlib colormap. Trying NCL..."
     )
-    cm, _ = ncl_to_mpl(adfobj, data, cmap_name)
-    if not cm:
-        msg += f"\n\tFailed to load {cmap_name}. Defaulting to 'coolwarm'."
-        adfobj.debug_log(msg)
-        return "viridis"
-    adfobj.debug_log(msg)
-    return cm
+    cmap, _ = try_load_ncl_cmap(adfobj, cmap_name)
+    return cmap
 
 
-def try_load_ncl_cmap(adfobj, cmap_case):
-    """Try to load an NCL colormap, fallback to PRECT special case or 'coolwarm'."""
+def try_load_ncl_cmap(adfobj, cmap_name, fallback="viridis"):
+    """
+    Load an NCL colormap by name, from a local "<name>.rgb" file or from NCL.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        ADF object, used for debug logging
+    cmap_name : str
+        NCL colormap name
+    fallback : str, optional
+        matplotlib colormap to use when the NCL one cannot be loaded
+
+    Returns
+    -------
+    tuple
+        the colormap (or ``fallback``) and the debug message
+    """
     msg = f"{script_name}: try_load_ncl_cmap()"
-    msg += f"\n\tTrying {cmap_case} as an NCL color map:"
+    msg += f"\n\tTrying {cmap_name} as an NCL color map:"
+    locfil = Path(".") / f"{cmap_name}.rgb"
+    source = locfil if locfil.is_file() else guess_ncl_url(cmap_name)
     try:
-        url = guess_ncl_url(cmap_case)
-        locfil = Path(".") / f"{cmap_case}.rgb"
-        if locfil.is_file():
-            data = read_ncl_colormap(adfobj, locfil)
-        else:
-            try:
-                data = read_ncl_colormap(adfobj, url)
-            except urllib.error.HTTPError:
-                msg += "\n\tNCL colormap file not found"
-
-        if isinstance(data, np.ndarray):
-            cm, _ = ncl_to_mpl(adfobj, data, cmap_case)
-            adfobj.debug_log(msg)
-            return cm, msg
-
-        adfobj.debug_log(msg)
-        return "viridis", msg
-    # Any failure here just means falling back to the default colormap:
-    except Exception:  # pylint: disable=broad-exception-caught
-        (
-            msg
-            + "Something went wrong trying to load NCL colormap. Defaulting to 'viridis'."
-        )
-        adfobj.debug_log(msg)
-        return "viridis", msg
+        data = read_ncl_colormap(adfobj, source)
+        cmap, _ = ncl_to_mpl(adfobj, data, cmap_name)
+    # Download, read or conversion failures all mean using the fallback:
+    except Exception as err:  # pylint: disable=broad-exception-caught
+        cmap = None
+        msg += f"\n\tCould not load NCL colormap {cmap_name}: {err}"
+    if cmap is None:
+        msg += f"\n\tDefaulting to '{fallback}'."
+        cmap = fallback
+    adfobj.debug_log(msg)
+    return cmap, msg
 
 
 def get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names):
@@ -1014,26 +1011,14 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     cmap_pctdiff = plot_type_dict.get("pct_diff_colormap", "PuOr_r")
 
     if cmap_pctdiff not in plt.colormaps():
-        msg += f"\n\tPercent Difference: {cmap_pctdiff} is not a matplotlib standard color map."
-        msg += " Trying if this an NCL color map"
-
-        url = guess_ncl_url(cmap_pctdiff)
-        locfil = "." / f"{cmap_pctdiff}.rgb"
-        if locfil.is_file():
-            data = read_ncl_colormap(adfobj, locfil)
-        else:
-            data = read_ncl_colormap(adfobj, url)
-        cm, _ = ncl_to_mpl(adfobj, data, cmap_pctdiff)
-        # ncl_colors[cm.name] = cm
-        # ncl_colors[cmr.name] = cmr
-
-        if not cm:
-            msg += f"\n\tPercent Difference: {cmap_pctdiff} is not a matplotlib or NCL color map."
-            cmap_pctdiff = "PuOr_r"
-            msg += f" Defaulting to '{cmap_pctdiff}'"
-            adfobj.debug_log(msg)
-        else:
-            cmap_pctdiff = cm
+        msg += (
+            f"\n\tPercent Difference: {cmap_pctdiff} is not a matplotlib standard "
+            "color map. Trying if this an NCL color map"
+        )
+        cmap_pctdiff, ncl_msg = try_load_ncl_cmap(
+            adfobj, cmap_pctdiff, fallback="PuOr_r"
+        )
+        msg += ncl_msg
 
     # CONTOUR LEVELS
     # ---------------
@@ -1160,7 +1145,12 @@ def add_var_to_vres(adfobj, var, vres):
 
     Uses the variable's nickname (or, for a vector component, the vector's
     nickname or name) when there is one, else the variable name.
+
+    Returns a copy: ``vres`` is usually an entry of the variable defaults,
+    which every plotting script shares, so the plot settings scripts add to
+    it (season, plot_type, lev, ...) must not end up there.
     """
+    vres = dict(vres)
     if "vector_name" in vres:
         vect_var_name = vres["vector_name"]
         vec_vres = adfobj.variable_defaults.get(vect_var_name, {})

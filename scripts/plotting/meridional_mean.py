@@ -166,9 +166,7 @@ def meridional_mean(adfobj):
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
-            # Copy, as season/plot_type/var_name get added below, and the
-            # variable defaults are shared with every other script:
-            vres = dict(res[var])
+            vres = res[var]
             # If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(
                 f"\t    INFO: meridional_mean: Found variable defaults for {var}"

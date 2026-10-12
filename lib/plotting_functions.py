@@ -355,7 +355,7 @@ def make_polar_plot(
         bbox_transform=ax2.transAxes,
         borderpad=0,
     )
-    cbar = fig.colorbar(imgs[0], cax=cb_mean_ax)
+    cbar = fig.colorbar(imgs[0], cax=cb_mean_ax, **cp_info["colorbar_opt"])
     cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left")
     cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
@@ -379,13 +379,13 @@ def make_polar_plot(
         borderpad=0,
     )
 
-    pctdiff_cbar = fig.colorbar(imgs[2], cax=cb_pct_ax)
+    pctdiff_cbar = fig.colorbar(imgs[2], cax=cb_pct_ax, **cp_info["pct_colorbar_opt"])
     pctdiff_cbar.ax.set_title(
         pct_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
     )
     pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-    diff_cbar = fig.colorbar(imgs[3], cax=cb_diff_ax)
+    diff_cbar = fig.colorbar(imgs[3], cax=cb_diff_ax, **cp_info["diff_colorbar_opt"])
     diff_cbar.ax.set_title(
         diff_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
     )
@@ -549,7 +549,6 @@ def plot_map_and_save(
         lons, lats = np.meshgrid(lon, lat)
 
         # get statistics (from non-wrapped)
-        fields = (mdlfld, obsfld, diffld, pctld)
 
         d_rmse = utils.wgt_rmse(
             mdlfld, obsfld, wgt
@@ -1172,7 +1171,7 @@ def plot_zonal_mean_and_save(
                 cmap=cmap_diff,
                 levels=levels_diff,
                 extend=extend_diff,
-                **cp_info["diff_colorbar_opt"],
+                **cp_info["contourf_opt"],
             )
             diffcb_mean_ax = inset_axes(
                 ax[2],
@@ -1184,7 +1183,10 @@ def plot_zonal_mean_and_save(
                 borderpad=0,
             )
             diff_cbar = fig.colorbar(
-                img2, cax=diffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
+                img2,
+                cax=diffcb_mean_ax,
+                location="right",
+                **cp_info["diff_colorbar_opt"],
             )
             diff_cbar.ax.set_title(
                 diff_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
@@ -1203,7 +1205,7 @@ def plot_zonal_mean_and_save(
                 cmap=cmap_pctdiff,
                 levels=levels_pctdiff,
                 extend=extend_pctdiff,
-                **cp_info["pct_colorbar_opt"],
+                **cp_info["contourf_opt"],
             )
             pctdiffcb_mean_ax = inset_axes(
                 ax[3],
@@ -1215,7 +1217,10 @@ def plot_zonal_mean_and_save(
                 borderpad=0,
             )
             pctdiff_cbar = fig.colorbar(
-                img3, cax=pctdiffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
+                img3,
+                cax=pctdiffcb_mean_ax,
+                location="right",
+                **cp_info["pct_colorbar_opt"],
             )
             pctdiff_cbar.ax.set_title(
                 pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
@@ -1343,9 +1348,13 @@ def plot_zonal_mean_and_save(
             ax[1].set_facecolor("0.5")  # dark gray
             ax[2].set_facecolor("0.5")
 
-            diff_cbar = fig.colorbar(ax[1].adf_linecollection, cax=cax1)
+            diff_cbar = fig.colorbar(
+                ax[1].adf_linecollection, cax=cax1, **cp_info["diff_colorbar_opt"]
+            )
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(ax[2].adf_linecollection, cax=cax2)
+            pctdiff_cbar = fig.colorbar(
+                ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
+            )
             pctdiff_cbar.ax.tick_params(labelsize=6)
     # End if
 
@@ -1640,7 +1649,7 @@ def plot_meridional_mean_and_save(
                 cmap=cmap_diff,
                 levels=levels_diff,
                 extend=extend_diff,
-                **cp_info["diff_colorbar_opt"],
+                **cp_info["contourf_opt"],
             )
             diffcb_mean_ax = inset_axes(
                 ax[2],
@@ -1652,7 +1661,10 @@ def plot_meridional_mean_and_save(
                 borderpad=0,
             )
             diff_cbar = fig.colorbar(
-                img2, cax=diffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
+                img2,
+                cax=diffcb_mean_ax,
+                location="right",
+                **cp_info["diff_colorbar_opt"],
             )
             diff_cbar.ax.set_title(
                 diff_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
@@ -1671,7 +1683,7 @@ def plot_meridional_mean_and_save(
                 cmap=cmap_pctdiff,
                 levels=levels_pctdiff,
                 extend=extend_pctdiff,
-                **cp_info["pct_colorbar_opt"],
+                **cp_info["contourf_opt"],
             )
             pctdiffcb_mean_ax = inset_axes(
                 ax[3],
@@ -1683,7 +1695,10 @@ def plot_meridional_mean_and_save(
                 borderpad=0,
             )
             pctdiff_cbar = fig.colorbar(
-                img3, cax=pctdiffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
+                img3,
+                cax=pctdiffcb_mean_ax,
+                location="right",
+                **cp_info["pct_colorbar_opt"],
             )
             pctdiff_cbar.ax.set_title(
                 pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
@@ -1814,9 +1829,13 @@ def plot_meridional_mean_and_save(
             ax[1].set_facecolor("0.5")  # dark gray
             ax[2].set_facecolor("0.5")
 
-            diff_cbar = fig.colorbar(ax[1].adf_linecollection, cax=cax1)
+            diff_cbar = fig.colorbar(
+                ax[1].adf_linecollection, cax=cax1, **cp_info["diff_colorbar_opt"]
+            )
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(ax[2].adf_linecollection, cax=cax2)
+            pctdiff_cbar = fig.colorbar(
+                ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
+            )
             pctdiff_cbar.ax.tick_params(labelsize=6)
     # End if
 
