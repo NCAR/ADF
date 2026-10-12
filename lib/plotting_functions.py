@@ -87,15 +87,15 @@ seasons = {
     "SON": [9, 10, 11],
 }
 
-cbar_size = 8
-cbar_labelpad = 5
+CBAR_SIZE = 8
+CBAR_LABELPAD = 5
 
 #################
 # HELPER FUNCTIONS
 #################
 
 
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def make_polar_plot(
     adfobj,
     wks,
@@ -228,12 +228,6 @@ def make_polar_plot(
     mins = []
     maxs = []
 
-    # determine levels & color normalization:
-    minval = np.min([np.min(d1), np.min(d2)])
-    maxval = np.max([np.max(d1), np.max(d2)])
-    absmaxdif = np.max(np.abs(dif))
-    absmaxpct = np.max(np.abs(pct))
-
     means.extend([d1_region_mean, d2_region_mean, pct_region_mean, dif_region_mean])
     mins.extend([d1_region_min, d2_region_min, pct_region_min, dif_region_min])
     maxs.extend([d1_region_max, d2_region_max, pct_region_max, dif_region_max])
@@ -284,7 +278,7 @@ def make_polar_plot(
         stat_min = f"Min: {mins[i]:5.2f}"
         stats = f"{stat_mean}\n{stat_max}\n{stat_min}"
         # axs[i].set_title(stats, loc='right', fontsize=8)
-        axs[i].text(-0.05, 0.0, stats, transform=axs[i].transAxes, fontsize=cbar_size)
+        axs[i].text(-0.05, 0.0, stats, transform=axs[i].transAxes, fontsize=CBAR_SIZE)
         # axs[i].text(0.8, 0.925, stats, transform=axs[i].transAxes,fontsize=cbar_size)
 
     # End for
@@ -362,8 +356,8 @@ def make_polar_plot(
         borderpad=0,
     )
     cbar = fig.colorbar(imgs[0], cax=cb_mean_ax)
-    cbar.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad, loc="left")
-    cbar.ax.tick_params(labelsize=cbar_size)
+    cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left")
+    cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     cb_pct_ax = inset_axes(
         axs[2],
@@ -387,15 +381,15 @@ def make_polar_plot(
 
     pctdiff_cbar = fig.colorbar(imgs[2], cax=cb_pct_ax)
     pctdiff_cbar.ax.set_title(
-        pct_units, fontsize=cbar_size, pad=cbar_labelpad, loc="left"
+        pct_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
     )
-    pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
+    pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     diff_cbar = fig.colorbar(imgs[3], cax=cb_diff_ax)
     diff_cbar.ax.set_title(
-        diff_units, fontsize=cbar_size, pad=cbar_labelpad, loc="left"
+        diff_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
     )
-    diff_cbar.ax.tick_params(labelsize=cbar_size)
+    diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     # Save files
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -407,6 +401,7 @@ def make_polar_plot(
 #######
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def plot_map_and_save(
     adfobj,
     wks,
@@ -481,8 +476,10 @@ def plot_map_and_save(
     kwargs["adfobj"] = adfobj
     vector = False
 
-    # nice formatting for tick labels
-    from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+    # Only set for vector plots (and only used when "vector" is True):
+    skip = sim_mags = diff_mag = None
+    udiffld = vdiffld = umdlfld = vmdlfld = uobsfld = vobsfld = None
+    mdl_mag = obs_mag = None
 
     if "vector" in kwargs:
         vector = True
@@ -497,7 +494,6 @@ def plot_map_and_save(
         udiffld_nowrap = kwargs["udiffld_nowrap"]
         vdiffld_nowrap = kwargs["vdiffld_nowrap"]
         upctdiffld_nowrap = kwargs["upctdiffld_nowrap"]
-        vpctdiffld_nowrap = kwargs["vpctdiffld_nowrap"]
 
         lat = umdlfld_nowrap["lat"]
 
@@ -510,9 +506,6 @@ def plot_map_and_save(
         vdiffld, _ = add_cyclic_point(vdiffld_nowrap, coord=vdiffld_nowrap["lon"])
         upctdiffld, _ = add_cyclic_point(
             upctdiffld_nowrap, coord=upctdiffld_nowrap["lon"]
-        )
-        vpctdiffld, _ = add_cyclic_point(
-            vpctdiffld_nowrap, coord=vpctdiffld_nowrap["lon"]
         )
 
         # create mesh for plots:
@@ -538,10 +531,7 @@ def plot_map_and_save(
         wrap_fields = (umdlfld, uobsfld, udiffld, upctdiffld)
 
         # get statistics (from non-wrapped)
-        fields = (mdl_mag, obs_mag, pctdiff_mag, diff_mag)
         wgt = np.cos(np.radians(lat))
-        # area_avg = [utils.spatial_average(x, weights=wgt, spatial_dims=None) for x in fields]
-        # area_avg = [400 for x in fields]
         d_rmse = utils.wgt_rmse(
             mdl_mag, obs_mag, wgt
         )  # correct weighted RMSE for (lat,lon) fields
@@ -560,9 +550,6 @@ def plot_map_and_save(
 
         # get statistics (from non-wrapped)
         fields = (mdlfld, obsfld, diffld, pctld)
-        area_avg = [
-            utils.spatial_average(x, weights=wgt, spatial_dims=None) for x in fields
-        ]
 
         d_rmse = utils.wgt_rmse(
             mdlfld, obsfld, wgt
@@ -634,6 +621,7 @@ def plot_map_and_save(
         pctdiff_idx = 2
         diff_idx = 3
 
+    levels = cmap = norm = extend = None
     for i, a in enumerate(wrap_fields):
         if i == diff_idx:
             levels = cp_info["levels_diff"]
@@ -645,7 +633,7 @@ def plot_map_and_save(
                 max_diff_val = np.max(diff_mag)
 
                 # Color normalization for difference
-                if (min_diff_val < 0) and (0 < max_diff_val):
+                if min_diff_val < 0 < max_diff_val:
                     norm = mpl.colors.TwoSlopeNorm(
                         vmin=min_diff_val, vmax=max_diff_val, vcenter=0.0
                     )
@@ -704,13 +692,11 @@ def plot_map_and_save(
                         vdiffld[skip],
                         transform=ccrs.PlateCarree(),
                     )
-                """if i == pctdiff_idx:
-                    img.append(ax[i].contourf(lons, lats, pctdiff_mag, transform=ccrs.PlateCarree(),
-                                              transform_first=True, norm=norm,
-                            cmap='PuOr', extend=extend
-                            ))
-                    #ax[i].quiver(lons[skip], lats[skip], upctdiffld[skip], vpctdiffld[skip],
-                    #             transform=ccrs.PlateCarree())"""
+                # Percent difference of vector magnitudes, not drawn for now:
+                # if i == pctdiff_idx:
+                #     img.append(ax[i].contourf(lons, lats, pctdiff_mag,
+                #                transform=ccrs.PlateCarree(), transform_first=True,
+                #                norm=norm, cmap='PuOr', extend=extend))
                 if i in [0, 1]:
                     img.append(
                         ax[i].contourf(
@@ -821,7 +807,8 @@ def plot_map_and_save(
 
     if not vector:
         ax[pctdiff_idx].set_title(
-            f"Mean: {pctld.weighted(wgt).mean().item():5.2f}\nMax: {pctld.max():5.2f}\nMin: {pctld.min():5.2f}",
+            f"Mean: {pctld.weighted(wgt).mean().item():5.2f}\n"
+            f"Max: {pctld.max():5.2f}\nMin: {pctld.min():5.2f}",
             loc="right",
             fontsize=ti_font_size,
         )
@@ -829,7 +816,8 @@ def plot_map_and_save(
             "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
         )
     ax[diff_idx].set_title(
-        f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\nMax: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}",
+        f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\n"
+        f"Max: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}",
         loc="right",
         fontsize=ti_font_size,
     )
@@ -862,8 +850,8 @@ def plot_map_and_save(
         borderpad=0,
     )
     cbar = fig.colorbar(img[1], cax=cb_mean_ax, **cp_info["colorbar_opt"])
-    cbar.ax.set_title(units, fontsize=cbar_size, pad=cbar_labelpad, loc="left")
-    cbar.ax.tick_params(labelsize=cbar_size)
+    cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left")
+    cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     if not vector:
         cb_pct_ax = inset_axes(
@@ -879,9 +867,9 @@ def plot_map_and_save(
             img[pctdiff_idx], cax=cb_pct_ax, **cp_info["pct_colorbar_opt"]
         )
         pctdiff_cbar.ax.set_title(
-            pct_units, fontsize=cbar_size, pad=cbar_labelpad, loc="left"
+            pct_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
         )
-        pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
+        pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     cb_diff_ax = inset_axes(
         ax[diff_idx],
@@ -896,9 +884,9 @@ def plot_map_and_save(
         img[diff_idx], cax=cb_diff_ax, **cp_info["diff_colorbar_opt"]
     )
     diff_cbar.ax.set_title(
-        diff_units, fontsize=cbar_size, pad=cbar_labelpad, loc="left"
+        diff_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
     )
-    diff_cbar.ax.tick_params(labelsize=cbar_size)
+    diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -1150,9 +1138,9 @@ def plot_zonal_mean_and_save(
                 img0, cax=cb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             cbar0.ax.set_title(
-                units, fontsize=cbar_size, pad=cbar_labelpad_zonal, loc="left"
+                units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
             )
-            cbar0.ax.tick_params(labelsize=cbar_size)
+            cbar0.ax.tick_params(labelsize=CBAR_SIZE)
 
             cb_mean_ax = inset_axes(
                 ax[1],
@@ -1167,9 +1155,9 @@ def plot_zonal_mean_and_save(
                 img1, cax=cb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             cbar1.ax.set_title(
-                units, fontsize=cbar_size, pad=cbar_labelpad_zonal, loc="left"
+                units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
             )
-            cbar1.ax.tick_params(labelsize=cbar_size)
+            cbar1.ax.tick_params(labelsize=CBAR_SIZE)
         # End if
 
         if len(levs_diff) < 2:
@@ -1199,9 +1187,9 @@ def plot_zonal_mean_and_save(
                 img2, cax=diffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             diff_cbar.ax.set_title(
-                diff_units, fontsize=cbar_size, pad=cbar_labelpad_zonal, loc="left"
+                diff_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
             )
-            diff_cbar.ax.tick_params(labelsize=cbar_size)
+            diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         if len(levs_pct_diff) < 2:
             img3, ax[3] = zonal_plot(alat, pct, ax=ax[3])
@@ -1230,9 +1218,9 @@ def plot_zonal_mean_and_save(
                 img3, cax=pctdiffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             pctdiff_cbar.ax.set_title(
-                pct_units, fontsize=cbar_size, pad=cbar_labelpad_zonal, loc="left"
+                pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
             )
-            pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
+            pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
         ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
@@ -1355,9 +1343,9 @@ def plot_zonal_mean_and_save(
             ax[1].set_facecolor("0.5")  # dark gray
             ax[2].set_facecolor("0.5")
 
-            diff_cbar = fig.colorbar(ax[1]._last_linecollection, cax=cax1)
+            diff_cbar = fig.colorbar(ax[1].adf_linecollection, cax=cax1)
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(ax[2]._last_linecollection, cax=cax2)
+            pctdiff_cbar = fig.colorbar(ax[2].adf_linecollection, cax=cax2)
             pctdiff_cbar.ax.tick_params(labelsize=6)
     # End if
 
@@ -1509,7 +1497,9 @@ def plot_meridional_mean_and_save(
 
     # plot-controlling parameters:
     xdim = "lon"  # the name used for the x-axis dimension
-    pltfunc = meridional_plot  # the plotting function ... maybe we can generalize to get zonal/meridional into one function (?)
+    # the plotting function ... maybe we can generalize to get zonal/meridional
+    # into one function (?)
+    pltfunc = meridional_plot
 
     diff = adata - bdata
 
@@ -1616,9 +1606,9 @@ def plot_meridional_mean_and_save(
                 img0, cax=cb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             cbar0.ax.set_title(
-                units, fontsize=cbar_size, pad=cbar_labelpad_merd, loc="left"
+                units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
             )
-            cbar0.ax.tick_params(labelsize=cbar_size)
+            cbar0.ax.tick_params(labelsize=CBAR_SIZE)
 
             cb_mean_ax = inset_axes(
                 ax[1],
@@ -1633,9 +1623,9 @@ def plot_meridional_mean_and_save(
                 img1, cax=cb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             cbar1.ax.set_title(
-                units, fontsize=cbar_size, pad=cbar_labelpad_merd, loc="left"
+                units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
             )
-            cbar1.ax.tick_params(labelsize=cbar_size)
+            cbar1.ax.tick_params(labelsize=CBAR_SIZE)
         # End if
 
         if len(levs_diff) < 2:
@@ -1665,9 +1655,9 @@ def plot_meridional_mean_and_save(
                 img2, cax=diffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             diff_cbar.ax.set_title(
-                diff_units, fontsize=cbar_size, pad=cbar_labelpad_merd, loc="left"
+                diff_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
             )
-            diff_cbar.ax.tick_params(labelsize=cbar_size)
+            diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         if len(levs_pct_diff) < 2:
             img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
@@ -1696,9 +1686,9 @@ def plot_meridional_mean_and_save(
                 img3, cax=pctdiffcb_mean_ax, location="right", **cp_info["colorbar_opt"]
             )
             pctdiff_cbar.ax.set_title(
-                pct_units, fontsize=cbar_size, pad=cbar_labelpad_merd, loc="left"
+                pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
             )
-            pctdiff_cbar.ax.tick_params(labelsize=cbar_size)
+            pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
         ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
@@ -1726,7 +1716,8 @@ def plot_meridional_mean_and_save(
             a.tick_params(axis="both", labelsize=7)
             a.xaxis.set_major_locator(MultipleLocator(30))  # every 30°
         if log_p:
-            [a.set_yscale("log") for a in ax]
+            for a in ax:
+                a.set_yscale("log")
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
     else:
@@ -1823,9 +1814,9 @@ def plot_meridional_mean_and_save(
             ax[1].set_facecolor("0.5")  # dark gray
             ax[2].set_facecolor("0.5")
 
-            diff_cbar = fig.colorbar(ax[1]._last_linecollection, cax=cax1)
+            diff_cbar = fig.colorbar(ax[1].adf_linecollection, cax=cax1)
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(ax[2]._last_linecollection, cax=cax2)
+            pctdiff_cbar = fig.colorbar(ax[2].adf_linecollection, cax=cax2)
             pctdiff_cbar.ax.tick_params(labelsize=6)
     # End if
 
