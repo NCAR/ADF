@@ -18,6 +18,26 @@ zonal_plot_preslat(ax, lat, lev, data, **kwargs)
     Create plot with latitude as the X-axis, and pressure as the Y-axis.
 meridional_plot_preslon(ax, lon, lev, data, **kwargs)
     Create plot with longitude as the X-axis, and pressure as the Y-axis.
+try_load_ncl_cmap(adfobj, cmap_name, fallback="viridis")
+    Load an NCL colormap, from lib/plotting/colormaps/NCL or else NCL's website.
+read_ncl_colormap(adfobj, fil) / parse_ncl_colormap(lines)
+    Read the RGB values of an NCL colormap file.
+download_ncl_colormap(adfobj, cmap_name)
+    Download an NCL colormap that is not shipped with the ADF.
+ncl_to_mpl(adfobj, nclmap, name)
+    Turn an NCL colormap table into a matplotlib colormap and its reverse.
+get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names)
+    Pick the case or difference colormap from the variable defaults.
+resolve_hemi_level(adfobj, data, kwargs, polar_names)
+    Pick the hemisphere and/or pressure level specific value of a setting.
+resolve_levels(adfobj, plotty, plot_type_dict, kwargs, polar_names)
+    Pick the case or difference contour levels from the variable defaults.
+colormap_object(cmap)
+    Return a matplotlib Colormap, given either one or the name of one.
+prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs)
+    Colormaps, contour levels and color normalization for contour plots.
+add_var_name_key_to_vres(adfobj, var, vres, vector=False)
+    Copy of a variable's defaults with the name to title its plots with.
 
 Notes
 -----
@@ -708,7 +728,7 @@ def get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names):
     return cmap_case
 
 
-# Conour Plot Prep Functions
+# Contour Plot Prep Functions
 # ----------------------------
 def resolve_hemi_level(adfobj, data, kwargs, polar_names):
     """Resolve hemisphere and/or vertical level specific values from a dict."""
@@ -830,8 +850,6 @@ def colormap_object(cmap):
     return cmap
 
 
-# "pctdata" is unused, but is kept so as to not break existing calls:
-# pylint: disable-next=unused-argument
 class _NoDebugLog:
     """Stand-in for the ADF object when a caller does not pass one."""
 
@@ -844,7 +862,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
     Prepares for making contour plots of adata, bdata, diffdata, and pctdata, which is
     presumably the difference between adata and bdata.
-    - set colormap from kwargs or defaults to coolwarm
+    - set colormap from kwargs (matplotlib or NCL) or defaults to viridis
     - set contour levels from kwargs or 12 evenly spaced levels to span the data
     - normalize colors based on specified contour levels or data range
     - set option for linear or log pressure when applicable
@@ -1151,7 +1169,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     return cp_info
 
 
-def add_var_to_vres(adfobj, var, vres, vector=False):
+def add_var_name_key_to_vres(adfobj, var, vres, vector=False):
     """
     Set ``vres["var_name"]``, the name plots show for this variable.
 

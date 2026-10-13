@@ -1,6 +1,6 @@
 """
 Collection of python unit tests
-for plotting_utils.add_var_to_vres.
+for plotting_utils.add_var_name_key_to_vres.
 
 The variable defaults are one dictionary that every plotting script shares,
 so the plot settings a script adds to a variable's entry (season, plot_type,
@@ -26,7 +26,7 @@ try:
     import matplotlib
 
     matplotlib.use("Agg")
-    from plotting_utils import add_var_to_vres
+    from plotting_utils import add_var_name_key_to_vres
 
     _HAS_PLOTTING = True
 except ImportError:
@@ -41,15 +41,15 @@ class _Adf:  # pylint: disable=too-few-public-methods
 
 
 @unittest.skipUnless(_HAS_PLOTTING, "plotting_utils dependencies not available")
-class AddVarToVresTestRoutine(unittest.TestCase):
+class AddVarNameKeyToVresTestRoutine(unittest.TestCase):
     """
-    Unit tests for add_var_to_vres.
+    Unit tests for add_var_name_key_to_vres.
     """
 
     def test_shared_defaults_are_not_changed(self):
         """Settings added for one plot stay out of the shared defaults."""
         defaults = {"T": {"colormap": "RdBu_r"}}
-        vres = add_var_to_vres(_Adf(defaults), "T", defaults["T"])
+        vres = add_var_name_key_to_vres(_Adf(defaults), "T", defaults["T"])
         vres["season"] = "DJF"
         self.assertEqual(defaults["T"], {"colormap": "RdBu_r"})
         self.assertEqual(vres["var_name"], "T")
@@ -57,7 +57,7 @@ class AddVarToVresTestRoutine(unittest.TestCase):
     def test_nickname_is_used(self):
         """A nickname is what the plots show."""
         defaults = {"TAUX": {"nickname": "Zonal Stress"}}
-        vres = add_var_to_vres(_Adf(defaults), "TAUX", defaults["TAUX"])
+        vres = add_var_name_key_to_vres(_Adf(defaults), "TAUX", defaults["TAUX"])
         self.assertEqual(vres["var_name"], "Zonal Stress")
 
     def test_vector_uses_the_vector_nickname(self):
@@ -66,13 +66,15 @@ class AddVarToVresTestRoutine(unittest.TestCase):
             "TAUX": {"vector_name": "Surface_Wind_Stress"},
             "Surface_Wind_Stress": {"nickname": "Surface Wind Stress"},
         }
-        vres = add_var_to_vres(_Adf(defaults), "TAUX", defaults["TAUX"], vector=True)
+        vres = add_var_name_key_to_vres(
+            _Adf(defaults), "TAUX", defaults["TAUX"], vector=True
+        )
         self.assertEqual(vres["var_name"], "Surface Wind Stress")
 
     def test_scalar_plot_of_a_vector_component(self):
         """On its own plots, U is still titled "U", not "Wind"."""
         defaults = {"U": {"vector_name": "Wind"}}
-        vres = add_var_to_vres(_Adf(defaults), "U", defaults["U"])
+        vres = add_var_name_key_to_vres(_Adf(defaults), "U", defaults["U"])
         self.assertEqual(vres["var_name"], "U")
 
 

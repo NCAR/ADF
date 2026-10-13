@@ -20,7 +20,41 @@
 # new_unit             -> Variable units (if not using the  "raw" model units).
 # mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
 #
-# mask                 -> Setting that specifies whether the variable should be masked.
+# contour_levels_linspace -> Alternative to "contour_levels_range": values are min, max, and the
+#                            number of levels (numpy.linspace).  diff_contour_linspace is the
+#                            same for difference plots.
+#                            If more than one is given, "contour_levels" is used first, then
+#                            "contour_levels_range", then "contour_levels_linspace".
+# pct_diff_colormap       -> The colormap for percent difference plots (default "PuOr_r").
+# pct_diff_contour_levels -> A list of the specific contour values for percent difference plots.
+# pct_diff_contour_range  -> min, max, and stride for percent difference plots.
+#                            Cannot be used with "pct_diff_contour_levels".
+#
+#                         Any colormap above can be a matplotlib colormap or an NCL one
+#                         (https://www.ncl.ucar.edu/Document/Graphics/color_table_gallery.shtml).
+#                         NCL colormaps are read from lib/plotting/colormaps/NCL, and only
+#                         downloaded if they are not there; add "_r" to reverse one.
+#
+# nickname             -> Name to title plots with, in place of the variable name.
+# colormap_2d          -> Set to True to color the zonal/meridional mean difference lines by value
+#                         (with "diff_colormap" and "pct_diff_colormap"), instead of one color.
+#
+# PER-PLOT SETTINGS:
+#
+# The colormap and contour settings above can also be given for just one kind of plot, in a
+# section named after the plotting script (global_latlon_map, global_latlon_vect_map, polar_map,
+# zonal_mean, meridional_mean).  Settings in the section win; anything not in it comes from the
+# variable's top-level settings.  Within a section, a setting can also be split by pressure level
+# (in hPa) and, for polar_map, by hemisphere ("nh"/"sh"), e.g.:
+#
+#   polar_map:
+#     contour_levels_range:
+#       nh: [-10, 10, 1]
+#       sh:
+#         850: [-5, 5, 0.5]
+#         200: [-20, 20, 2]
+#
+# mask                -> Setting that specifies whether the variable should be masked.
 #                         Currently only accepts "ocean", which means the variable will be masked
 #                         everywhere that isn't open ocean.
 #

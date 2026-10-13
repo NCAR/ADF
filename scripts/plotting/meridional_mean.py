@@ -175,7 +175,7 @@ def meridional_mean(adfobj):
             vres = {}
         #End if
 
-        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         vres["plot_type"] = __name__
         #Extract category (if available):
         web_category = vres.get("category", None)
@@ -259,9 +259,16 @@ def meridional_mean(adfobj):
 
             # Check to make sure each case has vertical levels if one of the cases does
             if has_lev != has_dims_ref["has_lev"]:
-                print(
-                    f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_dims_ref['has_lev']}"
-                )
+                if has_lev:
+                    print(
+                        f"\t    WARNING: test case has a vertical levels dimension for '{var}',"
+                        " but the reference case does not. Meridional mean plotting skipped."
+                    )
+                else:
+                    print(
+                        f"\t    WARNING: reference case has a vertical levels dimension for '{var}',"
+                        " but the test case does not. Meridional mean plotting skipped."
+                    )
                 continue
             # End if
 
@@ -326,7 +333,7 @@ def meridional_mean(adfobj):
                 # End if
 
                 # Create log-pressure plot as well (if applicable):
-                if (plot_name_log) and (plot_name_log not in merid_skip):
+                if plot_name_log and (plot_name_log not in merid_skip):
                     pf.plot_meridional_mean_and_save(
                         adfobj,
                         plot_name_log,

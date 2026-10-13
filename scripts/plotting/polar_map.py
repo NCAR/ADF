@@ -137,7 +137,7 @@ def polar_map(adfobj):
 
         # Get variable-specific settings
         vres = res.get(var, {})
-        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         web_category = vres.get("category", None)
         vres["plot_type"] = __name__
 
@@ -233,8 +233,8 @@ def polar_map(adfobj):
                 
             case_name = plot['case']
             case_idx = plot['case_idx']
-            vres["season"] = plot['season']
-            vres["hemi"] = plot['hemi']
+            vres['season'] = plot['season']
+            vres['hemi'] = plot['hemi']
             plot_loc = Path(plot_locations[case_idx])
 
             # Ensure plot directory exists

@@ -159,7 +159,7 @@ def zonal_mean(adfobj):
             vres = {}
         #End if
 
-        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         vres["plot_type"] = __name__
         #Extract category (if available):
         web_category = vres.get("category", None)

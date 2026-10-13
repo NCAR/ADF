@@ -153,7 +153,7 @@ def global_latlon_vect_map(adfobj):
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
             vres = res[var]
-            vres = plot_utils.add_var_to_vres(adfobj, var, vres, vector=True)
+            vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres, vector=True)
             #If found then notify user, assuming debug log is enabled:
             adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
 

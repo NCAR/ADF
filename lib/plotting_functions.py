@@ -3,31 +3,30 @@ Generic computation and plotting helper functions
 
 Functions
 ---------
-make_polar_plot(wks, case_nickname, base_nickname,
-                    case_climo_yrs, baseline_climo_yrs,
-                    d1:xr.DataArray, d2:xr.DataArray, difference:Optional[xr.DataArray]=None,
-                    domain:Optional[list]=None, hemisphere:Optional[str]=None, **kwargs):
+make_polar_plot(adfobj, wks, case_nickname, base_nickname,
+                case_climo_yrs, baseline_climo_yrs, d1, d2, difference=None,
+                pctchange=None, domain=None, hemisphere=None, obs=False, **kwargs)
     Make a stereographic polar plot for the given data and hemisphere.
-plot_map_vect_and_save(wks, case_nickname, base_nickname,
-                           case_climo_yrs, baseline_climo_yrs,
-                           plev, umdlfld_nowrap, vmdlfld_nowrap,
-                           uobsfld_nowrap, vobsfld_nowrap,
-                           udiffld_nowrap, vdiffld_nowrap, **kwargs):
-    Plots a vector field on a map.
-plot_map_and_save(wks, case_nickname, base_nickname,
-                      case_climo_yrs, baseline_climo_yrs,
-                      mdlfld, obsfld, diffld, **kwargs):
+plot_map_and_save(adfobj, wks, case_nickname, base_nickname,
+                  case_climo_yrs, baseline_climo_yrs,
+                  mdlfld, obsfld, diffld, pctld, obs=False, **kwargs)
     Map plots of `mdlfld`, `obsfld`, and their difference, `diffld`.
+    With ``vector=True`` in kwargs it plots a vector field instead
+    (this replaces the old ``plot_map_vect_and_save``).
 zonal_plot(lat, data, ax=None, color=None, **kwargs)
     Make a line plot or pressure-latitude plot of `data`.
 meridional_plot(lon, data, ax=None, color=None, **kwargs)
     Make a line plot or pressure-longitude plot of `data`.
 prep_contour_plot
     Preparation for making contour plots.
-plot_zonal_mean_and_save
+plot_zonal_mean_and_save(adfobj, wks, case_nickname, base_nickname,
+                         case_climo_yrs, baseline_climo_yrs,
+                         adata, bdata, has_lev, log_p, obs=False, **kwargs)
     zonal mean plot
-plot_meridional_mean_and_save
-    meridioanl mean plot
+plot_meridional_mean_and_save(adfobj, wks, case_nickname, base_nickname,
+                              case_climo_yrs, baseline_climo_yrs, adata, bdata,
+                              has_lev, log_p=False, latbounds=None, obs=False, **kwargs)
+    meridional mean plot
 square_contour_difference
     Produce filled contours of fld1, fld2, and their difference with square axes.
 """
@@ -253,8 +252,8 @@ def make_polar_plot(
             norm = cp_info["norm_sim"]
             extend = cp_info["extend_sim"]
 
-        levs = np.unique(np.array(levels))
-        if len(levs) < 2:
+        contour_levs = np.unique(np.array(levels))
+        if len(contour_levs) < 2:
             imgs.append(axs[i].contourf(lons, lats, a, colors="w"))
             axs[i].text(0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props)
         else:
@@ -276,17 +275,15 @@ def make_polar_plot(
         stat_max = f"Max: {maxs[i]:5.2f}"
         stat_min = f"Min: {mins[i]:5.2f}"
         stats = f"{stat_mean}\n{stat_max}\n{stat_min}"
-        # axs[i].set_title(stats, loc='right', fontsize=8)
         axs[i].text(-0.05, 0.0, stats, transform=axs[i].transAxes, fontsize=CBAR_SIZE)
-        # axs[i].text(0.8, 0.925, stats, transform=axs[i].transAxes,fontsize=cbar_size)
 
     # End for
 
     # Set Main title for subplots:
     var_name = kwargs["var_name"]
     if "lev" in kwargs:
-        lev = kwargs["lev"]
-        var_name = f"{var_name} at {lev} hPa"
+        vert_lev = kwargs["lev"]
+        var_name = f"{var_name} at {vert_lev} hPa"
     st = fig.suptitle(
         f"{var_name}: {kwargs['season']}",
         fontsize=14,
@@ -576,7 +573,6 @@ def plot_map_and_save(
 
     # LAYOUT WITH GRIDSPEC
     wspace = 1.66
-    hspace = -0.25
     if vector:
         hspace = 0
     else:
@@ -597,7 +593,6 @@ def plot_map_and_save(
         ax = [ax1, ax2, ax3, ax4]
 
     img = []  # contour plots
-    # cs = []  # contour lines (currently turned off, see below)
 
     # formatting for tick labels
     lon_formatter = LongitudeFormatter(
@@ -657,8 +652,8 @@ def plot_map_and_save(
             norm = cp_info["norm_sim"]
             extend = cp_info["extend_sim"]
 
-        levs = np.unique(np.array(levels))
-        if len(levs) < 2:
+        contour_levs = np.unique(np.array(levels))
+        if len(contour_levs) < 2:
             img.append(
                 ax[i].contourf(
                     lons,
@@ -735,22 +730,11 @@ def plot_map_and_save(
                     )
                 )
         # End if
-        # ax[i].set_title("AVG: {0:.3f}".format(area_avg[i]), loc='right', fontsize=11)
-
-        # add contour lines <- Unused for now -JN
-        # TODO: add an option to turn this on -BM  # pylint: disable=fixme
-        # cs.append(ax[i].contour(lon2, lat2, fields[i], transform=ccrs.PlateCarree(),
-        #                         colors='k', linewidths=1))
-        # ax[i].clabel(cs[i], cs[i].levels, inline=True, fontsize=ti_font_size-2,
-        #              fmt='%1.1f')
-        # ax[i].text( 10, -140, "CONTOUR FROM {} to {} by {}".format(min(cs[i].levels),
-        #            max(cs[i].levels), cs[i].levels[1]-cs[i].levels[0]),
-        # bbox=dict(facecolor='none', edgecolor='black'), fontsize=ti_font_size-2)
 
     var_name = kwargs["var_name"]
     if "lev" in kwargs:
-        lev = kwargs["lev"]
-        var_name = f"{var_name} at {lev} hPa"
+        vert_lev = kwargs["lev"]
+        var_name = f"{var_name} at {vert_lev} hPa"
     st = fig.suptitle(
         f"{var_name}: {kwargs['season']}",
         fontsize=14,
@@ -1066,14 +1050,14 @@ def plot_zonal_mean_and_save(
             **cp_info["subplots_opt"],
         )
 
-        levs = np.unique(np.array(levels_sim))
+        contour_levs = np.unique(np.array(levels_sim))
         alat = adata["lat"]
         blat = bdata["lat"]
 
         levs_diff = np.unique(np.array(levels_diff))
         levs_pct_diff = np.unique(np.array(levels_pctdiff))
         cbar_labelpad_zonal = 5
-        if len(levs) < 2:
+        if len(contour_levs) < 2:
             img0, ax[0] = zonal_plot(alat, azm, ax=ax[0])
             ax[0].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[0].transAxes, bbox=props)
             img1, ax[1] = zonal_plot(blat, bzm, ax=ax[1])
@@ -1243,7 +1227,7 @@ def plot_zonal_mean_and_save(
         byears = f"years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         tyears = f"years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
-        fig, ax = plt.subplots(nrows=3)  # figsize=(6,8),
+        fig, ax = plt.subplots(nrows=3)
         ax[0].set_title(f"{tyears}\n{byears}", loc="right", fontsize=6)
 
         # Set Main title for subplots:
@@ -1273,30 +1257,28 @@ def plot_zonal_mean_and_save(
         )
 
         use_cmap = kwargs.get("colormap_2d", False)
-        plot_kwargs = kwargs.copy()
-        plot_kwargs["colormap_2d"] = use_cmap
-        diff_kwargs = plot_kwargs.copy()
-        diff_kwargs["type"] = "diff"
-        diff_kwargs.pop("norm", None)
+        # One copy of kwargs, shared by the difference and percent difference plots:
+        line_kwargs = kwargs.copy()
+        line_kwargs["colormap_2d"] = use_cmap
+        line_kwargs.pop("norm", None)
+        line_kwargs["type"] = "diff"
         zonal_plot(
             adata["lat"],
             diff,
             ax=ax[1],
             norm=norm_diff,
-            **diff_kwargs,
+            **line_kwargs,
         )
         ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        pctdiff_kwargs = plot_kwargs.copy()
-        pctdiff_kwargs["type"] = "pctdiff"
-        pctdiff_kwargs.pop("norm", None)
+        line_kwargs["type"] = "pctdiff"
         zonal_plot(
             adata["lat"],
             pct,
             ax=ax[2],
             norm=norm_pctdiff,
-            **pctdiff_kwargs,
+            **line_kwargs,
         )
         ax[2].set_title(
             "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
@@ -1537,7 +1519,7 @@ def plot_meridional_mean_and_save(
         )
     if has_lev:
 
-        # Generate zonal plot:
+        # Generate meridional plot:
         fig, ax = plt.subplots(
             figsize=(8, 10),
             nrows=4,
@@ -1546,11 +1528,11 @@ def plot_meridional_mean_and_save(
             **cp_info["subplots_opt"],
         )
 
-        levs = np.unique(np.array(levels_sim))
+        contour_levs = np.unique(np.array(levels_sim))
         levs_diff = np.unique(np.array(levels_diff))
         levs_pct_diff = np.unique(np.array(levels_pctdiff))
         cbar_labelpad_merd = 5
-        if len(levs) < 2:
+        if len(contour_levs) < 2:
             img0, ax[0] = pltfunc(adata[xdim], adata, ax=ax[0])
             ax[0].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[0].transAxes, bbox=props)
             img1, ax[1] = pltfunc(bdata[xdim], bdata, ax=ax[1])
@@ -1750,31 +1732,29 @@ def plot_meridional_mean_and_save(
         )
 
         use_cmap = kwargs.get("colormap_2d", False)
-        plot_kwargs = kwargs.copy()
-        plot_kwargs["colormap_2d"] = use_cmap
-        diff_kwargs = plot_kwargs.copy()
-        diff_kwargs["type"] = "diff"
-        diff_kwargs.pop("norm", None)
+        # One copy of kwargs, shared by the difference and percent difference plots:
+        line_kwargs = kwargs.copy()
+        line_kwargs["colormap_2d"] = use_cmap
+        line_kwargs.pop("norm", None)
+        line_kwargs["type"] = "diff"
         pltfunc(
             adata[xdim],
             diff,
             ax=ax[1],
             norm=norm_diff,
-            **diff_kwargs,
+            **line_kwargs,
         )
 
         ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        pctdiff_kwargs = plot_kwargs.copy()
-        pctdiff_kwargs["type"] = "pctdiff"
-        pctdiff_kwargs.pop("norm", None)
+        line_kwargs["type"] = "pctdiff"
         pltfunc(
             adata[xdim],
             pct,
             ax=ax[2],
             norm=norm_pctdiff,
-            **pctdiff_kwargs,
+            **line_kwargs,
         )
 
         ax[2].set_title(
