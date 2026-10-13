@@ -37,8 +37,7 @@ _plot_line(axobject, xdata, ydata, color, **kwargs)
 import os
 import re
 from pathlib import Path
-from urllib.parse import urlparse
-from urllib.request import urlretrieve
+from urllib.request import urlopen
 import warnings
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -439,17 +438,60 @@ def meridional_plot_preslon(ax, lon, lev, data, **kwargs):
 # Color Map Functions
 # --------------------
 
-ncl_defaults = ["ncl_default"]
+# NCL's color tables, shipped with the ADF so that runs (usually on compute
+# nodes without internet access) never have to download them:
+# https://www.ncl.ucar.edu/Document/Graphics/color_table_gallery.shtml
+NCL_COLORMAP_DIR = Path(__file__).resolve().parent / "plotting" / "colormaps" / "NCL"
+NCL_COLORMAP_URL = "https://www.ncl.ucar.edu/Document/Graphics/ColorTables/Files"
+
+# Seconds to wait for NCL's website before giving up on a download:
+_NCL_DOWNLOAD_TIMEOUT = 30
+
+# The first three numbers on a line are its red, green and blue values;
+# anything after them (a fourth column, or a "#", ";" or "/* */" comment) is not:
+_NCL_RGB_REGEX = re.compile(r"^\s*([-+]?[\d.]+)\s+([-+]?[\d.]+)\s+([-+]?[\d.]+)")
+
+# NCL colormaps already loaded, or that could not be, so that each one is
+# read (or downloaded) only once per run:
+_ncl_cmap_cache = {}
 
 
-def guess_ncl_url(cmap):
-    """Return the URL of the NCL colormap file named ``cmap``."""
-    return f"https://www.ncl.ucar.edu/Document/Graphics/ColorTables/Files/{cmap}.rgb"
+def parse_ncl_colormap(lines):
+    """
+    Read the RGB values out of the lines of an NCL colormap file.
 
+    Parameters
+    ----------
+    lines : iterable of str
+        lines of an NCL ".rgb" file
 
-def download_ncl_colormap(url, dest):
-    """Download the NCL colormap file at ``url`` to ``dest``."""
-    urlretrieve(url, dest)
+    Returns
+    -------
+    numpy.ndarray or None
+        (N, 3) array, one row per color, or ``None`` if there are no colors
+
+    Notes
+    -----
+    NCL's files are not regular enough for ``read_csv``: headers vary in
+    length, and some lines end with comments or a fourth column. Lines that do
+    not start with three numbers are skipped, as are rows with negative values
+    (NCL's placeholders for the background and foreground colors).
+    """
+    rows = []
+    for line in lines:
+        match = _NCL_RGB_REGEX.match(line)
+        if match is None:
+            continue
+        try:
+            row = [float(val) for val in match.groups()]
+        except ValueError:
+            continue  # e.g. "1.2.3"
+        if min(row) < 0:
+            continue
+        rows.append(row)
+    if not rows:
+        return None
+    return np.array(rows)
 
 
 def read_ncl_colormap(adfobj, fil):
@@ -461,73 +503,60 @@ def read_ncl_colormap(adfobj, fil):
     adfobj : AdfDiag
         ADF object, used for debug logging
     fil : str or pathlib.Path
-        local file, or the URL of one to download first
+        the NCL ".rgb" file
 
     Returns
     -------
-    numpy.ndarray
-        one row per color
+    numpy.ndarray or None
+        one row per color, or ``None`` if the file has no colors in it
     """
-    # determine if fil is a URL:
-    # if so, we have to download it
+    with open(fil, encoding="utf-8") as rgb_file:
+        table = parse_ncl_colormap(rgb_file)
+    if table is None:
+        adfobj.debug_log(
+            f"{script_name}: read_ncl_colormap()\n\tWARNING: no RGB values in {fil}"
+        )
+    return table
 
-    msg = f"{script_name}: read_ncl_colormap()"
-    if isinstance(fil, str):
-        pars = urlparse(fil)
-        if pars.scheme in ["http", "https", "ftp"]:
-            filename = Path.cwd() / fil.split("/")[-1]
-            if filename.is_file():
-                msg += f"\n\tFile already downloaded as {filename}"
-            else:
-                msg += f"\n\tFile will be downloaded and saved as {filename}"
-                download_ncl_colormap(fil, str(filename))
-        else:
-            filename = Path(fil)
-    elif isinstance(fil, Path):
-        filename = fil
-    else:
-        raise ValueError(f"\tERROR: what to do with type {type(fil)}")
 
-    # NCL's colormaps are not regularized enough to just use read_csv.
-    # We have to determine how many lines to skip because it varies.
-    # NCL has some files that have "comments" at the end
-    # which will look like additional columnns
-    # We basically are forced to just read line-by-line
+def download_ncl_colormap(adfobj, cmap_name):
+    """
+    Download an NCL colormap that is not one of the ones shipped with the ADF.
 
-    # ASSUME ALL NCL COLORMAPS ARE N rows BY 3 COLUMNS,
-    # AND THE VALUES ARE INTEGERS 0-255.
-    with open(filename, encoding="utf-8") as f:
-        table_exists = False
-        for line in f:
-            line_str = line.strip()  # remove leading/trailing whitespace
-            if (len(line_str) == 0) or (not line_str[0].isdigit()):
-                continue  # empty line or non-data line
-                # NOTE: also skips if the first value is negative (hlu_default)
-            if re.search(
-                r"[^\s0-9-\.]", line_str
-            ):  # any non number characters ASSUMED AT END
-                # take the string up to the non-matching character
-                line_vals = (
-                    line_str[: re.search(r"[^\s0-9-\.]", line_str).start() - 1]
-                    .strip()
-                    .split()
-                )
-            else:
-                line_vals = line_str.split()
-            try:
-                row = [float(r) for r in line_vals]
-            except ValueError:
-                # Skip it, rather than adding the previous line's row again:
-                msg += f"\n\tERROR reading RGB file {line_vals}"
-                continue
-            if table_exists:
-                table = np.vstack([table, row])
-            else:
-                table = np.array(row)
-                table_exists = True
+    The file is saved to ``NCL_COLORMAP_DIR`` when that is writable, so later
+    runs can use it without downloading it again.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        ADF object, used for debug logging
+    cmap_name : str
+        NCL colormap name
+
+    Returns
+    -------
+    numpy.ndarray or None
+        (N, 3) RGB values, or ``None`` if the file has no colors in it
+
+    Raises
+    ------
+    OSError
+        if NCL's website cannot be reached or has no such colormap
+    """
+    msg = f"{script_name}: download_ncl_colormap()"
+    url = f"{NCL_COLORMAP_URL}/{cmap_name}.rgb"
+    msg += f"\n\t{cmap_name} is not one of the NCL colormaps in {NCL_COLORMAP_DIR},"
+    msg += f" downloading it from {url}"
+    with urlopen(url, timeout=_NCL_DOWNLOAD_TIMEOUT) as response:
+        text = response.read().decode("utf-8", errors="replace")
+    table = parse_ncl_colormap(text.splitlines())
+    if table is not None:
+        try:
+            (NCL_COLORMAP_DIR / f"{cmap_name}.rgb").write_text(text, encoding="utf-8")
+            msg += f"\n\tSaved to {NCL_COLORMAP_DIR}"
+        except OSError:
+            msg += f"\n\tCould not save it to {NCL_COLORMAP_DIR}, using it for this run only"
     adfobj.debug_log(msg)
-    if not table_exists:
-        raise ValueError(f"no RGB values found in NCL colormap file {filename}")
     return table
 
 
@@ -547,78 +576,41 @@ def ncl_to_mpl(adfobj, nclmap, name):
     Returns
     -------
     tuple
-        the colormap and its reversed version
+        the colormap and its reversed version, or ``(None, None)`` if
+        ``nclmap`` is not an (N, 3) table
     """
     msg = f"{script_name}: ncl_to_mpl()"
-    if nclmap.max() > 1:
-        try:
-            vals = nclmap / 255
-        except TypeError:
-            msg += f"\n\tERROR: could not divide by 255. {type(nclmap) = }"
-            msg += f" {nclmap}"
-            adfobj.debug_log(msg)
-            return None, None
+    vals = np.atleast_2d(np.asarray(nclmap, dtype=float))
+    if vals.ndim != 2 or vals.shape[1] != 3:
+        msg += f"\n\tWARNING: {name} values should be (N, 3), not {vals.shape}"
+        adfobj.debug_log(msg)
+        return None, None
+    if vals.max() > 1:
+        vals = vals / 255
     else:
         msg += f"\n\t{name} seems to be 0-1"
-        vals = nclmap
-    assert vals.shape[1] == 3, "vals.shape should be (N,3)"
-    ncolors = vals.shape[0]
-    if ncolors > 100:
+    if vals.shape[0] > 100:
         my_cmap = mpl.colors.LinearSegmentedColormap.from_list(name, vals)
-        my_cmap_r = my_cmap.reversed()
     else:
         my_cmap = mpl.colors.ListedColormap(vals, name)
-        my_cmap_r = my_cmap.reversed()
-    # my_cmap, my_cmap_r from reversing a colormap
-    # ALLOW MPL TO KNOW ABOUT THE COLORMAP:
-    # mpl.colormaps.register(cmap=my_cmap)
-    # mpl.colormaps.register(cmap=my_cmap_r)
-
     adfobj.debug_log(msg)
-    return my_cmap, my_cmap_r
-
-
-def choose_colormap_type(levels, threshold_symmetry=0.25):
-    """
-    Suggest "diverging" or "sequential" for a set of contour levels.
-
-    Diverging when the levels cross zero and are roughly symmetric about it.
-    """
-    levels = np.array(levels)
-    minval, maxval = np.min(levels), np.max(levels)
-    crosses_zero = minval < 0 < maxval
-    symmetry_ratio = abs(abs(maxval) - abs(minval)) / max(abs(maxval), abs(minval))
-    is_symmetric = symmetry_ratio < threshold_symmetry
-    return "diverging" if crosses_zero and is_symmetric else "sequential"
-
-
-def load_colormap(adfobj, cmap_name):
-    """
-    Return a matplotlib colormap name, or a colormap loaded from NCL.
-
-    Falls back to "viridis" when neither has it.
-    """
-    msg = f"{script_name}: load_colormap()"
-    if cmap_name in plt.colormaps():
-        adfobj.debug_log(msg)
-        return cmap_name
-    adfobj.debug_log(
-        msg + f"\n\t{cmap_name} not a standard Matplotlib colormap. Trying NCL..."
-    )
-    cmap, _ = try_load_ncl_cmap(adfobj, cmap_name)
-    return cmap
+    return my_cmap, my_cmap.reversed()
 
 
 def try_load_ncl_cmap(adfobj, cmap_name, fallback="viridis"):
     """
-    Load an NCL colormap by name, from a local "<name>.rgb" file or from NCL.
+    Load an NCL colormap by name.
+
+    Uses the copy shipped in ``NCL_COLORMAP_DIR``, and only downloads it from
+    NCL's website when it is not there.
 
     Parameters
     ----------
     adfobj : AdfDiag
         ADF object, used for debug logging
     cmap_name : str
-        NCL colormap name
+        NCL colormap name (the file name without ".rgb"); a "_r" ending
+        gives the reversed colormap
     fallback : str, optional
         matplotlib colormap to use when the NCL one cannot be loaded
 
@@ -629,17 +621,38 @@ def try_load_ncl_cmap(adfobj, cmap_name, fallback="viridis"):
     """
     msg = f"{script_name}: try_load_ncl_cmap()"
     msg += f"\n\tTrying {cmap_name} as an NCL color map:"
-    locfil = Path(".") / f"{cmap_name}.rgb"
-    source = locfil if locfil.is_file() else guess_ncl_url(cmap_name)
-    try:
-        data = read_ncl_colormap(adfobj, source)
-        cmap, _ = ncl_to_mpl(adfobj, data, cmap_name)
-    # Download, read or conversion failures all mean using the fallback:
-    except Exception as err:  # pylint: disable=broad-exception-caught
+
+    if cmap_name not in _ncl_cmap_cache:
+        base_name = cmap_name
+        reverse = False
+        local_file = NCL_COLORMAP_DIR / f"{cmap_name}.rgb"
+        if not local_file.is_file() and cmap_name.endswith("_r"):
+            base_name = cmap_name[:-2]
+            reverse = True
+            local_file = NCL_COLORMAP_DIR / f"{base_name}.rgb"
         cmap = None
-        msg += f"\n\tCould not load NCL colormap {cmap_name}: {err}"
+        try:
+            if local_file.is_file():
+                data = read_ncl_colormap(adfobj, local_file)
+            else:
+                base_name = cmap_name
+                reverse = False
+                data = download_ncl_colormap(adfobj, cmap_name)
+            if data is not None:
+                cmap, cmap_r = ncl_to_mpl(adfobj, data, base_name)
+                if reverse:
+                    cmap = cmap_r
+        # Download, read or conversion failures all mean using the fallback:
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            msg += f"\n\tCould not load NCL colormap {cmap_name}: {err}"
+        # Remember failures too, so a missing colormap is not retried
+        # (or re-downloaded) for every variable and season:
+        _ncl_cmap_cache[cmap_name] = cmap
+
+    cmap = _ncl_cmap_cache[cmap_name]
     if cmap is None:
-        msg += f"\n\tDefaulting to '{fallback}'."
+        msg += f"\n\tWARNING: {cmap_name} is not a matplotlib or NCL colormap,"
+        msg += f" defaulting to '{fallback}'."
         cmap = fallback
     adfobj.debug_log(msg)
     return cmap, msg
@@ -648,6 +661,8 @@ def try_load_ncl_cmap(adfobj, cmap_name, fallback="viridis"):
 def get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names):
     """
     Gather colormap from variable defaults file, if applicable.
+
+    Names that are not matplotlib colormaps are looked up as NCL colormaps.
     Falls back to 'viridis' (case) or 'BrBG' (diff) if none is found.
     """
 
@@ -678,20 +693,15 @@ def get_cmap(adfobj, plotty, plot_type_dict, kwargs, polar_names):
         cmap_case = kwargs[colormap_key]
         msg += f"\n\tUser supplied cmap for {plotty}: {cmap_case}"
 
-    # Priority 3: NCL support
-    if cmap_case in ncl_defaults:
-        cmap_case, msg = try_load_ncl_cmap(adfobj, cmap_case)
-
-    # Last attempt fallback default
+    # Fallback default
     if not cmap_case:
         msg += f"\n\tNo cmap for {plotty} found, defaulting to {default_cmap}"
         cmap_case = default_cmap
 
-    # Final check: must exist in matplotlib or NCL
-    if isinstance(cmap_case, str):
-        if (cmap_case not in plt.colormaps()) and (cmap_case not in ncl_defaults):
-            msg += f"\n\tInvalid cmap '{cmap_case}' for {plotty}, defaulting to {default_cmap}"
-            cmap_case = default_cmap
+    # Not a matplotlib colormap: try NCL, which falls back to the default
+    elif cmap_case not in plt.colormaps():
+        cmap_case, ncl_msg = try_load_ncl_cmap(adfobj, cmap_case, fallback=default_cmap)
+        msg += ncl_msg
 
     adfobj.debug_log(msg)
 
