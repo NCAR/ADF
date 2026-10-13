@@ -162,9 +162,8 @@ def make_polar_plot(
     else:
         pct = pctchange
 
-    # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
+    pct = pct.where(np.isfinite(pct))
 
     if hemisphere.upper() == "NH":
         proj = ccrs.NorthPolarStereo()
@@ -342,7 +341,7 @@ def make_polar_plot(
             color="gray",
             y_inline=True,
             xlocs=range(-180, 180, 90),
-            ylocs=range(0, 90, 10),
+            ylocs=range(-80, 90, 10),
         )
 
     # __COLORBARS__
@@ -414,6 +413,10 @@ def plot_map_and_save(
     diffld,
     pctld,
     obs=False,
+    *,
+    vmdlfld=None,
+    vobsfld=None,
+    vdiffld=None,
     **kwargs,
 ):
     """This plots mdlfld, obsfld, diffld in a 3-row panel plot of maps.
@@ -438,6 +441,12 @@ def plot_map_and_save(
         input difference data
     pctld : xarray.DataArray
         input percent difference data
+    obs : bool, optional
+        True when the baseline is observations
+    vmdlfld, vobsfld, vdiffld : xarray.DataArray, optional
+        meridional components of a vector field, for a vector plot. The zonal
+        components are then ``mdlfld``, ``obsfld`` and ``diffld``.
+        The percent difference panel is not drawn for vector plots.
     kwargs : dict, optional
         variable-specific options, See Notes
 
@@ -474,39 +483,27 @@ def plot_map_and_save(
     """
 
     kwargs["adfobj"] = adfobj
-    vector = False
+    vector = vmdlfld is not None
 
-    # Only set for vector plots (and only used when "vector" is True):
+    # Only set for vector plots (when the V components are given):
     skip = sim_mags = diff_mag = None
-    udiffld = vdiffld = umdlfld = vmdlfld = uobsfld = vobsfld = None
+    udif_wrap = vdif_wrap = umdl_wrap = vmdl_wrap = uobs_wrap = vobs_wrap = None
     mdl_mag = obs_mag = None
 
-    if "vector" in kwargs:
-        vector = True
-
+    if vector:
         # too many vectors to see well, so prune by striding through data:
         skip = (slice(None, None, 5), slice(None, None, 8))
 
-        umdlfld_nowrap = kwargs["umdlfld_nowrap"]
-        vmdlfld_nowrap = kwargs["vmdlfld_nowrap"]
-        uobsfld_nowrap = kwargs["uobsfld_nowrap"]
-        vobsfld_nowrap = kwargs["vobsfld_nowrap"]
-        udiffld_nowrap = kwargs["udiffld_nowrap"]
-        vdiffld_nowrap = kwargs["vdiffld_nowrap"]
-        upctdiffld_nowrap = kwargs["upctdiffld_nowrap"]
-
-        lat = umdlfld_nowrap["lat"]
+        lat = mdlfld["lat"]
 
         # add cyclic longitude:
-        umdlfld, lon = add_cyclic_point(umdlfld_nowrap, coord=umdlfld_nowrap["lon"])
-        vmdlfld, _ = add_cyclic_point(vmdlfld_nowrap, coord=vmdlfld_nowrap["lon"])
-        uobsfld, _ = add_cyclic_point(uobsfld_nowrap, coord=uobsfld_nowrap["lon"])
-        vobsfld, _ = add_cyclic_point(vobsfld_nowrap, coord=vobsfld_nowrap["lon"])
-        udiffld, _ = add_cyclic_point(udiffld_nowrap, coord=udiffld_nowrap["lon"])
-        vdiffld, _ = add_cyclic_point(vdiffld_nowrap, coord=vdiffld_nowrap["lon"])
-        upctdiffld, _ = add_cyclic_point(
-            upctdiffld_nowrap, coord=upctdiffld_nowrap["lon"]
-        )
+        umdl_wrap, lon = add_cyclic_point(mdlfld, coord=mdlfld["lon"])
+        vmdl_wrap, _ = add_cyclic_point(vmdlfld, coord=vmdlfld["lon"])
+        uobs_wrap, _ = add_cyclic_point(obsfld, coord=obsfld["lon"])
+        vobs_wrap, _ = add_cyclic_point(vobsfld, coord=vobsfld["lon"])
+        udif_wrap, _ = add_cyclic_point(diffld, coord=diffld["lon"])
+        vdif_wrap, _ = add_cyclic_point(vdiffld, coord=vdiffld["lon"])
+        upct_wrap, _ = add_cyclic_point(pctld, coord=pctld["lon"])
 
         # create mesh for plots:
         lons, lats = np.meshgrid(lon, lat)
@@ -515,25 +512,29 @@ def plot_map_and_save(
         # Please note that the difference field needs
         # to be calculated from the model and obs fields
         # in order to get the correct sign:
-        mdl_mag_ma = np.sqrt(umdlfld**2 + vmdlfld**2)
-        obs_mag_ma = np.sqrt(uobsfld**2 + vobsfld**2)
+        mdl_mag_ma = np.sqrt(umdl_wrap**2 + vmdl_wrap**2)
+        obs_mag_ma = np.sqrt(uobs_wrap**2 + vobs_wrap**2)
 
         # Convert vector magnitudes to xarray DataArrays:
         mdl_mag = xr.DataArray(mdl_mag_ma)
         obs_mag = xr.DataArray(obs_mag_ma)
         sim_mags = [mdl_mag, obs_mag]
         diff_mag = mdl_mag - obs_mag
-        pctdiff_mag = diff_mag / np.abs(obs_mag) * 100.0
-        # pctdiff_mag = diff_mag / np.abs((mdl_mag + obs_mag)/2) * 100.0
-        pctdiff_mag = pctdiff_mag.where(np.isfinite(pctdiff_mag), np.nan)
-        pctdiff_mag = pctdiff_mag.fillna(0.0)
 
-        wrap_fields = (umdlfld, uobsfld, udiffld, upctdiffld)
+        wrap_fields = (umdl_wrap, uobs_wrap, udif_wrap, upct_wrap)
 
-        # get statistics (from non-wrapped)
+        # get statistics from the non-wrapped vector magnitudes, so the
+        # cyclic point is not counted twice:
         wgt = np.cos(np.radians(lat))
+        mdl_mag_nowrap = np.sqrt(mdlfld**2 + vmdlfld**2)
+        obs_mag_nowrap = np.sqrt(obsfld**2 + vobsfld**2)
+        stat_fields = {
+            0: mdl_mag_nowrap,
+            1: obs_mag_nowrap,
+            2: mdl_mag_nowrap - obs_mag_nowrap,
+        }
         d_rmse = utils.wgt_rmse(
-            mdl_mag, obs_mag, wgt
+            mdl_mag_nowrap, obs_mag_nowrap, wgt
         )  # correct weighted RMSE for (lat,lon) fields
     else:
         # preprocess
@@ -549,7 +550,7 @@ def plot_map_and_save(
         lons, lats = np.meshgrid(lon, lat)
 
         # get statistics (from non-wrapped)
-
+        stat_fields = {0: mdlfld, 1: obsfld, 2: pctld, 3: diffld}
         d_rmse = utils.wgt_rmse(
             mdlfld, obsfld, wgt
         )  # correct weighted RMSE for (lat,lon) fields.
@@ -614,7 +615,8 @@ def plot_map_and_save(
         ): fmt(lat, pos)
     )
 
-    if vector:  # ignore percent diff for now, think about picking back up later
+    if vector:  # no percent difference panel for vectors
+        pctdiff_idx = None
         diff_idx = 2
     else:
         pctdiff_idx = 2
@@ -687,15 +689,10 @@ def plot_map_and_save(
                     ax[i].quiver(
                         lons[skip],
                         lats[skip],
-                        udiffld[skip],
-                        vdiffld[skip],
+                        udif_wrap[skip],
+                        vdif_wrap[skip],
                         transform=ccrs.PlateCarree(),
                     )
-                # Percent difference of vector magnitudes, not drawn for now:
-                # if i == pctdiff_idx:
-                #     img.append(ax[i].contourf(lons, lats, pctdiff_mag,
-                #                transform=ccrs.PlateCarree(), transform_first=True,
-                #                norm=norm, cmap='PuOr', extend=extend))
                 if i in [0, 1]:
                     img.append(
                         ax[i].contourf(
@@ -708,21 +705,17 @@ def plot_map_and_save(
                             extend=extend,
                         )
                     )
+                    # Test vectors on the test panel, baseline vectors on the baseline one:
+                    if i == 0:
+                        ufld, vfld = umdl_wrap, vmdl_wrap
+                    else:
+                        ufld, vfld = uobs_wrap, vobs_wrap
                     ax[i].quiver(
                         lons[skip],
                         lats[skip],
-                        umdlfld[skip],
-                        vmdlfld[skip],
-                        mdl_mag.values[skip],
-                        transform=ccrs.PlateCarree(),
-                        cmap="Reds",
-                    )
-                    ax[i].quiver(
-                        lons[skip],
-                        lats[skip],
-                        uobsfld[skip],
-                        vobsfld[skip],
-                        obs_mag.values[skip],
+                        ufld[skip],
+                        vfld[skip],
+                        sim_mags[i].values[skip],
                         transform=ccrs.PlateCarree(),
                         cmap="Reds",
                     )
@@ -790,36 +783,20 @@ def plot_map_and_save(
         )
         ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
 
-    # Set stats: area_avg
-    ax[0].set_title(
-        f"Mean: {mdlfld.weighted(wgt).mean().item():5.2f}\n"
-        f"Max: {mdlfld.max():5.2f}\nMin: {mdlfld.min():5.2f}",
-        loc="right",
-        fontsize=ti_font_size,
-    )
-    ax[1].set_title(
-        f"Mean: {obsfld.weighted(wgt).mean().item():5.2f}\n"
-        f"Max: {obsfld.max():5.2f}\nMin: {obsfld.min():5.2f}",
-        loc="right",
-        fontsize=ti_font_size,
-    )
-
-    if not vector:
-        ax[pctdiff_idx].set_title(
-            f"Mean: {pctld.weighted(wgt).mean().item():5.2f}\n"
-            f"Max: {pctld.max():5.2f}\nMin: {pctld.min():5.2f}",
+    # Set stats: area-weighted (cos(lat)) mean, as for the other ADF plots.
+    # Vector plots give the stats of the vector magnitudes:
+    for i, fld in stat_fields.items():
+        ax[i].set_title(
+            f"Mean: {utils.spatial_average(fld, weights=wgt).item():5.2f}\n"
+            f"Max: {fld.max().item():5.2f}\nMin: {fld.min().item():5.2f}",
             loc="right",
             fontsize=ti_font_size,
         )
+
+    if not vector:
         ax[pctdiff_idx].set_title(
             "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
         )
-    ax[diff_idx].set_title(
-        f"Mean: {diffld.weighted(wgt).mean().item():5.2f}\n"
-        f"Max: {diffld.max():5.2f}\nMin: {diffld.min():5.2f}",
-        loc="right",
-        fontsize=ti_font_size,
-    )
     ax[diff_idx].set_title(f"RMSE: {d_rmse:.3f}", fontsize=ti_font_size)
     ax[diff_idx].set_title(
         r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
@@ -1035,9 +1012,8 @@ def plot_zonal_mean_and_save(
 
     # calculate the percent change
     pct = (azm - bzm) / np.abs(bzm) * 100.0
-    # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
+    pct = pct.where(np.isfinite(pct))
 
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
@@ -1514,9 +1490,8 @@ def plot_meridional_mean_and_save(
 
     # calculate the percent change
     pct = (adata - bdata) / np.abs(bdata) * 100.0
-    # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
+    pct = pct.where(np.isfinite(pct))
 
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(adata, bdata, diff, pct, **kwargs)
@@ -1955,9 +1930,8 @@ def square_contour_difference(fld1, fld2, **kwargs):
     diff = fld1 - fld2
 
     pct = (fld1 - fld2) / np.abs(fld2) * 100.0
-    # check if pct has NaN's or Inf values and if so set them to 0 to prevent plotting errors
-    pct = pct.where(np.isfinite(pct), np.nan)
-    pct = pct.fillna(0.0)
+    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
+    pct = pct.where(np.isfinite(pct))
 
     ## USE A DIVERGING COLORMAP CENTERED AT ZERO
     ## Special case is when min > 0 or max < 0

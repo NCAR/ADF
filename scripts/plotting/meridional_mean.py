@@ -128,9 +128,9 @@ def meridional_mean(adfobj):
                     merid_skip.add(plot_name)
                     # Add already-existing plot to website (if enabled):
                     adfobj.add_website_data(
-                        plot_name, var, case_name, season=s, plot_type="Meridional"
+                        plot_name, var, case_name, season=s,
+                        plot_type="Meridional", category=web_category,
                     )
-                    continue
                 elif (redo_plot) and plot_name.is_file():
                     plot_name.unlink()
                 # End if

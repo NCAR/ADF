@@ -61,13 +61,19 @@ class AddVarToVresTestRoutine(unittest.TestCase):
         self.assertEqual(vres["var_name"], "Zonal Stress")
 
     def test_vector_uses_the_vector_nickname(self):
-        """A vector component is named after its vector."""
+        """On a vector plot, a vector component is named after its vector."""
         defaults = {
             "TAUX": {"vector_name": "Surface_Wind_Stress"},
             "Surface_Wind_Stress": {"nickname": "Surface Wind Stress"},
         }
-        vres = add_var_to_vres(_Adf(defaults), "TAUX", defaults["TAUX"])
+        vres = add_var_to_vres(_Adf(defaults), "TAUX", defaults["TAUX"], vector=True)
         self.assertEqual(vres["var_name"], "Surface Wind Stress")
+
+    def test_scalar_plot_of_a_vector_component(self):
+        """On its own plots, U is still titled "U", not "Wind"."""
+        defaults = {"U": {"vector_name": "Wind"}}
+        vres = add_var_to_vres(_Adf(defaults), "U", defaults["U"])
+        self.assertEqual(vres["var_name"], "U")
 
 
 # Run unit tests if this script is called directly:

@@ -321,7 +321,7 @@ def _plot_line(axobject, xdata, ydata, color=None, **kwargs):
     vmax = kwargs.get("vmax", None)
     if use_cmap:
         if kwargs["type"] == "pctdiff":
-            cmap = kwargs.get("pct_diff_colormap", "PuOr")
+            cmap = kwargs.get("pct_diff_colormap", "PuOr_r")
         if kwargs["type"] == "diff":
             cmap = kwargs.get("diff_colormap", "RdBu_r")
 
@@ -749,46 +749,43 @@ def resolve_levels(adfobj, plotty, plot_type_dict, kwargs, polar_names):
     )
 
     # pylint: disable-next=too-many-return-statements
-    def process_entry(entry, kind, msg):
-        """Handle lists and dicts for levels/ranges/linspace."""
-        if isinstance(entry, list):
-            if len(entry) == 3:
-                if kind == "range":
-                    msg += f"\n\tLevels specified for {plotty}: numpy.arange."
-                    adfobj.debug_log(msg)
-                    return np.arange(*entry)
-                if kind == "linspace":
-                    msg += f"\n\tLevels specified for {plotty}: numpy.linspace."
-                    adfobj.debug_log(msg)
-                    return np.linspace(*entry)
-                msg += (
-                    f"\n\tLevels specified for {plotty} as list of 3 values, "
-                    "please add more values."
-                )
-                msg += " Will get contrours from data range."
-                adfobj.debug_log(msg)
-                return None
-            if len(entry) < 3:
-                msg += f"\n\tNot enough {kind} entries for {plotty} (<3) — ambiguous"
-                adfobj.debug_log(msg)
-                return None
-            adfobj.debug_log(msg)
-            return entry
+    def create_contour_levels(entry, kind):
+        """
+        Turn one levels/range/linspace setting into contour levels.
+
+        ``entry`` is a list, or a dict of hemisphere and/or vertical level
+        specific lists. Explicit levels are used as given; a range or
+        linspace needs exactly three values (start, stop, step/num).
+        Returns ``None`` when the setting cannot be used.
+        """
         if isinstance(entry, dict):
-            resolved = resolve_hemi_level(adfobj, entry, kwargs, polar_names)
-            if isinstance(resolved, list) and len(resolved) == 3:
-                if kind == "range":
-                    msg += f"\n\tLevels specified for {plotty}: numpy.arange."
-                    adfobj.debug_log(msg)
-                    return np.arange(*resolved)
-                if kind == "linspace":
-                    msg += f"\n\tLevels specified for {plotty}: numpy.linspace."
-                    adfobj.debug_log(msg)
-                    return np.linspace(*resolved)
-            adfobj.debug_log(msg)
-            return resolved
-        adfobj.debug_log(msg)
-        return entry
+            entry = resolve_hemi_level(adfobj, entry, kwargs, polar_names)
+        if entry is None:
+            return None
+        if not isinstance(entry, (list, tuple, np.ndarray)):
+            adfobj.debug_log(
+                f"{msg}\n\tWARNING: contour {kind} for {plotty} should be a list,"
+                f" not {entry!r}. Will get contours from data range."
+            )
+            return None
+        if kind == "levels":
+            if len(entry) < 2:
+                adfobj.debug_log(
+                    f"{msg}\n\tWARNING: contour levels for {plotty} need at least"
+                    f" two values, not {entry}. Will get contours from data range."
+                )
+                return None
+            return entry
+        if len(entry) != 3:
+            adfobj.debug_log(
+                f"{msg}\n\tWARNING: contour {kind} for {plotty} needs exactly three"
+                f" values, not {entry}. Will get contours from data range."
+            )
+            return None
+        adfobj.debug_log(f"{msg}\n\tLevels specified for {plotty}: numpy.{kind}.")
+        if kind == "range":
+            return np.arange(*entry)
+        return np.linspace(*entry)
 
     # Priority: explicit contour levels → range → linspace
     for key, kind in [
@@ -803,7 +800,7 @@ def resolve_levels(adfobj, plotty, plot_type_dict, kwargs, polar_names):
             entry = kwargs[key]
 
         if entry is not None:
-            levels_sim = process_entry(entry, kind, msg)
+            levels_sim = create_contour_levels(entry, kind)
             if levels_sim is not None:
                 break  # stop once a valid setting is found
     adfobj.debug_log(msg)
@@ -988,7 +985,7 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     msg += f"\n\tPre check difference LEVELS: {type(levels_diff)}\n\t\t{levels_diff}\n"
     if levels_diff is None:
         msg += "\n\tSetting the difference levels from max/min"
-        absmaxdif = np.max(np.abs(diffdata))
+        absmaxdif = np.nanmax(np.abs(diffdata))
         levels_diff = np.linspace(-absmaxdif, absmaxdif, 12)
     msg += f"\n\tFinal difference levels: {type(levels_diff)}\n\t\t{levels_diff}\n"
 
@@ -1012,13 +1009,17 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
             vmin=np.min(levels_diff), vmax=np.max(levels_diff)
         )
 
-    # Percent Difference options -- Check in kwargs for colormap and levels
+    # Percent Difference options -- Check in kwargs for colormap and levels.
+    # As for the case and difference panels, settings in the plot type's
+    # section win, then the variable's top-level settings:
+    def pct_option(key):
+        if key in plot_type_dict:
+            return plot_type_dict[key]
+        return kwargs.get(key)
+
     # COLOR MAP
     # ----------
-    # determine levels & color normalization:
-    # minval = np.min(diffdata)
-    # maxval = np.max(diffdata)
-    cmap_pctdiff = plot_type_dict.get("pct_diff_colormap", "PuOr_r")
+    cmap_pctdiff = pct_option("pct_diff_colormap") or "PuOr_r"
 
     if cmap_pctdiff not in plt.colormaps():
         msg += (
@@ -1032,16 +1033,17 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
 
     # CONTOUR LEVELS
     # ---------------
-    if "pct_diff_contour_levels" in plot_type_dict:
-        levels_pctdiff = plot_type_dict[
-            "pct_diff_contour_levels"
-        ]  # a list of explicit contour levels
-    elif "pct_diff_contour_range" in plot_type_dict:
-        assert (
-            len(plot_type_dict["pct_diff_contour_range"]) == 3
-        ), "pct_diff_contour_range must have exactly three entries: min, max, step"
-        levels_pctdiff = np.arange(*plot_type_dict["pct_diff_contour_range"])
-    else:
+    levels_pctdiff = pct_option("pct_diff_contour_levels")  # explicit levels
+    pct_range = pct_option("pct_diff_contour_range")
+    if levels_pctdiff is None and pct_range is not None:
+        if len(pct_range) == 3:
+            levels_pctdiff = np.arange(*pct_range)
+        else:
+            msg += (
+                "\n\tWARNING: pct_diff_contour_range must have exactly three entries:"
+                f" min, max, step, not {pct_range}. Using the default levels."
+            )
+    if levels_pctdiff is None:
         levels_pctdiff = [
             -100,
             -75,
@@ -1149,31 +1151,41 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     return cp_info
 
 
-def add_var_to_vres(adfobj, var, vres):
+def add_var_to_vres(adfobj, var, vres, vector=False):
     """
     Set ``vres["var_name"]``, the name plots show for this variable.
 
-    Uses the variable's nickname (or, for a vector component, the vector's
-    nickname or name) when there is one, else the variable name.
+    Uses the variable's nickname when there is one, else the variable name.
+    For vector plots (``vector=True``), a vector component (U, TAUX, ...)
+    is named after its vector instead: the vector's nickname, or name.
 
     Returns a copy: ``vres`` is usually an entry of the variable defaults,
     which every plotting script shares, so the plot settings scripts add to
     it (season, plot_type, lev, ...) must not end up there.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        ADF object, for the variable defaults of the vector
+    var : str
+        variable name
+    vres : dict
+        the variable's defaults
+    vector : bool, optional
+        True when plotting the variable as part of its vector
+
+    Returns
+    -------
+    dict
+        a copy of ``vres`` with "var_name" set
     """
     vres = dict(vres)
-    if "vector_name" in vres:
+    if vector and "vector_name" in vres:
         vect_var_name = vres["vector_name"]
         vec_vres = adfobj.variable_defaults.get(vect_var_name, {})
-        if "nickname" in vec_vres:
-            vres["var_name"] = vec_vres["nickname"]
-        else:
-            vres["var_name"] = vect_var_name
+        vres["var_name"] = vec_vres.get("nickname", vect_var_name)
     else:
-
-        if "nickname" in vres:
-            vres["var_name"] = vres["nickname"]
-        else:
-            vres["var_name"] = var
+        vres["var_name"] = vres.get("nickname", var)
     return vres
 
 
