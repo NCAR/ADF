@@ -137,7 +137,9 @@ def polar_map(adfobj):
 
         # Get variable-specific settings
         vres = res.get(var, {})
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         web_category = vres.get("category", None)
+        vres["plot_type"] = __name__
 
         # A complete set of plots can be recognised from the file names alone,
         # because a 2-D variable and a 3-D one are named differently.  Doing
@@ -185,8 +187,8 @@ def polar_map(adfobj):
                                 'case': case_name,
                                 'case_idx': case_idx,
                                 'season': s,
-                                'type': hemi_type,
-                                'pressure': pres,
+                                'hemi': hemi_type,
+                                'lev': pres,
                                 'exists': plot_name.is_file()
                             }
                             plot_info.append(info)
@@ -204,7 +206,7 @@ def polar_map(adfobj):
                             'case': case_name,
                             'case_idx': case_idx,
                             'season': s,
-                            'type': hemi_type,
+                            'hemi': hemi_type,
                             'exists': plot_name.is_file()
                         }
                         plot_info.append(info)
@@ -231,6 +233,8 @@ def polar_map(adfobj):
                 
             case_name = plot['case']
             case_idx = plot['case_idx']
+            vres['season'] = plot['season']
+            vres['hemi'] = plot['hemi']
             plot_loc = Path(plot_locations[case_idx])
 
             # Ensure plot directory exists
@@ -247,10 +251,10 @@ def polar_map(adfobj):
             else:
                 has_lev = False
 
-            if has_lev and pres_levs and plot.get('pressure'):
+            if has_lev and pres_levs and plot.get('lev'):
                 if not all(dim in mdata.dims for dim in ['lat', 'lev']):
                     continue
-                pres = plot["pressure"]
+                pres = plot["lev"]
                 # The level has to be one that was interpolated to -- see
                 # 'interp_press_levels' in the config file.  Without this an
                 # unavailable level ends the whole run in a KeyError from .sel,
@@ -264,6 +268,7 @@ def polar_map(adfobj):
                     continue
                 mdata = mdata.sel(lev=pres)
                 odata_level = odata.sel(lev=pres)
+                vres["lev"] = pres
             else:
                 if not utils.lat_lon_validate_dims(mdata):
                     continue
@@ -280,12 +285,12 @@ def polar_map(adfobj):
             if plot['path'].exists():
                 plot['path'].unlink()
 
-            pf.make_polar_plot(
+            pf.make_polar_plot(adfobj, 
                 plot['path'], test_nicknames[case_idx], base_nickname,
                 [syear_cases[case_idx], eyear_cases[case_idx]],
                 [syear_baseline, eyear_baseline],
                 mseason, oseason, dseason, pseason,
-                hemisphere=get_hemisphere(plot['type']),
+                hemisphere=get_hemisphere(plot['hemi']),
                 obs=adfobj.compare_obs, **vres
             )
 
@@ -293,7 +298,7 @@ def polar_map(adfobj):
             adfobj.add_website_data(
                 plot['path'], plot['var'], case_name,
                 category=web_category, season=plot['season'],
-                plot_type=plot['type']
+                plot_type=plot['hemi']
             )
 
     print("  ...polar maps have been generated successfully.")

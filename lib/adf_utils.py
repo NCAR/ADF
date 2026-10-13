@@ -1527,7 +1527,8 @@ def zonal_mean_xr(fld):
         davgovr = [dim for dim in d if dim not in ("lev", "lat")]
     else:
         raise IOError("zonal_mean_xr requires Xarray DataArray input.")
-    return fld.mean(dim=davgovr)
+    fld = fld.mean(dim=davgovr, keep_attrs=True)
+    return fld
 
 
 #####################
