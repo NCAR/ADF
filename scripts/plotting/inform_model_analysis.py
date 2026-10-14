@@ -35,6 +35,7 @@ from glob import glob
 
 import cam_era5_functions as cfun
 import cam_diagnostic as cdog
+import inform_native_grid as ingrid
 import inform_utils as inform
 
 import warnings  # use to warn user about missing files.
@@ -103,7 +104,7 @@ class LazyCases(Mapping):
 
 
 def load_cam_case(cam_dir, file_sel, campaign, tmin, tmax, lat_slice, lon_slice,
-                  cache_path=None, cache_fingerprint=None):
+                  cache_path=None, cache_fingerprint=None, grid=None):
     """
     Load one CAM case and build what the diagnostics use from it.
 
@@ -112,6 +113,10 @@ def load_cam_case(cam_dir, file_sel, campaign, tmin, tmax, lat_slice, lon_slice,
     otherwise they are derived from the history files, saved there, and read
     back, so a fresh and a cached load give the diagnostics the same data
     (see cam_diagnostic.read_cam_case_cache/write_cam_case_cache).
+
+    With `grid` ({"weights_file", "regrid_method", "out_dir"}), the case's
+    history files are on a native grid: the ones the window needs are
+    gridded to lat/lon first (only when the saved CAM data can't be used).
 
     Returns
     -------
@@ -127,6 +132,12 @@ def load_cam_case(cam_dir, file_sel, campaign, tmin, tmax, lat_slice, lon_slice,
             ds_cam_comp = cdog.comp_from_masks(ds_out, masks)
             utils.timer(f"loaded saved CAM data {Path(cache_path).name}", t0)
             return {"out": ds_out, "comp": ds_cam_comp}
+
+    if grid is not None:
+        cam_dir = ingrid.grid_case_for_window(
+            cam_dir, file_sel, tmin, tmax, grid["weights_file"], grid["out_dir"],
+            method=grid["regrid_method"])
+        t0 = utils.timer("gridded native-grid history files", t0)
 
     ds_cam = cfun.load_cam_files(cam_dir, file_sel, tmin, tmax, campaign=campaign)
     t0 = utils.timer("loaded ds_cam", t0)
@@ -440,13 +451,27 @@ def inform_model_analysis(adfobj):
                 "tmin": tmin, "tmax": tmax,
                 "lat_slice": lat_slice, "lon_slice": lon_slice,
             }
+            # A case on a native grid is gridded to lat/lon (into the INFORM
+            # cache) before it is loaded.  Only then does its fingerprint
+            # include the gridding, so lat/lon cases keep their saved data:
+            grid = None
+            window = ingrid.window_files(cam_dir, file_sel, tmin, tmax)
+            if window and ingrid.is_native(window[0]):
+                grid = {
+                    "weights_file": adfobj.latlon_wgt_files["test_wgts_file"][case_idx],
+                    "regrid_method": adfobj.latlon_regrid_method["test_regrid_method"][case_idx],
+                }
+                case_info[cam_desc]["grid"] = {k: str(v) for k, v in grid.items()}
+                grid["out_dir"] = (cache_root / "gridded" / campaign
+                                   / f"{cam_case_names[case_idx]}.{file_sel}")
             # Each case's derived CAM data is saved in the INFORM cache too, so
             # a later run that needs this case doesn't re-read its history files:
             cache_key, cache_source = cdog.case_cache_source(case_info, cam_desc)
             case_loaders[cam_desc] = functools.partial(
                 load_cam_case, cam_dir, file_sel, campaign, tmin, tmax, lat_slice, lon_slice,
                 cache_path=cdog.cam_case_cache_path(cache_root, campaign, cache_key),
-                cache_fingerprint=cdog.cam_case_fingerprint(cache_source))
+                cache_fingerprint=cdog.cam_case_fingerprint(cache_source),
+                grid=grid)
 
         loaded_cases = {}
         ds_cams = LazyCases(case_loaders, "comp", loaded_cases)
