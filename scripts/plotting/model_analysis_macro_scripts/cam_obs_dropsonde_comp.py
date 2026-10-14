@@ -45,10 +45,21 @@ def disk_size(obj, name="data"):
     return size
 
 
+def _json_float(v):
+    """
+    float(v), or None for NaN/inf - json.dump would otherwise write a bare
+    NaN token, which is invalid JSON and makes JSON.parse in the D3 page
+    fail. (e.g. pandas' std is NaN for a pressure bin holding one sample.)
+    The dashboard already skips non-finite levels, so null is safe there.
+    """
+    v = float(v)
+    return v if np.isfinite(v) else None
+
+
 def _profile_records(p, mean, std):
     """A regime's profile as tidy per-level records: [{p_hPa, mean, std}, ...]."""
     return [
-        {"p_hPa": float(p_), "mean": float(m_), "std": float(s_)}
+        {"p_hPa": float(p_), "mean": _json_float(m_), "std": _json_float(s_)}
         for p_, m_, s_ in zip(p, mean, std)
     ]
 
@@ -56,7 +67,7 @@ def _profile_records(p, mean, std):
 def _bias_records(p, delta):
     """A regime's bias-vs-Obs as tidy per-level records: [{p_hPa, delta}, ...]."""
     return [
-        {"p_hPa": float(p_), "delta": float(d_)}
+        {"p_hPa": float(p_), "delta": _json_float(d_)}
         for p_, d_ in zip(p, delta)
     ]
 

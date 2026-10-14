@@ -232,6 +232,17 @@
   const REF_NAMES = ["Obs"];
   const caseNames = Object.keys(data.cases).filter(name => !REF_NAMES.includes(name));
 
+  // Drop bins with no finite probability (Python writes NaN as null) so
+  // lines, peak dots and tooltips only ever see real values.
+  for (const name of Object.keys(data.cases)) {
+    for (const regimeKey of ["open", "strat"]) {
+      for (const variable of ["Nd", "LWC"]) {
+        const recs = data.cases[name][regimeKey][variable] || [];
+        data.cases[name][regimeKey][variable] = recs.filter(r => Number.isFinite(r.probability));
+      }
+    }
+  }
+
   const REF_STYLE = {
     // Fixed literal color (not a theme token), matching the dropsonde
     // dashboard's convention: Obs is always black.
@@ -420,7 +431,7 @@
 
       const peakIdx = points => points.reduce((best, p, i, arr) => (p.probability > arr[best].probability ? i : best), 0);
       gDots.selectAll(".end-dot")
-        .data(active, d => d.case)
+        .data(active.filter(d => d.points.length), d => d.case)
         .join("circle")
         .attr("class", "end-dot")
         .attr("r", 4)
@@ -430,8 +441,10 @@
         .attr("cy", d => y(d.points[peakIdx(d.points)].probability));
     }
 
+    // Full bin grid from the top-level centers when present, since a
+    // source's own records may have had non-finite bins dropped above.
     const gridSource = (data.cases.Obs ?? data.cases[caseNames[0]])[regimeKey][variable];
-    const xForHover = gridSource.map(d => d.bin_center);
+    const xForHover = data[`${variable}_centers`] ?? gridSource.map(d => d.bin_center);
     g.append("rect")
       .attr("class", "hover-layer")
       .attr("width", width)
@@ -439,14 +452,15 @@
       .on("mousemove", (event) => {
         const [mx] = d3.pointer(event);
         const xHover = x.invert(Math.max(0, Math.min(width, mx)));
+        if (!xForHover.length) return;
         const nearestX = xForHover.reduce((a, b) => (Math.abs(Math.log(b) - Math.log(xHover)) < Math.abs(Math.log(a) - Math.log(xHover)) ? b : a));
         gCrosshair.style("display", null).attr("transform", `translate(${x(nearestX)},0)`);
 
         const refRows = REF_NAMES
-          .filter(name => refVisible.has(name) && name in data.cases)
+          .filter(name => refVisible.has(name) && name in data.cases && data.cases[name][regimeKey][variable].length)
           .map(name => ({ label: REF_STYLE[name].label, ...REF_STYLE[name], pt: nearestPoint(data.cases[name][regimeKey][variable], nearestX) }));
         const caseRows = caseNames
-          .filter(name => visible.has(name))
+          .filter(name => visible.has(name) && data.cases[name][regimeKey][variable].length)
           .map(name => ({ label: name, ...style[name], pt: nearestPoint(data.cases[name][regimeKey][variable], nearestX) }));
         const rows = [...refRows, ...caseRows];
 

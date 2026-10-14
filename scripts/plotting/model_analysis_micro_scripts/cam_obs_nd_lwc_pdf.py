@@ -58,10 +58,20 @@ import plotting_utils as plot_utils
 
 
 
+def _json_float(v):
+    """
+    float(v), or None for NaN/inf - json.dump would otherwise write a bare
+    NaN token, which is invalid JSON and makes JSON.parse in the D3 page
+    fail. The dashboard drops non-finite records, so null is safe there.
+    """
+    v = float(v)
+    return v if np.isfinite(v) else None
+
+
 def _pdf_records(centers, probs):
     """A PDF as tidy per-bin records: [{"bin_center": c, "probability": p}, ...]."""
     return [
-        {"bin_center": float(c), "probability": float(p)}
+        {"bin_center": float(c), "probability": _json_float(p)}
         for c, p in zip(centers, probs)
     ]
 

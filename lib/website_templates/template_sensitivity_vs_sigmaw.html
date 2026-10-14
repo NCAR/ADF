@@ -263,6 +263,18 @@
   // "Obs" is a shared reference entry, a peer of the CAM cases - not nested
   // inside them, same convention as the dropsonde/Nd-LWC dashboards.
   const REF_NAMES = ["Obs"];
+
+  // Drop points with a non-finite w_mid/slope (Python writes NaN as null);
+  // a panel can also legitimately be empty with a null fit.
+  for (const name of Object.keys(data.cases)) {
+    for (const regimeKey of ["open", "strat"]) {
+      for (const drizzleKey of ["nondrizzle", "drizzle"]) {
+        const entry = data.cases[name][regimeKey][drizzleKey];
+        entry.points = (entry.points || []).filter(p => Number.isFinite(p.w_mid) && Number.isFinite(p.slope));
+      }
+    }
+  }
+  const fmt2 = v => (Number.isFinite(v) ? v.toFixed(2) : "n/a");
   const caseNames = Object.keys(data.cases).filter(name => !REF_NAMES.includes(name));
 
   const REF_STYLE = {
@@ -355,6 +367,7 @@
     // matplotlib's xx = np.linspace(np.nanmin(xfit), np.nanmax(xfit), 100)
     // rather than the full fixed axis range.
     function fitLinePoints(entry) {
+      if (!entry.points.length || !Number.isFinite(entry.fit.slope) || !Number.isFinite(entry.fit.intercept)) return [];
       const ws = entry.points.map(p => p.w_mid);
       const x0 = Math.min(...ws), x1 = Math.max(...ws);
       return [x0, x1].map(w => ({ w_mid: w, slope: entry.fit.intercept + entry.fit.slope * w }));
@@ -463,7 +476,7 @@
         row.append("span").attr("class", "stat-dot").style("background", d.color);
         row.append("span").attr("class", "stat-name").text(d.label);
         row.append("span").attr("class", "stat-val")
-          .text(`m=${d.entry.fit.slope.toFixed(2)}  R²=${d.entry.fit.r2.toFixed(2)}`);
+          .text(`m=${fmt2(d.entry.fit.slope)}  R²=${fmt2(d.entry.fit.r2)}`);
       });
     }
 
@@ -475,7 +488,7 @@
         const [mx] = d3.pointer(event);
         const xHover = x.invert(Math.max(0, Math.min(width, mx)));
 
-        const active = activeSeries();
+        const active = activeSeries().filter(d => d.entry.points.length);
         if (!active.length) { gCrosshair.style("display", "none"); tooltip.style("opacity", 0); return; }
 
         const rows = active.map(d => ({ ...d, pt: nearestPoint(d.entry.points, xHover) }));

@@ -6,6 +6,7 @@ Generates map with flight tracks and cloud regime pie chart.
 import os, xarray as xr
 from pathlib import Path
 import json
+import numpy as np
 import matplotlib.pyplot as plt
 
 #from dask_jobqueue import PBSCluster
@@ -27,10 +28,20 @@ _REGIME_KEYS = {"Open-Cell": "open", "Stratocumulus": "strat"}
 _DRIZZLE_KEYS = {False: "nondrizzle", True: "drizzle"}
 
 
+def _json_float(v):
+    """
+    float(v), or None for NaN/inf - json.dump would otherwise write a bare
+    NaN token, which is invalid JSON and makes JSON.parse in the D3 page
+    fail. The dashboard drops non-finite records, so null is safe there.
+    """
+    v = float(v)
+    return v if np.isfinite(v) else None
+
+
 def _sensitivity_records(panel_df):
     """A (regime, drizzle) panel's binned points: [{w_mid, slope, n}, ...], sorted by w_mid."""
     return [
-        {"w_mid": float(row.w_mid), "slope": float(row.slope), "n": int(row.n)}
+        {"w_mid": _json_float(row.w_mid), "slope": _json_float(row.slope), "n": int(row.n)}
         for row in panel_df.sort_values("w_mid").itertuples()
     ]
 
@@ -55,9 +66,9 @@ def _sensitivity_panel_entry(panel_df):
     return {
         "points": _sensitivity_records(panel_df),
         "fit": {
-            "slope": None if b is None or (b != b) else float(b),
-            "intercept": None if a is None or (a != a) else float(a),
-            "r2": None if r2 is None or (r2 != r2) else float(r2),
+            "slope": None if b is None else _json_float(b),
+            "intercept": None if a is None else _json_float(a),
+            "r2": None if r2 is None else _json_float(r2),
         },
     }
 

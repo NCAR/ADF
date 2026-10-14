@@ -33,13 +33,13 @@
       "CSET__nd_lwc__multi_CAM_StratocumulusNd.png": "7112803089f69721f5d8daa1fdaff2500cec075d18908e5fd99112ae5795a6a6"
     },
     "json": {
-      "dropsonde_profiles_CSET_fixture_config.json": "451a319dfcc11d3b952959b0d1d4c75e9f7557e8941d7210182ea2a157dde27d",
+      "dropsonde_profiles_CSET_fixture_config.json": "cb23ffd8aaa63c3a02fe553d4519077d38c9e120c223e8b19a6b104ee60b3834",
       "nd_lwc_pdf_CSET_Obs.json": "e5445281d444805d5acaa6a5cccf7ab69a8bcbae4e1daae53d77d1239ae5e7e8",
       "nd_lwc_pdf_CSET_caseA.json": "756d0918b98898dffee14a6f951416aa76cfbc830bed779b364110e2075dc8df",
       "nd_lwc_pdf_CSET_caseB.json": "e13fba0df97fa7c6e6f08e48bab8f62f1506e694741baa7c40ad9f6b43db1466",
       "nd_lwc_pdfs_CSET_fixture_config.json": "cf40dc12440a9c45e2b131c6faab8946593e36f729382af6670b3a6564ed681b",
       "sonde_profile_CSET_ERA5.json": "524eace7a23d142526d3046a90e1643e26b08fa78a6db61dbca4bf2e73fce3fd",
-      "sonde_profile_CSET_Obs.json": "40d95be169c2d607af832d4966c31fe1e6156647cc5a91af7ac4d568735474f3",
+      "sonde_profile_CSET_Obs.json": "7d8f9c284a016e968a182867fde5c60bddb9cb49fb71174568c8ec12faee61e0",
       "sonde_profile_CSET_caseA.json": "367fbc4a3f749e7348fe6463a7380cc179c8bd60ed3569d97cf8c22232c86f7b",
       "sonde_profile_CSET_caseB.json": "b87b9c3b777b1455892553809d7d79ed03ae54f3c9ac299fc3da71e5db6272db"
     },
