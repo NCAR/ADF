@@ -78,11 +78,21 @@ def load_cam_files(cam_dir, file_sel, tmin, tmax, campaign):
     if campaign == 'SOCRATES':
         # rename variables to remove weird end
         suffix = "_130e_to_170e_35s_to_65s"
-        ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars})
-        ds_cam = ds_cam.rename({
-            "lat_35s_to_65s": "lat",
-            "lon_130e_to_170e": "lon"
-        })
+        # (only present when the CAM output was regionally subset)
+        ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars if suffix in var})
+
+        if "lat_35s_to_65s" in ds_cam:
+            ds_cam = ds_cam.rename({
+                "lat_35s_to_65s": "lat"
+            })
+        if "lon_130e_to_170e" in ds_cam:
+            ds_cam = ds_cam.rename({
+                "lon_130e_to_170e": "lon"
+            })
+        #ds_cam = ds_cam.rename({
+        #    "lat_35s_to_65s": "lat",
+        #    "lon_130e_to_170e": "lon"
+        #})
     elif campaign == 'CSET':
         suffix = "_200e_to_245e_15n_to_45n"
         ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars})
