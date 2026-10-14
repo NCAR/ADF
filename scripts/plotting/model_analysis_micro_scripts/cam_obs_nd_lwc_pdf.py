@@ -228,7 +228,7 @@ def cam_obs_nd_lwc_pdf(adf, All_rf_df, ds_cams, campaign, case_info=None):
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     yup = Path(adf.config_file_dict["name"])
-    plot_loc = Path(adf.plot_location)
+    plot_loc = Path(adf.plot_location[0])
     # JSON exports live alongside the dashboard/html files
     # (created already by AdfWeb.__init__, but mkdir here too to be safe):
     website_dir = plot_loc / "website"

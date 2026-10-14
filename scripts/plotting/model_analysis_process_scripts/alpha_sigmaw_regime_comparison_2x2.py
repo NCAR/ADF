@@ -43,7 +43,7 @@ def alpha_sigmaw_regime_comparison_2x2(adf, All_rf_df, ds_cams, campaign, case_i
         print("  create_html is False: skipping sigma W regime comparison plots.")
         return
 
-    plot_loc = Path(adf.plot_location)
+    plot_loc = Path(adf.plot_location[0])
 
     def _make_and_register(cases, cam_desc, img_base):
         """Build one 2x2 figure for `cases` vs Obs from the cached tables and

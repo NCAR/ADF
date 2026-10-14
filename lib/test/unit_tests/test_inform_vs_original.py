@@ -388,7 +388,14 @@ def _functions(path):
 
 
 def _normalized(node):
-    return ast.dump(_StripLogging().visit(ast.parse(ast.unparse(node))))
+    tree = _StripLogging().visit(ast.parse(ast.unparse(node)))
+    # Python 3.12 added an (empty unless generic) "type_params" field to
+    # function and class definitions; drop it so the same code gives the same
+    # fingerprint on every Python (ast.dump skips missing fields):
+    for n in ast.walk(tree):
+        if getattr(n, "type_params", None) == []:
+            del n.type_params
+    return ast.dump(tree)
 
 
 def _sha(node):
@@ -972,7 +979,7 @@ class _FakeAdf:
     """The parts of AdfDiag the INFORM diagnostics use."""
 
     def __init__(self, plot_loc):
-        self.plot_location = str(plot_loc)
+        self.plot_location = [str(plot_loc)]
         self.config_file_dict = {"name": "fixture_config"}
         self.create_html = True
         self.website = []
@@ -1253,7 +1260,7 @@ def test_inform_cache_root_choices(tmp_path):
     import cam_diagnostic as cdog
 
     class _Adf:
-        plot_location = str(tmp_path / "plots")
+        plot_location = [str(tmp_path / "plots")]
         campaigns_dict = {
             "name": ["SOCRATES", "CSET"],
             "composited_data": [str(tmp_path / "s"), str(tmp_path / "c")],

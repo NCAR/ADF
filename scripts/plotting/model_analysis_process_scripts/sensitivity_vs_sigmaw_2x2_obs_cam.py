@@ -262,7 +262,7 @@ def sensitivity_vs_sigmaw_2x2_obs_cam(adf, All_rf_df, ds_cams, campaign, case_in
     msg = "\n  Generating CAM-Obs Sigma w sensitivity plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    plot_loc = Path(adf.plot_location)
+    plot_loc = Path(adf.plot_location[0])
     yup = Path(adf.config_file_dict["name"])
     # JSON exports live alongside the dashboard/html files
     # (created already by AdfWeb.__init__, but mkdir here too to be safe):

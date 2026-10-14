@@ -26,6 +26,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import adf_utils as utils
+
 # Check if "PyYAML" is present in python path:
 # pylint: disable=unused-import
 try:
@@ -67,6 +69,30 @@ except ImportError:
     print("Please install module, e.g. 'pip install Cartopy'.")
     sys.exit(1)
 
+# Check if "uxarray" is present in python path:
+# try:
+#    import uxarray as ux
+# except ImportError:
+#    print("uxarray module does not exist in python path.")
+#    print("Please install module, e.g. 'pip install uxarray'.")
+#    sys.exit(1)
+
+# Check if "esmpy" is present in python path:
+try:
+    import esmpy
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install esmpy'.")
+    sys.exit(1)
+
+# Check if "xesmf" is present in python path:
+try:
+    import xesmf
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install xesmf'.")
+    sys.exit(1)
+
 # pylint: enable=unused-import
 
 # +++++++++++++++++++++++++++++
@@ -95,9 +121,16 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 # +++++++++++++++++++++++++++++
 
 # Finally, import needed ADF modules:
+from adf_file_utils import (
+    as_hist_str_list,
+    describe_dir_problem,
+    select_ts_files,
+    ts_files_need_combining,
+)
 from adf_web import AdfWeb
 from adf_dataset import AdfData
-from adf_derive import check_derive, derive_variable
+from adf_derive import check_derive, derive_variable, find_constit
+from adf_utils import request_pressure_field, request_pressure_field_from_ts
 
 #################
 # Helper functions
@@ -138,7 +171,6 @@ def construct_index_info(page_dict, fnam, opf):
 
 
 class AdfDiag(AdfWeb):
-
     """
     Main ADF diagnostics object.
 
@@ -225,7 +257,7 @@ class AdfDiag(AdfWeb):
                 func_name = list(func_name.keys())[0]
             elif isinstance(func_name, str):
                 has_opt = False
-                opt = ''
+                opt = ""
             else:
                 raise TypeError(
                     "Provided script must either be a string or a dictionary."
@@ -377,6 +409,242 @@ class AdfDiag(AdfWeb):
 
     #########
 
+    def derive_from_premade_ts(
+        self, case_name, ts_dir, res, hist_strs, *, syr=None, eyr=None
+    ):
+        """
+        Derive variables that a set of pre-made time series does not contain.
+
+        A run configured with ``cam_ts_done: true`` skips the time series
+        step, and derivation used to happen only inside that step, decided by
+        looking for constituents in a history file.  A pre-made set therefore
+        never gained its derived variables: with ``FSNT`` and ``FLNT`` present
+        and ``RESTOM`` requested, the climatology step reported ``RESTOM`` as
+        having no time series files and the run still ended "successfully".
+        This derives from the time series that are there instead, so the
+        constituents alone are enough.
+
+        Nothing is written when the directory belongs to someone else, since
+        the derived file is written alongside its constituents.  That case is
+        reported rather than attempted, because the alternative is a
+        ``PermissionError`` traceback partway through a run.
+
+        Parameters
+        ----------
+        case_name : str
+            name of the case being processed
+        ts_dir : str or Path
+            directory holding the pre-made time series files
+        res : dict
+            variable defaults, used for the ``derivable_from`` lists
+        hist_strs : list
+            configured history stream(s) for this case
+        syr, eyr : int, optional
+            first and last year being processed
+
+        Returns
+        -------
+        None
+            Writes a time series file for each variable it can derive.
+
+        Notes
+        -----
+        Uses ``self.diag_var_list`` and :func:`derive_variable`.
+        """
+        # Which variables could be derived at all.  A variable can declare
+        # both a CAM-CHEM constituent list and a plain CAM one:
+        derivable = []
+        for var in self.diag_var_list:
+            vres = res.get(var, {})
+            if vres.get("derivable_from") or vres.get("derivable_from_cam_chem"):
+                derivable.append(var)
+            # End if
+        # End for
+        if not derivable:
+            return
+        # End if
+
+        # An unset stream is legal here: with pre-made time series there are no
+        # history files to name one, and the searches are then meant to match
+        # any stream, which find_constit does when given None.
+        streams = as_hist_str_list(hist_strs) or [None]
+
+        # Work out what is actually missing before writing anything, so that a
+        # directory the ADF cannot write in is only reported when there is
+        # something it would have had to write:
+        todo = []
+        for hist_str in streams:
+            for var in derivable:
+                # Already there, from a previous run or from whoever made them:
+                if find_constit(ts_dir, case_name, var, hist_str, syr=syr, eyr=eyr):
+                    continue
+                # End if
+                todo.append(
+                    (
+                        hist_str,
+                        var,
+                        self._premade_constits(
+                            res[var], ts_dir, case_name, hist_str, syr=syr, eyr=eyr
+                        ),
+                    )
+                )
+            # End for
+        # End for
+        if not todo:
+            return
+        # End if
+
+        # The derived file lands next to its constituents, so a directory this
+        # user cannot write in cannot gain one:
+        ts_problem = describe_dir_problem(ts_dir, need_write=True)
+        if ts_problem:
+            wmsg = f"\t WARNING: {sorted({var for _, var, _ in todo})} would have"
+            wmsg += f" to be derived, but {ts_problem}."
+            wmsg += "\n\t     ** Those variables will be missing. **\n"
+            wmsg += "\t     Set 'cam_ts_done: false' with 'cam_hist_loc' pointing at"
+            wmsg += " the history files and 'cam_ts_loc' at a directory you own, to"
+            wmsg += " have the ADF make the time series itself."
+            print(wmsg)
+            self.debug_log(wmsg)
+            return
+        # End if
+
+        for hist_str, var, constit_list in todo:
+            derive_variable(
+                self,
+                case_name,
+                var,
+                res,
+                ts_dir,
+                constit_list,
+                hist_str=hist_str,
+                syr=syr,
+                eyr=eyr,
+            )
+        # End for
+
+    #########
+
+    def _premade_constits(
+        self, vres, ts_dir, case_name, hist_str, *, syr=None, eyr=None
+    ):
+        """
+        Choose which constituent list to derive a variable from.
+
+        A variable can declare both ``derivable_from_cam_chem`` and
+        ``derivable_from``, and :func:`check_derive` takes the CAM-CHEM list
+        only when every one of its constituents is present, falling back to the
+        plain CAM list otherwise.  The same choice has to be made here, from
+        the time series files rather than from a history file: ``SO4`` and
+        ``SOA`` both carry two lists, so preferring the CAM-CHEM one outright
+        would ask an ordinary CAM run for constituents it never wrote.
+
+        Parameters
+        ----------
+        vres : dict
+            variable defaults for the one variable being derived
+        ts_dir : str or Path
+            directory holding the pre-made time series files
+        case_name : str
+            name of the case being processed
+        hist_str : str or None
+            history stream being processed; ``None`` matches any stream
+        syr, eyr : int, optional
+            first and last year being processed
+
+        Returns
+        -------
+        list
+            The constituent names to derive from.  The plain CAM list is
+            returned when neither list is complete, so that
+            :func:`derive_variable` reports what is missing against the more
+            likely intent.
+        """
+        cam_chem = vres.get("derivable_from_cam_chem")
+        if cam_chem and all(
+            find_constit(ts_dir, case_name, constit, hist_str, syr=syr, eyr=eyr)
+            for constit in cam_chem
+        ):
+            return cam_chem
+        # End if
+        return vres.get("derivable_from") or cam_chem or []
+
+    #########
+
+    def grid_native_time_series(
+        self, case_name, case_idx, ts_dir, hist_strs, overwrite, baseline=False
+    ):
+        """
+        Grid a native-grid case's time series to lat/lon, into "gridded".
+
+        Only for a case on a native (unstructured) grid that is not being
+        plotted natively: the diagnostics then read the lat/lon copies, which
+        are made with the case's weights file.  Used after either time series
+        back end, which both name their files ``$case.$hist_str.$var.$dates.nc``.
+
+        Parameters
+        ----------
+        case_name : str
+            The case (or baseline) name.
+        case_idx : int
+            The case's position among the test cases (unused for the baseline).
+        ts_dir : str or pathlib.Path
+            The case's time series directory.
+        hist_strs : list of str
+            The case's history streams.
+        overwrite : bool
+            Re-grid files that already have a gridded copy.
+        baseline : bool, optional
+            Whether `case_name` is the baseline.
+        """
+        if not self.native_grid.get(case_name, False) or self.unstructured_plotting:
+            return
+        # End if
+
+        if baseline:
+            wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
+            method = self.latlon_regrid_method["baseline_regrid_method"]
+        else:
+            wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
+            method = self.latlon_regrid_method["test_regrid_method"][case_idx]
+        # End if
+        if not wgts_file:
+            # Every variable of the case would fail the same way, so stop here:
+            emsg = f"'{case_name}' is on a native grid, but has no 'weights_file' to"
+            emsg += (
+                " grid it to lat/lon.  Add one, or set 'unstructured_plotting: true'."
+            )
+            self.end_diag_fail(emsg)
+        # End if
+
+        gridded_loc = Path(ts_dir) / "gridded"
+        gridded_loc.mkdir(parents=True, exist_ok=True)
+        print(f"\n    Gridding native time series for '{case_name}' to {gridded_loc}")
+
+        for hist_str in hist_strs or []:
+            # This case's files for this stream only: the directory may hold
+            # other streams or other cases.
+            for fil in sorted(Path(ts_dir).glob(f"{case_name}.{hist_str}.*.nc")):
+                gridded_file = gridded_loc / fil.name.replace(".nc", "_gridded.nc")
+                if gridded_file.is_file() and not overwrite:
+                    print(
+                        f"\t    INFO: {gridded_file.name} exists and overwrite is False."
+                    )
+                    continue
+                # End if
+                var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
+                with xr.open_dataset(fil) as ts_ds:
+                    gridded = utils.grid_to_latlon(
+                        ts_ds,
+                        var,
+                        wgt_file=wgts_file,
+                        method=method,
+                    )
+                    save_to_nc(gridded, gridded_file)
+                # End with
+            # End for
+        # End for
+
     def create_time_series(self, baseline=False):
         """
         Generate time series versions of the CAM history file data.
@@ -390,7 +658,23 @@ class AdfDiag(AdfWeb):
         ts_tool = self.get_basic_info("ts_tool") or "adf"
         if str(ts_tool).lower() == "gents":
             from adf_gents import create_time_series_gents
-            return create_time_series_gents(self, baseline=baseline)
+
+            result = create_time_series_gents(self, baseline=baseline)
+            # GenTS writes the same file names, so the native-grid step that
+            # follows the built-in back end applies unchanged:
+            cfg = self.get_ts_case_config(baseline=baseline)
+            for case_idx, case_name in enumerate(cfg["case_names"]):
+                if cfg["cam_ts_done"][case_idx]:
+                    continue
+                self.grid_native_time_series(
+                    case_name,
+                    case_idx,
+                    cfg["ts_dirs"][case_idx],
+                    cfg["hist_str_list"][case_idx],
+                    cfg["overwrite_ts"][case_idx],
+                    baseline=baseline,
+                )
+            return result
         # End if
         if str(ts_tool).lower() != "adf":
             emsg = f"Unknown 'ts_tool' value '{ts_tool}'."
@@ -398,7 +682,7 @@ class AdfDiag(AdfWeb):
             self.end_diag_fail(emsg)
         # End if
 
-        #Notify user that script has started:
+        # Notify user that script has started:
         msg = "\n  Calculating CAM time series..."
         print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
@@ -411,6 +695,36 @@ class AdfDiag(AdfWeb):
             It is declared as global to avoid AttributeError.
             """
             return subprocess.run(cmd, shell=False)
+
+        # End def
+
+        def run_pool(commands, label):
+            """Run NCO commands in parallel, reporting each one as it finishes.
+
+            Results are consumed with ``imap_unordered`` rather than ``map`` so
+            that the progress lines appear while the commands are still running.
+            Without them the terminal sits silent for the whole batch, long
+            enough for an ssh session to time out on a large ``diag_var_list``.
+
+            Parameters
+            ----------
+            commands : list
+                NCO commands, each an argument list for :func:`call_ncrcat`.
+            label : str
+                Name of this batch of commands, used in the progress output.
+
+            Returns
+            -------
+            None
+                Writes the files produced by ``commands``.
+            """
+            ntot = len(commands)
+            with mp.Pool(processes=self.num_procs) as mpool:
+                for num, _ in enumerate(mpool.imap_unordered(call_ncrcat, commands), 1):
+                    print(f"\t     {label}: {num} of {ntot} done", flush=True)
+                # End for
+            # End with
+
         # End def
 
         # Gather the per-case configuration (shared with the GenTS back end):
@@ -441,25 +755,48 @@ class AdfDiag(AdfWeb):
             print(f"\n  Generating CAM time series files for '{case_name}'...")
             print(f"\n    Writing time series files to {ts_dir}")
 
-            # Check if particular case should be processed:
-            if cam_ts_done[case_idx]:
-                emsg = "\tNOTE: Configuration file indicates time series files have been "
-                emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
-                print(emsg)
-                continue
-            # End if
-
             # Extract start and end year values:
             start_year = start_years[case_idx]
             end_year = end_years[case_idx]
 
+            # Check if particular case should be processed:
+            if cam_ts_done[case_idx]:
+                emsg = (
+                    "\tNOTE: Configuration file indicates time series files have been "
+                )
+                emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
+                print(emsg)
+                # Derived variables are normally made as part of writing the
+                # time series, which is exactly the step being skipped here, so
+                # without this nothing would ever create them and the variable
+                # would go quietly missing (issue #431):
+                self.derive_from_premade_ts(
+                    case_name,
+                    ts_dir,
+                    res,
+                    hist_str_list[case_idx],
+                    syr=start_year,
+                    eyr=end_year,
+                )
+                # The history-file scan below is skipped along with everything
+                # else, so look for the pressure field among the time series
+                # themselves.  Without this a run on pre-made time series
+                # always falls back to PS and the hybrid coefficients, even
+                # when the model wrote its own pressure.
+                request_pressure_field_from_ts(
+                    self, ts_dir, case_name, hist_str_list[case_idx]
+                )
+                continue
+            # End if
+
             # Create path object for the CAM history file(s) location:
             starting_location = Path(cam_hist_locs[case_idx])
 
-            # Check that path actually exists:
-            if not starting_location.is_dir():
+            # Check that the path exists and can be read:
+            hist_problem = describe_dir_problem(starting_location)
+            if hist_problem:
                 emsg = f"Provided {case_type_string} 'cam_hist_loc' directory"
-                emsg += f" '{starting_location}' not found.  Script is ending here."
+                emsg += f" {hist_problem}.  Script is ending here."
                 self.end_diag_fail(emsg)
             # End if
 
@@ -467,11 +804,12 @@ class AdfDiag(AdfWeb):
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
 
-                print(f"\t Processing time series for {case_type_string} {case_name}, {hist_str} files:")
+                print(
+                    f"\t Processing time series for {case_type_string} {case_name},"
+                    f" {hist_str} files:"
+                )
                 if not list(starting_location.glob("*" + hist_str + ".*.nc")):
-                    emsg = (
-                        f"No history *{hist_str}.*.nc files found in '{starting_location}'."
-                    )
+                    emsg = f"No history *{hist_str}.*.nc files found in '{starting_location}'."
                     emsg += " Script is ending here."
                     self.end_diag_fail(emsg)
                 # End if
@@ -530,23 +868,23 @@ class AdfDiag(AdfWeb):
                             else:
                                 # Print a warning, and assume that no vertical
                                 # level information is needed.
-                                wmsg = (
-                                    "WARNING! Unable to determine the vertical coordinate"
-                                )
+                                wmsg = "WARNING! Unable to determine the vertical coordinate"
                                 wmsg = " type from the 'lev' long name,"
                                 wmsg += f" which is:\n'{lev_long_name}'."
                                 wmsg += "\nNo additional vertical coordinate information will be"
-                                wmsg += " transferred beyond the 'lev' dimension itself."
+                                wmsg += (
+                                    " transferred beyond the 'lev' dimension itself."
+                                )
                                 print(wmsg)
 
                                 vert_coord_type = None
                             # End if
                         else:
                             # Print a warning, and assume hybrid levels (for now):
-                            wmsg = "WARNING!  No long name found for the 'lev' dimension,"
-                            wmsg += (
-                                " so no additional vertical coordinate information will be"
+                            wmsg = (
+                                "WARNING!  No long name found for the 'lev' dimension,"
                             )
+                            wmsg += " so no additional vertical coordinate information will be"
                             wmsg += " transferred beyond the 'lev' dimension itself."
                             print(wmsg)
 
@@ -584,6 +922,20 @@ class AdfDiag(AdfWeb):
                 # Create copy of var list that can be modified for derivable variables
                 diag_var_list = self.diag_var_list
 
+                # The model's own 3-D pressure field is the preferred source for
+                # vertical interpolation (see regrid_and_vert_interp), so give it
+                # a time series of its own when the model writes one -- once per
+                # case, rather than a copy inside every 3-D variable's file.  A
+                # model that writes no pressure field is unaffected: the
+                # regridder falls back to PS and the hybrid coefficients.
+                # No vert_coord_type gate here: request_pressure_field checks
+                # that some requested variable is actually on a model level,
+                # which is the question that matters, and checking it there
+                # keeps the two time series back ends in agreement.
+                if request_pressure_field(self, hist_file_ds):
+                    diag_var_list = self.diag_var_list
+                # End if
+
                 # Intitialize dictionary for derived variables, if appplicable
                 constit_dict = {}
 
@@ -613,18 +965,30 @@ class AdfDiag(AdfWeb):
                     # Check if current variable is not in history file(s)
                     if var not in hist_file_var_list:
                         # Let user know variable is not
-                        print(f"\t     {var} not in history file, will try to derive if possible")
+                        print(
+                            f"\t     {var} not in history file, will try to derive if possible"
+                        )
 
                         # Check if variable can be derived
-                        diag_var_list, constit_dict = check_derive(self, res, var, case_name,
-                                                                    diag_var_list, constit_dict,
-                                                                    hist_file_ds, hist_files[0])
+                        diag_var_list, constit_dict = check_derive(
+                            self,
+                            res,
+                            var,
+                            case_name,
+                            diag_var_list,
+                            constit_dict,
+                            hist_file_ds,
+                            hist_files[0],
+                        )
                         # Move to the next variable
                         continue
                     # End if
 
                     # Check if variable has a "lev" dimension according to first file:
-                    has_lev = bool("lev" in hist_file_ds[var].dims or "ilev" in hist_file_ds[var].dims)
+                    has_lev = bool(
+                        "lev" in hist_file_ds[var].dims
+                        or "ilev" in hist_file_ds[var].dims
+                    )
 
                     # Check if files already exist in time series directory:
                     ts_file_list = glob.glob(ts_outfil_str)
@@ -637,6 +1001,14 @@ class AdfDiag(AdfWeb):
 
                     # Variable list starts with just the variable
                     ncrcat_var_list = f"{var}"
+
+                    # On a native grid the cell centres and areas are separate
+                    # variables, not coordinates, so ncrcat has to be asked for
+                    # them (the GenTS back end copies them by itself):
+                    if "ncol" in hist_file_ds[var].dims:
+                        for extra in ("lat", "lon", "area"):
+                            if extra in hist_file_var_list:
+                                ncrcat_var_list += f",{extra}"
 
                     # Determine "ncrcat" command to generate time series file:
                     if "date" in hist_file_ds[var].dims:
@@ -659,50 +1031,49 @@ class AdfDiag(AdfWeb):
                                 print(wmsg)
                             # End if
 
-                            if vert_coord_type == "height":
-                                # Adding PMID here works, but significantly increases
-                                # the storage (disk usage) requirements of the ADF.
-                                # This can be alleviated in the future by figuring out
-                                # a way to determine all of the regridding targets at
-                                # the start of the ADF run, and then regridding a single
-                                # PMID file to each one of those targets separately. -JN
-                                if "PMID" in hist_file_var_list:
-                                    ncrcat_var_list = ncrcat_var_list + ",PMID"
-                                    print("\t     Adding PMID to file")
-                                else:
-                                    wmsg = "WARNING: PMID not found in history file."
-                                    wmsg += " It might be needed at some point."
-                                    print(wmsg)
-                                # End if PMID
-                            # End if height
                         # End if cam
                     # End if has_lev
 
                     cmd = (
-                        ["ncrcat", "-O", "-4", "-h", "--no_cll_mth", "-v", ncrcat_var_list]
+                        [
+                            "ncrcat",
+                            "-O",
+                            "-4",
+                            "-h",
+                            "--no_cll_mth",
+                            "-v",
+                            ncrcat_var_list,
+                        ]
                         + hist_files
                         + ["-o", ts_outfil_str]
                     )
 
-                    # Convert Path objects to strings and concatenate the list of 
+                    # Convert Path objects to strings and concatenate the list of
                     # historical files into a single string
-                    hist_files_str = ', '.join(str(f.name) for f in hist_files)
-                    hist_locs_str = ', '.join(str(loc) for loc in cam_hist_locs)
+                    hist_files_str = ", ".join(str(f.name) for f in hist_files)
+                    hist_locs_str = ", ".join(str(loc) for loc in cam_hist_locs)
 
                     # Create the ncatted command to add both global attributes
                     cmd_ncatted = [
-                        "ncatted", "-O",
-                        "-a", "adf_user,global,a,c," + f"{self.user}",
-                        "-a", "hist_file_locs,global,a,c," + f"{hist_locs_str}",
-                        "-a", "hist_file_list,global,a,c," + f"{hist_files_str}",
-                        ts_outfil_str
+                        "ncatted",
+                        "-O",
+                        "-a",
+                        "adf_user,global,a,c," + f"{self.user}",
+                        "-a",
+                        "hist_file_locs,global,a,c," + f"{hist_locs_str}",
+                        "-a",
+                        "hist_file_list,global,a,c," + f"{hist_files_str}",
+                        ts_outfil_str,
                     ]
 
                     # Create the ncatted command to remove the history attribute
                     cmd_remove_history = [
-                        "ncatted", "-O", "-h",
-                        "-a", "history,global,d,,",
-                        ts_outfil_str
+                        "ncatted",
+                        "-O",
+                        "-h",
+                        "-a",
+                        "history,global,d,,",
+                        ts_outfil_str,
                     ]
 
                     # Add to command list for use in multi-processing pool:
@@ -717,25 +1088,61 @@ class AdfDiag(AdfWeb):
                     list_of_hist_commands.append(cmd_remove_history)
                 # End variable loop
 
+                # Only now is a write actually required.  Checking earlier
+                # would fail a run that writes nothing because every file is
+                # already there and 'cam_overwrite_ts' is false -- which is how
+                # a read-only directory of finished time series works today.
+                # "ncrcat" would otherwise fail once per variable, and those
+                # failures are not inspected, so the run would carry on and
+                # only report the files as missing much later:
+                if list_of_commands:
+                    ts_problem = describe_dir_problem(ts_dir, need_write=True)
+                    if ts_problem:
+                        emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
+                        emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory"
+                        emsg += " you own, or set 'cam_ts_done: true' to read the"
+                        emsg += " time series that are already there."
+                        self.end_diag_fail(emsg)
+                    # End if
+                # End if
+
                 # Now run the "ncrcat" subprocesses in parallel:
-                with mp.Pool(processes=self.num_procs) as mpool:
-                    _ = mpool.map(call_ncrcat, list_of_commands)
+                run_pool(list_of_commands, "ncrcat")
 
                 # Run ncatted commands after ncrcat is done
-                with mp.Pool(processes=self.num_procs) as mpool:
-                    _ = mpool.map(call_ncrcat, list_of_ncatted_commands)
+                run_pool(list_of_ncatted_commands, "global attributes")
 
                 # Run ncatted command to remove history attribute
                 # after the global attributes are set
-                with mp.Pool(processes=self.num_procs) as mpool:
-                    _ = mpool.map(call_ncrcat, list_of_hist_commands)
+                run_pool(list_of_hist_commands, "history attribute")
 
                 # Finally, run through the derived variables if applicable
                 if constit_dict:
                     for der_var, constit_list in constit_dict.items():
-                        derive_variable(self, case_name, der_var, res,
-                                        ts_dir, constit_list, hist_str=hist_str)
+                        derive_variable(
+                            self,
+                            case_name,
+                            der_var,
+                            res,
+                            ts_dir,
+                            constit_list,
+                            hist_str=hist_str,
+                            syr=start_year,
+                            eyr=end_year,
+                        )
+
             # End for hist_str
+
+            # Native-grid data plotted on lat/lon reads gridded copies of the
+            # time series:
+            self.grid_native_time_series(
+                case_name,
+                case_idx,
+                ts_dir,
+                hist_str_case,
+                overwrite_ts[case_idx],
+                baseline=baseline,
+            )
         # End cases loop
 
         # Notify user that script has ended:
@@ -979,9 +1386,7 @@ class AdfDiag(AdfWeb):
 
         cvdp_dir = os.path.abspath(cvdp_dir)
         if not os.path.isdir(cvdp_dir):
-            shutil.copytree(
-                self.get_cvdp_info("cvdp_codebase_loc"), cvdp_dir
-            )
+            shutil.copytree(self.get_cvdp_info("cvdp_codebase_loc"), cvdp_dir)
         # End if
 
         # intialize objects that might not be declared later
@@ -997,10 +1402,10 @@ class AdfDiag(AdfWeb):
             eyears_baseline = self.climo_yrs["eyear_baseline"]
             baseline_ts_loc = self.get_baseline_info("cam_ts_loc")
         else:
-            case_name_baseline = ''
+            case_name_baseline = ""
             syears_baseline = 0
             eyears_baseline = 0
-            baseline_ts_loc = ''
+            baseline_ts_loc = ""
         # End if
 
         # Loop over cases to create individual text array to be written to namelist file.
@@ -1116,7 +1521,6 @@ class AdfDiag(AdfWeb):
 
     #########
 
-
     ######### MDTF functions #########
     def setup_run_mdtf(self):
         """
@@ -1126,7 +1530,9 @@ class AdfDiag(AdfWeb):
 
         """
 
-        copy_files_only = False  # True (copy files but don't run), False (copy files and run MDTF)
+        copy_files_only = (
+            False  # True (copy files but don't run), False (copy files and run MDTF)
+        )
         # Note that the MDTF variable test_mode (set in the mdtf_info of the yaml file)
         # has a different meaning: Data is fetched but PODs are not run.
 
@@ -1233,9 +1639,9 @@ class AdfDiag(AdfWeb):
         # Going to need a dict to translate.
         # Use cesm_freq_strings = freq_string_options.keys
         # and then freq = freq_string_option(freq_string_found)
-        freq_string_cesm    = ["month", "day", "hour_6", "hour_3", "hour_1"]  #keys
-        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]           #values
-        freq_string_dict    = dict(zip(freq_string_cesm,freq_string_options)) #make dict
+        freq_string_cesm = ["month", "day", "hour_6", "hour_3", "hour_1"]  # keys
+        freq_string_options = ["month", "day", "6hr", "3hr", "1hr"]  # values
+        freq_string_dict = dict(zip(freq_string_cesm, freq_string_options))  # make dict
 
         hist_str_list = self.get_cam_info("hist_str")
         case_names = self.get_cam_info("cam_case_name", required=True)
@@ -1259,15 +1665,38 @@ class AdfDiag(AdfWeb):
                     )  # * to match timestamp: could be multiples
                     adf_file_list = glob.glob(adf_file_str)
 
+                    # Keep only the files needed for this case's years, so that
+                    # a directory holding more than one set for the same
+                    # variable does not come down to a guess:
+                    adf_file_list = select_ts_files(
+                        adf_file_list,
+                        self.climo_yrs["syears"][case_idx],
+                        self.climo_yrs["eyears"][case_idx],
+                    )
+
+                    # Consecutive files, which is what GenTS writes when
+                    # 'gents_slice_years' is set, are combined below, since
+                    # MDTF wants one file per variable.  Files that overlap
+                    # cannot be combined -- select_ts_files hands back a set it
+                    # could not resolve -- so those keep the older behavior of
+                    # copying the first and saying so.
+                    combine_files = ts_files_need_combining(adf_file_list)
+
                     if len(adf_file_list) == 1:
                         if verbose > 1:
                             print(f"Copying ts file: {adf_file_list} to MDTF dir")
+                    elif combine_files:
+                        if verbose > 1:
+                            print(
+                                f"Combining {len(adf_file_list)} ts files into "
+                                "one file for the MDTF dir"
+                            )
                     elif len(adf_file_list) > 1:
                         if verbose > 0:
                             print(
-                                f"""WARNING: found multiple timeseries files {adf_file_list}.
-                                 Continuing with best guess; suggest cleaning up multiple 
-                                    dates in ts dir"""
+                                f"""WARNING: found multiple timeseries files {adf_file_list}
+                                 covering overlapping periods. Continuing with the first;
+                                    suggest cleaning up multiple dates in ts dir"""
                             )
                     else:
                         if verbose > 1:
@@ -1276,9 +1705,10 @@ class AdfDiag(AdfWeb):
                                      found in {adf_file_str}. Skipping"""
                             )
                         continue  # skip this case/hist_str/var file
+                    adf_file_list = sorted(adf_file_list)
                     adf_file = adf_file_list[0]
 
-                    # If freq is not set, it means we just started this hist_str. 
+                    # If freq is not set, it means we just started this hist_str.
                     # So check the first ADF file to find it
                     hist_file_ds = xr.open_dataset(
                         adf_file, decode_cf=False, decode_times=False
@@ -1333,9 +1763,7 @@ class AdfDiag(AdfWeb):
                     mdtf_file_list = glob.glob(
                         mdtf_file
                     )  # Check if file already exists in MDTF directory
-                    if (
-                        mdtf_file_list
-                    ):  # If file exists, don't overwrite:
+                    if mdtf_file_list:  # If file exists, don't overwrite:
                         # To do in the future: add logic that says to over-write or not
                         if verbose > 1:
                             print(
@@ -1343,9 +1771,64 @@ class AdfDiag(AdfWeb):
                             )
                         continue  # simply skip file copy for this variable:
 
+                    if combine_files:
+                        # Write the consecutive files out as the single file
+                        # MDTF expects instead of copying just the first.  If
+                        # combining fails for any reason, copying one file is
+                        # still better than ending the whole ADF run:
+                        if verbose > 1:
+                            print(f"writing {adf_file_list} to {mdtf_file}")
+                        try:
+                            with xr.open_mfdataset(
+                                adf_file_list, decode_times=False, combine="by_coords"
+                            ) as mdtf_ds:
+                                mdtf_ds.to_netcdf(mdtf_file)
+                            # End with
+                            continue
+                        except (ValueError, OSError) as err:
+                            if verbose > 0:
+                                print(
+                                    f"""WARNING: could not combine {adf_file_list}
+                                     into one file ({err}). Continuing with the first."""
+                                )
+                        # End try
+                    # End if
+
                     if verbose > 1:
                         print(f"copying {adf_file} to {mdtf_file}")
                     shutil.copyfile(adf_file, mdtf_file)
                 # end for hist_str
             # end for var
         # end for case
+
+
+########
+
+# Helper Function(s)
+
+
+def save_to_nc(tosave, outname, attrs=None, proc=None):
+    """Saves xarray variable to new netCDF file"""
+
+    xo = tosave  # used to have more stuff here.
+    # deal with getting non-nan fill values.
+    if isinstance(xo, xr.Dataset):
+        enc_dv = {xname: {"_FillValue": None} for xname in xo.data_vars}
+    else:
+        enc_dv = {}
+    # End if
+    enc_c = {xname: {"_FillValue": None} for xname in xo.coords}
+    enc = {**enc_c, **enc_dv}
+    if attrs is not None:
+        xo.attrs = attrs
+    if proc is not None:
+        # The file(s) this data came from, as recorded when it was made:
+        origname = tosave.attrs.get(
+            "time_series_files", tosave.attrs.get("climatology_files", "unknown")
+        )
+        xo.attrs["Processing_info"] = f"Start from file {origname}. " + proc
+    xo.to_netcdf(outname, format="NETCDF4", encoding=enc)
+
+
+#####
+########

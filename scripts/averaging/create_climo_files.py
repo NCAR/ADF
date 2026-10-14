@@ -48,6 +48,64 @@ def get_time_slice_by_year(time, startyear, endyear):
 
 
 
+def find_ts_for_variable(adf, case_name, var, hist_strs, is_baseline):
+    """
+    Find a variable's time series files, per history stream.
+
+    Parameters
+    ----------
+    adf
+        the ADF object
+    case_name : str
+        name of the case being processed
+    var : str
+        variable to look for
+    hist_strs : list
+        history stream(s) configured for the case; ``[None]`` when none is
+        known, which searches without a stream
+    is_baseline : bool
+        whether the case is the baseline
+
+    Returns
+    -------
+    list of tuple
+        ``(hist_str, files)`` for each stream that has the variable; empty if
+        the variable was not found at all.
+
+    Notes
+    -----
+    A variable is usually in one stream but may be in several, so every
+    configured stream is searched.  If none of them has it, one last search is
+    made without a stream: a configured stream need not match the names of
+    pre-made time series files (a baseline whose files are named for
+    ``cam.h0`` while the config says ``cam.h0a``, which is what the example
+    config carries), and before the stream was known those runs searched
+    without one.  The same fallback is made by ``get_climo_yrs_from_ts`` and
+    ``get_reference_climo_file``.
+    """
+
+    def search(hist_str):
+        """Look for the variable in one stream, or in none if hist_str is None."""
+        if is_baseline:
+            return adf.data.get_ref_timeseries_file(var, hist_str=hist_str)
+        return adf.data.get_timeseries_file(case_name, var, hist_str=hist_str)
+
+    # End def
+
+    found = [
+        (hist_str, files)
+        for hist_str, files in ((h, search(h)) for h in hist_strs)
+        if files
+    ]
+    if not found and hist_strs != [None]:
+        files = search(None)
+        if files:
+            found = [(None, files)]
+        # End if
+    # End if
+    return found
+
+
 ##############
 #Main function
 ##############
@@ -109,6 +167,7 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
+
 
     #Extract simulation years:
     start_year = adf.climo_yrs["syears"]
@@ -210,20 +269,13 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
             # Notify user of new climo file:
             print(f"\t - climatology for {var}")
 
-            #Look for the variable's time series in each configured stream. A
-            #variable is usually in just one stream, but may exist in several.
-            found_in_any_stream = False
-            for hist_str in case_hist_strs:
-                if is_baseline:
-                    ts_files = adf.data.get_ref_timeseries_file(var, hist_str=hist_str)
-                else:
-                    ts_files = adf.data.get_timeseries_file(case_name, var, hist_str=hist_str)
-
-                #If no files exist for this stream, try the next stream:
-                if not ts_files:
-                    continue
-                found_in_any_stream = True
-
+            # Look for the variable's time series in each configured stream,
+            # and failing that without one:
+            found_streams = find_ts_for_variable(
+                adf, case_name, var, case_hist_strs, is_baseline
+            )
+            found_in_any_stream = bool(found_streams)
+            for hist_str, ts_files in found_streams:
                 # Create name of climatology output file (which includes the full path),
                 # now including the history stream when known, and check whether it is
                 # there (don't do computation if we don't want to overwrite):
@@ -300,12 +352,13 @@ def process_variable(adf_user, ts_files, syr, eyr, output_file):
     try:
         # Using chunks={} forces xarray to use dask, which handles memory better
         # than loading everything into RAM at once via open_dataset
-        with xr.open_mfdataset(ts_files, decode_times=True, combine='by_coords',
-                               chunks={'time': 12}) as ds:
-            if 'time_bnds' in ds:
-                new_time = ds['time_bnds'].load().mean(dim='nbnd')
-                ds = ds.assign_coords(time=new_time.values)
-                ds = xr.decode_cf(ds)
+        with xr.open_mfdataset(
+            ts_files, decode_times=True, combine="by_coords", chunks={"time": 12}
+        ) as ds:
+            # Use the interval each step covers rather than its stamp.  This
+            # looked only for 'time_bnds' before, so a model that calls them
+            #'time_bounds' had its climatology built from the raw stamps.
+            ds = utils.use_time_bounds_midpoint(ds)
 
             tslice = get_time_slice_by_year(ds.time, int(syr), int(eyr))
             ds_subset = ds.isel(time=tslice)

@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 
 import warnings  # use to warn user about missing files.
 import adf_utils as utils
+import plotting_utils as plot_utils
 warnings.formatwarning = utils.my_formatwarning
 
 #
@@ -57,7 +58,7 @@ seasons = {"ANN": np.arange(1,13,1),
             "SON": [9, 10, 11]}
 
 def adf_histogram(adfobj):
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
 
     if use_time_series:
         load_ref_func = adfobj.data.load_reference_timeseries_da # field [this is a mistake, the args should have been the same for all of these functions]
@@ -81,12 +82,12 @@ def adf_histogram(adfobj):
     res = adfobj.variable_defaults
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get("plot_type", "png")
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
     res = adfobj.variable_defaults
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info("redo_plot")
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #
     # SECTION 1: determine which plots need to be made
     #
@@ -120,6 +121,7 @@ def adf_histogram(adfobj):
             adfobj.debug_log(f"adf_histogram: Found variable defaults for {var}")
         else:
             vres = {}
+        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
 
         # probably have to make sure no "lev" dim (but gets confused about other dimensions)
         da = load_ref_func(*get_load_args(adfobj, adfobj.data.ref_case_label, var))
@@ -150,6 +152,8 @@ def adf_histogram(adfobj):
                 adfobj.debug_log(f"adf_histogram: Found variable defaults for {var}")
             else:
                 vres = {}
+            vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+
             hist_file = plot_loc / f"{case_name}_{var}_{plot_name_string}.nc"
             histogram_file_exists = hist_file.is_file()
             if (not histogram_file_exists) or (redo_histogram_files):

@@ -273,7 +273,7 @@ def cam_obs_dropsonde_comp(adf, campaign, df_sonde, ds_outs, ds_era5, case_info=
     """
     '''img_base = f'{campaign}__RHvprof_diff_coll__{cam_desc}'
     img_name = f'{img_base}.png'
-    plot_loc = Path(adf.plot_location)
+    plot_loc = Path(adf.plot_location[0])
     img_path =  plot_loc / img_name
     if img_path.is_file():
         adf.add_website_data(str(img_path), img_base, campaign, plot_type="Dropsonde Comparison",
@@ -281,7 +281,7 @@ def cam_obs_dropsonde_comp(adf, campaign, df_sonde, ds_outs, ds_era5, case_info=
     '''
     '''
     img_name = f'{img_base}.png'
-    plot_loc = Path(adf.plot_location)
+    plot_loc = Path(adf.plot_location[0])
     img_path = f"{plot_loc}/{img_name}"
 
     if len(ds_outs.keys()) > 1:
@@ -299,7 +299,7 @@ def cam_obs_dropsonde_comp(adf, campaign, df_sonde, ds_outs, ds_era5, case_info=
     msg = "\n  Generating CAM-Obs Dropsonde plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
     yup = Path(adf.config_file_dict["name"])
-    plot_loc = Path(adf.plot_location)
+    plot_loc = Path(adf.plot_location[0])
     # JSON exports live alongside the dashboard/html files
     # (created already by AdfWeb.__init__, but mkdir here too to be safe):
     website_dir = plot_loc / "website"
@@ -400,7 +400,7 @@ def cam_obs_dropsonde_comp(adf, campaign, df_sonde, ds_outs, ds_era5, case_info=
         print("  create_html is False: skipping dropsonde plot generation.")
         return
 
-    plot_loc = Path(adf.plot_location)
+    plot_loc = Path(adf.plot_location[0])
 
     # Machine key -> (filename suffix used by plot_three_panels_cam_obs_delta_cam_minus_obs,
     # human-readable label for the dashboard's panel selector).

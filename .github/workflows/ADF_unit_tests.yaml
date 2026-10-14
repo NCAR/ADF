@@ -26,10 +26,10 @@ jobs:
       fail-fast: false
     steps:
     # Acquire github action routines:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     # Acquire specific version of python:
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     # Install needed python packages:

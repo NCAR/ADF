@@ -131,7 +131,7 @@ def inform_cache_root(adf, campaign):
     composited = _for_campaign(campaigns.get("composited_data"))
     if composited:
         return Path(composited) / "inform_cache"
-    return Path(adf.plot_location) / "inform_cache"
+    return Path(adf.plot_location[0]) / "inform_cache"
 
 
 def _canonical(obj):

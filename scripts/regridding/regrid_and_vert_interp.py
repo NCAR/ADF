@@ -1,5 +1,6 @@
 """Driver for horizontal and vertical interpolation.
 """
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,9 @@ import xesmf as xe
 import adf_utils as utils
 
 
-# Default pressure levels for vertical interpolation
+# Default pressure levels (hPa) for vertical interpolation.  A model whose top
+# is above 1 hPa, or a run that wants a different set, overrides these with
+# 'interp_press_levels' in the config file -- see _interp_levels.
 DEFAULT_PLEVS = [
     1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
     30, 20, 10, 7, 5, 3, 2, 1
@@ -17,6 +20,64 @@ DEFAULT_PLEVS = [
 # ndarray, not a list: geocat's interp_hybrid_to_pressure and utils.vert_remap
 # both index it as an array (.size / .shape).
 DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
+
+# Horizontal dimension of native (unstructured, e.g. spectral-element) CAM
+# output.  See _to_latlon for how such data is handled.
+UNSTRUCTURED_DIMS = ("ncol",)
+
+
+def _interp_levels(adf):
+    """The pressure levels to interpolate onto, in Pa.
+
+    'interp_press_levels' (hPa, in diag_basic_info) replaces DEFAULT_PLEVS.
+    The levels the config asks to *plot* are checked against them here: a
+    'plot_press_levels' entry that was never interpolated to cannot be plotted,
+    and saying so once at the start of regridding beats a plotting script
+    finding an empty selection later on.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object, for the config entries and for end_diag_fail.
+
+    Returns
+    -------
+    numpy.ndarray
+        The interpolation levels, in Pa, largest pressure first.
+    """
+    levels_pa = DEFAULT_PLEVS_Pa
+    try:
+        levels_pa = utils.pressure_levels_pa(
+            adf.get_basic_info("interp_press_levels"), DEFAULT_PLEVS
+        )
+    except ValueError as err:
+        # end_diag_fail raises AdfError; starting from the default means the
+        # lines below cannot run on an unbound name if that ever changes.
+        adf.end_diag_fail(f"Bad 'interp_press_levels' in the config file: {err}")
+
+    levels_hpa = levels_pa / 100.0
+    if not np.array_equal(levels_hpa, np.array(DEFAULT_PLEVS, dtype=float)):
+        print(
+            f"\t INFO: Interpolating onto {len(levels_hpa)} pressure levels "
+            f"(hPa): {[float(lev) for lev in levels_hpa]}"
+        )
+
+    plot_levels = adf.get_basic_info("plot_press_levels") or []
+    if isinstance(plot_levels, (int, float)) and not isinstance(plot_levels, bool):
+        plot_levels = [plot_levels]
+    try:
+        missing = [lev for lev in plot_levels if float(lev) not in set(levels_hpa)]
+    except (TypeError, ValueError):
+        # Whatever 'plot_press_levels' holds, it is the plotting scripts' to
+        # complain about; this check is a convenience and must not end the run.
+        missing = []
+    if missing:
+        print(
+            f"\t WARNING: 'plot_press_levels' asks for {missing} hPa, which "
+            "is not among the levels being interpolated to, so those levels "
+            "cannot be plotted.  Add them to 'interp_press_levels'."
+        )
+    return levels_pa
 
 def regrid_and_vert_interp(adf):
     """
@@ -33,6 +94,11 @@ def regrid_and_vert_interp(adf):
     output_loc.mkdir(parents=True, exist_ok=True)
     var_list = adf.diag_var_list
     var_defaults = adf.variable_defaults
+    levels_pa = _interp_levels(adf)
+
+    # Cases whose pressure source has been reported; see _announce_pressure_source.
+    announced = set()
+    pressure_names = _pressure_field_names(adf)
 
     case_names = adf.get_cam_info("cam_case_name", required=True)
     syear_cases = adf.climo_yrs["syears"]
@@ -45,7 +111,9 @@ def regrid_and_vert_interp(adf):
 
     # The reference does not depend on the test cases, so do it once, up front:
     if not adf.compare_obs:
-        _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite_regrid)
+        _write_reference_files(
+            adf, var_list, var_defaults, output_loc, overwrite_regrid, levels_pa
+        )
 
     for case_idx, case_name in enumerate(case_names):
         # print(f"\t Regridding case '{case_name}':")
@@ -55,6 +123,16 @@ def regrid_and_vert_interp(adf):
         for var in var_list:
             if var in adf.data.ref_var_nam:
                 target_name = adf.data.ref_labels[var]
+            elif var in pressure_names:
+                # The pressure field the ADF added for itself.  It has no
+                # observational counterpart and needs none: the interpolation
+                # reads it straight from the climo file.  Saying "ERROR" here
+                # would report a problem the run does not have.
+                adf.debug_log(
+                    f"No reference data for the pressure field '{var}';"
+                    " not regridded, which is expected."
+                )
+                continue
             else:
                 print(f"\t ERROR: No reference data available for {var}.")
                 continue
@@ -78,8 +156,24 @@ def regrid_and_vert_interp(adf):
                 print(f"\t ERROR: Missing model data for {var}. Skipping.")
                 continue
 
+            # Native-grid data that is not being plotted natively goes onto
+            # its lat/lon grid first; from here on it is handled exactly like
+            # any other lat/lon case:
+            ref_ds = _to_latlon(adf, ref_ds, var)
+            model_ds = _to_latlon(adf, model_ds, var, case_name=case_name, save=True)
+
             model_da = model_ds[var].squeeze()
             original_attrs = model_da.attrs.copy()
+
+            if _is_unstructured(model_da) and not _same_native_grid(model_da, ref_ds):
+                # Plotting natively needs the test case and the reference on
+                # one mesh: the plots cannot compare data across two meshes.
+                print(
+                    f"\t WARNING: '{case_name}' is on a native grid but the "
+                    f"reference for '{var}' is not on that same grid, so it can "
+                    "not be plotted natively.  Skipping."
+                )
+                continue
 
             # --- Horizontal Regridding ---
             regridded_da = _handle_horizontal_regridding(model_da, ref_ds, output_loc)
@@ -91,16 +185,20 @@ def regrid_and_vert_interp(adf):
             vert_type = _determine_vertical_coord_type(model_ds, regridded_da)
             ps_da = None
             pres_da = None
+            pressure_note = None
             if vert_type in ('hybrid', 'height'):
                 # Prefer the model's own pressure field; fall back to PS + hybrid
                 # coefficients. Either way it has to land on the target grid.
                 lev_dim = 'lev' if 'lev' in model_ds.dims else 'ilev'
                 pres_source = _find_pressure_field(model_ds, adf, lev_dim, case=case_name)
                 if pres_source is not None:
+                    pres_name = pres_source.name
                     original_pres_attrs = pres_source.attrs.copy()
                     pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
                     pres_da.attrs.update(original_pres_attrs)
-                    pres_da = _pressure_in_pa(pres_da, name=('PMID' if lev_dim == 'lev' else 'PINT'))
+                    pres_da = _pressure_in_pa(pres_da, name=pres_name)
+                    _announce_pressure_source(announced, case_name, lev_dim, pres_name)
+                    pressure_note = _pressure_note(pres_name)
                 elif vert_type == 'hybrid':
                     ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
                     if ps_regridded_path.exists():
@@ -114,60 +212,164 @@ def regrid_and_vert_interp(adf):
                         ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
                         ps_da.attrs.update(original_ps_attrs)
                     ps_da = _pressure_in_pa(ps_da, name="PS")
+                    # Announced here, not before the branch: the fallback can
+                    # come up empty too, and that path has already skipped the
+                    # variable with a warning of its own.
+                    _announce_pressure_source(announced, case_name, lev_dim, None)
+                    pressure_note = _pressure_note(None)
                 else:
                     print(f"\t    WARNING: No PMID/PINT available, unable to interpolate '{var}'")
                     continue
-            interp_da = _handle_vertical_interpolation(regridded_da, vert_type, model_ds,
-                                                      ps_da=ps_da, pres_da=pres_da)
+            interp_da = _handle_vertical_interpolation(
+                regridded_da,
+                vert_type,
+                model_ds,
+                ps_da=ps_da,
+                pres_da=pres_da,
+                levels_pa=levels_pa,
+            )
             interp_da.attrs.update(original_attrs)
             # --- Masking ---
             var_default_dict = var_defaults.get(var, {})
-            if 'mask' in var_default_dict and var_default_dict['mask'].lower() == 'ocean':
-                ocn_frac_regridded_path = output_loc / f'{target_name}_{case_name}_OCNFRAC_regridded.nc'
-                if ocn_frac_regridded_path.exists():
-                    ocn_frac_da = xr.open_dataset(ocn_frac_regridded_path)['OCNFRAC']
-                    interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
-                else:
-                     print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
+            if (
+                "mask" in var_default_dict
+                and var_default_dict["mask"].lower() == "ocean"
+            ):
+                ocn_frac_da = _get_ocean_fraction(
+                    adf, case_name, target_name, output_loc, ref_ds
+                )
+                if ocn_frac_da is None:
+                    # Writing the field unmasked is worse than not writing it:
+                    # every plot and statistic downstream would be taken over
+                    # land as well as ocean, and look perfectly plausible.
+                    warnings.warn(
+                        f"\t    WARNING: '{var}' is defined with 'mask: ocean', but no "
+                        f"OCNFRAC is available for case '{case_name}'.  Skipping '{var}' "
+                        "rather than writing it unmasked -- add 'OCNFRAC' to "
+                        "'diag_var_list' to get this variable."
+                    )
+                    continue
+                interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
 
             # --- Save to file ---
             final_ds = interp_da.to_dataset(name=var)
+            _keep_native_area(final_ds, model_ds)
 
             test_attrs_dict = {
                 "adf_user": adf.user,
                 "climo_yrs": f"{case_name}: {syear}-{eyear}",
                 "climatology_files": str(adf.data.get_climo_file(case_name, var)),
             }
+            if pressure_note:
+                # Provenance: this file may be reused by a later run, which will
+                # not repeat the choice or say anything about it.
+                test_attrs_dict["vert_interp_pressure"] = pressure_note
             final_ds = final_ds.assign_attrs(test_attrs_dict)
             save_to_nc(final_ds, regridded_file_loc)
 
     print("  ...CAM climatologies have been regridded successfully.")
 
-def _pressure_in_pa(pres_da, name="PS"):
-    """Return a pressure field in Pascals.
 
-    The interpolation routines need Pa, but a pressure read back from a
-    "*_regridded.nc" file has already had the variable defaults applied, and
-    those convert pressures to hPa. Feeding hPa in silently squeezes the whole
-    model column into a few hPa, so every target level below it comes out NaN --
-    the troposphere disappears without an error anywhere.
+def _pressure_field_names(adf):
+    """The names the ADF may have added to the variable list for itself.
+
+    The pressure fields are the only variables the ADF requests on a user's
+    behalf here, and they are the only ones allowed to have no reference
+    counterpart, so name them exactly rather than inferring it from a variable
+    default that means something else.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object, for the 'pressure_field_names' config entry.
+
+    Returns
+    -------
+    set of str
+        Names to treat as the ADF's own; empty when the model's pressure field
+        has been turned off in the config.
     """
-    units = str(pres_da.attrs.get('units', '')).strip().lower()
-    if units in ('hpa', 'mb', 'millibar', 'millibars'):
-        scaled = pres_da * 100.0
-    elif units in ('pa', 'pascal', 'pascals'):
-        return pres_da
+    names = adf.get_basic_info("pressure_field_names")
+    return {
+        name
+        for name in (utils.pressure_field_name(dim, names) for dim in ("lev", "ilev"))
+        if name
+    }
+
+
+def _pressure_note(pres_name):
+    """How the pressure for vertical interpolation was obtained, for the file.
+
+    A regridded file outlives the run that made it: a later run reuses it
+    without repeating the choice, or saying anything about it, so the answer
+    belongs in the file as well as in the log.
+
+    Parameters
+    ----------
+    pres_name : str or None
+        Name of the model's own pressure field, or ``None`` when pressure was
+        rebuilt from PS and the hybrid coefficients.
+
+    Returns
+    -------
+    str
+        A short description, for the "vert_interp_pressure" attribute.
+    """
+    if pres_name:
+        return f"{pres_name} (the model's own pressure field)"
+    return "reconstructed from PS and the hybrid coefficients"
+
+
+def _announce_pressure_source(announced, label, level_dim, pres_name):
+    """Say which pressure the vertical interpolation is using, once per case.
+
+    Which pressure a run used is not a detail: the model's own field is the
+    pressure the model actually had, while PS and the hybrid coefficients only
+    reproduce it for a pure hybrid-sigma coordinate -- not for the dry-mass
+    coordinate of recent CAM/WACCM.  Two runs of the same case can therefore
+    differ for no reason visible in the output, so say which one this is.
+
+    Call this only once the source is settled.  A variable whose pressure could
+    not be worked out at all has already been skipped with a warning naming it,
+    and announcing a source for it would contradict that warning.
+
+    Parameters
+    ----------
+    announced : set
+        Case/dimension pairs already announced; added to in place.
+    label : str
+        The case (or reference) name, so each one is announced once.
+    level_dim : str
+        The vertical dimension, ``'lev'`` or ``'ilev'``: a run can hold fields
+        on both, with a pressure field for one and not the other.
+    pres_name : str or None
+        Name of the model's own pressure field, or ``None`` when pressure was
+        rebuilt from PS and the hybrid coefficients.  A name is passed rather
+        than the field itself because regridding drops it.
+    """
+    key = (label, level_dim)
+    if key in announced:
+        return
+    announced.add(key)
+    if pres_name:
+        print(
+            f"\t INFO: '{label}' ({level_dim}): vertical interpolation is using "
+            f"the model's own pressure field, '{pres_name}'."
+        )
     else:
-        # No usable units attribute: tropospheric pressure in Pa is ~1e4-1e5,
-        # in hPa ~1e2-1e3.
-        if float(pres_da.max()) > 2000.0:
-            return pres_da
-        print(f"\t    WARNING: {name} has no units attribute and looks like hPa; "
-              "converting to Pa for vertical interpolation.")
-        scaled = pres_da * 100.0
-    scaled.attrs = dict(pres_da.attrs)
-    scaled.attrs['units'] = 'Pa'
-    return scaled
+        print(
+            f"\t INFO: '{label}' ({level_dim}): no pressure field was found, so "
+            "pressure is being reconstructed from PS and the hybrid "
+            "coefficients.  That reproduces the model's pressure only for a "
+            "pure hybrid-sigma coordinate; for the dry-mass coordinate of "
+            "recent CAM/WACCM it is an approximation.  Add the model's "
+            "pressure field to the run to avoid it."
+        )
+
+
+def _pressure_in_pa(pres_da, name="PS"):
+    """Return a pressure field in Pascals; see adf_utils.pressure_in_pa."""
+    return utils.pressure_in_pa(pres_da, name=name)
 
 
 def _find_surface_pressure(dset, adf, case=None):
@@ -188,6 +390,7 @@ def _find_surface_pressure(dset, adf, case=None):
         ps_ds = adf.data.load_dataset(fils) if fils else None
     else:
         ps_ds = adf.data.load_climo_ds(case, 'PS')
+    ps_ds = _to_latlon(adf, ps_ds, 'PS', case_name=case)
     if ps_ds is None or 'PS' not in ps_ds:
         return None
     return ps_ds['PS'].squeeze()
@@ -196,11 +399,13 @@ def _find_surface_pressure(dset, adf, case=None):
 def _find_pressure_field(dset, adf, level_dim, case=None):
     """The model's own 3-D pressure field, on the grid of `dset`.
 
-    PMID for data on layer midpoints, PINT for data on interfaces. This is
-    preferred over reconstructing pressure from PS and the hybrid coefficients:
-    it is what the model actually used, and it is the only option for vertical
-    coordinates that are not hybrid-sigma. Returns None when neither is
-    available, in which case the caller falls back to PS + hyam/hybm.
+    PMID for data on layer midpoints, PINT for data on interfaces -- or
+    whatever the model calls them, resolved by adf_utils.find_pressure_field.
+    This is preferred over reconstructing pressure from PS and the hybrid
+    coefficients: it is what the model actually used, and it is the only option
+    for vertical coordinates that are not hybrid-sigma. Returns None when no
+    pressure field is available, in which case the caller falls back to
+    PS + hyam/hybm.
 
     Note this deliberately does not look at "*_PMID_regridded.nc". PMID is a 3-D
     field, so if it is in diag_var_list then that file has already been
@@ -209,9 +414,13 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
 
     Pass `case` for a test case; omit it for the reference.
     """
-    name = 'PMID' if level_dim == 'lev' else 'PINT'
-    if name in dset:
-        return dset[name].squeeze()
+    names = adf.get_basic_info("pressure_field_names")
+    found = utils.find_pressure_field(dset, level_dim, names)
+    if found:
+        return dset[found].squeeze()
+    name = utils.pressure_field_name(level_dim, names)
+    if name is None:
+        return None
     if case is None:
         # get_reference_climo_file avoids load_reference_climo_da's ref_var_nam
         # lookup, which raises KeyError when the field is not in diag_var_list.
@@ -219,13 +428,19 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
         pres_ds = adf.data.load_dataset(fils) if fils else None
     else:
         pres_ds = adf.data.load_climo_ds(case, name)
+    pres_ds = _to_latlon(adf, pres_ds, name, case_name=case)
     if pres_ds is None or name not in pres_ds:
         return None
     return pres_ds[name].squeeze()
 
 
-def _interp_with_pressure_field(da, pres_da):
-    """Interpolate `da` to DEFAULT_PLEVS using an explicit 3-D pressure field."""
+def _interp_with_pressure_field(da, pres_da, levels_pa=None):
+    """Interpolate `da` onto `levels_pa` using an explicit 3-D pressure field.
+
+    `levels_pa` defaults to DEFAULT_PLEVS_Pa.
+    """
+    if levels_pa is None:
+        levels_pa = DEFAULT_PLEVS_Pa
     level_dim = 'lev' if 'lev' in da.dims else 'ilev'
 
     # utils.pmid_to_plev stacks on a dimension literally named "lev", so
@@ -239,8 +454,7 @@ def _interp_with_pressure_field(da, pres_da):
     # field has to carry exactly the same dimensions in the same order.
     pres_da = pres_da.broadcast_like(da).transpose(*da.dims)
 
-    out = utils.pmid_to_plev(da, pres_da, new_levels=DEFAULT_PLEVS_Pa,
-                            convert_to_mb=True)
+    out = utils.pmid_to_plev(da, pres_da, new_levels=levels_pa, convert_to_mb=True)
 
     # vert_remap interpolates with np.interp, which clamps to the end values
     # instead of returning NaN outside the source range. The hybrid path (geocat)
@@ -249,10 +463,17 @@ def _interp_with_pressure_field(da, pres_da):
     # reports the lowest model level's value.
     lev_pa = out['lev'] * 100.0
     in_range = (lev_pa >= pres_da.min(dim='lev')) & (lev_pa <= pres_da.max(dim='lev'))
-    return out.where(in_range)
+    out = out.where(in_range)
+
+    # pmid_to_plev stacks and unstacks, which leaves 'lev' leading. Put the
+    # dimensions back in the source order so a file written through this path
+    # looks like one written through the hybrid path.
+    return out.transpose(*da.dims)
 
 
-def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
+def _write_reference_files(
+    adf, var_list, var_defaults, output_loc, overwrite, levels_pa=None
+):
     """Write the reference climo on the target grid as {base}_{var}_baseline.nc.
 
     The reference defines the target grid, so it needs no horizontal regridding,
@@ -261,10 +482,26 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
     scripts read this file for every variable, not just the 3-D ones.
     """
     base = adf.data.ref_case_label
+    announced = set()
     syear = adf.climo_yrs["syear_baseline"]
     eyear = adf.climo_yrs["eyear_baseline"]
 
+    pressure_names = _pressure_field_names(adf)
+
     for var in var_list:
+        if var in pressure_names and var not in adf.data.ref_var_nam:
+            # The pressure field, added to the variable list after AdfData read
+            # it, so it is not part of the reference bookkeeping.  Interpolating
+            # it onto pressure levels would be circular anyway --
+            # _find_pressure_field reads the climo file.  Without this,
+            # load_reference_climo_ds raises KeyError as soon as the baseline
+            # has a climo file of its own for it.
+            adf.debug_log(
+                f"The pressure field '{var}' is not a reference variable;"
+                " not regridded for the baseline."
+            )
+            continue
+
         baseline_file = output_loc / f'{base}_{var}_baseline.nc'
         if baseline_file.is_file() and not overwrite:
             print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
@@ -274,6 +511,9 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
         if ref_ds is None:
             print(f"\t ERROR: Missing reference data for {var}. Skipping.")
             continue
+        # A native-grid baseline that is not being plotted natively goes onto
+        # its lat/lon grid, which then becomes the target grid for the cases:
+        ref_ds = _to_latlon(adf, ref_ds, var, save=True)
         ref_da = ref_ds[adf.data.ref_var_nam[var]].squeeze()
         original_attrs = ref_da.attrs.copy()
 
@@ -281,24 +521,30 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
         vert_type = _determine_vertical_coord_type(ref_ds, ref_da)
         ps_da = None
         pres_da = None
+        pressure_note = None
         if vert_type in ('hybrid', 'height'):
             # No horizontal regrid needed: the reference already defines the target grid.
             lev_dim = 'lev' if 'lev' in ref_ds.dims else 'ilev'
             pres_da = _find_pressure_field(ref_ds, adf, lev_dim)
             if pres_da is not None:
-                pres_da = _pressure_in_pa(pres_da,
-                                          name=('PMID' if lev_dim == 'lev' else 'PINT'))
+                pres_name = pres_da.name
+                pres_da = _pressure_in_pa(pres_da, name=pres_name)
+                _announce_pressure_source(announced, base, lev_dim, pres_name)
+                pressure_note = _pressure_note(pres_name)
             elif vert_type == 'hybrid':
                 ps_da = _find_surface_pressure(ref_ds, adf)
                 if ps_da is None:
                     print(f"\t    WARNING: No baseline PS, unable to interpolate '{var}'")
                     continue
                 ps_da = _pressure_in_pa(ps_da, name="PS")
+                _announce_pressure_source(announced, base, lev_dim, None)
+                pressure_note = _pressure_note(None)
             else:
                 print(f"\t    WARNING: No baseline PMID/PINT, unable to interpolate '{var}'")
                 continue
-        interp_da = _handle_vertical_interpolation(ref_da, vert_type, ref_ds,
-                                                  ps_da=ps_da, pres_da=pres_da)
+        interp_da = _handle_vertical_interpolation(
+            ref_da, vert_type, ref_ds, ps_da=ps_da, pres_da=pres_da, levels_pa=levels_pa
+        )
         interp_da.attrs.update(original_attrs)
 
         # --- Masking ---
@@ -313,11 +559,15 @@ def _write_reference_files(adf, var_list, var_defaults, output_loc, overwrite):
                 print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
 
         final_ds = interp_da.to_dataset(name=var)
-        final_ds = final_ds.assign_attrs({
+        _keep_native_area(final_ds, ref_ds)
+        baseline_attrs = {
             "adf_user": adf.user,
             "climo_yrs": f"{base}: {syear}-{eyear}",
             "climatology_files": str(adf.data.get_reference_climo_file(var)),
-        })
+        }
+        if pressure_note:
+            baseline_attrs["vert_interp_pressure"] = pressure_note
+        final_ds = final_ds.assign_attrs(baseline_attrs)
         save_to_nc(final_ds, baseline_file)
 
 
@@ -342,6 +592,11 @@ def _handle_horizontal_regridding(source_da, target_grid, regrid_loc, method='co
     xarray.DataArray
         The regridded DataArray.
     """
+
+    # Native-grid data being plotted natively stays on its mesh.  The main
+    # loop has already checked that the target is that same mesh.
+    if _is_unstructured(source_da):
+        return source_da
 
     # Generate a unique name for the weights file
     source_grid_type = "unstructured" if "ncol" in source_da.dims else "structured"
@@ -421,9 +676,12 @@ def _determine_vertical_coord_type(dset, da=None):
 
     return 'none'
 
-def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da=None):
+
+def _handle_vertical_interpolation(
+    da, vert_type, source_ds, ps_da=None, pres_da=None, levels_pa=None
+):
     """
-    Performs vertical interpolation to default pressure levels.
+    Performs vertical interpolation to a set of pressure levels.
 
     Parameters
     ----------
@@ -441,6 +699,9 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
         interfaces -- already on the same grid as `da`. Takes precedence over
         `ps_da`: it is the pressure the model used, rather than a reconstruction,
         and it is the only option for non-hybrid vertical coordinates.
+    levels_pa : numpy.ndarray, optional
+        The pressure levels to interpolate onto, in Pa.  Defaults to
+        ``DEFAULT_PLEVS_Pa``.
 
     Returns
     -------
@@ -450,9 +711,12 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
     if vert_type == 'none':
         return da
 
+    if levels_pa is None:
+        levels_pa = DEFAULT_PLEVS_Pa
+
     # An explicit pressure field wins whenever we have one.
     if pres_da is not None:
-        return _interp_with_pressure_field(da, pres_da)
+        return _interp_with_pressure_field(da, pres_da, levels_pa)
 
     if vert_type == "hybrid":
         if ps_da is None:
@@ -482,7 +746,9 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
         da[lev_coord_name].attrs["positive"] = "down" # standard for pressure/hybrid
         da[lev_coord_name].attrs["standard_name"] = "atmosphere_hybrid_sigma_pressure_coordinate"
 
-        return utils.lev_to_plev(da, ps_da, hyam, hybm, P0=p0, convert_to_mb=True, new_levels=DEFAULT_PLEVS_Pa)
+        return utils.lev_to_plev(
+            da, ps_da, hyam, hybm, P0=p0, convert_to_mb=True, new_levels=levels_pa
+        )
 
     elif vert_type == "height":
         # Reaching here means _find_pressure_field came up empty, and a height
@@ -491,10 +757,49 @@ def _handle_vertical_interpolation(da, vert_type, source_ds, ps_da=None, pres_da
                          "interpolation, and neither was found.")
 
     elif vert_type == "pressure":
-        return utils.plev_to_plev(da, new_levels=DEFAULT_PLEVS_Pa, convert_to_mb=True)
+        return utils.plev_to_plev(da, new_levels=levels_pa, convert_to_mb=True)
 
     else:
         raise ValueError(f"Unknown vertical coordinate type: '{vert_type}'")
+
+def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
+    """Return the case's OCNFRAC on the target grid, or ``None``.
+
+    The already-regridded file is used when it exists.  In ``compare_obs`` mode
+    it never does: OCNFRAC has no observational counterpart, so the main loop
+    skips it.  The mask only needs the *model's* ocean fraction on the reference
+    grid, though, so it is regridded here on the fly instead.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    case_name : str
+        Name of the test case.
+    target_name : str
+        Label of the reference data set the case is being regridded onto.
+    output_loc : pathlib.Path
+        The regrid output directory.
+    ref_ds : xarray.Dataset
+        Reference dataset defining the target grid.
+
+    Returns
+    -------
+    xarray.DataArray or None
+        Ocean fraction on the target grid, or ``None`` if the case has no
+        OCNFRAC climatology.
+    """
+    ocn_frac_path = output_loc / f"{target_name}_{case_name}_OCNFRAC_regridded.nc"
+    if ocn_frac_path.exists():
+        return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
+    ocn_frac_ds = adf.data.load_climo_ds(case_name, "OCNFRAC")
+    ocn_frac_ds = _to_latlon(adf, ocn_frac_ds, "OCNFRAC", case_name=case_name)
+    if ocn_frac_ds is None or "OCNFRAC" not in ocn_frac_ds:
+        return None
+    return _handle_horizontal_regridding(
+        ocn_frac_ds["OCNFRAC"].squeeze(), ref_ds, output_loc
+    )
+
 
 def _apply_ocean_mask(da, ocn_frac_da):
     """
@@ -517,6 +822,124 @@ def _apply_ocean_mask(da, ocn_frac_da):
     
     # Apply the mask
     return utils.mask_land_or_ocean(da, ocn_frac_da)
+
+def _is_unstructured(obj):
+    """Whether `obj` (a Dataset or DataArray) is on a native unstructured grid."""
+    dims = getattr(obj, "dims", ())
+    return any(dim in dims for dim in UNSTRUCTURED_DIMS)
+
+
+def _same_native_grid(da, target_grid):
+    """Whether `target_grid` is on the same native unstructured grid as `da`.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        Data on a native grid.
+    target_grid : xarray.Dataset
+        The reference data.
+
+    Returns
+    -------
+    bool
+        True when both have the same unstructured dimension, of the same size.
+    """
+    return any(
+        dim in da.dims and target_grid.sizes.get(dim) == da.sizes[dim]
+        for dim in UNSTRUCTURED_DIMS
+    )
+
+
+def _keep_native_area(final_ds, source_ds):
+    """Copy the grid-cell area into an output file that stays on its native grid.
+
+    The native (uxarray) plotting weights its averages by the model's cell
+    area, which it reads from the regridded and baseline files.  On a lat/lon
+    grid the plots weight by latitude instead, and the source grid's area would
+    be wrong after regridding anyway, so it is only kept for native data.
+
+    Parameters
+    ----------
+    final_ds : xarray.Dataset
+        The dataset about to be written; updated in place.
+    source_ds : xarray.Dataset
+        The climo dataset it was made from.
+    """
+    if _is_unstructured(final_ds) and "area" in source_ds:
+        final_ds["area"] = source_ds["area"]
+
+
+def _to_latlon(adf, dset, var, case_name=None, save=False):
+    """Put native-grid climo data onto its lat/lon grid, unless plotting natively.
+
+    Usually the climo files of a native-grid case are on lat/lon already: the
+    ADF grids its time series (into a "gridded" directory) and builds the
+    climatologies from those.  Climo files made from native time series --
+    pre-made ones, say -- arrive here still on the native grid, and are gridded
+    with the case's weights file, so that the rest of this script only ever
+    sees lat/lon data and treats it exactly like any other lat/lon case.
+
+    With 'unstructured_plotting', or for data that is not on a native grid,
+    `dset` is returned unchanged.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    dset : xarray.Dataset or None
+        The climo dataset.
+    var : str
+        The variable to grid.
+    case_name : str, optional
+        The test case; omit it for the baseline.
+    save : bool, optional
+        Also write the gridded data to "gridded/{case}_{var}_gridded_climo.nc"
+        under the case's climo directory.
+
+    Returns
+    -------
+    xarray.Dataset or None
+        The data on a lat/lon grid (or `dset` unchanged, see above).
+    """
+    # Check the data first: lat/lon data needs nothing else from `adf`.
+    if not _is_unstructured(dset) or adf.unstructured_plotting:
+        return dset
+
+    if case_name is None:
+        label = adf.data.ref_case_label
+        wgt_file = adf.latlon_wgt_files["baseline_wgts_file"]
+        method = adf.latlon_regrid_method["baseline_regrid_method"]
+        climo_loc = adf.get_baseline_info("cam_climo_loc", required=True)
+    else:
+        case_idx = adf.get_cam_info("cam_case_name", required=True).index(case_name)
+        label = case_name
+        wgt_file = adf.latlon_wgt_files["test_wgts_file"][case_idx]
+        method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
+        climo_loc = adf.get_cam_info("cam_climo_loc", required=True)[case_idx]
+
+    if not wgt_file:
+        # Every variable of the case would fail the same way, so stop here:
+        adf.end_diag_fail(
+            f"'{label}' is on a native grid, but has no 'weights_file' to grid it "
+            "to lat/lon.  Add one, or set 'unstructured_plotting: true'."
+        )
+
+    adf.debug_log(f"regrid: gridding native '{var}' for '{label}' to lat/lon")
+    gridded = utils.grid_to_latlon(
+        dset,
+        var,
+        wgt_file=wgt_file,
+        method=method,
+    )
+    # (grid_to_latlon carries hyam, hybm, P0 and the rest over, which the
+    # vertical interpolation needs.)
+
+    if save:
+        gridded_loc = Path(climo_loc) / "gridded"
+        gridded_loc.mkdir(parents=True, exist_ok=True)
+        save_to_nc(gridded, gridded_loc / f"{label}_{var}_gridded_climo.nc")
+    return gridded
+
 
 def save_to_nc(tosave, outname, attrs=None, proc=None):
     """Saves xarray variable to new netCDF file

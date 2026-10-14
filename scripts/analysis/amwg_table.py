@@ -44,8 +44,12 @@ def amwg_table(adf):
     case_names      -> Name(s) of CAM case provided by "cam_case_name"
     input_ts_locs   -> Location(s) of CAM time series files provided by "cam_ts_loc"
     output_loc      -> Location to write AMWG table files to, provided by "cam_diag_plot_loc"
-    var_list        -> List of CAM output variables provided by "diag_var_list"
+    var_list        -> List of CAM output variables to tabulate, from "plot_var_list"
+                       ("diag_var_list" without the ADF's own support variables)
     var_defaults    -> Dict that has keys that are variable names and values that are plotting preferences/defaults.
+    adf.data        -> The ADF's data layer, used to read the time series so
+                       that the scale factor, offset and units from the
+                       variable defaults are applied.
 
     and if doing a CAM baseline comparison:
 
@@ -104,9 +108,12 @@ def amwg_table(adf):
     # VARIABLE-NAME, RUN VALUE, OBS VALUE, RUN-OBS, RMSE
     #----------------------
 
-    #Extract needed quantities from ADF object:
-    #-----------------------------------------
-    var_list     = adf.diag_var_list
+    # Extract needed quantities from ADF object:
+    # -----------------------------------------
+    # "plot_var_list" rather than "diag_var_list": support variables such as
+    # PMID, which the ADF adds by itself to interpolate the vertical coordinate,
+    # are not diagnostics anyone asked to tabulate.
+    var_list = adf.plot_var_list
     var_defaults = adf.variable_defaults
 
     #Check if ocean or land fraction exist
@@ -166,8 +173,9 @@ def amwg_table(adf):
         #Convert output location string to a Path object:
         output_location = Path(output_locs[case_idx])
 
-        #Generate input file path:
-        input_location = Path(input_ts_locs[case_idx])
+        #Generate input file path (the "gridded" copy of native-grid time
+        #series, where the ADF made one):
+        input_location = adf.data.timeseries_dir(case_name, input_ts_locs[case_idx])
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
@@ -206,6 +214,12 @@ def amwg_table(adf):
             ts_filenames = f'{case_name}.*.{var}.*nc'
             ts_files = utils.find_ts_files(input_location, ts_filenames)
 
+            #Keep only the files needed for this case's years, so that a
+            #directory holding more than one set for the same variable
+            #(years 1-20 alongside years 1-40, say) is not a problem:
+            ts_files = utils.select_ts_files(ts_files, syear_cases[case_idx],
+                                             eyear_cases[case_idx])
+
             # If no files exist, try to move to next variable. --> Means we can not proceed with this variable, and it'll be problematic later.
             if not ts_files:
                 errmsg = f"\t    WARNING: Time series files for variable '{var}' not found.  Script will continue to next variable."
@@ -227,13 +241,31 @@ def amwg_table(adf):
                 continue
             #End if
 
-            #Load model variable data from file:
-            ds = utils.load_dataset(ts_files)
-            data = ds[var]
+            # Load model variable data from file, through the ADF's own data
+            # layer so that the scale factor, offset and units named in the
+            # variable defaults are applied.  Reading the files directly gave
+            # tables in the model's raw units, which is not what the defaults
+            # say the variable should be reported in.
+            add_offset, scale_factor = adf.data.get_value_converters(case_name, var)
+            data = adf.data.load_da(
+                ts_files,
+                var,
+                use_time_bounds=True,
+                add_offset=add_offset,
+                scale_factor=scale_factor,
+            )
+            if data is None:
+                errmsg = f"\t    WARNING: Load failed for variable '{var}', "
+                errmsg += "so it will be skipped."
+                print(errmsg)
+                continue
+            # End if
 
-            #Extract units string, if available:
-            if hasattr(data, 'units'):
-                unit_str = data.units
+            # Extract units string, if available.  The defaults write units
+            # for plot labels, where matplotlib renders the LaTeX in them, so
+            # they are resolved to plain text before going into a table:
+            if hasattr(data, "units"):
+                unit_str = utils.plain_text_units(data.units)
             else:
                 unit_str = '--'
 
@@ -283,7 +315,8 @@ def amwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = utils.spatial_average(data)  # changes data "in place"
+                weights = utils.native_grid_weights(ts_files[0]) if "ncol" in data.dims else None
+                data = utils.spatial_average(data, weights=weights)  # changes data "in place"
 
             # In order to get correct statistics, average to annual or seasonal
             data = utils.annual_mean(data, whole_years=True, time_name='time')
@@ -358,6 +391,8 @@ def amwg_table(adf):
 ##################
 # Helper functions
 ##################
+
+#####
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:

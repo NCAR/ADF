@@ -38,7 +38,7 @@ def enso_comparison_plots(adfobj):
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
 
     #Grab saved files
     obs_ds   = xr.open_dataset('/glade/derecho/scratch/mdfowler/ENSOmetrics_Obs.nc')
