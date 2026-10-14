@@ -1,0 +1,14 @@
+{
+  "repo": "https://github.com/NCAR/INFORM-COMPASS-cookbook.git",
+  "branch": "data-wrapper-updates_030626",
+  "commit": "6947666a0d311ba94fd964825261b74b42b1b20c",
+  "files": [
+    "inform_utils.py",
+    "process_data_products_utils.py",
+    "cam_era5_functions.py",
+    "cam_diagnostic.py",
+    "inform_grid_utils.py",
+    "INFORM_cam_assessment_diagnostics.ipynb",
+    "INFORM_process_system_database.ipynb"
+  ]
+}

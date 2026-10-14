@@ -1,0 +1,1054 @@
+{
+  "CSET": {
+    "figures": {
+      "CSET__RHvprof_diff_coll__caseA.png": "a1938dfc5a222c74ff9b1774e88a61c199948ed4982f2161def66077818d78cc",
+      "CSET__RHvprof_diff_coll__caseA_OpenCell.png": "655326e3b0f8d1e5484b8b1996e8194a941740ecc9c2d1f5d9f456985e4c6066",
+      "CSET__RHvprof_diff_coll__caseA_OpenCellBias.png": "17b0b6d09abd8c2e897698ecba8977897205b447e01630d4a65cd9551e366ae1",
+      "CSET__RHvprof_diff_coll__caseA_StratoCuBias.png": "c64d2347151b0b69a8df06e60be3ea04d5e8082600870a3d20b1a78fab3deafe",
+      "CSET__RHvprof_diff_coll__caseA_Stratocumulus.png": "80d4594432d4480f91cb69b732641fdaf62f2e7c7199eded3a4526c71080405f",
+      "CSET__RHvprof_diff_coll__caseB.png": "95efb03eb67d5528898b8f3cc3c389695ffd75222b9b30832d501ae4bd04a068",
+      "CSET__RHvprof_diff_coll__caseB_OpenCell.png": "ee7bb2fedecc1fdb2acc775190a784066e3f26f1e7882edfb2070d099f34c136",
+      "CSET__RHvprof_diff_coll__caseB_OpenCellBias.png": "17b0b6d09abd8c2e897698ecba8977897205b447e01630d4a65cd9551e366ae1",
+      "CSET__RHvprof_diff_coll__caseB_StratoCuBias.png": "c64d2347151b0b69a8df06e60be3ea04d5e8082600870a3d20b1a78fab3deafe",
+      "CSET__RHvprof_diff_coll__caseB_Stratocumulus.png": "68addca471343a8a5b9d2354d4cc6ce54f751168a3e39c2ae93369f220fb6006",
+      "CSET__RHvprof_diff_coll__multi_CAM.png": "7b143f5c1702976055a7d052326b8a6b7a82c28f0c6c67a2604f1a0b46525afd",
+      "CSET__RHvprof_diff_coll__multi_CAM_OpenCell.png": "a94e3b18def73dc718e5d151c66a20bb67bce1dcabfabcf263439a4fe9122a32",
+      "CSET__RHvprof_diff_coll__multi_CAM_OpenCellBias.png": "ed69eb8c0ba57afff629ccf06e9081b490fee2a51e3aa2151e8221925aedbd72",
+      "CSET__RHvprof_diff_coll__multi_CAM_StratoCuBias.png": "bae2dce2b937db9553e6a5b5d6c504890407ed71430799667894750a265fb23c",
+      "CSET__RHvprof_diff_coll__multi_CAM_Stratocumulus.png": "b839480025fb89d299bfb27be95055a656814f714756f0f506433a10ff73a317",
+      "CSET__nd_lwc__caseA.png": "c71b3dea22f42b54dd7bf2cc6bdf530cfaa24e9e2598a6b3694142546ed25179",
+      "CSET__nd_lwc__caseA_OpenCellLWC.png": "d1ab55625412cc585621006aab6b386117d140a0d4f04adf33d726032f21118b",
+      "CSET__nd_lwc__caseA_OpenCellNd.png": "b0c41e95a99a8913530762c7f0aeacdfb20ade95321db94cf6eedcd512a89949",
+      "CSET__nd_lwc__caseA_StratocumulusLWC.png": "5f4c2ee89d9dbc21095a393fc6f7785aab1300196b51f23d01d0bd14d9ac7037",
+      "CSET__nd_lwc__caseA_StratocumulusNd.png": "229ba4ce8c4338de9810903c90199adc22507a4b0715c22cd876fa9fb62a365a",
+      "CSET__nd_lwc__caseB.png": "38fd4d0863e4465afb6dc6df508e3dc30d8c5e2ac59aef45c6833f7f1769e6c8",
+      "CSET__nd_lwc__caseB_OpenCellLWC.png": "83439d02b851e633a9ccb74949e952e32015254ce81fedd2ae5b3ef19865795f",
+      "CSET__nd_lwc__caseB_OpenCellNd.png": "c13a264765e254438a2352a9010faf27aa3ecfc95299ee078f494e72b4ad91c3",
+      "CSET__nd_lwc__caseB_StratocumulusLWC.png": "2e077ed210fe2620a3e8212182caf81c40ac2a9b032016a2aa4229c90f6bd194",
+      "CSET__nd_lwc__caseB_StratocumulusNd.png": "cf56cf993bad4729c5b97e01aeba1ca1737760034fa87cf105a177761ca1af6c",
+      "CSET__nd_lwc__multi_CAM.png": "de1930ccab8aed3c31b1a6bcc3a0eed0130246b0541bb5f1766e1fbb3da93f24",
+      "CSET__nd_lwc__multi_CAM_OpenCellLWC.png": "904c4e4279a0502051ad814a40792c215dd342eac627cc69f377714879593fa3",
+      "CSET__nd_lwc__multi_CAM_OpenCellNd.png": "6b8973af7e0e6881952ae57b45b259275a58630d5f25e3d56092f84398228f35",
+      "CSET__nd_lwc__multi_CAM_StratocumulusLWC.png": "296dbdd68d803ecd595be9ebf20ec307c33c46a16628dde3b9eb1ce0e31275a7",
+      "CSET__nd_lwc__multi_CAM_StratocumulusNd.png": "7112803089f69721f5d8daa1fdaff2500cec075d18908e5fd99112ae5795a6a6"
+    },
+    "json": {
+      "dropsonde_profiles_CSET_fixture_config.json": "451a319dfcc11d3b952959b0d1d4c75e9f7557e8941d7210182ea2a157dde27d",
+      "nd_lwc_pdf_CSET_Obs.json": "e5445281d444805d5acaa6a5cccf7ab69a8bcbae4e1daae53d77d1239ae5e7e8",
+      "nd_lwc_pdf_CSET_caseA.json": "756d0918b98898dffee14a6f951416aa76cfbc830bed779b364110e2075dc8df",
+      "nd_lwc_pdf_CSET_caseB.json": "e13fba0df97fa7c6e6f08e48bab8f62f1506e694741baa7c40ad9f6b43db1466",
+      "nd_lwc_pdfs_CSET_fixture_config.json": "cf40dc12440a9c45e2b131c6faab8946593e36f729382af6670b3a6564ed681b",
+      "sonde_profile_CSET_ERA5.json": "524eace7a23d142526d3046a90e1643e26b08fa78a6db61dbca4bf2e73fce3fd",
+      "sonde_profile_CSET_Obs.json": "40d95be169c2d607af832d4966c31fe1e6156647cc5a91af7ac4d568735474f3",
+      "sonde_profile_CSET_caseA.json": "367fbc4a3f749e7348fe6463a7380cc179c8bd60ed3569d97cf8c22232c86f7b",
+      "sonde_profile_CSET_caseB.json": "b87b9c3b777b1455892553809d7d79ed03ae54f3c9ac299fc3da71e5db6272db"
+    },
+    "website": [
+      [
+        "CSET__RHvprof_diff_coll__multi_CAM.png",
+        "CSET__RHvprof_diff_coll__multi_CAM",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__multi_CAM_OpenCell.png",
+        "CSET__RHvprof_diff_coll__multi_CAM_OpenCell",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell",
+          "panel_label": "Open-Cell",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__multi_CAM_Stratocumulus.png",
+        "CSET__RHvprof_diff_coll__multi_CAM_Stratocumulus",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus",
+          "panel_label": "Stratocumulus",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__multi_CAM_OpenCellBias.png",
+        "CSET__RHvprof_diff_coll__multi_CAM_OpenCellBias",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell_bias",
+          "panel_label": "Open-Cell Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__multi_CAM_StratoCuBias.png",
+        "CSET__RHvprof_diff_coll__multi_CAM_StratoCuBias",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocu_bias",
+          "panel_label": "StratoCu Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseA.png",
+        "CSET__RHvprof_diff_coll__caseA",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseA_OpenCell.png",
+        "CSET__RHvprof_diff_coll__caseA_OpenCell",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell",
+          "panel_label": "Open-Cell",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseA_Stratocumulus.png",
+        "CSET__RHvprof_diff_coll__caseA_Stratocumulus",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus",
+          "panel_label": "Stratocumulus",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseA_OpenCellBias.png",
+        "CSET__RHvprof_diff_coll__caseA_OpenCellBias",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell_bias",
+          "panel_label": "Open-Cell Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseA_StratoCuBias.png",
+        "CSET__RHvprof_diff_coll__caseA_StratoCuBias",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocu_bias",
+          "panel_label": "StratoCu Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseB.png",
+        "CSET__RHvprof_diff_coll__caseB",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseB_OpenCell.png",
+        "CSET__RHvprof_diff_coll__caseB_OpenCell",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell",
+          "panel_label": "Open-Cell",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseB_Stratocumulus.png",
+        "CSET__RHvprof_diff_coll__caseB_Stratocumulus",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus",
+          "panel_label": "Stratocumulus",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseB_OpenCellBias.png",
+        "CSET__RHvprof_diff_coll__caseB_OpenCellBias",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell_bias",
+          "panel_label": "Open-Cell Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__RHvprof_diff_coll__caseB_StratoCuBias.png",
+        "CSET__RHvprof_diff_coll__caseB_StratoCuBias",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocu_bias",
+          "panel_label": "StratoCu Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "CSET__nd_lwc__multi_CAM.png",
+        "CSET__nd_lwc__multi_CAM",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__multi_CAM_OpenCellNd.png",
+        "CSET__nd_lwc__multi_CAM_OpenCellNd",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell_nd",
+          "panel_label": "Open-Cell Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__multi_CAM_OpenCellLWC.png",
+        "CSET__nd_lwc__multi_CAM_OpenCellLWC",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell_lwc",
+          "panel_label": "Open-Cell LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__multi_CAM_StratocumulusNd.png",
+        "CSET__nd_lwc__multi_CAM_StratocumulusNd",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_nd",
+          "panel_label": "Stratocumulus Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__multi_CAM_StratocumulusLWC.png",
+        "CSET__nd_lwc__multi_CAM_StratocumulusLWC",
+        "CSET",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_lwc",
+          "panel_label": "Stratocumulus LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseA.png",
+        "CSET__nd_lwc__caseA",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseA_OpenCellNd.png",
+        "CSET__nd_lwc__caseA_OpenCellNd",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell_nd",
+          "panel_label": "Open-Cell Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseA_OpenCellLWC.png",
+        "CSET__nd_lwc__caseA_OpenCellLWC",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell_lwc",
+          "panel_label": "Open-Cell LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseA_StratocumulusNd.png",
+        "CSET__nd_lwc__caseA_StratocumulusNd",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_nd",
+          "panel_label": "Stratocumulus Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseA_StratocumulusLWC.png",
+        "CSET__nd_lwc__caseA_StratocumulusLWC",
+        "CSET",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_lwc",
+          "panel_label": "Stratocumulus LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseB.png",
+        "CSET__nd_lwc__caseB",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseB_OpenCellNd.png",
+        "CSET__nd_lwc__caseB_OpenCellNd",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell_nd",
+          "panel_label": "Open-Cell Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseB_OpenCellLWC.png",
+        "CSET__nd_lwc__caseB_OpenCellLWC",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell_lwc",
+          "panel_label": "Open-Cell LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseB_StratocumulusNd.png",
+        "CSET__nd_lwc__caseB_StratocumulusNd",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_nd",
+          "panel_label": "Stratocumulus Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "CSET__nd_lwc__caseB_StratocumulusLWC.png",
+        "CSET__nd_lwc__caseB_StratocumulusLWC",
+        "CSET",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_lwc",
+          "panel_label": "Stratocumulus LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ]
+    ]
+  },
+  "SOCRATES": {
+    "figures": {
+      "SOCRATES__RHvprof_diff_coll__caseA.png": "b41613610010d925fad9e7982f17f1193257b79197192d0e56fad1d3405c164f",
+      "SOCRATES__RHvprof_diff_coll__caseA_OpenCell.png": "89191947bc809dfea85e8b189da3706e9519ed4531f6a071bbd6b2b65a0a81b7",
+      "SOCRATES__RHvprof_diff_coll__caseA_OpenCellBias.png": "80a8ca31341b19a324f04bdee38eab0f516e210c259dc9fe19c50f53f2e6d8f9",
+      "SOCRATES__RHvprof_diff_coll__caseA_StratoCuBias.png": "eb2efc4e7b9cd73fddf1ad9adf9ee478e7c1a6b1b11073a3cdf1f6c7349b91b6",
+      "SOCRATES__RHvprof_diff_coll__caseA_Stratocumulus.png": "5909414c8636f6953f90db50e75cf4626e02dae5bcd77dd61a08bfc009d6b63a",
+      "SOCRATES__RHvprof_diff_coll__caseB.png": "afc5d9ee67b427ca035d3326934fba110ae554226df1d32dc88e49bed67a1752",
+      "SOCRATES__RHvprof_diff_coll__caseB_OpenCell.png": "7e0085760613ad10394604ecf02c1bd676461e63e36dbac7d40ae972843412cb",
+      "SOCRATES__RHvprof_diff_coll__caseB_OpenCellBias.png": "80a8ca31341b19a324f04bdee38eab0f516e210c259dc9fe19c50f53f2e6d8f9",
+      "SOCRATES__RHvprof_diff_coll__caseB_StratoCuBias.png": "eb2efc4e7b9cd73fddf1ad9adf9ee478e7c1a6b1b11073a3cdf1f6c7349b91b6",
+      "SOCRATES__RHvprof_diff_coll__caseB_Stratocumulus.png": "2fd39a9ecc40c5d5794f11bf2f5122ab04f7b1a52f0852269c241e4d174f98a7",
+      "SOCRATES__RHvprof_diff_coll__multi_CAM.png": "6ba85132f417ae30a9cd378c09489cd594a6f610f88cab439a57338f7ceba50e",
+      "SOCRATES__RHvprof_diff_coll__multi_CAM_OpenCell.png": "53b5b6cd4469f3437642e9ad16fbc19c8f7eb409e78c92f4ba35cd60f31a97bc",
+      "SOCRATES__RHvprof_diff_coll__multi_CAM_OpenCellBias.png": "8ed2b3efdf79c26790a1e55de8dabac1504d7f855481b34e91a132a0ccd80cc9",
+      "SOCRATES__RHvprof_diff_coll__multi_CAM_StratoCuBias.png": "d92c7402672403c1d91efe55ddaa87a1a738d74c92f0f731d738603ba5883e3e",
+      "SOCRATES__RHvprof_diff_coll__multi_CAM_Stratocumulus.png": "06abac30e76e13fc2a48f78ddbb6551f5ce1e0dc4f3710c925d01d88b996d87f",
+      "SOCRATES__nd_lwc__caseA.png": "7a7a82d620c872ece9577e4046295491d119714c391ce12970b4153c713174f0",
+      "SOCRATES__nd_lwc__caseA_OpenCellLWC.png": "1f7d5d0e76f4b578972a9b042a01dc2916c0b5097fc20a995bd123b32887e3c2",
+      "SOCRATES__nd_lwc__caseA_OpenCellNd.png": "28fd914c6101fadd65290f1786478411372e3a5c5fe9c257185257575e0e356f",
+      "SOCRATES__nd_lwc__caseA_StratocumulusLWC.png": "ed4eab5a22a9a0b7dfdb6cbf964a43ec0db72c21b07862b6b5ab81029a600e54",
+      "SOCRATES__nd_lwc__caseA_StratocumulusNd.png": "39c2483868b0b1cc18e2775d838762f61b4586a816afcdd4e8749857b86eb4b5",
+      "SOCRATES__nd_lwc__caseB.png": "b3de7e8f301982f9b729fe4d38203b9403e0d30f59786868f2631943ae08e089",
+      "SOCRATES__nd_lwc__caseB_OpenCellLWC.png": "71113513ec8a683a117fc7d1ba4bf09aec08b78f896563b7a0a88448e85a1101",
+      "SOCRATES__nd_lwc__caseB_OpenCellNd.png": "b10d7b9d82aeeda279a8a6c1f14b007ba23b94d5a4d3cfd11df3b7deae94a5bf",
+      "SOCRATES__nd_lwc__caseB_StratocumulusLWC.png": "6f15dfe2c99bd0ddb855ee30568ef4db5358a0850f5f97d5e83d28f5c39289cd",
+      "SOCRATES__nd_lwc__caseB_StratocumulusNd.png": "14e7ff306d570d46145d00b8e44b19671dc248a535a430f2e3df3bb5051a5ca8",
+      "SOCRATES__nd_lwc__multi_CAM.png": "ee1663a4254e977a29e721b019fa5775e861d0b2c636775e9bda889bd15c0daa",
+      "SOCRATES__nd_lwc__multi_CAM_OpenCellLWC.png": "0561379c7c9041314ff3d7f4026b504f076f99c7ca424b74f650a614a26f3c92",
+      "SOCRATES__nd_lwc__multi_CAM_OpenCellNd.png": "cb9b5515bdec3d1e93f5b81f95c8e7afd3247d32521f5f90e8e9d37d55258b1b",
+      "SOCRATES__nd_lwc__multi_CAM_StratocumulusLWC.png": "9542cf4798987fd80fc074b6cf8cf2db9d759833d22ba17359dbecb8a3318f2a",
+      "SOCRATES__nd_lwc__multi_CAM_StratocumulusNd.png": "515ead7b89396efd7b90209bbd3656d10f52096713d5db5c15cde71ec4af86dd",
+      "SOCRATES__sensitivity_vs_sigmaw__caseA.png": "9148f3f6d2db52ccfeacbd97dacefad5c23441f85e5775a617516ac4d5a9b582",
+      "SOCRATES__sensitivity_vs_sigmaw__caseA_OpenCellDrizzling.png": "95a70b02b3a040c163b342e485a76c3db05a1f33f68a332a15bcf9490c15a6b8",
+      "SOCRATES__sensitivity_vs_sigmaw__caseA_OpenCellNonDrizzling.png": "3fdb2e3c611f6d2f3da02aaaaa92e0be9eb8d02818abcce8f0895d2c377d4484",
+      "SOCRATES__sensitivity_vs_sigmaw__caseA_StratocumulusDrizzling.png": "2c6f85c50664f35a370f6757c3cba7b7c5d16507973f6e68ae913f0c1425d435",
+      "SOCRATES__sensitivity_vs_sigmaw__caseA_StratocumulusNonDrizzling.png": "024772454b631fa4a2d1065b00806de69910db9ccb760e71687dbcd90170abd5",
+      "SOCRATES__sensitivity_vs_sigmaw__caseB.png": "fc7cb128d0c29a7dd00a3b599ef553303aaa3c52036d7ea2610c5a1917673694",
+      "SOCRATES__sensitivity_vs_sigmaw__caseB_OpenCellDrizzling.png": "95a70b02b3a040c163b342e485a76c3db05a1f33f68a332a15bcf9490c15a6b8",
+      "SOCRATES__sensitivity_vs_sigmaw__caseB_OpenCellNonDrizzling.png": "3fdb2e3c611f6d2f3da02aaaaa92e0be9eb8d02818abcce8f0895d2c377d4484",
+      "SOCRATES__sensitivity_vs_sigmaw__caseB_StratocumulusDrizzling.png": "c8a5f6a69d42e126c41f07a5f8774ba4aaf2300b749c53aa00db6a9eef27fa5b",
+      "SOCRATES__sensitivity_vs_sigmaw__caseB_StratocumulusNonDrizzling.png": "3f8f6ae0f7e77c5e1530fd4a5aee16eca7a0637f3e53f72517e9a443a14c68dc",
+      "SOCRATES__sensitivity_vs_sigmaw__multi_CAM.png": "d4a2be8b400a3cbf08e12b9f271a985263e0218b235241cb689d656df3dd8c97",
+      "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_OpenCellDrizzling.png": "95a70b02b3a040c163b342e485a76c3db05a1f33f68a332a15bcf9490c15a6b8",
+      "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_OpenCellNonDrizzling.png": "3fdb2e3c611f6d2f3da02aaaaa92e0be9eb8d02818abcce8f0895d2c377d4484",
+      "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_StratocumulusDrizzling.png": "c76495207596e75d4d1320edb3bc5803db0f5360e7870abf17f2779b4a7f52b9",
+      "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_StratocumulusNonDrizzling.png": "f66a2fe232f81798ce74793347e0d24168d198f8786b231fcf7280dd10706e23",
+      "SOCRATES__sigmaw_regime_comparison__caseA.png": "d8265492cf45a5d505d912fe1cb44a09ae563e1448cf61a90a29b470d0374e36",
+      "SOCRATES__sigmaw_regime_comparison__caseB.png": "20e3820ff7a561cd03dd415f539b3a6004b7ac36bdfb8c8a6299bc4c47bfde07",
+      "SOCRATES__sigmaw_regime_comparison__multi_CAM.png": "06d3e5d95f892592e55ca857dde9441fc3e98855561182d4aca6501f9bd2e391"
+    },
+    "json": {
+      "dropsonde_profiles_SOCRATES_fixture_config.json": "12f49c94260f92a5904042b84e5400690385b48c92ded42676fdb34605e87047",
+      "nd_lwc_pdf_SOCRATES_Obs.json": "97efe6d56db858bab883a23cfcf5cf0d5d83fbad079a34f1dac455cbba2d2537",
+      "nd_lwc_pdf_SOCRATES_caseA.json": "1b03e8b9fc70805cc748ba651f6c526145850ecab4bde2ec96353b25d2a9f7e3",
+      "nd_lwc_pdf_SOCRATES_caseB.json": "eecaf56cb56c46f248146813bdba7dc0c862d19c32687cda4c0d77feb90295b5",
+      "nd_lwc_pdfs_SOCRATES_fixture_config.json": "20e448cb6ba7f758238eba95cfb0211a3bb046d2555c34cf8a979cf3ffe88f68",
+      "sensitivity_vs_sigmaw_SOCRATES_Obs.json": "157f22075c2656f3646ffba7f8e2b91f4a7cd566cd9833f7965185281887d9bc",
+      "sensitivity_vs_sigmaw_SOCRATES_caseA.json": "72511219b75011c192f2fe3fedb8b69f6317d3eaf9c22ba651fd8a62977c8aea",
+      "sensitivity_vs_sigmaw_SOCRATES_caseB.json": "c3bc497dcda07638d1a1768cf8c2ce309d3702f2d2c4595480b2c959840d6b68",
+      "sensitivity_vs_sigmaw_dashboard_SOCRATES_fixture_config.json": "564afea5508d8a55a0cb12b683f3822a4e00813316b8465b4487b18de4951695",
+      "sonde_profile_SOCRATES_ERA5.json": "669b113ba766ca470d0603843869f8069d376f9b8c6fd68dbecf587114b0c0a7",
+      "sonde_profile_SOCRATES_Obs.json": "6577dff3b4691d5e811b57de647290e0673d8009dde6da2a221f9be802a77d8f",
+      "sonde_profile_SOCRATES_caseA.json": "4ef350887dbf2e617ffcb0ca053d6ba04f3c67684af8ddbd1a6067fe7990cf96",
+      "sonde_profile_SOCRATES_caseB.json": "5f4a01c9f7ccdbc73590897d4e02b0a988b4486d533bdc2363ff74ea59b0a5a5"
+    },
+    "website": [
+      [
+        "SOCRATES__RHvprof_diff_coll__multi_CAM.png",
+        "SOCRATES__RHvprof_diff_coll__multi_CAM",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_OpenCell.png",
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_OpenCell",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell",
+          "panel_label": "Open-Cell",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_Stratocumulus.png",
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_Stratocumulus",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus",
+          "panel_label": "Stratocumulus",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_OpenCellBias.png",
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_OpenCellBias",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell_bias",
+          "panel_label": "Open-Cell Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_StratoCuBias.png",
+        "SOCRATES__RHvprof_diff_coll__multi_CAM_StratoCuBias",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocu_bias",
+          "panel_label": "StratoCu Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseA.png",
+        "SOCRATES__RHvprof_diff_coll__caseA",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseA_OpenCell.png",
+        "SOCRATES__RHvprof_diff_coll__caseA_OpenCell",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell",
+          "panel_label": "Open-Cell",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseA_Stratocumulus.png",
+        "SOCRATES__RHvprof_diff_coll__caseA_Stratocumulus",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus",
+          "panel_label": "Stratocumulus",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseA_OpenCellBias.png",
+        "SOCRATES__RHvprof_diff_coll__caseA_OpenCellBias",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell_bias",
+          "panel_label": "Open-Cell Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseA_StratoCuBias.png",
+        "SOCRATES__RHvprof_diff_coll__caseA_StratoCuBias",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocu_bias",
+          "panel_label": "StratoCu Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseB.png",
+        "SOCRATES__RHvprof_diff_coll__caseB",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseB_OpenCell.png",
+        "SOCRATES__RHvprof_diff_coll__caseB_OpenCell",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell",
+          "panel_label": "Open-Cell",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseB_Stratocumulus.png",
+        "SOCRATES__RHvprof_diff_coll__caseB_Stratocumulus",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus",
+          "panel_label": "Stratocumulus",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseB_OpenCellBias.png",
+        "SOCRATES__RHvprof_diff_coll__caseB_OpenCellBias",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell_bias",
+          "panel_label": "Open-Cell Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__RHvprof_diff_coll__caseB_StratoCuBias.png",
+        "SOCRATES__RHvprof_diff_coll__caseB_StratoCuBias",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocu_bias",
+          "panel_label": "StratoCu Bias",
+          "plot_type": "Dropsonde Comparison"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__multi_CAM.png",
+        "SOCRATES__nd_lwc__multi_CAM",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__multi_CAM_OpenCellNd.png",
+        "SOCRATES__nd_lwc__multi_CAM_OpenCellNd",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell_nd",
+          "panel_label": "Open-Cell Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__multi_CAM_OpenCellLWC.png",
+        "SOCRATES__nd_lwc__multi_CAM_OpenCellLWC",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "open_cell_lwc",
+          "panel_label": "Open-Cell LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__multi_CAM_StratocumulusNd.png",
+        "SOCRATES__nd_lwc__multi_CAM_StratocumulusNd",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_nd",
+          "panel_label": "Stratocumulus Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__multi_CAM_StratocumulusLWC.png",
+        "SOCRATES__nd_lwc__multi_CAM_StratocumulusLWC",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_lwc",
+          "panel_label": "Stratocumulus LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseA.png",
+        "SOCRATES__nd_lwc__caseA",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseA_OpenCellNd.png",
+        "SOCRATES__nd_lwc__caseA_OpenCellNd",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell_nd",
+          "panel_label": "Open-Cell Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseA_OpenCellLWC.png",
+        "SOCRATES__nd_lwc__caseA_OpenCellLWC",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "open_cell_lwc",
+          "panel_label": "Open-Cell LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseA_StratocumulusNd.png",
+        "SOCRATES__nd_lwc__caseA_StratocumulusNd",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_nd",
+          "panel_label": "Stratocumulus Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseA_StratocumulusLWC.png",
+        "SOCRATES__nd_lwc__caseA_StratocumulusLWC",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_lwc",
+          "panel_label": "Stratocumulus LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseB.png",
+        "SOCRATES__nd_lwc__caseB",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseB_OpenCellNd.png",
+        "SOCRATES__nd_lwc__caseB_OpenCellNd",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell_nd",
+          "panel_label": "Open-Cell Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseB_OpenCellLWC.png",
+        "SOCRATES__nd_lwc__caseB_OpenCellLWC",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "open_cell_lwc",
+          "panel_label": "Open-Cell LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseB_StratocumulusNd.png",
+        "SOCRATES__nd_lwc__caseB_StratocumulusNd",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_nd",
+          "panel_label": "Stratocumulus Nd",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__nd_lwc__caseB_StratocumulusLWC.png",
+        "SOCRATES__nd_lwc__caseB_StratocumulusLWC",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Cloud State",
+          "panel": "stratocumulus_lwc",
+          "panel_label": "Stratocumulus LWC",
+          "plot_type": "Nd LWC PDF"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM.png",
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Micro State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_StratocumulusNonDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_StratocumulusNonDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Micro State",
+          "panel": "stratocumulus_nondrizzling",
+          "panel_label": "Stratocumulus | Non-drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_StratocumulusDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_StratocumulusDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Micro State",
+          "panel": "stratocumulus_drizzling",
+          "panel_label": "Stratocumulus | Drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_OpenCellNonDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_OpenCellNonDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Micro State",
+          "panel": "open_cell_nondrizzling",
+          "panel_label": "Open-Cell | Non-drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_OpenCellDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__multi_CAM_OpenCellDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Micro State",
+          "panel": "open_cell_drizzling",
+          "panel_label": "Open-Cell | Drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseA.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseA",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Micro State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_StratocumulusNonDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_StratocumulusNonDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Micro State",
+          "panel": "stratocumulus_nondrizzling",
+          "panel_label": "Stratocumulus | Non-drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_StratocumulusDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_StratocumulusDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Micro State",
+          "panel": "stratocumulus_drizzling",
+          "panel_label": "Stratocumulus | Drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_OpenCellNonDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_OpenCellNonDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Micro State",
+          "panel": "open_cell_nondrizzling",
+          "panel_label": "Open-Cell | Non-drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_OpenCellDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseA_OpenCellDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Micro State",
+          "panel": "open_cell_drizzling",
+          "panel_label": "Open-Cell | Drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseB.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseB",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Micro State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_StratocumulusNonDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_StratocumulusNonDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Micro State",
+          "panel": "stratocumulus_nondrizzling",
+          "panel_label": "Stratocumulus | Non-drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_StratocumulusDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_StratocumulusDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Micro State",
+          "panel": "stratocumulus_drizzling",
+          "panel_label": "Stratocumulus | Drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_OpenCellNonDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_OpenCellNonDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Micro State",
+          "panel": "open_cell_nondrizzling",
+          "panel_label": "Open-Cell | Non-drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_OpenCellDrizzling.png",
+        "SOCRATES__sensitivity_vs_sigmaw__caseB_OpenCellDrizzling",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Micro State",
+          "panel": "open_cell_drizzling",
+          "panel_label": "Open-Cell | Drizzling",
+          "plot_type": "Sensitivity vs Sigma W"
+        }
+      ],
+      [
+        "SOCRATES__sigmaw_regime_comparison__multi_CAM.png",
+        "SOCRATES__sigmaw_regime_comparison__multi_CAM",
+        "SOCRATES",
+        {
+          "cam_desc": "multi_CAM",
+          "category": "Model Micro State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Sigma W Regime Comparison"
+        }
+      ],
+      [
+        "SOCRATES__sigmaw_regime_comparison__caseA.png",
+        "SOCRATES__sigmaw_regime_comparison__caseA",
+        "SOCRATES",
+        {
+          "cam_desc": "caseA",
+          "category": "Model Micro State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Sigma W Regime Comparison"
+        }
+      ],
+      [
+        "SOCRATES__sigmaw_regime_comparison__caseB.png",
+        "SOCRATES__sigmaw_regime_comparison__caseB",
+        "SOCRATES",
+        {
+          "cam_desc": "caseB",
+          "category": "Model Micro State",
+          "panel": "summary",
+          "panel_label": "Summary",
+          "plot_type": "Sigma W Regime Comparison"
+        }
+      ]
+    ]
+  }
+}
