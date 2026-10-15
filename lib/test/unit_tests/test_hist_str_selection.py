@@ -13,7 +13,7 @@ against pre-made time series (NCAR/ADF issue #471).
 
 Both the tape recorder plot and the aerosol and gas tables build such a list,
 so the choice lives in adf_file_utils, which imports nothing but pathlib and
-can therefore be tested in CI.
+can therefore be tested without the scientific stack.
 """
 
 # +++++++++++++++++++++++

@@ -14,8 +14,9 @@ any spelling of the option other than the one the code looks for.  That is the
 mistake that hid the first bug for so long: the defaults looked correct.
 
 NOTE: the tests that exercise plotting_utils import matplotlib, cartopy and
-the rest of the plotting stack, so they are skipped in CI, which installs only
-PyYAML and pytest.  The defaults check needs only PyYAML and runs everywhere.
+the rest of the plotting stack, so they need the full ADF environment, which CI
+runs them in (see ADF_unit_tests.yaml).  The defaults check needs only PyYAML
+and runs everywhere.
 """
 
 import os

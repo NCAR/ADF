@@ -12,9 +12,9 @@ combinable must open, and a set it rejects must be one that really would fail.
 Getting that wrong ended the whole ADF run rather than one variable, because
 the exception was raised where nothing catches it.
 
-NOTE: these tests import xarray, so they are skipped in CI, which installs only
-PyYAML and pytest.  The decision itself is tested without xarray in
-test_adf_file_utils.py.
+NOTE: these tests import xarray, so they need the full ADF environment, which
+CI runs them in (see ADF_unit_tests.yaml).  The decision itself is tested
+without xarray in test_adf_file_utils.py.
 """
 
 # +++++++++++++++++++++++

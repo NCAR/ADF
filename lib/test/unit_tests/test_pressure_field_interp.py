@@ -10,8 +10,9 @@ from pathlib import Path
 
 import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in the
+# PyYAML-only job of .github/workflows/ADF_unit_tests.yaml.  The workflow's
+# full-environment job runs these.
 np = pytest.importorskip("numpy")
 xr = pytest.importorskip("xarray")
 

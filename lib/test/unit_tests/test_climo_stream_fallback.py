@@ -12,9 +12,8 @@ recorded, a mismatched stream would find nothing and the variable would be
 skipped, leaving no baseline to compare against.  So a search that comes back
 empty for every configured stream falls back to searching without one.
 
-NOTE: these tests import create_climo_files, which imports xarray, so they are
-skipped in CI, which installs only PyYAML and pytest.  They run in a full ADF
-environment.
+NOTE: these tests import create_climo_files, which imports xarray, so they need the full
+ADF environment, which CI runs them in (see ADF_unit_tests.yaml).
 """
 
 import os

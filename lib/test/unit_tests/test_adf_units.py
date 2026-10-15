@@ -18,8 +18,8 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-# adf_units imports nothing but re, so these run in CI, where only PyYAML and
-# pytest are installed:
+# adf_units imports nothing but re, so these run in every CI job, including
+# the one with only PyYAML and pytest installed:
 from adf_units import normalize_units, units_equivalent
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -10,11 +10,8 @@ stream" pattern, and looking in the directory itself before recursing into a
 nested (GenTS-style) layout.
 
 NOTE: unlike test_adf_file_utils, these tests import adf_info, which pulls in
-xarray and (through adf_utils) the rest of the scientific stack.  The ADF unit
-test workflow installs only PyYAML and pytest, so they are skipped there and
-only run in a full ADF environment.  Moving the search itself into
-adf_file_utils would make it testable in CI; that is a bigger change than the
-one these tests were written to cover.
+xarray and (through adf_utils) the rest of the scientific stack.  They need the
+full ADF environment, which CI runs them in (see ADF_unit_tests.yaml).
 """
 
 # +++++++++++++++++++++++
