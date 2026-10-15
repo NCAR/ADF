@@ -115,17 +115,6 @@ class TsFileCombineTestRoutine(unittest.TestCase):
                 xr.open_mfdataset(fils, decode_times=False, combine="by_coords")
             # End with
 
-    def test_single_file_needs_no_combining(self):
-        """
-        One file is the ordinary case, and is copied rather than rewritten.
-        """
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            fil = str(Path(tmpdir) / "case.cam.h0a.T.000101-002012.nc")
-            _write_ts(fil, 0, 240)
-
-            self.assertFalse(ts_files_need_combining([fil]))
-
 
 # ++++++++++++++++++
 

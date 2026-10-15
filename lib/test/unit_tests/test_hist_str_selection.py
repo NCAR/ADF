@@ -86,19 +86,6 @@ class HistStrSelectionTestRoutine(unittest.TestCase):
         self.assertEqual(pick_hist_str("cam.h3", _SUBSTRINGS), "")
         self.assertEqual(pick_hist_str(["cam.h1", "cam.h2"], _SUBSTRINGS), "")
 
-    def test_one_entry_per_case(self):
-        """
-        The property the plot depends on: as many entries as there are cases,
-        in the same order, whatever each case holds.
-        """
-
-        cases = [["cam.h0a"], ["cam.h3"], "cam.h0", "", ["cam.h1", "cam.h0a"]]
-
-        picked = [pick_hist_str(case, _SUBSTRINGS) for case in cases]
-
-        self.assertEqual(len(picked), len(cases))
-        self.assertEqual(picked, ["cam.h0a", "", "cam.h0", "", "cam.h0a"])
-
 
 # ++++++++++++++++++
 

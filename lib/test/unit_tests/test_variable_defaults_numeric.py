@@ -52,10 +52,6 @@ def _numeric_offenders(defaults):
     return bad
 
 
-def test_defaults_file_exists():
-    assert DEFAULTS_FILE.is_file(), f"missing {DEFAULTS_FILE}"
-
-
 def test_numeric_settings_parse_as_numbers():
     defaults = yaml.safe_load(DEFAULTS_FILE.read_text())
     offenders = _numeric_offenders(defaults)

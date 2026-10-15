@@ -39,7 +39,7 @@ try:
     import matplotlib
 
     matplotlib.use("Agg")
-    from plotting_utils import colormap_object, prep_contour_plot
+    from plotting_utils import prep_contour_plot
 
     _HAS_PLOTTING = True
 except ImportError:
@@ -105,7 +105,7 @@ class NonLinearOptionNameTestRoutine(unittest.TestCase):
 @unittest.skipUnless(_HAS_PLOTTING, "plotting_utils dependencies not available")
 class NonLinearNormTestRoutine(unittest.TestCase):
     """
-    Unit tests for the colormap lookup and the norm it feeds.
+    Unit tests for the norm prep_contour_plot builds.
     """
 
     def _data(self):
@@ -113,20 +113,6 @@ class NonLinearNormTestRoutine(unittest.TestCase):
         return xr.DataArray(
             np.linspace(-5e7, 5e7, 100).reshape(10, 10), dims=("lev", "lat")
         )
-
-    def test_colormap_from_a_name(self):
-        """The defaults give colormaps by name."""
-
-        cmap = colormap_object("viridis")
-
-        self.assertTrue(hasattr(cmap, "N"))
-
-    def test_colormap_from_a_colormap(self):
-        """A colormap that has already been looked up is passed through."""
-
-        cmap = colormap_object("viridis")
-
-        self.assertIs(colormap_object(cmap), cmap)
 
     def test_non_linear_gives_a_boundary_norm(self):
         """

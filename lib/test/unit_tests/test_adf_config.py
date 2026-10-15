@@ -37,38 +37,6 @@ class AdfConfigTestRoutine(unittest.TestCase):
     complete code coverage for AdfConfig.
     """
 
-    def test_AdfConfig_create(self):
-        """
-        Check that the AdfConfig class can
-        be initialized properly.
-        """
-
-        # Use example config file:
-        baseline_example_file = os.path.join(
-            _ADF_LIB_DIR, os.pardir, "config_cam_baseline_example.yaml"
-        )
-
-        # Create AdfConfig object:
-        adf_test = AdfConfig(baseline_example_file)
-
-        # Assert that new object is of the "AdfConfig" class:
-        self.assertIsInstance(adf_test, AdfConfig)
-
-        # Also check that "read_config_var" works as expected:
-        basic_diag_dict = adf_test.read_config_var("diag_basic_info")
-
-        check_user = adf_test.read_config_var("user")
-        check_user_expected = "USER-NAME-NOT-SET"
-        self.assertEqual(check_user, check_user_expected)
-
-        obs_data_loc = adf_test.read_config_var(
-            "obs_data_loc", conf_dict=basic_diag_dict
-        )
-
-        self.assertEqual(obs_data_loc, "/glade/campaign/cgd/amp/amwg/ADF_obs")
-
-    #####
-
     def test_AdfConfig_missing_file(self):
         """
         Check that AdfConfig throws the

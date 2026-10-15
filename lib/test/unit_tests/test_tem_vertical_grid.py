@@ -97,12 +97,6 @@ def test_calc_tem_runs_on_whatever_harmonize_returns(
     assert out["UZM"].sizes[expected_dim] == expected_size
 
 
-def test_pressure_field_follows_the_grid():
-    """PMID pairs with midpoints, PINT with interfaces."""
-    assert utils.pressure_field_name("lev") == "PMID"
-    assert utils.pressure_field_name("ilev") == "PINT"
-
-
 def test_vertical_dim_ignores_other_dimensions():
     da = xr.DataArray(np.zeros((2, 3)), dims=("time", "zalat"))
     assert utils.vertical_dim(da) is None

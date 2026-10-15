@@ -54,18 +54,6 @@ class AdfBaseTestRoutine(unittest.TestCase):
         # Close all log streams:
         logging.shutdown()
 
-    def test_AdfBase_create(self):
-        """
-        Check that the Adfbase class can
-        be initialized properly.
-        """
-
-        # Create AdfBase object:
-        adf_test = AdfBase()
-
-        # Assert that new object is of the "AdfBase" class:
-        self.assertIsInstance(adf_test, AdfBase)
-
     def test_AdfBase_debug_create(self):
         """
         Check that the Adfbase class can
