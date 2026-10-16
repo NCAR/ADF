@@ -7,22 +7,27 @@ import plotting_functions as pf
 import plotting_utils as plot_utils
 import adf_utils as utils
 
+# Polar plot types (website tabs) for each model component; the land
+# diagnostics call them "Arctic" and "Antarctic":
+HEMI_TYPES = {"atm": ["NHPolar", "SHPolar"], "lnd": ["Arctic", "Antarctic"]}
+
+
 def get_hemisphere(hemi_type):
     """Helper function to convert plot type to hemisphere code.
     
     Parameters
     ----------
     hemi_type : str
-        if `NHPolar` set NH, otherwise SH
+        `NHPolar` or `SHPolar`, or the land plot types `Arctic` or `Antarctic`
         
     Returns
     -------
     str
-        NH or SH
+        NH or SH, or Arctic or Antarctic (which make_polar_plot also takes)
     """
-    return "NH" if hemi_type == "NHPolar" else "SH"
+    return {"NHPolar": "NH", "SHPolar": "SH"}.get(hemi_type, hemi_type)
 
-def process_seasonal_data(mdata, odata, season):
+def process_seasonal_data(mdata, odata, season, comp="atm"):
     """Helper function to calculate seasonal means and differences.
     Parameters
     ----------
@@ -32,6 +37,9 @@ def process_seasonal_data(mdata, odata, season):
         reference case data
     season : str
         season (JJA, DJF, MAM, SON)
+    comp : str, optional
+        model component; for land ("lnd") the percent difference is left
+        blank where the baseline is ~zero, instead of being set to 0
 
     Returns
     -------
@@ -49,10 +57,14 @@ def process_seasonal_data(mdata, odata, season):
     dseason.attrs['units'] = mseason.attrs['units']
     
     # Calculate percent change
-    pseason = (mseason - oseason) / np.abs(oseason) * 100.0
+    if comp == "lnd":
+        pseason = utils.pct_change(mseason, oseason)
+    else:
+        pseason = (mseason - oseason) / np.abs(oseason) * 100.0
     pseason.attrs['units'] = '%'
     pseason = pseason.where(np.isfinite(pseason), np.nan)
-    pseason = pseason.fillna(0.0)
+    if comp != "lnd":
+        pseason = pseason.fillna(0.0)
     
     return mseason, oseason, dseason, pseason
 
@@ -109,6 +121,9 @@ def polar_map(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
+
+    # Polar plot types (website tabs) for this model component:
+    hemi_types = HEMI_TYPES.get(adfobj.model_component, HEMI_TYPES["atm"])
     #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     # check if existing plots need to be redone
@@ -156,7 +171,8 @@ def polar_map(adfobj):
         # that first means a re-run never opens the regridded files just to
         # find out which of the two it is looking at.
         settled = _existing_plot_set(
-            plot_locations, case_names, var, seasons, pres_levs, plot_type
+            plot_locations, case_names, var, seasons, pres_levs, plot_type,
+            hemi_types,
         )
         if settled and not redo_plot:
             for path, web_name, case_name, season, hemi_type in settled:
@@ -187,7 +203,7 @@ def polar_map(adfobj):
             has_lev = "lev" in tmp_ds.dims
 
             for s in seasons:
-                for hemi_type in ["NHPolar", "SHPolar"]:
+                for hemi_type in hemi_types:
                     if pres_levs and has_lev: # 3-D variable & pressure levels specified
                         for pres in pres_levs:
                             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
@@ -249,7 +265,7 @@ def polar_map(adfobj):
         # Reference weights for native-grid plotting (checked against each
         # case's below):
         if unstruct_plotting and adfobj.native_grid.get(base_name, False):
-            wgt_base = odataset.isel(time=0)[var]
+            wgt_base = utils.cell_weights(odataset, adfobj.model_component)
 
         # Process each case
         for plot in plot_info:
@@ -265,13 +281,6 @@ def polar_map(adfobj):
             if unstruct_plotting:
                 vres["mesh_file"] = info["mesh_file"]
 
-            #Determine hemisphere to plot based on plot file name:
-            if hemi_type == "NHPolar":
-                hemi = "NH"
-            if hemi_type == "SHPolar":
-                hemi = "SH"
-            #End if
-
             # Ensure plot directory exists
             plot_loc.mkdir(parents=True, exist_ok=True)
 
@@ -285,7 +294,7 @@ def polar_map(adfobj):
                 #mdataset = adfobj.data.load_climo_dataset(case_name, var, **kwargs)
                 mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
                 if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
-                    wgt = mdataset.isel(time=0)[var]
+                    wgt = utils.cell_weights(mdataset, adfobj.model_component)
             else:
                 mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
                 """#Skip this variable/case if the regridded climo file doesn't exist:
@@ -375,7 +384,8 @@ def polar_map(adfobj):
             mseason, oseason, dseason, pseason = process_seasonal_data(
                 mdata, 
                 use_odata,
-                plot['season']
+                plot['season'],
+                comp=adfobj.model_component,
             )
 
             # Create plot
@@ -405,7 +415,9 @@ def polar_map(adfobj):
 #END OF `polar_map` function
 
 
-def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot_type):
+def _existing_plot_set(
+    plot_locations, case_names, var, seasons, pres_levs, plot_type, hemi_types=None
+):
     """
     Return the complete set of polar plots for `var`, if one is on disk.
 
@@ -429,6 +441,8 @@ def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot
         the configured pressure levels, empty when none are set
     plot_type : str
         file extension the plots are written with, e.g. "png"
+    hemi_types : list, optional
+        the polar plot types, see `HEMI_TYPES`; CAM's when not given
 
     Returns
     -------
@@ -436,12 +450,14 @@ def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot
         ``(path, website name, case, season, hemisphere)`` for every plot,
         when a complete set exists; an empty list when it does not.
     """
+    if hemi_types is None:
+        hemi_types = HEMI_TYPES["atm"]
     flat = []
     levelled = []
     for case_idx, case_name in enumerate(case_names):
         plot_loc = Path(plot_locations[case_idx])
         for season in seasons:
-            for hemi_type in ["NHPolar", "SHPolar"]:
+            for hemi_type in hemi_types:
                 flat.append(
                     (
                         plot_loc / f"{var}_{season}_{hemi_type}_Mean.{plot_type}",

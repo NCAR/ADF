@@ -22,6 +22,14 @@ global_average(fld, wgt, verbose=False)
     pure numpy global average.
 spatial_average(indata, weights=None, spatial_dims=None)
     Compute spatial average
+normalize_weights(wgt)
+    normalize weights to sum to 1, error if they sum to zero
+cell_weights(dset, comp="atm")
+    normalized native-grid cell weights: area, or area * landfrac for land
+spatial_average_lnd(indata, weights, spatial_dims=None)
+    Compute a land spatial average with normalized (area * landfrac) weights
+pct_change(case, base, rel_tol=1e-6)
+    percent change, masked where baseline is ~zero
 wgt_rmse(fld1, fld2, wgt):
     Calculate the area-weighted RMSE.
 annual_mean(data, whole_years=False, time_name='time'):
@@ -739,6 +747,42 @@ def native_grid_weights(ts_file):
     return xr.DataArray(np.ones(ncol), dims=["ncol"])
 
 
+def land_weights(ts_file, normalize=True):
+    """Cell weights for averaging land (CLM) data of one case.
+
+    Land values are weighted by the land area of each cell, ``area`` times
+    ``landfrac``, which CLM writes to its history files and so to every time
+    series file.
+
+    Parameters
+    ----------
+    ts_file : str or pathlib.Path
+        Any of the case's time series files.
+    normalize : bool, optional
+        If True (the default), scale the weights to sum to 1, for a weighted
+        mean; if False, keep them as land areas, for a global total.
+
+    Returns
+    -------
+    xarray.DataArray or None
+        The weights, or None when the file has no ``area`` or ``landfrac``.
+    """
+    with xr.open_dataset(ts_file, decode_times=False) as dset:
+        if ("area" not in dset) or ("landfrac" not in dset):
+            return None
+        # End if
+        wgt = dset["area"] * dset["landfrac"]
+        if "time" in wgt.dims:
+            wgt = wgt.isel(time=0)
+        # End if
+        wgt = wgt.load()
+    # End with
+    if normalize:
+        wgt = normalize_weights(wgt)
+    # End if
+    return wgt
+
+
 def spatial_average(indata, weights=None, spatial_dims=None):
     """Compute spatial average.
 
@@ -824,6 +868,139 @@ def spatial_average(indata, weights=None, spatial_dims=None):
         raise AdfError(emsg)
 
     return weighted.mean(dim=spatial_dims, keep_attrs=True)
+
+
+def normalize_weights(wgt):
+    """Return wgt / sum(wgt), raising a clear error if the weights sum to zero.
+
+    Parameters
+    ----------
+    wgt : array-like
+        weights, e.g. area * landfrac
+
+    Returns
+    -------
+    same type as input
+        weights normalized to sum to 1
+
+    Raises
+    ------
+    ValueError
+        if the weights sum to zero or NaN (e.g. empty region or no land)
+    """
+    total = float(np.nansum(wgt))
+    if (not np.isfinite(total)) or (total <= 0):
+        raise ValueError(
+            "Weights sum to zero (empty region or no land?); cannot normalize."
+        )
+    return wgt / total
+
+
+def spatial_average_lnd(indata, weights, spatial_dims=None):
+    """Compute a land spatial average.
+
+    Parameters
+    ----------
+    indata : xr.DataArray
+        input data
+    weights : xr.DataArray
+        normalized weights, see `normalize_weights` (area * landfrac)
+    spatial_dims : list, optional
+        list of dimensions to average, see Notes for default behavior
+
+    Returns
+    -------
+    xr.DataArray
+        weighted average of `indata`
+
+    Notes
+    -----
+    The weights are required, and must already sum to 1: the average is the
+    weighted sum, so that cells without land (NaN) don't count.
+
+    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
+    Will average over `lndgrid` if present, and then will check for `lat` and `lon`.
+    When none of those are found, raise an AdfError.
+    """
+    # Apply weights to input data:
+    weighted = indata * weights
+
+    # we want to average over all non-time dimensions
+    if spatial_dims is None:
+        if "lndgrid" in indata.dims:
+            spatial_dims = ["lndgrid"]
+        else:
+            spatial_dims = [
+                dimname
+                for dimname in indata.dims
+                if ("lat" in dimname.lower()) or ("lon" in dimname.lower())
+            ]
+    if not spatial_dims:
+        # Scripts using this function likely expect the horizontal dimensions
+        # to be removed via the application of the mean. So in order to avoid
+        # possibly unexpected behavior due to arrays being incorrectly dimensioned
+        # (which could be difficult to debug) the ADF should die here:
+        emsg = "spatial_average_lnd: No spatial dimensions were identified,"
+        emsg += " so can not perform average."
+        raise AdfError(emsg)
+
+    return weighted.sum(dim=spatial_dims, keep_attrs=True)
+
+
+def cell_weights(dset, comp="atm"):
+    """Normalized cell weights for averaging native-grid data of one case.
+
+    Parameters
+    ----------
+    dset : xr.Dataset or ux.UxDataset
+        a climatology or time series dataset of the case, holding its cell
+        areas as "area" and, for land, its land fraction as "landfrac"
+    comp : str, optional
+        the model component, "atm" (the default) or "lnd"
+
+    Returns
+    -------
+    xr.DataArray or ux.UxDataArray
+        area (atm) or area * landfrac (lnd), normalized to sum to 1
+    """
+    if "time" in dset.dims:
+        dset = dset.isel(time=0)
+    # End if
+    if "area" in dset:
+        wgt = dset["area"]
+    elif hasattr(dset, "uxgrid"):
+        # No areas in the file, so use the mesh's face areas:
+        wgt = xr.DataArray(dset.uxgrid.face_areas.values, dims=["n_face"])
+    else:
+        raise AdfError("cell_weights: no 'area' in the dataset to weight by.")
+    # End if
+    if comp == "lnd" and "landfrac" in dset:
+        wgt = wgt * dset["landfrac"].fillna(0)
+    # End if
+    return normalize_weights(wgt.fillna(0))
+
+
+def pct_change(case, base, rel_tol=1e-6):
+    """Percent change (case - base) / |base| * 100, masked where |base| is ~zero.
+
+    Parameters
+    ----------
+    case, base : xr.DataArray or ux.UxDataArray
+        fields to compare, with matching shapes
+    rel_tol : float, optional
+        values of |base| smaller than rel_tol * max(|base|) are treated as zero;
+        relative so that it works for any variable's units
+
+    Returns
+    -------
+    same type as inputs
+        percent change, NaN where the baseline is ~zero (avoids divide-by-zero
+        warnings and very large values that distort the color scale)
+    """
+    abs_base = np.abs(base)
+    thresh = rel_tol * float(abs_base.max())
+    denom = abs_base.where(abs_base > thresh)
+    return (case - base) / denom * 100.0
 
 
 def wgt_rmse(fld1, fld2, wgt):
@@ -1039,7 +1216,7 @@ def seasonal_mean(data, season=None, is_climo=None):
 #######
 
 
-def array_diff(a, b, percent=False, fill_nan=None):
+def array_diff(a, b, percent=False, fill_nan=None, rel_tol=None):
     """
     Compute difference or percent difference between two data arrays
 
@@ -1053,6 +1230,9 @@ def array_diff(a, b, percent=False, fill_nan=None):
         If True, compute percent difference
     fill_nan : float or None
         If set, replace NaNs with this value
+    rel_tol : float or None
+        Percent difference only: if set, the result is NaN where |b| is smaller
+        than rel_tol * max(|b|), i.e. where the baseline is ~zero (see `pct_change`)
 
     Returns
     -------
@@ -1076,6 +1256,9 @@ def array_diff(a, b, percent=False, fill_nan=None):
                 vals = (a.values - b.values) / np.abs(b.values) * 100.0
         else:
             vals = (a.values - b.values) / np.abs(b.values) * 100.0
+        if rel_tol is not None:
+            abs_b = np.abs(b.values)
+            vals = np.where(abs_b > rel_tol * np.nanmax(abs_b), vals, np.nan)
     else:
         vals = a.values - b.values
 
@@ -1900,8 +2083,10 @@ def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid="ncol")
     return regridded
 
 
-def grid_to_latlon(model_dataset, var_name, wgt_file, method=None):
-    """Grid native-grid (``ncol``) atmosphere data to lat/lon with a weights file.
+def grid_to_latlon(
+    model_dataset, var_name, wgt_file, method=None, comp="atm", latlon_file=None
+):
+    """Grid native-grid data (CAM ``ncol`` or CLM ``lndgrid``) to lat/lon with a weights file.
 
     Parameters
     ----------
@@ -1914,6 +2099,12 @@ def grid_to_latlon(model_dataset, var_name, wgt_file, method=None):
     method : str, optional
         "conservative" (the default) or "bilinear"; should match how the
         weights file was made.
+    comp : str, optional
+        The model component, "atm" (the default) or "lnd".  Land data is
+        weighted by its land fraction while it is gridded.
+    latlon_file : str or pathlib.Path, optional
+        Land only: a file on the target lat/lon grid holding its "landmask",
+        used to mask the gridding and carried over to the result.
 
     Returns
     -------
@@ -1922,7 +2113,8 @@ def grid_to_latlon(model_dataset, var_name, wgt_file, method=None):
         native grid (hyam, hybm, P0, time bounds, ...) carried over, and the
         grid-cell areas as "area".
     """
-    comp_grid = "ncol"
+    land = comp == "lnd"
+    comp_grid = "lndgrid" if land else "ncol"
 
     # The weights file decides the actual algorithm; the method only picks how
     # the regridder is applied.  xesmf demands cell bounds for "conservative",
@@ -1941,9 +2133,27 @@ def grid_to_latlon(model_dataset, var_name, wgt_file, method=None):
     model_dataset[var_name] = model_dataset[var_name].fillna(0)
     da_attrs = model_dataset[var_name].attrs
 
+    # Land: grid the land-fraction-weighted field (divided out again below),
+    # masked by the source and, if given, target land masks:
+    s_data = None
+    d_data = None
+    latlon_landmask = None
+    if land:
+        model_dataset["landfrac"] = model_dataset["landfrac"].fillna(0)
+        model_dataset[var_name] = model_dataset[var_name] * model_dataset["landfrac"]
+        s_data = model_dataset["landmask"]
+        if "time" in s_data.dims:
+            s_data = s_data.isel(time=0)
+        if latlon_file:
+            with xr.open_dataset(latlon_file) as latlon_ds:
+                latlon_landmask = latlon_ds["landmask"].load()
+            d_data = latlon_landmask
+        # End if
+    # End if
+
     # Grid model data to match target grid lat/lon:
     regridder = make_se_regridder(
-        weight_file=wgt_file, s_data=None, d_data=None, Method=method, var=var_name
+        weight_file=wgt_file, s_data=s_data, d_data=d_data, Method=method, var=var_name
     )
 
     # Only the fields on the native grid can be regridded; everything else
@@ -1962,6 +2172,20 @@ def grid_to_latlon(model_dataset, var_name, wgt_file, method=None):
         if dim in rgdata.coords and dim in model_dataset.coords:
             rgdata[dim].attrs = model_dataset[dim].attrs
     rgdata.attrs = model_dataset.attrs
+
+    if land:
+        landfrac = rgdata["landfrac"]
+        if "time" in landfrac.dims:
+            landfrac = landfrac.isel(time=0)
+        rgdata["landfrac"] = landfrac
+        rgdata[var_name] = rgdata[var_name] / landfrac.where(landfrac > 0)
+        if latlon_landmask is not None:
+            # By position: the file's lat/lon values need not match the
+            # weights file's to the last digit, and aligning on them would
+            # leave NaNs.
+            rgdata["landmask"] = (("lat", "lon"), latlon_landmask.values)
+        # End if
+    # End if
 
     # calculate area
     rgdata = calc_area(rgdata)

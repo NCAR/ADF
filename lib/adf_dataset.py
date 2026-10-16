@@ -265,7 +265,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         If hist_str is given, restrict the search to that history stream
         (time series files are named {case}.{hist_str}.{field}.*.nc).
 
-        The files are narrowed to those needed for the case's climatology
+        The files are narrowed to those needed for the case's time series
         years, so that a directory holding more than one set for the same
         variable (years 1-20 alongside years 1-40, say) does not produce a
         combined time axis with duplicate times.
@@ -286,9 +286,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
         else:
             ts_filenames = f"{case}.*.{field}.*nc"
         fils = utils.find_ts_files(ts_loc, ts_filenames)
-        climo_yrs = self.adf.climo_yrs
+        ts_yrs = self.adf.ts_yrs
         return self._select_ts_files(
-            fils, climo_yrs["syears"][caseindex], climo_yrs["eyears"][caseindex], field
+            fils, ts_yrs["syears"][caseindex], ts_yrs["eyears"][caseindex], field
         )
 
     # Reference case (baseline/obs)
@@ -296,7 +296,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         """Return list of reference time series files.
 
         If hist_str is given, restrict the search to that history stream.
-        Narrowed to the baseline's climatology years, as for the test cases.
+        Narrowed to the baseline's time series years, as for the test cases.
         """
         if self.adf.compare_obs:
             warnings.warn(
@@ -313,9 +313,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
         else:
             ts_filenames = f"{self.ref_case_label}.*.{field}.*nc"
         fils = utils.find_ts_files(ts_loc, ts_filenames)
-        climo_yrs = self.adf.climo_yrs
+        ts_yrs = self.adf.ts_yrs
         return self._select_ts_files(
-            fils, climo_yrs["syear_baseline"], climo_yrs["eyear_baseline"], field
+            fils, ts_yrs["syear_baseline"], ts_yrs["eyear_baseline"], field
         )
 
     def load_timeseries_dataset(self, fils):

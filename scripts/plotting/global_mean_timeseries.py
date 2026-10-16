@@ -25,10 +25,24 @@ def global_mean_timeseries(adfobj):
     for each case
     Make a combined plot, save it, add it to website.
     Include the CESM2 LENS result if it can be found.
+
+    Land (CLM) cases, where ``adfobj.model_component`` is "lnd", are averaged
+    the same way except that:
+    - values are weighted by the land area of each cell (area * landfrac);
+    - the variable defaults' 'avg_method' gives a weighted mean ('mean'), a
+      global total ('sum'), or a running total of it ('cumsum', e.g. for
+      NBP), scaled by 'scale_factor_table' and labelled with 'ts_unit' (or
+      'table_unit');
+    - the test cases are still plotted when the baseline lacks the variable
+      or observations are the reference;
+    - the plot goes under the variable's website category.
     """
 
+    is_lnd = adfobj.model_component == "lnd"
+
     #Notify user that script has started:
-    msg = "\n  Generating global mean time series plots..."
+    comp_str = "land " if is_lnd else ""
+    msg = f"\n  Generating {comp_str}global mean time series plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # Gather ADF configurations
@@ -58,6 +72,7 @@ def global_mean_timeseries(adfobj):
                 season="ANN",
                 multi_case=True,
                 plot_type="TimeSeries",
+                category=res.get(field, {}).get("category") if is_lnd else None,
             )
             continue
         # End if
@@ -80,11 +95,18 @@ def global_mean_timeseries(adfobj):
 
         # Check to see if this field is available
         if ref_ts_da is None:
-            if not adfobj.compare_obs:
-                print(
-                    f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
-                )
-            continue
+            if is_lnd:
+                # Land still plots the test cases on their own:
+                if not adfobj.compare_obs:
+                    print(f"\t    WARNING: No baseline time series for {field}, skipping baseline.")
+                # End if
+            else:
+                if not adfobj.compare_obs:
+                    print(
+                        f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
+                    )
+                continue
+            # End if
         else:
             # check data dimensions:
             has_lat_ref, has_lev_ref = utils.zm_validate_dims(ref_ts_da)
@@ -97,8 +119,8 @@ def global_mean_timeseries(adfobj):
                 continue
             # End if
             
-            # check if there is a lat dimension (native-grid data has none):
-            if not has_lat_ref and "ncol" not in ref_ts_da.dims:
+            # check if there is a lat dimension (native-grid data, ncol or lndgrid, has none):
+            if not has_lat_ref and not _is_native(ref_ts_da):
                 print(
                     f"\t    WARNING: Variable {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
                 )
@@ -106,12 +128,22 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # reference time series global average
-            ref_ts_da_ga = utils.spatial_average(
-                ref_ts_da, weights=_native_weights(adfobj, field, ref_ts_da), spatial_dims=None
-            )
-
-            # annually averaged
-            ref_ts_da = utils.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
+            if is_lnd:
+                ref_ts_da_ga = _land_global(
+                    ref_ts_da, adfobj.data.get_ref_timeseries_file(field), vres
+                )
+            else:
+                ref_ts_da_ga = utils.spatial_average(
+                    ref_ts_da, weights=_native_weights(adfobj, field, ref_ts_da), spatial_dims=None
+                )
+            # End if
+            # annually averaged (land plots the test cases on their own when
+            # the baseline can't be averaged)
+            if ref_ts_da_ga is None:
+                ref_ts_da = None
+            else:
+                ref_ts_da = utils.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
+            # End if
         # End if
 
         # Loop over model cases:
@@ -157,8 +189,8 @@ def global_mean_timeseries(adfobj):
                 continue
             # End if
 
-            # check if there is a lat dimension (native-grid data has none):
-            if not has_lat_case and "ncol" not in c_ts_da.dims:
+            # check if there is a lat dimension (native-grid data, ncol or lndgrid, has none):
+            if not has_lat_case and not _is_native(c_ts_da):
                 print(
                     f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
@@ -167,14 +199,32 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # Gather spatial avg for test case
-            c_ts_da_ga = utils.spatial_average(
-                c_ts_da, weights=_native_weights(adfobj, field, c_ts_da, case_name)
-            )
-            case_ts[labels[case_name]] = utils.annual_mean(c_ts_da_ga)
+            if is_lnd:
+                c_ts_da_ga = _land_global(
+                    c_ts_da, adfobj.data.get_timeseries_file(case_name, field), vres
+                )
+                if c_ts_da_ga is None:
+                    skip_var = True
+                    continue
+                # End if
+            else:
+                c_ts_da_ga = utils.spatial_average(
+                    c_ts_da, weights=_native_weights(adfobj, field, c_ts_da, case_name)
+                )
+            # End if
+            case_ts[labels[case_name]] = utils.annual_mean(c_ts_da_ga, whole_years=is_lnd)
 
         # If this case is 3-d or missing variable, then break the loop and go to next variable
         if skip_var:
             continue
+
+        # Running totals, e.g. of land carbon uptake (NBP):
+        if is_lnd and vres.get("avg_method", "mean") == "cumsum":
+            case_ts = {label: cdata.cumsum() for label, cdata in case_ts.items()}
+            if ref_ts_da is not None:
+                ref_ts_da = ref_ts_da.cumsum()
+            # End if
+        # End if
 
         lens2_data = Lens2Data(
                 field
@@ -183,11 +233,22 @@ def global_mean_timeseries(adfobj):
         ## SPECIAL SECTION -- CESM2 LENS DATA:
         # Plot the timeseries
         fig, ax = make_plot(
-            case_ts, lens2_data, label=adfobj.data.ref_nickname, ref_ts_da=ref_ts_da
+            case_ts,
+            lens2_data,
+            label=ref_label if is_lnd else adfobj.data.ref_nickname,
+            ref_ts_da=ref_ts_da,
         )
 
-        unit = vres.get("new_unit","[-]")
-        ax.set_ylabel(getattr(ref_ts_da,"unit", unit)) # add units
+        if is_lnd:
+            # the last of these given wins:
+            unit = c_ts_da.attrs.get("units", "none")
+            for unit_key in ("new_unit", "table_unit", "ts_unit"):
+                unit = vres.get(unit_key, unit)
+            # End for
+        else:
+            unit = getattr(ref_ts_da, "unit", vres.get("new_unit", "[-]"))
+        # End if
+        ax.set_ylabel(unit) # add units
 
         conditional_save(adfobj, plot_name, fig)
 
@@ -198,10 +259,11 @@ def global_mean_timeseries(adfobj):
             season="ANN",
             multi_case=True,
             plot_type="TimeSeries",
+            category=vres.get("category") if is_lnd else None,
         )
 
     #Notify user that script has ended:
-    print("  ... global mean time series plots have been generated successfully.")
+    print(f"  ... {comp_str}global mean time series plots have been generated successfully.")
 
 
 # Helper/plotting functions
@@ -277,6 +339,39 @@ def _native_weights(adfobj, field, data, case_name=None):
     return utils.native_grid_weights(fils[0])
 
 
+def _is_native(data):
+    """True for data on a native (unstructured) grid: CAM's ncol or CLM's lndgrid."""
+    return ("ncol" in data.dims) or ("lndgrid" in data.dims)
+
+
+def _land_global(data, fils, vres):
+    """Land-area weighted global mean, or total, of land (CLM) data.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        The variable, as loaded through ``adfobj.data``.
+    fils : list
+        The variable's time series files, which hold 'area' and 'landfrac'.
+    vres : dict
+        The variable's defaults: 'avg_method' ('mean' for a weighted mean,
+        otherwise a global total) and 'scale_factor_table'.
+
+    Returns
+    -------
+    xarray.DataArray or None
+        The global series, or None (with a warning) when the files have no
+        'area' or 'landfrac'.
+    """
+    weights = utils.land_weights(fils[0], normalize=(vres.get("avg_method", "mean") == "mean"))
+    if weights is None:
+        print(f"\t    WARNING: No 'area' or 'landfrac' with {data.name}, so it can't be averaged over land.")
+        return None
+    # End if
+    data = data * vres.get("scale_factor_table", 1)
+    return utils.spatial_average_lnd(data, weights=weights)
+
+
 class Lens2Data:
     """Access Isla's LENS2 data to get annual means."""
 
@@ -307,10 +402,10 @@ def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     fig, ax = plt.subplots()
 
     # Plot reference/baseline if available
+    # (CAM skips a variable without one before getting here; land plots the
+    # test cases on their own)
     if type(ref_ts_da) != NoneType:
         ax.plot(ref_ts_da.year, ref_ts_da, label=label)
-    else:
-        return fig, ax
     for idx, (c, cdata) in enumerate(case_ts.items()):
         ax.plot(cdata.year, cdata, label=c)
         # Force the plot axis to always plot the test case years

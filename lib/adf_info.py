@@ -170,18 +170,68 @@ def _on_native_grid(fil):
     Returns
     -------
     bool
-        True for an unstructured ("ncol") grid; False for a lat/lon grid,
-        or when there is no file.
+        True for an unstructured grid (CAM "ncol" or CLM "lndgrid");
+        False for a lat/lon grid, or when there is no file.
     """
     if fil is None:
         return False
     with xr.open_dataset(fil, decode_times=False) as dset:
         dims = set(dset.dims)
     if dims & {"ncol", "ncols"}:
-        print("\t  Looks like this is an unstructured grid")
+        print("\t  Looks like this is an atmosphere unstructured grid")
+        return True
+    if "lndgrid" in dims:
+        print("\t  Looks like this is a land unstructured grid")
         return True
     print("\t  Looks like this is a structured lat/lon grid")
     return False
+
+
+def _model_component(hist_strs):
+    """The model component ("atm" or "lnd") named by a case's history streams.
+
+    Parameters
+    ----------
+    hist_strs : str, list of str, or None
+        The case's history stream(s), e.g. "cam.h0a" or ["clm2.h0"].
+
+    Returns
+    -------
+    str
+        "lnd" when the streams are CLM ("clm2.h0", ...), otherwise "atm",
+        which is also what a case with no stream given is taken to be.
+    """
+    if not hist_strs:
+        return "atm"
+    if isinstance(hist_strs, str):
+        hist_strs = [hist_strs]
+    if any(str(hstr).startswith("clm") for hstr in hist_strs):
+        return "lnd"
+    return "atm"
+
+
+def _climo_years(name, climo_syr, climo_eyr, ts_syr, ts_eyr):
+    """The climatology years for a case, defaulting to its time series years.
+
+    'climo_start_year'/'climo_end_year' let the climatology cover only part of
+    the time series years; a year that is not given, or that falls outside the
+    time series years, is replaced by the time series year.
+    """
+    if climo_syr is None:
+        climo_syr = ts_syr
+    elif not ts_syr <= int(climo_syr) <= ts_eyr:
+        msg = f"\t WARNING: Given climo start year '{climo_syr}' for {name} is not "
+        msg += f"within its time series years {ts_syr}-{ts_eyr}, using {ts_syr}"
+        print(msg)
+        climo_syr = ts_syr
+    if climo_eyr is None:
+        climo_eyr = ts_eyr
+    elif not ts_syr <= int(climo_eyr) <= ts_eyr:
+        msg = f"\t WARNING: Given climo end year '{climo_eyr}' for {name} is not "
+        msg += f"within its time series years {ts_syr}-{ts_eyr}, using {ts_eyr}"
+        print(msg)
+        climo_eyr = ts_eyr
+    return int(climo_syr), int(climo_eyr)
 
 
 class AdfInfo(AdfConfig):
@@ -274,6 +324,14 @@ class AdfInfo(AdfConfig):
         # Replace an "all" entry with the variables the input files actually hold:
         self.__diag_var_list = self._expand_var_list_all(self.__diag_var_list)
 
+        # Initialize list of regions for the regional (land) diagnostics, if any:
+        self.__region_list = self.read_config_var("region_list")
+        if not self.__region_list:
+            self.__region_list = []
+        elif isinstance(self.__region_list, str):
+            self.__region_list = [self.__region_list]
+        # End if
+
         # Case names:
         case_names = self.get_cam_info("cam_case_name", required=True)
 
@@ -324,10 +382,19 @@ class AdfInfo(AdfConfig):
             # Set the baseline years to empty strings:
             syear_baseline = ""
             eyear_baseline = ""
+            climo_syear_baseline = ""
+            climo_eyear_baseline = ""
+
+            # Observations don't set the model component; the test cases do:
+            base_comp = None
+
             # Observations are never on a model's native grid:
             self.__unstruct_base = False
             baseline_mesh_file = None  # self.get_baseline_info("mesh_file")
             self.__baseline_mesh_file = baseline_mesh_file
+
+            # Lat/lon file (land mask for CLM gridding), only used by land:
+            self.__baseline_latlon_file = None
 
             # Check if any a weights file exists if using native grid, OPTIONAL
             baseline_wgts_file = None  # self.get_baseline_info("weights_file")
@@ -353,15 +420,27 @@ class AdfInfo(AdfConfig):
             # Set data name to baseline case name:
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
-            # Attempt to grab baseline start_years (not currently required):
+            # Attempt to grab baseline start_years (not currently required).
+            # 'ts_start_year'/'ts_end_year' are accepted as other names for these:
             syear_baseline = self.get_baseline_info("start_year")
+            if syear_baseline is None:
+                syear_baseline = self.get_baseline_info("ts_start_year")
             eyear_baseline = self.get_baseline_info("end_year")
+            if eyear_baseline is None:
+                eyear_baseline = self.get_baseline_info("ts_end_year")
+
+            # Optional climatology years, a part of the years above:
+            climo_syear_baseline = self.get_baseline_info("climo_start_year")
+            climo_eyear_baseline = self.get_baseline_info("climo_end_year")
 
             # Get climo years for verification or assignment if missing
             baseline_hist_locs = self.get_baseline_info("cam_hist_loc")
 
             # Read hist_str (component.hist_num, eg cam.h0) from the yaml file
             baseline_hist_str = self.get_baseline_info("hist_str")
+
+            # Model component of the baseline (atm or lnd):
+            base_comp = _model_component(baseline_hist_str)
 
             # Record the stream the user configured straight away, so that it
             # is available whether the years come from history files or from
@@ -379,6 +458,9 @@ class AdfInfo(AdfConfig):
             baseline_ts_done = self.get_baseline_info("cam_ts_done")
             baseline_mesh_file = self.get_baseline_info("mesh_file")
             self.__baseline_mesh_file = baseline_mesh_file
+
+            # Lat/lon file (land mask for CLM gridding), only used by land:
+            self.__baseline_latlon_file = self.get_baseline_info("latlon_file")
 
             # Check if any a weights file exists if using native grid, OPTIONAL
             baseline_wgts_file = self.get_baseline_info("weights_file")
@@ -543,6 +625,15 @@ class AdfInfo(AdfConfig):
             syear_baseline = int(syear_baseline)
             eyear_baseline = int(eyear_baseline)
 
+            # Climatology years default to the time series years:
+            climo_syear_baseline, climo_eyear_baseline = _climo_years(
+                data_name,
+                climo_syear_baseline,
+                climo_eyear_baseline,
+                syear_baseline,
+                eyear_baseline,
+            )
+
             # Update baseline case name:
             data_name += f"_{syear_baseline}_{eyear_baseline}"
         # End if (compare_obs)
@@ -554,6 +645,8 @@ class AdfInfo(AdfConfig):
         # Save starting and ending years as object variables:
         self.__syear_baseline = syear_baseline
         self.__eyear_baseline = eyear_baseline
+        self.__climo_syear_baseline = climo_syear_baseline
+        self.__climo_eyear_baseline = climo_eyear_baseline
 
         # Create plot location variable for potential use by the website generator.
         # Please note that this is also assumed to be the output location for the analyses scripts:
@@ -576,11 +669,20 @@ class AdfInfo(AdfConfig):
         # Case names:
         case_names = self.get_cam_info("cam_case_name", required=True)
 
-        # Start years (not currently required):
+        # Start years (not currently required).
+        # 'ts_start_year'/'ts_end_year' are accepted as other names for these:
         syears = self.get_cam_info("start_year")
+        if syears is None:
+            syears = self.get_cam_info("ts_start_year")
 
         # End year (not currently rquired):
         eyears = self.get_cam_info("end_year")
+        if eyears is None:
+            eyears = self.get_cam_info("ts_end_year")
+
+        # Optional climatology years, a part of the years above:
+        climo_syears = self.get_cam_info("climo_start_year")
+        climo_eyears = self.get_cam_info("climo_end_year")
 
         # Make lists of None to be iterated over for case_names
         if syears is None:
@@ -592,6 +694,16 @@ class AdfInfo(AdfConfig):
             eyears = [None] * self.__num_cases
         elif not isinstance(eyears, list):
             eyears = [eyears] * self.__num_cases
+
+        if climo_syears is None:
+            climo_syears = [None] * self.__num_cases
+        elif not isinstance(climo_syears, list):
+            climo_syears = [climo_syears] * self.__num_cases
+
+        if climo_eyears is None:
+            climo_eyears = [None] * self.__num_cases
+        elif not isinstance(climo_eyears, list):
+            climo_eyears = [climo_eyears] * self.__num_cases
         # Extract cam history files location:
         cam_hist_locs = self.get_cam_info("cam_hist_loc")
 
@@ -626,6 +738,12 @@ class AdfInfo(AdfConfig):
             cam_mesh_files = [None] * len(case_names)
         self.__cam_mesh_files = cam_mesh_files
 
+        # Lat/lon file (land mask for CLM gridding), only used by land:
+        cam_latlon_files = self.get_cam_info("latlon_file")
+        if cam_latlon_files is None:
+            cam_latlon_files = [None] * len(case_names)
+        self.__cam_latlon_files = cam_latlon_files
+
         # Check if any a weights file exists if using native grid, OPTIONAL
         cam_wgts_files = self.get_cam_info("weights_file")
         if cam_wgts_files is None:
@@ -645,7 +763,10 @@ class AdfInfo(AdfConfig):
         # Loop over cases:
         syears_fixed = []
         eyears_fixed = []
+        climo_syears_fixed = []
+        climo_eyears_fixed = []
         unstructs = []
+        case_comps = []
         for case_idx, case_name in enumerate(case_names):
             # Whether the case is on a native grid is read from its data
             # below: a history file, or else a pre-made time series file.
@@ -697,6 +818,10 @@ class AdfInfo(AdfConfig):
 
             # Check if history file path exists:
             hist_str_case = hist_str[case_idx]
+
+            # Model component of this case (atm or lnd):
+            case_comps.append(_model_component(hist_str_case))
+
             # This case's own location, not any case's: with several cases,
             # some on pre-made time series and some not, asking whether any of
             # them has one sent a case with none into the search below and
@@ -792,6 +917,13 @@ class AdfInfo(AdfConfig):
             syears_fixed.append(syear)
             eyears_fixed.append(eyear)
 
+            # Climatology years default to the time series years:
+            climo_syear, climo_eyear = _climo_years(
+                case_name, climo_syears[case_idx], climo_eyears[case_idx], syear, eyear
+            )
+            climo_syears_fixed.append(climo_syear)
+            climo_eyears_fixed.append(climo_eyear)
+
             # Update case name with provided/found years:
             case_name += f"_{syear}_{eyear}"
 
@@ -818,8 +950,24 @@ class AdfInfo(AdfConfig):
 
         self.__syears = syears_fixed
         self.__eyears = eyears_fixed
+        self.__climo_syears = climo_syears_fixed
+        self.__climo_eyears = climo_eyears_fixed
 
         self.__unstruct_test = unstructs
+
+        # All cases (and the baseline, if a model case) must be the same
+        # model component, which sets how the diagnostics are run (atm or lnd):
+        all_comps = set(case_comps)
+        if base_comp is not None:
+            all_comps.add(base_comp)
+        if len(all_comps) > 1:
+            emsg = "Looks like the model components are not the same:\n"
+            emsg += f"\t  - Test case(s): {case_comps}; Baseline case: {base_comp}\n"
+            emsg += "\tCheck the 'hist_str' entries in your config file."
+            self.end_diag_fail(emsg)
+        # End if
+        self.__model_component = all_comps.pop()
+        print(f"\t NOTE: Model component is set to '{self.__model_component}'")
 
         # Finally add baseline case (if applicable) for use by the website table
         # generator.  These files will be stored in the same location as the first
@@ -944,6 +1092,20 @@ class AdfInfo(AdfConfig):
         # modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__diag_var_list)
 
+    # Create property needed to return "region_list" list to user:
+    @property
+    def region_list(self):
+        """Return a copy of the "region_list" list to the user if requested."""
+        # Note that a copy is needed in order to avoid having a script mistakenly
+        # modify this variable, as it is mutable and thus passed by reference:
+        return copy.copy(self.__region_list)
+
+    # Create property needed to return the model component to user:
+    @property
+    def model_component(self):
+        """Return the model component of the cases to the user if requested, ie atm or lnd"""
+        return self.__model_component
+
     # Create property needed to return "basic_info" expanded dictionary to user:
     @property
     def basic_info_dict(self):
@@ -1008,6 +1170,21 @@ class AdfInfo(AdfConfig):
         # Note that a copy is needed in order to avoid having a script mistakenly
         # modify this variable:
         return copy.copy(self.__plot_location)
+
+    # Create property needed to return the lat/lon file to user:
+    @property
+    def latlon_files(self):
+        """Return the test case and baseline lat/lon file (land mask for CLM gridding)
+        to the user if requested."""
+
+        # Note that copies are needed in order to avoid having a script mistakenly
+        # modify these variables, as they are mutable and thus passed by reference:
+        cam_latlon_files = copy.copy(self.__cam_latlon_files)
+        baseline_latlon_file = self.__baseline_latlon_file
+        return {
+            "test_latlon_file": cam_latlon_files,
+            "baseline_latlon_file": baseline_latlon_file,
+        }
 
     # Create property needed to return the weight file dictionary to user:
     @property
@@ -1076,7 +1253,30 @@ class AdfInfo(AdfConfig):
     # Create property needed to return the climo start (syear) and end (eyear) years to user:
     @property
     def climo_yrs(self):
-        """Return the "syear" and "eyear" integer values to the user if requested."""
+        """Return the climatology "syear" and "eyear" integer values to the user if requested.
+
+        These are 'climo_start_year'/'climo_end_year' when given, otherwise
+        the time series years (see `ts_yrs`).
+        """
+        syears = copy.copy(
+            self.__climo_syears
+        )  # Send copies so a script doesn't modify the original
+        eyears = copy.copy(self.__climo_eyears)
+        return {
+            "syears": syears,
+            "eyears": eyears,
+            "syear_baseline": self.__climo_syear_baseline,
+            "eyear_baseline": self.__climo_eyear_baseline,
+        }
+
+    # Create property needed to return the time series start and end years to user:
+    @property
+    def ts_yrs(self):
+        """Return the time series "syear" and "eyear" integer values to the user if requested.
+
+        These are 'start_year'/'end_year' (or the years found in the data),
+        and are the years the time series files and case directories are made for.
+        """
         syears = copy.copy(
             self.__syears
         )  # Send copies so a script doesn't modify the original

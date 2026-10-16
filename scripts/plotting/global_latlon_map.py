@@ -145,7 +145,7 @@ def load_reference_data(adfobj, var, vres):
         odata = adfobj.data.load_reference_regrid_da(base_name, var, **vres)
         vres["odataset"] = odataset
 
-        wgt_base = odataset.isel(time=0)[var]
+        wgt_base = utils.cell_weights(odataset, adfobj.model_component)
 
         vres["wgt_base"] = wgt_base
         vres["unstruct_base"] = unstruct_base
@@ -179,7 +179,7 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
         mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
         vres["dataset"] = mdataset
         #mdata = mdataset[var]
-        wgt = mdataset.isel(time=0)[var]
+        wgt = utils.cell_weights(mdataset, adfobj.model_component)
 
         #Determine dimensions of variable:
         #has_dims = {}
@@ -432,7 +432,9 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
         # Calculate seasonal means and differences
         mseason, oseason = process_seasonal_data(mdata, odata, s)
         dseason = utils.array_diff(mseason, oseason)
-        pseason = utils.array_diff(mseason, oseason, percent=True)
+        # Land: blank where the baseline is ~zero (e.g. no snow or vegetation)
+        rel_tol = 1e-6 if adfobj.model_component == "lnd" else None
+        pseason = utils.array_diff(mseason, oseason, percent=True, rel_tol=rel_tol)
 
         vres["season"] = s
         vres["var"] = var

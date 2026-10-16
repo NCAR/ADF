@@ -1,0 +1,976 @@
+#This file lists out variable-specific defaults
+#for plotting and observations.  These defaults
+#are:
+#
+# PLOTTING:
+#
+# colormap             -> The colormap that will be used for filled contour plots.
+# contour_levels       -> A list of the specific contour values that will be used for contour plots.
+#                         Cannot be used with "contour_levels_range".
+# contour_levels_range -> The contour range that will be used for plots.
+#                         Values are min, max, and stride.  Cannot be used with "contour_levels".
+# diff_colormap        -> The colormap that will be used for filled contour different plots
+# diff_contour_levels  -> A list of the specific contour values thta will be used for difference plots.
+#                         Cannot be used with "diff_contour_range".
+# diff_contour_range   -> The contour range that will be used for difference plots.
+#                         Values are min, max, and stride. Cannot be used with "diff_contour_levels".
+# scale_factor         -> Amount to scale the variable (relative to its "raw" model values).
+# add_offset           -> Amount of offset to add to the variable (relatie to its "raw" model values).
+# new_unit             -> Variable units (if not using the  "raw" model units).
+# mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
+#
+# mask                 -> Setting that specifies whether the variable should be masked.
+#                         Currently only accepts "landmask", which means the variable will be masked
+#                         everywhere that isn't land.
+#
+#
+# OBSERVATIONS:
+#
+# obs_file     -> Path to observations file.  If only the file name is given, then the file is assumed to
+#                 exist in the path specified by "obs_data_loc" in the config file.
+# obs_name     -> Name of the observational dataset (mostly used for plotting and generated file naming).
+#                 If this isn't present then the obs_file name is used.
+# obs_var_name -> Variable in the observations file to compare against.  If this isn't present then the
+#                 variable name is assumed to be the same as the model variable name.
+#
+#
+#
+# WEBSITE:
+#
+# category  -> The website category the variable will be placed under.
+#
+#
+# DERIVING:
+#
+# derivable_from -> If not present in the available output files, the variable can be derived from
+#                   other variables that are present (e.g. PRECT can be derived from PRECC and PRECL),
+#                   which are specified in this list
+#                   NOTE: this is not very flexible at the moment! It can only handle variables that
+#                         are sums of the constituents. Futher flexibility is being explored.
+#
+#
+# Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
+#              If you would like to modify this file for your personal ADF runs then it is recommended
+#              to make a copy of this file, make modifications in that copy, and then point the ADF to
+#              it using the "defaults_file" config variable.
+#
+#+++++++++++
+#+++++++++++++
+# Available Land Default Plot Types
+#+++++++++++++
+
+default_ptypes: ["Tables","LatLon","TimeSeries",
+  "Arctic","Antarctic","RegionalClimo","RegionalTimeSeries","Special"]
+
+#+++++++++++++
+# Constants
+#+++++++++++++
+
+#seconds per day :
+spd: 86400 
+diff_levs: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+pct_diff_contour_levels: [-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20]
+
+#+++++++++++++
+# Category: Atmosphere
+#+++++++++++++
+
+TSA: # 2m air temperature  
+  category: "Atmosphere"
+  colormap: "OrRd"
+  contour_levels_range: [250, 310, 10]
+  diff_colormap: "coolwarm"
+  diff_contour_range: [-5, 5, 1]
+  pct_diff_colormap: "coolwarm"
+  pct_diff_contour_levels: [-3,-2,-1,-0.5,-0.2,-0.1,0,0.1,0.2,0.5,1,2,3]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "K"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/WILLMOTT_ALLMONS_climo.nc"
+  obs_name: "WILMONT"
+  obs_var_name: "TSA" # K
+
+PREC:   # RAIN , SNOW
+  category: "Atmosphere"
+  colormap: "cubehelix_r"
+  derivable_from: ["RAIN","SNOW"]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/GPCPv2.3_ALLMONS_climo.nc"
+  obs_name: "GCPCv2.3"
+  obs_var_name: "PREC" #mm/d
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
+  diff_colormap: "BrBG"
+  diff_contour_range: [-5, 5, 1]
+  pct_diff_colormap: "PuOr_r"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+
+FLDS: # atmospheric longwave radiation
+  category: "Atmosphere"
+  colormap: "Oranges"
+  contour_levels_range: [100, 500, 25]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-15, 15, 2]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/CERESed4.2-rlds_ALLMONS_climo.nc"
+  obs_name: "CERESed4.2"
+  obs_var_name: "rlds" #W/m2
+
+FSDS: # atmospheric incident solar radiation
+  category: "Atmosphere"
+  diff_contour_range: [-15, 15, 2]
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  new_unit: "W m$^{-2}$"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/CERESed4.2-rsds_ALLMONS_climo.nc"
+  obs_name: "CERESed4.2"
+  obs_var_name: "rsds" #W/m2
+
+WIND: # atmospheric air temperature
+  category: "Atmosphere"
+  diff_contour_range: [-15, 15, 2]
+
+QBOT: # atmospheric specific humidity
+  category: "Atmosphere"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "kg kg{-1}$"
+  diff_contour_range: [-0.001,0.001,0.0005]
+
+TBOT:
+  category: "Atmosphere"
+  colormap: "OrRd"
+  contour_levels_range: [250, 310, 10]
+  diff_contour_range: [-5, 5, 1]
+
+TREFMNAV: # daily minimum of average 2m temperature
+  category: "Atmosphere"
+  colormap: "OrRd"
+  contour_levels_range: [250, 310, 10]
+  diff_contour_range: [-5, 5, 1]
+
+TREFMXAV: # daily maximum of average 2m temperature
+  category: "Atmosphere"
+  colormap: "OrRd"
+  contour_levels_range: [250, 310, 10]
+  diff_contour_range: [-5, 5, 1]
+
+NDEP_TO_SMINN: # atmospheric N deposition to soil mineral N
+  category: "Atmosphere"
+  #colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  diff_contour_range: [-5., 5, 0.5]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gN m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gN m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.000365  #days to years, gN/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg N y$^{-1}$"
+
+BCDEP: # total BC deposition (dry+wet) from atmosphere
+  category: "Atmosphere"
+  #colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg m$^{-2}$ d$^{-1}$"
+  diff_contour_range: [-0.002, 0.002, 0.0005]
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg y$^{-1}$"
+
+DSTDEP: # total dust deposition (dry+wet) from atmosphere
+  category: "Atmosphere"
+  colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg m$^{-2}$ d$^{-1}$"
+  diff_contour_range: [-0.002, 0.002, 0.0005]
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.000365  #days to years, kg/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "Pg y$^{-1}$"
+  
+#+++++++++++
+# Category: Surface fluxes
+#+++++++++++
+
+ASA: # all-sky albedo:FSR/FSDS  
+  category: "Surface fluxes"
+  colormap: "RdBu_r"
+  diff_colormap: "BrBG"
+  derivable_from: ["FSR", "FSDS"]
+  new_unit: "% reflected"
+  diff_contour_range: [-10., 10, 0.5]
+  pct_diff_contour_levels: [-30.,-20.,-10.,-8.,-6.,-4.,-2.,0,2,4,6,8,10,20,30]
+  pct_diff_colormap: "PuOr_r"
+  # TODO, Keith will clarify what obs to use and we'll also have to figure out grid weights for regional averaging
+  ## First file has weights, but no clear variable for ASA
+  # obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/T42_MODIS_ALLMONS_climo.070523.nc"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/modisradweighted.nc" 
+  obs_data: "MODIS"
+  obs_var_name: "BRDALB" 
+
+NET_FLUX: # net energy flux  
+  category: "Surface fluxes"
+  colormap: "RdBu_r"
+  diff_colormap: "BrBG"
+  derivable_from: ["FSA","FIRE","EFLX_LH_TOT","FSH_TO_COUPLER"]
+  new_unit: "W/m2"
+  diff_contour_range: [-10., 10, 0.5]
+  pct_diff_contour_levels: [-30.,-20.,-10.,-8.,-6.,-4.,-2.,0,2,4,6,8,10,20,30]
+  pct_diff_colormap: "PuOr_r"
+
+FSA: # absorbed solar radiation    
+  category: "Surface fluxes"
+  new_unit: "W m$^{-2}$"
+
+FSH: # sensible heat  
+  category: "Surface fluxes"
+  new_unit: "W m$^{-2}$"
+
+RNET: # Net Radiation: FSA-FIRA
+  category: "Surface fluxes"
+  derivable_from: ["FSA", "FIRA"]
+  new_unit: "W m$^{-2}$"
+  diff_contour_range: [-20, 20, 5]
+
+ENET: # Net energy flux (may also need EFLX_GNET)
+  category: "Surface fluxes"
+  derivable_from: ["FSA", "FIRA", "EFLX_LH_TOT", "FSH_TO_COUPLER",'FGR12']
+  new_unit: "W m$^{-2}$"
+  colormap: 'RdBu_r'
+  contour_levels_range: [-0.3,0.3,0.02]
+  pct_diff_contour_levels: [-30.,-20.,-10.,-8.,-6.,-4.,-2.,0,2,4,6,8,10,20,30]
+  diff_contour_range: [-0.2, 0.2, 0.02]
+
+ENERGY_BALANCE: # replicate the coupler energy balance diagnostics 
+                # found in the diag log file
+  category: "Surface fluxes"
+  derivable_from: ["SNOW_FROM_ATM", "FSA", "FLDS", "FIRE",
+                  'FSH_TO_COUPLER', 'EFLX_LH_TOT', 'QRUNOFF_ICE_TO_COUPLER']
+  new_unit: "W m$^{-2}$"
+  colormap: 'RdBu_r'
+  contour_levels_range: [-0.3,0.32,0.02]
+  pct_diff_contour_levels: [-30.,-20.,-10.,-8.,-6.,-4.,-2.,0,2,4,6,8,10,20,30]
+  diff_contour_range: [-0.2, 0.2, 0.02]
+  
+
+ET: # latent heat: FCTR+FCEV+FGEV
+  category: "Surface fluxes"
+  derivable_from: ["FCTR","FCEV","FGEV"]
+  colormap: "Purples"
+  contour_levels_range: [0, 150, 10]
+  diff_colormap: "BrBG"
+  diff_contour_range: [-25, 25, 5]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "BrBG"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/MR_LHF_0.9x1.25_ALLMONS_climo.nc"
+  obs_name: "FLUXNET"
+  obs_var_name: "LHF" #W m$^{-2}$  
+
+FCTR: # Canopy transpiration latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+      
+FCEV: # Canopy evaporation of latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"
+
+FGEV: # Ground evaporation latent heat flux
+  category: "Surface fluxes"
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "W m$^{-2}$"
+  mpl:
+    colorbar:
+      label : "W m$^{-2}$"  
+
+DSTFLXT: # total surface dust emission
+  category: "Surface fluxes"
+  colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  diff_contour_range: [-0.002, 0.002, 0.0005]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.000365  #days to years, kg/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "Pg y$^{-1}$"
+
+MEG_isoprene: 
+  category: "Surface fluxes"
+  colormap: "Blues"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label: "kg m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg y$^{-1}$"
+
+MEG_mterp_a: 
+  category: "Surface fluxes"
+  derivable_from: ['MEG_carene_3', 'MEG_pinene_a', 'MEG_thujene_a', "MEG_bornene",
+    'MEG_terpineol_4', 'MEG_terpineol_a', 'MEG_terpinyl_ACT_a','MEG_myrtenal',
+    'MEG_sabinene', 'MEG_pinene_b', "MEG_camphene", "MEG_fenchene_a",'MEG_limonene',
+    'MEG_phellandrene_a', 'MEG_terpinene_a']
+  colormap: "Blues"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl: 
+    colorbar: 
+      label: "kg m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg y$^{-1}$"
+
+MEG_mterp_b: 
+  category: "Surface fluxes"
+  derivable_from: ['MEG_terpinene_g','MEG_terpinolene',
+    'MEG_phellandrene_a', 'MEG_linalool', "MEG_ionone_b", "MEG_geranyl_acetone", 
+    'MEG_neryl_acetone', 'MEG_jasmone', 'MEG_verbenene','MEG_ipsenol', 'MEG_myrcene',
+    'MEG_ocimene_t_b', 'MEG_ocimene_al', 'MEG_ocimene_c_b']
+  colormap: "Blues"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl: 
+    colorbar: 
+      label: "kg m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg y$^{-1}$"
+
+DSTFLXT: # total surface dust emission
+  category: "Surface fluxes"
+  colormap: "copper_r"
+  diff_colormap: "BrBG_r"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "kg m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label: "kg m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PuOr_r"
+  scale_factor_table: 0.000365  #days to years, kg/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "Pg y$^{-1}$"
+
+#+++++++++++
+# Category: Hydrology
+#+++++++++++
+FSNO: # fraction of ground covered by snow    
+  category: "Hydrology"
+  diff_contour_range: [-50,50,10]
+
+H2OSNO: # SNOWICE + SNOWLIQ
+  category: "Hydrology"
+  diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+
+SNOWDP: # snow height
+  category: "Hydrology"
+  contour_levels: [0.,0.1,0.2,0.5,1,2,5,10,15,20]
+  diff_contour_levels: [-5.,-2.,-1.,-0.5,-0.2,-0.1,0.,0.1,0.2,0.5,1,2,5]
+  new_unit: "m"
+
+TOTRUNOFF: # total liquid runoff
+  category: "Hydrology"
+  derivable_from: ["QOVER","QDRAI","QRGWL"] 
+  colormap: "Blues"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  contour_levels: [-0.1,0.,0.1,0.2,0.3,1.,2.,3.,]
+  diff_contour_range: [-1.,1.,0.1]
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
+  
+SOILWATER_10CM: # soil liquid water + ice in top 10cm of soil 
+  category: "Hydrology"
+  colormap: "Blues"
+  
+TWS: # Terrestrial water storage
+  category: "Hydrology"
+  colormap: "Blues"
+
+ZWT: # water table depth
+  category: "Hydrology"
+  colormap: "Blues"
+
+QRUNOFF_TO_COUPLER: # runoff to coupler
+  category: "Hydrology"
+  colormap: "Blues"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  contour_levels: [-0.1,0.,0.1,0.2,0.3,1.,2.,3.,]
+  diff_contour_range: [-1.,1.,0.1]
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/GRUN_ALLMONS_climo.nc"
+  obs_name: "GRUN"
+  obs_var_name: "RUNOFF" #mm/d 
+
+QRUNOFF_ICE_TO_COUPLER: # ice runoff to coupler
+  category: "Hydrology"
+  colormap: "Blues"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  contour_levels: [-0.1,0.,0.1,0.2,0.3,1.,2.,3.,]
+  diff_contour_range: [-1.,1.,0.1]
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
+
+QRGWL: # surface runoff at glaciers (liquid only), wetlands, lakes; also includes melted ice runoff from QSNWCPICE 
+  category: "Hydrology"
+  colormap: "Blues"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "mm d$^{-1}$"
+  contour_levels: [-0.1,0.,0.1,0.2,0.3,1.,2.,3.,]
+  diff_contour_range: [-1.,1.,0.1]
+  mpl:
+    colorbar:
+      label : "mm d$^{-1}$"
+  
+#+++++++++++
+# Category: Vegetation
+#+++++++++++
+TV:    # vegetation temperature
+  category: "Vegetation"
+  colormap: "OrRd"
+  contour_levels_range: [250, 310, 10]
+  diff_colormap: "coolwarm"
+  diff_contour_range: [-5, 5, 1]
+  pct_diff_colormap: "coolwarm"
+  pct_diff_contour_levels: [-3,-2,-1,-0.5,-0.2,-0.1,0,0.1,0.2,0.5,1,2,3]
+  scale_factor: 1
+  add_offset: 0
+  new_unit: "K"
+
+BTRANMN: # Transpiration beta factor
+  category: "Vegetation" # Or hydrology?
+
+ELAI: # exposed one-sided leaf area index
+  category: "Vegetation"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 8., 1.0]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-2.,2.,0.25]
+  new_unit: "m${-2}$ m${-2}$"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/MODIS_LAI_ALLMONS_climo.nc"
+  obs_name: "MODIS"
+  obs_var_name: "TLAI"  
+  
+
+HTOP: # canopy top height
+  category: "Vegetation"
+
+
+TSAI: # total one-sided stem area index
+  category: "Vegetation"
+  new_unit: "m${-2}$ m${-2}$"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/MODIS_LAI_ALLMONS_climo.nc"
+  obs_name: "MODIS"
+  obs_var_name: "TSAI"  
+
+#+++++++++++
+# Category: Carbon
+#+++++++++++
+GPP: # Gross Primary Production
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 12., 0.5]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-4.,4.,0.5]
+  scale_factor: 86400  #seconds to days
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:  
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-200,-100,-75,-50,-25,-10,-5,0,5,10,25,50,75,100,200]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/MR_GPP_0.9x1.25_ALLMONS_climo.nc"
+  obs_name: "FLUXNET"
+  obs_var_name: "GPP" #gC m$^{-2}$ d$^{-1}$  
+
+FPSN: # Photosynthesis umol CO2 m-2 s-1 -> gC/m2/2
+#TODO, make sure this works as expected
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 12., 0.5]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-4.,4.,0.5]
+  scale_factor: 7200000000 #86400/1.2e-5  #seconds to days, umol CO2 to gC
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+  obs_file: "/glade/campaign/cesm/community/lmwg/diag/lnd_diag_data/obs_data/MR_GPP_0.9x1.25_ALLMONS_climo.nc"
+  obs_name: "FLUXNET"
+  obs_var_name: "GPP" #gC m$^{-2}$ d$^{-1}$  
+
+
+AR: # Autotrophic Respiration
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 3., 0.25]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-1.5, 1.5, 0.25]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+
+NPP: # Net Primary Production
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 3., 0.25]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-1.5, 1.5, 0.25]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+
+NEE: # Net Ecosystem Eschange
+  category: "Carbon"
+  diff_colormap: "PiYG"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+
+NBP: # Net Biome Production
+  category: "Carbon"
+  colormap: "gist_earth_r"
+  diff_colormap: "PiYG"
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'cumsum' # in TS NBP is cum sum, table just uses sum implicitly (not mean)
+  table_unit: "PgC y$^{-1}$"
+  ts_unit: "PgC" #global TS uses cumulative NBP in PgC
+
+TOTECOSYSC_1m:
+  category: "Carbon"
+  scale_factor_table: 0.000000001  #g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC"
+
+TOTSOMC_1m:
+  category: "Carbon"
+  scale_factor_table: 0.000000001  #g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC"
+
+TOTVEGC:
+  category: "Carbon"
+  scale_factor_table: 0.000000001  #g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC"
+ 
+FIRE_MORT:
+  category: "Fire"  
+  derivable_from: ["M_DEADROOTC_STORAGE_TO_FIRE", "M_DEADROOTC_TO_FIRE", "M_DEADROOTC_XFER_TO_FIRE", 
+    "M_DEADSTEMC_STORAGE_TO_FIRE", "M_DEADSTEMC_TO_FIRE", "M_DEADSTEMC_XFER_TO_FIRE", 
+    "M_FROOTC_STORAGE_TO_FIRE", "M_FROOTC_TO_FIRE", "M_FROOTC_XFER_TO_FIRE", 
+    "M_LEAFC_STORAGE_TO_FIRE", "M_LEAFC_TO_FIRE", "M_LEAFC_XFER_TO_FIRE", 
+    "M_LIVEROOTC_STORAGE_TO_FIRE", "M_LIVEROOTC_TO_FIRE", "M_LIVEROOTC_XFER_TO_FIRE", 
+    "M_LIVESTEMC_STORAGE_TO_FIRE", "M_LIVESTEMC_TO_FIRE", "M_LIVESTEMC_XFER_TO_FIRE", 
+    "M_GRESP_STORAGE_TO_FIRE", "M_GRESP_XFER_TO_FIRE"]
+  scale_factor: 86400  #seconds to days
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg C globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+
+NFIX: # Nitrogen Fixation
+  category: "Nitrogen"
+  colormap: "gist_earth_r"
+  contour_levels_range: [0., 1.2, 0.05]
+  diff_colormap: "PiYG"
+  diff_contour_range: [-0.4,0.4,0.05]
+  scale_factor: 86400  #seconds to days
+  add_offset: 0
+  new_unit: "gN m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gN m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-200,-100,-75,-50,-25,-10,-5,0,5,10,25,50,75,100,200]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "TgN y$^{-1}$"
+
+
+#+++++++++
+# Methane
+#+++++++++
+
+FCH4: #Gridcell surface CH4 flux to atmosphere 
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, gC -> gCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "kgCH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kgCH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "TgCH4 y$^{-1}$"
+
+CH4PROD: #Gridcell total production of CH4
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, gC -> gCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "gCH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "TgCH4 y$^{-1}$"
+
+FCH4TOCO2: #Gridcell oxidation of CH4 to CO2
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, gC -> gCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "gCH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gCH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "TgCH4 y$^{-1}$"
+
+FCH4_DFSAT: #CH4 additional flux due to changing fsat, natural vegetated and crop landunits only
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 115391.84 #s -> d, kgC->kgCH4 86400 * 16.04 / 12.01
+  add_offset: 0
+  new_unit: "kg CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "kg CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.365  #days to years, kg/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "Tg CH4 y$^{-1}$"
+
+CH4_SURF_AERE_SAT: #aerenchyma surface CH4 flux for inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_AERE_UNSAT: #aerenchyma surface CH4 flux for non-inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_DIFF_SAT: #diffusive surface CH4 flux for inundated / lake area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_DIFF_UNSAT: #diffusive surface CH4 flux for non-inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor:  86400 #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+CH4_SURF_EBUL_SAT: #ebullition surface CH4 flux for inundated / lake area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T CH4 mol y$^{-1}$"
+
+CH4_SURF_EBUL_UNSAT: #ebullition surface CH4 flux for non-inundated area; (+ to atm)
+  category: "Methane"
+  diff_colormap: "PiYG"
+  scale_factor: 86400  #mol/m2/s to mol/m2/d
+  add_offset: 0
+  new_unit: "mol CH4 m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "mol CH4 m$^{-2}$ d$^{-1}$"
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, g/m2 to Tg globally
+  avg_method: 'sum'
+  table_unit: "T mol CH4 y$^{-1}$"
+
+#+++++++++++
+# C Isotopes
+#+++++++++++
+C13_GPP_pm:
+  category: "Carbon"
+  derivable_from: ["C13_GPP","GPP"]
+  new_unit: "per mile PDB"  
+
+C14_GPP_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C14_GPP","GPP"]
+  new_unit: "per mile"  
+
+C13_TOTVEGC_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C13_TOTVEGC","TOTVEGC"]
+  new_unit: "per mile PDB"  
+
+C14_TOTVEGC_pm: #TODO, check that calculations are correct 
+  category: "Carbon"
+  derivable_from: ["C14_TOTVEGC","TOTVEGC"]
+  new_unit: "per mile"  
+
+C13_TOTSOMC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTSOMC","TOTSOMC"]
+  new_unit: "per mile PDB"
+
+C14_TOTSOMC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTSOMC","TOTSOMC"]
+  new_unit: "per mile"
+
+C13_TOTECOSYSC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTECOSYSC","TOTECOSYSC"]
+  new_unit: "per mile PDB"
+
+C14_TOTECOSYSC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTECOSYSC","TOTECOSYSC"]
+  new_unit: "per mile"
+
+C13_TOTLITC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C13_TOTLITC","TOTLITC"]
+  new_unit: "per mile PDB"
+
+C14_TOTLITC_pm: #TODO, check that calculations are correct
+  category: "Carbon"
+  derivable_from: ["C14_TOTLITC","TOTLITC"]
+  new_unit: "per mile"
+
+
+#+++++++++++
+# Category: Misc
+#+++++++++++
+GRAINC_TO_FOOD: 
+  category: "Misc"
+  #contour_levels_range: [0., 3., 0.25]
+  diff_colormap: "PiYG"
+  #diff_contour_range: [-1.5, 1.5, 0.25]
+  scale_factor: 86400
+  add_offset: 0
+  new_unit: "gC m$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "gC m$^{-2}$ d$^{-1}$"
+  #pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC y$^{-1}$"
+
+AREA_BURNED: 
+  category: "Misc"
+  derivable_from: ["FAREA_BURNED"]
+  colormap: "hot_r"
+  #contour_levels_range: [0., 3., 0.25]
+  diff_colormap: "PiYG"
+  #diff_contour_range: [-1.5, 1.5, 0.25]
+  scale_factor: 86400   # per second to per day
+  add_offset: 0
+  new_unit: "km$^{-2}$ d$^{-1}$"
+  mpl:
+    colorbar:
+      label : "km$^{-2}$ d$^{-1}$"
+  #pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+  pct_diff_colormap: "PiYG"
+  scale_factor_table: 0.000365  #days to years, km2 to 1e6 km2
+  avg_method: 'sum'
+  table_unit: "million km$^{-2} y$^{-1}$"
+
+
+
+#+++++++++++
+# Category: Soils
+#+++++++++++
+ALTMAX: # Active Layer Thickness   
+  category: "Soils"
+  #contour_levels_range: [0., 20., 1.]
+  #diff_contour_range: [-5.,5.,0.5]
+
+  contour_levels: [0.,0.1,0.2,0.5,1,2,5,10,20,40]
+  diff_contour_levels: [-10,-5,-2,-1,-0.5,-0.2,-0.1,0.,0.1,0.2,0.5,1,2,5,10]
+  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
+
+
+#SOILWATER_10CM: # soil liquid water + ice in top 10cm of soil
+#  category: "Soils" # or hydrology?
+
+TSOI_10CM: # Soil temperature, 0-10 cm   
+  category: "Soils"
+
+
+
+#End of File

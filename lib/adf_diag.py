@@ -387,8 +387,8 @@ class AdfDiag(AdfWeb):
                 "cam_hist_locs": [self.get_baseline_info("cam_hist_loc")],
                 "ts_dirs": [self.get_baseline_info("cam_ts_loc", required=True)],
                 "overwrite_ts": [self.get_baseline_info("cam_overwrite_ts")],
-                "start_years": [self.climo_yrs["syear_baseline"]],
-                "end_years": [self.climo_yrs["eyear_baseline"]],
+                "start_years": [self.ts_yrs["syear_baseline"]],
+                "end_years": [self.ts_yrs["eyear_baseline"]],
                 "case_type_string": "baseline",
                 "hist_str_list": [self.hist_string["base_hist_str"]],
             }
@@ -401,8 +401,8 @@ class AdfDiag(AdfWeb):
             "cam_hist_locs": self.get_cam_info("cam_hist_loc"),
             "ts_dirs": self.get_cam_info("cam_ts_loc", required=True),
             "overwrite_ts": self.get_cam_info("cam_overwrite_ts"),
-            "start_years": self.climo_yrs["syears"],
-            "end_years": self.climo_yrs["eyears"],
+            "start_years": self.ts_yrs["syears"],
+            "end_years": self.ts_yrs["eyears"],
             "case_type_string": "case",
             "hist_str_list": self.hist_string["test_hist_str"],
         }
@@ -604,9 +604,11 @@ class AdfDiag(AdfWeb):
         if baseline:
             wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
             method = self.latlon_regrid_method["baseline_regrid_method"]
+            latlon_file = self.latlon_files["baseline_latlon_file"]
         else:
             wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
             method = self.latlon_regrid_method["test_regrid_method"][case_idx]
+            latlon_file = self.latlon_files["test_latlon_file"][case_idx]
         # End if
         if not wgts_file:
             # Every variable of the case would fail the same way, so stop here:
@@ -639,6 +641,8 @@ class AdfDiag(AdfWeb):
                         var,
                         wgt_file=wgts_file,
                         method=method,
+                        comp=self.model_component,
+                        latlon_file=latlon_file,
                     )
                     save_to_nc(gridded, gridded_file)
                 # End with
@@ -1005,9 +1009,39 @@ class AdfDiag(AdfWeb):
                     # On a native grid the cell centres and areas are separate
                     # variables, not coordinates, so ncrcat has to be asked for
                     # them (the GenTS back end copies them by itself):
-                    if "ncol" in hist_file_ds[var].dims:
+                    if {"ncol", "lndgrid"} & set(hist_file_ds[var].dims):
                         for extra in ("lat", "lon", "area"):
                             if extra in hist_file_var_list:
+                                ncrcat_var_list += f",{extra}"
+
+                    # CLM: the land diagnostics weight by the grid cell area and
+                    # land fraction, and the PFT (h1) output needs its weights
+                    # and indices to be mapped back to the grid:
+                    if "clm" in hist_str:
+                        extras = ["area", "landfrac", "landmask"]
+                        if "h1" in hist_str:
+                            extras += [
+                                f"pfts1d_{name}"
+                                for name in (
+                                    "wtgcell",
+                                    "wtlunit",
+                                    "wtcol",
+                                    "ixy",
+                                    "jxy",
+                                    "gi",
+                                    "li",
+                                    "ci",
+                                    "itype_veg",
+                                    "itype_col",
+                                    "itype_lunit",
+                                    "active",
+                                )
+                            ]
+                        for extra in extras:
+                            if (
+                                extra in hist_file_var_list
+                                and extra not in ncrcat_var_list.split(",")
+                            ):
                                 ncrcat_var_list += f",{extra}"
 
                     # Determine "ncrcat" command to generate time series file:
@@ -1288,8 +1322,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
             # Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.climo_yrs["syear_baseline"]
-            eyear_baseline = self.climo_yrs["eyear_baseline"]
+            syear_baseline = self.ts_yrs["syear_baseline"]
+            eyear_baseline = self.ts_yrs["eyear_baseline"]
 
             # If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -1338,8 +1372,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
             # Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.climo_yrs["syear_baseline"]
-            eyear_baseline = self.climo_yrs["eyear_baseline"]
+            syear_baseline = self.ts_yrs["syear_baseline"]
+            eyear_baseline = self.ts_yrs["eyear_baseline"]
 
             # If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -1365,10 +1399,10 @@ class AdfDiag(AdfWeb):
         case_names = self.get_cam_info("cam_case_name", required=True)
 
         # Start years (not currently required):
-        syears = self.climo_yrs["syears"]
+        syears = self.ts_yrs["syears"]
 
         # End year (not currently rquired):
-        eyears = self.climo_yrs["eyears"]
+        eyears = self.ts_yrs["eyears"]
 
         # Timeseries locations:
         cam_ts_loc = self.get_cam_info("cam_ts_loc")
@@ -1398,8 +1432,8 @@ class AdfDiag(AdfWeb):
         # check to see if there is a CAM baseline case. If there is, read in relevant information.
         if not self.get_basic_info("compare_obs"):
             case_name_baseline = self.get_baseline_info("cam_case_name")
-            syears_baseline = self.climo_yrs["syear_baseline"]
-            eyears_baseline = self.climo_yrs["eyear_baseline"]
+            syears_baseline = self.ts_yrs["syear_baseline"]
+            eyears_baseline = self.ts_yrs["eyear_baseline"]
             baseline_ts_loc = self.get_baseline_info("cam_ts_loc")
         else:
             case_name_baseline = ""
@@ -1550,8 +1584,8 @@ class AdfDiag(AdfWeb):
 
         # Casenames, paths and start/end years come through the ADF
         case_names = self.get_cam_info("cam_case_name", required=True)
-        start_years = self.climo_yrs["syears"]
-        end_years = self.climo_yrs["eyears"]
+        start_years = self.ts_yrs["syears"]
+        end_years = self.ts_yrs["eyears"]
 
         case_list_all = []
         for icase, case in enumerate(case_names):
@@ -1670,8 +1704,8 @@ class AdfDiag(AdfWeb):
                     # variable does not come down to a guess:
                     adf_file_list = select_ts_files(
                         adf_file_list,
-                        self.climo_yrs["syears"][case_idx],
-                        self.climo_yrs["eyears"][case_idx],
+                        self.ts_yrs["syears"][case_idx],
+                        self.ts_yrs["eyears"][case_idx],
                     )
 
                     # Consecutive files, which is what GenTS writes when

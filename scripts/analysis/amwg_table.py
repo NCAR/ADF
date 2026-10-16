@@ -39,6 +39,14 @@ def amwg_table(adf):
     - puts statistics into a CSV file
     - generates simple HTML that can display the data
 
+    Land (CLM) cases, where ``adf.model_component`` is "lnd", make the LMWG
+    table ("lmwg_table_*.csv") with the same steps, except that:
+    - values are weighted by the land area of each cell (area * landfrac);
+    - the variable defaults' 'avg_method' gives a weighted mean ('mean') or a
+      global total ('sum' or 'cumsum'), scaled by 'scale_factor_table' and
+      reported in 'table_unit';
+    - the time series years ("adf.ts_yrs") are used, not the climatology years.
+
     Description of needed inputs from ADF:
 
     case_names      -> Name(s) of CAM case provided by "cam_case_name"
@@ -99,8 +107,13 @@ def amwg_table(adf):
 
     # and then in time it is DJF JJA ANN
 
+    #Land cases get the land working group's (LMWG) table:
+    is_lnd = adf.model_component == "lnd"
+    table_name = "LMWG" if is_lnd else "AMWG"
+    table_prefix = f"{table_name.lower()}_table"
+
     #Notify user that script has started:
-    msg = "\n  Calculating AMWG variable tables..."
+    msg = f"\n  Calculating {table_name} variable tables..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
     # within each domain and season
@@ -137,9 +150,11 @@ def amwg_table(adf):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
 
-    #Grab case years
-    syear_cases = adf.climo_yrs["syears"]
-    eyear_cases = adf.climo_yrs["eyears"]
+    #Grab case years (time series years for land, which may differ from
+    #the climatology years):
+    table_yrs = adf.ts_yrs if is_lnd else adf.climo_yrs
+    syear_cases = table_yrs["syears"]
+    eyear_cases = table_yrs["eyears"]
 
     #Check if a baseline simulation is also being used:
     if not adf.get_basic_info("compare_obs"):
@@ -151,8 +166,8 @@ def amwg_table(adf):
         input_ts_locs.append(input_ts_baseline)
 
         #Grab baseline years (which may be empty strings if using Obs):
-        syear_baseline = adf.climo_yrs["syear_baseline"]
-        eyear_baseline = adf.climo_yrs["eyear_baseline"]
+        syear_baseline = table_yrs["syear_baseline"]
+        eyear_baseline = table_yrs["eyear_baseline"]
 
         syear_cases.append(syear_baseline)
         eyear_cases.append(eyear_baseline)
@@ -160,7 +175,7 @@ def amwg_table(adf):
         #Save the baseline to the first case's plots directory:
         output_locs.append(output_locs[0])
     else:
-        print("\t WARNING: AMWG table doesn't currently work with obs, so obs table won't be created.")
+        print(f"\t WARNING: {table_name} table doesn't currently work with obs, so obs table won't be created.")
     #End if
 
     #-----------------------------------------
@@ -193,7 +208,7 @@ def amwg_table(adf):
             calc_stats = True
 
         #Create output file name:
-        output_csv_file = output_location / f"amwg_table_{case_name}.csv"
+        output_csv_file = output_location / f"{table_prefix}_{case_name}.csv"
 
         #Given that this is a final, user-facing analysis, go ahead and re-do it every time:
         if Path(output_csv_file).is_file():
@@ -272,13 +287,28 @@ def amwg_table(adf):
             #Check if variable has a vertical coordinate:
             if 'lev' in data.coords or 'ilev' in data.coords:
                 print(f"\t    WARNING: Variable '{var}' has a vertical dimension, "+\
-                      "which is currently not supported for the AMWG Table. Skipping...")
+                      f"which is currently not supported for the {table_name} Table. Skipping...")
                 #Skip this variable and move to the next variable in var_list:
                 continue
             #End if
 
             #Extract defaults for variable:
             var_default_dict = var_defaults.get(var, {})
+
+            #Land values are weighted by land area, and are either a weighted
+            #mean or a global total, in the units the defaults give for tables:
+            if is_lnd:
+                avg_method = var_default_dict.get('avg_method', 'mean')
+                weights = utils.land_weights(ts_files[0], normalize=(avg_method == 'mean'))
+                if weights is None:
+                    print(f"\t    WARNING: No 'area' or 'landfrac' with '{var}', so it can't be"
+                          " averaged over land and will be skipped.")
+                    continue
+                #End if
+                data = data * var_default_dict.get('scale_factor_table', 1)
+                unit_str = var_default_dict.get("new_unit", unit_str)
+                unit_str = utils.plain_text_units(var_default_dict.get("table_unit", unit_str))
+            #End if
 
             #Check if variable should be masked:
             if 'mask' in var_default_dict:
@@ -315,8 +345,12 @@ def amwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                weights = utils.native_grid_weights(ts_files[0]) if "ncol" in data.dims else None
-                data = utils.spatial_average(data, weights=weights)  # changes data "in place"
+                if is_lnd:
+                    data = utils.spatial_average_lnd(data, weights)
+                else:
+                    weights = utils.native_grid_weights(ts_files[0]) if "ncol" in data.dims else None
+                    data = utils.spatial_average(data, weights=weights)  # changes data "in place"
+                #End if
 
             # In order to get correct statistics, average to annual or seasonal
             data = utils.annual_mean(data, whole_years=True, time_name='time')
@@ -358,11 +392,11 @@ def amwg_table(adf):
             # last step is to add table dataframe to website (if enabled):
             adf.add_website_data(table_df, case_name, case_name, plot_type="Tables")
         except FileNotFoundError:
-            print(f"\n\tAMWG table for '{case_name}' not created.\n")
+            print(f"\n\t{table_name} table for '{case_name}' not created.\n")
         #End try/except
 
         #Keep track of case csv files for comparison table check later
-        csv_list.extend(sorted(output_location.glob(f"amwg_table_{case_name}.csv")))
+        csv_list.extend(sorted(output_location.glob(f"{table_prefix}_{case_name}.csv")))
 
     #End of model case loop
     #----------------------
@@ -377,7 +411,7 @@ def amwg_table(adf):
         else:
             #Create comparison table for both cases
             print("\n  Making comparison table...")
-            _df_comp_table(adf, output_location, case_names)
+            _df_comp_table(adf, output_location, case_names, table_prefix)
             print("  ... Comparison table has been generated successfully")
         #End if
     else:
@@ -385,7 +419,7 @@ def amwg_table(adf):
     #End if
 
     #Notify user that script has ended:
-    print("  ...AMWG variable table(s) have been generated successfully.")
+    print(f"  ...{table_name} variable table(s) have been generated successfully.")
 
 
 ##################
@@ -423,16 +457,16 @@ def _get_row_vals(data):
 
 #####
 
-def _df_comp_table(adf, output_location, case_names):
+def _df_comp_table(adf, output_location, case_names, table_prefix="amwg_table"):
     import pandas as pd
 
-    output_csv_file_comp = output_location / "amwg_table_comp.csv"
+    output_csv_file_comp = output_location / f"{table_prefix}_comp.csv"
 
     # * * * * * * * * * * * * * * * * * * * * * * * * * * * *
     #This will be for single-case for now (case_names[0]),
     #will need to change to loop as multi-case is introduced
-    case = output_location/f"amwg_table_{case_names[0]}.csv"
-    baseline = output_location/f"amwg_table_{case_names[-1]}.csv"
+    case = output_location/f"{table_prefix}_{case_names[0]}.csv"
+    baseline = output_location/f"{table_prefix}_{case_names[-1]}.csv"
 
     #Read in test case and baseline dataframes:
     df_case = pd.read_csv(case)

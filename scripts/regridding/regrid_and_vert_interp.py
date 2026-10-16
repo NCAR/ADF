@@ -23,7 +23,8 @@ DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
 
 # Horizontal dimension of native (unstructured, e.g. spectral-element) CAM
 # output.  See _to_latlon for how such data is handled.
-UNSTRUCTURED_DIMS = ("ncol",)
+# Native grid dimensions: CAM's "ncol" and CLM's "lndgrid":
+UNSTRUCTURED_DIMS = ("ncol", "lndgrid")
 
 
 def _interp_levels(adf):
@@ -854,7 +855,8 @@ def _keep_native_area(final_ds, source_ds):
     """Copy the grid-cell area into an output file that stays on its native grid.
 
     The native (uxarray) plotting weights its averages by the model's cell
-    area, which it reads from the regridded and baseline files.  On a lat/lon
+    area (and, for land, its land fraction; see adf_utils.cell_weights), which
+    it reads from the regridded and baseline files.  On a lat/lon
     grid the plots weight by latitude instead, and the source grid's area would
     be wrong after regridding anyway, so it is only kept for native data.
 
@@ -865,8 +867,10 @@ def _keep_native_area(final_ds, source_ds):
     source_ds : xarray.Dataset
         The climo dataset it was made from.
     """
-    if _is_unstructured(final_ds) and "area" in source_ds:
-        final_ds["area"] = source_ds["area"]
+    if _is_unstructured(final_ds):
+        for name in ("area", "landfrac", "landmask"):
+            if name in source_ds:
+                final_ds[name] = source_ds[name]
 
 
 def _to_latlon(adf, dset, var, case_name=None, save=False):
@@ -909,12 +913,14 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
         label = adf.data.ref_case_label
         wgt_file = adf.latlon_wgt_files["baseline_wgts_file"]
         method = adf.latlon_regrid_method["baseline_regrid_method"]
+        latlon_file = adf.latlon_files["baseline_latlon_file"]
         climo_loc = adf.get_baseline_info("cam_climo_loc", required=True)
     else:
         case_idx = adf.get_cam_info("cam_case_name", required=True).index(case_name)
         label = case_name
         wgt_file = adf.latlon_wgt_files["test_wgts_file"][case_idx]
         method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
+        latlon_file = adf.latlon_files["test_latlon_file"][case_idx]
         climo_loc = adf.get_cam_info("cam_climo_loc", required=True)[case_idx]
 
     if not wgt_file:
@@ -930,6 +936,8 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
         var,
         wgt_file=wgt_file,
         method=method,
+        comp=adf.model_component,
+        latlon_file=latlon_file,
     )
     # (grid_to_latlon carries hyam, hybm, P0 and the rest over, which the
     # vertical interpolation needs.)

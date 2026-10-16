@@ -137,7 +137,7 @@ def make_polar_plot(
         the domain to plot, specified as
         [west_longitude, east_longitude, south_latitude, north_latitude]
         Defaults to pole to 45-degrees, all longitudes
-    hemisphere : {'NH', 'SH'}, optional
+    hemisphere : {'NH', 'SH', 'Arctic', 'Antarctic'}, optional
         Hemsiphere to plot
     kwargs : dict, optional
         variable-dependent options for plots, See Notes.
@@ -173,19 +173,22 @@ def make_polar_plot(
     else:
         pct = pct_0
 
-    if hemisphere.upper() == "NH":
+    # The land diagnostics name the hemispheres "Arctic" and "Antarctic":
+    if hemisphere.upper() in ("NH", "ARCTIC"):
         proj = ccrs.NorthPolarStereo()
-    elif hemisphere.upper() == "SH":
+    elif hemisphere.upper() in ("SH", "ANTARCTIC"):
         proj = ccrs.SouthPolarStereo()
     else:
         raise AdfError(
-            "[make_polar_plot] hemisphere not specified, must be NH or SH; "
-            f"hemisphere set as {hemisphere}"
+            "[make_polar_plot] hemisphere not specified, must be NH, SH, "
+            f"Arctic or Antarctic; hemisphere set as {hemisphere}"
         )
 
     if domain is None:
         if hemisphere.upper() == "NH":
             domain = [-180, 180, 45, 90]
+        elif hemisphere.upper() == "ARCTIC":
+            domain = [-180, 180, 50, 90]
         else:
             domain = [-180, 180, -90, -45]
 
@@ -1026,25 +1029,10 @@ def plot_map_and_save(
             fields = (mdlfld_level, obsfld_level, pctld_level, diffld_level)
             wrap_fields = (mdlfld_level, obsfld_level, pctld_level, diffld_level)
 
-            area_avg = []
-            for i, data in enumerate(fields):
-                if "n_face" in data.dims:
-                    if i == 0:
-                        ds = kwargs["dataset"]
-                    if i == 1:
-                        ds = kwargs["odataset"]
-                    weights = ds["area"]
-                elif "ncol" in data.dims:
-                    if i == 0:
-                        ds = kwargs["dataset"]
-                    if i == 1:
-                        ds = kwargs["odataset"]
-                    weights = ds["area"]
-                else:
-                    weights = None
-
-                x = utils.spatial_average(data, weights=weights)
-                area_avg.append(x)
+            # The cell weights (area, or area * landfrac for land, see
+            # adf_utils.cell_weights) of the test case, which is on the same
+            # grid as the baseline:
+            area_avg = [utils.spatial_average(data, weights=wgt) for data in fields]
             # TODO Check this is correct, weighted rmse uses xarray weighted function
             # d_rmse = wgt_rmse(a, b, wgt)
             d_rmse = (np.sqrt(((diffld**2) * wgt).sum())).values.item()
