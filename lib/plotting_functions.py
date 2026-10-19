@@ -1,4 +1,4 @@
-""".
+"""
 Generic computation and plotting helper functions
 
 Functions
@@ -408,9 +408,9 @@ def make_polar_plot(
     verts = np.vstack([np.sin(theta), np.cos(theta)]).T
     circle = mpl.path.Path(verts * radius + center)
     for a in axs:
-        a.coastlines()
-        a.set_extent(domain, ccrs.PlateCarree())
         a.set_boundary(circle, transform=a.transAxes)
+        a.set_extent(domain, ccrs.PlateCarree())
+        a.coastlines()
         a.gridlines(
             draw_labels=False,
             crs=ccrs.PlateCarree(),
