@@ -104,6 +104,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
 import matplotlib.cm as cm
 import uxarray as ux  #need npl 2024a or later
+import inspect
 
 from adf_diag import AdfDiag
 from adf_base import AdfError
@@ -278,6 +279,70 @@ def mask_land_or_ocean(arr, msk, use_nan=False):
     arr = xr.where(msk>=0.9,arr,missing_value)
     arr.attrs["missing_value"] = missing_value
     return(arr)
+
+
+# to_raster gained pixel_mapping / return_pixel_mapping after uxarray v2025.6.0
+_RASTER_HAS_PIXEL_MAPPING = (
+    "pixel_mapping" in inspect.signature(getattr(ux.UxDataArray, "to_raster", lambda self, ax: None)).parameters
+)
+
+# pixel -> face mappings, reused across panels, seasons and variables
+_PIXEL_MAPPINGS = {}
+
+
+def _pixel_mapping_key(uxda, ax):
+    """Key identifying when a pixel mapping can be reused.
+
+    A mapping is only valid for the same grid, projection, axes extent and
+    axes pixel size. Grids are reloaded for every variable, so the grid is
+    identified by its size and a few node coordinates rather than object identity.
+    """
+    grid = uxda.uxgrid
+    grid_id = (grid.n_face, grid.n_node,
+               float(grid.node_lon[0]), float(grid.node_lat[0]),
+               float(grid.node_lon[-1]), float(grid.node_lat[-1]))
+    return (grid_id,
+            ax.projection.proj4_init,
+            tuple(np.round(ax.get_xlim() + ax.get_ylim(), 6)),
+            tuple(int(v) for v in ax.bbox.bounds[2:]))
+
+
+def raster_with_mapping(uxda, ax, pixel_mapping=None):
+    """Rasterize unstructured data onto a GeoAxes, reusing a pixel mapping.
+
+    Parameters
+    ----------
+    uxda : uxarray.UxDataArray
+        face-centered data to rasterize
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        axes to rasterize onto; set its extent (e.g. `set_global`) first
+    pixel_mapping : xarray.DataArray, optional
+        mapping returned by a previous call on an axes with the same
+        grid, projection, extent and pixel size. If None, a cached mapping
+        is used when one matches, otherwise a new mapping is computed and cached.
+
+    Returns
+    -------
+    raster : numpy.ndarray
+        rasterized data, for use with `ax.imshow`
+    pixel_mapping : xarray.DataArray or None
+        mapping to pass to the next call; None if uxarray is too old to support it
+
+    Notes
+    -----
+    Mappings are cached in `_PIXEL_MAPPINGS` for the life of the process, so the
+    pixel -> face search runs once per grid and figure layout for an entire ADF run.
+    """
+    if not _RASTER_HAS_PIXEL_MAPPING:
+        return uxda.to_raster(ax=ax), None
+    key = _pixel_mapping_key(uxda, ax)
+    if pixel_mapping is None:
+        pixel_mapping = _PIXEL_MAPPINGS.get(key)
+    if pixel_mapping is None:
+        raster, pixel_mapping = uxda.to_raster(ax=ax, return_pixel_mapping=True)
+        _PIXEL_MAPPINGS[key] = pixel_mapping
+        return raster, pixel_mapping
+    return uxda.to_raster(ax=ax, pixel_mapping=pixel_mapping), pixel_mapping
 
 
 def get_central_longitude(*args):
@@ -933,6 +998,9 @@ def make_polar_plot(wks, case_nickname, base_nickname,
 
     imgs = []
 
+    # all four panels share a grid and axes size, so compute the pixel mapping once
+    pixel_mapping = None
+
     # Loop over data arrays to make plots
     for i, a in enumerate(wrap_fields):
         if i == len(wrap_fields)-1:
@@ -952,7 +1020,7 @@ def make_polar_plot(wks, case_nickname, base_nickname,
             # TODO, would be nice to have levels set from the info, above
             # raster approach should be faster
             axs[i].set_global()
-            raster = a.to_raster(ax=axs[i])
+            raster, pixel_mapping = raster_with_mapping(a, axs[i], pixel_mapping)
             img = axs[i].imshow(
                 raster, cmap=cmap, origin="lower", extent=axs[i].get_xlim() + axs[i].get_ylim()
             )
@@ -1420,12 +1488,13 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
     fig = plt.figure(figsize=(14,8), dpi=300)
 
     # LAYOUT WITH GRIDSPEC
-    gs = mpl.gridspec.GridSpec(3, 6, wspace=2.0,hspace=0.0) # 2 rows, 4 columns, but each map will take up 2 columns
+    # 2x2 grid of equal-size maps; equal sizes let unstructured plots share one pixel mapping
+    gs = mpl.gridspec.GridSpec(2, 2, wspace=0.3, hspace=0.3)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
-    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info['subplots_opt'])
-    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info['subplots_opt'])
-    ax3 = plt.subplot(gs[2, :3], projection=proj, **cp_info['subplots_opt'])
-    ax4 = plt.subplot(gs[2, 3:], projection=proj, **cp_info['subplots_opt'])
+    ax1 = plt.subplot(gs[0, 0], projection=proj, **cp_info['subplots_opt'])
+    ax2 = plt.subplot(gs[0, 1], projection=proj, **cp_info['subplots_opt'])
+    ax3 = plt.subplot(gs[1, 0], projection=proj, **cp_info['subplots_opt'])
+    ax4 = plt.subplot(gs[1, 1], projection=proj, **cp_info['subplots_opt'])
     ax = [ax1,ax2,ax3,ax4]
 
     img = [] # contour plots
@@ -1438,6 +1507,9 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
                                         dateline_direction_label=False)
     lat_formatter = LatitudeFormatter(number_format='0.0f',
                                         degree_symbol='')
+
+    # computed on the first unstructured panel, then reused for the rest
+    pixel_mapping = None
 
     for i, a in enumerate(wrap_fields):
 
@@ -1471,7 +1543,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
             #configure for raster plotting, polycollection was slower
             #TODO, would be nice to have levels set from the info, above
             ax[i].set_global()
-            raster = a.to_raster(ax=ax[i])
+            raster, pixel_mapping = raster_with_mapping(a, ax[i], pixel_mapping)
             im = ax[i].imshow(
                 raster, cmap=cmap, origin="lower",
                 extent=ax[i].get_xlim() + ax[i].get_ylim()
@@ -1503,7 +1575,7 @@ def plot_map_and_save(wks, case_nickname, base_nickname,
         a.yaxis.set_major_formatter(lat_formatter)
 
     st = fig.suptitle(wks.stem[:-5].replace("_"," - "), fontsize=18)
-    st.set_y(0.85)
+    st.set_y(0.98)
 
     #Set plot titles
     case_title = "$\mathbf{Test}:$"+f"{case_nickname}\nyears: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
@@ -1683,7 +1755,10 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
         **cp_info['subplots_opt']
     )
     axs=axs.flatten()
-    
+
+    # all four panels share a grid and axes size, so compute the pixel mapping once
+    pixel_mapping = None
+
     # Loop over data arrays to make plots
     for i, a in enumerate(wrap_fields):
         if i == len(wrap_fields)-2:
@@ -1704,7 +1779,7 @@ def plot_unstructured_map_and_save(wks, case_nickname, base_nickname,
         #configure for polycollection plotting
         #TODO, would be nice to have levels set from the info, above
         axs[i].set_global()
-        raster = a.to_raster(ax=axs[i])
+        raster, pixel_mapping = raster_with_mapping(a, axs[i], pixel_mapping)
         img = axs[i].imshow(
             raster, cmap=cmap, origin="lower", extent=axs[i].get_xlim() + axs[i].get_ylim()
         )
