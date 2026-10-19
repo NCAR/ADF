@@ -57,6 +57,7 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from cartopy.util import add_cyclic_point
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FuncFormatter
 from matplotlib.ticker import MaxNLocator
 from matplotlib.ticker import MultipleLocator
 import matplotlib.cm as cm
@@ -584,8 +585,17 @@ def make_polar_plot(
     lon_formatter = LongitudeFormatter(number_format='0.0f',
                                         degree_symbol='',
                                         dateline_direction_label=False)
-    lat_formatter = LatitudeFormatter(number_format='0.0f',
-                                        degree_symbol='')
+    # The latitude formatter is wrapped in a FuncFormatter so cartopy never
+    # attaches it to the axis: an attached cartopy formatter reprojects every
+    # tick through PROJ, and PROJ >= 9.8 returns NaN for points near the poles
+    # on a PlateCarree with a non-zero central longitude.  For PlateCarree
+    # the projected y-coordinate already equals latitude, so no reprojection
+    # is needed.
+    lat_formatter = FuncFormatter(
+        lambda lat, pos, fmt=LatitudeFormatter(
+            number_format="0.0f", degree_symbol=""
+        ): fmt(lat, pos)
+    )
 
     # too many vectors to see well, so prune by striding through data:
     skip=(slice(None,None,5),slice(None,None,8))
@@ -704,7 +714,9 @@ def make_polar_plot(
         ax[i].spines['geo'].set_linewidth(1.5) #cartopy's recommended method
         ax[i].coastlines()
         ax[i].set_xticks(np.linspace(-180, 120, 6), crs=ccrs.PlateCarree())
-        ax[i].set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
+        # Latitude ticks are set in projected coordinates (equal to latitude
+        # for PlateCarree) to avoid PROJ returning NaN at the poles:
+        ax[i].set_yticks(np.linspace(-90, 90, 7))
         ax[i].tick_params('both', length=5, width=1.5, which='major')
         ax[i].tick_params('both', length=5, width=1.5, which='minor')
         ax[i].xaxis.set_major_formatter(lon_formatter)
@@ -1079,7 +1091,17 @@ def plot_map_and_save(
     lon_formatter = LongitudeFormatter(
         number_format="0.0f", degree_symbol="", dateline_direction_label=False
     )
-    lat_formatter = LatitudeFormatter(number_format="0.0f", degree_symbol="")
+    # The latitude formatter is wrapped in a FuncFormatter so cartopy never
+    # attaches it to the axis: an attached cartopy formatter reprojects every
+    # tick through PROJ, and PROJ >= 9.8 returns NaN for points near the poles
+    # on a PlateCarree with a non-zero central longitude.  For PlateCarree
+    # the projected y-coordinate already equals latitude, so no reprojection
+    # is needed.
+    lat_formatter = FuncFormatter(
+        lambda lat, pos, fmt=LatitudeFormatter(
+            number_format="0.0f", degree_symbol=""
+        ): fmt(lat, pos)
+    )
 
     if vector:  # ignore percent diff for now, think about picking back up later
         diff_idx = 2
@@ -1351,7 +1373,9 @@ def plot_map_and_save(
         a.spines["geo"].set_linewidth(1.5)  # cartopy's recommended method
         a.coastlines()
         a.set_xticks(np.linspace(-180, 120, 6), crs=ccrs.PlateCarree())
-        a.set_yticks(np.linspace(-90, 90, 7), crs=ccrs.PlateCarree())
+        # Latitude ticks are set in projected coordinates (equal to latitude
+        # for PlateCarree) to avoid PROJ returning NaN at the poles:
+        a.set_yticks(np.linspace(-90, 90, 7))
         a.tick_params("both", length=5, width=1.5, which="major")
         a.tick_params("both", length=5, width=1.5, which="minor")
         a.xaxis.set_major_formatter(lon_formatter)

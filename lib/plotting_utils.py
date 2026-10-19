@@ -144,10 +144,16 @@ def transform_coordinates_for_projection(proj, lon, lat):
     This is what cartopy's transform_first=True *should* be doing internally.
     We find that it sometimes fails for polar plots, so do it with this manually.
     This dramatically speeds up polar plots.
+
+    The source CRS is ``ccrs.Geodetic()`` (plain longitude/latitude) rather
+    than ``ccrs.PlateCarree()``.  Cartopy defines PlateCarree as PROJ's
+    ellipsoidal ``eqc`` projection, and from PROJ 9.8 that shifts latitudes by
+    up to ~0.2 degrees and returns NaN within ~0.15 degrees of the poles,
+    which breaks ``contourf`` on grids that include latitude +/-90.
     """
     lons, lats = np.meshgrid(lon, lat)
     x_proj, y_proj, _ = proj.transform_points(
-        ccrs.PlateCarree(), lons, lats
+        ccrs.Geodetic(), lons, lats
     ).T  # .T to unpack, .T again to get x,y,z arrays
     return x_proj.T, y_proj.T
 
