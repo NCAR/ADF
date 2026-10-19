@@ -22,6 +22,10 @@ ts_files_need_combining(fils)
     Report whether a set of time series files has to be combined into one.
 ts_file_span(fils)
     Report the period a set of time series files covers, taken together.
+ts_years_covered(fils)
+    Report the whole years a set of time series files covers.
+missing_year_ranges(covered, syr, eyr)
+    Report the stretches of a year range that are not covered.
 as_hist_str_list(value)
     Normalize a configured history stream setting to a list.
 pick_hist_str(value, wanted)
@@ -504,3 +508,87 @@ def ts_file_span(fils):
     # Sorted by start, so the earliest start leads; take the latest end
     # explicitly rather than assuming the last entry carries it:
     return spans[0][0], max(end for _, end in spans)
+
+
+def ts_years_covered(fils):
+    """
+    Report the whole years a set of time series files covers.
+
+    Used to decide which years of a variable still have to be made from the
+    history files when some of its time series already exist.  Only years a
+    file holds in full count: "000101-000512" covers years 1-5, while
+    "000107-000512" covers years 2-5, because year 1 is only half there.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to time series files, named
+        ``{case}.{stream}.{variable}.{start}-{end}.nc`` with dates of the form
+        YYYY, YYYYMM or YYYYMMDD.
+
+    Returns
+    -------
+    set of int or None
+        The years covered, or ``None`` if any name could not be read, in
+        which case the caller should make no assumptions about the files.
+    """
+    full_start = {4: "", 6: "01", 8: "0101"}
+    full_end = {4: "", 6: "12", 8: "1231"}
+    years = set()
+    for fil in fils:
+        date_str = Path(fil).stem.split(".")[-1]
+        start, sep, end = date_str.partition("-")
+        if (
+            not sep
+            or not start.isdigit()
+            or not end.isdigit()
+            or len(start) != len(end)
+            or len(start) not in full_start
+        ):
+            return None
+        # End if
+        first, last = int(start[:4]), int(end[:4])
+        if start[4:] != full_start[len(start)]:
+            first += 1
+        # End if
+        if end[4:] != full_end[len(end)]:
+            last -= 1
+        # End if
+        years.update(range(first, last + 1))
+    # End for
+    return years
+
+
+def missing_year_ranges(covered, syr, eyr):
+    """
+    Report the stretches of a year range that are not covered.
+
+    Parameters
+    ----------
+    covered : set of int
+        Years already covered, e.g. from :func:`ts_years_covered`.
+    syr, eyr : int
+        First and last year needed.
+
+    Returns
+    -------
+    list of tuple of int
+        ``(first, last)`` for each run of consecutive missing years, in order;
+        empty when every year is covered.
+    """
+    ranges = []
+    first = None
+    for year in range(syr, eyr + 1):
+        if year in covered:
+            if first is not None:
+                ranges.append((first, year - 1))
+                first = None
+            # End if
+        elif first is None:
+            first = year
+        # End if
+    # End for
+    if first is not None:
+        ranges.append((first, eyr))
+    # End if
+    return ranges

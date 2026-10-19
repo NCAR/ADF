@@ -151,6 +151,19 @@ def regrid_and_vert_interp(adf):
             model_ds = adf.data.load_climo_ds(case_name, var)
             ref_ds = adf.data.load_reference_climo_ds(adf.data.ref_case_label, var)
             if not ref_ds:
+                # The reference only supplies the target grid (the vertical
+                # target is the fixed pressure levels), and its regridded file
+                # is on that same grid -- so a baseline whose climo files are
+                # gone but whose regridded files are still here will do:
+                ref_ds = adf.data.load_reference_regrid_dataset(
+                    adf.data.ref_case_label, var
+                )
+                if ref_ds:
+                    adf.debug_log(
+                        f"regrid: no reference climo for '{var}'; using the "
+                        "reference's regridded file for the target grid"
+                    )
+            if not ref_ds:
                 print(f"\t ERROR: Missing reference data for {var}. Skipping.")
                 continue
             if not model_ds:

@@ -163,7 +163,8 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
 
     #CAM simulation variables (These quantities are always lists):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
-    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
+    #Not needed by a case run on pre-made climatologies alone:
+    input_ts_locs = adf.get_cam_info("cam_ts_loc") or [None]*len(case_names)
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
@@ -185,7 +186,7 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
     if not adf.get_basic_info("compare_obs"):
         #Extract CAM baseline variaables:
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
-        input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
+        input_ts_baseline = adf.get_baseline_info("cam_ts_loc")
         output_bl_loc     = adf.get_baseline_info("cam_climo_loc", required=True)
         calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
         ovr_bl            = adf.get_baseline_info("cam_overwrite_climo")

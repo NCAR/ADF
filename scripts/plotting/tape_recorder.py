@@ -39,6 +39,11 @@ def tape_recorder(adfobj):
     #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
+    #Cases run on pre-made climatologies alone have no time series to read:
+    if not adfobj.data.timeseries_available("tape_recorder"):
+        return
+    #End if
+
     #Grab test case time series locs(s)
     case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
 

@@ -98,11 +98,13 @@ from adf_file_utils import (
     as_hist_str_list,
     describe_dir_problem,
     find_ts_files,
+    missing_year_ranges,
     pick_hist_str,
     select_ts_files,
     ts_files_overlap,
     ts_file_span,
     ts_var_from_filename,
+    ts_years_covered,
 )
 
 
@@ -564,7 +566,7 @@ def _ts_uses_level(ts_dir, case_name, streams, variables, level_dim):
 def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
     """Add the model's 3-D pressure field from a directory of time series.
 
-    ``cam_ts_done: true`` skips the history files entirely, so there is nothing
+    ``calc_cam_ts: false`` skips the history files entirely, so there is nothing
     to inspect for a pressure field -- but a time series of it may well be
     sitting in the directory the ADF was pointed at, and using it is the whole
     point of :func:`request_pressure_field`.  A file named after the variable is
@@ -1746,6 +1748,15 @@ def create_clean_grid(da):
             break
 
     if lat_bnds is not None and lon_bnds is not None:
+        # Bounds copied from history files can carry a time dimension, e.g.
+        # lat_bnds(time, lat, nbnd).  They are the same at every step, so keep
+        # the first entry of any extra dimension to get back to (lat, nbnd):
+        lat_bnds = lat_bnds.isel(
+            {d: 0 for d in lat_bnds.dims if d != "lat" and d != lat_bnds.dims[-1]}
+        )
+        lon_bnds = lon_bnds.isel(
+            {d: 0 for d in lon_bnds.dims if d != "lon" and d != lon_bnds.dims[-1]}
+        )
         lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
         lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
     else:

@@ -28,6 +28,11 @@ def qbo(adfobj):
     msg = "\n  Generating qbo plots..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
+    #Cases run on pre-made climatologies alone have no time series to read:
+    if not adfobj.data.timeseries_available("qbo"):
+        return
+    #End if
+
     #Extract relevant info from the ADF:
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
     case_loc = adfobj.get_cam_info('cam_ts_loc', required=True)

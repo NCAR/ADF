@@ -259,6 +259,45 @@ class AdfData:  # pylint: disable=too-many-public-methods
             return gridded
         return ts_loc
 
+    def timeseries_available(self, script_name):
+        """Whether every case (and a model baseline) has time series to read.
+
+        A case run on pre-made climatologies alone has none: no 'cam_ts_loc',
+        or no time series files in it.  Scripts that read time series straight
+        from 'cam_ts_loc' call this first and skip themselves when it is False,
+        rather than failing on the missing location.
+
+        Parameters
+        ----------
+        script_name : str
+            The calling script, for the message.
+
+        Returns
+        -------
+        bool
+            True if every case has time series files; otherwise False, after
+            saying which cases have none.
+        """
+        cases = list(self.case_names)
+        locs = list(self.adf.get_cam_info("cam_ts_loc") or [None] * len(cases))
+        if not self.adf.compare_obs:
+            cases.append(self.ref_case_label)
+            locs.append(self.adf.get_baseline_info("cam_ts_loc"))
+        # End if
+        missing = [
+            case
+            for case, loc in zip(cases, locs)
+            if not loc or not any(Path(loc).glob(f"{case}.*.nc"))
+        ]
+        if missing:
+            msg = f"\t WARNING: {script_name} needs time series, and {missing}"
+            msg += " have none (no 'cam_ts_loc', or no files in it), so it is skipped."
+            print(msg)
+            self.adf.debug_log(msg)
+            return False
+        # End if
+        return True
+
     def get_timeseries_file(self, case, field, hist_str=None):
         """Return list of test time series files.
 
@@ -270,8 +309,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
         variable (years 1-20 alongside years 1-40, say) does not produce a
         combined time axis with duplicate times.
         """
-        # list of paths (could be multiple cases)
-        ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True)
+        # list of paths (could be multiple cases); a case run on pre-made
+        # climatologies alone may have none:
+        ts_locs = self.adf.get_cam_info("cam_ts_loc") or [None] * len(self.case_names)
         try:
             caseindex = self.case_names.index(case)
         except ValueError:
@@ -280,6 +320,8 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 caseindex = stripped_names.index(case.strip())
             else:
                 raise
+        if not ts_locs[caseindex]:
+            return []
         ts_loc = self.timeseries_dir(case, ts_locs[caseindex])
         if hist_str:
             ts_filenames = f"{case}.{hist_str}.{field}.*nc"
@@ -304,9 +346,11 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 "observational time series files."
             )
             return None
+        if not self.adf.get_baseline_info("cam_ts_loc"):
+            # A baseline run on pre-made climatologies alone has none:
+            return []
         ts_loc = self.timeseries_dir(
-            self.ref_case_label,
-            self.adf.get_baseline_info("cam_ts_loc", required=True),
+            self.ref_case_label, self.adf.get_baseline_info("cam_ts_loc")
         )
         if hist_str:
             ts_filenames = f"{self.ref_case_label}.{hist_str}.{field}.*nc"

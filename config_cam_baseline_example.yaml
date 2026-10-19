@@ -235,11 +235,13 @@ diag_cam_climo:
     #       end at latest available year.
     end_year: 14
 
-    #Do time series files exist?
-    #If True, then diagnostics assumes that model files are already time series.
-    #If False, or if simply not present, then diagnostics will attempt to create
-    #time series files from history (time-slice) files:
-    cam_ts_done: false
+    #Calculate time series files?
+    #If true, or if simply not present, then diagnostics will create time series
+    #files from the history (time-slice) files in 'cam_hist_loc'.
+    #If false, then diagnostics will use the pre-made time series files in
+    #'cam_ts_loc' instead.  (This used to be 'cam_ts_done', which meant the
+    #opposite; it is still accepted.)
+    calc_cam_ts: true
 
     #Save interim time series files?
     #WARNING:  This can take up a significant amount of space,
@@ -314,9 +316,9 @@ diag_cam_climo:
     #    - 14
     #    - 14
 
-    #cam_ts_done:
-    #    - false
-    #    - false
+    #calc_cam_ts:
+    #    - true
+    #    - true
 
     #cam_ts_save:
     #    - true
@@ -397,11 +399,13 @@ diag_cam_baseline_climo:
     #       end at latest available year.
     end_year: 14
 
-    #Do time series files need to be generated?
-    #If True, then diagnostics assumes that model files are already time series.
-    #If False, or if simply not present, then diagnostics will attempt to create
-    #time series files from history (time-slice) files:
-    cam_ts_done: false
+    #Calculate time series files?
+    #If true, or if simply not present, then diagnostics will create time series
+    #files from the history (time-slice) files in 'cam_hist_loc'.
+    #If false, then diagnostics will use the pre-made time series files in
+    #'cam_ts_loc' instead.  (This used to be 'cam_ts_done', which meant the
+    #opposite; it is still accepted.)
+    calc_cam_ts: true
 
     #Save interim time series files for baseline run?
     #WARNING:  This can take up a significant amount of space:
@@ -568,7 +572,7 @@ plotting_scripts:
 #
 #A single entry of "all" processes every variable found in the test case input
 #files instead (the fields in the history files, or the variables in the
-#pre-made time series files when "cam_ts_done" is true).  Variables listed
+#pre-made time series files when "calc_cam_ts" is false).  Variables listed
 #alongside "all" are still added, which is how a derived variable that is in no
 #input file (e.g. PRECT) can be asked for:
 #

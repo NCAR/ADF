@@ -26,11 +26,13 @@ sys.path.append(_ADF_LIB_DIR)
 from adf_file_utils import (
     describe_dir_problem,
     find_ts_files,
+    missing_year_ranges,
     select_ts_files,
     ts_files_overlap,
     ts_files_need_combining,
     ts_file_span,
     ts_var_from_filename,
+    ts_years_covered,
 )
 
 
@@ -616,3 +618,31 @@ class TsVarFromFilenameTestRoutine(unittest.TestCase):
     def test_name_without_a_variable(self):
         """A name too short to carry a variable reports nothing."""
         self.assertIsNone(ts_var_from_filename("case.nc"))
+
+    def test_ts_years_covered_whole_years(self):
+        """Monthly, yearly and daily names give the years they hold in full."""
+        self.assertEqual(ts_years_covered(["c.cam.h0a.T.000101-000512.nc"]), {1, 2, 3, 4, 5})
+        self.assertEqual(ts_years_covered(["c.cam.h0a.T.0001-0003.nc"]), {1, 2, 3})
+        self.assertEqual(ts_years_covered(["c.cam.h1a.T.00010101-00021231.nc"]), {1, 2})
+
+    def test_ts_years_covered_partial_years(self):
+        """A year only partly held does not count."""
+        self.assertEqual(ts_years_covered(["c.cam.h0a.T.000107-000506.nc"]), {2, 3, 4})
+
+    def test_ts_years_covered_chunks(self):
+        """Several files add up; no files cover nothing."""
+        fils = ["c.cam.h0a.T.000101-000512.nc", "c.cam.h0a.T.000801-001012.nc"]
+        self.assertEqual(ts_years_covered(fils), {1, 2, 3, 4, 5, 8, 9, 10})
+        self.assertEqual(ts_years_covered([]), set())
+
+    def test_ts_years_covered_unreadable(self):
+        """A name whose dates cannot be read makes no promises."""
+        self.assertIsNone(ts_years_covered(["c.cam.h0a.T.nc"]))
+        self.assertIsNone(ts_years_covered(["c.cam.h0a.T.0001-000512.nc"]))
+
+    def test_missing_year_ranges(self):
+        """Gaps come back as runs of consecutive years, in order."""
+        self.assertEqual(missing_year_ranges({1, 2, 3, 4, 5}, 1, 10), [(6, 10)])
+        self.assertEqual(missing_year_ranges({3, 4, 8}, 1, 10), [(1, 2), (5, 7), (9, 10)])
+        self.assertEqual(missing_year_ranges(set(range(1, 11)), 1, 10), [])
+        self.assertEqual(missing_year_ranges(set(), 1, 3), [(1, 3)])

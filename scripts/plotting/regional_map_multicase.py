@@ -77,6 +77,11 @@ def regional_map_multicase(adfobj):
     if len(case_names) > 10:
         print("ERROR: regional_map_multicase is limited to <= 10 cases.")
         return
+    #Cases run on pre-made climatologies alone have no time series to read:
+    if not adfobj.data.timeseries_available("regional_map_multicase"):
+        return
+    #End if
+
     #(the "gridded" copy of native-grid time series, where the ADF made one)
     case_loc = [
         adfobj.data.timeseries_dir(case, loc)
