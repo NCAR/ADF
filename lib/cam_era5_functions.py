@@ -33,7 +33,13 @@ def load_cam_files(cam_dir, file_sel, tmin, tmax, campaign):
         ss = sod % 60
         return pd.Timestamp(year=y, month=mo, day=d, hour=hh, minute=mm, second=ss)
     
+    cam_dir = Path(cam_dir)
+    if not cam_dir.is_dir():
+        raise FileNotFoundError(f"CAM history directory does not exist: {cam_dir}")
+
     all_files = sorted([p for p in cam_dir.glob("*.nc") if f"{file_sel}" in p.name])
+    if not all_files:
+        raise FileNotFoundError(f"No '*{file_sel}*.nc' files found in {cam_dir}")
 
     times = []
     files = []
@@ -42,16 +48,23 @@ def load_cam_files(cam_dir, file_sel, tmin, tmax, campaign):
         if dt is not None:
             times.append(dt)
             files.append(p)
+
+    if not files:
+        raise FileNotFoundError(
+            f"Found {len(all_files)} '{file_sel}' files in {cam_dir}, but none are named "
+            f"like '*YYYY-MM-DD-SSSSS.nc' (e.g. {all_files[0].name})")
     
     pad = pd.Timedelta(minutes=60)
     lo = tmin - pad
     hi = tmax + pad
-    
+
     i0 = bisect.bisect_left(times, lo)
     i1 = bisect.bisect_right(times, hi) - 1
 
-    if i0 > i1 or not files:
-        raise RuntimeError("No files found overlapping the requested time window.")
+    if i0 > i1:
+        raise RuntimeError(
+            f"No '{file_sel}' files in {cam_dir} overlap the requested time window "
+            f"{lo} to {hi}; available files span {times[0]} to {times[-1]}.")
     
     i0_ext = max(i0 - 1, 0)
     i1_ext = min(i1 + 1, len(files) - 1)
@@ -76,10 +89,10 @@ def load_cam_files(cam_dir, file_sel, tmin, tmax, campaign):
     
     
     if campaign == 'SOCRATES':
-        # rename variables to remove weird end
+        # rename variables to remove lat/lon extension (if applicable)
         suffix = "_130e_to_170e_35s_to_65s"
         # (only present when the CAM output was regionally subset)
-        ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars if suffix in var})
+        #ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars if suffix in var})
 
         if "lat_35s_to_65s" in ds_cam:
             ds_cam = ds_cam.rename({
@@ -95,12 +108,27 @@ def load_cam_files(cam_dir, file_sel, tmin, tmax, campaign):
         #})
     elif campaign == 'CSET':
         suffix = "_200e_to_245e_15n_to_45n"
-        ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars})
-        ds_cam = ds_cam.rename({
-            "lat_15n_to_45n": "lat",
-            "lon_200e_to_245e": "lon"
-        })
-    
+        #ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars if suffix in var})
+
+        if "lat_15n_to_45n" in ds_cam:
+            ds_cam = ds_cam.rename({
+                "lat_15n_to_45n": "lat"
+            })
+        if "lon_200e_to_245e" in ds_cam:
+            ds_cam = ds_cam.rename({
+                "lon_200e_to_245e": "lon"
+            })
+
+        #ds_cam = ds_cam.rename({
+        #    "lat_15n_to_45n": "lat",
+        #    "lon_200e_to_245e": "lon"
+        #})
+    else:
+        # set ADF error exit
+        print("No valid campaign, getting out of here...")
+
+    ds_cam = ds_cam.rename({var: var.replace(suffix, "") for var in ds_cam.data_vars if suffix in var})
+
     return ds_cam
 
 # =====================================================================

@@ -28,7 +28,7 @@ import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
 
-import os, sys, time, json, shutil, tempfile
+import os, re, sys, time, json, shutil, tempfile
 import functools
 from collections.abc import Mapping
 from glob import glob
@@ -103,6 +103,27 @@ class LazyCases(Mapping):
         return case in self._loaders
 
 
+# CAM history variables the INFORM loaders can't do without
+# (cam_era5_functions.compute_cam_aerosol_micphys_metrics and load_cam_ccfs);
+# the aerosol/CCN fields they use are optional and read as zero when missing.
+REQUIRED_CAM_VARS = (
+    "PS", "hyam", "hybm", "T", "Q", "U", "V", "OMEGA", "TS",
+    "WP2_ZT_CLUBB", "CLDLIQ", "FREQL", "AWNC", "AQRAIN", "FREQR", "ANRAIN",
+)
+
+# Regionally subset CAM output appends e.g. "_130e_to_170e_35s_to_65s" to names
+_REGION_SUFFIX = re.compile(r"_\d+[ew]_to_\d+[ew]_\d+[ns]_to_\d+[ns]$")
+
+
+def missing_cam_vars(hist_file):
+    """
+    The REQUIRED_CAM_VARS that `hist_file` doesn't have (regional suffixes ignored).
+    """
+    with xr.open_dataset(hist_file, decode_times=False) as ds:
+        have = {_REGION_SUFFIX.sub("", str(v)) for v in ds.variables}
+    return [v for v in REQUIRED_CAM_VARS if v not in have]
+
+
 def load_cam_case(cam_dir, file_sel, campaign, tmin, tmax, lat_slice, lon_slice,
                   cache_path=None, cache_fingerprint=None, grid=None):
     """
@@ -136,7 +157,7 @@ def load_cam_case(cam_dir, file_sel, campaign, tmin, tmax, lat_slice, lon_slice,
     if grid is not None:
         cam_dir = ingrid.grid_case_for_window(
             cam_dir, file_sel, tmin, tmax, grid["weights_file"], grid["out_dir"],
-            method=grid["regrid_method"])
+            method=grid["regrid_method"], region=(lat_slice, lon_slice))
         t0 = utils.timer("gridded native-grid history files", t0)
 
     ds_cam = cfun.load_cam_files(cam_dir, file_sel, tmin, tmax, campaign=campaign)
@@ -350,12 +371,9 @@ def inform_model_analysis(adfobj):
             if not file_paths:
                 adfobj.end_diag_fail(f"No flight files (*{campaign}*RF*.nc) found for campaign {campaign} in {campaign_data_path}")
 
-        if campaign == 'SOCRATES':
-            lat_slice = slice(-62, -42)
-            lon_slice = slice(135, 165)   # 0..360 convention
-        elif campaign == 'CSET':
-            lat_slice = slice(15, 45)
-            lon_slice = slice(200, 240)
+        # Campaign region (lon in the 0..360 convention); shared with the
+        # native-grid gridding, which crops to it:
+        lat_slice, lon_slice = ingrid.CAMPAIGN_REGIONS[campaign]
 
         # Combined flight data. A sidecar lists the flight files (name, size,
         # mtime) the CSV was built from; it is rebuilt when that list changes,
@@ -429,6 +447,7 @@ def inform_model_analysis(adfobj):
         # its full case name and fingerprint it with these (see
         # cam_diagnostic.cached_source).
         case_info = {}
+        skipped_cases = {}  # {nickname: missing variables}
         for case_idx,cam_path in enumerate(cam_hist_locs):
             cam_dir = Path(cam_path)
             print("\ncam_dir",cam_dir)
@@ -444,6 +463,17 @@ def inform_model_analysis(adfobj):
             if cam_desc in case_info:
                 raise ValueError(f"Case nickname '{cam_desc}' is used by more than one case; "
                                  "INFORM diagnostics need unique case_nickname values.")
+            # A case whose history files lack variables the loaders need is
+            # left out of the analysis and plots (the other cases still run):
+            window = ingrid.window_files(cam_dir, file_sel, tmin, tmax)
+            missing = missing_cam_vars(window[0]) if window else []
+            if missing:
+                msg = (f"Skipping INFORM case '{cam_desc}' ({cam_case_names[case_idx]}): "
+                       f"its {file_sel} files lack {', '.join(missing)}")
+                print(f"\n\tWARNING: {msg}")
+                warnings.warn(msg)
+                skipped_cases[cam_desc] = missing
+                continue
             case_info[cam_desc] = {
                 "case_name": cam_case_names[case_idx],
                 "hist_str": file_sel,
@@ -455,15 +485,15 @@ def inform_model_analysis(adfobj):
             # cache) before it is loaded.  Only then does its fingerprint
             # include the gridding, so lat/lon cases keep their saved data:
             grid = None
-            window = ingrid.window_files(cam_dir, file_sel, tmin, tmax)
             if window and ingrid.is_native(window[0]):
                 grid = {
                     "weights_file": adfobj.latlon_wgt_files["test_wgts_file"][case_idx],
                     "regrid_method": adfobj.latlon_regrid_method["test_regrid_method"][case_idx],
                 }
                 case_info[cam_desc]["grid"] = {k: str(v) for k, v in grid.items()}
-                grid["out_dir"] = (cache_root / "gridded" / campaign
-                                   / f"{cam_case_names[case_idx]}.{file_sel}")
+                grid["out_dir"] = ingrid.gridded_dir(
+                    cache_root, campaign, cam_case_names[case_idx], file_sel,
+                    (lat_slice, lon_slice), grid["weights_file"], grid["regrid_method"])
             # Each case's derived CAM data is saved in the INFORM cache too, so
             # a later run that needs this case doesn't re-read its history files:
             cache_key, cache_source = cdog.case_cache_source(case_info, cam_desc)
@@ -472,6 +502,13 @@ def inform_model_analysis(adfobj):
                 cache_path=cdog.cam_case_cache_path(cache_root, campaign, cache_key),
                 cache_fingerprint=cdog.cam_case_fingerprint(cache_source),
                 grid=grid)
+
+        if skipped_cases:
+            print(f"\n{campaign}: skipped {len(skipped_cases)} of {len(cam_hist_locs)} cases "
+                  f"for missing variables: {', '.join(skipped_cases)}")
+        if not case_loaders:
+            adfobj.end_diag_fail(f"No {campaign} case has all the CAM variables INFORM needs "
+                                 f"({', '.join(REQUIRED_CAM_VARS)}).")
 
         loaded_cases = {}
         ds_cams = LazyCases(case_loaders, "comp", loaded_cases)

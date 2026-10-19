@@ -9,14 +9,26 @@ dimensions, so a native-grid case is first gridded with the same ESMF weights
 file and gridding code the ADF uses for its own native-grid time series
 (adf_utils.grid_to_latlon; see AdfDiag.grid_native_time_series).
 
-Only the history files the campaign window needs are gridded.  Each gridded
-file keeps its original name, so cam_era5_functions.load_cam_files finds and
-date-sorts them exactly as it does the originals, and is written to the
-INFORM cache, so later runs (and other configs sharing the cache) reuse it.
+Only the history files the campaign window needs are gridded, and only the
+campaign region (plus a margin) is kept, since that is all the diagnostics
+use.  Each gridded file keeps its original name, so
+cam_era5_functions.load_cam_files finds and date-sorts them exactly as it does
+the originals, and is written to the INFORM cache, so later runs (and other
+configs sharing the cache) reuse it.
+
+Gridding a full campaign can take hours per case, so the cases can be gridded
+in parallel ahead of the ADF run, one batch job per case:
+
+    python lib/inform_native_grid.py <config.yaml> --case <index>
+
+The ADF run then finds the gridded files in place and skips straight to the
+diagnostics.
 """
 
+import argparse
 import bisect
 import re
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -29,6 +41,17 @@ import adf_utils as utils
 _DATE_PAT = re.compile(r".*(\d{4})-(\d{2})-(\d{2})-(\d{5})\.nc$")
 
 _NATIVE_DIMS = {"ncol", "ncols"}
+
+# The region each campaign's diagnostics cut out of the CAM data
+# (latitude, longitude in the 0..360 convention):
+CAMPAIGN_REGIONS = {
+    "SOCRATES": (slice(-62, -42), slice(135, 165)),
+    "CSET": (slice(15, 45), slice(200, 240)),
+}
+
+# Degrees kept around the region when cropping gridded files, so the region's
+# edge points are interior points of the gridded data:
+REGION_MARGIN = 2.0
 
 
 def _file_time(path):
@@ -74,14 +97,40 @@ def is_native(path):
         return bool(_NATIVE_DIMS & set(ds.dims))
 
 
-def grid_history_file(src, dst, wgts_file, method=None):
+def gridded_dir(cache_root, campaign, case_name, file_sel, region, wgts_file, method):
+    """
+    Where one case's gridded history files go in the INFORM cache.
+
+    The region, weights file and method are part of the path, so changing any
+    of them grids afresh instead of reusing files made another way.
+    """
+    lat_slice, lon_slice = region
+    region_tag = f"lat{lat_slice.start}_{lat_slice.stop}_lon{lon_slice.start}_{lon_slice.stop}"
+    # (without a weights file, grid_case_for_window stops with a clear message)
+    wgts_tag = Path(wgts_file).stem if wgts_file else "no_weights_file"
+    method_tag = f"{wgts_tag}.{method or 'conservative'}"
+    return (Path(cache_root) / "gridded" / campaign / f"{case_name}.{file_sel}"
+            / region_tag / method_tag)
+
+
+def crop_to_region(ds, region, margin=REGION_MARGIN):
+    """`ds` cut to `region` (lat, lon slices, increasing) plus `margin` degrees."""
+    lat_slice, lon_slice = region
+    return ds.sel(
+        lat=slice(lat_slice.start - margin, lat_slice.stop + margin),
+        lon=slice(lon_slice.start - margin, lon_slice.stop + margin),
+    )
+
+
+def grid_history_file(src, dst, wgts_file, method=None, region=None):
     """
     Grid one native-grid history file to lat/lon and save it as `dst`.
 
-    Times are left undecoded, so time and time_bnds are written back exactly
-    as CAM wrote them.  The file is written under a temporary name and then
-    renamed, so an interrupted run never leaves a partial file that a later
-    run would take for a finished one.
+    With `region` (lat, lon slices), only that region plus REGION_MARGIN is
+    kept.  Times are left undecoded, so time and time_bnds are written back
+    exactly as CAM wrote them.  The file is written under a temporary name and
+    then renamed, so an interrupted run never leaves a partial file that a
+    later run would take for a finished one.
     """
     with xr.open_dataset(src, decode_times=False) as ds:
         native = [v for v in ds.data_vars if _NATIVE_DIMS & set(ds[v].dims)]
@@ -91,6 +140,8 @@ def grid_history_file(src, dst, wgts_file, method=None):
         # given only sets which one has missing values filled and its
         # attributes restored.
         gridded = utils.grid_to_latlon(ds, native[0], wgt_file=wgts_file, method=method)
+        if region is not None:
+            gridded = crop_to_region(gridded, region)
         # Gridding returns float64 fields and drops some attributes (time's
         # units and calendar among them, which load_cam_files needs to decode
         # the times), so give every variable back its own type and attributes:
@@ -106,7 +157,7 @@ def grid_history_file(src, dst, wgts_file, method=None):
 
 
 def grid_case_for_window(cam_dir, file_sel, tmin, tmax, wgts_file, out_dir,
-                         method=None, overwrite=False):
+                         method=None, region=None, overwrite=False):
     """
     Grid the native-grid history files a campaign window needs.
 
@@ -124,6 +175,8 @@ def grid_case_for_window(cam_dir, file_sel, tmin, tmax, wgts_file, out_dir,
         Where the gridded files go (in the INFORM cache).
     method : str, optional
         'regrid_method' ("conservative", the default, or "bilinear").
+    region : (slice, slice), optional
+        Keep only this (lat, lon) region plus REGION_MARGIN.
     overwrite : bool
         Re-grid files that were already gridded.
 
@@ -149,6 +202,56 @@ def grid_case_for_window(cam_dir, file_sel, tmin, tmax, wgts_file, out_dir,
         dst = out_dir / src.name
         if dst.is_file() and not overwrite:
             continue
-        print(f"\t  gridding {src.name}")
-        grid_history_file(src, dst, wgts_file, method=method)
+        print(f"\t  gridding {src.name}", flush=True)
+        grid_history_file(src, dst, wgts_file, method=method, region=region)
     return out_dir
+
+
+def _flight_window(adf, campaign):
+    """
+    The campaign's (tmin, tmax), from the combined flight table the INFORM
+    run builds in 'composited_data' (the same window the run uses).
+    """
+    campaigns = adf.campaigns_dict
+    idx = campaigns["name"].index(campaign)
+    rf_csv = Path(campaigns["composited_data"][idx]) / f"{campaign}_combined_RF_data.csv"
+    if not rf_csv.is_file():
+        sys.exit(f"No {rf_csv}: run the INFORM diagnostics once to build the flight table "
+                 "(it stops before loading CAM data if interrupted), then grid.")
+    times = pd.read_csv(rf_csv, usecols=["Time"])["Time"].astype("datetime64[ns]")
+    return (pd.to_datetime(times.min()).to_pydatetime(),
+            pd.to_datetime(times.max()).to_pydatetime())
+
+
+def main(argv=None):
+    """Grid one case of an INFORM config ahead of the ADF run."""
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("config", help="INFORM ADF config file")
+    parser.add_argument("--case", type=int, required=True,
+                        help="index of the case in diag_cam_climo (0 = first)")
+    parser.add_argument("--overwrite", action="store_true",
+                        help="re-grid files that were already gridded")
+    args = parser.parse_args(argv)
+
+    from adf_info import AdfInfo
+    import cam_diagnostic as cdog
+
+    adf = AdfInfo(args.config)
+    case_name = adf.get_cam_info("cam_case_name")[args.case]
+    cam_dir = adf.get_cam_info("cam_hist_loc")[args.case]
+    file_sel = adf.hist_string["test_hist_str"][args.case][0]
+    wgts_file = adf.latlon_wgt_files["test_wgts_file"][args.case]
+    method = adf.latlon_regrid_method["test_regrid_method"][args.case]
+
+    for campaign in adf.campaigns_dict["name"]:
+        tmin, tmax = _flight_window(adf, campaign)
+        region = CAMPAIGN_REGIONS[campaign]
+        out_dir = gridded_dir(cdog.inform_cache_root(adf, campaign), campaign, case_name,
+                              file_sel, region, wgts_file, method)
+        print(f"{campaign} {case_name}: {tmin} to {tmax}")
+        grid_case_for_window(cam_dir, file_sel, tmin, tmax, wgts_file, out_dir,
+                             method=method, region=region, overwrite=args.overwrite)
+
+
+if __name__ == "__main__":
+    main()

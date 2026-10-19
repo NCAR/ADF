@@ -88,3 +88,68 @@ def test_native_case_without_weights_file_fails_clearly(tmp_path):
             tmp_path, "cam.h1i", datetime(2018, 1, 15), datetime(2018, 1, 15, 1),
             wgts_file=None, out_dir=tmp_path / "gridded",
         )
+
+
+def test_crop_keeps_the_region_plus_margin():
+    """Cropping keeps the campaign box plus REGION_MARGIN, in 0..360 longitude."""
+    import numpy as np
+    import xarray as xr
+
+    lat = np.arange(-90.0, 90.1, 1.0)
+    lon = np.arange(0.0, 360.0, 1.25)
+    ds = xr.Dataset({"T": (("lat", "lon"), np.zeros((lat.size, lon.size)))},
+                    coords={"lat": lat, "lon": lon})
+
+    out = ingrid.crop_to_region(ds, ingrid.CAMPAIGN_REGIONS["SOCRATES"])
+    m = ingrid.REGION_MARGIN
+    assert float(out.lat.min()) >= -62 - m and float(out.lat.max()) <= -42 + m
+    assert float(out.lat.min()) <= -62 and float(out.lat.max()) >= -42
+    assert float(out.lon.min()) <= 135 and float(out.lon.max()) >= 165
+    assert float(out.lon.max()) <= 165 + m
+
+
+def test_gridded_dir_changes_with_region_weights_and_method(tmp_path):
+    """Gridded files made another way are never reused."""
+    region = ingrid.CAMPAIGN_REGIONS["SOCRATES"]
+    base = ingrid.gridded_dir(tmp_path, "SOCRATES", "case", "cam.h0i", region,
+                              "/w/map_conserve.nc", "conservative")
+    assert base != ingrid.gridded_dir(tmp_path, "SOCRATES", "case", "cam.h0i",
+                                      ingrid.CAMPAIGN_REGIONS["CSET"],
+                                      "/w/map_conserve.nc", "conservative")
+    assert base != ingrid.gridded_dir(tmp_path, "SOCRATES", "case", "cam.h0i", region,
+                                      "/w/map_bilin.nc", "conservative")
+    assert base != ingrid.gridded_dir(tmp_path, "SOCRATES", "case", "cam.h0i", region,
+                                      "/w/map_conserve.nc", "bilinear")
+
+
+def _inform_model_analysis():
+    sys.path.insert(0, str(Path(__file__).parents[3] / "scripts" / "plotting"))
+    try:
+        import inform_model_analysis
+    except ImportError as err:
+        pytest.skip(f"cannot import inform_model_analysis: {err}")
+    return inform_model_analysis
+
+
+def _hist_file(tmp_path, names):
+    import numpy as np
+    import xarray as xr
+
+    path = tmp_path / "case.cam.h0i.2018-01-15-00000.nc"
+    xr.Dataset({n: ("x", np.zeros(2, dtype="float32")) for n in names}).to_netcdf(path)
+    return path
+
+
+def test_missing_cam_vars_lists_what_a_case_lacks(tmp_path):
+    """A case without e.g. the CLUBB fields is reported, so it can be skipped."""
+    ima = _inform_model_analysis()
+    have = [v for v in ima.REQUIRED_CAM_VARS if v != "WP2_ZT_CLUBB"]
+    assert ima.missing_cam_vars(_hist_file(tmp_path, have)) == ["WP2_ZT_CLUBB"]
+
+
+def test_missing_cam_vars_ignores_regional_suffixes(tmp_path):
+    """Regionally subset output (T_130e_to_170e_35s_to_65s) has what it needs."""
+    ima = _inform_model_analysis()
+    names = [v if v in ("hyam", "hybm") else f"{v}_130e_to_170e_35s_to_65s"
+             for v in ima.REQUIRED_CAM_VARS]
+    assert ima.missing_cam_vars(_hist_file(tmp_path, names)) == []
