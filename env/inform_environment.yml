@@ -1,0 +1,59 @@
+# Conda environment for running the ADF with the INFORM diagnostics.
+#
+# = the ADF environment (conda_environment.yaml, ADF v1.0.4 pins)
+#   + the INFORM/COMPASS cookbook packages
+#   + uxarray and its plotting stack (native-grid support)
+#
+# The ADF core pins are kept, with one exception: xarray is newer than the
+# ADF pin (2024.1.1) because the INFORM cookbook code needs "xarray.ufuncs".
+#
+# Build instructions: see README.md in this directory.
+name: inform-dev
+channels:
+  - conda-forge
+dependencies:
+  # --- ADF core (same pins as conda_environment.yaml) ---
+  - python=3.12
+  - numpy=1.26
+  - pyyaml=6.0.2
+  - scipy=1.12.0
+  - cartopy=0.23.0
+  - netcdf4=1.6.5
+  - xarray=2025.3.1  # ADF pins 2024.1.1; INFORM needs xarray.ufuncs
+  - matplotlib=3.9.4
+  - pandas=2.2.0
+  - pint=0.23
+  - geocat-comp=2024.04.0
+  - xesmf>=0.8.8      # brings in esmf/esmpy (native-grid regridding)
+  - pot
+  - joblib
+  - pre-commit>=3.5
+  # --- uxarray (native/unstructured grids) ---
+  - uxarray=2026.02.0
+  - holoviews
+  - datashader
+  - geoviews
+  - spatialpandas
+  # --- INFORM / COMPASS cookbook ---
+  - satpy
+  - pyresample
+  - pyspectral
+  - pyorbital
+  - python-geotiepoints
+  - rasterio
+  - seaborn
+  - statsmodels
+  - metpy
+  - cf_xarray
+  - xskillscore
+  - zarr
+  - h5py
+  - dask
+  - distributed
+  - dask-jobqueue
+  - papermill
+  - ipykernel
+  - markdown
+  - jinja2
+  - tqdm
+  - pytest
