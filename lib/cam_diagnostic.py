@@ -7,6 +7,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 from matplotlib.gridspec import GridSpec
 from pathlib import Path
 #from dask_jobqueue import PBSCluster
@@ -1253,6 +1254,28 @@ def dropsonde_cam_obs_2x2(
 
 
 
+def _legend_below(ax, max_cols=3, pad_pts=6):
+    """
+    Place `ax`'s legend centered beneath the axes, clear of the tick labels
+    and x-axis label. The offset is fixed in points (not axes fraction), so
+    it stays correct if the axes is later resized (e.g. by tight_layout).
+    Saving with bbox_inches="tight" expands the image to include it.
+    """
+    handles, labels = ax.get_legend_handles_labels()
+    if not handles:
+        return None
+    fig = ax.figure
+    renderer = fig.canvas.get_renderer()
+    below_px = ax.get_window_extent(renderer).y0 - ax.get_tightbbox(renderer).y0
+    offset = mtransforms.offset_copy(
+        ax.transAxes, fig=fig, y=-(below_px * 72.0 / fig.dpi + pad_pts), units="points"
+    )
+    # Long case names get one column so the legend doesn't run wider than the plot
+    ncol = 1 if max(len(l) for l in labels) > 30 else min(len(handles), max_cols)
+    return ax.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.0),
+                     bbox_transform=offset, ncol=ncol, frameon=False)
+
+
 def plot_three_panels_cam_obs_delta_cam_minus_obs(
     enough,
     var_label="Relative Humidity (%)",
@@ -1531,7 +1554,7 @@ def plot_three_panels_cam_obs_delta_cam_minus_obs(
     # ------------------------------------------------------------------
     # Optionally re-draw and save each panel as its own standalone image,
     # using the same helpers so titles/labels/limits stay identical. Each
-    # standalone panel gets its own on-plot legend since there's no
+    # standalone panel gets its own legend (below the axes) since there's no
     # shared legend column to borrow from outside the combined figure.
     # ------------------------------------------------------------------
     if save_indiv_panels:
@@ -1548,8 +1571,9 @@ def plot_three_panels_cam_obs_delta_cam_minus_obs(
         }
         for suffix, drawer in panel_drawers.items():
             panel_fig, panel_ax = plt.subplots(figsize=(8, 7))
-            drawer(panel_ax, with_legend=True)
+            drawer(panel_ax)
             panel_fig.tight_layout()
+            _legend_below(panel_ax)
             panel_fig.savefig(plot_loc / f"{indiv_img_base}_{suffix}.png",
                                dpi=indiv_dpi, bbox_inches="tight")
             plt.close(panel_fig)
@@ -2336,7 +2360,7 @@ def plot_obs_cam_nd_lwc_pdfs(
     # ------------------------------------------------------------------
     # Optionally re-draw and save each panel as its own standalone image,
     # using the same helper so titles/labels/limits stay identical. Each
-    # standalone panel gets its own on-panel legend since there's no
+    # standalone panel gets its own legend (below the axes) since there's no
     # shared legend column to borrow from outside the combined figure.
     # ------------------------------------------------------------------
     if save_indiv_panels:
@@ -2353,8 +2377,9 @@ def plot_obs_cam_nd_lwc_pdfs(
         }
         for suffix, (regime, var) in panel_specs.items():
             panel_fig, panel_ax = plt.subplots(figsize=(7, 6))
-            draw_panel(panel_ax, regime, var, with_legend=True)
+            draw_panel(panel_ax, regime, var)
             panel_fig.tight_layout()
+            _legend_below(panel_ax)
             panel_fig.savefig(indiv_plot_loc / f"{indiv_img_base}_{suffix}.png",
                                dpi=indiv_dpi, bbox_inches="tight")
             plt.close(panel_fig)
@@ -3268,13 +3293,14 @@ def plot_sensitivity_vs_sigmaw_2x2_obs_cam(
 
             draw_panel(
                 panel_ax, panel_stat_ax, reg, driz,
-                label_lines=True, with_legend=True,
+                label_lines=True,
             )
 
             panel_ax.set_xlabel(r"$\sigma(w)$ (m/s)")
             panel_ax.set_ylabel(r"$\frac{d\log(N_d)}{d\log(\mathrm{CCN})}$")
 
             panel_fig.tight_layout()
+            _legend_below(panel_ax)
             panel_fig.savefig(indiv_plot_loc / f"{indiv_img_base}_{suffix}.png",
                                dpi=indiv_dpi, bbox_inches="tight")
             plt.close(panel_fig)
