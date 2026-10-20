@@ -102,7 +102,7 @@ def global_latlon_map(adfobj):
 def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unstruct_plotting):
     vres = adfobj.variable_defaults.get(var, {})
     vres["plot_type"] = __name__
-    vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+    vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
     web_category = vres.get("category", None)
 
     # For global maps, also set the central longitude:
@@ -480,6 +480,8 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
 
             vres["season"] = s
             vres["var"] = var
+            vres['lev'] = int(pres)
+
             vres['lev'] = int(pres)
 
             # Generate plot

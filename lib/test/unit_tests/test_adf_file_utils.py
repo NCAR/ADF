@@ -621,7 +621,9 @@ class TsVarFromFilenameTestRoutine(unittest.TestCase):
 
     def test_ts_years_covered_whole_years(self):
         """Monthly, yearly and daily names give the years they hold in full."""
-        self.assertEqual(ts_years_covered(["c.cam.h0a.T.000101-000512.nc"]), {1, 2, 3, 4, 5})
+        self.assertEqual(
+            ts_years_covered(["c.cam.h0a.T.000101-000512.nc"]), {1, 2, 3, 4, 5}
+        )
         self.assertEqual(ts_years_covered(["c.cam.h0a.T.0001-0003.nc"]), {1, 2, 3})
         self.assertEqual(ts_years_covered(["c.cam.h1a.T.00010101-00021231.nc"]), {1, 2})
 
@@ -643,6 +645,8 @@ class TsVarFromFilenameTestRoutine(unittest.TestCase):
     def test_missing_year_ranges(self):
         """Gaps come back as runs of consecutive years, in order."""
         self.assertEqual(missing_year_ranges({1, 2, 3, 4, 5}, 1, 10), [(6, 10)])
-        self.assertEqual(missing_year_ranges({3, 4, 8}, 1, 10), [(1, 2), (5, 7), (9, 10)])
+        self.assertEqual(
+            missing_year_ranges({3, 4, 8}, 1, 10), [(1, 2), (5, 7), (9, 10)]
+        )
         self.assertEqual(missing_year_ranges(set(range(1, 11)), 1, 10), [])
         self.assertEqual(missing_year_ranges(set(), 1, 3), [(1, 3)])

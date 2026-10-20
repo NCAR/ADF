@@ -255,7 +255,10 @@ class PremadeInputsTestRoutine(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             self.assertEqual(
                 _to_make(tmpdir, _hist([1, 2, 5]), (1, 5)),
-                [(24, "c.cam.h0a.TS.000101-000212.nc"), (12, "c.cam.h0a.TS.000501-000512.nc")],
+                [
+                    (24, "c.cam.h0a.TS.000101-000212.nc"),
+                    (12, "c.cam.h0a.TS.000501-000512.nc"),
+                ],
             )
 
     def test_overwrite_remakes_everything(self):

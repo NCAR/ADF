@@ -121,7 +121,7 @@ def adf_histogram(adfobj):
             adfobj.debug_log(f"adf_histogram: Found variable defaults for {var}")
         else:
             vres = {}
-        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
 
         # probably have to make sure no "lev" dim (but gets confused about other dimensions)
         da = load_ref_func(*get_load_args(adfobj, adfobj.data.ref_case_label, var))
@@ -152,7 +152,7 @@ def adf_histogram(adfobj):
                 adfobj.debug_log(f"adf_histogram: Found variable defaults for {var}")
             else:
                 vres = {}
-            vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+            vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
 
             hist_file = plot_loc / f"{case_name}_{var}_{plot_name_string}.nc"
             histogram_file_exists = hist_file.is_file()

@@ -85,7 +85,7 @@ def global_mean_timeseries(adfobj):
         else:
             vres = {}
         #End if
-        vres = plot_utils.add_var_to_vres(adfobj, field, vres)
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, field, vres)
         vres["plot_type"] = __name__
 
         # reference time series (DataArray)

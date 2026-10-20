@@ -37,13 +37,15 @@ def meridional_mean(adfobj):
     read_config_var, get_basic_info, add_website_data, debug_log,
     compare_obs, unstructured_plotting, native_grid, mesh_files
 
-    Variables without a `lev` dimension get a line plot; those with one get a
-    contour plot, plus a second contour plot with a log-pressure axis.  Which
-    plots already exist is worked out from the file names -- see the
-    pre-flight pass below, which is what keeps re-running the ADF cheap.
+    Determines whether `lev` dimension is present. If not, makes a line plot;
+    if so, makes a contour plot, plus a second one on a log-pressure axis.
 
-    With 'unstructured_plotting', native-grid cases are plotted from their
-    native-grid regridded files, binned by longitude.
+    The regular plots are named the same way whether or not the variable has
+    a `lev` dimension, but the log-pressure plots exist only for variables
+    that do.  So a variable is settled from the file names alone (see the
+    pre-flight pass below) only when its log-pressure plots are present too;
+    otherwise the data is opened to find out, and each season that is
+    already drawn is still skipped.
     """
 
     #Notify user that script has started:
@@ -107,29 +109,30 @@ def meridional_mean(adfobj):
         for var in var_list:
             web_category = res.get(var, {}).get("category", None)
             for s in seasons:
-                plot_name, plot_name_log = _plot_names(plot_loc, var, s, plot_type)
+                # Check meridional log-p (only made for variables with 'lev'):
+                plot_name_log = plot_loc / f"{var}_logp_{s}_Meridional_Mean.{plot_type}"
+                if (not redo_plot) and plot_name_log.is_file():
+                    merid_skip.add(plot_name_log)
+                    adfobj.add_website_data(
+                        plot_name_log, f"{var}_logp", case_name, season=s,
+                        plot_type="Meridional", category=web_category,
+                    )
+                elif (redo_plot) and plot_name_log.is_file():
+                    plot_name_log.unlink()
+                # End if
+
+                plot_name = plot_loc / f"{var}_{s}_Meridional_Mean.{plot_type}"
 
                 # Check redo_plot. If set to True: remove old plot, if it already exists:
                 if (not redo_plot) and plot_name.is_file():
                     merid_skip.add(plot_name)
                     # Add already-existing plot to website (if enabled):
                     adfobj.add_website_data(
-                        plot_name, var, case_name, season=s, plot_type="Meridional",
-                        category=web_category,
+                        plot_name, var, case_name, season=s,
+                        plot_type="Meridional", category=web_category,
                     )
                 elif (redo_plot) and plot_name.is_file():
                     plot_name.unlink()
-                # End if
-
-                # The same for the log-pressure plot, which only 3-D variables have:
-                if (not redo_plot) and plot_name_log.is_file():
-                    merid_skip.add(plot_name_log)
-                    adfobj.add_website_data(
-                        plot_name_log, f"{var}_logp", case_name, season=s,
-                        plot_type="Meridional", category="Log-P",
-                    )
-                elif (redo_plot) and plot_name_log.is_file():
-                    plot_name_log.unlink()
                 # End if
             # End for (seasons)
         # End for (variables)
@@ -147,14 +150,9 @@ def meridional_mean(adfobj):
         print(f"\t - meridional mean plots for {var}")
 
         # Nothing to draw for this variable at all: settle it from the file
-        # names, before opening any data.  (A 2-D variable has no log-pressure
-        # plots, so it is settled below, once its dimensions are known.)
-        regular_present = _all_plots_present(
+        # names, before opening any data
+        if _all_plots_present(
             plot_locations, adfobj.data.case_names, var, seasons, plot_type, merid_skip
-        )
-        if regular_present and _all_plots_present(
-            plot_locations, adfobj.data.case_names, var, seasons, plot_type,
-            merid_skip, log_p=True,
         ):
             continue
         # End if
@@ -177,8 +175,7 @@ def meridional_mean(adfobj):
             vres = {}
         #End if
 
-        # A copy, as the settings below are this script's own:
-        vres = plot_utils.add_var_to_vres(adfobj, var, dict(vres))
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         vres["plot_type"] = __name__
         #Extract category (if available):
         web_category = vres.get("category", None)
@@ -204,12 +201,9 @@ def meridional_mean(adfobj):
 
         # Check meridional mean dimensions
         has_dims_ref = utils.validate_dims(odata, ["lat", "lev"])
-        unstruct_ref = _is_unstructured(odata)
 
-        # 2-D variable whose plots are all there (see above):
-        if regular_present and not has_dims_ref["has_lev"]:
-            continue
-        # End if
+        # Native-grid data (with 'unstructured_plotting') is binned by longitude:
+        unstruct_ref = _is_unstructured(odata)
 
         # check if there is a lat dimension (native-grid data has none):
         # if not, skip test cases and move to next variable
@@ -230,8 +224,11 @@ def meridional_mean(adfobj):
             plot_loc = Path(plot_locations[case_idx])
 
             # Nothing to draw for this case: settle it before opening the file
+            # (only possible when the log-p plots are there too, see above)
             if all(
-                _season_done(plot_loc, var, s, plot_type, has_dims_ref["has_lev"], merid_skip)
+                (plot_loc / f"{var}_{s}_Meridional_Mean.{plot_type}") in merid_skip
+                and (plot_loc / f"{var}_logp_{s}_Meridional_Mean.{plot_type}")
+                in merid_skip
                 for s in seasons
             ):
                 continue
@@ -279,9 +276,16 @@ def meridional_mean(adfobj):
 
             # Check to make sure each case has vertical levels if one of the cases does
             if has_lev != has_dims_ref["has_lev"]:
-                print(
-                    f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_dims_ref['has_lev']}"
-                )
+                if has_lev:
+                    print(
+                        f"\t    WARNING: test case has a vertical levels dimension for '{var}',"
+                        " but the reference case does not. Meridional mean plotting skipped."
+                    )
+                else:
+                    print(
+                        f"\t    WARNING: reference case has a vertical levels dimension for '{var}',"
+                        " but the test case does not. Meridional mean plotting skipped."
+                    )
                 continue
             # End if
 
@@ -297,34 +301,35 @@ def meridional_mean(adfobj):
 
             # Loop over season dictionary:
             for s in seasons:
+                vres["season"] = s
+
                 # Set the file names
-                plot_name, plot_name_log = _plot_names(plot_loc, var, s, plot_type)
+                plot_name = plot_loc / f"{var}_{s}_Meridional_Mean.{plot_type}"
+                plot_name_log = None
+                if has_lev:
+                    plot_name_log = (
+                        plot_loc / f"{var}_logp_{s}_Meridional_Mean.{plot_type}"
+                    )
+                # End if
 
                 # Found above and redo_plot is false, so there is nothing to
                 # draw.  The seasonal averages below are the expensive part of
                 # a re-run, so work that out before doing them.
-                if _season_done(plot_loc, var, s, plot_type, has_lev, merid_skip):
+                if (plot_name in merid_skip) and (
+                    (plot_name_log is None) or (plot_name_log in merid_skip)
+                ):
                     continue
                 # End if
 
                 # Seasonal Averages
                 mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
                 oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
-                vres["season"] = s
 
-                # Create new plots: the regular one, and for 3-D variables a
-                # log-pressure one as well
-                to_plot = [(plot_name, False, var, web_category)]
-                if has_lev:
-                    to_plot.append((plot_name_log, True, f"{var}_logp", "Log-P"))
-                # End if
-                for name, log_p, web_name, category in to_plot:
-                    if name in merid_skip:
-                        continue
-                    # End if
+                # Create new plot:
+                if plot_name not in merid_skip:
                     pf.plot_meridional_mean_and_save(
                         adfobj,
-                        name,
+                        plot_name,
                         case_nickname,
                         adfobj.data.ref_nickname,
                         [syear_cases[case_idx], eyear_cases[case_idx]],
@@ -332,7 +337,7 @@ def meridional_mean(adfobj):
                         mseasons[s],
                         oseasons[s],
                         has_lev,
-                        log_p=log_p,
+                        log_p=False,
                         latbounds=slice(-5, 5),
                         obs=adfobj.compare_obs,
                         **vres,
@@ -340,10 +345,34 @@ def meridional_mean(adfobj):
 
                     # Add plot to website (if enabled):
                     adfobj.add_website_data(
-                        name, web_name, case_name, season=s,
-                        plot_type="Meridional", category=category,
+                        plot_name, var, case_name, season=s, plot_type="Meridional"
                     )
-                # End for (plots)
+                # End if
+
+                # Create log-pressure plot as well (if applicable):
+                if plot_name_log and (plot_name_log not in merid_skip):
+                    pf.plot_meridional_mean_and_save(
+                        adfobj,
+                        plot_name_log,
+                        case_nickname,
+                        adfobj.data.ref_nickname,
+                        [syear_cases[case_idx], eyear_cases[case_idx]],
+                        [syear_baseline, eyear_baseline],
+                        mseasons[s],
+                        oseasons[s],
+                        has_lev,
+                        log_p=True,
+                        latbounds=slice(-5, 5),
+                        obs=adfobj.compare_obs,
+                        **vres,
+                    )
+
+                    # Add plot to website (if enabled):
+                    adfobj.add_website_data(
+                        plot_name_log, f"{var}_logp", case_name, season=s,
+                        plot_type="Meridional", category=web_category,
+                    )
+                # End if
 
             # End for (seasons loop)
         # End for (case names loop)
@@ -356,60 +385,6 @@ def meridional_mean(adfobj):
 #########
 # Helpers
 #########
-
-
-def _plot_names(plot_loc, var, season, plot_type):
-    """
-    File names of the regular and the log-pressure plot of `var` for `season`.
-
-    Parameters
-    ----------
-    plot_loc : pathlib.Path
-        output plot directory for the case
-    var : str
-        ADF name of the variable being plotted
-    season : str
-        the season, e.g. "ANN"
-    plot_type : str
-        file extension the plots are written with, e.g. "png"
-
-    Returns
-    -------
-    tuple of pathlib.Path
-        ``(regular, log_pressure)``; only 3-D variables get the second one.
-    """
-    return (
-        plot_loc / f"{var}_{season}_Meridional_Mean.{plot_type}",
-        plot_loc / f"{var}_logp_{season}_Meridional_Mean.{plot_type}",
-    )
-
-
-def _season_done(plot_loc, var, season, plot_type, has_lev, merid_skip):
-    """
-    Report whether every plot of `var` for `season` is already there.
-
-    Parameters
-    ----------
-    plot_loc : pathlib.Path
-        output plot directory for the case
-    var : str
-        ADF name of the variable being plotted
-    season : str
-        the season, e.g. "ANN"
-    plot_type : str
-        file extension the plots are written with, e.g. "png"
-    has_lev : bool
-        whether the variable has a `lev` dimension, and so a log-pressure plot
-    merid_skip : set
-        plots found by the pre-flight pass
-
-    Returns
-    -------
-    bool
-        ``True`` when nothing is left to draw.
-    """
-    plot_name, plot_name_log = _plot_names(plot_loc, var, season, plot_type)
-    return plot_name in merid_skip and (not has_lev or plot_name_log in merid_skip)
 
 
 def _is_unstructured(data):
@@ -447,9 +422,7 @@ def _native_kwargs(adfobj, casename):
     return {"unstructured_plotting": True, "mesh_file": mesh_file}
 
 
-def _all_plots_present(
-    plot_locations, case_names, var, seasons, plot_type, merid_skip, log_p=False
-):
+def _all_plots_present(plot_locations, case_names, var, seasons, plot_type, merid_skip):
     """
     Report whether every plot this variable would produce is already there.
 
@@ -467,20 +440,23 @@ def _all_plots_present(
         file extension the plots are written with, e.g. "png"
     merid_skip : set
         plots found by the pre-flight pass above
-    log_p : bool, optional
-        check the log-pressure plots instead of the regular ones
 
     Returns
     -------
     bool
         ``True`` when nothing is left to draw for this variable, so the
-        reference and test data never have to be opened.
+        reference and test data never have to be opened.  The log-pressure
+        plots count too: a variable without them may simply have no `lev`
+        dimension, which only opening the data can tell.
     """
     for case_idx in range(len(case_names)):
         plot_loc = Path(plot_locations[case_idx])
         for s in seasons:
-            if _plot_names(plot_loc, var, s, plot_type)[int(log_p)] not in merid_skip:
-                return False
+            for name in (f"{var}_{s}_Meridional_Mean", f"{var}_logp_{s}_Meridional_Mean"):
+                if (plot_loc / f"{name}.{plot_type}") not in merid_skip:
+                    return False
+                # End if
+            # End for
             # End if
         # End for
     # End for
