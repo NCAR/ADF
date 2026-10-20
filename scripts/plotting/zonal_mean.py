@@ -99,6 +99,9 @@ def zonal_mean(adfobj):
 
         #Loop over the variables for each season
         for var in var_list:
+            #Website category of the log-p plots (vres, where it is set
+            #later, does not exist yet in this pre-flight pass):
+            web_category = res.get(var, {}).get("category", None)
             for s in seasons:
                 #Check zonal log-p:
                 plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
