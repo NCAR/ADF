@@ -234,8 +234,10 @@ REGISTRY = {
             "test_saved_cam_data_rebuilds_the_regime_composites"
         ),
         "collocate_profiles_for_regime": AdfOnly(
-            "test_macro_matches_original (compute_case_stats is built on it)"
+            "test_macro_matches_original (compute_case_stats is built on it), "
+            "test_collocation_handles_either_longitude_convention"
         ),
+        "_lon_on_grid": AdfOnly("test_collocation_handles_either_longitude_convention"),
         "cached_source": AdfOnly(
             "test_cached_source_recomputes_only_when_fingerprint_changes"
         ),
@@ -845,6 +847,42 @@ def _notebook_cell_25(all_sondes, campaign, out_file):
         # SOCRATES
         ds = xr.Dataset.from_dataframe(all_sondes)
         ds.to_netcdf(out_file)
+
+
+def test_collocation_handles_either_longitude_convention():
+    """CSET sondes read from .eol files carry -180..180 longitudes while the
+    CAM and ERA5 grids are 0..360.  The original passes the sonde longitude to
+    the nearest-neighbour lookup unchanged, so those sondes would all snap to
+    the grid's edge column.  The ADF puts the longitude in the grid's
+    convention first: the same sondes give the same columns either way."""
+    import cam_diagnostic as cdog
+
+    assert cdog._lon_on_grid(-126.3, np.arange(200.0, 241.0)) == pytest.approx(233.7)
+    assert cdog._lon_on_grid(233.7, np.arange(-180.0, 180.0)) == pytest.approx(-126.3)
+    assert cdog._lon_on_grid(145.0, np.arange(135.0, 166.0)) == pytest.approx(145.0)
+
+    ds_era = _era5("CSET")[["RH"]]
+    df_east = _sondes()["CSET"]
+    assert df_east["GGLON"].dropna().gt(180).all(), "fixture expected in 0..360"
+    df_west = df_east.copy()
+    df_west["GGLON"] = df_west["GGLON"] - 360.0
+    kw = dict(
+        var="RH",
+        lat_name="latitude",
+        lon_name="longitude",
+        lev_name="level",
+        to_percent=True,
+        label="ERA5",
+    )
+    for regime in ("Open-Cell", "Stratocumulus"):
+        _, p_e, arr_e = cdog.collocate_profiles_for_regime(
+            df_east, ds_era, regime, **kw
+        )
+        _, p_w, arr_w = cdog.collocate_profiles_for_regime(
+            df_west, ds_era, regime, **kw
+        )
+        _assert_arrays_equal(p_w, p_e, f"{regime} pressure")
+        _assert_arrays_equal(arr_w, arr_e, f"{regime} columns")
 
 
 @pytest.mark.parametrize("campaign", CAMPAIGNS)

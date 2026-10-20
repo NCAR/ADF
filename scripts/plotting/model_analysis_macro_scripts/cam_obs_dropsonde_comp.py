@@ -247,7 +247,8 @@ def compute_case_stats(case, ds_out, ds_era5, df_sonde, sonde_var, cam_var, era_
 # Bump when compute_reference_stats/compute_cam_stats change what they
 # compute, so results cached by older code are recomputed (see
 # cdog.cached_source). 2: Obs/ERA5 cached once, separately from each case.
-CACHE_VERSION = 2
+# 3: sonde longitudes put in the model grid's convention before collocation.
+CACHE_VERSION = 3
 
 
 def cam_obs_dropsonde_comp(adf, campaign, df_sonde, ds_outs, ds_era5, case_info=None):

@@ -595,6 +595,28 @@ def collocate_model_profiles_for_regime(
     return df_reg, p_cam_ref, cam_arr, p_era_ref, era_arr
 
 
+def _lon_on_grid(lon, grid_lon):
+    """
+    Express a longitude in the convention of a model grid.
+
+    Parameters
+    ----------
+    lon : float
+        Longitude in degrees, in either the 0..360 or the -180..180 convention.
+    grid_lon : array-like
+        The grid's longitude coordinate. A maximum above 180 means 0..360,
+        otherwise -180..180.
+
+    Returns
+    -------
+    float
+        ``lon`` in the grid's convention.
+    """
+    if float(np.nanmax(grid_lon)) > 180.0:
+        return lon % 360.0
+    return (lon + 180.0) % 360.0 - 180.0
+
+
 def collocate_profiles_for_regime(
     df_sonde,
     ds,
@@ -629,6 +651,7 @@ def collocate_profiles_for_regime(
     """
     df_reg = df_sonde[df_sonde.cloud_regime == regime_name].copy()
 
+    grid_lon = ds[lon_name].values
     cols = []
     p_ref = None
     t0 = time.perf_counter()
@@ -649,7 +672,10 @@ def collocate_profiles_for_regime(
             var=var,
             time=np.datetime64(row[time_col]),
             lat=float(row[lat_col]),
-            lon=float(row[lon_col]),
+            # Sondes may come in -180..180 (e.g. CSET .eol files) while the
+            # model grid is 0..360; nearest-neighbour selection needs both in
+            # the same convention.
+            lon=_lon_on_grid(float(row[lon_col]), grid_lon),
             time_name="time",
             lat_name=lat_name,
             lon_name=lon_name,
