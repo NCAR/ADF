@@ -1985,13 +1985,25 @@ def save_to_nc(tosave, outname, attrs=None, proc=None):
     """Saves xarray variable to new netCDF file"""
 
     xo = tosave  # used to have more stuff here.
-    # deal with getting non-nan fill values.
+
+    # deal with getting non-nan fill values.  An encoding given to to_netcdf
+    # replaces the variable's own, so keep any time units it had: otherwise
+    # xarray picks units for time and its bounds separately, and readers
+    # that take the bounds' numbers in time's units misplace every step.
+    def _enc(xname):
+        kept = {
+            key: val
+            for key, val in xo[xname].encoding.items()
+            if key in ("units", "calendar")
+        }
+        return {"_FillValue": None, **kept}
+
     if isinstance(xo, xr.Dataset):
-        enc_dv = {xname: {"_FillValue": None} for xname in xo.data_vars}
+        enc_dv = {xname: _enc(xname) for xname in xo.data_vars}
     else:
         enc_dv = {}
     # End if
-    enc_c = {xname: {"_FillValue": None} for xname in xo.coords}
+    enc_c = {xname: _enc(xname) for xname in xo.coords}
     enc = {**enc_c, **enc_dv}
     if attrs is not None:
         xo.attrs = attrs

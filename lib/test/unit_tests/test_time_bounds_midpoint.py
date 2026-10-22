@@ -212,6 +212,34 @@ class TimeBoundsMidpointTestRoutine(unittest.TestCase):
         self.assertEqual(fixed["time"].attrs.get("long_name"), "time")
         self.assertEqual(fixed["time"].attrs.get("bounds"), "time_bnds")
 
+    def test_undecoded_bounds_in_their_own_units(self):
+        """
+        Opened with decode_times=False (as the time series loader does), the
+        midpoints are numbers in the units of the bounds.  A file written by
+        xarray can encode the time coordinate in different units from its
+        bounds (the ADF's gridded native-grid time series did: hours since the
+        first step vs. days since 0001-01-01), and labelling the midpoints
+        with the time coordinate's units squeezed five years into 75 days.
+        """
+
+        bounds = np.array([[0.0, 31.0], [31.0, 59.0], [59.0, 90.0]])
+        ds = xr.Dataset(
+            {"time_bounds": (("time", "nbnd"), bounds)},
+            coords={"time": ("time", np.array([0.0, 708.0, 1416.0]))},
+        )
+        ds["time"].attrs = {
+            "units": "hours since 0001-01-16 12:00:00",
+            "calendar": "noleap",
+        }
+        ds["time_bounds"].attrs = {
+            "units": "days since 0001-01-01 00:00:00",
+            "calendar": "noleap",
+        }
+
+        fixed = xr.decode_cf(use_time_bounds_midpoint(ds))
+
+        self.assertEqual([t.month for t in fixed["time"].values], [1, 2, 3])
+
     def test_real_calendar_dates_are_handled(self):
         """
         Cases run on a standard calendar as well as noleap, and the two are

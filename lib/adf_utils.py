@@ -237,7 +237,15 @@ def use_time_bounds_midpoint(ds, time_name="time"):
 
     # load() first: averaging cftime under dask raises NotImplementedError.
     midpoint = bounds.load().mean(dim=other_dims[0])
-    attrs = ds[time_name].attrs
+    attrs = dict(ds[time_name].attrs)
+    # Undecoded (decode_times=False), the midpoints are numbers in the units
+    # of the bounds, which need not be the time coordinate's (a file written
+    # by xarray can encode the two differently), so label them with those:
+    for key in ("units", "calendar"):
+        if key in bounds.attrs:
+            attrs[key] = bounds.attrs[key]
+        # End if
+    # End for
     ds = ds.assign_coords({time_name: midpoint})
     ds[time_name].attrs = attrs
     return ds
@@ -1888,8 +1896,18 @@ def check_unstructured(ds, case, ts_dir):
 
 
 def save_to_nc(ds, outname):
-    enc = {v: {"_FillValue": None} for v in ds.data_vars}
-    enc.update({c: {"_FillValue": None} for c in ds.coords})
+    # An encoding given to to_netcdf replaces the variable's own, so keep any
+    # time units it had (see adf_diag.save_to_nc):
+    def _enc(name):
+        kept = {
+            key: val
+            for key, val in ds[name].encoding.items()
+            if key in ("units", "calendar")
+        }
+        return {"_FillValue": None, **kept}
+
+    enc = {v: _enc(v) for v in ds.data_vars}
+    enc.update({c: _enc(c) for c in ds.coords})
     ds.to_netcdf(outname, format="NETCDF4", encoding=enc)
 
 
@@ -2182,6 +2200,14 @@ def grid_to_latlon(
     for dim in ("lev", "ilev"):
         if dim in rgdata.coords and dim in model_dataset.coords:
             rgdata[dim].attrs = model_dataset[dim].attrs
+    # The regridders return a new time coordinate without the original's
+    # attributes ("bounds") or encoding (units), so it would be written in
+    # units of its own while the carried-over time bounds keep the file's;
+    # anything that reads the bounds (use_time_bounds_midpoint) then
+    # misplaces every step.  Keep the original's:
+    if "time" in rgdata.coords and "time" in model_dataset.coords:
+        rgdata["time"].attrs = model_dataset["time"].attrs
+        rgdata["time"].encoding = model_dataset["time"].encoding
     rgdata.attrs = model_dataset.attrs
 
     if land:
