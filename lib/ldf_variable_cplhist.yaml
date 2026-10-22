@@ -232,7 +232,6 @@ BCPHIWET:
       label : "g m$^{-2}$ d$^{-1}$"
   pct_diff_colormap: "PuOr_r"
   scale_factor_table: 0.000000365  #days to years, g/m2 to Pg globally
-  new_unit: "kg m$^{-2}$ d$^{-1}$"
   avg_method: 'sum'
   table_unit: "Pg y$^{-1}$"
 

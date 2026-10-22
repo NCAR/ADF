@@ -400,22 +400,6 @@ MEG_mterp_b:
   avg_method: 'sum'
   table_unit: "Tg y$^{-1}$"
 
-DSTFLXT: # total surface dust emission
-  category: "Surface fluxes"
-  colormap: "copper_r"
-  diff_colormap: "BrBG_r"
-  scale_factor: 86400
-  add_offset: 0
-  new_unit: "kg m$^{-2}$ d$^{-1}$"
-  mpl:
-    colorbar:
-      label: "kg m$^{-2}$ d$^{-1}$"
-  pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
-  pct_diff_colormap: "PuOr_r"
-  scale_factor_table: 0.000365  #days to years, kg/m2 to Pg globally
-  avg_method: 'sum'
-  table_unit: "Pg y$^{-1}$"
-
 #+++++++++++
 # Category: Hydrology
 #+++++++++++
