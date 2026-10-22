@@ -1354,7 +1354,16 @@ def domain_stats(data, domain, unstructured=False):
 
         x_region = data.isel(n_face=indices)
         weights = x_region.uxgrid.face_areas.values
-        x_region_mean = (x_region.values * weights).sum() / weights.sum()
+        # Missing faces (ocean, for land output) carry no weight, as in the
+        # lat/lon average; otherwise one NaN makes the mean NaN:
+        values = np.asarray(x_region.values, dtype=float)
+        valid = np.isfinite(values)
+        if valid.any():
+            x_region_mean = (values[valid] * weights[valid]).sum() / weights[
+                valid
+            ].sum()
+        else:
+            x_region_mean = np.nan
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min

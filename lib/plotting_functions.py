@@ -167,11 +167,12 @@ def make_polar_plot(
         pct = pctchange
 
     # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted.
-    # Native-grid data is drawn as a raster, which cannot take NaNs, so there
-    # they are set to 0 instead -- on the same grid, as xarray operations can
-    # hand back a plain DataArray:
+    # On a native grid as well: the raster leaves missing faces blank, as for
+    # the other three panels, where 0 would draw the ocean of a land field as
+    # "no change" (and pull the panel's mean towards 0).  Rebuilt on the same
+    # grid, as xarray operations can hand back a plain DataArray:
     if isinstance(pct, ux.UxDataArray):
-        pct = ux.UxDataArray(pct.where(np.isfinite(pct), 0.0), uxgrid=pct.uxgrid)
+        pct = ux.UxDataArray(pct.where(np.isfinite(pct)), uxgrid=pct.uxgrid)
     else:
         pct = pct.where(np.isfinite(pct))
 
