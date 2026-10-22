@@ -682,6 +682,9 @@ def derive_variable(
                 print(msg)
 
         # NOTE: this will need to be changed when derived equations are more complex! - JR
+        # Units of the result where the formula changes them; otherwise the
+        # derived variable keeps its first constituent's units:
+        der_units = None
         if var == "RESTOM":
             der_val = ds["FSNT"] - ds["FLNT"]
             der_long_name = "Net radiative flux at top of model (FSNT - FLNT)"
@@ -705,6 +708,7 @@ def derive_variable(
         elif var == "ASA":
             der_val = 100 * ds["FSR"] / ds["FSDS"].where(ds["FSDS"] > 0)
             der_long_name = "All-sky surface albedo (100 * FSR / FSDS)"
+            der_units = "%"
         elif var == "RNET":
             der_val = ds["FSA"] - ds["FIRA"]
             der_long_name = "Net radiation (FSA - FIRA)"
@@ -745,6 +749,7 @@ def derive_variable(
         elif var in _ISOTOPE_VARS:
             der_val = _isotope_permil(ds, var)
             der_long_name = f"{var[:3]} of {var[4:-3]} (per mil)"
+            der_units = "permil"
         else:
             # Loop through all constituents and sum
             der_val = 0
@@ -866,6 +871,9 @@ def derive_variable(
             **attrs,
             "long_name": res.get(var, {}).get("long_name", der_long_name),
         }
+        if der_units:
+            # e.g. a ratio of two W/m2 fluxes is not in W/m2:
+            ds_final[var].attrs["units"] = der_units
         # open_mfdataset leaves time bounds as a *chunked* datetime array, and
         # xarray refuses to encode one of those when the units it inherits from
         # 'time' come without a dtype.  They are tiny, so just load them.
