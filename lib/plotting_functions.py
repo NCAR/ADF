@@ -1721,7 +1721,8 @@ def plot_single_case_and_save(
     title = (
         rf"$\mathbf{{{role}}}:$"
         + f"{nickname}\nyears: {climo_yrs[0]}-{climo_yrs[-1]}"
-        + f"\n(no {other} data, so no difference)"
+        # The other case is missing, or on another grid or other levels:
+        + f"\n(no comparable {other} data, so no difference)"
     )
     color = "#1f77b4" if role == "Test" else "#ff7f0e"  # as in the two-case plots
 
@@ -1764,7 +1765,8 @@ def plot_single_case_and_save(
         # End if
         ax.set_ylabel("PRESSURE [hPa]", fontsize=ti_font_size)
     else:
-        fig, ax = plt.subplots()
+        # constrained_layout keeps the figure title clear of the panel title:
+        fig, ax = plt.subplots(constrained_layout=True)
         pltfunc(prof[xdim], prof, ax=ax, color=color)
         ax.set_ylabel(units, fontsize=ti_font_size)
         ax.grid(True)
