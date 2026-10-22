@@ -259,8 +259,8 @@ class AdfData:  # pylint: disable=too-many-public-methods
             return gridded
         return ts_loc
 
-    def timeseries_available(self, script_name):
-        """Whether every case (and a model baseline) has time series to read.
+    def timeseries_available(self, script_name, any_case=False):
+        """Whether the cases (and a model baseline) have time series to read.
 
         A case run on pre-made climatologies alone has none: no 'cam_ts_loc',
         or no time series files in it.  Scripts that read time series straight
@@ -271,12 +271,16 @@ class AdfData:  # pylint: disable=too-many-public-methods
         ----------
         script_name : str
             The calling script, for the message.
+        any_case : bool, optional
+            For a script that leaves out the cases without time series and
+            plots the rest: True when at least one case has them.  By default
+            every case must.
 
         Returns
         -------
         bool
-            True if every case has time series files; otherwise False, after
-            saying which cases have none.
+            Whether the script can run; the cases with no time series are
+            named either way.
         """
         cases = list(self.case_names)
         locs = list(self.adf.get_cam_info("cam_ts_loc") or [None] * len(cases))
@@ -289,14 +293,21 @@ class AdfData:  # pylint: disable=too-many-public-methods
             for case, loc in zip(cases, locs)
             if not loc or not any(Path(loc).glob(f"{case}.*.nc"))
         ]
-        if missing:
-            msg = f"\t WARNING: {script_name} needs time series, and {missing}"
-            msg += " have none (no 'cam_ts_loc', or no files in it), so it is skipped."
+        if not missing:
+            return True
+        # End if
+        if any_case and (len(missing) < len(cases)):
+            msg = f"\t WARNING: {script_name}: {missing} have no time series"
+            msg += " (no 'cam_ts_loc', or no files in it), so they are left out."
             print(msg)
             self.adf.debug_log(msg)
-            return False
+            return True
         # End if
-        return True
+        msg = f"\t WARNING: {script_name} needs time series, and {missing}"
+        msg += " have none (no 'cam_ts_loc', or no files in it), so it is skipped."
+        print(msg)
+        self.adf.debug_log(msg)
+        return False
 
     def get_timeseries_file(self, case, field, hist_str=None):
         """Return list of test time series files.
@@ -651,7 +662,11 @@ class AdfData:  # pylint: disable=too-many-public-methods
         """Return list of test regridded files"""
         model_rg_loc = Path(self.model_rgrid_loc)
         # rlbl = "reference label" = name of the reference data that defines the target grid
-        rlbl = self.ref_labels[field]
+        rlbl = self.ref_labels.get(field)
+        if rlbl is None:
+            # No reference for this variable (e.g. no observations of it), so
+            # the regridding stage made no file for it:
+            return []
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
     def load_regrid_dataset(self, case, field, **kwargs):
@@ -661,6 +676,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
         are passed on to :meth:`load_dataset`.
         """
         fils = self.get_regrid_file(case, field)
+        if not fils:
+            fils = self._native_climo_fallback(
+                case, field, self.get_climo_file(case, field)
+            )
         if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find regrid file(s) for case: "
@@ -691,6 +710,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
         kwargs.pop("scale_factor", None)
         kwargs.pop("add_offset", None)
         fils = self.get_regrid_file(case, field)
+        if not fils:
+            fils = self._native_climo_fallback(
+                case, field, self.get_climo_file(case, field)
+            )
         if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find regrid file(s) for case: "
@@ -726,6 +749,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
         """
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
+            fils = self._native_climo_fallback(
+                case, field, self.get_reference_climo_file(field)
+            )
+        if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find regridded file(s) for case: "
                 f"{case}, variable: {field}"
@@ -756,6 +783,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
         kwargs.pop("add_offset", None)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
+            fils = self._native_climo_fallback(
+                case, field, self.get_reference_climo_file(field)
+            )
+        if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find regridded file(s) for case: "
                 f"{case}, variable: {field}"
@@ -778,6 +809,27 @@ class AdfData:  # pylint: disable=too-many-public-methods
             obs_level=True,
             **kwargs,
         )
+
+    def _native_climo_fallback(self, case, field, climo_fils):
+        """Native climo file(s) to plot natively when there is no regridded file.
+
+        A run plotting on the native grid ('unstructured_plotting') reads the
+        files the regridding stage leaves on that grid, but a config may leave
+        that stage out (the CLM uxarray setup does), and then the native climo
+        is already what is wanted.  Otherwise there is no fallback: a native
+        climo is no stand-in for a lat/lon regridded file.  Its values are
+        converted as a regridded file left by an older ADF would be (see
+        :meth:`_regrid_converters`), and a climo file on another grid is caught
+        by the plotting scripts' own same-grid checks.
+        """
+        if not getattr(self.adf, "unstructured_plotting", False):
+            return []
+        if climo_fils:
+            self.adf.debug_log(
+                f"No regridded file for case '{case}', variable '{field}'; "
+                "plotting its native climo file(s) instead."
+            )
+        return climo_fils
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
         """Return the (add_offset, scale_factor) to use for a regridded file.
