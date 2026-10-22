@@ -285,6 +285,13 @@ def global_latlon_vect_map(adfobj):
                 vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
                 unstruct_base = True
                 odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
+                if (odataset is None) or (uodata is None) or (vodata is None):
+                    # e.g. a reference (obs or a lat/lon case) not on the test
+                    # case's native grid, which the regridding step has skipped:
+                    dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+                    adfobj.debug_log(dmsg)
+                    print(dmsg)
+                    continue
                 o_has_dims = utils.validate_dims(uodata, [ "lev"])
                 # Cell weights (area; area * landfrac for land), as global_latlon_map:
                 wgt_base = utils.cell_weights(odataset, adfobj.model_component)
@@ -339,6 +346,11 @@ def global_latlon_vect_map(adfobj):
 
                     unstruct_case = True
                     mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
+                    if (mdataset is None) or (umdata is None) or (vmdata is None):
+                        dmsg = f"\t    WARNING: No native-grid regridded test file for {case_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+                        adfobj.debug_log(dmsg)
+                        print(dmsg)
+                        continue
                     #Determine dimensions of variable:
                     m_has_dims = utils.validate_dims(umdata, [ "lev"])
                     # Cell weights (area; area * landfrac for land), as global_latlon_map:

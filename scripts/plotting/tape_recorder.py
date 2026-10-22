@@ -39,13 +39,14 @@ def tape_recorder(adfobj):
     #Grab test case name(s)
     case_names = adfobj.get_cam_info('cam_case_name', required=True)
 
-    #Cases run on pre-made climatologies alone have no time series to read:
-    if not adfobj.data.timeseries_available("tape_recorder"):
+    #Cases run on pre-made climatologies alone have no time series to read;
+    #they get no panel, and the plot is skipped only if no case has any:
+    if not adfobj.data.timeseries_available("tape_recorder", any_case=True):
         return
     #End if
 
     #Grab test case time series locs(s)
-    case_ts_locs = adfobj.get_cam_info("cam_ts_loc", required=True)
+    case_ts_locs = adfobj.get_cam_info("cam_ts_loc") or [None] * len(case_names)
 
     #Grab history strings:
     cam_hist_strs = adfobj.hist_string["test_hist_str"]
@@ -78,7 +79,7 @@ def tape_recorder(adfobj):
         data_name = adfobj.get_baseline_info("cam_case_name", required=True)
         case_names = case_names + [data_name]
         
-        data_ts_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
+        data_ts_loc = adfobj.get_baseline_info("cam_ts_loc")
         case_ts_locs = case_ts_locs+[data_ts_loc]
 
         base_nickname = adfobj.case_nicknames['base_nickname']
@@ -193,6 +194,9 @@ def tape_recorder(adfobj):
         case_name = case_names[idx]
 
         # Search for files
+        if not case_ts_locs[idx]:
+            print(f"\t No time series location for {key}, it will be skipped.")
+            continue
         ts_loc = Path(case_ts_locs[idx])
         hist_str = hist_strs[idx]
         #The "gridded" copy of native-grid time series, where the ADF made one:

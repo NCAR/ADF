@@ -67,7 +67,6 @@ def amwg_table(adf):
     """
 
     #Import necessary modules:
-    from adf_base import AdfError
     import adf_utils as utils
 
     #Additional information:
@@ -146,14 +145,15 @@ def amwg_table(adf):
     #all generated plots and tables for each case:
     output_locs = adf.plot_location
 
-    #Cases run on pre-made climatologies alone have no time series to read:
-    if not adf.data.timeseries_available("amwg_table"):
+    #Cases run on pre-made climatologies alone have no time series to read;
+    #they get no table, and the others still do:
+    if not adf.data.timeseries_available("amwg_table", any_case=True):
         return
     #End if
 
     #CAM simulation variables (these quantities are always lists):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
-    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
+    input_ts_locs = adf.get_cam_info("cam_ts_loc") or [None] * len(case_names)
 
     #Grab case years (time series years for land, which may differ from
     #the climatology years):
@@ -165,7 +165,7 @@ def amwg_table(adf):
     if not adf.get_basic_info("compare_obs"):
         #Extract CAM baseline variaables:
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
-        input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
+        input_ts_baseline = adf.get_baseline_info("cam_ts_loc")
 
         case_names.append(baseline_name)
         input_ts_locs.append(input_ts_baseline)
@@ -193,14 +193,20 @@ def amwg_table(adf):
         #Convert output location string to a Path object:
         output_location = Path(output_locs[case_idx])
 
+        #A case with no time series gets no table; the others still do:
+        if not input_ts_locs[case_idx]:
+            print(f"\t WARNING: No time series location for '{case_name}', so no table for it.")
+            continue
+        #End if
+
         #Generate input file path (the "gridded" copy of native-grid time
         #series, where the ADF made one):
         input_location = adf.data.timeseries_dir(case_name, input_ts_locs[case_idx])
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
-            errmsg = f"Time series directory '{input_location}' not found.  Script is exiting."
-            raise AdfError(errmsg)
+            print(f"\t WARNING: Time series directory '{input_location}' not found, so no table for '{case_name}'.")
+            continue
         #Write to debug log if enabled:
         adf.debug_log(f"DEBUG: location of files is {str(input_location)}")
 

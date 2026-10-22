@@ -33,9 +33,11 @@ def global_mean_timeseries(adfobj):
       global total ('sum'), or a running total of it ('cumsum', e.g. for
       NBP), scaled by 'scale_factor_table' and labelled with 'ts_unit' (or
       'table_unit');
-    - the test cases are still plotted when the baseline lacks the variable
-      or observations are the reference;
     - the plot goes under the variable's website category.
+
+    Whatever data there is gets plotted: a baseline (or test case) that lacks
+    the variable, or has it in a form this script can't average, is left off
+    the plot, and the variable is only skipped when no case is left.
     """
 
     is_lnd = adfobj.model_component == "lnd"
@@ -93,19 +95,11 @@ def global_mean_timeseries(adfobj):
 
         base_name = adfobj.data.ref_case_label
 
-        # Check to see if this field is available
+        # Check to see if this field is available; without it the test cases
+        # are plotted on their own:
         if ref_ts_da is None:
-            if is_lnd:
-                # Land still plots the test cases on their own:
-                if not adfobj.compare_obs:
-                    print(f"\t    WARNING: No baseline time series for {field}, skipping baseline.")
-                # End if
-            else:
-                if not adfobj.compare_obs:
-                    print(
-                        f"\t    WARNING: Variable {field} for case '{base_name}' provides Nonetype. Skipping this variable"
-                    )
-                continue
+            if not adfobj.compare_obs:
+                print(f"\t    WARNING: No baseline time series for {field}, skipping baseline.")
             # End if
         else:
             # check data dimensions:
@@ -114,19 +108,20 @@ def global_mean_timeseries(adfobj):
             # check if this is a "2-d" varaible:
             if has_lev_ref:
                 print(
-                    f"\t    WARNING: Variable {field} has a lev dimension for '{base_name}', which does not work with this script."
+                    f"\t    WARNING: Variable {field} has a lev dimension for '{base_name}', which does not work with this script; skipping baseline."
                 )
-                continue
-            # End if
-            
-            # check if there is a lat dimension (native-grid data, ncol or lndgrid, has none):
-            if not has_lat_ref and not _is_native(ref_ts_da):
-                print(
-                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
-                )
-                continue
+                ref_ts_da = None
             # End if
 
+            # check if there is a lat dimension (native-grid data, ncol or lndgrid, has none):
+            elif not has_lat_ref and not _is_native(ref_ts_da):
+                print(
+                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{base_name}', skipping baseline."
+                )
+                ref_ts_da = None
+            # End if
+
+        if ref_ts_da is not None:
             # reference time series global average
             if is_lnd:
                 ref_ts_da_ga = _land_global(
@@ -137,7 +132,7 @@ def global_mean_timeseries(adfobj):
                     ref_ts_da, weights=_native_weights(adfobj, field, ref_ts_da), spatial_dims=None
                 )
             # End if
-            # annually averaged (land plots the test cases on their own when
+            # annually averaged (the test cases are plotted on their own when
             # the baseline can't be averaged)
             if ref_ts_da_ga is None:
                 ref_ts_da = None
@@ -162,16 +157,17 @@ def global_mean_timeseries(adfobj):
             else base_name
         )
 
-        skip_var = False
+        # A case without usable data is left off the plot; the others still
+        # get plotted:
+        unit = None  # the units of the last case plotted (for land)
         for case_name in adfobj.data.case_names:
 
             c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
 
             if c_ts_da is None:
                 print(
-                    f"\t    WARNING: Variable {field} for case '{case_name}' provides Nonetype. Skipping this variable"
+                    f"\t    WARNING: No time series of {field} for case '{case_name}', leaving it off the plot."
                 )
-                skip_var = True
                 continue
             # End if
 
@@ -184,17 +180,14 @@ def global_mean_timeseries(adfobj):
                 print(
                     f"\t    WARNING: Variable {field} has a lev dimension for '{case_name}', which does not work with this script."
                 )
-
-                skip_var = True
                 continue
             # End if
 
             # check if there is a lat dimension (native-grid data, ncol or lndgrid, has none):
             if not has_lat_case and not _is_native(c_ts_da):
                 print(
-                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', leaving it off the plot."
                 )
-                skip_var = True
                 continue
             # End if
 
@@ -204,7 +197,6 @@ def global_mean_timeseries(adfobj):
                     c_ts_da, adfobj.data.get_timeseries_file(case_name, field), vres
                 )
                 if c_ts_da_ga is None:
-                    skip_var = True
                     continue
                 # End if
             else:
@@ -213,10 +205,13 @@ def global_mean_timeseries(adfobj):
                 )
             # End if
             case_ts[labels[case_name]] = utils.annual_mean(c_ts_da_ga, whole_years=is_lnd)
+            unit = c_ts_da.attrs.get("units", "none")
 
-        # If this case is 3-d or missing variable, then break the loop and go to next variable
-        if skip_var:
+        # Nothing at all to plot for this variable:
+        if (not case_ts) and (ref_ts_da is None):
+            print(f"\t    WARNING: No usable time series of {field} for any case, skipping it.")
             continue
+        # End if
 
         # Running totals, e.g. of land carbon uptake (NBP):
         if is_lnd and vres.get("avg_method", "mean") == "cumsum":
@@ -241,7 +236,9 @@ def global_mean_timeseries(adfobj):
 
         if is_lnd:
             # the last of these given wins:
-            unit = c_ts_da.attrs.get("units", "none")
+            if unit is None:
+                unit = ref_ts_da.attrs.get("units", "none")
+            # End if
             for unit_key in ("new_unit", "table_unit", "ts_unit"):
                 unit = vres.get(unit_key, unit)
             # End for
@@ -386,9 +383,13 @@ class Lens2Data:
 
         lens2_fil = sorted(lens2_path.glob(f"{self.field}_*LENS2*first50*nc"))
         if lens2_fil:
-            lens2_fil = lens2_fil[0]
-            lens2 = xr.open_mfdataset(lens2_fil)
-            has_lens = True
+            try:
+                lens2 = xr.open_mfdataset(lens2_fil[0])
+                return True, lens2
+            except OSError as err:
+                # e.g. a file this user may not read: plot without LENS2
+                warnings.warn(f"\t    INFO: Could not read LENS2 file for {self.field}: {err}")
+                return False, None
         else:
             warnings.warn(f"\t    INFO: Did not find LENS2 file for {self.field}.")
             has_lens = False
@@ -401,11 +402,12 @@ def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     """plot yearly values of ref_ts_da"""
     fig, ax = plt.subplots()
 
-    # Plot reference/baseline if available
-    # (CAM skips a variable without one before getting here; land plots the
-    # test cases on their own)
+    # Plot reference/baseline if available (the test cases, or the baseline,
+    # may also be plotted on their own)
     if type(ref_ts_da) != NoneType:
         ax.plot(ref_ts_da.year, ref_ts_da, label=label)
+        syr = min(ref_ts_da.year)
+        eyr = max(ref_ts_da.year)
     for idx, (c, cdata) in enumerate(case_ts.items()):
         ax.plot(cdata.year, cdata, label=c)
         # Force the plot axis to always plot the test case years
@@ -440,7 +442,7 @@ def make_plot(case_ts, lens2, label=None, ref_ts_da=None):
     ax.set_xlabel("YEAR")
     # Place the legend
     ax.legend(
-        bbox_to_anchor=(0.5, -0.15), loc="upper center", ncol=min(len(case_ts), 3)
+        bbox_to_anchor=(0.5, -0.15), loc="upper center", ncol=max(min(len(case_ts), 3), 1)
     )
     plt.tight_layout(pad=2, w_pad=1.0, h_pad=1.0)
 

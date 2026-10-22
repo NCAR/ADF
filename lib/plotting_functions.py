@@ -309,7 +309,15 @@ def make_polar_plot(
                 origin="lower",
                 extent=axs[i].get_xlim() + axs[i].get_ylim(),
             )
-            img.set_clim(vmin=levels[0], vmax=levels[-1])
+            if len(contour_levs) < 2:
+                # e.g. a field that is zero everywhere in the region (crop
+                # variables near the poles): no levels to scale the colors by
+                axs[i].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props
+                )
+            else:
+                img.set_clim(vmin=contour_levs[0], vmax=contour_levs[-1])
+            # End if
             imgs.append(img)
         elif len(contour_levs) < 2:
             imgs.append(axs[i].contourf(lons, lats, a, colors="w"))
@@ -752,7 +760,14 @@ def plot_map_and_save(
                 origin="lower",
                 extent=ax[i].get_xlim() + ax[i].get_ylim(),
             )
-            raster_img.set_clim(vmin=levels[0], vmax=levels[-1])
+            if len(contour_levs) < 2:
+                # e.g. a field that is zero everywhere: no levels to scale by
+                ax[i].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props
+                )
+            else:
+                raster_img.set_clim(vmin=contour_levs[0], vmax=contour_levs[-1])
+            # End if
             img.append(raster_img)
             if vector:
                 # Arrows at every 20th cell; test, baseline, difference vectors:
@@ -1610,6 +1625,164 @@ def plot_zonal_mean_and_save(
 
     # Close plots:
     plt.close()
+
+
+#######
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
+def plot_single_case_and_save(
+    adfobj,
+    wks,
+    kind,
+    role,
+    nickname,
+    climo_yrs,
+    data,
+    has_lev,
+    log_p=False,
+    latbounds=None,
+    **kwargs,
+):
+    """Zonal or meridional mean of one case, when the other has no data.
+
+    The ADF plots whatever data there is: when only the test case or only the
+    baseline has a variable, this draws that one on its own, reduced the same
+    way as in :func:`plot_zonal_mean_and_save` and
+    :func:`plot_meridional_mean_and_save` and with their colors and contour
+    levels, so it can be told apart from a test-minus-baseline plot only by
+    its title.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object.
+    wks : str or pathlib.Path
+        The file to write.
+    kind : str
+        "zonal" or "meridional".
+    role : str
+        "Test" or "Baseline": which case `data` is.
+    nickname : str
+        The case's name on the plot.
+    climo_yrs : list
+        The case's first and last climatology years.
+    data : xarray.DataArray or uxarray.UxDataArray
+        The seasonal mean, ([lev], lat, lon) or on a native grid; the vertical
+        coordinate (lev) must be pressure levels.
+    has_lev : bool
+        Whether `data` has a lev dimension (a pressure-latitude, or
+        -longitude, panel rather than a line).
+    log_p : bool, optional
+        Use a log(pressure) vertical axis.
+    latbounds : slice, optional
+        The latitude band of a meridional mean, by default 5S-5N.
+    **kwargs
+        The variable defaults, as for the two-case plots.
+
+    Returns
+    -------
+    None
+        Writes `wks`.
+    """
+    kwargs["adfobj"] = adfobj
+    ti_font_size = kwargs.pop("tiFontSize", 8)
+    unstructured = kwargs.get("unstructured_plotting", False)
+
+    if kind == "zonal":
+        if unstructured:
+            data = ux_to_lat_binned(data)
+        # End if
+        prof = utils.zonal_mean_xr(data)
+        xdim, xlabel, xstep, pltfunc = "lat", "LATITUDE", 20, zonal_plot
+    else:
+        if latbounds is None:
+            latbounds = slice(-5, 5)
+        # End if
+        if "time" in data.dims:
+            data = data.mean(dim="time", keep_attrs=True)
+        # End if
+        if unstructured:
+            prof = meridional_mean_xr(ux_to_lon_binned(_lat_band(data, latbounds)))
+        else:
+            data = _lat_band(data, latbounds)
+            latweight = np.cos(np.radians(data.lat))
+            prof = data.weighted(latweight).mean(dim="lat", keep_attrs=True)
+        # End if
+        xdim, xlabel, xstep, pltfunc = "lon", "LONGITUDE", 60, meridional_plot
+    # End if
+
+    # Contour settings as for the two-case plots (the difference settings,
+    # made from zeros here, are not used):
+    zeros = prof * 0
+    cp_info = plot_utils.prep_contour_plot(prof, prof, zeros, zeros, **kwargs)
+    units = cp_info["units_label"]
+    other = "baseline" if role == "Test" else "test case"
+    title = (
+        rf"$\mathbf{{{role}}}:$"
+        + f"{nickname}\nyears: {climo_yrs[0]}-{climo_yrs[-1]}"
+        + f"\n(no {other} data, so no difference)"
+    )
+    color = "#1f77b4" if role == "Test" else "#ff7f0e"  # as in the two-case plots
+
+    if has_lev:
+        fig, ax = plt.subplots(
+            figsize=(8, 3.5), constrained_layout=True, **cp_info["subplots_opt"]
+        )
+        levels_sim = cp_info["levels_sim"]
+        if len(np.unique(np.array(levels_sim))) < 2:
+            pltfunc(prof[xdim], prof, ax=ax)
+            ax.text(0.4, 0.4, EMPTY_MESSAGE, transform=ax.transAxes, bbox=props)
+        else:
+            img, ax = pltfunc(
+                prof[xdim],
+                prof,
+                ax=ax,
+                norm=cp_info["norm_sim"],
+                cmap=cp_info["cmap_sim"],
+                levels=levels_sim,
+                extend=cp_info["extend_sim"],
+                **cp_info["contourf_opt"],
+            )
+            cb_ax = inset_axes(
+                ax,
+                width="2%",
+                height="100%",
+                loc="lower left",
+                bbox_to_anchor=(1.02, 0, 1, 1),
+                bbox_transform=ax.transAxes,
+                borderpad=0,
+            )
+            cbar = fig.colorbar(
+                img, cax=cb_ax, location="right", **cp_info["colorbar_opt"]
+            )
+            cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=5, loc="left")
+            cbar.ax.tick_params(labelsize=CBAR_SIZE)
+        # End if
+        if log_p:
+            ax.set_yscale("log")
+        # End if
+        ax.set_ylabel("PRESSURE [hPa]", fontsize=ti_font_size)
+    else:
+        fig, ax = plt.subplots()
+        pltfunc(prof[xdim], prof, ax=ax, color=color)
+        ax.set_ylabel(units, fontsize=ti_font_size)
+        ax.grid(True)
+    # End if
+
+    ax.set_title(title, loc="left", fontsize=ti_font_size)
+    fig.suptitle(
+        f"{kwargs['var_name']}: {kwargs['season']}",
+        fontsize=12,
+        fontfamily=["DejaVu Sans", "Liberation Sans", "sans-serif"],
+    )
+    ax.set_xlabel(xlabel, fontsize=ti_font_size)
+    ax.tick_params("both", length=3, width=1, which="major")
+    ax.tick_params(axis="both", labelsize=7)
+    ax.xaxis.set_major_locator(MultipleLocator(xstep))
+
+    fig.savefig(wks, bbox_inches="tight", dpi=300)
+    plt.close(fig)
 
 
 #######

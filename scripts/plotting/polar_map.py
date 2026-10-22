@@ -134,7 +134,8 @@ def polar_map(adfobj):
 
     #Determine if user wants to plot 3-D variables on
     #pressure levels:
-    pres_levs = adfobj.get_basic_info("plot_press_levels")
+    #(none given, e.g. in land config files, means no pressure-level plots)
+    pres_levs = adfobj.get_basic_info("plot_press_levels") or []
 
     #Set seasonal ranges:
     seasons = {"ANN": np.arange(1,13,1),
@@ -293,6 +294,13 @@ def polar_map(adfobj):
                 unstruct_case = True
                 #mdataset = adfobj.data.load_climo_dataset(case_name, var, **kwargs)
                 mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
+                if (mdataset is None) or (mdata is None):
+                    # e.g. no regridded file: the regridding step skips a native
+                    # case whose reference is not on the same native grid.
+                    dmsg = f"\t    WARNING: No native-grid regridded test file for {case_name} for variable `{var}`, polar map plotting skipped."
+                    adfobj.debug_log(dmsg)
+                    print(dmsg)
+                    continue
                 if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
                     wgt = utils.cell_weights(mdataset, adfobj.model_component)
             else:

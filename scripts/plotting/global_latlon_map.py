@@ -143,6 +143,13 @@ def load_reference_data(adfobj, var, vres):
         unstruct_base = True
         odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
         odata = adfobj.data.load_reference_regrid_da(base_name, var, **vres)
+        if (odataset is None) or (odata is None):
+            # e.g. a reference (obs or a lat/lon case) not on the test case's
+            # native grid, which the regridding step has already skipped:
+            dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{var}`, global lat/lon map plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return None, None
         vres["odataset"] = odataset
 
         wgt_base = utils.cell_weights(odataset, adfobj.model_component)
@@ -177,6 +184,11 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
         unstruct_case = True
         mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
         mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
+        if (mdataset is None) or (mdata is None):
+            dmsg = f"\t    WARNING: No native-grid regridded test file for {case_name} for variable `{var}`, global lat/lon map plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return
         vres["dataset"] = mdataset
         #mdata = mdataset[var]
         wgt = utils.cell_weights(mdataset, adfobj.model_component)
