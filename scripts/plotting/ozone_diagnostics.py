@@ -869,7 +869,13 @@ def ozone_diagnostics (adfobj):
    
    plot_locations = adfobj.plot_location[0]
    
+   #Climo files through the ADF's own lookup, which knows their names (with
+   #the history stream and the climatology years, or the older names):
    climo_base=baseline_climo_loc+'/'+case_base+"_O3_climo.nc"
+   if not adfobj.compare_obs:
+       base_fils = adfobj.data.get_reference_climo_file("O3")
+       if base_fils:
+           climo_base = str(base_fils[0])
    if os.path.isfile(climo_base):
        print(climo_base," located")
    else:
@@ -877,6 +883,9 @@ def ozone_diagnostics (adfobj):
        return
    
    climo_test=cam_climo_loc+'/'+case_test+"_O3_climo.nc"
+   test_fils = adfobj.data.get_climo_file(case_test, "O3")
+   if test_fils:
+       climo_test = str(test_fils[0])
    if os.path.isfile(climo_test):
        print(climo_test," located")
    else:

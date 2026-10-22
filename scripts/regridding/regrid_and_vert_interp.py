@@ -138,7 +138,9 @@ def regrid_and_vert_interp(adf):
                 print(f"\t ERROR: No reference data available for {var}.")
                 continue
 
-            regridded_file_loc = output_loc / f'{target_name}_{case_name}_{var}_regridded.nc'
+            # Named after the case's climatology years, as its climo file is:
+            regridded_file_loc = output_loc / utils.year_tagged_names(
+                f'{target_name}_{case_name}_{var}_regridded', syear, eyear)[0]
 
             if regridded_file_loc.is_file() and not overwrite_regrid:
                 print(f"\t INFO: Regridded file already exists, skipping: {regridded_file_loc}")
@@ -214,7 +216,8 @@ def regrid_and_vert_interp(adf):
                     _announce_pressure_source(announced, case_name, lev_dim, pres_name)
                     pressure_note = _pressure_note(pres_name)
                 elif vert_type == 'hybrid':
-                    ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
+                    ps_regridded_path = output_loc / utils.year_tagged_names(
+                        f'{target_name}_{case_name}_PS_regridded', syear, eyear)[0]
                     if ps_regridded_path.exists():
                         ps_da = xr.open_dataset(ps_regridded_path)['PS']
                     else:
@@ -250,7 +253,7 @@ def regrid_and_vert_interp(adf):
                 and var_default_dict["mask"].lower() == "ocean"
             ):
                 ocn_frac_da = _get_ocean_fraction(
-                    adf, case_name, target_name, output_loc, ref_ds
+                    adf, case_name, target_name, output_loc, ref_ds, (syear, eyear)
                 )
                 if ocn_frac_da is None:
                     # Writing the field unmasked is worse than not writing it:
@@ -271,7 +274,9 @@ def regrid_and_vert_interp(adf):
 
             test_attrs_dict = {
                 "adf_user": adf.user,
-                "climo_yrs": f"{case_name}: {syear}-{eyear}",
+                # "YYYY-YYYY", as in the file name and the climo files:
+                "climo_yrs": utils.years_tag(syear, eyear) or f"{syear}-{eyear}",
+                "climo_case": case_name,
                 "climatology_files": str(adf.data.get_climo_file(case_name, var)),
             }
             if pressure_note:
@@ -516,7 +521,8 @@ def _write_reference_files(
             )
             continue
 
-        baseline_file = output_loc / f'{base}_{var}_baseline.nc'
+        # Named after the baseline's climatology years:
+        baseline_file = output_loc / utils.year_tagged_names(f'{base}_{var}_baseline', syear, eyear)[0]
         if baseline_file.is_file() and not overwrite:
             print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
             continue
@@ -565,7 +571,8 @@ def _write_reference_files(
         var_default_dict = var_defaults.get(var, {})
         if 'mask' in var_default_dict and var_default_dict['mask'].lower() == 'ocean':
             # var_list is sorted so OCNFRAC is written before anything that needs it:
-            ocn_frac_path = output_loc / f'{base}_OCNFRAC_baseline.nc'
+            ocn_frac_path = output_loc / utils.year_tagged_names(
+                f'{base}_OCNFRAC_baseline', syear, eyear)[0]
             if ocn_frac_path.exists():
                 ocn_frac_da = xr.open_dataset(ocn_frac_path)['OCNFRAC']
                 interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
@@ -576,7 +583,8 @@ def _write_reference_files(
         _keep_native_area(final_ds, ref_ds)
         baseline_attrs = {
             "adf_user": adf.user,
-            "climo_yrs": f"{base}: {syear}-{eyear}",
+            "climo_yrs": utils.years_tag(syear, eyear) or f"{syear}-{eyear}",
+            "climo_case": base,
             "climatology_files": str(adf.data.get_reference_climo_file(var)),
         }
         if pressure_note:
@@ -776,7 +784,7 @@ def _handle_vertical_interpolation(
     else:
         raise ValueError(f"Unknown vertical coordinate type: '{vert_type}'")
 
-def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
+def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds, years=(None, None)):
     """Return the case's OCNFRAC on the target grid, or ``None``.
 
     The already-regridded file is used when it exists.  In ``compare_obs`` mode
@@ -796,6 +804,8 @@ def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
         The regrid output directory.
     ref_ds : xarray.Dataset
         Reference dataset defining the target grid.
+    years : tuple, optional
+        The case's climatology (first, last) years, which name its files.
 
     Returns
     -------
@@ -803,7 +813,8 @@ def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
         Ocean fraction on the target grid, or ``None`` if the case has no
         OCNFRAC climatology.
     """
-    ocn_frac_path = output_loc / f"{target_name}_{case_name}_OCNFRAC_regridded.nc"
+    ocn_frac_path = output_loc / utils.year_tagged_names(
+        f"{target_name}_{case_name}_OCNFRAC_regridded", *years)[0]
     if ocn_frac_path.exists():
         return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
     ocn_frac_ds = adf.data.load_climo_ds(case_name, "OCNFRAC")
@@ -928,6 +939,7 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
         method = adf.latlon_regrid_method["baseline_regrid_method"]
         latlon_file = adf.latlon_files["baseline_latlon_file"]
         climo_loc = adf.get_baseline_info("cam_climo_loc", required=True)
+        years = (adf.climo_yrs["syear_baseline"], adf.climo_yrs["eyear_baseline"])
     else:
         case_idx = adf.get_cam_info("cam_case_name", required=True).index(case_name)
         label = case_name
@@ -935,6 +947,7 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
         method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
         latlon_file = adf.latlon_files["test_latlon_file"][case_idx]
         climo_loc = adf.get_cam_info("cam_climo_loc", required=True)[case_idx]
+        years = (adf.climo_yrs["syears"][case_idx], adf.climo_yrs["eyears"][case_idx])
 
     if not wgt_file:
         # Every variable of the case would fail the same way, so stop here:
@@ -958,7 +971,10 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
     if save:
         gridded_loc = Path(climo_loc) / "gridded"
         gridded_loc.mkdir(parents=True, exist_ok=True)
-        save_to_nc(gridded, gridded_loc / f"{label}_{var}_gridded_climo.nc")
+        save_to_nc(
+            gridded,
+            gridded_loc / utils.year_tagged_names(f"{label}_{var}_gridded_climo", *years)[0],
+        )
     return gridded
 
 

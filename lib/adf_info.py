@@ -1482,7 +1482,10 @@ class AdfInfo(AdfConfig):
         # End if
         climo_loc = inputs["climo_loc"]
         climo_files = (
-            sorted(Path(climo_loc).glob(f"{case_name}*_climo.nc")) if climo_loc else []
+            # with or without the climatology years in the name:
+            sorted(Path(climo_loc).glob(f"{case_name}*_climo*.nc"))
+            if climo_loc
+            else []
         )
         msg = f"\t NOTE: '{case_name}' runs on pre-made climatologies only (years"
         msg += f" {syear}-{eyear}); diagnostics that need time series will skip it."

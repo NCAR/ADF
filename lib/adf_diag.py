@@ -1225,8 +1225,12 @@ class AdfDiag(AdfWeb):
                         # historical files into a single string
                         hist_files_str = ", ".join(str(f.name) for f in chunk_files)
                         hist_locs_str = ", ".join(str(loc) for loc in cam_hist_locs)
+                        # The years this file covers, "YYYY-YYYY" (as the climo
+                        # files' 'climo_yrs'), so they survive a renamed file:
+                        span = _ts_time_string(chunk_files).split("-")
+                        ts_yrs_str = f"{span[0][:4]}-{span[-1][:4]}"
 
-                        # Create the ncatted command to add both global attributes
+                        # Create the ncatted command to add the global attributes
                         cmd_ncatted = [
                             "ncatted",
                             "-O",
@@ -1236,6 +1240,8 @@ class AdfDiag(AdfWeb):
                             "hist_file_locs,global,a,c," + f"{hist_locs_str}",
                             "-a",
                             "hist_file_list,global,a,c," + f"{hist_files_str}",
+                            "-a",
+                            "ts_yrs,global,o,c," + ts_yrs_str,
                             ts_outfil_str,
                         ]
 

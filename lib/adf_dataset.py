@@ -536,27 +536,56 @@ class AdfData:  # pylint: disable=too-many-public-methods
             return None
         return self.load_dataset(fils, **kwargs)
 
+    @staticmethod
+    def _first_file(loc, stems, years):
+        """The first existing file among `stems`, each with its years, then without.
+
+        Climo and regridded files are named after their climatology years
+        ({stem}_{YYYY-YYYY}.nc); files written before that ({stem}.nc) are the
+        fallback.  Returns a one-element list, or an empty one.
+        """
+        for stem in stems:
+            for name in utils.year_tagged_names(stem, *years):
+                fil = Path(loc) / name
+                if fil.is_file():
+                    return [fil]
+        return []
+
+    def _case_climo_years(self, case):
+        """The climatology (first, last) years of a test case, or (None, None)."""
+        climo_yrs = getattr(self.adf, "climo_yrs", None) or {}
+        try:
+            idx = self.case_names.index(case)
+            return climo_yrs["syears"][idx], climo_yrs["eyears"][idx]
+        except (ValueError, KeyError, IndexError, TypeError):
+            return None, None
+
+    def _ref_climo_years(self):
+        """The climatology (first, last) years of the baseline, or (None, None)."""
+        climo_yrs = getattr(self.adf, "climo_yrs", None) or {}
+        return climo_yrs.get("syear_baseline"), climo_yrs.get("eyear_baseline")
+
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific case.
 
-        Climo files created by recent ADF versions include the history stream
-        in the name ({case}_{hist_str}_{var}_climo.nc). Search for those first,
-        in the case's configured hist_str priority order, then fall back to the
-        older stream-less convention ({case}_{var}_climo.nc) so that
+        Climo files are named {case}_{hist_str}_{var}_climo_{YYYY-YYYY}.nc,
+        with the history stream and the climatology years.  They are searched
+        for in the case's configured hist_str priority order, each with its
+        years and then without (files from before the years were in the names),
+        then under the older stream-less name ({case}_{var}_climo), so that
         pre-existing climo files still work.
         """
         # list of paths (could be multiple cases)
         a = self.adf.get_cam_info("cam_climo_loc", required=True)
         caseindex = (self.case_names).index(case)  # the entry for specified case
-        model_cl_loc = Path(a[caseindex])
-        for hist_str in self._hist_strs_for_case(case):
-            fils = sorted(
-                model_cl_loc.glob(f"{case}_{hist_str}_{variablename}_climo.nc")
-            )
-            if fils:
-                return fils
-        # Fall back to older naming (no hist_str) for pre-existing climo files:
-        return sorted(model_cl_loc.glob(f"{case}_{variablename}_climo.nc"))
+        stems = [
+            f"{case}_{hist_str}_{variablename}_climo"
+            for hist_str in self._hist_strs_for_case(case)
+        ]
+        stems.append(f"{case}_{variablename}_climo")
+        return self._first_file(
+            a[caseindex], stems, self._case_climo_years(self.case_names[caseindex])
+        )
 
     # Reference case (baseline/obs)
     def load_reference_climo_ds(self, case, variablename, apply_scaling=True):
@@ -635,15 +664,14 @@ class AdfData:  # pylint: disable=too-many-public-methods
             return [fils] if fils is not None else []
         ref_loc = self.adf.get_baseline_info("cam_climo_loc")
         # Prefer stream-aware naming (in priority order), then fall back to the
-        # older convention so pre-existing baseline climo files still work:
-        for hist_str in self._hist_strs_for_reference():
-            fils = sorted(
-                Path(ref_loc).glob(f"{self.ref_case_label}_{hist_str}_{var}_climo.nc")
-            )
-            if fils:
-                return fils
-        # NOTE: originally had this looking for *_baseline.nc
-        return sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
+        # older convention so pre-existing baseline climo files still work;
+        # each with the climatology years first, as in get_climo_file:
+        stems = [
+            f"{self.ref_case_label}_{hist_str}_{var}_climo"
+            for hist_str in self._hist_strs_for_reference()
+        ]
+        stems.append(f"{self.ref_case_label}_{var}_climo")
+        return self._first_file(ref_loc, stems, self._ref_climo_years())
 
     def load_reference_climo_dataset(self, case, field, **kwargs):
         """Return a data set to be used as reference (aka baseline) for variable field."""
@@ -667,7 +695,12 @@ class AdfData:  # pylint: disable=too-many-public-methods
             # No reference for this variable (e.g. no observations of it), so
             # the regridding stage made no file for it:
             return []
-        return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
+        # Named after the case's climatology years, as its climo file is:
+        return self._first_file(
+            model_rg_loc,
+            [f"{rlbl}_{case}_{field}_regridded"],
+            self._case_climo_years(case),
+        )
 
     def load_regrid_dataset(self, case, field, **kwargs):
         """Return a data set of regridded data for case and variable field.
@@ -737,8 +770,12 @@ class AdfData:  # pylint: disable=too-many-public-methods
             else:
                 fils = []
         else:
-            model_rg_loc = Path(self.model_rgrid_loc)
-            fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
+            # Named after the baseline's climatology years:
+            fils = self._first_file(
+                self.model_rgrid_loc,
+                [f"{case}_{field}_baseline"],
+                self._ref_climo_years(),
+            )
         return fils
 
     def load_reference_regrid_dataset(self, case, field, **kwargs):

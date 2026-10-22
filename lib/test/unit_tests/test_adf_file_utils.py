@@ -33,6 +33,8 @@ from adf_file_utils import (
     ts_file_span,
     ts_var_from_filename,
     ts_years_covered,
+    year_tagged_names,
+    years_tag,
 )
 
 
@@ -650,3 +652,21 @@ class TsVarFromFilenameTestRoutine(unittest.TestCase):
         )
         self.assertEqual(missing_year_ranges(set(range(1, 11)), 1, 10), [])
         self.assertEqual(missing_year_ranges(set(), 1, 3), [(1, 3)])
+
+    def test_years_tag(self):
+        """Years become a zero-padded "YYYY-YYYY" label, or None if unknown."""
+        self.assertEqual(years_tag(3, 5), "0003-0005")
+        self.assertEqual(years_tag("0003", "0005"), "0003-0005")
+        self.assertEqual(years_tag(1979, 2014), "1979-2014")
+        self.assertIsNone(years_tag(None, 5))
+        self.assertIsNone(years_tag("", ""))
+
+    def test_year_tagged_names(self):
+        """The name with years comes first, the older name second."""
+        self.assertEqual(
+            year_tagged_names("case_cam.h0a_T_climo", 3, 5),
+            ["case_cam.h0a_T_climo_0003-0005.nc", "case_cam.h0a_T_climo.nc"],
+        )
+        self.assertEqual(
+            year_tagged_names("b_c_T_regridded", None, None), ["b_c_T_regridded.nc"]
+        )

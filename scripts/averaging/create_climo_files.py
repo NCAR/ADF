@@ -278,14 +278,17 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
             found_in_any_stream = bool(found_streams)
             for hist_str, ts_files in found_streams:
                 # Create name of climatology output file (which includes the full path),
-                # now including the history stream when known, and check whether it is
-                # there (don't do computation if we don't want to overwrite):
+                # including the history stream when known and the climatology years,
+                # and check whether it is there (don't do computation if we don't
+                # want to overwrite).  With the years in the name, a climo made for
+                # other years (before a run was extended, say) is never reused:
                 if hist_str:
-                    output_file = output_location / f"{case_name}_{hist_str}_{var}_climo.nc"
+                    stem = f"{case_name}_{hist_str}_{var}_climo"
                     var_label = f"{var} ({hist_str})"
                 else:
-                    output_file = output_location / f"{case_name}_{var}_climo.nc"
+                    stem = f"{case_name}_{var}_climo"
                     var_label = f"{var}"
+                output_file = output_location / utils.year_tagged_names(stem, syr, eyr)[0]
                 if (not clobber) and (output_file.is_file()):
                     msg = f"\t    INFO: '{var_label}' file was found "
                     msg += "and overwrite is False. Will use existing file."
@@ -375,7 +378,8 @@ def process_variable(adf_user, ts_files, syr, eyr, output_file):
             climo.attrs.update({
                 "units": ds.attrs.get("units", "--"),
                 "adf_user": adf_user,
-                "climo_yrs": f"{syr}-{eyr}",
+                # "YYYY-YYYY", as in the file name, so a renamed file still says:
+                "climo_yrs": utils.years_tag(syr, eyr) or f"{syr}-{eyr}",
                 "time_series_files": ", ".join([str(f) for f in ts_files])
             })
 

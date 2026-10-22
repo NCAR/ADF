@@ -30,6 +30,10 @@ as_hist_str_list(value)
     Normalize a configured history stream setting to a list.
 pick_hist_str(value, wanted)
     Choose the one history stream a case should be searched for.
+years_tag(syr, eyr)
+    The "YYYY-YYYY" label of a year range, as used in file names and attributes.
+year_tagged_names(stem, syr, eyr)
+    File names for a climo or regridded file: with its years, then without.
 
 Notes
 -----
@@ -145,6 +149,55 @@ def pick_hist_str(value, wanted):
     """
     matches = [stream for stream in as_hist_str_list(value) if stream in wanted]
     return matches[0] if matches else ""
+
+
+def years_tag(syr, eyr):
+    """
+    The label of a year range, as used in file names and attributes.
+
+    Parameters
+    ----------
+    syr, eyr : int or str or None
+        first and last year
+
+    Returns
+    -------
+    str or None
+        e.g. ``"0003-0005"`` for years 3 to 5 (the form of the climo files'
+        ``climo_yrs`` attribute), or ``None`` when either year is missing or
+        is not a whole number.
+    """
+    try:
+        return f"{int(syr):04d}-{int(eyr):04d}"
+    except (TypeError, ValueError):
+        return None
+
+
+def year_tagged_names(stem, syr, eyr):
+    """
+    File names for a climatology or regridded file, with and without years.
+
+    Climo and regridded files are named after the climatology years they
+    cover, so a run over other years (an extended run, say) never mistakes an
+    existing file for its own.  Files written before the years were in the
+    names are still read, as a fallback.
+
+    Parameters
+    ----------
+    stem : str
+        the name without years or extension, e.g. ``"case_cam.h0a_T_climo"``
+    syr, eyr : int or str or None
+        the climatology years
+
+    Returns
+    -------
+    list of str
+        ``["<stem>_<YYYY-YYYY>.nc", "<stem>.nc"]``: the name to write (and
+        read first), then the older name to fall back on.  Only
+        ``["<stem>.nc"]`` when the years are not known.
+    """
+    tag = years_tag(syr, eyr)
+    return ([f"{stem}_{tag}.nc"] if tag else []) + [f"{stem}.nc"]
 
 
 def ts_var_from_filename(fname):
