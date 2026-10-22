@@ -1,7 +1,8 @@
 """Use time series files to produce global mean time series plots for ADF web site.
 
-Includes a minimal Class for bringing CESM2 LENS data 
-from I. Simpson's directory (to be generalized).
+Includes a minimal Class for bringing in CESM2 LENS2 global means, from the
+file each variable's defaults name ('lens2_file', found in the config's
+'lens2_data_loc').
 
 """
 
@@ -24,7 +25,9 @@ def global_mean_timeseries(adfobj):
     load time series file, calculate global mean, annual mean
     for each case
     Make a combined plot, save it, add it to website.
-    Include the CESM2 LENS result if it can be found.
+    Include the CESM2 LENS2 range and mean when the variable defaults name a
+    'lens2_file' for the variable (a path, or a file name in the config's
+    'lens2_data_loc') and it can be read.
 
     Land (CLM) cases, where ``adfobj.model_component`` is "lnd", are averaged
     the same way except that:
@@ -221,9 +224,8 @@ def global_mean_timeseries(adfobj):
             # End if
         # End if
 
-        lens2_data = Lens2Data(
-                field
-            )  # Provides access to LENS2 dataset when available (class defined below)
+        # The variable's LENS2 file, when its defaults name one (class below):
+        lens2_data = Lens2Data(field, vres, adfobj.get_basic_info("lens2_data_loc"))
 
         ## SPECIAL SECTION -- CESM2 LENS DATA:
         # Plot the timeseries
@@ -370,31 +372,32 @@ def _land_global(data, fils, vres):
 
 
 class Lens2Data:
-    """Access Isla's LENS2 data to get annual means."""
+    """CESM2 LENS2 global, annual means of one variable, if it has any.
 
-    def __init__(self, field):
+    The file is the variable defaults' 'lens2_file': a path, or a file name
+    in the config's 'lens2_data_loc' (as 'obs_file' and 'obs_data_loc').  A
+    variable without one gets no LENS2 band.
+    """
+
+    def __init__(self, field, vres, lens2_data_loc=None):
         self.field = field
-        self.has_lens, self.lens2 = self._include_lens()
+        self.has_lens, self.lens2 = self._include_lens(vres.get("lens2_file"), lens2_data_loc)
 
-    def _include_lens(self):
-        lens2_path = Path(
-            f"/glade/campaign/cgd/cas/islas/CESM_DATA/LENS2/global_means/annualmeans/"
-        )
-
-        lens2_fil = sorted(lens2_path.glob(f"{self.field}_*LENS2*first50*nc"))
-        if lens2_fil:
-            try:
-                lens2 = xr.open_mfdataset(lens2_fil[0])
-                return True, lens2
-            except OSError as err:
-                # e.g. a file this user may not read: plot without LENS2
-                warnings.warn(f"\t    INFO: Could not read LENS2 file for {self.field}: {err}")
-                return False, None
-        else:
-            warnings.warn(f"\t    INFO: Did not find LENS2 file for {self.field}.")
-            has_lens = False
-            lens2 = None
-        return has_lens, lens2
+    def _include_lens(self, lens2_file, lens2_data_loc):
+        if not lens2_file:
+            return False, None
+        lens2_path = Path(lens2_file)
+        if not lens2_path.is_file() and lens2_data_loc:
+            lens2_path = Path(lens2_data_loc) / lens2_path
+        if not lens2_path.is_file():
+            warnings.warn(f"\t    INFO: Did not find LENS2 file '{lens2_file}' for {self.field}.")
+            return False, None
+        try:
+            return True, xr.open_mfdataset([str(lens2_path)])
+        except OSError as err:
+            # e.g. a file this user may not read: plot without LENS2
+            warnings.warn(f"\t    INFO: Could not read LENS2 file for {self.field}: {err}")
+            return False, None
 ######
 
 
