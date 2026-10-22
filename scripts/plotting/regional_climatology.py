@@ -78,22 +78,23 @@ def regional_climatology(adfobj):
     if setup is None:
         return
     case_name = setup["case_name"]
-    kwargs = setup["kwargs"]
+    base_name = adfobj.data.ref_case_label
 
     obs_info = {}
     base_data = {}
     case_data = {}
     for field in setup["var_list"]:
-        # Load the global climatology (and land weights) for this variable
+        # Load the global climatology (and land weights) for this variable;
+        # each case is read on its own grid (see `regional_setup`):
         base_data[field] = load_with_weights(
             adfobj, adfobj.data.load_reference_climo_dataset(
-                adfobj.data.ref_case_label, field, **kwargs),
-            field, adfobj.data.ref_case_label)
+                base_name, field, **setup["base_kwargs"]),
+            field, base_name)
         case_data[field] = load_with_weights(
-            adfobj, adfobj.data.load_climo_dataset(case_name, field, **kwargs),
+            adfobj, adfobj.data.load_climo_dataset(case_name, field, **setup["case_kwargs"]),
             field, case_name)
-        if base_data[field] is None or case_data[field] is None:
-            print(f"\t    WARNING: Missing climo file for {field}, skipping it.")
+        if not report_missing(field, "climo", {base_name: base_data[field],
+                                               case_name: case_data[field]}):
             continue
         # End if
 
@@ -104,27 +105,28 @@ def regional_climatology(adfobj):
         # End if
     # End for
 
+    months = np.arange(12) + 1
+
     def plot_series(ax, field, region):
         """Plot the regional climatologies of `field` on `ax`."""
-        base_var, base_wgt = subset_region(base_data[field], region, kwargs)
-        case_var, case_wgt = subset_region(case_data[field], region, kwargs)
-        base_var_wgtd = region_sum(base_var, base_wgt)
-        case_var_wgtd = region_sum(case_var, case_wgt)
-        months = np.arange(12) + 1
-        ax.plot(months, base_var_wgtd, label=setup["base_nickname"], linewidth=2)
-        ax.plot(months, case_var_wgtd, label=setup["case_nickname"], linewidth=2)
+        region_var = plot_cases(ax, field, region, setup, base_data, case_data,
+                                lambda var: (months, var))
+        if region_var is None:
+            return None
         if field in obs_info:
             obs_ds, obs_name = obs_info[field]
-            obs_var, obs_wgt = subset_region(obs_ds, region, {})
-            ax.plot(months, region_sum(obs_var, obs_wgt),
-                    label=obs_name, color="black", linewidth=2)
-            ax.legend()
+            obs_var, obs_wgt = subset_region(obs_ds, region)
+            obs_line, = ax.plot(months, region_sum(obs_var, obs_wgt),
+                                label=obs_name, color="black", linewidth=2)
+            # The cases share one legend under the panels; this panel's
+            # legend names only its observations:
+            ax.legend(handles=[obs_line], fontsize=8)
         # End if
         ax.set_xticks(np.arange(1, 13, 2))
-        return base_var
+        return region_var
     # End def
 
-    make_regional_plots(adfobj, setup, base_data, plot_series,
+    make_regional_plots(adfobj, setup, plot_series,
                         plot_kind="RegionalClimo", title="climatology")
 
     print("\n  --- Regional climatology plots generated successfully! ---")
@@ -183,13 +185,6 @@ def regional_setup(adfobj):
         var_list = var_list[:MAX_REGIONAL_VARS]
     # End if
 
-    # Native-grid data plotted natively is read with uxarray:
-    kwargs = {}
-    if adfobj.unstructured_plotting:
-        kwargs = {"unstructured_plotting": True,
-                  "mesh_file": adfobj.mesh_files["baseline_mesh_file"]}
-    # End if
-
     # TODO hard wired for single case name:
     case_name = adfobj.data.case_names[0]
     case_nickname = adfobj.data.test_nicknames[0] or case_name
@@ -208,8 +203,101 @@ def regional_setup(adfobj):
         "case_name": case_name,
         "case_nickname": case_nickname,
         "base_nickname": base_nickname,
-        "kwargs": kwargs,
+        # Each case read on its own grid: with its own mesh, or as lat/lon
+        # data when it has none (a native case compared to a lat/lon one):
+        "base_kwargs": _loader_kwargs(adfobj, adfobj.mesh_files["baseline_mesh_file"]),
+        "case_kwargs": _loader_kwargs(adfobj, adfobj.mesh_files["test_mesh_file"][0]),
     }
+
+
+def _loader_kwargs(adfobj, mesh_file):
+    """Loader keyword arguments for one case: uxarray on `mesh_file`, if any."""
+    if adfobj.unstructured_plotting and mesh_file:
+        return {"unstructured_plotting": True, "mesh_file": mesh_file}
+    return {}
+
+
+def report_missing(field, kind, data):
+    """Warn about the cases with no data for `field`; whether any case has it.
+
+    Parameters
+    ----------
+    field : str
+        The variable.
+    kind : str
+        The kind of file ("climo", "time series"), for the messages.
+    data : dict
+        The data of each case, by case name (None where it is missing).
+
+    Returns
+    -------
+    bool
+        True when at least one case has data, so `field` is still plotted.
+    """
+    missing = [name for name, dset in data.items() if dset is None]
+    if len(missing) == len(data):
+        print(f"\t    WARNING: No {kind} file for {field} in any case, skipping it.")
+        return False
+    for name in missing:
+        print(f"\t    WARNING: No {kind} file for {field} for '{name}'; "
+              "plotting the other case(s) only.")
+    # End for
+    return True
+
+
+def plot_cases(ax, field, region, setup, base_data, case_data, xy):
+    """Plot the regional mean of `field` for each case that has it.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The panel.
+    field : str
+        The variable.
+    region : tuple
+        west, east, south, north, as from `get_region_boundaries`.
+    setup : dict
+        From `regional_setup` (for the nicknames).
+    base_data, case_data : dict
+        Each case's data by variable, from `load_with_weights` (None where
+        missing).  The two may be on different grids.
+    xy : callable
+        ``xy(regional_mean)`` returns the x and y values to plot.
+
+    Returns
+    -------
+    xarray.DataArray, uxarray.UxDataArray or None
+        The data in the region of the first case plotted (for the region
+        map); None when no case has `field`.
+
+    Raises
+    ------
+    ValueError
+        if no case has land in the region.
+    """
+    region_var = None
+    errors = []
+    # Fixed colors, so a case keeps its color when the other one is missing:
+    for color, data, label in (("C0", base_data.get(field), setup["base_nickname"]),
+                               ("C1", case_data.get(field), setup["case_nickname"])):
+        if data is None:
+            continue
+        # End if
+        try:
+            var, wgt = subset_region(data, region)
+        except ValueError as err:
+            errors.append(f"'{label}': {err}")
+            continue
+        # End try
+        ax.plot(*xy(region_sum(var, wgt)), label=label, color=color, linewidth=2)
+        if region_var is None:
+            region_var = var
+        # End if
+    # End for
+    if region_var is None and errors:
+        raise ValueError("; ".join(errors))
+    # End if
+    return region_var
 
 
 def load_with_weights(adfobj, dset, field, case):
@@ -247,6 +335,13 @@ def load_with_weights(adfobj, dset, field, case):
     out = dset[[field]]
     out[field] = adfobj.data.apply_conversion(dset[field], field, case)
     out["weight"] = weight
+    if "lndgrid" in dset[field].dims:
+        # Native CLM data: the columns' positions, to find a region's columns
+        for coord in ("lat", "lon"):
+            pos = dset[coord]
+            out[coord] = pos.isel(time=0) if "time" in pos.dims else pos
+        # End for
+    # End if
     return out
 
 
@@ -359,17 +454,19 @@ def get_region_boundaries(regions, region_name):
     return west, east, south, north, region_category
 
 
-def subset_region(dset, region, kwargs):
+def subset_region(dset, region):
     """The variable and its normalized weights in a region.
+
+    The subsetting follows the data's own grid, so cases on different grids
+    can be compared.
 
     Parameters
     ----------
     dset : xarray.Dataset or uxarray.UxDataset
-        One variable plus its weights as "weight", see `load_with_weights`.
+        One variable plus its weights as "weight", see `load_with_weights`
+        (and, on CLM's native "lndgrid", the columns' "lat" and "lon").
     region : tuple
         west, east, south, north, as from `get_region_boundaries`.
-    kwargs : dict
-        The loader keyword arguments; unstructured when they ask for it.
 
     Returns
     -------
@@ -381,9 +478,13 @@ def subset_region(dset, region, kwargs):
     ValueError
         if there is no land in the region (the weights sum to zero).
     """
-    field = [name for name in dset.data_vars if name != "weight"][0]
-    if kwargs.get("unstructured_plotting"):
+    field = [name for name in dset.data_vars if name not in ("weight", "lat", "lon")][0]
+    if hasattr(dset, "uxgrid"):
         return _region_uxarray(dset, field, *region)
+    if "lndgrid" in dset[field].dims:
+        # Native-grid data plotted on lat/lon: climo (or time series) the ADF
+        # did not grid, e.g. from pre-made native time series.
+        return _region_native(dset, field, *region)
     return _region_xarray(dset, field, *region)
 
 
@@ -409,6 +510,36 @@ def _region_uxarray(dset, field, box_w, box_e, box_s, box_n):
     return domain_subset, wgt_subset
 
 
+def _box_0_360(box_w, box_e):
+    """The box's west and east edges as longitudes from 0 to 360."""
+    if (box_w == -180) and (box_e == 180):
+        return 0, 360  # Special case for global domain
+    if box_w < 0:
+        box_w = box_w + 360
+    if box_e < 0:
+        box_e = box_e + 360
+    return box_w, box_e
+
+
+def _region_native(dset, field, box_w, box_e, box_s, box_n):
+    """Subset native (CLM "lndgrid") data to the columns with centres inside the box."""
+    lat = dset["lat"].values
+    lon = dset["lon"].values % 360
+    box_w, box_e = _box_0_360(box_w, box_e)
+    if box_w < box_e:
+        in_lon = (lon >= box_w) & (lon <= box_e)
+    else:
+        # The box crosses the prime meridian:
+        in_lon = (lon >= box_w) | (lon <= box_e)
+    # End if
+    cols = np.where(in_lon & (lat >= box_s) & (lat <= box_n))[0]
+
+    # The columns' positions go along, for the region map:
+    domain_subset = dset[field].assign_coords(lat=dset["lat"], lon=dset["lon"]).isel(lndgrid=cols)
+    wgt_subset = utils.normalize_weights(dset["weight"].isel(lndgrid=cols).fillna(0))
+    return domain_subset, wgt_subset
+
+
 def _region_xarray(dset, field, box_w, box_e, box_s, box_n):
     """Subset lat/lon data to the box, with longitudes taken as 0 to 360."""
     # Convert the data's longitudes to [0,360] if necessary:
@@ -417,12 +548,7 @@ def _region_xarray(dset, field, box_w, box_e, box_s, box_n):
     # End if
 
     # Convert box_w and box_e to [0,360] if necessary
-    if (box_w == -180) and (box_e == 180):
-        box_w, box_e = 0, 360  # Special case for global domain
-    if box_w < 0:
-        box_w = box_w + 360
-    if box_e < 0:
-        box_e = box_e + 360
+    box_w, box_e = _box_0_360(box_w, box_e)
 
     # Subset the dataset using the specified box
     if box_w < box_e:
@@ -459,8 +585,8 @@ def _set_map_extent(map_ax, region_name, box_e, box_s):
     map_ax.set_extent(extent, crs=ccrs.PlateCarree())
 
 
-def _plot_region_map(fig, region_var, unstructured):
-    """Draw where the region's data is, in the first panel."""
+def _plot_region_map(fig, region_var):
+    """Draw where the region's data is, in the first panel, on its own grid."""
     transform = ccrs.PlateCarree()
     map_ax = fig.add_subplot(4, 4, 1, projection=ccrs.PlateCarree())
     map_ax.coastlines()
@@ -469,12 +595,16 @@ def _plot_region_map(fig, region_var, unstructured):
     # End if
     mask = region_var.copy()
     mask.values = np.where(np.isfinite(mask.values), 1.0, np.nan)
-    if unstructured:
+    if hasattr(region_var, "uxgrid"):
         collection = mask.to_polycollection()
         collection.set_transform(transform)
         collection.set_cmap("rainbow_r")
         collection.set_antialiased(False)
         map_ax.add_collection(collection)
+    elif "lndgrid" in mask.dims:
+        # Native CLM columns read without uxarray: their centres
+        map_ax.scatter(mask.lon, mask.lat, c=mask.values, s=2,
+                       transform=transform, cmap="rainbow_r")
     else:
         # Plot using pcolormesh for structured grids
         map_ax.pcolormesh(mask.lon, mask.lat, mask.values,
@@ -483,7 +613,7 @@ def _plot_region_map(fig, region_var, unstructured):
     return map_ax
 
 
-def make_regional_plots(adfobj, setup, base_data, plot_series, plot_kind, title):
+def make_regional_plots(adfobj, setup, plot_series, plot_kind, title):
     """Make one figure per region: a map panel and a panel per variable.
 
     Parameters
@@ -492,18 +622,16 @@ def make_regional_plots(adfobj, setup, base_data, plot_series, plot_kind, title)
         The diagnostics object.
     setup : dict
         From `regional_setup`.
-    base_data : dict
-        The baseline data for each variable (None where it is missing).
     plot_series : callable
         ``plot_series(ax, field, region)`` plots one variable's regional
-        series on `ax` and returns the baseline data in the region (used to
-        draw the region map); raises ValueError if the region has no land.
+        series on `ax` for each case that has it and returns the data of one
+        case in the region (used to draw the region map), or None when no
+        case has the variable; raises ValueError if the region has no land.
     plot_kind : str
         The website plot type, and part of the file name.
     title : str
         Word used in messages ("climatology", "time series").
     """
-    unstructured = bool(setup["kwargs"].get("unstructured_plotting"))
     for region_name in setup["region_list"]:
         print(f"\n\t - Plotting regional {title} for: {region_name}")
         try:
@@ -532,23 +660,30 @@ def make_regional_plots(adfobj, setup, base_data, plot_series, plot_kind, title)
         fig.delaxes(axs[0])
 
         plt_counter = 1
+        case_lines = {}  # the cases' lines, for the one legend under the panels
         for field in setup["var_list"]:
-            if base_data.get(field) is None:
-                continue
-            # End if
             try:
-                base_var = plot_series(axs[plt_counter], field, region)
+                region_var = plot_series(axs[plt_counter], field, region)
             except ValueError as err:
                 # e.g. no land in region, so weights sum to zero
                 warnings.warn(f"\t WARNING: skipping {field} for {region_name}: {err}")
+                axs[plt_counter].clear()
                 continue
             # End try
+            if region_var is None:
+                continue
+            # End if
             axs[plt_counter].set_title(field)
-            axs[plt_counter].set_ylabel(base_data[field][field].attrs.get("units", ""))
+            axs[plt_counter].set_ylabel(region_var.attrs.get("units", ""))
+            for line in axs[plt_counter].get_lines():
+                if line.get_label() in (setup["base_nickname"], setup["case_nickname"]):
+                    case_lines.setdefault(line.get_label(), line)
+                # End if
+            # End for
 
             ## Define region in first subplot
             if plt_counter == 1:
-                map_ax = _plot_region_map(fig, base_var, unstructured)
+                map_ax = _plot_region_map(fig, region_var)
                 _set_map_extent(map_ax, region_name, region[1], region[2])
             # End if
             plt_counter += 1
@@ -560,6 +695,12 @@ def make_regional_plots(adfobj, setup, base_data, plot_series, plot_kind, title)
             plt.close(fig)
             continue
         # End if
+
+        # One legend for the cases, under the panels (the case names are long,
+        # and a legend in every panel hides the curves):
+        fig.legend(list(case_lines.values()), list(case_lines.keys()),
+                   loc="upper center", bbox_to_anchor=(0.5, 0.06), ncol=2,
+                   fontsize=11, frameon=False)
 
         # Remove the panels that were not used:
         for ax in axs[plt_counter:]:

@@ -9,9 +9,9 @@ import adf_utils as utils
 from regional_climatology import (
     load_with_weights,
     make_regional_plots,
-    region_sum,
+    plot_cases,
     regional_setup,
-    subset_region,
+    report_missing,
 )
 
 warnings.formatwarning = utils.my_formatwarning
@@ -49,44 +49,37 @@ def regional_timeseries(adfobj):
     if setup is None:
         return
     case_name = setup["case_name"]
-    kwargs = setup["kwargs"]
     ref_name = adfobj.data.ref_case_label
 
     base_data = {}
     case_data = {}
     for field in setup["var_list"]:
-        # Load the global time series (and land weights) for this variable
+        # Load the global time series (and land weights) for this variable;
+        # each case is read on its own grid (see `regional_setup`):
         base_data[field] = load_with_weights(
-            adfobj, _load_ts(adfobj, adfobj.data.get_ref_timeseries_file(field), kwargs),
+            adfobj, _load_ts(adfobj, adfobj.data.get_ref_timeseries_file(field),
+                             setup["base_kwargs"]),
             field, ref_name)
         case_data[field] = load_with_weights(
-            adfobj, _load_ts(adfobj, adfobj.data.get_timeseries_file(case_name, field), kwargs),
+            adfobj, _load_ts(adfobj, adfobj.data.get_timeseries_file(case_name, field),
+                             setup["case_kwargs"]),
             field, case_name)
-        if base_data[field] is None or case_data[field] is None:
-            print(f"\t    WARNING: Missing time series file for {field}, skipping it.")
-            base_data[field] = None
-        # End if
+        report_missing(field, "time series", {ref_name: base_data[field],
+                                              case_name: case_data[field]})
     # End for
+
+    def annual(var):
+        """Annual means, against the years (WW set time axis to years)."""
+        var_ann = utils.annual_mean(var, whole_years=True, time_name="time")
+        return var_ann.year, var_ann
+    # End def
 
     def plot_series(ax, field, region):
         """Plot the annual mean regional time series of `field` on `ax`."""
-        base_var, base_wgt = subset_region(base_data[field], region, kwargs)
-        case_var, case_wgt = subset_region(case_data[field], region, kwargs)
-
-        # annually averaged
-        base_var_ann = utils.annual_mean(region_sum(base_var, base_wgt),
-                                         whole_years=True, time_name="time")
-        case_var_ann = utils.annual_mean(region_sum(case_var, case_wgt),
-                                         whole_years=True, time_name="time")
-
-        # WW set time axis to years
-        ax.plot(base_var_ann.year, base_var_ann, label=setup["base_nickname"], linewidth=2)
-        ax.plot(case_var_ann.year, case_var_ann, label=setup["case_nickname"], linewidth=2)
-        ax.legend()
-        return base_var
+        return plot_cases(ax, field, region, setup, base_data, case_data, annual)
     # End def
 
-    make_regional_plots(adfobj, setup, base_data, plot_series,
+    make_regional_plots(adfobj, setup, plot_series,
                         plot_kind="RegionalTimeSeries", title="time series")
 
     print("\n  --- Regional time series plots generated successfully! ---")
