@@ -44,8 +44,10 @@ def amwg_table(adf):
     - values are weighted by the land area of each cell (area * landfrac);
     - the variable defaults' 'avg_method' gives a weighted mean ('mean') or a
       global total ('sum' or 'cumsum'), scaled by 'scale_factor_table' and
-      reported in 'table_unit';
-    - the time series years ("adf.ts_yrs") are used, not the climatology years.
+      reported in 'table_unit'.
+
+    Both tables use the time series years ("adf.ts_yrs"), which may cover more
+    than the climatology years ("adf.climo_yrs").
 
     Description of needed inputs from ADF:
 
@@ -155,9 +157,9 @@ def amwg_table(adf):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
     input_ts_locs = adf.get_cam_info("cam_ts_loc") or [None] * len(case_names)
 
-    #Grab case years (time series years for land, which may differ from
-    #the climatology years):
-    table_yrs = adf.ts_yrs if is_lnd else adf.climo_yrs
+    #Grab case years.  The table is made from the time series, so it uses the
+    #time series years, which may cover more than the climatology years:
+    table_yrs = adf.ts_yrs
     syear_cases = table_yrs["syears"]
     eyear_cases = table_yrs["eyears"]
 
