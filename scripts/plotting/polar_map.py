@@ -147,7 +147,7 @@ def polar_map(adfobj):
 
         # Get variable-specific settings
         vres = res.get(var, {})
-        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         web_category = vres.get("category", None)
         vres["plot_type"] = __name__
 
@@ -258,8 +258,8 @@ def polar_map(adfobj):
                 
             case_name = plot['case']
             case_idx = plot['case_idx']
-            vres["season"] = plot['season']
-            vres["hemi"] = plot['hemi']
+            vres['season'] = plot['season']
+            vres['hemi'] = plot['hemi']
             plot_loc = Path(plot_locations[case_idx])
 
             if unstruct_plotting:
@@ -345,16 +345,10 @@ def polar_map(adfobj):
             else:
                 has_lev = False
 
-            if not unstructured:
-                if has_lev and pres_levs and plot.get('lev'):
-                    if not all(dim in mdata.dims for dim in ['lat', 'lev']):
-                        continue
-                else:
-                    if not utils.lat_lon_validate_dims(mdata):
-                        continue
-
             if has_lev and pres_levs and plot.get('lev'):
-                pres = plot['lev']
+                if not all(dim in mdata.dims for dim in ['lat', 'lev']):
+                    continue
+                pres = plot["lev"]
                 # The level has to be one that was interpolated to -- see
                 # 'interp_press_levels' in the config file.  Without this an
                 # unavailable level ends the whole run in a KeyError from .sel,
@@ -369,6 +363,9 @@ def polar_map(adfobj):
                 mdata = mdata.sel(lev=pres)
                 odata_level = odata.sel(lev=pres)
                 vres["lev"] = pres
+            else:
+                if not utils.lat_lon_validate_dims(mdata):
+                    continue
 
             # Calculate seasonal means and differences
             use_odata = odata_level if has_lev else odata
@@ -388,8 +385,7 @@ def polar_map(adfobj):
                 [syear_baseline, eyear_baseline],
                 mseason, oseason, dseason, pseason,
                 hemisphere=get_hemisphere(plot['hemi']),
-                obs=adfobj.compare_obs, unstructured=unstructured,
-                **vres
+                obs=adfobj.compare_obs, **vres
             )
 
             # Add to website

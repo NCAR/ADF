@@ -108,7 +108,7 @@ def zonal_mean(adfobj):
                     logp_zonal_skip.append(plot_name_log)
                     #Continue to next iteration:
                     adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s,
-                                            plot_type="Zonal", category="Log-P")
+                                            plot_type="Zonal", category=web_category)
                     pass
 
                 elif (redo_plot) and plot_name_log.is_file():
@@ -159,18 +159,7 @@ def zonal_mean(adfobj):
             vres = {}
         #End if
 
-        unstruct_plotting = adfobj.unstructured_plotting
-        if unstruct_plotting:
-            #config["unstructured_plotting"] = unstruct_plotting
-            unstructured = unstruct_plotting
-            #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
-            #kwargs["mesh_file"] = mesh_file
-        else:
-            unstructured = False
-        #config["unstructured_plotting"] = unstructured
-        vres["unstructured_plotting"] = unstructured
-
-        vres = plot_utils.add_var_to_vres(adfobj, var, vres)
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         vres["plot_type"] = __name__
         #Extract category (if available):
         web_category = vres.get("category", None)
@@ -356,7 +345,7 @@ def zonal_mean(adfobj):
                                                         mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)
 
                     #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category="Log-P")
+                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category=web_category)
                 #End if
 
             #End for (seasons loop)
