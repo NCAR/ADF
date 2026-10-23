@@ -140,30 +140,35 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: clm6_hh_ukesm_cou
+    cam_case_name: clm6_flat_ukesm_noN_cou
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'clm6_hh_cou'
+    case_nickname: 'flat noN_cou'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
 
-    # If unstructured_plotting, a mesh file is required!
+    #ESMF mesh file of this native-grid case, needed to plot it on its own grid
+    #("unstructured_plotting: true"); not used otherwise:
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
     ts_start_year: 1850
-    climo_start_year: 1981
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
     ts_end_year: 2000
+    #("start_year" and "end_year" are accepted as other names for these.)
+
+    #Years the climatology covers, within the time series years above.  If
+    #missing, the climatology covers all of the time series years:
+    climo_start_year: 1981
     climo_end_year: 2000
 
     #Calculate time series files?
@@ -206,34 +211,39 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: clm6_hh_ukesm_ctrl
+    cam_case_name: clm6_flat_ukesm_cou
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'clm6_hh_ctrl'
+    case_nickname: 'clm6_flat_cou'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/campaign/cgd/tss/projects/WIEMIP/1pct_co2/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
 
-    # If unstructured_plotting, a mesh file is required!
+    #ESMF mesh file of this native-grid case, needed to plot it on its own grid
+    #("unstructured_plotting: true"); not used otherwise:
     mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
 
     #Location of baseline CAM climatologies:
-    cam_climo_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/proc/climo
+    cam_climo_loc: /glade/campaign/cgd/tss/projects/WIEMIP/1pct_co2/${diag_cam_baseline_climo.cam_case_name}/lnd/proc/climo
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
     #       start at earliest available year.
     ts_start_year: 1850
-    climo_start_year: 1981
 
     #model year when time series files should end:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
     ts_end_year: 2000
+    #("start_year" and "end_year" are accepted as other names for these.)
+
+    #Years the climatology covers, within the time series years above.  If
+    #missing, the climatology covers all of the time series years:
+    climo_start_year: 1981
     climo_end_year: 2000
 
     #Calculate time series files?
@@ -253,7 +263,7 @@ diag_cam_baseline_climo:
     cam_overwrite_ts: false
 
     #Location where time series files are (or will be) stored:
-    cam_ts_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/proc/ts
+    cam_ts_loc: /glade/campaign/cgd/tss/projects/WIEMIP/1pct_co2/${diag_cam_baseline_climo.cam_case_name}/lnd/proc/ts
 
 
 
@@ -347,10 +357,11 @@ diag_var_list:
   - PREC
   - ASA
   - ET
-  - QRUNOFF_TO_COUPLER
+    #- QRUNOFF_TO_COUPLER
   - TWS
   - AREA_BURNED
   - SOILWATER_10CM
+  - NPP_NUPTAKE
 
 # Variables plotted by regional_climatology and regional_timeseries.
 # Max 15 variables (4x4 figure, first panel is the region map).
@@ -360,16 +371,16 @@ regional_var_list:
     - ELAI
     - FSDS
     - FLDS
-    - WIND
+    - GPP
     - ASA
-    - QRUNOFF_TO_COUPLER
-    - FSH
+    - QRUNOFF
+    - FCH4
     - ET
-    - FCEV
-    - SNOWDP
-    - BCDEP
-    - NDEP_TO_SMINN
-    - QBOT
+    - NPP
+    - NBP
+    - AREA_BURNED
+    - TOTVEGC
+    - TOTSOMC
     ## For polar focused analyses:
     #- FSDS
     #- FLDS
