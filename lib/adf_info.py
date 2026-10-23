@@ -1219,16 +1219,21 @@ class AdfInfo(AdfConfig):
         """Return the "unstructured_plotting" logical to the user if requested."""
         return self.__unstructured_plotting
 
-    # Create property needed to return "num_procs" to user:
+    # Create property needed to return the "diag_basic_info" "mesh_file" to user
+    # (the diagnostics use each case's own mesh, from "mesh_files", instead):
     @property
     def mesh_file(self):
-        """Return the "mesh_file" logical to the user if requested."""
+        """Return the "mesh_file" path from "diag_basic_info" (None if not given)."""
         return self.__mesh_file
 
-    # Create property needed to return the case nicknames to user:
+    # Create property needed to return the test case and baseline mesh files to user:
     @property
     def mesh_files(self):
-        """Return the test case and baseline mesh files to the user if requested."""
+        """Return the test case and baseline mesh files to the user if requested.
+
+        "test_mesh_file" is a list with one entry per test case (None for a case
+        without one); "baseline_mesh_file" is the baseline's (or None).
+        """
 
         # Note that copies are needed in order to avoid having a script mistakenly
         # modify these variables, as they are mutable and thus passed by reference:
