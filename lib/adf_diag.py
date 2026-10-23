@@ -26,6 +26,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import adf_utils as utils
+
 # Check if "PyYAML" is present in python path:
 # pylint: disable=unused-import
 try:
@@ -65,6 +67,30 @@ try:
 except ImportError:
     print("Cartopy module does not exist in python path.")
     print("Please install module, e.g. 'pip install Cartopy'.")
+    sys.exit(1)
+
+# Check if "uxarray" is present in python path:
+# try:
+#    import uxarray as ux
+# except ImportError:
+#    print("uxarray module does not exist in python path.")
+#    print("Please install module, e.g. 'pip install uxarray'.")
+#    sys.exit(1)
+
+# Check if "esmpy" is present in python path:
+try:
+    import esmpy
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install esmpy'.")
+    sys.exit(1)
+
+# Check if "xesmf" is present in python path:
+try:
+    import xesmf
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install xesmf'.")
     sys.exit(1)
 
 # pylint: enable=unused-import
@@ -545,6 +571,80 @@ class AdfDiag(AdfWeb):
 
     #########
 
+    def grid_native_time_series(
+        self, case_name, case_idx, ts_dir, hist_strs, overwrite, baseline=False
+    ):
+        """
+        Grid a native-grid case's time series to lat/lon, into "gridded".
+
+        Only for a case on a native (unstructured) grid that is not being
+        plotted natively: the diagnostics then read the lat/lon copies, which
+        are made with the case's weights file.  Used after either time series
+        back end, which both name their files ``$case.$hist_str.$var.$dates.nc``.
+
+        Parameters
+        ----------
+        case_name : str
+            The case (or baseline) name.
+        case_idx : int
+            The case's position among the test cases (unused for the baseline).
+        ts_dir : str or pathlib.Path
+            The case's time series directory.
+        hist_strs : list of str
+            The case's history streams.
+        overwrite : bool
+            Re-grid files that already have a gridded copy.
+        baseline : bool, optional
+            Whether `case_name` is the baseline.
+        """
+        if not self.native_grid.get(case_name, False) or self.unstructured_plotting:
+            return
+        # End if
+
+        if baseline:
+            wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
+            method = self.latlon_regrid_method["baseline_regrid_method"]
+        else:
+            wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
+            method = self.latlon_regrid_method["test_regrid_method"][case_idx]
+        # End if
+        if not wgts_file:
+            # Every variable of the case would fail the same way, so stop here:
+            emsg = f"'{case_name}' is on a native grid, but has no 'weights_file' to"
+            emsg += (
+                " grid it to lat/lon.  Add one, or set 'unstructured_plotting: true'."
+            )
+            self.end_diag_fail(emsg)
+        # End if
+
+        gridded_loc = Path(ts_dir) / "gridded"
+        gridded_loc.mkdir(parents=True, exist_ok=True)
+        print(f"\n    Gridding native time series for '{case_name}' to {gridded_loc}")
+
+        for hist_str in hist_strs or []:
+            # This case's files for this stream only: the directory may hold
+            # other streams or other cases.
+            for fil in sorted(Path(ts_dir).glob(f"{case_name}.{hist_str}.*.nc")):
+                gridded_file = gridded_loc / fil.name.replace(".nc", "_gridded.nc")
+                if gridded_file.is_file() and not overwrite:
+                    print(
+                        f"\t    INFO: {gridded_file.name} exists and overwrite is False."
+                    )
+                    continue
+                # End if
+                var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
+                with xr.open_dataset(fil) as ts_ds:
+                    gridded = utils.grid_to_latlon(
+                        ts_ds,
+                        var,
+                        wgt_file=wgts_file,
+                        method=method,
+                    )
+                    save_to_nc(gridded, gridded_file)
+                # End with
+            # End for
+        # End for
+
     def create_time_series(self, baseline=False):
         """
         Generate time series versions of the CAM history file data.
@@ -559,7 +659,22 @@ class AdfDiag(AdfWeb):
         if str(ts_tool).lower() == "gents":
             from adf_gents import create_time_series_gents
 
-            return create_time_series_gents(self, baseline=baseline)
+            result = create_time_series_gents(self, baseline=baseline)
+            # GenTS writes the same file names, so the native-grid step that
+            # follows the built-in back end applies unchanged:
+            cfg = self.get_ts_case_config(baseline=baseline)
+            for case_idx, case_name in enumerate(cfg["case_names"]):
+                if cfg["cam_ts_done"][case_idx]:
+                    continue
+                self.grid_native_time_series(
+                    case_name,
+                    case_idx,
+                    cfg["ts_dirs"][case_idx],
+                    cfg["hist_str_list"][case_idx],
+                    cfg["overwrite_ts"][case_idx],
+                    baseline=baseline,
+                )
+            return result
         # End if
         if str(ts_tool).lower() != "adf":
             emsg = f"Unknown 'ts_tool' value '{ts_tool}'."
@@ -887,6 +1002,14 @@ class AdfDiag(AdfWeb):
                     # Variable list starts with just the variable
                     ncrcat_var_list = f"{var}"
 
+                    # On a native grid the cell centres and areas are separate
+                    # variables, not coordinates, so ncrcat has to be asked for
+                    # them (the GenTS back end copies them by itself):
+                    if "ncol" in hist_file_ds[var].dims:
+                        for extra in ("lat", "lon", "area"):
+                            if extra in hist_file_var_list:
+                                ncrcat_var_list += f",{extra}"
+
                     # Determine "ncrcat" command to generate time series file:
                     if "date" in hist_file_ds[var].dims:
                         ncrcat_var_list = ncrcat_var_list + ",date"
@@ -1007,7 +1130,19 @@ class AdfDiag(AdfWeb):
                             syr=start_year,
                             eyr=end_year,
                         )
+
             # End for hist_str
+
+            # Native-grid data plotted on lat/lon reads gridded copies of the
+            # time series:
+            self.grid_native_time_series(
+                case_name,
+                case_idx,
+                ts_dir,
+                hist_str_case,
+                overwrite_ts[case_idx],
+                baseline=baseline,
+            )
         # End cases loop
 
         # Notify user that script has ended:
@@ -1665,3 +1800,35 @@ class AdfDiag(AdfWeb):
                 # end for hist_str
             # end for var
         # end for case
+
+
+########
+
+# Helper Function(s)
+
+
+def save_to_nc(tosave, outname, attrs=None, proc=None):
+    """Saves xarray variable to new netCDF file"""
+
+    xo = tosave  # used to have more stuff here.
+    # deal with getting non-nan fill values.
+    if isinstance(xo, xr.Dataset):
+        enc_dv = {xname: {"_FillValue": None} for xname in xo.data_vars}
+    else:
+        enc_dv = {}
+    # End if
+    enc_c = {xname: {"_FillValue": None} for xname in xo.coords}
+    enc = {**enc_c, **enc_dv}
+    if attrs is not None:
+        xo.attrs = attrs
+    if proc is not None:
+        # The file(s) this data came from, as recorded when it was made:
+        origname = tosave.attrs.get(
+            "time_series_files", tosave.attrs.get("climatology_files", "unknown")
+        )
+        xo.attrs["Processing_info"] = f"Start from file {origname}. " + proc
+    xo.to_netcdf(outname, format="NETCDF4", encoding=enc)
+
+
+#####
+########

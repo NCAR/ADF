@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+
+"""
+script: run_adf_web
+
+goal:  To allow a user to easily build the CAM diagnostics website from
+       set of images via the command line.
+
+Inputs:  The ADF diagnostics config file (in YAML format).  If the file is
+         located in a different directory then the system path must also be
+         included.
+
+Any problems or issues with this script should be posted on the
+ADF Github Discussions page located online here:
+
+https://github.com/NCAR/ADF/discussions
+
+Please note that registration may be required before a message can
+be posted.  However, feel free to search the forums for similar issues
+(and possible solutions) without needing to register or sign in.
+
+Good luck, and may all your plots be helpful!
+"""
+
+#++++++++++++++++++++++++++++++
+#Import standard python modules
+#++++++++++++++++++++++++++++++
+
+import os.path
+import sys
+import argparse
+import json
+from jinja2 import Environment, FileSystemLoader
+
+#+++++++++++++++++++++++++++++
+#Import ADF diagnostics module
+#+++++++++++++++++++++++++++++
+
+#Determine local directory path:
+_LOCAL_PATH = os.path.dirname(os.path.abspath(__file__))
+
+#Add lib directory to path:
+_DIAG_LIB_PATH = os.path.join(_LOCAL_PATH,"lib")
+
+#Check that path actually exists:
+if os.path.isdir(_DIAG_LIB_PATH):
+    #If true, then add to Python path:
+    sys.path.append(_DIAG_LIB_PATH)
+else:
+    #If not, then raise error:
+    raise FileNotFoundError("'./lib' directory not found. Has 'run_adf_diag' been moved?")
+
+#Import ADF diagnostics object:
+from adf_diag import AdfDiag
+
+#Import ADF diagnostics error class:
+from adf_base import AdfError
+
+#################
+#Helper functions
+#################
+
+#++++++++++++++++++++++++++++++
+#Input argument parser function
+#++++++++++++++++++++++++++++++
+
+def parse_arguments():
+
+    """
+    Parses command-line input arguments using the argparse
+    python module and outputs the final argument object.
+    """
+
+    #Create parser object:
+    parser = argparse.ArgumentParser(description='Command-line wrapper to run the ADF diagnostics package.')
+
+    #Add input arguments to be parsed:
+    #--------------------------------
+
+    #Config file:
+    parser.add_argument('configure_file', nargs='?', action='store', type=str,
+                        help="YAML file used to configure CAM diagnostics.")
+
+    #Flag method to point to config file.  Will be removed at some point in the future.
+    parser.add_argument('--config-file', '--config_file', metavar='<DIAG_YAML_FILE>', action='store', type=str,
+                        help="YAML file used to configure CAM diagnostics (deprecated).")
+
+    #Debug setting:
+    #parser.add_argument('--debug', action='store_true', help="Turn on debug output.")
+
+    #Run just website generator for existing plots:
+    #parser.add_argument('--webpage', action='store_true', help="Run this if you have images and want to generate webpage\nThis will rely on the config file's ``")
+
+    #--------------------------------
+
+    #Parse Argument inputs
+    args = parser.parse_args()
+
+    #If no config file argument is present, then throw an error:
+    if (not args.configure_file) and (not args.config_file):
+        emsg = "No Config file found, please run 'run_diag <DIAG_YAML_FILE>'.\n"
+        emsg +="Where <DIAG_YAML_FILE> is the name of the yaml file used to configure"
+        emsg +="the diagnostics package."
+        parser.error(emsg)
+
+    return args
+
+############################
+#Main CAM diagnostics script
+############################
+
+#Run code below if command is called
+#directly from the command line:
+if __name__ == "__main__":
+
+    #+++++++++++++++++++++
+    #Begin ADF diag script
+    #+++++++++++++++++++++
+    print('ADF diagnostics is starting...')
+
+    #+++++++++++++++++++++++++++++++++++++++++++
+    #Check that python is version 3.6 or greater
+    #+++++++++++++++++++++++++++++++++++++++++++
+
+    if sys.version_info[0] < 3:
+        raise AdfError("Script only works with Python 3. Please switch python versions.")
+
+    if sys.version_info[1] < 6:
+        raise AdfError("Script only works with Python version 3.6 or greater.  Please update python.")
+
+    #++++++++++++++++++++++++++++
+    #Parse command-line arguments
+    #++++++++++++++++++++++++++++
+
+    args = parse_arguments()
+
+    #Extract YAML config file name/path:
+    if args.configure_file:
+      config_yaml = args.configure_file
+    else:
+      config_yaml = args.config_file
+
+    #Extract webpage flag:
+    #config_debug = args.webpage
+
+    #+++++++++++++++++++++++++++++++++
+    #Call ADF webpage builder method
+    #+++++++++++++++++++++++++++++++++
+
+    #Initalize CAM diagnostics object:
+    diag = AdfDiag(config_yaml)
+
+    print("WARNING WARNING LOOK OUT FOR FALLLING DEBRIS< THIS IS SOME UNCHARTE........\n\n",dir(diag),"\n\n")
+
+    from collections import defaultdict
+    from pathlib import Path
+
+    #imgs_path = Path("/glade/derecho/scratch/richling/ADF/plots/inform-try-new")
+    imgs_path = Path(diag.plot_location)
+    imgs = sorted(imgs_path.glob("*.png"))
+    imggs = []
+    for imh in imgs:
+        print(str(imh))
+        if "SOCRATES__" not in str(imh):
+            imggs.append(str(imh.parts[-1]).replace("SOCRATES_","SOCRATES__").replace("_nudge","__nudge"))
+        else:
+            imggs.append(str(imh.parts[-1]))
+
+    img_deets = []
+
+    img_deets_dict = {}
+    #for cat in ["Dropsonde Comparison", "Nd LWC PDF", "Sensitivity vs Sigma W"]:
+    #    print(cat)
+    cases = []
+    for fil in imggs:
+        img_deets_dict = {}
+        campaign, plot_type, case = (
+        fil.removesuffix(".png")
+                .split("__")
+        )
+        img_deets_dict["campaign"] = campaign
+        img_deets_dict["plot_type"] = plot_type
+        img_deets_dict["case"] = case
+        if case not in cases:
+            cases.append(case)
+        img_deets_dict["url"] = fil
+        #print(campaign)
+        #print(plot_type)
+        #print(case)
+        img_deets.append(img_deets_dict)
+
+
+    grouped = defaultdict(list)
+    plot_info = {
+        "nd_lwc": {
+            "type": "Nd LWC PDF",
+            "category": "Composited Micro",
+        },
+        "sensitivity_vs_sigmaw": {
+            "type": "Sensitivity vs Sigma W",
+            "category": "Composited Process",
+        },
+        "sigmaw_regime_comparison": {
+            "type": "Sigma W Regime Comparison",
+            "category": "Composited Process",
+        },
+        "RHvprof_diff_coll": {
+            "type": "Dropsonde Comparison",
+            "category": "Composited Macro",
+        },
+    }
+    for row in img_deets:
+        key = (row["campaign"], row["case"])
+
+        grouped[key].append({
+            "url": row["url"],
+            "type": plot_info[row["plot_type"]]["type"],
+            "category": plot_info[row["plot_type"]]["category"],
+        })
+
+    result = [
+        {
+            "campaign": campaign,
+            "case": case,
+            "urls": urls,
+        }
+        for (campaign, case), urls in grouped.items()
+    ]
+    print("\n\n",result)
+
+    #manifest = list(result.values())
+
+    #print("manifest",manifest)
+    with open("manifest_from_imgs.json", "w") as f:
+        json.dump(result, f, indent=2)
+
+
+    #Determine local directory:
+    #adf_lib_dir = Path(__file__).parent
+
+    #Set path to Jinja2 template files:
+    jinja_template_dir = Path('lib/website_templates')
+
+    #Create the jinja Environment object:
+    #jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
+    env = Environment(
+        loader=FileSystemLoader(jinja_template_dir)
+    )
+
+    template = env.get_template("template_inform_index.html")
+
+    html = template.render(
+        manifest=result
+    )
+
+    with open("inform_index.html", "w") as f:
+        f.write(html)
+
+
+
+
+
+    """
+    manifest_dict = {}
+
+    for web_data in self.__website_data:
+
+        campaign = web_data.case
+        case = web_data.cam_desc
+        url = str(web_data.data.parts[-1])
+
+        key = (campaign, case)
+
+        if key not in manifest_dict:
+
+            manifest_dict[key] = {
+                "campaign": campaign,
+                "case": case,
+                "urls": [],
+            }
+
+        manifest_dict[key]["urls"].append({"url":url, "type":web_data.plot_type, "category":web_data.category})
+
+    manifest = list(manifest_dict.values())
+
+    print("manifest",manifest)
+    with open("manifest.json", "w") as f:
+        json.dump(manifest, f, indent=2)
+
+
+    #Determine local directory:
+    adf_lib_dir = Path(__file__).parent
+
+    #Set path to Jinja2 template files:
+    jinja_template_dir = Path(adf_lib_dir, 'website_templates')
+
+    #Create the jinja Environment object:
+    #jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
+
+
+    from jinja2 import Environment, FileSystemLoader
+
+    env = Environment(
+        loader=FileSystemLoader(jinja_template_dir)
+    )
+
+    template = env.get_template("template_inform_index.html")
+
+    html = template.render(
+        manifest=manifest
+    )
+
+    with open("inform_index.html", "w") as f:
+        f.write(html)
+    """
+
+
+    #+++++++++++++++
+    #End diag script
+    #+++++++++++++++
+    print('\nADF webpage generations has completed successfully.')
+    sys.exit(0)

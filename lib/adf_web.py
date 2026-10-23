@@ -70,6 +70,10 @@ class _WebData:
         html_file=None,
         asset_path=None,
         multi_case=False,
+        cam_desc="",
+        plot_loc=".",
+        panel=None,
+        panel_label=None,
     ):
 
         # Initialize relevant website variables:
@@ -85,6 +89,10 @@ class _WebData:
         self.html_file = html_file
         self.asset_path = asset_path
         self.multi_case = multi_case
+        self.plot_loc = plot_loc
+        self.cam_desc = cam_desc
+        self.panel = panel
+        self.panel_label = panel_label
 
 
 # +++++++++++++++++++++
@@ -110,6 +118,10 @@ class AdfWeb(AdfObs):
 
         # Initialize website mean plots dictionary:
         self.__website_data = []
+
+        # INFORM interactive (D3) pages whose combined JSON this run wrote,
+        # {(campaign, page): JSON file name}; see add_inform_page:
+        self.__inform_pages = {}
 
         # Initialize website plot type order lists:
         self.__plot_type_order = []
@@ -199,14 +211,15 @@ class AdfWeb(AdfObs):
         if not active_env:
             active_env = "--"
 
-        run_info = ""
-        if self.debug_log:
-            log_name = self.debug_fname
-            run_info = f"{log_name}".replace("debug", "run_info").replace(".log", ".md")
-            self.run_info = run_info
-            self._write_run_info_to_log(config_file, active_env)
+        # Always build the run info: it is meant to help debug the run setup,
+        # whether or not debug logging is on.  (debug_fname is set on every
+        # run; writing to the debug log itself does nothing without --debug.)
+        log_name = self.debug_fname
+        run_info = f"{log_name}".replace("debug", "run_info").replace(".log", ".md")
+        self.run_info = run_info
+        self._write_run_info_to_log(config_file, active_env)
         # Do nothing if user is not requesting a website to be generated:
-        if self.create_html and self.debug_log:
+        if self.create_html:
             # Write the run info into every website directory this run will build.
             # The content is the same for all of them, but "create_website" reads it
             # back from the directory belonging to each web_data's case -- including
@@ -331,6 +344,17 @@ class AdfWeb(AdfObs):
 
         self.debug_log(log_msg)
 
+    def add_inform_page(self, campaign, page, json_path):
+        """
+        Record that this run wrote the combined JSON for one INFORM
+        interactive page, so create_website builds that page (and the
+        dashboard shows its tab) only when its data is from this run.
+
+        page is the page's file prefix: "dropsonde", "nd_lwc_pdf" or
+        "sensitivity_vs_sigmaw".
+        """
+        self.__inform_pages[(campaign, page)] = Path(json_path).name
+
     def add_website_data(
         self,
         web_data,
@@ -342,6 +366,10 @@ class AdfWeb(AdfObs):
         non_season=False,
         plot_type="Special",
         multi_case=False,
+        cam_desc="",
+        plot_loc=".",
+        panel=None,
+        panel_label=None,
     ):
         """
         Method that provides scripts a way to add an image file or
@@ -369,6 +397,13 @@ class AdfWeb(AdfObs):
         multi_case -> Logical which indicates whether the image or dataframe can contain
                       multiple cases (e.g. a line plot with one line for each case).
 
+        panel       -> Optional machine key distinguishing a multi-panel "summary" image
+                      from its individual component panels within the same (campaign, case,
+                      plot_type), e.g. "summary", "open_cell", "open_cell_bias". Leave as
+                      None for plot types that don't have this structure.
+
+        panel_label -> Optional human-readable label for "panel", e.g. "Open-Cell Bias".
+
         """
 
         # Do nothing if user is not requesting a website to be generated:
@@ -391,6 +426,26 @@ class AdfWeb(AdfObs):
                 wmsg += "\nNot sure what to do, so will skip this"
                 wmsg += " particular web entry."
                 print(wmsg)
+                return
+            # End if
+
+            # Initialize web data object:
+            if self.inform_diags:
+                web_data = _WebData(
+                    web_data,
+                    web_name,
+                    case_name,
+                    category=category,
+                    plot_type=plot_type,
+                    plot_loc=plot_loc,
+                    cam_desc=cam_desc,
+                    panel=panel,
+                    panel_label=panel_label,
+                )
+
+                # Add web data object to list:
+                self.__website_data.append(web_data)
+
                 return
             # End if
 
@@ -497,6 +552,170 @@ class AdfWeb(AdfObs):
             emsg += "\nPlease install module, e.g. 'pip install Jinja2'"
             self.end_diag_fail(emsg)
         # End except
+
+        if self.inform_diags:
+
+            import json
+            from pathlib import Path
+
+            """manifest = []
+
+            for web_data in self.__website_data:
+                print(f"OH BOY BIG? {dir(web_data)}")
+
+                print(f"campaign: {web_data.case}\ncase: {web_data.cam_desc}")
+                print("plot: {web_data.plot_type}")
+                prunt("url {str(web_data.data.parts[-1])}") #\nurl: {web_data.web_data}")
+                manifest.append({
+                    "urls": str(web_data.data.parts[-1]),
+                    "case": web_data.cam_desc,
+                    "campaign": web_data.case,
+                    "label": web_data.plot_type,
+                })"""
+            
+            plot_path = Path(self.plot_location[0])
+
+            #Create directory path where the website will be built:
+            website_dir = plot_path / "website"
+            assets_dir = website_dir / "assets"
+            assets_dir.mkdir(exist_ok=True)
+
+            manifest_dict = {}
+
+            for web_data in self.__website_data:
+
+                campaign = web_data.case
+                case = web_data.cam_desc
+                print(".   web INFORM CASE",case)
+                url = Path("assets") / str(web_data.data.parts[-1])
+
+                key = (campaign, case)
+
+                if key not in manifest_dict:
+
+                    manifest_dict[key] = {
+                        "campaign": campaign,
+                        "case": case,
+                        "urls": [],
+                    }
+
+                url_entry = {"url":str(url),
+                             "type":web_data.plot_type,
+                             "category":web_data.category}
+
+                #Only add panel/panel_label for plot types that actually use them
+                #(e.g. a multi-panel "summary" image plus its individual component
+                #panels), so other plot types' JSON is unaffected:
+                if web_data.panel is not None:
+                    url_entry["panel"] = web_data.panel
+                if web_data.panel_label is not None:
+                    url_entry["panel_label"] = web_data.panel_label
+
+                manifest_dict[key]["urls"].append(url_entry)
+
+            manifest = list(manifest_dict.values())
+
+            #Each entry lists its campaign's interactive pages with data from
+            #this run, so the dashboard only shows tabs for pages that exist:
+            for entry in manifest:
+                entry["interactive"] = sorted(page for (campaign, page) in self.__inform_pages
+                                              if campaign == entry["campaign"])
+
+            config_file_name = self.config_file_dict["name"]
+            current_man = f"manifest_{config_file_name}.json"
+
+            #Determine local directory:
+            adf_lib_dir = Path(__file__).parent
+
+            #Set path to Jinja2 template files:
+            jinja_template_dir = Path(adf_lib_dir, 'website_templates')
+
+            print("manifest",manifest)
+            #with open(jinja_template_dir / "manifest.json", "w") as f:
+            #    json.dump(manifest, f, indent=2)
+
+            # Build out INFORM D3 web data plot pages and Dashboard
+            #------------------------------------------------------
+            # One interactive page per (campaign, diagnostic) whose combined
+            # JSON this run wrote (registered by the diagnostics through
+            # add_inform_page), pointed at that JSON. A page with no data
+            # from this run is removed, so a page left by an earlier run in
+            # this directory can't show old results; its tab is left out of
+            # the dashboard through the manifest's "interactive" lists.
+            inform_templates = {
+                # page file prefix: (template, sample JSON name it references)
+                "dropsonde": ("template_dropsonde.html", "sample_dropsonde_profile.json"),
+                "nd_lwc_pdf": ("template_nd_lwc_pdf.html", "sample_nd_lwc_pdf.json"),
+                "sensitivity_vs_sigmaw": ("template_sensitivity_vs_sigmaw.html",
+                                          "sample_sensitivity_vs_sigmaw.json"),
+            }
+            for campaign_name in self.campaigns_dict["name"]:
+                for page, (template_fil, sample_json) in inform_templates.items():
+                    out_fil = website_dir / f'{page}_{campaign_name}.html'
+                    current_json = self.__inform_pages.get((campaign_name, page))
+                    if current_json is None:
+                        out_fil.unlink(missing_ok=True)
+                        continue
+                    with open(jinja_template_dir / template_fil, 'r', encoding='utf-8') as file:
+                        page_content = file.read()
+                    with open(out_fil, 'w', encoding='utf-8') as file:
+                        file.write(page_content.replace(sample_json, current_json))
+
+            #------------------------------
+
+            #Build out Dashboard
+            with open(jinja_template_dir / 'dashboard.js', 'r', encoding='utf-8') as file:
+                js_content = file.read()
+
+            #Update to actual json file
+            updated_content = js_content.replace('manifest.json', current_man)
+            with open(website_dir / 'dashboard.js', 'w', encoding='utf-8') as file:
+                file.write(updated_content)
+
+            shutil.copyfile(jinja_template_dir / "dashboard.html", website_dir / "dashboard.html")
+            shutil.copyfile(jinja_template_dir / "dashboard.css", website_dir / "dashboard.css")
+            #shutil.copyfile(jinja_template_dir / current_man, website_dir / current_man)
+            with open(str(website_dir / current_man), "w") as f:
+                json.dump(manifest, f, indent=2)
+
+            """#Determine local directory:
+            adf_lib_dir = Path(__file__).parent
+
+            #Set path to Jinja2 template files:
+            jinja_template_dir = Path(adf_lib_dir, 'website_templates')"""
+
+            #Create the jinja Environment object:
+            env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(jinja_template_dir)
+            )
+
+            template = env.get_template("template_inform_index.html")
+
+            html = template.render(
+                manifest=manifest
+            )
+
+            with open(website_dir / "inform_index.html", "w", encoding="utf-8") as f:
+                f.write(html)
+
+            #Move file to assets directory:
+            assets_dir = website_dir / "assets"
+            assets_dir.mkdir(exist_ok=True)
+            # Copy every campaign's plot PNGs (named "{campaign}__...") into
+            # assets/, driven by the configured campaign list
+            for campaign_name in self.campaigns_dict["name"]:
+                campaign_imgs = sorted(plot_path.glob(f"{campaign_name}*"))
+                for file_path in campaign_imgs:
+                    # Check if the file actually exists before trying to copy it
+                    if os.path.exists(file_path):
+                        # shutil.copy will copy the file into the destination folder
+                        shutil.copy(file_path, assets_dir)
+                    else:
+                        print(f"Warning: File not found, skipping: {file_path}")
+
+            #Notify user that script has finishedd:
+            print("  ...INFORM webpages have been generated successfully.")
+            return
 
         # Make jinja functions that mimics python functions.
         #  - This will allow for the use of 'list' in the html rendering.

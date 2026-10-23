@@ -885,7 +885,7 @@ def ozone_diagnostics (adfobj):
       
    #check if existing plots need to be redone
    redo_plot = adfobj.get_basic_info('redo_plot')
-   print(f"\t NOTE: redo_plot is set to {redo_plot}")
+   #print(f"\t NOTE: redo_plot is set to {redo_plot}")
          
    #Compare_Obs=0 #initially assumes that user is comparing two models
    Compare_Obs=0 #initially assumes that user is comparing two models

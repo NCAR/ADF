@@ -148,6 +148,42 @@ def variables_in_case_files(case_name, hist_loc, hist_strs, ts_loc, ts_done):
 # +++++++++++++++++++
 # Define Obs class
 # +++++++++++++++++++
+# ++++++++++++++++
+# Helper functions
+# ++++++++++++++++
+
+
+def _first_ts_file(ts_loc, case_name):
+    """The first time series file of `case_name` in `ts_loc`, or None."""
+    fils = sorted(Path(ts_loc).glob(f"{case_name}.*.nc"))
+    return fils[0] if fils else None
+
+
+def _on_native_grid(fil):
+    """Whether the model output in `fil` is on a native (unstructured) grid.
+
+    Parameters
+    ----------
+    fil : str, pathlib.Path, or None
+        A history or time series file; None when there is none to look at.
+
+    Returns
+    -------
+    bool
+        True for an unstructured ("ncol") grid; False for a lat/lon grid,
+        or when there is no file.
+    """
+    if fil is None:
+        return False
+    with xr.open_dataset(fil, decode_times=False) as dset:
+        dims = set(dset.dims)
+    if dims & {"ncol", "ncols"}:
+        print("\t  Looks like this is an unstructured grid")
+        return True
+    print("\t  Looks like this is a structured lat/lon grid")
+    return False
+
+
 class AdfInfo(AdfConfig):
     """
     Information/Parameter class, which initializes
@@ -163,6 +199,9 @@ class AdfInfo(AdfConfig):
 
         # Initialize Config attributes:
         super().__init__(config_file, debug=debug)
+
+        # Save config file name
+        self.__config_file = config_file
 
         # Add basic diagnostic info to object:
         self.__basic_info = self.read_config_var("diag_basic_info", required=True)
@@ -191,6 +230,20 @@ class AdfInfo(AdfConfig):
         if self.__mdtf_info is not None:
             self.expand_references(self.__mdtf_info)
         # End if
+
+        # Add INFORM campaign info to object:
+        self.__campaigns = self.read_config_var("campaigns")
+
+        if self.__campaigns is not None:
+            self.expand_references(self.__campaigns)
+        # End if
+
+        """self.__satellites = self.read_config_var('satellites')
+        self.expand_references(self.__satellites)
+
+        self.__models = self.read_config_var('models')
+        self.expand_references(self.__models)
+        """
 
         # Get the current system user
         self.__user = getpass.getuser()
@@ -228,7 +281,11 @@ class AdfInfo(AdfConfig):
         # End for
 
         # Initialize ADF variable list:
-        self.__diag_var_list = self.read_config_var("diag_var_list", required=True)
+        # (optional, since INFORM diagnostics don't use it)
+        self.__diag_var_list = self.read_config_var("diag_var_list")
+        if not self.__diag_var_list:
+            self.__diag_var_list = []
+        # End if
 
         # A single entry can be given as a plain string in the config file:
         if isinstance(self.__diag_var_list, str):
@@ -260,10 +317,18 @@ class AdfInfo(AdfConfig):
             # End for
         # End if
 
+        self.__native_grid = {}
+
         self.__base_hist_str = ""
+
+        self.__inform_diags = self.get_basic_info("inform_diags")
 
         # Initialize "compare_obs" variable:
         self.__compare_obs = self.get_basic_info("compare_obs")
+        redo_plot = self.get_basic_info("redo_plot")
+        plot_type = self.basic_info_dict.get("plot_type", "png")
+        print(f"\t NOTE: redo_plot is set to {redo_plot}")
+        print(f"\t NOTE: Plot type is set to {plot_type}")
 
         # Check if a CAM vs AMWG obs comparison is being performed:
         if self.__compare_obs:
@@ -282,6 +347,23 @@ class AdfInfo(AdfConfig):
             # Set the baseline years to empty strings:
             syear_baseline = ""
             eyear_baseline = ""
+            # Observations are never on a model's native grid:
+            self.__unstruct_base = False
+            baseline_mesh_file = None  # self.get_baseline_info("mesh_file")
+            self.__baseline_mesh_file = baseline_mesh_file
+
+            # Check if any a weights file exists if using native grid, OPTIONAL
+            baseline_wgts_file = None  # self.get_baseline_info("weights_file")
+            self.__baseline_wgts_file = baseline_wgts_file
+
+            baseline_regrid_method = None  # self.get_baseline_info("regrid_method")
+            if baseline_regrid_method == "conservative":
+                print(
+                    "user defined 'conservative', "
+                    "but xesmf has a typo, changing to 'coservative'"
+                )
+                baseline_regrid_method = "coservative"
+            self.__baseline_regrid_method = baseline_regrid_method
         else:
             # If not, then assume a CAM vs CAM run and add CAM baseline climatology info to object:
             self.__cam_bl_climo_info = self.read_config_var(
@@ -318,10 +400,31 @@ class AdfInfo(AdfConfig):
 
             # Check if any time series files are pre-made
             baseline_ts_done = self.get_baseline_info("cam_ts_done")
+            baseline_mesh_file = self.get_baseline_info("mesh_file")
+            self.__baseline_mesh_file = baseline_mesh_file
 
+            # Check if any a weights file exists if using native grid, OPTIONAL
+            baseline_wgts_file = self.get_baseline_info("weights_file")
+            self.__baseline_wgts_file = baseline_wgts_file
+
+            baseline_regrid_method = self.get_baseline_info("regrid_method")
+            if baseline_regrid_method == "conservative":
+                print(
+                    "user defined 'conservative', but xesmf has a typo, changing to 'coservative'"
+                )
+                baseline_regrid_method = "coservative"
+            self.__baseline_regrid_method = baseline_regrid_method
+
+            # Whether the baseline is on a native grid is read from its data
+            # below: a history file, or else a pre-made time series file.
+            unstruct = False
+
+            # INFORM diagnostics don't use baseline climo years:
+            if self.__inform_diags:
+                print()
             # Check if time series files already exist,
             # if so don't rely on climo years from history location
-            if baseline_ts_done:
+            elif baseline_ts_done:
                 baseline_hist_locs = None
 
                 # Grab baseline time series file location
@@ -332,6 +435,7 @@ class AdfInfo(AdfConfig):
                 found_syear_baseline, found_eyear_baseline = self.get_climo_yrs_from_ts(
                     input_ts_loc, data_name, hist_str=baseline_hist_str
                 )
+                unstruct = _on_native_grid(_first_ts_file(input_ts_loc, data_name))
 
                 # History file path isn't needed if user is running ADF directly on time series.
                 # So make sure start and end year are specified:
@@ -442,6 +546,7 @@ class AdfInfo(AdfConfig):
                     print(msg)
                     eyear_baseline = base_found_eyr
 
+                unstruct = _on_native_grid(file_list[0])
             else:
                 # Neither pre-made time series nor a history file location was provided,
                 # so years can only come from explicit start_year/end_year config entries.
@@ -452,6 +557,8 @@ class AdfInfo(AdfConfig):
                     emsg += "section of your config file."
                     self.end_diag_fail(emsg)
             # End if
+            self.__unstruct_base = unstruct
+            self.__native_grid[data_name] = unstruct
 
             # Grab baseline nickname
             base_nickname = self.get_baseline_info("case_nickname")
@@ -470,9 +577,11 @@ class AdfInfo(AdfConfig):
         self.__test_nicknames = test_nicknames
         self.__base_nickname = base_nickname
 
-        # Save starting and ending years as object variables:
-        self.__syear_baseline = syear_baseline
-        self.__eyear_baseline = eyear_baseline
+        if not self.__inform_diags:
+            # Save starting and ending years as object variables:
+            self.__syear_baseline = syear_baseline
+            self.__eyear_baseline = eyear_baseline
+        # End if
 
         # Create plot location variable for potential use by the website generator.
         # Please note that this is also assumed to be the output location for the analyses scripts:
@@ -481,6 +590,16 @@ class AdfInfo(AdfConfig):
 
         # Plot directory:
         plot_dir = self.get_basic_info("cam_diag_plot_loc", required=True)
+
+        # Unstructured plotting:
+        unstructured_plotting = self.get_basic_info("unstructured_plotting")
+        if not unstructured_plotting:
+            unstructured_plotting = False
+        self.__unstructured_plotting = unstructured_plotting
+
+        # Mesh file
+        mesh_file = self.get_basic_info("mesh_file")
+        self.__mesh_file = mesh_file
 
         # Case names:
         case_names = self.get_cam_info("cam_case_name", required=True)
@@ -528,14 +647,96 @@ class AdfInfo(AdfConfig):
 
         # Check if using pre-made ts files
         cam_ts_done = self.get_cam_info("cam_ts_done")
+        if not cam_ts_done:
+            cam_ts_done = [False] * self.__num_cases
+        # End if
+
+        # Check if any a FV file exists if using native grid
+        cam_mesh_files = self.get_cam_info("mesh_file")
+        if cam_mesh_files is None:
+            cam_mesh_files = [None] * len(case_names)
+        self.__cam_mesh_files = cam_mesh_files
+
+        # Check if any a weights file exists if using native grid, OPTIONAL
+        cam_wgts_files = self.get_cam_info("weights_file")
+        if cam_wgts_files is None:
+            cam_wgts_files = [None] * len(case_names)
+        self.__cam_wgts_files = cam_wgts_files
+
+        # The method is checked (and "conservative" mapped to what xesmf
+        # needs) by adf_utils.grid_to_latlon, which also takes None:
+        cam_regrid_method = self.get_cam_info("regrid_method")
+        if cam_regrid_method is None:
+            cam_regrid_method = [None] * len(case_names)
+        self.__cam_regrid_method = cam_regrid_method
 
         # Grab case time series file location(s)
-        input_ts_locs = self.get_cam_info("cam_ts_loc", required=True)
+        # (optional, since INFORM diagnostics don't use time series)
+        input_ts_locs = self.get_cam_info("cam_ts_loc")
+        if not input_ts_locs:
+            input_ts_locs = [None] * self.__num_cases
+        # End if
 
         # Loop over cases:
         syears_fixed = []
         eyears_fixed = []
+        unstructs = []
         for case_idx, case_name in enumerate(case_names):
+            if self.__inform_diags:
+                # INFORM diagnostics don't use climo years, so only report
+                # (don't fail on) missing history files:
+                if cam_hist_locs[case_idx]:
+                    # Grab first possible hist string
+                    hist_str_use = hist_str[case_idx][0]
+
+                    starting_location = Path(cam_hist_locs[case_idx])
+                    print(f"\tChecking history files in '{starting_location}'")
+
+                    # Check if the history file location exists
+                    if not starting_location.is_dir():
+                        msg = "Checking history file location:\n"
+                        msg += f"\tThere is no history file location: '{starting_location}'."
+                        self.debug_log(msg)
+                        emsg = f"{case_name} starting_location: History file location not found!\n"
+                        emsg += "\tTry checking the path 'cam_hist_loc' in 'diag_cam_climo' "
+                        emsg += "section in your config file is correct..."
+                        print(emsg)
+
+                    # Check if there are any history files
+                    file_list = sorted(starting_location.glob("*" + hist_str_use + ".*.nc"))
+                    if len(file_list) == 0:
+                        msg = "Checking history files:\n"
+                        msg += f"\tThere are no history files in '{starting_location}'."
+                        self.debug_log(msg)
+                        emsg = f"{case_name} starting_location {starting_location}: "
+                        emsg += f"No history files found for {hist_str_use}!\n"
+                        emsg += "\tTry checking the path 'cam_hist_loc' or the 'hist_str' "
+                        emsg += "in 'diag_cam_climo' "
+                        emsg += "section in your config file are correct..."
+                        print(emsg)
+                # End if
+
+                unstructs.append(False)
+                self.__native_grid[case_name] = False
+
+                # All INFORM output goes to the plot directory itself
+                # (scripts use the first entry of plot_location):
+                plot_loc = plot_dir
+                self.__plot_location.append(plot_loc)
+
+                diag_location = Path(plot_loc)
+                print(f"\n\tDiagnostic Plot Location: {diag_location}")
+                if not diag_location.is_dir():
+                    print(
+                        "\tINFO: Directory not found, making new diagnostic plot location"
+                    )
+                    diag_location.mkdir(parents=True)
+                continue
+            # End if
+
+            # Whether the case is on a native grid is read from its data
+            # below: a history file, or else a pre-made time series file.
+            unstruct = False
 
             syear = syears[case_idx]
             eyear = eyears[case_idx]
@@ -549,9 +750,11 @@ class AdfInfo(AdfConfig):
                 print(f"Checking existing time-series files in {input_ts_loc}")
 
                 # Get years from pre-made timeseries file(s)
+                # found_syear, found_eyear = self.get_climo_yrs_from_ts(input_ts_loc, case_name)
                 found_syear, found_eyear = self.get_climo_yrs_from_ts(
                     input_ts_loc, case_name, hist_str=self.__hist_str[case_idx]
                 )
+                unstruct = _on_native_grid(_first_ts_file(input_ts_loc, case_name))
 
                 # History file path isn't needed if user is running ADF directly on time series.
                 # So make sure start and end year are specified:
@@ -619,6 +822,8 @@ class AdfInfo(AdfConfig):
                     emsg += "section in your config file are correct..."
                     self.end_diag_fail(emsg)
 
+                unstruct = _on_native_grid(file_list[0])
+
                 # Partition string to find exactly where h-number is
                 # This cuts the string before and after the `{hist_str}.` sub-string
                 # so there will always be three parts:
@@ -665,6 +870,9 @@ class AdfInfo(AdfConfig):
                 # End if
             # End if
 
+            unstructs.append(unstruct)
+            self.__native_grid[case_name] = unstruct
+
             # Update climo year lists in case anything changed
             syear = int(syear)
             eyear = int(eyear)
@@ -695,13 +903,17 @@ class AdfInfo(AdfConfig):
                 diag_location.mkdir(parents=True)
         # End for
 
-        self.__syears = syears_fixed
-        self.__eyears = eyears_fixed
+        if not self.__inform_diags:
+            self.__syears = syears_fixed
+            self.__eyears = eyears_fixed
+        # End if
+
+        self.__unstruct_test = unstructs
 
         # Finally add baseline case (if applicable) for use by the website table
         # generator.  These files will be stored in the same location as the first
         # listed case.
-        if not self.compare_obs:
+        if not self.compare_obs and not self.__inform_diags:
             self.__plot_location.append(os.path.join(plot_dir, first_case_dir))
         # End if
         # -------------------------------------------------------------------------
@@ -802,6 +1014,12 @@ class AdfInfo(AdfConfig):
         """Return the "user" name if requested."""
         return self.__user
 
+    # Create property needed to return "inform_diags" logical to user:
+    @property
+    def inform_diags(self):
+        """Return the "inform_diags" logical to the user if requested."""
+        return self.__inform_diags
+
     # Create property needed to return "compare_obs" logical to user:
     @property
     def compare_obs(self):
@@ -814,13 +1032,23 @@ class AdfInfo(AdfConfig):
         """Return the "num_cases" integer value to the user if requested."""
         return self.__num_cases
 
-    # Create property needed to return "diag_var_list" list to user:
     @property
     def diag_var_list(self):
         """Return a copy of the "diag_var_list" list to the user if requested."""
         # Note that a copy is needed in order to avoid having a script mistakenly
         # modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__diag_var_list)
+
+    # Create property needed to return "config_file" list to user:
+    @property
+    def config_file_dict(self):
+        """Return the "config_file_dict" dict to the user if requested."""
+        self.__config_file_dict = {
+            "file_path": self.__config_file,
+            "file_name": Path(self.__config_file).name,
+            "name": Path(self.__config_file).stem,
+        }
+        return self.__config_file_dict
 
     # Create property needed to return "basic_info" expanded dictionary to user:
     @property
@@ -830,7 +1058,7 @@ class AdfInfo(AdfConfig):
         # modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__basic_info)
 
-    # Create property needed to return "basic_info" expanded dictionary to user:
+    # Create property needed to return "cam_climo_dict" expanded dictionary to user:
     @property
     def cam_climo_dict(self):
         """Return a copy of the "cam_climo_dict" list to the user if requested."""
@@ -838,13 +1066,40 @@ class AdfInfo(AdfConfig):
         # modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__cam_climo_info)
 
-    # Create property needed to return "basic_info" expanded dictionary to user:
+    # Create property needed to return "baseline_climo_dict" expanded dictionary to user:
     @property
     def baseline_climo_dict(self):
         """Return a copy of the "cam_bl_climo_info" list to the user if requested."""
         # Note that a copy is needed in order to avoid having a script mistakenly
         # modify this variable, as it is mutable and thus passed by reference:
         return copy.copy(self.__cam_bl_climo_info)
+
+    # Create property needed to return "unstructured_plotting" to user:
+    @property
+    def unstructured_plotting(self):
+        """Return the "unstructured_plotting" logical to the user if requested."""
+        return self.__unstructured_plotting
+
+    # Create property needed to return "num_procs" to user:
+    @property
+    def mesh_file(self):
+        """Return the "mesh_file" logical to the user if requested."""
+        return self.__mesh_file
+
+    # Create property needed to return the case nicknames to user:
+    @property
+    def mesh_files(self):
+        """Return the test case and baseline mesh files to the user if requested."""
+
+        # Note that copies are needed in order to avoid having a script mistakenly
+        # modify these variables, as they are mutable and thus passed by reference:
+        cam_mesh_files = copy.copy(self.__cam_mesh_files)
+        baseline_mesh_file = self.__baseline_mesh_file
+
+        return {
+            "test_mesh_file": cam_mesh_files,
+            "baseline_mesh_file": baseline_mesh_file,
+        }
 
     # Create property needed to return "num_procs" to user:
     @property
@@ -859,6 +1114,70 @@ class AdfInfo(AdfConfig):
         # Note that a copy is needed in order to avoid having a script mistakenly
         # modify this variable:
         return copy.copy(self.__plot_location)
+
+    # Create property needed to return the weight file dictionary to user:
+    @property
+    def latlon_wgt_files(self):
+        """Return the test case and weight file dictionary to the user if requested."""
+
+        # Note that copies are needed in order to avoid having a script mistakenly
+        # modify these variables, as they are mutable and thus passed by reference:
+        cam_wgts_files = copy.copy(self.__cam_wgts_files)
+        baseline_wgts_file = self.__baseline_wgts_file
+
+        return {
+            "test_wgts_file": cam_wgts_files,
+            "baseline_wgts_file": baseline_wgts_file,
+        }
+
+    # Create property needed to return the lat/lon regrid method to user:
+    @property
+    def latlon_regrid_method(self):
+        """Return the test case and baseline lat/lon regrid method to the user if requested."""
+
+        # Note that copies are needed in order to avoid having a script mistakenly
+        # modify these variables, as they are mutable and thus passed by reference:
+        cam_regrid_method = copy.copy(self.__cam_regrid_method)
+        baseline_regrid_method = self.__baseline_regrid_method
+
+        return {
+            "test_regrid_method": cam_regrid_method,
+            "baseline_regrid_method": baseline_regrid_method,
+        }
+
+    # Create property needed to return the unstructured dictionary to user:
+    @property
+    def unstructs(self):
+        """Return the test case and baseline unstructured dictionary to the user if requested."""
+
+        # Note that copies are needed in order to avoid having a script mistakenly
+        # modify these variables, as they are mutable and thus passed by reference:
+        unstruct_tests = copy.copy(self.__unstruct_test)
+        unstruct_base = self.__unstruct_base
+
+        return {"unstruct_tests": unstruct_tests, "unstruct_base": unstruct_base}
+
+    # Create property needed to return the native grid dictionary to user:
+    @property
+    def native_grid(self):
+        """Return the test case and baseline native grid dictionary to the user if requested."""
+
+        # Note that copies are needed in order to avoid having a script mistakenly
+        # modify these variables, as they are mutable and thus passed by reference:
+        native_grid = self.__native_grid
+
+        return native_grid
+
+    '''# Create property needed to return the native grid dictionary to user:
+    @property
+    def native_grid_gridded(self):
+        """Return the test case and baseline native grid dictionary to the user if requested."""
+
+        #Note that copies are needed in order to avoid having a script mistakenly
+        #modify these variables, as they are mutable and thus passed by reference:
+        native_grid_gridded = self.__native_grid_gridded
+
+        return native_grid_gridded'''
 
     # Create property needed to return the climo start (syear) and end (eyear) years to user:
     @property
@@ -897,6 +1216,29 @@ class AdfInfo(AdfConfig):
             base_hist_strs = ""
         hist_strs = {"test_hist_str": cam_hist_strs, "base_hist_str": base_hist_strs}
         return hist_strs
+
+    @property
+    def campaigns_dict(self):
+        """Return a copy of the "campaigns_dict" list to the user if requested."""
+        # Note that a copy is needed in order to avoid having a script mistakenly
+        # modify this variable, as it is mutable and thus passed by reference:
+        return copy.copy(self.__campaigns)
+
+    '''
+    @property
+    def satellite_dict(self):
+        """Return a copy of the "satellite_dict" list to the user if requested."""
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable, as it is mutable and thus passed by reference:
+        return copy.copy(self.__satellites)
+
+    @property
+    def model_dict(self):
+        """Return a copy of the "models_dict" list to the user if requested."""
+        #Note that a copy is needed in order to avoid having a script mistakenly
+        #modify this variable, as it is mutable and thus passed by reference:
+        return copy.copy(self.__models)
+    '''
 
     #########
 

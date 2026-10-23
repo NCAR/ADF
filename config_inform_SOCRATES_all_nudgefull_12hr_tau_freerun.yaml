@@ -1,0 +1,213 @@
+#==============================
+#config_cam_baseline_example.yaml
+
+#This is the main CAM diagnostics config file
+#for doing comparisons of a CAM run against
+#another CAM run, or a CAM baseline simulation.
+
+#Currently, if one is on NCAR's Casper or
+#Cheyenne machine, then only the diagnostic output
+#paths are needed, at least to perform a quick test
+#run (these are indicated with "MUST EDIT" comments).
+#Running these diagnostics on a different machine,
+#or with a different, non-example simulation, will
+#require additional modifications.
+#
+#Config file Keywords:
+#--------------------
+#
+#1.  Using ${xxx} will substitute that text with the
+#    variable referenced by xxx. For example:
+#
+#    cam_case_name: cool_run
+#    cam_climo_loc: /some/where/${cam_case_name}
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/cool_run
+#
+#    Please note that currently this will only work if the
+#    variable only exists in one location in the file.
+#
+#2.  Using ${<top_level_section>.xxx} will do the same as
+#    keyword 1 above, but specifies which sub-section the
+#    variable is coming from, which is necessary for variables
+#    that are repeated in different subsections.  For example:
+#
+#    diag_basic_info:
+#      cam_climo_loc:  /some/where/${diag_cam_climo.start_year}
+#
+#    diag_cam_climo:
+#      start_year: 1850
+#
+#    will set "cam_climo_loc" in the diagnostics package to:
+#    /some/where/1850
+#
+#Finally, please note that for both 1 and 2 the keywords must be lowercase.
+#This is because future developments will hopefully use other keywords
+#that are uppercase. Also please avoid using periods (".") in variable
+#names, as this will likely cause issues with the current file parsing
+#system.
+#--------------------
+#
+##==============================
+#
+# This file doesn't (yet) read environment variables, so the user must
+# set this themselves. It is also a good idea to search the doc for 'user'
+# to see what default paths are being set for output/working files.
+#
+# Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
+# to check for a failure to customize
+#
+user: 'richling'
+
+
+#This first set of variables specify basic info used by all diagnostic runs:
+diag_basic_info:
+    inform_diags: true
+
+    #Is this a model vs observations comparison?
+    #If "false" or missing, then a model-model comparison is assumed:
+    compare_obs: true
+
+    #Generate HTML website (assumed false if missing):
+    #Note:  The website files themselves will be located in the path
+    #specified by "cam_diag_plot_loc", under the "<diag_run>/website" subdirectory,
+    #where "<diag_run>" is the subdirectory created for this particular diagnostics run
+    #(usually "case_vs_obs_XXX" or "case_vs_baseline_XXX").
+    create_html: true
+
+    #Location of observational datasets:
+    #Note: this only matters if "compare_obs" is true and the path
+    #isn't specified in the variable defaults file.
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
+
+    #Location where diagnostic plots are stored:
+    cam_diag_plot_loc: /glade/derecho/scratch/richling/inform-output/socrates/all_nudgefull_withCOSP_all_tau_freerun
+
+    #Location of ADF variable plotting defaults YAML file:
+    #If left blank or missing, ADF/lib/adf_variable_defaults.yaml will be used
+    #Uncomment and change path for custom variable defaults file
+    #defaults_file: /some/path/to/defaults/file.yaml
+
+    #Number of processors on which to run the ADF.
+    #If this config variable isn't present then
+    #the ADF defaults to one processor.  Also, if
+    #you set it to "*" then it will default
+    #to all of the processors available on a
+    #single node/machine:
+    num_procs: 8
+
+    #If set to true, then redo all plots even if they already exist.
+    #If set to false, then if a plot is found it will be skipped:
+    redo_plot: false
+
+#This second set of variables provides info for the CAM simulation(s) being diagnosed:
+diag_cam_climo:
+    #Also please note that config keywords cannot currently be used in list mode.
+    hist_str:
+        - cam.h0i
+        - cam.h0i
+        - cam.h0i
+
+        - cam.h0i
+        - cam.h0i
+        - cam.h0i
+
+        - cam.h0i
+        - cam.h0i
+        - cam.h0i
+
+        - cam.h0i
+
+    cam_case_name:
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVfull_withCOSP_tau6h.002
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTfull_withCOSP_tau6h.002
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau6h.001
+
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVfull_withCOSP_tau12h.002
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTfull_withCOSP_tau12h.002
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau12h.001
+
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVfull_withCOSP_tau24h.002
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTfull_withCOSP_tau24h.002
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau24h.001
+
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_freerun_withCOSP_tau6h.001
+
+    #Case nickname
+    #NOTE: if nickname starts with '0' - nickname must be in quotes!
+    # ie '026a' as opposed to 026a
+    #If missing or left blank, will default to cam_case_name
+    case_nickname:
+        - nudgeUVfull_withCOSP_tau6h.002
+        - nudgeUVTfull_withCOSP_tau6h.002
+        - nudgeUVTQfull_withCOSP_tau6h.001
+
+        - nudgeUVfull_withCOSP_tau12h.002
+        - nudgeUVTfull_withCOSP_tau12h.002
+        - nudgeUVTQfull_withCOSP_tau12h.002
+
+        - nudgeUVfull_withCOSP_tau24h.002
+        - nudgeUVTfull_withCOSP_tau24h.002
+        - nudgeUVTQfull_withCOSP_tau24h.002
+
+        - FreeRun
+
+    cam_hist_loc:
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVfull_withCOSP_tau6h.002/atm/hist
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTfull_withCOSP_tau6h.002/atm/hist
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau6h.001/atm/hist
+
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVfull_withCOSP_tau12h.002/atm/hist
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTfull_withCOSP_tau12h.002/atm/hist
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau12h.001/atm/hist
+
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVfull_withCOSP_tau24h.002/atm/hist
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTfull_withCOSP_tau24h.002/atm/hist
+        - /glade/derecho/scratch/islas/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau24h.001/atm/hist
+
+        - /glade/derecho/scratch/richling/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_freerun_withCOSP_tau6h.001/atm/hist
+
+
+    #----------------------
+
+
+#List of plotting scripts being used.
+#These scripts must be located in "scripts/plotting":
+plotting_scripts:
+    #- inform_campaign_cloud_micro
+    - inform_model_analysis:
+        - macro
+        - micro
+        - process
+
+#List of CAM variables that will be processesd:
+#If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+diag_var_list:
+    - SWCF
+
+# Add research campaigns
+campaigns:
+    name:
+        - SOCRATES
+        #- CSET
+    campaign_data: # path to raw campaign data and save location for composited data
+        #- /glade/u/home/patnaude/inform/composited data
+        - /glade/derecho/scratch/richling/inform/ryan_campaign_data/socrates
+    composited_data: # path for saved composited data
+        - /glade/derecho/scratch/richling/inform-output/socrates/all_nudgefull_withCOSP_all_tau_freerun/composited_data
+    redo_composited:
+        - false
+        #- false
+    air_1hz_dir:
+        - /glade/work/patnaude/SOCRATES/aircraft_1hz
+        #- /glade/work/patnaude/CSET/aircraft_1hz
+    #air_25hz_dir:
+    #    - /glade/work/patnaude/SOCRATES/aircraft_25hz
+    #ccn_dir:
+    #    - /glade/work/patnaude/SOCRATES/CCN
+    campn_sonde_dir:
+        - /glade/work/patnaude/SOCRATES/dropsondes
+        #- /glade/work/patnaude/CSET/dropsondes
+
+#END OF FILE

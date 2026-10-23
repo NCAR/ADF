@@ -101,17 +101,21 @@ def qbo(adfobj):
 
     #----Read in the case data and baseline
     ncases = len(case_loc)
-    casedat = [
-        utils.load_dataset(
-            utils.select_ts_files(
-                sorted(Path(case_loc[i]).glob(f"{case_names[i]}.*.U.*.nc")),
-                syears[i],
-                eyears[i],
-            ),
-            use_time_bounds=True,
+    casedat = []
+    for i in range(0, ncases, 1):
+        #The "gridded" copy of native-grid time series, where the ADF made one:
+        ts_loc = adfobj.data.timeseries_dir(case_names[i], case_loc[i])
+        casedat.append(
+            utils.load_dataset(
+                utils.select_ts_files(
+                    sorted(ts_loc.glob(f"{case_names[i]}.*.U.*.nc")),
+                    syears[i],
+                    eyears[i],
+                ),
+                use_time_bounds=True,
+            )
         )
-        for i in range(0, ncases, 1)
-    ]
+    #End for
 
     #Find indices for all case datasets that don't contain a zonal wind field (U):
     bad_idxs = []
@@ -129,27 +133,29 @@ def qbo(adfobj):
         #End for
     #End if
 
-    #----Calculate the zonal mean
-    casedatzm = []
+    #----Calculate the 5S-5N average: from the zonal mean on a lat/lon grid, or
+    #----directly from the cells in that band on a native (ncol) grid
+    casedat_5S_5N = []
     for i in range(0,ncases,1):
+        if 'ncol' in casedat[i].U.dims:
+            casedat_5S_5N.append(nativeweightlat(casedat[i], -5, 5))
+            continue
+        #End if
         has_dims = utils.validate_dims(casedat[i].U, ['lon'])
         if not has_dims['has_lon']:
             print(f"\t    WARNING: Variable U is missing a lat dimension for '{case_loc[i]}', cannot continue to plot.")
         else:
-            casedatzm.append(casedat[i].U.mean("lon"))
-    if len(casedatzm) == 0:
+            casedat_5S_5N.append(cosweightlat(casedat[i].U.mean("lon"), -5, 5))
+    if len(casedat_5S_5N) == 0:
         print(f"\t  WARNING: No available cases found, exiting script.")
         exitmsg = "\tNo QBO plots will be made."
         print(exitmsg)
         return
-    if len(casedatzm) != ncases:
+    if len(casedat_5S_5N) != ncases:
         print(f"\t  WARNING: Number of available cases does not match number of cases. Will exit script for now.")
         exitmsg = "\tNo QBO plots will be made."
         print(exitmsg)
         return
-
-    #----Calculate the 5S-5N average
-    casedat_5S_5N = [ cosweightlat(casedatzm[i],-5,5) for i in range(0,ncases,1) ]
 
     #----Find the minimum number of years across dataset for plotting the timeseries.
     nyobs = np.floor(obs.time.size/12.)
@@ -237,6 +243,31 @@ def cosweightlat(darray, lat1, lat2):
     regionm = regionw.mean("lat")
 
     return regionm
+
+def nativeweightlat(dset, lat1, lat2):
+    """Average U over the cells of a native (ncol) grid between lat1 and lat2.
+
+    Weighted by the cells' areas, which the ADF adds to native-grid time series
+    as 'area'; equally when there are none, which on a near-uniform SE grid is
+    close (and closer than cos(latitude), which is only right for lat/lon).
+    """
+    lat = dset['lat']
+    if 'time' in lat.dims:
+        lat = lat.isel(time=0)
+    inband = ((lat >= lat1) & (lat <= lat2)).values
+    # Picking scattered columns out of the file directly is very slow, so read
+    # whole, contiguous blocks of time and select the band from those:
+    region = dset['U'].chunk({'time': 12}).isel(ncol=inband)
+    if 'area' in dset:
+        weights = dset['area']
+        if 'time' in weights.dims:
+            weights = weights.isel(time=0)
+        weights = weights.isel(ncol=inband)
+    else:
+        weights = xr.ones_like(lat.isel(ncol=inband))
+    # Computed once, here: the result is small (time, lev), and the plots
+    # read it several times.
+    return region.weighted(weights).mean('ncol').load()
 
 def calcddamp(data):
     """Calculate the Dunkerton and Delisi QBO amplitude"""

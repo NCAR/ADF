@@ -147,11 +147,12 @@ if __name__ == "__main__":
 
     #Create model time series.
     #Please note that this is an internal ADF function:
-    diag.create_time_series()
+    if not diag.basic_info_dict['inform_diags']:
+        diag.create_time_series()
 
-    #Create model baseline time series (if needed):
-    if not diag.compare_obs:
-        diag.create_time_series(baseline=True)
+        #Create model baseline time series (if needed):
+        if not diag.compare_obs:
+            diag.create_time_series(baseline=True)
 
     #Call the CVDP:
     if diag.get_cvdp_info('cvdp_run'):
@@ -207,4 +208,5 @@ if __name__ == "__main__":
     #End diag script
     #+++++++++++++++
     print('\nADF diagnostics has completed successfully.')
+    print(f'. Diagnostic plots and data can be found at:\n   {diag.plot_location}')
     sys.exit(0)

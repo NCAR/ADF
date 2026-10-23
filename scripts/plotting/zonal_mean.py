@@ -65,11 +65,11 @@ def zonal_mean(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
 
@@ -171,7 +171,16 @@ def zonal_mean(adfobj):
             base_name = adfobj.data.ref_labels[var]
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        if unstructured:
+            vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+            unstruct_base = True
+            odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
+            odata = odataset[var]
+            wgt_base = odataset.isel(time=0)[var]
+            vres["wgt_base"] = wgt_base
+            vres["unstruct_base"] = unstruct_base
+        else:
+            odata = adfobj.data.load_reference_regrid_da(base_name, var)
 
         #Check if regridded file exists, if not skip zonal plot for this var
         if odata is None:
@@ -182,14 +191,15 @@ def zonal_mean(adfobj):
         #Check zonal mean dimensions
         has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
 
-        # check if there is a lat dimension:
-        # if not, skip test cases and move to next variable
-        if not has_lat_ref:
-            print(
-                f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
-            )
-            continue
-        # End if
+        if not unstructured:
+            # check if there is a lat dimension:
+            # if not, skip test cases and move to next variable
+            if not has_lat_ref:
+                print(
+                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
+                )
+                continue
+            # End if
 
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
@@ -201,7 +211,38 @@ def zonal_mean(adfobj):
             plot_loc = Path(plot_locations[case_idx])
 
             # load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            if unstructured:
+                mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
+                vres["mesh_file"] = mesh_file
+                #mdata = adfobj.data.load_climo_da(case_name, var, **vres)
+                mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
+                mdata = mdataset[var]
+
+                unstruct_case = True
+                wgt = mdataset.isel(time=0)[var]
+
+                #Determine dimensions of variable:
+                if len(wgt.n_face) == len(vres["wgt_base"].n_face):
+                    vres["wgt"] = wgt
+                    vres["indataset"] = mdataset
+                else:
+                    print("The weights are different between test and baseline. Won't continue, eh.")
+                    return
+
+                unstruct_base = vres["unstruct_base"]
+                if (not unstruct_case) and (unstruct_base):
+                    print("Base is unstructured but Test is lat/lon. Can't continue?")
+                    return
+                if (unstruct_case) and (not unstruct_base):
+                    print("Base is lat/lon but Test is unstructured. Can't continue?")
+                    return
+                if (unstruct_case) and (unstruct_base):
+                    unstructured = True
+                if (not unstruct_case) and (not unstruct_base):
+                    unstructured = False
+                vres["unstructured_plotting"] = unstructured
+            else:
+                mdata = adfobj.data.load_regrid_da(case_name, var)
 
             if mdata is None:
                 dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
@@ -213,13 +254,14 @@ def zonal_mean(adfobj):
             # check data dimensions:
             has_lat, has_lev = utils.zm_validate_dims(mdata)
 
-            # check if there is a lat dimension:
-            if not has_lat:
-                print(
-                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
-                )
-                continue
-            # End if
+            if not unstructured:
+                # check if there is a lat dimension:
+                if not has_lat:
+                    print(
+                        f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
+                    )
+                    continue
+                # End if
 
             #Check if reference file has vertical levels
             #Notify user of level dimension:

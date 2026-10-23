@@ -1,0 +1,18 @@
+{
+  "files": {
+    "Display_INFORM_cldrgm.ipynb": "9b9182db669e29d31c3893aa64ce1afaa41003a810a1d10ebc2ac4a0bdc9dfb9",
+    "INFORM_cam_assessment_diagnostics.ipynb": "e569f8422e1ab7e493b4f1bc4eb9c441034d208627841af159c1c7fc68ed9fbf",
+    "INFORM_process_system_database.ipynb": "fe88f8edc7d94c038dfcfbc74dd0102602b64344ec6ac1c20ab40df93fc85cf5",
+    "README.md": "46ffef7363faf8c920453737a5299bd68f3b62184eb1decfe4c4195ee5ef6aff",
+    "Untitled.ipynb": "becb889018d968ee434811af97a3110b77fde3acb440c68dc8a8dc6d31344ae1",
+    "cam_diagnostic.py": "735f5b77a292cfd1b3faad2f75e9e8780449ad1a6e1ca14744bb7cc63c285faf",
+    "cam_era5_functions.py": "b507b70cb2b6c605d66ff7bb81a88d30e2541f2cca2149d6a8e071ffa4e32b1a",
+    "composite_flight_data_ERA5.ipynb": "d45cdca80f41ce5e7c63060916605abc5f6769ebd1f599a6f0cab6e1880bbe29",
+    "composited_dataset_try.py": "b772a57d615c2bba6e6f4e9d9bb1a46333c57caddf5e12cd02b593cda952b735",
+    "environment.yml": "716dedc178f4587ac62e463da3b637d07e9cd64d999f48d677b4faff80f6d42e",
+    "inform_grid_utils.py": "3e8e0a1bead8986a2358e147853b2de94bb6cac9700d068288dda2b1b16eb59d",
+    "inform_utils.py": "e269c26102ddca7f4263356205f5d78af5e40e7825f196e3b541733a16ff6ce6",
+    "main.py": "fe489b6a714c79a61464173823077e8398d63df268f74f5a545ed2ae3c49f41e",
+    "process_data_products_utils.py": "440589f0c7a4fcbf634d1c0e64986c91d81dde6b06947522f29ddc9d41d6e53a"
+  }
+}

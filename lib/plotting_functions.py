@@ -109,6 +109,7 @@ def make_polar_plot(
     domain: Optional[list] = None,
     hemisphere: Optional[str] = None,
     obs=False,
+    unstructured=False,
     **kwargs,
 ):
     """Make a stereographic polar plot for the given data and hemisphere.
@@ -180,25 +181,40 @@ def make_polar_plot(
         else:
             domain = [-180, 180, -90, -45]
 
-    # statistics for annotation (these are scalars):
-    d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain)
-    d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain)
-    dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(dif, domain)
-    pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(pct, domain)
+    means = []
+    mins = []
+    maxs = []
+    if not unstructured:
+        # statistics for annotation (these are scalars):
+        d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain)
+        d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain)
+        dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(
+            dif, domain
+        )
+        pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(
+            pct, domain
+        )
+        # downsize to the specified region; makes plotting/rendering/saving much faster
+        d1 = d1.sel(lat=slice(domain[2], domain[3]))
+        d2 = d2.sel(lat=slice(domain[2], domain[3]))
+        dif = dif.sel(lat=slice(domain[2], domain[3]))
+        pct = pct.sel(lat=slice(domain[2], domain[3]))
 
-    # downsize to the specified region; makes plotting/rendering/saving much faster
-    d1 = d1.sel(lat=slice(domain[2], domain[3]))
-    d2 = d2.sel(lat=slice(domain[2], domain[3]))
-    dif = dif.sel(lat=slice(domain[2], domain[3]))
-    pct = pct.sel(lat=slice(domain[2], domain[3]))
-
-    # add cyclic point to the data for better-looking plot
-    d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
-    d2_cyclic, _ = add_cyclic_point(
-        d2, coord=d2.lon
-    )  # since we can take difference, assume same longitude coord.
-    dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
-    pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
+        # add cyclic point to the data for better-looking plot
+        d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
+        d2_cyclic, _ = add_cyclic_point(
+            d2, coord=d2.lon
+        )  # since we can take difference, assume same longitude coord.
+        dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
+        pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
+        # wrap_fields = (d1_cyclic, d2_cyclic, dif_cyclic, pct_cyclic)
+        wrap_fields = (d1_cyclic, d2_cyclic, pct_cyclic, dif_cyclic)
+        # lons, lats = np.meshgrid(lon_cyclic, d1.lat)
+        lons, lats = plot_utils.transform_coordinates_for_projection(
+            proj, lon_cyclic, d1.lat
+        )  # Explicit coordinate transform
+    else:
+        lat = d1.uxgrid.face_lat.values
 
     wrap_fields = (d1_cyclic, d2_cyclic, pct_cyclic, dif_cyclic)
 
@@ -348,7 +364,7 @@ def make_polar_plot(
         height="90%",  # height : 90%
         loc="lower left",
         bbox_to_anchor=(1.05, 0.05, 1, 1),
-        bbox_transform=ax2.transAxes,
+        bbox_transform=axs[1].transAxes,
         borderpad=0,
     )
     cbar = fig.colorbar(imgs[0], cax=cb_mean_ax, **cp_info["colorbar_opt"])
@@ -361,7 +377,7 @@ def make_polar_plot(
         height="90%",  # height : 90%
         loc="lower left",
         bbox_to_anchor=(1.05, 0.05, 1, 1),
-        bbox_transform=ax3.transAxes,
+        bbox_transform=axs[3].transAxes,
         borderpad=0,
     )
 
@@ -371,7 +387,7 @@ def make_polar_plot(
         height="90%",  # height : 90%
         loc="lower left",
         bbox_to_anchor=(1.05, 0.05, 1, 1),
-        bbox_transform=ax4.transAxes,
+        bbox_transform=axs[2].transAxes,
         borderpad=0,
     )
 
@@ -395,7 +411,6 @@ def make_polar_plot(
 
 
 #######
-
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def plot_map_and_save(
@@ -663,8 +678,88 @@ def plot_map_and_save(
                     transform=ccrs.PlateCarree(),
                     transform_first=True,
                 )
-            )
-            ax[i].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props)
+                ax[i].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props
+                )
+            else:
+                if vector:
+                    if i == diff_idx:
+                        ua, va = other_wrap_fields[i]
+                        imgs.append(
+                            ax[i].contourf(
+                                lons,
+                                lats,
+                                diff_mag,
+                                transform=ccrs.PlateCarree(),
+                                transform_first=True,
+                                norm=norm,
+                                cmap="PuOr",
+                                alpha=0.5,
+                                extend=extend,
+                            )
+                        )
+                        ax[i].quiver(
+                            lons[skip],
+                            lats[skip],
+                            ua[skip],
+                            va[skip],
+                            transform=ccrs.PlateCarree(),
+                        )
+                    """if i == pctdiff_idx:
+                        img.append(ax[i].contourf(lons, lats, pctdiff_mag, transform=ccrs.PlateCarree(),
+                                                transform_first=True, norm=norm,
+                                cmap='PuOr', extend=extend
+                                ))
+                        #ax[i].quiver(lons[skip], lats[skip], upctdiffld[skip], vpctdiffld[skip],
+                        #             transform=ccrs.PlateCarree())"""
+                    if i in [0, 1]:
+                        ua, va = other_wrap_fields[i]
+                        imgs.append(
+                            ax[i].contourf(
+                                lons,
+                                lats,
+                                sim_mags[i],
+                                cmap="Greys",
+                                transform=ccrs.PlateCarree(),
+                                transform_first=True,
+                                extend=extend,
+                            )
+                        )
+                        ax[i].quiver(
+                            lons[skip],
+                            lats[skip],
+                            ua[skip],
+                            va[skip],
+                            mdl_mag.values[skip],
+                            transform=ccrs.PlateCarree(),
+                            cmap="Reds",
+                        )
+                        ax[i].quiver(
+                            lons[skip],
+                            lats[skip],
+                            ua[skip],
+                            va[skip],
+                            obs_mag.values[skip],
+                            transform=ccrs.PlateCarree(),
+                            cmap="Reds",
+                        )
+                else:
+                    imgs.append(
+                        ax[i].contourf(
+                            lons,
+                            lats,
+                            fld,
+                            levels=levels,
+                            cmap=cmap,
+                            norm=norm,
+                            transform=ccrs.PlateCarree(),
+                            transform_first=True,
+                            extend=extend,
+                            **cp_info["contourf_opt"],
+                        )
+                    )
+                # img.append(ax[i].contourf(lons, lats, a, levels=levels, cmap=cmap, norm=norm, transform=ccrs.PlateCarree(), transform_first=True, **cp_info['contourf_opt']))
+            # End if
         else:
             if vector:
                 if i == diff_idx:
@@ -858,6 +953,134 @@ def plot_map_and_save(
 #######
 
 
+"""def ux_to_lat_binned(da, bins=2):
+
+    da_vals = np.array(da)
+    lat = np.array(da.uxgrid.face_lat)
+
+    lat_bins = np.arange(-90, 90 + bins, bins)
+    lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
+    #bin_index = np.digitize(lat, lat_bins) - 1
+    bin_index = np.clip(np.digitize(lat, lat_bins) - 1, 0, len(lat_mid) - 1)
+
+    # --- 1D case ---
+    if da_vals.ndim == 1:
+        out = np.full((len(lat_mid), len(lat)), np.nan)
+
+        for i in range(len(lat_mid)):
+            mask = bin_index == i
+            out[i, mask] = da_vals[mask]
+
+        dims = ["lat", "n_face"]
+        coords = {"lat": lat_mid}
+
+    # --- 2D case ---
+    elif da_vals.ndim == 2:
+        nlev = da_vals.shape[0]
+        out = np.full((nlev, len(lat_mid), len(lat)), np.nan, dtype=float)
+
+        for i in range(len(lat_mid)):
+            mask = bin_index == i
+            out[:, i, mask] = da_vals[:, mask]
+
+        dims = ["lev", "lat", "n_face"]
+        coords = {
+            "lev": da["lev"].values,
+            "lat": lat_mid
+        }
+
+    else:
+        raise ValueError("Only 1D or 2D supported")
+    coords["n_face"] = np.arange(len(lat))
+    #return xr.DataArray(out, dims=dims, coords=coords)
+    return xr.DataArray(
+        out,
+        dims=dims,
+        coords=coords,
+        name=da.name,
+        attrs=da.attrs
+    )"""
+
+
+def ux_to_lat_binned(da, bins=2):
+
+    lat = np.asarray(da.uxgrid.face_lat)
+
+    lat_bins = np.arange(-90, 90 + bins, bins)
+    lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
+
+    bin_index = np.clip(np.digitize(lat, lat_bins) - 1, 0, len(lat_mid) - 1)
+
+    face_dim = da.dims[-1]
+
+    da_vals = da.values
+
+    new_shape = (*da_vals.shape[:-1], len(lat_mid), da_vals.shape[-1])
+
+    out = np.full(new_shape, np.nan, dtype=float)
+
+    for i in range(len(lat_mid)):
+        mask = bin_index == i
+        out[..., i, mask] = da_vals[..., mask]
+
+    new_dims = (*da.dims[:-1], "lat", face_dim)
+
+    coords = {}
+
+    for dim in da.dims[:-1]:
+        coords[dim] = da.coords[dim]
+
+    coords["lat"] = lat_mid
+    coords[face_dim] = np.arange(len(lat))
+
+    return xr.DataArray(out, dims=new_dims, coords=coords, name=da.name, attrs=da.attrs)
+
+
+def ux_to_lon_binned(da, bins=2):
+
+    da_vals = np.array(da)
+    lon = np.array(da.uxgrid.face_lon)
+    lon = (lon + 360) % 360  # converts -180→180 into 0→360
+
+    lon_bins = np.arange(0, 360 + bins, bins)
+    lon_mid = 0.5 * (lon_bins[:-1] + lon_bins[1:])
+    bin_index = np.clip(np.digitize(lon, lon_bins) - 1, 0, len(lon_mid) - 1)
+
+    # --- 1D case ---
+    if da_vals.ndim == 1:
+        out = np.full((len(lon_mid), len(lon)), np.nan)
+
+        for i in range(len(lon_mid)):
+            mask = bin_index == i
+            out[i, mask] = da_vals[mask]
+
+        dims = ["lon", "n_face"]
+        coords = {"lon": lon_mid}
+
+    # --- 2D case ---
+    elif da_vals.ndim == 2:
+        nlev = da_vals.shape[0]
+        out = np.full((nlev, len(lon_mid), len(lon)), np.nan, dtype=float)
+
+        for i in range(len(lon_mid)):
+            mask = bin_index == i
+            out[:, i, mask] = da_vals[:, mask]
+
+        dims = ["lev", "lon", "n_face"]
+        coords = {"lev": da["lev"].values, "lon": lon_mid}
+
+    else:
+        raise ValueError("Only 1D or 2D supported")
+
+    coords["n_face"] = np.arange(len(lon))
+    # coords["lon_orig"] = np.array(da.uxgrid.face_lon)
+    da_attrs = da.attrs.copy()
+    da_attrs["lon_orig"] = np.array(da.uxgrid.face_lon)
+    return xr.DataArray(
+        out, dims=dims, coords=coords, name=da.name, attrs=da_attrs  # da.attrs
+    )
+
+
 def zonal_plot(lat, data, ax=None, color=None, **kwargs):
     """Make zonal plot
 
@@ -925,6 +1148,50 @@ def meridional_plot(lon, data, ax=None, color=None, **kwargs):
         return img, ax
     ax = plot_utils.meridional_plot_line(ax, lon, data, color, **kwargs)
     return ax
+
+
+def zonal_mean_xr(fld):
+    """Average over all dimensions except `lev` and `lat`."""
+    if isinstance(fld, xr.DataArray):
+        d = fld.dims
+        davgovr = [dim for dim in d if dim not in ("lev", "lat")]
+    else:
+        raise IOError("zonal_mean_xr requires Xarray DataArray input.")
+    return fld.mean(dim=davgovr)
+
+
+def _lat_band(fld, latbounds):
+    """The part of `fld` within the latitudes of the slice `latbounds`.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray or uxarray.UxDataArray
+        Data with a `lat` dimension, or on an unstructured mesh.
+    latbounds : slice
+        ``slice(south, north)``, in degrees.
+
+    Returns
+    -------
+    xarray.DataArray or uxarray.UxDataArray
+        `fld` restricted to the latitude band; on a mesh, to the cells whose
+        centres lie within it.
+    """
+    south, north = sorted((latbounds.start, latbounds.stop))
+    if hasattr(fld, "uxgrid"):
+        face_lat = fld.uxgrid.face_lat.values
+        return fld.isel(n_face=np.where((face_lat >= south) & (face_lat <= north))[0])
+    # By value rather than with .sel, so either latitude ordering works:
+    return fld.isel(lat=((fld.lat >= south) & (fld.lat <= north)).values)
+
+
+def meridional_mean_xr(fld):
+    """Average over all dimensions except `lev` and `lon`."""
+    if isinstance(fld, xr.DataArray):
+        d = fld.dims
+        davgovr = [dim for dim in d if dim not in ("lev", "lon")]
+    else:
+        raise IOError("meridional_mean_xr requires Xarray DataArray input.")
+    return fld.mean(dim=davgovr)
 
 
 #######
@@ -1443,6 +1710,7 @@ def plot_meridional_mean_and_save(
     if "time" in adata.dims:
         adata = adata.mean(dim="time", keep_attrs=True)
     if "lat" in adata.dims:
+        adata = _lat_band(adata, latbounds)
         latweight = np.cos(np.radians(adata.lat))
         adata = adata.weighted(latweight).mean(dim="lat", keep_attrs=True)
     if "time" in bdata.dims:
@@ -1452,8 +1720,24 @@ def plot_meridional_mean_and_save(
         # removed 'time' by the time the ADF calls this.
         bdata = bdata.mean(dim="time", keep_attrs=True)
     if "lat" in bdata.dims:
+        bdata = _lat_band(bdata, latbounds)
         latweight = np.cos(np.radians(bdata.lat))
         bdata = bdata.weighted(latweight).mean(dim="lat", keep_attrs=True)
+
+    if "unstructured_plotting" in kwargs:
+        unstructured = kwargs["unstructured_plotting"]
+    else:
+        unstructured = False
+
+    if unstructured:
+        # Only the cells whose centres lie within the latitude bounds; the
+        # longitude binning then averages over them:
+        adata = ux_to_lon_binned(_lat_band(adata, latbounds))
+        bdata = ux_to_lon_binned(_lat_band(bdata, latbounds))
+
+    adata = meridional_mean_xr(adata)
+    bdata = meridional_mean_xr(bdata)
+
     # If there are other dimensions, they are still going to be there:
     if len(adata.dims) > 2:
         print(

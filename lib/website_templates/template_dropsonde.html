@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dropsonde RH Profiles — D3 example</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+  /* Always light - no dark-mode branch, so the page doesn't follow the
+     OS/browser color-scheme preference. */
+  :root {
+    color-scheme: light;
+    --page:            #f9f9f7;
+    --surface-1:       #fcfcfb;
+    --text-primary:    #0b0b0b;
+    --text-secondary:  #52514e;
+    --text-muted:      #898781;
+    --gridline:        #e1e0d9;
+    --baseline:        #c3c2b7;
+    --border:          rgba(11,11,11,0.10);
+    /* categorical slots 1-4, fixed order (see dataviz skill palette.md) */
+    --slot-1: #2a78d6; /* blue */
+    --slot-2: #eb6834; /* orange */
+    --slot-3: #1baf7a; /* aqua */
+    --slot-4: #eda100; /* yellow */
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  .subtitle { font-size: 12px; color: var(--text-secondary); margin: 2px 0 0; }
+  /* Compact, single control - not a full picker-group - so it doesn't
+     compete for space with the case/reference checkboxes. */
+  .band-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    flex: none;
+    padding-top: 2px;
+  }
+
+  /* Save PNG / Save SVG buttons in the header (see "Save figure" in the
+     script) - same quiet look as the band toggle so they don't dominate. */
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+    padding-top: 2px;
+  }
+  .export-btn {
+    font: inherit;
+    font-size: 12px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .export-btn:hover { color: var(--text-primary); border-color: var(--baseline); }
+  .export-btn:disabled { opacity: 0.5; cursor: progress; }
+
+  /* Checkbox rows double as the legend: color/ink + dash swatch + name + counts */
+  .picker-group {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+  }
+  .picker-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 18px;
+  }
+  .picker-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    width: 100%;
+    margin-bottom: 2px;
+  }
+  .picker-row + .picker-row { margin-top: 10px; }
+  .picker-row label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+  }
+  .picker-row input[type="checkbox"] { accent-color: var(--case-color, var(--text-primary)); }
+  .case-swatch {
+    width: 22px;
+    height: 0;
+    border-top-width: 2px;
+    border-top-style: solid;
+    border-color: var(--case-color, var(--text-primary));
+    flex: none;
+  }
+  .case-name { color: var(--text-primary); }
+  .case-n { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+  .charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) {
+    .charts { grid-template-columns: 1fr; }
+  }
+  .chart-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 16px 8px;
+  }
+  .chart-card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  .chart-card .chart-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 10px;
+  }
+
+  svg { display: block; overflow: visible; width: 100%; height: auto; }
+  .axis text { fill: var(--text-muted); font-size: 10.5px; }
+  .axis path, .axis .tick line { display: none; }
+  .gridline { stroke: var(--gridline); stroke-width: 1px; shape-rendering: crispEdges; }
+
+  .band { opacity: 0.10; }
+  .line { fill: none; stroke-width: 2px; }
+  .end-dot { stroke-width: 2px; }
+
+  .crosshair-line {
+    stroke: var(--text-muted);
+    stroke-width: 1px;
+    stroke-dasharray: 2,2;
+    pointer-events: none;
+  }
+  .zero-line { stroke: var(--baseline); stroke-width: 1px; }
+  .hover-layer { fill: transparent; }
+
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    opacity: 0;
+    transition: opacity 120ms ease;
+    z-index: 10;
+  }
+  .tooltip .t-p { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; }
+  .tooltip .t-key { width: 12px; height: 0; border-top-width: 2px; border-top-style: solid; flex: none; }
+  .tooltip .t-val {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .tooltip .t-name { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <div>
+      <h1>Dropsonde-vs-CAM RH profiles</h1>
+      <div class="subtitle" id="subtitle">Relative humidity vs pressure, by cloud regime</div>
+    </div>
+    <div class="header-controls">
+      <label class="band-toggle">
+        <input type="checkbox" id="band-toggle">
+        Show ±1 std band
+      </label>
+      <button type="button" class="export-btn" id="save-png">Save PNG</button>
+      <button type="button" class="export-btn" id="save-svg">Save SVG</button>
+    </div>
+  </div>
+
+  <div class="picker-group">
+    <div class="picker-row" id="ref-picker">
+      <span class="picker-label">Reference (shared across cases)</span>
+    </div>
+    <div class="picker-row" id="case-picker">
+      <span class="picker-label">CAM cases</span>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <h2>Open-Cell</h2>
+      <div class="chart-sub" data-export="false">use the toggle above to show ±1 std bands</div>
+      <div id="chart-open"></div>
+    </div>
+    <div class="chart-card">
+      <h2>Stratocumulus</h2>
+      <div class="chart-sub" data-export="false">use the toggle above to show ±1 std bands</div>
+      <div id="chart-strat"></div>
+    </div>
+    <div class="chart-card">
+      <h2>Open-Cell Bias</h2>
+      <div class="chart-sub">Δ (CAM − Obs), interpolated onto each case's own levels</div>
+      <div id="chart-open-bias"></div>
+    </div>
+    <div class="chart-card">
+      <h2>Stratocumulus Bias</h2>
+      <div class="chart-sub">Δ (CAM − Obs), interpolated onto each case's own levels</div>
+      <div id="chart-strat-bias"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(async function () {
+  const data = await d3.json("sample_dropsonde_profile.json");
+  d3.select("#subtitle").text(`${data.campaign} campaign — relative humidity vs pressure, by cloud regime`);
+
+  // Guard against corrupted/fill-value records - e.g. a bad ERA5 sample at
+  // an extreme top-of-atmosphere pressure level producing RH values in the
+  // millions of percent. One bad point shouldn't blow out the chart scale.
+  const MAX_ABS_RH = 1000;
+  // Visible axis range, matching the ylim_hPa=(1000,500) convention the
+  // existing matplotlib RH profile plots already use for this diagnostic.
+  const P_YLIM = [500, 1000];
+  // Data-inclusion range is slightly wider than the visible axis: CAM's
+  // hybrid-sigma levels don't land on round numbers (e.g. a real gap
+  // between ~446 and ~525 hPa), so keeping a case's next real level just
+  // below 500 lets its line actually reach the top of the visible chart
+  // instead of stopping short at the last level >= 500. Each panel clips
+  // its drawing to the visible axis rect, so nothing above P_YLIM is ever
+  // shown - this only affects where a line's last on-screen segment ends.
+  const DATA_YLIM = [440, 1000];
+  function sanitizeProfile(records) {
+    return records.filter(r =>
+      Number.isFinite(r.mean) && Number.isFinite(r.std) && Math.abs(r.mean) <= MAX_ABS_RH &&
+      r.p_hPa >= DATA_YLIM[0] && r.p_hPa <= DATA_YLIM[1]
+    );
+  }
+  function sanitizeBias(records) {
+    return (records || []).filter(r =>
+      Number.isFinite(r.delta) && r.p_hPa >= DATA_YLIM[0] && r.p_hPa <= DATA_YLIM[1]
+    );
+  }
+  for (const name of Object.keys(data.cases)) {
+    data.cases[name].open = sanitizeProfile(data.cases[name].open);
+    data.cases[name].strat = sanitizeProfile(data.cases[name].strat);
+    // open_bias/strat_bias (CAM - Obs) are precomputed in Python
+    // (compute_case_stats in cam_obs_dropsonde_comp.py) using each case's
+    // own collocated Obs, and only present on actual CAM cases.
+    if (data.cases[name].open_bias) data.cases[name].open_bias = sanitizeBias(data.cases[name].open_bias);
+    if (data.cases[name].strat_bias) data.cases[name].strat_bias = sanitizeBias(data.cases[name].strat_bias);
+  }
+
+  // data.cases is {name: {open:[...], strat:[...], N_open?, N_strat?}, ...}
+  // "Obs" and "ERA5" are shared reference entries, peers of the CAM cases -
+  // not nested inside them. Everything else is an actual CAM case.
+  const REF_NAMES = ["Obs", "ERA5"];
+  const caseNames = Object.keys(data.cases).filter(name => !REF_NAMES.includes(name));
+
+  const REF_STYLE = {
+    // Fixed literal colors (not theme tokens), per explicit request: Obs is
+    // always black, ERA5 is always grey dashed, regardless of page theme.
+    Obs:  { label: "Obs (dropsonde)", color: "#000000", dash: "none", band: true },
+    ERA5: { label: "ERA5",            color: "#888888", dash: "5,3",  band: false },
+  };
+
+  // Fixed color assignment by case, in config order - stable regardless
+  // of which checkboxes are on, so a case's identity never repaints.
+  // Every case gets a unique color: the hand-picked palette first, then
+  // golden-angle hues for any cases beyond it (never cycles/repeats).
+  // Black and grey are avoided since they belong to Obs and ERA5.
+  const COLORS = [
+    "var(--slot-1)", "var(--slot-2)", "var(--slot-3)", "var(--slot-4)",
+    "#d62728", "#9467bd", "#8c564b", "#e377c2", "#17becf", "#bcbd22",
+  ];
+  const caseColor = i => (i < COLORS.length
+    ? COLORS[i]
+    : d3.hsl((i - COLORS.length) * 137.508 + 15, 0.65, 0.45).formatHex());
+  // All CAM cases are dotted; solid/dashed are reserved for Obs/ERA5.
+  const CASE_DASH = "2,2";
+  const style = {};
+  caseNames.forEach((name, i) => {
+    style[name] = { color: caseColor(i), dash: CASE_DASH };
+  });
+  // Legend/tooltip swatch border style matching a series' dash pattern.
+  const swatchStyle = dash => (dash === "none" ? "solid" : dash === CASE_DASH ? "dotted" : "dashed");
+
+  const refVisible = new Set(REF_NAMES.filter(name => name in data.cases));
+  const visible = new Set(caseNames);
+
+  // Std bands are opt-in: off by default, one compact toggle in the header
+  // instead of a per-case control (which would take real UI space).
+  let showBands = false;
+  d3.select("#band-toggle").on("change", function () {
+    showBands = this.checked;
+    renderAll();
+  });
+
+  // --- reference (Obs/ERA5) checkboxes ---
+  const refPicker = d3.select("#ref-picker");
+  const refRows = refPicker.selectAll("label")
+    .data(REF_NAMES.filter(name => name in data.cases))
+    .join("label")
+    .style("--case-color", name => REF_STYLE[name].color);
+
+  refRows.append("input")
+    .attr("type", "checkbox")
+    .attr("checked", true)
+    .on("change", function (event, name) {
+      if (this.checked) refVisible.add(name); else refVisible.delete(name);
+      renderAll();
+    });
+  refRows.append("span")
+    .attr("class", "case-swatch")
+    .style("border-top-style", name => swatchStyle(REF_STYLE[name].dash));
+  refRows.append("span").attr("class", "case-name").text(name => REF_STYLE[name].label);
+  refRows.append("span").attr("class", "case-n")
+    .text(name => (data.cases[name].N_open != null ? `n=${data.cases[name].N_open}/${data.cases[name].N_strat}` : ""));
+
+  // --- case checkboxes (this is the case legend) ---
+  const picker = d3.select("#case-picker");
+  const rows = picker.selectAll("label")
+    .data(caseNames)
+    .join("label")
+    .style("--case-color", name => style[name].color);
+
+  rows.append("input")
+    .attr("type", "checkbox")
+    .attr("checked", true)
+    .on("change", function (event, name) {
+      if (this.checked) visible.add(name); else visible.delete(name);
+      renderAll();
+    });
+  rows.append("span")
+    .attr("class", "case-swatch")
+    .style("border-top-style", name => swatchStyle(style[name].dash));
+  rows.append("span").attr("class", "case-name").text(name => name);
+
+  // --- shared scales across both panels and all series, so everything is
+  //     directly comparable and toggling a checkbox never rescales the axes ---
+  const margin = { top: 6, right: 16, bottom: 26, left: 42 };
+  const width = 460 - margin.left - margin.right;
+  const height = 380 - margin.top - margin.bottom;
+
+  // Fixed x domain, matching the xlim_hPa=(-10,110) convention the
+  // existing matplotlib RH profile plots already use for this diagnostic
+  // (cam_obs_dropsonde_comp.py) - more robust than deriving it from
+  // mean +/- std across all data, which a single noisy/corrupted sample
+  // (even after sanitizing outright fill-value garbage) could still skew.
+  const x = d3.scaleLinear().domain([-10, 110]).range([0, width]);
+
+  // Pressure: log scale, inverted so the surface (max hPa) sits at the bottom
+  // and the top of the profile (min hPa) sits at the top - ascending domain
+  // mapped to an ascending pixel range does that (NOT the default [height,0]
+  // "big value = top" convention a plain value axis would use).
+  const y = d3.scaleLog().domain(P_YLIM).range([0, height]);
+  const pTicks = [1000, 900, 800, 700, 600, 500].filter(p => p >= P_YLIM[0] && p <= P_YLIM[1]);
+
+  // Straight-line segments between levels (d3's default curve, same as
+  // matplotlib's ax.plot()) - not a smoothed spline. The data is discrete
+  // and often coarsely/unevenly spaced (CAM's hybrid-sigma levels
+  // especially), so a curve fit would visually imply structure between
+  // samples that isn't actually in the data.
+  const lineGen = d3.line().x(d => x(d.mean)).y(d => y(d.p_hPa));
+  const bandGen = d3.area()
+    .x0(d => x(d.mean - d.std)).x1(d => x(d.mean + d.std))
+    .y(d => y(d.p_hPa));
+
+  // Bias panels share the same y (pressure) scale, but need their own x -
+  // fixed domain matching the xlim_delta=(-20,35) convention the existing
+  // matplotlib bias plots already use for this diagnostic.
+  const xDelta = d3.scaleLinear().domain([-20, 35]).range([0, width]);
+  const deltaLineGen = d3.line().x(d => xDelta(d.delta)).y(d => y(d.p_hPa));
+
+  // Nearest-level lookup that doesn't assume every series shares one grid
+  // (obs/CAM/ERA5 can, in real data, be binned differently).
+  function nearestPoint(records, pTarget) {
+    return records.reduce((a, b) =>
+      Math.abs(b.p_hPa - pTarget) < Math.abs(a.p_hPa - pTarget) ? b : a
+    );
+  }
+
+  const tooltip = d3.select("#tooltip");
+
+  function buildPanel(containerId, regimeKey) {
+    const svg = d3.select(containerId)
+      .append("svg")
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const gGrid = g.append("g");
+
+    // Clip data drawing to the visible axis rect - DATA_YLIM lets a case's
+    // line extend slightly above the P_YLIM top (e.g. CAM's next real
+    // level below 500 hPa) so it reaches the visible edge instead of
+    // stopping short, but nothing above P_YLIM is actually shown. Matches
+    // how matplotlib's ax.set_ylim() clips artists to the axes box.
+    const clipId = `${containerId.slice(1)}-clip`;
+    svg.append("defs").append("clipPath").attr("id", clipId)
+      .append("rect").attr("width", width).attr("height", height);
+    const gClipped = g.append("g").attr("clip-path", `url(#${clipId})`);
+    const gRefBands = gClipped.append("g");
+    const gBands = gClipped.append("g");
+    const gRefLines = gClipped.append("g");
+    const gLines = gClipped.append("g");
+    const gDots = gClipped.append("g");
+
+    g.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x).ticks(5).tickFormat(d => `${d}%`));
+    g.append("g").attr("class", "axis")
+      .call(d3.axisLeft(y).tickValues(pTicks).tickFormat(d3.format("d")));
+
+    gGrid.selectAll(".gridline")
+      .data(x.ticks(5))
+      .join("line")
+      .attr("class", "gridline")
+      .attr("x1", d => x(d)).attr("x2", d => x(d))
+      .attr("y1", 0).attr("y2", height);
+
+    const gCrosshair = g.append("g").style("display", "none");
+    gCrosshair.append("line").attr("class", "crosshair-line").attr("x1", 0).attr("x2", width);
+
+    function render() {
+      // Reference series (Obs/ERA5): each is its own entry in data.cases,
+      // drawn once per panel - not part of the per-case categorical colors.
+      const activeRef = REF_NAMES
+        .filter(name => refVisible.has(name) && name in data.cases)
+        .map(name => ({ key: name, ...REF_STYLE[name], points: data.cases[name][regimeKey] }));
+
+      gRefBands.selectAll(".band")
+        .data(showBands ? activeRef.filter(r => r.band) : [], r => r.key)
+        .join("path")
+        .attr("class", "band")
+        .attr("fill", r => r.color)
+        .attr("d", r => bandGen(r.points));
+
+      gRefLines.selectAll(".line")
+        .data(activeRef, r => r.key)
+        .join("path")
+        .attr("class", "line")
+        .attr("stroke", r => r.color)
+        .attr("stroke-dasharray", r => (r.dash === "none" ? null : r.dash))
+        .attr("d", r => lineGen(r.points));
+
+      // Per-case CAM comparison: the actual "which run looks best" story.
+      const active = caseNames
+        .filter(name => visible.has(name))
+        .map(name => ({ case: name, ...style[name], points: data.cases[name][regimeKey] }));
+
+      gBands.selectAll(".band")
+        .data(showBands ? active : [], d => d.case)
+        .join("path")
+        .attr("class", "band")
+        .attr("fill", d => d.color)
+        .attr("d", d => bandGen(d.points));
+
+      gLines.selectAll(".line")
+        .data(active, d => d.case)
+        .join("path")
+        .attr("class", "line")
+        .attr("stroke", d => d.color)
+        .attr("stroke-dasharray", d => (d.dash === "none" ? null : d.dash))
+        .attr("d", d => lineGen(d.points));
+
+      gDots.selectAll(".end-dot")
+        .data(active, d => d.case)
+        .join("circle")
+        .attr("class", "end-dot")
+        .attr("r", 4)
+        .attr("fill", d => d.color)
+        .attr("stroke", "var(--surface-1)")
+        .attr("cx", d => x(d.points[0].mean))
+        .attr("cy", d => y(d.points[0].p_hPa));
+    }
+
+    // Snap the hover crosshair to the CAM model's own levels (not Obs's
+    // uniform 10 hPa bins) - CAM's hybrid-sigma levels are the coarser,
+    // more irregular grid, so reading out at Obs's finer bins would show
+    // values at pressures the model doesn't actually have a point at.
+    // Falls back to Obs only if no CAM case is available.
+    const gridSource = (data.cases[caseNames[0]] ?? data.cases.Obs)[regimeKey];
+    const levelsForHover = gridSource.map(d => d.p_hPa);
+    g.append("rect")
+      .attr("class", "hover-layer")
+      .attr("width", width)
+      .attr("height", height)
+      .on("mousemove", (event) => {
+        const [, my] = d3.pointer(event);
+        const pHover = y.invert(Math.max(0, Math.min(height, my)));
+        const nearest = levelsForHover.reduce((a, b) => (Math.abs(b - pHover) < Math.abs(a - pHover) ? b : a));
+        gCrosshair.style("display", null).attr("transform", `translate(0,${y(nearest)})`);
+
+        const refRows = REF_NAMES
+          .filter(name => refVisible.has(name) && name in data.cases)
+          .map(name => ({ label: REF_STYLE[name].label, ...REF_STYLE[name], pt: nearestPoint(data.cases[name][regimeKey], nearest) }));
+        const caseRows = caseNames
+          .filter(name => visible.has(name))
+          .map(name => ({ label: name, ...style[name], pt: nearestPoint(data.cases[name][regimeKey], nearest) }));
+        const rows = [...refRows, ...caseRows];
+
+        if (!rows.length) { gCrosshair.style("display", "none"); tooltip.style("opacity", 0); return; }
+
+        tooltip.style("opacity", 1)
+          .style("left", `${event.pageX + 14}px`)
+          .style("top", `${event.pageY - 28}px`);
+
+        tooltip.selectAll("*").remove();
+        tooltip.append("div").attr("class", "t-p").text(`${nearest} hPa`);
+        rows.forEach(r => {
+          const row = tooltip.append("div").attr("class", "t-row");
+          row.append("span").attr("class", "t-key")
+            .style("border-top-color", r.color)
+            .style("border-top-style", swatchStyle(r.dash));
+          row.append("span").attr("class", "t-name").text(r.label);
+          row.append("span").attr("class", "t-val").text(`${r.pt.mean.toFixed(1)}% ± ${r.pt.std.toFixed(1)}`);
+        });
+      })
+      .on("mouseleave", () => {
+        gCrosshair.style("display", "none");
+        tooltip.style("opacity", 0);
+      });
+
+    return render;
+  }
+
+  // --- Bias panels: CAM - Obs per case, no reference lines/bands (bias is
+  //     already "vs Obs" by definition) and no ERA5 (per design: bias here
+  //     is CAM vs Obs only), plus a vertical zero line. ---
+  function buildBiasPanel(containerId, biasKey) {
+    const svg = d3.select(containerId)
+      .append("svg")
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const gGrid = g.append("g");
+    const gZero = g.append("g");
+
+    // See buildPanel() for why this clip exists: DATA_YLIM lets a case's
+    // line extend slightly above P_YLIM's top so it reaches the visible
+    // edge, but the clip keeps anything above P_YLIM from actually showing.
+    const clipId = `${containerId.slice(1)}-clip`;
+    svg.append("defs").append("clipPath").attr("id", clipId)
+      .append("rect").attr("width", width).attr("height", height);
+    const gClipped = g.append("g").attr("clip-path", `url(#${clipId})`);
+    const gLines = gClipped.append("g");
+    const gDots = gClipped.append("g");
+
+    g.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(xDelta).ticks(5).tickFormat(d => `${d}%`));
+    g.append("g").attr("class", "axis")
+      .call(d3.axisLeft(y).tickValues(pTicks).tickFormat(d3.format("d")));
+
+    gGrid.selectAll(".gridline")
+      .data(xDelta.ticks(5))
+      .join("line")
+      .attr("class", "gridline")
+      .attr("x1", d => xDelta(d)).attr("x2", d => xDelta(d))
+      .attr("y1", 0).attr("y2", height);
+
+    gZero.append("line")
+      .attr("class", "zero-line")
+      .attr("x1", xDelta(0)).attr("x2", xDelta(0))
+      .attr("y1", 0).attr("y2", height);
+
+    const gCrosshair = g.append("g").style("display", "none");
+    gCrosshair.append("line").attr("class", "crosshair-line").attr("x1", 0).attr("x2", width);
+
+    function render() {
+      // Fall back to [] if this case has no bias data yet (e.g. a JSON
+      // file written before delta_open/delta_strat were added to the
+      // Python export) rather than throwing on the missing property.
+      const active = caseNames
+        .filter(name => visible.has(name))
+        .map(name => ({ case: name, ...style[name], points: data.cases[name][biasKey] || [] }))
+        .filter(d => d.points.length);
+
+      gLines.selectAll(".line")
+        .data(active, d => d.case)
+        .join("path")
+        .attr("class", "line")
+        .attr("stroke", d => d.color)
+        .attr("stroke-dasharray", d => (d.dash === "none" ? null : d.dash))
+        .attr("d", d => deltaLineGen(d.points));
+
+      gDots.selectAll(".end-dot")
+        .data(active, d => d.case)
+        .join("circle")
+        .attr("class", "end-dot")
+        .attr("r", 4)
+        .attr("fill", d => d.color)
+        .attr("stroke", "var(--surface-1)")
+        .attr("cx", d => xDelta(d.points[0].delta))
+        .attr("cy", d => y(d.points[0].p_hPa));
+    }
+
+    const gridSource = caseNames.map(name => data.cases[name][biasKey]).find(pts => pts && pts.length) || [];
+    const levelsForHover = gridSource.map(d => d.p_hPa);
+    g.append("rect")
+      .attr("class", "hover-layer")
+      .attr("width", width)
+      .attr("height", height)
+      .on("mousemove", (event) => {
+        if (!levelsForHover.length) return;
+        const [, my] = d3.pointer(event);
+        const pHover = y.invert(Math.max(0, Math.min(height, my)));
+        const nearest = levelsForHover.reduce((a, b) => (Math.abs(b - pHover) < Math.abs(a - pHover) ? b : a));
+        gCrosshair.style("display", null).attr("transform", `translate(0,${y(nearest)})`);
+
+        const rows = caseNames
+          .filter(name => visible.has(name) && (data.cases[name][biasKey] || []).length)
+          .map(name => ({ label: name, ...style[name], pt: nearestPoint(data.cases[name][biasKey], nearest) }));
+
+        if (!rows.length) { gCrosshair.style("display", "none"); tooltip.style("opacity", 0); return; }
+
+        tooltip.style("opacity", 1)
+          .style("left", `${event.pageX + 14}px`)
+          .style("top", `${event.pageY - 28}px`);
+
+        tooltip.selectAll("*").remove();
+        tooltip.append("div").attr("class", "t-p").text(`${nearest} hPa`);
+        rows.forEach(r => {
+          const row = tooltip.append("div").attr("class", "t-row");
+          row.append("span").attr("class", "t-key")
+            .style("border-top-color", r.color)
+            .style("border-top-style", swatchStyle(r.dash));
+          row.append("span").attr("class", "t-name").text(r.label);
+          row.append("span").attr("class", "t-val").text(`${r.pt.delta >= 0 ? "+" : ""}${r.pt.delta.toFixed(1)}%`);
+        });
+      })
+      .on("mouseleave", () => {
+        gCrosshair.style("display", "none");
+        tooltip.style("opacity", 0);
+      });
+
+    return render;
+  }
+
+  const renderOpen = buildPanel("#chart-open", "open");
+  const renderStrat = buildPanel("#chart-strat", "strat");
+  const renderOpenBias = buildBiasPanel("#chart-open-bias", "open_bias");
+  const renderStratBias = buildBiasPanel("#chart-strat-bias", "strat_bias");
+  function renderAll() { renderOpen(); renderStrat(); renderOpenBias(); renderStratBias(); }
+
+  // Legend for the saved figure: visible reference series, then visible cases.
+  const EXPORT_NAME = "dropsonde_rh_profiles";
+  function exportLegendItems() {
+    const refs = REF_NAMES
+      .filter(name => refVisible.has(name) && name in data.cases)
+      .map(name => ({ label: REF_STYLE[name].label, color: REF_STYLE[name].color, dash: REF_STYLE[name].dash }));
+    const cases = caseNames
+      .filter(name => visible.has(name))
+      .map(name => ({ label: name, color: style[name].color, dash: style[name].dash }));
+    return [...refs, ...cases];
+  }
+
+  // --- Save figure (PNG / SVG) ---
+  // Builds one standalone SVG of what's currently shown: page title, every
+  // panel in its on-screen 2-column order, and a legend of the visible
+  // series. Each panel's <svg> is cloned with its computed styles inlined,
+  // because a serialized SVG no longer sees this page's stylesheet or CSS
+  // variables (e.g. var(--slot-1) colors, .line { fill: none }, hidden axis
+  // domain paths). The PNG is that same SVG rasterized onto a canvas.
+  const EXPORT_STYLE_PROPS = [
+    "fill", "fill-opacity", "stroke", "stroke-width", "stroke-dasharray",
+    "stroke-opacity", "opacity", "font-family", "font-size", "font-weight",
+    "shape-rendering",
+  ];
+  const EXPORT_PNG_SCALE = 3;
+  const EXPORT_FONT = getComputedStyle(document.body).fontFamily;
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  function textWidth(text, size) {
+    measureCtx.font = `${size}px ${EXPORT_FONT}`;
+    return measureCtx.measureText(text).width;
+  }
+  // Resolve any CSS color (incl. "var(--slot-1)") to a literal rgb() value.
+  function resolveColor(color) {
+    const probe = document.body.appendChild(document.createElement("span"));
+    probe.style.color = color;
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return resolved;
+  }
+
+  function cloneWithInlineStyles(src) {
+    const dst = src.cloneNode(true);
+    const drop = [];
+    (function walk(s, d) {
+      const cs = getComputedStyle(s);
+      if (cs.display === "none" || s.classList.contains("hover-layer")) { drop.push(d); return; }
+      for (const prop of EXPORT_STYLE_PROPS) d.style.setProperty(prop, cs.getPropertyValue(prop));
+      for (let i = 0; i < s.children.length; i++) walk(s.children[i], d.children[i]);
+    })(src, dst);
+    drop.forEach(node => node.remove());
+    return dst;
+  }
+
+  function buildExportSvg() {
+    const PAD = 20, GAP_X = 24, GAP_Y = 18, COLS = 2;
+    const TEXT = resolveColor("var(--text-primary)");
+    const TEXT_2 = resolveColor("var(--text-secondary)");
+    const TEXT_3 = resolveColor("var(--text-muted)");
+
+    const panels = [...document.querySelectorAll(".chart-card")].map(card => {
+      const svg = card.querySelector("svg");
+      const vb = svg.viewBox.baseVal;
+      // On-screen hints (data-export="false") are left out of the saved figure.
+      const sub = card.querySelector('.chart-sub:not([data-export="false"])');
+      const stats = [...card.querySelectorAll(".stat-row")].map(row => ({
+        color: getComputedStyle(row.querySelector(".stat-dot")).backgroundColor,
+        name: row.querySelector(".stat-name").textContent,
+        val: row.querySelector(".stat-val").textContent,
+      }));
+      const headH = 18 + (sub ? 15 : 0) + 4;
+      return {
+        svg, w: vb.width, h: vb.height, headH, stats,
+        title: card.querySelector("h2").textContent.trim(),
+        sub: sub ? sub.textContent.trim() : "",
+        blockH: headH + vb.height + (stats.length ? 8 + stats.length * 15 : 0),
+      };
+    });
+
+    const panelW = d3.max(panels, p => p.w);
+    const totalW = PAD * 2 + COLS * panelW + (COLS - 1) * GAP_X;
+
+    // Legend entries flow left-to-right, wrapping at the figure width.
+    const legend = exportLegendItems().map(item => ({ ...item, color: resolveColor(item.color) }));
+    const SAMPLE_W = 26, ITEM_GAP = 18, ROW_H = 18;
+    let lx = PAD, ly = 0;
+    legend.forEach(item => {
+      const w = SAMPLE_W + 6 + textWidth(item.label, 11);
+      if (lx > PAD && lx + w > totalW - PAD) { lx = PAD; ly += ROW_H; }
+      item.x = lx; item.y = ly;
+      lx += w + ITEM_GAP;
+    });
+    const legendH = legend.length ? ly + ROW_H : 0;
+
+    const headerH = 66;
+    const rowHeights = d3.range(Math.ceil(panels.length / COLS)).map(r =>
+      d3.max(panels.slice(r * COLS, r * COLS + COLS), p => p.blockH));
+    const panelsH = d3.sum(rowHeights) + GAP_Y * (rowHeights.length - 1);
+    const totalH = headerH + panelsH + (legendH ? GAP_Y + legendH : 0) + PAD;
+
+    const out = d3.create("svg")
+      .attr("xmlns", "http://www.w3.org/2000/svg")
+      .attr("width", totalW).attr("height", totalH)
+      .attr("viewBox", `0 0 ${totalW} ${totalH}`)
+      .style("font-family", EXPORT_FONT);
+    out.append("rect").attr("width", totalW).attr("height", totalH).attr("fill", "#ffffff");
+
+    out.append("text").attr("x", PAD).attr("y", PAD + 12)
+      .attr("fill", TEXT).style("font-size", "16px").style("font-weight", 600)
+      .text(document.querySelector("h1").textContent.trim());
+    out.append("text").attr("x", PAD).attr("y", PAD + 30)
+      .attr("fill", TEXT_2).style("font-size", "12px")
+      .text(document.querySelector("#subtitle").textContent.trim());
+
+    let rowTop = headerH;
+    rowHeights.forEach((rowH, r) => {
+      panels.slice(r * COLS, r * COLS + COLS).forEach((p, c) => {
+        const px = PAD + c * (panelW + GAP_X);
+        const g = out.append("g").attr("transform", `translate(${px},${rowTop})`);
+        g.append("text").attr("y", 13).attr("fill", TEXT)
+          .style("font-size", "13px").style("font-weight", 600).text(p.title);
+        if (p.sub) {
+          g.append("text").attr("y", 28).attr("fill", TEXT_3).style("font-size", "11px").text(p.sub);
+        }
+        const clone = cloneWithInlineStyles(p.svg);
+        clone.setAttribute("x", 0);
+        clone.setAttribute("y", p.headH);
+        clone.setAttribute("width", p.w);
+        clone.setAttribute("height", p.h);
+        clone.setAttribute("overflow", "visible");
+        clone.removeAttribute("style");
+        g.append(() => clone);
+        p.stats.forEach((s, i) => {
+          const sy = p.headH + p.h + 8 + i * 15 + 11;
+          g.append("circle").attr("cx", 4).attr("cy", sy - 4).attr("r", 4).attr("fill", s.color);
+          g.append("text").attr("x", 14).attr("y", sy).attr("fill", TEXT_2)
+            .style("font-size", "11px").text(s.name);
+          g.append("text").attr("x", p.w).attr("y", sy).attr("text-anchor", "end").attr("fill", TEXT)
+            .style("font-size", "11px").style("white-space", "pre").text(s.val);
+        });
+      });
+      rowTop += rowH + GAP_Y;
+    });
+
+    const legendTop = headerH + panelsH + GAP_Y;
+    const gLegend = out.append("g").attr("transform", `translate(0,${legendTop})`);
+    legend.forEach(item => {
+      const cy = item.y + ROW_H / 2;
+      gLegend.append("line")
+        .attr("x1", item.x).attr("x2", item.x + SAMPLE_W).attr("y1", cy).attr("y2", cy)
+        .attr("stroke", item.color).attr("stroke-width", 2)
+        .attr("stroke-dasharray", item.dash === "none" ? null : item.dash);
+      if (item.marker) {
+        gLegend.append("circle").attr("cx", item.x + SAMPLE_W / 2).attr("cy", cy).attr("r", 3.5)
+          .attr("fill", item.color).attr("stroke", "#ffffff").attr("stroke-width", 1);
+      }
+      gLegend.append("text").attr("x", item.x + SAMPLE_W + 6).attr("y", cy + 4)
+        .attr("fill", TEXT_2).style("font-size", "11px").text(item.label);
+    });
+
+    return { node: out.node(), width: totalW, height: totalH };
+  }
+
+  function exportFileBase() {
+    return `${EXPORT_NAME}_${data.campaign}`.replace(/[^\w.-]+/g, "_");
+  }
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function serializeSvg(node) {
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(node);
+  }
+  async function saveSVG() {
+    const { node } = buildExportSvg();
+    downloadBlob(new Blob([serializeSvg(node)], { type: "image/svg+xml;charset=utf-8" }), `${exportFileBase()}.svg`);
+  }
+  async function savePNG() {
+    const { node, width, height } = buildExportSvg();
+    const img = new Image();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(serializeSvg(node));
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * EXPORT_PNG_SCALE);
+    canvas.height = Math.round(height * EXPORT_PNG_SCALE);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    downloadBlob(blob, `${exportFileBase()}.png`);
+  }
+  function wireExportButton(id, save) {
+    const button = document.getElementById(id);
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await save();
+      } catch (err) {
+        console.error("Could not save figure:", err);
+        alert("Could not save figure.");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+  wireExportButton("save-png", savePNG);
+  wireExportButton("save-svg", saveSVG);
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

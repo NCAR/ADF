@@ -173,8 +173,9 @@ def amwg_table(adf):
         #Convert output location string to a Path object:
         output_location = Path(output_locs[case_idx])
 
-        #Generate input file path:
-        input_location = Path(input_ts_locs[case_idx])
+        #Generate input file path (the "gridded" copy of native-grid time
+        #series, where the ADF made one):
+        input_location = adf.data.timeseries_dir(case_name, input_ts_locs[case_idx])
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
@@ -314,7 +315,8 @@ def amwg_table(adf):
                 # flags that we have spatial dimensions
                 # Note: that could be 'lev' which should trigger different behavior
                 # Note: we should be able to handle (lat, lon) or (ncol,) cases, at least
-                data = utils.spatial_average(data)  # changes data "in place"
+                weights = utils.native_grid_weights(ts_files[0]) if "ncol" in data.dims else None
+                data = utils.spatial_average(data, weights=weights)  # changes data "in place"
 
             # In order to get correct statistics, average to annual or seasonal
             data = utils.annual_mean(data, whole_years=True, time_name='time')
@@ -389,6 +391,8 @@ def amwg_table(adf):
 ##################
 # Helper functions
 ##################
+
+#####
 
 def _get_row_vals(data):
     # Now that data is (time,), we can do our simple stats:

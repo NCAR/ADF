@@ -21,6 +21,10 @@ DEFAULT_PLEVS = [
 # both index it as an array (.size / .shape).
 DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
 
+# Horizontal dimension of native (unstructured, e.g. spectral-element) CAM
+# output.  See _to_latlon for how such data is handled.
+UNSTRUCTURED_DIMS = ("ncol",)
+
 
 def _interp_levels(adf):
     """The pressure levels to interpolate onto, in Pa.
@@ -152,8 +156,24 @@ def regrid_and_vert_interp(adf):
                 print(f"\t ERROR: Missing model data for {var}. Skipping.")
                 continue
 
+            # Native-grid data that is not being plotted natively goes onto
+            # its lat/lon grid first; from here on it is handled exactly like
+            # any other lat/lon case:
+            ref_ds = _to_latlon(adf, ref_ds, var)
+            model_ds = _to_latlon(adf, model_ds, var, case_name=case_name, save=True)
+
             model_da = model_ds[var].squeeze()
             original_attrs = model_da.attrs.copy()
+
+            if _is_unstructured(model_da) and not _same_native_grid(model_da, ref_ds):
+                # Plotting natively needs the test case and the reference on
+                # one mesh: the plots cannot compare data across two meshes.
+                print(
+                    f"\t WARNING: '{case_name}' is on a native grid but the "
+                    f"reference for '{var}' is not on that same grid, so it can "
+                    "not be plotted natively.  Skipping."
+                )
+                continue
 
             # --- Horizontal Regridding ---
             regridded_da = _handle_horizontal_regridding(model_da, ref_ds, output_loc)
@@ -233,6 +253,7 @@ def regrid_and_vert_interp(adf):
 
             # --- Save to file ---
             final_ds = interp_da.to_dataset(name=var)
+            _keep_native_area(final_ds, model_ds)
 
             test_attrs_dict = {
                 "adf_user": adf.user,
@@ -369,6 +390,7 @@ def _find_surface_pressure(dset, adf, case=None):
         ps_ds = adf.data.load_dataset(fils) if fils else None
     else:
         ps_ds = adf.data.load_climo_ds(case, 'PS')
+    ps_ds = _to_latlon(adf, ps_ds, 'PS', case_name=case)
     if ps_ds is None or 'PS' not in ps_ds:
         return None
     return ps_ds['PS'].squeeze()
@@ -406,6 +428,7 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
         pres_ds = adf.data.load_dataset(fils) if fils else None
     else:
         pres_ds = adf.data.load_climo_ds(case, name)
+    pres_ds = _to_latlon(adf, pres_ds, name, case_name=case)
     if pres_ds is None or name not in pres_ds:
         return None
     return pres_ds[name].squeeze()
@@ -488,6 +511,9 @@ def _write_reference_files(
         if ref_ds is None:
             print(f"\t ERROR: Missing reference data for {var}. Skipping.")
             continue
+        # A native-grid baseline that is not being plotted natively goes onto
+        # its lat/lon grid, which then becomes the target grid for the cases:
+        ref_ds = _to_latlon(adf, ref_ds, var, save=True)
         ref_da = ref_ds[adf.data.ref_var_nam[var]].squeeze()
         original_attrs = ref_da.attrs.copy()
 
@@ -533,6 +559,7 @@ def _write_reference_files(
                 print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
 
         final_ds = interp_da.to_dataset(name=var)
+        _keep_native_area(final_ds, ref_ds)
         baseline_attrs = {
             "adf_user": adf.user,
             "climo_yrs": f"{base}: {syear}-{eyear}",
@@ -565,6 +592,11 @@ def _handle_horizontal_regridding(source_da, target_grid, regrid_loc, method='co
     xarray.DataArray
         The regridded DataArray.
     """
+
+    # Native-grid data being plotted natively stays on its mesh.  The main
+    # loop has already checked that the target is that same mesh.
+    if _is_unstructured(source_da):
+        return source_da
 
     # Generate a unique name for the weights file
     source_grid_type = "unstructured" if "ncol" in source_da.dims else "structured"
@@ -761,6 +793,7 @@ def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
     if ocn_frac_path.exists():
         return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
     ocn_frac_ds = adf.data.load_climo_ds(case_name, "OCNFRAC")
+    ocn_frac_ds = _to_latlon(adf, ocn_frac_ds, "OCNFRAC", case_name=case_name)
     if ocn_frac_ds is None or "OCNFRAC" not in ocn_frac_ds:
         return None
     return _handle_horizontal_regridding(
@@ -789,6 +822,124 @@ def _apply_ocean_mask(da, ocn_frac_da):
     
     # Apply the mask
     return utils.mask_land_or_ocean(da, ocn_frac_da)
+
+def _is_unstructured(obj):
+    """Whether `obj` (a Dataset or DataArray) is on a native unstructured grid."""
+    dims = getattr(obj, "dims", ())
+    return any(dim in dims for dim in UNSTRUCTURED_DIMS)
+
+
+def _same_native_grid(da, target_grid):
+    """Whether `target_grid` is on the same native unstructured grid as `da`.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        Data on a native grid.
+    target_grid : xarray.Dataset
+        The reference data.
+
+    Returns
+    -------
+    bool
+        True when both have the same unstructured dimension, of the same size.
+    """
+    return any(
+        dim in da.dims and target_grid.sizes.get(dim) == da.sizes[dim]
+        for dim in UNSTRUCTURED_DIMS
+    )
+
+
+def _keep_native_area(final_ds, source_ds):
+    """Copy the grid-cell area into an output file that stays on its native grid.
+
+    The native (uxarray) plotting weights its averages by the model's cell
+    area, which it reads from the regridded and baseline files.  On a lat/lon
+    grid the plots weight by latitude instead, and the source grid's area would
+    be wrong after regridding anyway, so it is only kept for native data.
+
+    Parameters
+    ----------
+    final_ds : xarray.Dataset
+        The dataset about to be written; updated in place.
+    source_ds : xarray.Dataset
+        The climo dataset it was made from.
+    """
+    if _is_unstructured(final_ds) and "area" in source_ds:
+        final_ds["area"] = source_ds["area"]
+
+
+def _to_latlon(adf, dset, var, case_name=None, save=False):
+    """Put native-grid climo data onto its lat/lon grid, unless plotting natively.
+
+    Usually the climo files of a native-grid case are on lat/lon already: the
+    ADF grids its time series (into a "gridded" directory) and builds the
+    climatologies from those.  Climo files made from native time series --
+    pre-made ones, say -- arrive here still on the native grid, and are gridded
+    with the case's weights file, so that the rest of this script only ever
+    sees lat/lon data and treats it exactly like any other lat/lon case.
+
+    With 'unstructured_plotting', or for data that is not on a native grid,
+    `dset` is returned unchanged.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    dset : xarray.Dataset or None
+        The climo dataset.
+    var : str
+        The variable to grid.
+    case_name : str, optional
+        The test case; omit it for the baseline.
+    save : bool, optional
+        Also write the gridded data to "gridded/{case}_{var}_gridded_climo.nc"
+        under the case's climo directory.
+
+    Returns
+    -------
+    xarray.Dataset or None
+        The data on a lat/lon grid (or `dset` unchanged, see above).
+    """
+    # Check the data first: lat/lon data needs nothing else from `adf`.
+    if not _is_unstructured(dset) or adf.unstructured_plotting:
+        return dset
+
+    if case_name is None:
+        label = adf.data.ref_case_label
+        wgt_file = adf.latlon_wgt_files["baseline_wgts_file"]
+        method = adf.latlon_regrid_method["baseline_regrid_method"]
+        climo_loc = adf.get_baseline_info("cam_climo_loc", required=True)
+    else:
+        case_idx = adf.get_cam_info("cam_case_name", required=True).index(case_name)
+        label = case_name
+        wgt_file = adf.latlon_wgt_files["test_wgts_file"][case_idx]
+        method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
+        climo_loc = adf.get_cam_info("cam_climo_loc", required=True)[case_idx]
+
+    if not wgt_file:
+        # Every variable of the case would fail the same way, so stop here:
+        adf.end_diag_fail(
+            f"'{label}' is on a native grid, but has no 'weights_file' to grid it "
+            "to lat/lon.  Add one, or set 'unstructured_plotting: true'."
+        )
+
+    adf.debug_log(f"regrid: gridding native '{var}' for '{label}' to lat/lon")
+    gridded = utils.grid_to_latlon(
+        dset,
+        var,
+        wgt_file=wgt_file,
+        method=method,
+    )
+    # (grid_to_latlon carries hyam, hybm, P0 and the rest over, which the
+    # vertical interpolation needs.)
+
+    if save:
+        gridded_loc = Path(climo_loc) / "gridded"
+        gridded_loc.mkdir(parents=True, exist_ok=True)
+        save_to_nc(gridded, gridded_loc / f"{label}_{var}_gridded_climo.nc")
+    return gridded
+
 
 def save_to_nc(tosave, outname, attrs=None, proc=None):
     """Saves xarray variable to new netCDF file

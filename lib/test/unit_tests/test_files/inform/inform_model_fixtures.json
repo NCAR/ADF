@@ -1,0 +1,58 @@
+{
+  "SOCRATES": {
+    "rf": 10,
+    "tmin": "2018-02-07T21:36:19",
+    "tmax": "2018-02-08T00:03:07",
+    "box": {
+      "lat": [
+        -61.0,
+        -46.0
+      ],
+      "lon": [
+        134.5,
+        148.0
+      ]
+    },
+    "era5_box": {
+      "lat": [
+        -61.0,
+        -46.0
+      ],
+      "lon": [
+        143.5,
+        148.0
+      ]
+    },
+    "cam_case": "f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTfull_withCOSP_tau6h.002",
+    "flight_file": "SOCRATES_RF10_20260213.nc",
+    "incloud_fixture": "SOCRATES_RF10_incloud_fixture.nc"
+  },
+  "CSET": {
+    "rf": 12,
+    "tmin": "2015-08-01T20:10:01",
+    "tmax": "2015-08-01T21:53:10",
+    "box": {
+      "lat": [
+        22.0,
+        30.5
+      ],
+      "lon": [
+        206.0,
+        234.5
+      ]
+    },
+    "era5_box": {
+      "lat": [
+        22.0,
+        30.5
+      ],
+      "lon": [
+        206.0,
+        216.5
+      ]
+    },
+    "cam_case": "f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.CSET_nudgeUVTfull_withCOSP_tau6h.001",
+    "flight_file": "CSET_RF12_20260210.nc",
+    "incloud_fixture": "CSET_RF12_incloud_fixture.nc"
+  }
+}

@@ -67,6 +67,15 @@ def polar_map(adfobj):
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
     plot_locations = adfobj.plot_location
+    
+    kwargs = {}
+
+    # Check for unstructured
+    unstruct_plotting = adfobj.unstructured_plotting
+    if unstruct_plotting:
+        kwargs["unstructured_plotting"] = unstruct_plotting
+    else:
+        unstructured=False
 
     #CAM simulation variables (this is always assumed to be a list):
     case_names = adfobj.get_cam_info("cam_case_name", required=True)
@@ -91,6 +100,7 @@ def polar_map(adfobj):
     test_nicknames = adfobj.case_nicknames["test_nicknames"]
     base_nickname = adfobj.case_nicknames["base_nickname"]
 
+
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
 
@@ -99,11 +109,11 @@ def polar_map(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
 
@@ -216,15 +226,30 @@ def polar_map(adfobj):
                                                   season=s, plot_type=hemi_type)
                         else:
                             all_plots_exist = False
+                    if unstruct_plotting:
+                        if case_name == base_name:
+                            info["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+                        else:
+                            info["mesh_file"] = adfobj.mesh_files["test_mesh_file"][case_idx]
 
         if all_plots_exist:
             print(f"\t    Skipping {var} - all plots already exist")
             continue
 
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
-        if odata is None:
+        if unstruct_plotting:
+            kwargs["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+            unstruct_base = True
+
+        odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
+        odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+        if odataset is None:
             print(f"\t    WARNING: No reference data found for {var}")
             continue
+
+        # Reference weights for native-grid plotting (checked against each
+        # case's below):
+        if unstruct_plotting and adfobj.native_grid.get(base_name, False):
+            wgt_base = odataset.isel(time=0)[var]
 
         # Process each case
         for plot in plot_info:
@@ -237,17 +262,86 @@ def polar_map(adfobj):
             vres['hemi'] = plot['hemi']
             plot_loc = Path(plot_locations[case_idx])
 
+            if unstruct_plotting:
+                vres["mesh_file"] = info["mesh_file"]
+
+            #Determine hemisphere to plot based on plot file name:
+            if hemi_type == "NHPolar":
+                hemi = "NH"
+            if hemi_type == "SHPolar":
+                hemi = "SH"
+            #End if
+
             # Ensure plot directory exists
             plot_loc.mkdir(parents=True, exist_ok=True)
 
             # Load and validate model data (units transformation included in load_regrid_da)
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            if unstruct_plotting:
+                kwargs["mesh_file"] = adfobj.mesh_files["test_mesh_file"][case_idx]
+                #mdata = adfobj.data.load_climo_da(case_name, var, **kwargs)
+                mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
+
+                unstruct_case = True
+                #mdataset = adfobj.data.load_climo_dataset(case_name, var, **kwargs)
+                mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
+                if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
+                    wgt = mdataset.isel(time=0)[var]
+            else:
+                mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
+                """#Skip this variable/case if the regridded climo file doesn't exist:
+                if mdata is None:
+                    dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, polar lat/lon mean plotting skipped."
+                    adfobj.debug_log(dmsg)
+                    continue
+                #Determine dimensions of variable:
+                has_dims = utils.validate_dims(mdata, ["lat", "lon", "lev"])
+                if (not has_dims['has_lat']) or (not has_dims['has_lon']):
+                    print(f"\t    WARNING: skipping polar map for {var} for case {case_name} as it does not have both lat and lon")
+                    continue
+                else: # i.e., has lat&lon
+                    if (has_dims['has_lev']) and (not pres_levs):
+                        print(f"\t    WARNING: skipping polar map for {var} as it has more than lev dimension, but no pressure levels were provided")
+                        continue"""
+
+            if unstruct_plotting:
+                has_dims = {}
+                if len(wgt.n_face) == len(wgt_base.n_face):
+                    vres["wgt"] = wgt
+                    has_dims = {}
+                    has_dims['has_lev'] = False
+                else:
+                    print("The weights are different between test and baseline. Won't continue, eh.")
+                    return
+
+                if (not unstruct_case) and (unstruct_base):
+                    print("Base is unstructured but Test is lat/lon. Can't continue?")
+                    return
+                if (unstruct_case) and (not unstruct_base):
+                    print("Base is lat/lon but Test is unstructured. Can't continue?")
+                    return
+                if (unstruct_case) and (unstruct_base):
+                    unstructured=True
+                if (not unstruct_case) and (not unstruct_base):
+                    unstructured=False
+
+            #Skip this variable/case if the regridded climo file doesn't exist:
             if mdata is None:
+                dmsg = f"\t    WARNING: No test file for {case_name} for variable `{var}`, polar lat/lon mean plotting skipped."
+                print(dmsg)
+                adfobj.debug_log(dmsg)
                 continue
+            
+
+            has_dims = utils.lat_lon_validate_dims(odata)
+            has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
+            has_lat, has_lev = utils.zm_validate_dims(mdata)
+
 
             # Process data based on dimensionality
             if "lev" in mdata.dims:
                 has_lev = True
+                #Check that case inputs have the correct dimensions (including "lev"):
+                has_lat, has_lev = utils.zm_validate_dims(mdata)
             else:
                 has_lev = False
 

@@ -4,6 +4,7 @@ import warnings  # use to warn user about missing files
 from pathlib import Path
 
 import xarray as xr
+import uxarray as ux
 
 import adf_utils as utils
 from adf_units import units_equivalent
@@ -64,7 +65,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
         # paths
-        self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
+        self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc")
 
         # variables (and info for unit transform)
         # use self.adf.diag_var_list and self.adf.self.adf.variable_defaults
@@ -101,6 +102,8 @@ class AdfData:  # pylint: disable=too-many-public-methods
             self.ref_case_label = self.adf.get_baseline_info(
                 "cam_case_name", required=True
             )
+            if not self.adf.diag_var_list:
+                self.adf.diag_var_list = []
             for v in self.adf.diag_var_list:
                 self.ref_var_nam[v] = v
                 self.ref_labels[v] = self.adf.get_baseline_info(
@@ -112,6 +115,8 @@ class AdfData:  # pylint: disable=too-many-public-methods
 
     def set_ref_var_loc(self):
         """Set reference climo file locations"""
+        if not self.adf.diag_var_list:
+            self.adf.diag_var_list = []
         for v in self.adf.diag_var_list:
             f = self.get_reference_climo_file(v)
             self.ref_var_loc[v] = f
@@ -229,6 +234,35 @@ class AdfData:  # pylint: disable=too-many-public-methods
         # End if
         return chosen
 
+    def timeseries_dir(self, case, ts_loc):
+        """The directory to read `case`'s time series from.
+
+        When native-grid data is plotted on lat/lon (not 'unstructured_plotting'),
+        the ADF grids the time series it makes into a "gridded" sub-directory,
+        and that is what the diagnostics should read.  Pre-made time series have
+        no such copy, so they are read as they are.
+
+        Parameters
+        ----------
+        case : str
+            A test case, or the baseline's name.
+        ts_loc : str or pathlib.Path
+            The case's 'cam_ts_loc'.
+
+        Returns
+        -------
+        pathlib.Path
+        """
+        ts_loc = Path(ts_loc)
+        gridded = ts_loc / "gridded"
+        if (
+            self.adf.native_grid.get(case, False)
+            and not self.adf.unstructured_plotting
+            and gridded.is_dir()
+        ):
+            return gridded
+        return ts_loc
+
     def get_timeseries_file(self, case, field, hist_str=None):
         """Return list of test time series files.
 
@@ -242,8 +276,15 @@ class AdfData:  # pylint: disable=too-many-public-methods
         """
         # list of paths (could be multiple cases)
         ts_locs = self.adf.get_cam_info("cam_ts_loc", required=True)
-        caseindex = (self.case_names).index(case)
-        ts_loc = Path(ts_locs[caseindex])
+        try:
+            caseindex = self.case_names.index(case)
+        except ValueError:
+            stripped_names = [c.strip() for c in self.case_names]
+            if case.strip() in stripped_names:
+                caseindex = stripped_names.index(case.strip())
+            else:
+                raise
+        ts_loc = self.timeseries_dir(case, ts_locs[caseindex])
         if hist_str:
             ts_filenames = f"{case}.{hist_str}.{field}.*nc"
         else:
@@ -267,7 +308,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 "observational time series files."
             )
             return None
-        ts_loc = Path(self.adf.get_baseline_info("cam_ts_loc", required=True))
+        ts_loc = self.timeseries_dir(
+            self.ref_case_label,
+            self.adf.get_baseline_info("cam_ts_loc", required=True),
+        )
         if hist_str:
             ts_filenames = f"{self.ref_case_label}.{hist_str}.{field}.*nc"
         else:
@@ -434,6 +478,13 @@ class AdfData:  # pylint: disable=too-many-public-methods
             return None
         return self.load_dataset(fils)
 
+    def load_climo_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_climo_file(case, field)
+        if not fils:
+            return None
+        return self.load_dataset(fils, **kwargs)
+
     def get_climo_file(self, case, variablename):
         """Retrieve the climo file path(s) for variablename for a specific case.
 
@@ -498,8 +549,17 @@ class AdfData:  # pylint: disable=too-many-public-methods
             ds[vname].attrs["transformed"] = 1
         return ds
 
-    def load_reference_climo_da(self, case, variablename, apply_scaling=True):
-        """Return DataArray from reference (aka baseline) climo file"""
+    def load_reference_climo_da(self, case, variablename, apply_scaling=True, **kwargs):
+        """Return DataArray from reference (aka baseline) climo file.
+
+        Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
+        are passed on to :meth:`load_dataset`.  Any ``scale_factor`` or
+        ``add_offset`` among them (a caller passing its whole variable-defaults
+        entry, say) is ignored: the conversion is decided here, and
+        :meth:`load_da` will not apply it twice.
+        """
+        kwargs.pop("scale_factor", None)
+        kwargs.pop("add_offset", None)
         fils = self.get_reference_climo_file(variablename)
         vname = self.ref_var_nam[variablename]
         if not apply_scaling:
@@ -514,6 +574,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             add_offset=add_offset,
             scale_factor=scale_factor,
             obs_level=True,
+            **kwargs,
         )
 
     def get_reference_climo_file(self, var):
@@ -533,6 +594,13 @@ class AdfData:  # pylint: disable=too-many-public-methods
         # NOTE: originally had this looking for *_baseline.nc
         return sorted(Path(ref_loc).glob(f"{self.ref_case_label}_{var}_climo.nc"))
 
+    def load_reference_climo_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field."""
+        fils = self.get_reference_climo_file(field)
+        if not fils:
+            return None
+        return self.load_dataset(fils, **kwargs)
+
     # ------------------
 
     # Regridded files
@@ -546,8 +614,12 @@ class AdfData:  # pylint: disable=too-many-public-methods
         rlbl = self.ref_labels[field]
         return sorted(model_rg_loc.glob(f"{rlbl}_{case}_{field}_regridded.nc"))
 
-    def load_regrid_dataset(self, case, field):
-        """Return a data set to be used as reference (aka baseline) for variable field."""
+    def load_regrid_dataset(self, case, field, **kwargs):
+        """Return a data set of regridded data for case and variable field.
+
+        Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
+        are passed on to :meth:`load_dataset`.
+        """
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(
@@ -555,9 +627,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 f"{case}, variable: {field}"
             )
             return None
-        return self.load_dataset(fils)
+        return self.load_dataset(fils, **kwargs)
 
-    def load_regrid_da(self, case, field, apply_scaling=None):
+    def load_regrid_da(self, case, field, apply_scaling=None, **kwargs):
         """Return a data array of regridded data for case and variable field.
 
         Parameters
@@ -570,7 +642,14 @@ class AdfData:  # pylint: disable=too-many-public-methods
             Whether to apply ``add_offset``/``scale_factor``. The default,
             ``None``, decides from the file itself -- see
             :meth:`_regrid_converters`.
+        **kwargs
+            Passed on to :meth:`load_dataset` (e.g. ``unstructured_plotting``,
+            ``mesh_file``).  Any ``scale_factor`` or ``add_offset`` among them
+            (a caller passing its whole variable-defaults entry, say) is
+            ignored, so that the conversion is only ever decided here.
         """
+        kwargs.pop("scale_factor", None)
+        kwargs.pop("add_offset", None)
         fils = self.get_regrid_file(case, field)
         if not fils:
             warnings.warn(
@@ -582,7 +661,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             fils, field, case, field, apply_scaling
         )
         return self.load_da(
-            fils, field, add_offset=add_offset, scale_factor=scale_factor
+            fils, field, add_offset=add_offset, scale_factor=scale_factor, **kwargs
         )
 
     # Reference case (baseline/obs)
@@ -599,8 +678,12 @@ class AdfData:  # pylint: disable=too-many-public-methods
             fils = sorted(model_rg_loc.glob(f"{case}_{field}_baseline.nc"))
         return fils
 
-    def load_reference_regrid_dataset(self, case, field):
-        """Return a data set to be used as reference (aka baseline) for variable field."""
+    def load_reference_regrid_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field.
+
+        Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
+        are passed on to :meth:`load_dataset`.
+        """
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(
@@ -608,9 +691,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 f"{case}, variable: {field}"
             )
             return None
-        return self.load_dataset(fils)
+        return self.load_dataset(fils, **kwargs)
 
-    def load_reference_regrid_da(self, case, field, apply_scaling=None):
+    def load_reference_regrid_da(self, case, field, apply_scaling=None, **kwargs):
         """Return a data array to be used as reference (aka baseline) for variable field.
 
         Parameters
@@ -624,7 +707,13 @@ class AdfData:  # pylint: disable=too-many-public-methods
             ``None``, decides from the file itself -- see
             :meth:`_regrid_converters`. Observation files are never written by
             the regridding stage, so they are always converted here.
+        **kwargs
+            Passed on to :meth:`load_dataset` (e.g. ``unstructured_plotting``,
+            ``mesh_file``).  Any ``scale_factor`` or ``add_offset`` among them
+            is ignored, as in :meth:`load_regrid_da`.
         """
+        kwargs.pop("scale_factor", None)
+        kwargs.pop("add_offset", None)
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             warnings.warn(
@@ -647,6 +736,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             add_offset=add_offset,
             scale_factor=scale_factor,
             obs_level=True,
+            **kwargs,
         )
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
@@ -676,7 +766,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
     # ---------------------------
     # DataSet and DataArray load
     # ---------------------------
-    def load_dataset(self, fils, use_time_bounds=False):
+    def load_dataset(self, fils, use_time_bounds=False, **kwargs):
         """Return xarray DataSet from file(s).
 
         `use_time_bounds` moves the time coordinate to the midpoint of the
@@ -684,6 +774,11 @@ class AdfData:  # pylint: disable=too-many-public-methods
         off by default: climatology and regridded files carry a time
         coordinate of month numbers, and turning that into dates would change
         the files the ADF writes and reads back.
+
+        When ``unstructured_plotting=True`` is given, a single file is opened
+        with uxarray on the grid in ``mesh_file``, for plotting on the native
+        unstructured grid.  Other keyword arguments are ignored, so callers
+        may pass their whole variable-defaults entry.
         """
         if len(fils) == 0:
             warnings.warn("\t    WARNING: Input file list is empty.")
@@ -695,7 +790,20 @@ class AdfData:  # pylint: disable=too-many-public-methods
             if not Path(sfil).is_file():
                 warnings.warn(f"\t    WARNING: Expecting to find file: {sfil}")
                 return None
-            ds = xr.open_dataset(sfil)
+            if kwargs.get("unstructured_plotting", False):
+                mesh_file = kwargs.get("mesh_file")
+                if not mesh_file:
+                    msg = "\t   WARNING: Unstructured plotting is requested, "
+                    msg += "but no available mesh file."
+                    msg += " Please make sure 'mesh_file' is declared in the"
+                    msg += " config yaml file"
+                    msg += "\n\t   NOTE: many mesh files can be found at "
+                    msg += "/glade/campaign/cesm/cesmdata/inputdata/share/meshes/"
+                    print(msg)
+                    return None
+                ds = ux.open_dataset(mesh_file, sfil)
+            else:
+                ds = xr.open_dataset(sfil)
         if ds is None:
             warnings.warn("\t    WARNING: invalid data on load_dataset")
             return ds
@@ -816,7 +924,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         A conversion that has already been applied to the file is not applied
         again; see :meth:`already_converted`.
         """
-        ds = self.load_dataset(fils, use_time_bounds=use_time_bounds)
+        ds = self.load_dataset(fils, use_time_bounds=use_time_bounds, **kwargs)
         if ds is None:
             warnings.warn(f"\t    WARNING: Load failed for {variablename}")
             return None
@@ -878,5 +986,13 @@ class AdfData:  # pylint: disable=too-many-public-methods
                     scale_factor = vres.get("scale_factor", 1)
                     add_offset = vres.get("add_offset", 0)
         return add_offset, scale_factor
+
+    def _ensure_scaling_kwargs(self, case, variablename, kwargs):
+        """Ensure scale_factor/add_offset are present without overwriting or double counting explicit values."""
+        if ("scale_factor" not in kwargs) or ("add_offset" not in kwargs):
+            add_offset, scale_factor = self.get_value_converters(case, variablename)
+            kwargs.setdefault("scale_factor", scale_factor)
+            kwargs.setdefault("add_offset", add_offset)
+        return kwargs
 
     # ------------------

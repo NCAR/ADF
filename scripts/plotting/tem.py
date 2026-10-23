@@ -266,11 +266,11 @@ def tem(adf):
     # -- So check for it, and default to png
     basic_info_dict = adf.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     # check if existing plots need to be redone
     redo_plot = adf.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
     
     #Initialize list of input TEM file locations
@@ -459,11 +459,11 @@ def tem(adf):
 
                 #Gather contour plot options
                 cp_info = plot_utils.prep_contour_plot(mseasons, oseasons, dseasons,
-                                                       pseasons, **vres)
-                clevs = np.unique(np.array(cp_info['levels1']))
-                norm = cp_info['norm1']
-                cmap = cp_info['cmap1']
-                clevs_diff = np.unique(np.array(cp_info['levelsdiff']))
+                                                       pseasons, adfobj=adf, **vres)
+                clevs = np.unique(np.array(cp_info['levels_sim']))
+                norm = cp_info['norm_sim']
+                cmap = cp_info['cmap_sim']
+                clevs_diff = np.unique(np.array(cp_info['levels_diff']))
 
                 # mesh for plots -- each panel gets its own, because the baseline
                 # (especially observations) can be on a different vertical grid
@@ -509,11 +509,11 @@ def tem(adf):
                     lats_d, levs_d = _mesh(dseasons)
                     img2 = ax[2].contourf(lats_d, levs_d, dseasons,
                                             #cmap="BrBG",
-                                            cmap=cp_info['cmapdiff'],
+                                            cmap=cp_info['cmap_diff'],
                                             levels=clevs_diff,
-                                            norm=cp_info['normdiff'])
+                                            norm=cp_info['norm_diff'])
                     ax[2].contour(lats_d, levs_d, dseasons, colors="k", linewidths=0.5,
-                                    levels=clevs_diff[::2], norm=cp_info['normdiff'])
+                                    levels=clevs_diff[::2], norm=cp_info['norm_diff'])
                     cp_info['diff_colorbar_opt']["label"] = cp_info['colorbar_opt']["label"]
                     plt.colorbar(img2, ax=ax[2], location='right', pad=cmap_pad,**cp_info['diff_colorbar_opt'])
 

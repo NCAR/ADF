@@ -35,7 +35,7 @@ def meridional_mean(adfobj):
     Directly uses adfobj for the following:
     plot_var_list, plot_location, climo_yrs, variable_defaults,
     read_config_var, get_basic_info, add_website_data, debug_log,
-    compare_obs
+    compare_obs, unstructured_plotting, native_grid, mesh_files
 
     Determines whether `lev` dimension is present. If not, makes a line plot;
     if so, makes a contour plot, plus a second one on a log-pressure axis.
@@ -134,6 +134,17 @@ def meridional_mean(adfobj):
                 elif (redo_plot) and plot_name.is_file():
                     plot_name.unlink()
                 # End if
+
+                # The same for the log-pressure plot, which only 3-D variables have:
+                if (not redo_plot) and plot_name_log.is_file():
+                    merid_skip.add(plot_name_log)
+                    adfobj.add_website_data(
+                        plot_name_log, f"{var}_logp", case_name, season=s,
+                        plot_type="Meridional", category="Log-P",
+                    )
+                elif (redo_plot) and plot_name_log.is_file():
+                    plot_name_log.unlink()
+                # End if
             # End for (seasons)
         # End for (variables)
     # End for (cases)
@@ -150,9 +161,14 @@ def meridional_mean(adfobj):
         print(f"\t - meridional mean plots for {var}")
 
         # Nothing to draw for this variable at all: settle it from the file
-        # names, before opening any data
-        if _all_plots_present(
+        # names, before opening any data.  (A 2-D variable has no log-pressure
+        # plots, so it is settled below, once its dimensions are known.)
+        regular_present = _all_plots_present(
             plot_locations, adfobj.data.case_names, var, seasons, plot_type, merid_skip
+        )
+        if regular_present and _all_plots_present(
+            plot_locations, adfobj.data.case_names, var, seasons, plot_type,
+            merid_skip, log_p=True,
         ):
             continue
         # End if
@@ -188,7 +204,9 @@ def meridional_mean(adfobj):
         # End if
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        odata = adfobj.data.load_reference_regrid_da(
+            base_name, var, **_native_kwargs(adfobj, adfobj.data.ref_case_label)
+        )
 
         # Check if regridded file exists, if not skip meridional plot for this var
         if odata is None:
@@ -199,10 +217,16 @@ def meridional_mean(adfobj):
 
         # Check meridional mean dimensions
         has_dims_ref = utils.validate_dims(odata, ["lat", "lev"])
+        unstruct_ref = _is_unstructured(odata)
 
-        # check if there is a lat dimension:
+        # 2-D variable whose plots are all there (see above):
+        if regular_present and not has_dims_ref["has_lev"]:
+            continue
+        # End if
+
+        # check if there is a lat dimension (native-grid data has none):
         # if not, skip test cases and move to next variable
-        if not has_dims_ref["has_lat"]:
+        if not unstruct_ref and not has_dims_ref["has_lat"]:
             print(
                 f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
             )
@@ -230,7 +254,9 @@ def meridional_mean(adfobj):
             #End if
 
             # load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            mdata = adfobj.data.load_regrid_da(
+                case_name, var, **_native_kwargs(adfobj, case_name)
+            )
 
             if mdata is None:
                 dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, meridional mean plotting skipped."
@@ -242,8 +268,18 @@ def meridional_mean(adfobj):
             # 3D triggers search for surface pressure
             has_dims = utils.validate_dims(mdata, ["lat", "lev"])
 
-            # check if there is a lat dimension:
-            if not has_dims["has_lat"]:
+            # Both on the native grid, or both on lat/lon:
+            if _is_unstructured(mdata) != unstruct_ref:
+                print(
+                    f"\t    WARNING: '{case_name}' and '{base_name}' are not both on "
+                    f"a native grid (or both on lat/lon), so '{var}' cannot be plotted."
+                )
+                continue
+            # End if
+            vres["unstructured_plotting"] = unstruct_ref
+
+            # check if there is a lat dimension (native-grid data has none):
+            if not unstruct_ref and not has_dims["has_lat"]:
                 print(
                     f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
@@ -307,6 +343,7 @@ def meridional_mean(adfobj):
                 # Seasonal Averages
                 mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
                 oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
+                vres["season"] = s
 
                 # Create new plot:
                 if plot_name not in merid_skip:
@@ -370,7 +407,98 @@ def meridional_mean(adfobj):
 #########
 
 
-def _all_plots_present(plot_locations, case_names, var, seasons, plot_type, merid_skip):
+def _plot_names(plot_loc, var, season, plot_type):
+    """
+    File names of the regular and the log-pressure plot of `var` for `season`.
+
+    Parameters
+    ----------
+    plot_loc : pathlib.Path
+        output plot directory for the case
+    var : str
+        ADF name of the variable being plotted
+    season : str
+        the season, e.g. "ANN"
+    plot_type : str
+        file extension the plots are written with, e.g. "png"
+
+    Returns
+    -------
+    tuple of pathlib.Path
+        ``(regular, log_pressure)``; only 3-D variables get the second one.
+    """
+    return (
+        plot_loc / f"{var}_{season}_Meridional_Mean.{plot_type}",
+        plot_loc / f"{var}_logp_{season}_Meridional_Mean.{plot_type}",
+    )
+
+
+def _season_done(plot_loc, var, season, plot_type, has_lev, merid_skip):
+    """
+    Report whether every plot of `var` for `season` is already there.
+
+    Parameters
+    ----------
+    plot_loc : pathlib.Path
+        output plot directory for the case
+    var : str
+        ADF name of the variable being plotted
+    season : str
+        the season, e.g. "ANN"
+    plot_type : str
+        file extension the plots are written with, e.g. "png"
+    has_lev : bool
+        whether the variable has a `lev` dimension, and so a log-pressure plot
+    merid_skip : set
+        plots found by the pre-flight pass
+
+    Returns
+    -------
+    bool
+        ``True`` when nothing is left to draw.
+    """
+    plot_name, plot_name_log = _plot_names(plot_loc, var, season, plot_type)
+    return plot_name in merid_skip and (not has_lev or plot_name_log in merid_skip)
+
+
+def _is_unstructured(data):
+    """Whether `data` is on a native unstructured grid (opened with uxarray)."""
+    return hasattr(data, "uxgrid")
+
+
+def _native_kwargs(adfobj, casename):
+    """
+    Loader keyword arguments for plotting on the native grid, else empty.
+
+    With 'unstructured_plotting', a native-grid case's regridded files are
+    still on its native grid, and are opened with uxarray against its mesh.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object.
+    casename : str
+        A test case, or the baseline's name.
+
+    Returns
+    -------
+    dict
+        ``unstructured_plotting`` and ``mesh_file``, or empty.
+    """
+    if not adfobj.unstructured_plotting or not adfobj.native_grid.get(casename, False):
+        return {}
+    if casename == adfobj.data.ref_case_label:
+        mesh_file = adfobj.mesh_files["baseline_mesh_file"]
+    else:
+        mesh_file = adfobj.mesh_files["test_mesh_file"][
+            adfobj.data.case_names.index(casename)
+        ]
+    return {"unstructured_plotting": True, "mesh_file": mesh_file}
+
+
+def _all_plots_present(
+    plot_locations, case_names, var, seasons, plot_type, merid_skip, log_p=False
+):
     """
     Report whether every plot this variable would produce is already there.
 
@@ -388,6 +516,8 @@ def _all_plots_present(plot_locations, case_names, var, seasons, plot_type, meri
         file extension the plots are written with, e.g. "png"
     merid_skip : set
         plots found by the pre-flight pass above
+    log_p : bool, optional
+        check the log-pressure plots instead of the regular ones
 
     Returns
     -------

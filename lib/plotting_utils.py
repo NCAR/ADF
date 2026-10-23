@@ -69,6 +69,12 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.lines as mlines
 import cartopy.crs as ccrs
+import os
+
+import urllib
+from urllib.parse import urlparse
+from urllib.request import urlretrieve
+import re
 
 from adf_diag import AdfDiag
 import adf_utils as utils
@@ -116,11 +122,16 @@ def load_dataset(fils):
         return xr.open_mfdataset(fils, combine="by_coords")
     return xr.open_dataset(fils[0])
 
+# Now import pyplot:
+import matplotlib.pyplot as plt
 
-# End def
+script_name = os.path.splitext(os.path.basename(__file__))[0]
 
+_LINE2D_PROPS = set(mlines.Line2D([0], [0]).properties().keys())
 
-#######
+#################
+# HELPER FUNCTIONS
+#################
 
 
 def first_complete_plot_set(layouts):
@@ -386,7 +397,6 @@ def _plot_line(axobject, xdata, ydata, color=None, **kwargs):
         axobject.set_ylabel(f"[{getattr(ydata, 'units')}]")
     elif "units" in kwargs:
         axobject.set_ylabel(f"[{kwargs['units']}]")
-    # End if
 
     return axobject
 
@@ -874,7 +884,8 @@ def prep_contour_plot(adata, bdata, diffdata, pctdata, **kwargs):
     adata, bdata, diffdata, pctdata
         the data to be plotted
     kwargs : dict, optional
-        plotting options
+        plotting options; an ``adfobj`` entry (the ADF object) sends this
+        function's messages to the ADF debug log
 
     Returns
     -------
@@ -1205,6 +1216,48 @@ def add_var_name_key_to_vres(adfobj, var, vres, vector=False):
     else:
         vres["var_name"] = vres.get("nickname", var)
     return vres
+
+
+def add_var_to_vres(adfobj, var, vres):
+    if "vector_name" in vres:
+        vect_var_name = vres["vector_name"]
+        vec_vres = adfobj.variable_defaults.get(vect_var_name, {})
+        if "nickname" in vec_vres:
+            vres["var_name"] = vec_vres["nickname"]
+        else:
+            vres["var_name"] = vect_var_name
+    else:
+
+        if "nickname" in vres:
+            vres["var_name"] = vres["nickname"]
+        else:
+            vres["var_name"] = var
+    return vres
+
+
+import uxarray as ux
+import numpy as np
+
+
+def prep_ux_for_plot(a, grid_source):
+
+    # collapse extra dims if needed
+    if "time" in a.dims:
+        a = a.mean("time")
+
+    # replace NaNs (very important for new uxarray)
+    a = a.where(np.isfinite(a), 0.0)  # or fillna(0)
+
+    # force it to be a UxDataArray if it got converted to xarray
+    if not isinstance(a, ux.UxDataArray):
+        a = ux.UxDataArray(
+            data=a.data,
+            dims=a.dims,
+            coords=a.coords,
+            uxgrid=grid_source.uxgrid,
+        )
+
+    return a
 
 
 #####################

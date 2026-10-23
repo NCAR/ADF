@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>
+        CESM Visualization Dashboard
+    </title>
+
+    <link rel="stylesheet"
+          href="dashboard.css">
+
+</head>
+
+
+<body>
+
+
+<div class="dashboard">
+
+
+    <!-- ====================================================
+         Sidebar
+         ==================================================== -->
+
+    <aside class="sidebar">
+
+
+        <div class="sidebar-header">
+
+            CESM Dashboard
+
+        </div>
+
+
+        <div class="sidebar-content">
+
+
+            <h3>
+                Cases
+            </h3>
+
+
+            <div id="case-container">
+
+                <!-- Cases inserted by dashboard.js -->
+
+            </div>
+
+
+            <hr>
+
+
+            <h3 id="panel-heading"
+                style="display: none;">
+                View
+            </h3>
+
+
+            <div id="panel-container">
+
+                <!--
+                    Summary / component-panel selector for
+                    the current image's plot type, inserted
+                    by dashboard.js. Hidden when the current
+                    plot type has no panel breakdown.
+                -->
+
+            </div>
+
+
+            <hr>
+
+
+            <h3>
+                Images
+            </h3>
+
+
+            <div id="thumbnail-container"
+                 class="thumbnail-grid">
+
+                <!--
+                    Thumbnails and Slider/Mosaic
+                    checkboxes inserted by dashboard.js
+                -->
+
+            </div>
+
+
+        </div>
+
+    </aside>
+
+
+    <!-- ====================================================
+         Main Content
+         ==================================================== -->
+
+    <main class="main-content">
+
+
+        <!-- =================================================
+             Tabs
+             ================================================= -->
+
+        <nav class="tabs">
+
+
+            <button
+                class="tab-button active"
+                data-tab="main-tab">
+
+                Main Image
+
+            </button>
+
+
+            <button
+                class="tab-button"
+                data-tab="slider-tab">
+
+                Case Slider
+
+            </button>
+
+
+            <button
+                class="tab-button"
+                data-tab="mosaic-tab">
+
+                Mosaic
+
+            </button>
+
+
+            <button
+                class="tab-button"
+                data-tab="interactive-tab">
+
+                Interactive Plots
+
+            </button>
+
+
+        </nav>
+
+
+        <!-- =================================================
+             Main Image
+             ================================================= -->
+
+        <section
+            id="main-tab"
+            class="tab-panel active">
+
+
+            <div class="image-viewer">
+
+
+                <img
+                    id="main-image"
+                    src=""
+                    alt="Selected visualization">
+
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =================================================
+             Slider
+             ================================================= -->
+
+        <section
+            id="slider-tab"
+            class="tab-panel">
+
+
+            <div class="case-panel">
+
+
+                <h2>
+                    Case Slider
+                </h2>
+
+
+                <div
+                    id="slider-container"
+                    class="slider-container">
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =================================================
+             Mosaic
+             ================================================= -->
+
+        <section
+            id="mosaic-tab"
+            class="tab-panel">
+
+
+            <div class="mosaic-container">
+
+
+                <h2>
+                    Image Mosaic
+                </h2>
+
+
+                <!-- =========================================
+                     Mosaic Image Visibility Controls
+                     ========================================= -->
+
+                <div class="mosaic-controls">
+
+
+                    <div class="mosaic-controls-header">
+
+                        <h3>
+                            Selected Images
+                        </h3>
+
+
+                        <button
+                            id="save-mosaic"
+                            class="control-button">
+
+                            Save Mosaic PNG
+
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        id="mosaic-image-selector"
+                        class="mosaic-image-selector">
+
+                        <!--
+                            Individual Mosaic image
+                            checkboxes inserted by JS
+                        -->
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- =========================================
+                     Mosaic Grid
+                     ========================================= -->
+
+                <div
+                    id="mosaic-grid"
+                    class="mosaic-grid">
+
+                    <!-- Mosaic generated by dashboard.js -->
+
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =================================================
+             Interactive Plots
+             ================================================= -->
+
+        <section
+            id="interactive-tab"
+            class="tab-panel">
+
+
+            <div class="interactive-container">
+
+
+                <nav
+                    id="interactive-subtabs"
+                    class="interactive-subtabs">
+
+                    <!--
+                        One sub-tab per campaign per page (Dropsonde,
+                        Nd-LWC PDF), inserted by dashboard.js from the
+                        campaigns found in the loaded manifest.
+                    -->
+
+                </nav>
+
+
+                <div id="interactive-frames">
+
+                    <!-- Iframes inserted by dashboard.js -->
+
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+    </main>
+
+
+</div>
+
+
+<!-- ========================================================
+     External Libraries
+     ======================================================== -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
+
+<!-- ========================================================
+     Dashboard Javascript
+     ======================================================== -->
+
+<script src="dashboard.js"></script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,91 @@
+#This first set of variables specify basic info used by all diagnostic runs:
+diag_basic_info:
+    inform_diags: true
+    compare_obs: true
+    create_html: true
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
+
+    #Location where diagnostic plots are stored:
+    cam_diag_plot_loc: /glade/derecho/scratch/richling/inform-output/test/all_nudgefull_withCOSP_all_tau_freerun-FROM_RAW
+    num_procs: 8
+    redo_plot: false
+
+#This second set of variables provides info for the CAM simulation(s) being diagnosed:
+diag_cam_climo:
+    hist_str:
+        - cam.h0i
+        - cam.h0i
+    cam_case_name:
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau24h.001
+        - f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_freerun_withCOSP_tau6h.001
+    #NOTE: if nickname starts with '0' - nickname must be in quotes!
+    # ie '026a' as opposed to 026a
+    #If missing or left blank, will default to cam_case_name
+    case_nickname:
+        - nudgeUVTQfull_withCOSP_tau24h.001
+        - FreeRun
+    cam_hist_loc:
+        - /glade/campaign/cgd/cas/INFORM/SOCRATES/full_UVTQ_nudging/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_nudgeUVTQfull_withCOSP_tau24h.001/atm/hist
+        - /glade/derecho/scratch/richling/archive/f.e30_cam6_4_120.FHIST_BGC.f09_f09_mg17.SOCRATES_freerun_withCOSP_tau6h.001/atm/hist
+
+    #----------------------
+
+
+#List of plotting scripts being used.
+#These scripts must be located in "scripts/plotting":
+plotting_scripts:
+    #- inform_campaign_cloud_micro
+    - inform_model_analysis:
+        - macro
+        - micro
+        - process
+
+# Ignore this, not relevant to INFORM diagnostics, but needed for the ADF framework:
+diag_var_list:
+    - SWCF
+
+# Add research campaigns
+campaigns:
+    name:
+        - SOCRATES
+        #- CSET
+    campaign_data: # path to raw campaign data; not used if `build_flight_files` is true
+        #- /glade/u/home/patnaude/inform/composited data
+        - /glade/derecho/scratch/richling/inform/ryan_campaign_data/socrates
+    composited_data: # path to save composited data or to read it if the data exists already (?) JR
+        - /glade/derecho/scratch/richling/inform-output/socrates/all_nudgefull_withCOSP_all_tau_freerun/composited_data
+    redo_composited:
+        - false
+        #- false
+
+    # Build the per-flight cloud regime files from air_1hz_dir (and
+    # air_25hz_dir, if set) instead of reading them from campaign_data. They
+    # go to <inform cache>/flights/<campaign>/ (inform_cache_dir if set, else
+    # <composited_data>/inform_cache), so configs sharing a cache build them
+    # once. Built when missing or when redo_composited is true; this takes
+    # about 15 minutes per campaign (every flight is matched to ERA5).
+    # One entry per campaign. Default: false (read campaign_data).
+    build_flight_files:
+        - true
+
+    # Optional: shared cache for the INFORM diagnostics' per-case results
+    # (dropsonde profiles, Nd/LWC PDFs, sensitivity tables). Point several
+    # configs at the same directory to reuse results for cases they share;
+    # each result is keyed by full case name and recomputed if its settings
+    # change. One path for all campaigns, or a list with one per campaign.
+    # Default: <composited_data>/inform_cache
+    #inform_cache_dir: /glade/derecho/scratch/richling/inform-output/socrates/inform_cache
+    
+    air_1hz_dir:
+        - /glade/work/patnaude/SOCRATES/aircraft_1hz
+        #- /glade/work/patnaude/CSET/aircraft_1hz
+    air_25hz_dir:
+        - /glade/work/patnaude/SOCRATES/aircraft_25hz
+        #- /glade/work/patnaude/CSET/aircraft_25hz
+    #ccn_dir:
+    #    - /glade/work/patnaude/SOCRATES/CCN
+    campn_sonde_dir:
+        - /glade/work/patnaude/SOCRATES/dropsondes
+        #- /glade/work/patnaude/CSET/dropsondes
+
+#END OF FILE

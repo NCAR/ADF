@@ -97,8 +97,8 @@ def global_mean_timeseries(adfobj):
                 continue
             # End if
             
-            # check if there is a lat dimension:
-            if not has_lat_ref:
+            # check if there is a lat dimension (native-grid data has none):
+            if not has_lat_ref and "ncol" not in ref_ts_da.dims:
                 print(
                     f"\t    WARNING: Variable {field} is missing a lat dimension for '{base_name}', cannot continue to plot."
                 )
@@ -106,7 +106,9 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # reference time series global average
-            ref_ts_da_ga = utils.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+            ref_ts_da_ga = utils.spatial_average(
+                ref_ts_da, weights=_native_weights(adfobj, field, ref_ts_da), spatial_dims=None
+            )
 
             # annually averaged
             ref_ts_da = utils.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
@@ -155,8 +157,8 @@ def global_mean_timeseries(adfobj):
                 continue
             # End if
 
-            # check if there is a lat dimension:
-            if not has_lat_case:
+            # check if there is a lat dimension (native-grid data has none):
+            if not has_lat_case and "ncol" not in c_ts_da.dims:
                 print(
                     f"\t    WARNING: Variable {field} is missing a lat dimension for '{case_name}', cannot continue to plot."
                 )
@@ -165,7 +167,9 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # Gather spatial avg for test case
-            c_ts_da_ga = utils.spatial_average(c_ts_da)
+            c_ts_da_ga = utils.spatial_average(
+                c_ts_da, weights=_native_weights(adfobj, field, c_ts_da, case_name)
+            )
             case_ts[labels[case_name]] = utils.annual_mean(c_ts_da_ga)
 
         # If this case is 3-d or missing variable, then break the loop and go to next variable
@@ -255,6 +259,22 @@ def get_plot_loc(adfobj, verbose=None):
     print(f"\t Determined plot location: {plot_loc}")
     return plot_loc
 ######
+
+
+def _native_weights(adfobj, field, data, case_name=None):
+    """Cell-area weights for native-grid (ncol) data, else None.
+
+    None leaves the weighting to utils.spatial_average, which uses cos(lat)
+    for lat/lon data.  The areas are read from the case's time series files,
+    as the loaded data array does not carry them.
+    """
+    if "ncol" not in data.dims:
+        return None
+    if case_name is None:
+        fils = adfobj.data.get_ref_timeseries_file(field)
+    else:
+        fils = adfobj.data.get_timeseries_file(case_name, field)
+    return utils.native_grid_weights(fils[0])
 
 
 class Lens2Data:

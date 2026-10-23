@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sensitivity vs Sigma w — D3 example</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+  /* Always light - no dark-mode branch, matching the dropsonde/Nd-LWC dashboards. */
+  :root {
+    color-scheme: light;
+    --page:            #f9f9f7;
+    --surface-1:       #fcfcfb;
+    --text-primary:    #0b0b0b;
+    --text-secondary:  #52514e;
+    --text-muted:      #898781;
+    --gridline:        #e1e0d9;
+    --baseline:        #c3c2b7;
+    --border:          rgba(11,11,11,0.10);
+    /* categorical slots 1-4, fixed order (see dataviz skill palette.md) */
+    --slot-1: #2a78d6; /* blue */
+    --slot-2: #eb6834; /* orange */
+    --slot-3: #1baf7a; /* aqua */
+    --slot-4: #eda100; /* yellow */
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  /* Save PNG / Save SVG buttons in the header (see "Save figure" in the
+     script) - same quiet look as the band toggle so they don't dominate. */
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+    padding-top: 2px;
+  }
+  .export-btn {
+    font: inherit;
+    font-size: 12px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .export-btn:hover { color: var(--text-primary); border-color: var(--baseline); }
+  .export-btn:disabled { opacity: 0.5; cursor: progress; }
+  h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  .subtitle { font-size: 12px; color: var(--text-secondary); margin: 2px 0 0; }
+
+  /* Checkbox rows double as the legend: color swatch + name */
+  .picker-group {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+  }
+  .picker-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 18px;
+  }
+  .picker-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    width: 100%;
+    margin-bottom: 2px;
+  }
+  .picker-row + .picker-row { margin-top: 10px; }
+  .picker-row label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+  }
+  .picker-row input[type="checkbox"] { accent-color: var(--case-color, var(--text-primary)); }
+  .case-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--case-color, var(--text-primary));
+    flex: none;
+  }
+  .case-name { color: var(--text-primary); }
+
+  .charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) {
+    .charts { grid-template-columns: 1fr; }
+  }
+  .chart-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 16px 10px;
+  }
+  .chart-card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  .chart-card .chart-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 10px;
+  }
+
+  svg { display: block; overflow: visible; width: 100%; height: auto; }
+  .axis text { fill: var(--text-muted); font-size: 10.5px; }
+  .axis path, .axis .tick line { display: none; }
+  .axis-label { fill: var(--text-secondary); font-size: 11px; }
+  .gridline { stroke: var(--gridline); stroke-width: 1px; shape-rendering: crispEdges; }
+  .zero-line { stroke: var(--baseline); stroke-width: 1px; }
+
+  .fit-line { fill: none; stroke-width: 2px; }
+  .dot { stroke: var(--surface-1); stroke-width: 1px; }
+
+  .crosshair-line {
+    stroke: var(--text-muted);
+    stroke-width: 1px;
+    stroke-dasharray: 2,2;
+    pointer-events: none;
+  }
+  .hover-layer { fill: transparent; }
+
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    opacity: 0;
+    transition: opacity 120ms ease;
+    z-index: 10;
+  }
+  .tooltip .t-p { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; }
+  .tooltip .t-key { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .tooltip .t-val {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .tooltip .t-name { color: var(--text-secondary); }
+
+  /* Slope/R^2 readout under each panel - the interactive counterpart of the
+     matplotlib version's narrow "stat_axes" text column next to each panel. */
+  .panel-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .panel-stats .stat-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+  }
+  .panel-stats .stat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .panel-stats .stat-val {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <div>
+      <h1>Sensitivity of N<sub>d</sub> to CCN vs &sigma;(w)</h1>
+      <div class="subtitle" id="subtitle">d log(Nd) / d log(CCN), binned by vertical velocity variance, by cloud regime and drizzle state</div>
+    </div>
+    <div class="header-controls">
+      <button type="button" class="export-btn" id="save-png">Save PNG</button>
+      <button type="button" class="export-btn" id="save-svg">Save SVG</button>
+    </div>
+  </div>
+
+  <div class="picker-group">
+    <div class="picker-row" id="ref-picker">
+      <span class="picker-label">Reference (shared across cases)</span>
+    </div>
+    <div class="picker-row" id="case-picker">
+      <span class="picker-label">CAM cases</span>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <h2>Open-Cell | Non-drizzling</h2>
+      <div id="chart-open-nondrizzle"></div>
+      <div class="panel-stats" id="stats-open-nondrizzle"></div>
+    </div>
+    <div class="chart-card">
+      <h2>Open-Cell | Drizzling</h2>
+      <div id="chart-open-drizzle"></div>
+      <div class="panel-stats" id="stats-open-drizzle"></div>
+    </div>
+    <div class="chart-card">
+      <h2>Stratocumulus | Non-drizzling</h2>
+      <div id="chart-strat-nondrizzle"></div>
+      <div class="panel-stats" id="stats-strat-nondrizzle"></div>
+    </div>
+    <div class="chart-card">
+      <h2>Stratocumulus | Drizzling</h2>
+      <div id="chart-strat-drizzle"></div>
+      <div class="panel-stats" id="stats-strat-drizzle"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(async function () {
+  const data = await d3.json("sample_sensitivity_vs_sigmaw.json");
+  d3.select("#subtitle").text(`${data.campaign} campaign — d log(Nd) / d log(CCN) vs σ(w), by cloud regime and drizzle state`);
+
+  // data.cases is {name: {open:{nondrizzle:{points,fit}, drizzle:{...}}, strat:{...}}, ...}
+  // "Obs" is a shared reference entry, a peer of the CAM cases - not nested
+  // inside them, same convention as the dropsonde/Nd-LWC dashboards.
+  const REF_NAMES = ["Obs"];
+
+  // Drop points with a non-finite w_mid/slope (Python writes NaN as null);
+  // a panel can also legitimately be empty with a null fit.
+  for (const name of Object.keys(data.cases)) {
+    for (const regimeKey of ["open", "strat"]) {
+      for (const drizzleKey of ["nondrizzle", "drizzle"]) {
+        const entry = data.cases[name][regimeKey][drizzleKey];
+        entry.points = (entry.points || []).filter(p => Number.isFinite(p.w_mid) && Number.isFinite(p.slope));
+      }
+    }
+  }
+  const fmt2 = v => (Number.isFinite(v) ? v.toFixed(2) : "n/a");
+  const caseNames = Object.keys(data.cases).filter(name => !REF_NAMES.includes(name));
+
+  const REF_STYLE = {
+    // Fixed literal color (not a theme token), matching the other two
+    // dashboards' convention: Obs is always black.
+    Obs: { label: "Obs (aircraft)", color: "#000000" },
+  };
+
+  // Fixed color assignment by case, in config order - stable regardless of
+  // which checkboxes are on, so a case's identity never repaints.
+  // Every case gets a unique color: the hand-picked palette first, then
+  // golden-angle hues for any cases beyond it (never cycles/repeats).
+  // Black is avoided since it belongs to Obs.
+  const COLORS = [
+    "var(--slot-1)", "var(--slot-2)", "var(--slot-3)", "var(--slot-4)",
+    "#d62728", "#9467bd", "#8c564b", "#e377c2", "#17becf", "#bcbd22",
+  ];
+  const caseColor = i => (i < COLORS.length
+    ? COLORS[i]
+    : d3.hsl((i - COLORS.length) * 137.508 + 15, 0.65, 0.45).formatHex());
+  // All CAM cases are dotted; solid is reserved for Obs.
+  const CASE_DASH = "2,2";
+  const style = {};
+  caseNames.forEach((name, i) => {
+    style[name] = { color: caseColor(i), dash: CASE_DASH };
+  });
+
+  const refVisible = new Set(REF_NAMES.filter(name => name in data.cases));
+  const visible = new Set(caseNames);
+
+  // --- reference (Obs) checkbox ---
+  const refPicker = d3.select("#ref-picker");
+  const refRows = refPicker.selectAll("label")
+    .data(REF_NAMES.filter(name => name in data.cases))
+    .join("label")
+    .style("--case-color", name => REF_STYLE[name].color);
+
+  refRows.append("input")
+    .attr("type", "checkbox")
+    .attr("checked", true)
+    .on("change", function (event, name) {
+      if (this.checked) refVisible.add(name); else refVisible.delete(name);
+      renderAll();
+    });
+  refRows.append("span").attr("class", "case-swatch");
+  refRows.append("span").attr("class", "case-name").text(name => REF_STYLE[name].label);
+
+  // --- case checkboxes (this is the case legend) ---
+  const picker = d3.select("#case-picker");
+  const rows = picker.selectAll("label")
+    .data(caseNames)
+    .join("label")
+    .style("--case-color", name => style[name].color);
+
+  rows.append("input")
+    .attr("type", "checkbox")
+    .attr("checked", true)
+    .on("change", function (event, name) {
+      if (this.checked) visible.add(name); else visible.delete(name);
+      renderAll();
+    });
+  rows.append("span").attr("class", "case-swatch");
+  rows.append("span").attr("class", "case-name").text(name => name);
+
+  // --- shared scales, one pair reused across all four panels so they stay
+  //     directly comparable - fixed limits matching the existing matplotlib
+  //     plot_sensitivity_vs_sigmaw_2x2_obs_cam panels exactly
+  //     (lib/cam_diagnostic.py: ax.set_xlim(-0.05,1.75), ax.set_ylim(-1,1)) ---
+  const margin = { top: 6, right: 16, bottom: 34, left: 46 };
+  const width = 460 - margin.left - margin.right;
+  const height = 230 - margin.top - margin.bottom;
+
+  const X_LIM = [-0.05, 1.75];
+  const Y_LIM = [-1, 1];
+
+  const x = d3.scaleLinear().domain(X_LIM).range([0, width]);
+  const y = d3.scaleLinear().domain(Y_LIM).range([height, 0]);
+
+  function nearestPoint(points, xTarget) {
+    return points.reduce((a, b) =>
+      Math.abs(b.w_mid - xTarget) < Math.abs(a.w_mid - xTarget) ? b : a
+    );
+  }
+
+  const tooltip = d3.select("#tooltip");
+  const xFormat = d3.format(".2f");
+
+  function buildPanel(containerId, statsId, regimeKey, drizzleKey) {
+    // Fit line drawn across the case's own observed w_mid range, matching
+    // matplotlib's xx = np.linspace(np.nanmin(xfit), np.nanmax(xfit), 100)
+    // rather than the full fixed axis range.
+    function fitLinePoints(entry) {
+      if (!entry.points.length || !Number.isFinite(entry.fit.slope) || !Number.isFinite(entry.fit.intercept)) return [];
+      const ws = entry.points.map(p => p.w_mid);
+      const x0 = Math.min(...ws), x1 = Math.max(...ws);
+      return [x0, x1].map(w => ({ w_mid: w, slope: entry.fit.intercept + entry.fit.slope * w }));
+    }
+    const lineGen = d3.line().x(d => x(d.w_mid)).y(d => y(d.slope));
+
+    const svg = d3.select(containerId)
+      .append("svg")
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const gGrid = g.append("g");
+
+    const clipId = `${containerId.slice(1)}-clip`;
+    svg.append("defs").append("clipPath").attr("id", clipId)
+      .append("rect").attr("width", width).attr("height", height);
+    const gClipped = g.append("g").attr("clip-path", `url(#${clipId})`);
+    const gFitLines = gClipped.append("g");
+    const gDots = gClipped.append("g");
+
+    g.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x).ticks(5));
+    g.append("g").attr("class", "axis")
+      .call(d3.axisLeft(y).ticks(5));
+
+    // Grid, matching matplotlib's ax.grid(True, alpha=0.3).
+    gGrid.selectAll(".gridline-x")
+      .data(x.ticks(5))
+      .join("line")
+      .attr("class", "gridline gridline-x")
+      .attr("x1", d => x(d)).attr("x2", d => x(d))
+      .attr("y1", 0).attr("y2", height);
+    gGrid.selectAll(".gridline-y")
+      .data(y.ticks(5))
+      .join("line")
+      .attr("class", "gridline gridline-y")
+      .attr("x1", 0).attr("x2", width)
+      .attr("y1", d => y(d)).attr("y2", d => y(d));
+
+    // Zero line, matching matplotlib's ax.axhline(0, linewidth=1).
+    g.append("line")
+      .attr("class", "zero-line")
+      .attr("x1", 0).attr("x2", width)
+      .attr("y1", y(0)).attr("y2", y(0));
+
+    g.append("text")
+      .attr("class", "axis-label")
+      .attr("text-anchor", "middle")
+      .attr("x", width / 2)
+      .attr("y", height + margin.bottom - 4)
+      .text("σ(w) (m/s)");
+    g.append("text")
+      .attr("class", "axis-label")
+      .attr("text-anchor", "middle")
+      .attr("transform", `translate(${-margin.left + 12},${height / 2}) rotate(-90)`)
+      .text("d log(Nd) / d log(CCN)");
+
+    const gCrosshair = g.append("g").style("display", "none");
+    gCrosshair.append("line").attr("class", "crosshair-line").attr("x1", 0).attr("x2", 0)
+      .attr("y1", 0).attr("y2", height);
+
+    const statsContainer = d3.select(statsId);
+
+    function activeSeries() {
+      const ref = REF_NAMES
+        .filter(name => refVisible.has(name) && name in data.cases)
+        .map(name => ({
+          key: name, label: REF_STYLE[name].label, color: REF_STYLE[name].color, dash: "none",
+          entry: data.cases[name][regimeKey][drizzleKey],
+        }));
+      const cam = caseNames
+        .filter(name => visible.has(name))
+        .map(name => ({
+          key: name, label: name, color: style[name].color, dash: style[name].dash,
+          entry: data.cases[name][regimeKey][drizzleKey],
+        }));
+      return [...ref, ...cam];
+    }
+
+    function render() {
+      const active = activeSeries();
+
+      gFitLines.selectAll(".fit-line")
+        .data(active, d => d.key)
+        .join("path")
+        .attr("class", "fit-line")
+        .attr("stroke", d => d.color)
+        .attr("stroke-dasharray", d => (d.dash === "none" ? null : d.dash))
+        .attr("d", d => lineGen(fitLinePoints(d.entry)));
+
+      const dotData = active.flatMap(d =>
+        d.entry.points.map(p => ({ key: d.key, color: d.color, ...p }))
+      );
+      gDots.selectAll(".dot")
+        .data(dotData, d => `${d.key}:${d.w_mid}`)
+        .join("circle")
+        .attr("class", "dot")
+        .attr("r", 3.5)
+        .attr("fill", d => d.color)
+        .attr("cx", d => x(d.w_mid))
+        .attr("cy", d => y(d.slope));
+
+      statsContainer.selectAll("*").remove();
+      active.forEach(d => {
+        const row = statsContainer.append("div").attr("class", "stat-row");
+        row.append("span").attr("class", "stat-dot").style("background", d.color);
+        row.append("span").attr("class", "stat-name").text(d.label);
+        row.append("span").attr("class", "stat-val")
+          .text(`m=${fmt2(d.entry.fit.slope)}  R²=${fmt2(d.entry.fit.r2)}`);
+      });
+    }
+
+    g.append("rect")
+      .attr("class", "hover-layer")
+      .attr("width", width)
+      .attr("height", height)
+      .on("mousemove", (event) => {
+        const [mx] = d3.pointer(event);
+        const xHover = x.invert(Math.max(0, Math.min(width, mx)));
+
+        const active = activeSeries().filter(d => d.entry.points.length);
+        if (!active.length) { gCrosshair.style("display", "none"); tooltip.style("opacity", 0); return; }
+
+        const rows = active.map(d => ({ ...d, pt: nearestPoint(d.entry.points, xHover) }));
+        const nearestW = rows.reduce((a, b) => Math.abs(b.pt.w_mid - xHover) < Math.abs(a.pt.w_mid - xHover) ? b : a).pt.w_mid;
+
+        gCrosshair.style("display", null).attr("transform", `translate(${x(nearestW)},0)`);
+
+        tooltip.style("opacity", 1)
+          .style("left", `${event.pageX + 14}px`)
+          .style("top", `${event.pageY - 28}px`);
+
+        tooltip.selectAll("*").remove();
+        tooltip.append("div").attr("class", "t-p").text(`σ(w) ≈ ${xFormat(nearestW)} m/s`);
+        rows.forEach(r => {
+          const row = tooltip.append("div").attr("class", "t-row");
+          row.append("span").attr("class", "t-key").style("background", r.color);
+          row.append("span").attr("class", "t-name").text(r.label);
+          row.append("span").attr("class", "t-val").text(r.pt.slope.toFixed(2));
+        });
+      })
+      .on("mouseleave", () => {
+        gCrosshair.style("display", "none");
+        tooltip.style("opacity", 0);
+      });
+
+    return render;
+  }
+
+  const renderOpenNon   = buildPanel("#chart-open-nondrizzle",  "#stats-open-nondrizzle",  "open",  "nondrizzle");
+  const renderOpenDriz  = buildPanel("#chart-open-drizzle",     "#stats-open-drizzle",     "open",  "drizzle");
+  const renderStratNon  = buildPanel("#chart-strat-nondrizzle", "#stats-strat-nondrizzle", "strat", "nondrizzle");
+  const renderStratDriz = buildPanel("#chart-strat-drizzle",    "#stats-strat-drizzle",    "strat", "drizzle");
+  function renderAll() { renderOpenNon(); renderOpenDriz(); renderStratNon(); renderStratDriz(); }
+
+  // Legend for the saved figure: visible reference series, then visible
+  // cases. Each entry is a fit-line sample with a scatter-point marker.
+  const EXPORT_NAME = "sensitivity_vs_sigmaw";
+  function exportLegendItems() {
+    const refs = REF_NAMES
+      .filter(name => refVisible.has(name) && name in data.cases)
+      .map(name => ({ label: REF_STYLE[name].label, color: REF_STYLE[name].color, dash: "none", marker: true }));
+    const cases = caseNames
+      .filter(name => visible.has(name))
+      .map(name => ({ label: name, color: style[name].color, dash: style[name].dash, marker: true }));
+    return [...refs, ...cases];
+  }
+
+  // --- Save figure (PNG / SVG) ---
+  // Builds one standalone SVG of what's currently shown: page title, every
+  // panel in its on-screen 2-column order, and a legend of the visible
+  // series. Each panel's <svg> is cloned with its computed styles inlined,
+  // because a serialized SVG no longer sees this page's stylesheet or CSS
+  // variables (e.g. var(--slot-1) colors, .line { fill: none }, hidden axis
+  // domain paths). The PNG is that same SVG rasterized onto a canvas.
+  const EXPORT_STYLE_PROPS = [
+    "fill", "fill-opacity", "stroke", "stroke-width", "stroke-dasharray",
+    "stroke-opacity", "opacity", "font-family", "font-size", "font-weight",
+    "shape-rendering",
+  ];
+  const EXPORT_PNG_SCALE = 3;
+  const EXPORT_FONT = getComputedStyle(document.body).fontFamily;
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  function textWidth(text, size) {
+    measureCtx.font = `${size}px ${EXPORT_FONT}`;
+    return measureCtx.measureText(text).width;
+  }
+  // Resolve any CSS color (incl. "var(--slot-1)") to a literal rgb() value.
+  function resolveColor(color) {
+    const probe = document.body.appendChild(document.createElement("span"));
+    probe.style.color = color;
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return resolved;
+  }
+
+  function cloneWithInlineStyles(src) {
+    const dst = src.cloneNode(true);
+    const drop = [];
+    (function walk(s, d) {
+      const cs = getComputedStyle(s);
+      if (cs.display === "none" || s.classList.contains("hover-layer")) { drop.push(d); return; }
+      for (const prop of EXPORT_STYLE_PROPS) d.style.setProperty(prop, cs.getPropertyValue(prop));
+      for (let i = 0; i < s.children.length; i++) walk(s.children[i], d.children[i]);
+    })(src, dst);
+    drop.forEach(node => node.remove());
+    return dst;
+  }
+
+  function buildExportSvg() {
+    const PAD = 20, GAP_X = 24, GAP_Y = 18, COLS = 2;
+    const TEXT = resolveColor("var(--text-primary)");
+    const TEXT_2 = resolveColor("var(--text-secondary)");
+    const TEXT_3 = resolveColor("var(--text-muted)");
+
+    const panels = [...document.querySelectorAll(".chart-card")].map(card => {
+      const svg = card.querySelector("svg");
+      const vb = svg.viewBox.baseVal;
+      // On-screen hints (data-export="false") are left out of the saved figure.
+      const sub = card.querySelector('.chart-sub:not([data-export="false"])');
+      const stats = [...card.querySelectorAll(".stat-row")].map(row => ({
+        color: getComputedStyle(row.querySelector(".stat-dot")).backgroundColor,
+        name: row.querySelector(".stat-name").textContent,
+        val: row.querySelector(".stat-val").textContent,
+      }));
+      const headH = 18 + (sub ? 15 : 0) + 4;
+      return {
+        svg, w: vb.width, h: vb.height, headH, stats,
+        title: card.querySelector("h2").textContent.trim(),
+        sub: sub ? sub.textContent.trim() : "",
+        blockH: headH + vb.height + (stats.length ? 8 + stats.length * 15 : 0),
+      };
+    });
+
+    const panelW = d3.max(panels, p => p.w);
+    const totalW = PAD * 2 + COLS * panelW + (COLS - 1) * GAP_X;
+
+    // Legend entries flow left-to-right, wrapping at the figure width.
+    const legend = exportLegendItems().map(item => ({ ...item, color: resolveColor(item.color) }));
+    const SAMPLE_W = 26, ITEM_GAP = 18, ROW_H = 18;
+    let lx = PAD, ly = 0;
+    legend.forEach(item => {
+      const w = SAMPLE_W + 6 + textWidth(item.label, 11);
+      if (lx > PAD && lx + w > totalW - PAD) { lx = PAD; ly += ROW_H; }
+      item.x = lx; item.y = ly;
+      lx += w + ITEM_GAP;
+    });
+    const legendH = legend.length ? ly + ROW_H : 0;
+
+    const headerH = 66;
+    const rowHeights = d3.range(Math.ceil(panels.length / COLS)).map(r =>
+      d3.max(panels.slice(r * COLS, r * COLS + COLS), p => p.blockH));
+    const panelsH = d3.sum(rowHeights) + GAP_Y * (rowHeights.length - 1);
+    const totalH = headerH + panelsH + (legendH ? GAP_Y + legendH : 0) + PAD;
+
+    const out = d3.create("svg")
+      .attr("xmlns", "http://www.w3.org/2000/svg")
+      .attr("width", totalW).attr("height", totalH)
+      .attr("viewBox", `0 0 ${totalW} ${totalH}`)
+      .style("font-family", EXPORT_FONT);
+    out.append("rect").attr("width", totalW).attr("height", totalH).attr("fill", "#ffffff");
+
+    out.append("text").attr("x", PAD).attr("y", PAD + 12)
+      .attr("fill", TEXT).style("font-size", "16px").style("font-weight", 600)
+      .text(document.querySelector("h1").textContent.trim());
+    out.append("text").attr("x", PAD).attr("y", PAD + 30)
+      .attr("fill", TEXT_2).style("font-size", "12px")
+      .text(document.querySelector("#subtitle").textContent.trim());
+
+    let rowTop = headerH;
+    rowHeights.forEach((rowH, r) => {
+      panels.slice(r * COLS, r * COLS + COLS).forEach((p, c) => {
+        const px = PAD + c * (panelW + GAP_X);
+        const g = out.append("g").attr("transform", `translate(${px},${rowTop})`);
+        g.append("text").attr("y", 13).attr("fill", TEXT)
+          .style("font-size", "13px").style("font-weight", 600).text(p.title);
+        if (p.sub) {
+          g.append("text").attr("y", 28).attr("fill", TEXT_3).style("font-size", "11px").text(p.sub);
+        }
+        const clone = cloneWithInlineStyles(p.svg);
+        clone.setAttribute("x", 0);
+        clone.setAttribute("y", p.headH);
+        clone.setAttribute("width", p.w);
+        clone.setAttribute("height", p.h);
+        clone.setAttribute("overflow", "visible");
+        clone.removeAttribute("style");
+        g.append(() => clone);
+        p.stats.forEach((s, i) => {
+          const sy = p.headH + p.h + 8 + i * 15 + 11;
+          g.append("circle").attr("cx", 4).attr("cy", sy - 4).attr("r", 4).attr("fill", s.color);
+          g.append("text").attr("x", 14).attr("y", sy).attr("fill", TEXT_2)
+            .style("font-size", "11px").text(s.name);
+          g.append("text").attr("x", p.w).attr("y", sy).attr("text-anchor", "end").attr("fill", TEXT)
+            .style("font-size", "11px").style("white-space", "pre").text(s.val);
+        });
+      });
+      rowTop += rowH + GAP_Y;
+    });
+
+    const legendTop = headerH + panelsH + GAP_Y;
+    const gLegend = out.append("g").attr("transform", `translate(0,${legendTop})`);
+    legend.forEach(item => {
+      const cy = item.y + ROW_H / 2;
+      gLegend.append("line")
+        .attr("x1", item.x).attr("x2", item.x + SAMPLE_W).attr("y1", cy).attr("y2", cy)
+        .attr("stroke", item.color).attr("stroke-width", 2)
+        .attr("stroke-dasharray", item.dash === "none" ? null : item.dash);
+      if (item.marker) {
+        gLegend.append("circle").attr("cx", item.x + SAMPLE_W / 2).attr("cy", cy).attr("r", 3.5)
+          .attr("fill", item.color).attr("stroke", "#ffffff").attr("stroke-width", 1);
+      }
+      gLegend.append("text").attr("x", item.x + SAMPLE_W + 6).attr("y", cy + 4)
+        .attr("fill", TEXT_2).style("font-size", "11px").text(item.label);
+    });
+
+    return { node: out.node(), width: totalW, height: totalH };
+  }
+
+  function exportFileBase() {
+    return `${EXPORT_NAME}_${data.campaign}`.replace(/[^\w.-]+/g, "_");
+  }
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function serializeSvg(node) {
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(node);
+  }
+  async function saveSVG() {
+    const { node } = buildExportSvg();
+    downloadBlob(new Blob([serializeSvg(node)], { type: "image/svg+xml;charset=utf-8" }), `${exportFileBase()}.svg`);
+  }
+  async function savePNG() {
+    const { node, width, height } = buildExportSvg();
+    const img = new Image();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(serializeSvg(node));
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * EXPORT_PNG_SCALE);
+    canvas.height = Math.round(height * EXPORT_PNG_SCALE);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    downloadBlob(blob, `${exportFileBase()}.png`);
+  }
+  function wireExportButton(id, save) {
+    const button = document.getElementById(id);
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await save();
+      } catch (err) {
+        console.error("Could not save figure:", err);
+        alert("Could not save figure.");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+  wireExportButton("save-png", savePNG);
+  wireExportButton("save-svg", saveSVG);
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

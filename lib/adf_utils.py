@@ -62,6 +62,7 @@ Notes
 # Import standard python modules
 # ++++++++++++++++++++++++++++++
 
+import time
 import warnings  # use to warn user about missing files.
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -71,8 +72,13 @@ import warnings  # use to warn user about missing files.
 # import statements:
 import numpy as np
 import xarray as xr
+import uxarray as ux
 import pandas as pd
 import geocat.comp as gcomp
+
+from pathlib import Path
+import os
+import xesmf as xe
 
 from adf_base import AdfError
 
@@ -114,6 +120,25 @@ seasons = {
 #################
 # HELPER FUNCTIONS
 #################
+
+def timer(msg, start):
+    """Print the seconds since `start` (a time.perf_counter() value) and restart the clock.
+
+    Parameters
+    ----------
+    msg : str
+        Label printed ahead of the elapsed time.
+    start : float
+        A previous ``time.perf_counter()`` reading.
+
+    Returns
+    -------
+    float
+        A fresh ``time.perf_counter()`` reading, to pass as the next `start`.
+    """
+    print(f"{msg}: {time.perf_counter() - start:.2f} s")
+    return time.perf_counter()
+
 
 # Simple LaTeX seen in the units of the variable defaults, and what each means
 # as plain text.  The defaults were written for plot labels, where matplotlib
@@ -697,6 +722,43 @@ def global_average(fld, wgt, verbose=False):
     return np.ma.average(avg1)
 
 
+def native_grid_weights(ts_file):
+    """Cell weights for averaging native-grid (``ncol``) data of one case.
+
+    The model's cell areas are what an average on the native grid has to be
+    weighted by.  CAM writes them to its history files as ``area``, GenTS
+    copies them into every time series file, and the ADF adds them to the
+    time series it makes for 'unstructured_plotting'.
+
+    Parameters
+    ----------
+    ts_file : str or pathlib.Path
+        Any of the case's native-grid time series files.
+
+    Returns
+    -------
+    xarray.DataArray
+        The cell areas, or equal weights (with a warning) when the file has
+        none: SE grids are close to uniform, so equal weights come much closer
+        than cos(latitude), which is only right for a lat/lon grid.
+    """
+    with xr.open_dataset(ts_file, decode_times=False) as dset:
+        if "area" in dset:
+            area = dset["area"]
+            if "time" in area.dims:
+                area = area.isel(time=0)
+            # End if
+            return area.load()
+        # End if
+        ncol = dset.sizes["ncol"]
+    # End with
+    warnings.warn(
+        f"\t    WARNING: No 'area' in {Path(ts_file).name}, so averages over the"
+        " native grid are not area-weighted."
+    )
+    return xr.DataArray(np.ones(ncol), dims=["ncol"])
+
+
 def spatial_average(indata, weights=None, spatial_dims=None):
     """Compute spatial average.
 
@@ -719,10 +781,12 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     When `weights` is not provided, tries to find sensible values.
     If there is a 'lat' dimension, use `cos(lat)`.
     If there is a 'ncol' dimension, looks for `area` in `indata`.
+    If there is an 'n_face' dimension (uxarray), uses the mesh's face areas.
     Otherwise, set to equal weights.
 
     Makes an attempt to identify the spatial variables when `spatial_dims` is None.
-    Will average over `ncol` if present, and then will check for `lat` and `lon`.
+    Will average over `ncol` (or `n_face`) if present, and then will check for
+    `lat` and `lon`.
     When none of those three are found, raise an AdfError.
     """
     if weights is None:
@@ -742,6 +806,9 @@ def spatial_average(indata, weights=None, spatial_dims=None):
                 )
                 weights = xr.DataArray(1.0)
             weights.name = "weights"
+        elif "n_face" in indata.dims and hasattr(indata, "uxgrid"):
+            weights = xr.DataArray(indata.uxgrid.face_areas.values, dims=["n_face"])
+            weights.name = "weights"
         else:
             weights = xr.DataArray(1.0)
             weights.name = "weights"
@@ -758,6 +825,8 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     if spatial_dims is None:
         if "ncol" in indata.dims:
             spatial_dims = ["ncol"]
+        elif "n_face" in indata.dims:
+            spatial_dims = ["n_face"]
         else:
             spatial_dims = [
                 dimname
@@ -797,7 +866,10 @@ def wgt_rmse(fld1, fld2, wgt):
     Notes:
     ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
     """
-    assert len(fld1.shape) == 2, "Input fields must have exactly two dimensions."
+    # Native-grid (n_face) fields are 1-D; lat/lon fields are 2-D:
+    assert len(fld1.shape) <= 2, "Input fields must have no more than two dimensions."
+    if hasattr(wgt, "fillna"):
+        wgt = wgt.fillna(0)
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     # in case these fields are in dask arrays, compute them now.
     if hasattr(fld1, "compute"):
@@ -917,6 +989,11 @@ def seasonal_mean(data, season=None, is_climo=None):
     elif season is None:
         season = "ANN"
 
+    unstruct = False
+    if hasattr(data, "uxgrid") and data.uxgrid is not None:
+        unstruct = True
+        uxgrid = data.uxgrid
+
     if (
         isinstance(data, (xr.DataArray, xr.Dataset))
         and "time" in data.coords
@@ -967,13 +1044,79 @@ def seasonal_mean(data, season=None, is_climo=None):
     data = data.sel(
         time=data.time.dt.month.isin(seasons[season])
     )  # directly take the months we want based on season kwarg
-    return data.weighted(data.time.dt.daysinmonth).mean(dim="time", keep_attrs=True)
+    weighted_mean = data.weighted(data.time.dt.daysinmonth).mean(
+        dim="time", keep_attrs=True
+    )
+
+    # Only wrap if the input had uxgrid
+    if unstruct:
+        weighted_mean = ux.UxDataArray(
+            weighted_mean, uxgrid=uxgrid, attrs=weighted_mean.attrs
+        )
+    return weighted_mean
 
 
 #######
 
 
-def domain_stats(data, domain):
+def array_diff(a, b, percent=False, fill_nan=None):
+    """
+    Compute difference or percent difference between two data arrays
+
+    Both unstructured UxDataArrays while preserving uxgrid and structure and xarray DataArrays
+
+    Parameters
+    ----------
+    a, b : UxDataArray/DataArray
+        Input arrays (must have same shape/grid)
+    percent : bool, optional
+        If True, compute percent difference
+    fill_nan : float or None
+        If set, replace NaNs with this value
+
+    Returns
+    -------
+    UxDataArray
+        Result with same uxgrid as input
+    or
+    DataArray
+    """
+
+    if a.shape != b.shape:
+        raise ValueError("Input arrays must have same shape")
+
+    if hasattr(a, "uxgrid") and a.uxgrid is None:
+        raise ValueError(
+            "Input appears to be on an unstructured grid but is missing the uxgrid coordinate"
+        )
+
+    if percent:
+        if hasattr(a, "uxgrid"):
+            with np.errstate(divide="ignore", invalid="ignore"):
+                vals = (a.values - b.values) / np.abs(b.values) * 100.0
+        else:
+            vals = (a.values - b.values) / np.abs(b.values) * 100.0
+    else:
+        vals = a.values - b.values
+
+    if fill_nan is not None:
+        vals = np.where(np.isfinite(vals), vals, fill_nan)
+
+    out = a.copy(deep=True)
+    out.values = vals
+
+    if percent:
+        out.attrs = dict(a.attrs)
+        out.attrs["long_name"] = f"Percent difference ({a.name})"
+        out.attrs["units"] = "%"
+
+    return out
+
+
+# Polar Plot functions
+
+
+def domain_stats(data, domain, unstructured=False):
     """Provides statistics in specified region.
 
     Parameters
@@ -986,6 +1129,10 @@ def domain_stats(data, domain):
         Longitudes can be given in either -180 to 180 or 0 to 360, whichever
         the data uses.  If west is greater than east the region crosses
         the 0/360 line, and a span of 360 degrees or more is the whole circle.
+    unstructured : bool, optional
+        if True, `data` is a uxarray UxDataArray on an unstructured grid
+        (`n_face` dimension); the region is selected by latitude only and the
+        mean is weighted by the grid face areas.
 
     Returns
     -------
@@ -1006,19 +1153,33 @@ def domain_stats(data, domain):
     spatial_average
 
     """
-    west, east, south, north = domain
-    # Compare longitudes on a common 0-360 basis, so that the data and the
-    # domain do not have to use the same convention:
-    lon = data["lon"] % 360
-    if east - west >= 360:
-        lon_mask = xr.ones_like(lon, dtype=bool)
-    elif (west % 360) <= (east % 360):
-        lon_mask = (lon >= west % 360) & (lon <= east % 360)
+    if not unstructured:
+        west, east, south, north = domain
+        # Compare longitudes on a common 0-360 basis, so that the data and the
+        # domain do not have to use the same convention:
+        lon = data["lon"] % 360
+        if east - west >= 360:
+            lon_mask = xr.ones_like(lon, dtype=bool)
+        elif (west % 360) <= (east % 360):
+            lon_mask = (lon >= west % 360) & (lon <= east % 360)
+        else:
+            lon_mask = (lon >= west % 360) | (lon <= east % 360)
+        lat_mask = (data["lat"] >= south) & (data["lat"] <= north)
+        x_region = data.where(lon_mask & lat_mask, drop=True)
+        x_region_mean = spatial_average(x_region).item()
     else:
-        lon_mask = (lon >= west % 360) | (lon <= east % 360)
-    lat_mask = (data["lat"] >= south) & (data["lat"] <= north)
-    x_region = data.where(lon_mask & lat_mask, drop=True)
-    x_region_mean = spatial_average(x_region).item()
+        lon = data.uxgrid.face_lon.values
+        lat = data.uxgrid.face_lat.values
+
+        lon_min, lon_max, lat_min, lat_max = domain
+
+        mask = (lat >= lat_min) & (lat <= lat_max)
+
+        indices = np.where(mask)[0]
+
+        x_region = data.isel(n_face=indices)
+        weights = x_region.uxgrid.face_areas.values
+        x_region_mean = (x_region.values * weights).sum() / weights.sum()
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
