@@ -1224,6 +1224,15 @@ class AdfDiag(AdfWeb):
                         # Convert Path objects to strings and concatenate the list of
                         # historical files into a single string
                         hist_files_str = ", ".join(str(f.name) for f in chunk_files)
+                        # Linux limits any one argument to 128 KiB, which a long
+                        # run's file list exceeds (~2000 monthly files), so then
+                        # record just the first and last files and the count:
+                        if len(hist_files_str) > 100_000:
+                            hist_files_str = (
+                                f"{chunk_files[0].name}, ..., {chunk_files[-1].name}"
+                                f" ({len(chunk_files)} files)"
+                            )
+                        # End if
                         hist_locs_str = ", ".join(str(loc) for loc in cam_hist_locs)
                         # The years this file covers, "YYYY-YYYY" (as the climo
                         # files' 'climo_yrs'), so they survive a renamed file:
