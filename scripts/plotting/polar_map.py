@@ -259,8 +259,13 @@ def polar_map(adfobj):
 
         odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
         odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
-        if odataset is None:
+        if odataset is None or odata is None:
             print(f"\t    WARNING: No reference data found for {var}")
+            continue
+        # e.g. an obs file whose variable is on its own dimensions (MODIS
+        # albedo on lsmlat/lsmlon), as global_latlon_map checks:
+        if not unstruct_plotting and not all(utils.validate_dims(odata, ["lat", "lon"]).values()):
+            print(f"\t    WARNING: Reference data for {var} missing lat/lon dimensions, polar map plotting skipped.")
             continue
 
         # Reference weights for native-grid plotting (checked against each
