@@ -7,11 +7,14 @@ The loaders fall back to the native climo in that case, and only then: a native
 climo is no stand-in for a lat/lon regridded file.
 """
 
+# The tests drive AdfData's private helpers through a stand-in object:
+# pylint: disable=protected-access
+
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
+import pytest  # pylint: disable=import-error
 
 # CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
 # so skip rather than fail collection when the science stack is absent.
@@ -46,6 +49,7 @@ def _data(unstructured, regrid_fils=(), ref_regrid_fils=()):
 
 
 def test_native_run_without_regrid_files_reads_the_climo():
+    """No regridded files: a native run plots the native climo (test case and baseline)."""
     obj = _data(unstructured=True)
     assert AdfData.load_regrid_dataset(obj, "case", "TBOT") == "ds"
     assert AdfData.load_reference_regrid_dataset(obj, "base", "TBOT") == "ds"
@@ -53,6 +57,7 @@ def test_native_run_without_regrid_files_reads_the_climo():
 
 
 def test_regrid_files_win_over_the_climo():
+    """Regridded files, when there are any, are read instead of the climo."""
     obj = _data(
         unstructured=True, regrid_fils=["rg.nc"], ref_regrid_fils=["base_rg.nc"]
     )
@@ -72,6 +77,7 @@ def test_variable_without_a_reference_has_no_regridded_file():
 
 
 def test_lat_lon_run_does_not_fall_back():
+    """A lat/lon run never plots a native climo in place of a regridded file."""
     obj = _data(unstructured=False)
     with pytest.warns(UserWarning, match="Did not find regrid"):
         assert AdfData.load_regrid_dataset(obj, "case", "TBOT") is None

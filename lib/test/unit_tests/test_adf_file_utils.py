@@ -38,7 +38,9 @@ from adf_file_utils import (
 )
 
 
-class AdfFileUtilsTestRoutine(unittest.TestCase):
+class AdfFileUtilsTestRoutine(
+    unittest.TestCase
+):  # pylint: disable=too-many-public-methods
     """
     Unit tests for the time series file search helper, which has to cope with
     both ADF's flat time series directory and GenTS's nested
@@ -52,7 +54,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(tmpdir, fname), "w").close()
+            Path(os.path.join(tmpdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc")
 
@@ -68,7 +70,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
             subdir = os.path.join(tmpdir, "atm", "proc", "tseries", "month_1")
             os.makedirs(subdir)
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(subdir, fname), "w").close()
+            Path(os.path.join(subdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc")
 
@@ -84,8 +86,8 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
             subdir = os.path.join(tmpdir, "atm", "proc", "tseries", "month_1")
             os.makedirs(subdir)
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(tmpdir, fname), "w").close()
-            open(os.path.join(subdir, fname), "w").close()
+            Path(os.path.join(tmpdir, fname)).touch()
+            Path(os.path.join(subdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc")
 
@@ -99,7 +101,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
         """
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            open(os.path.join(tmpdir, "case.cam.h0a.T.000101-001112.nc"), "w").close()
+            Path(os.path.join(tmpdir, "case.cam.h0a.T.000101-001112.nc")).touch()
 
             self.assertEqual(find_ts_files(tmpdir, "case.cam.h0a.PRECT.*nc"), [])
 
@@ -113,7 +115,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
             subdir = os.path.join(tmpdir, "atm", "proc", "tseries", "month_1")
             os.makedirs(subdir)
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(subdir, fname), "w").close()
+            Path(os.path.join(subdir, fname)).touch()
 
             self.assertEqual(
                 find_ts_files(tmpdir, "case.cam.h0a.T.*nc", recursive=False), []
@@ -131,7 +133,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(tmpdir, fname), "w").close()
+            Path(os.path.join(tmpdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc", recursive=False)
 
@@ -354,7 +356,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
         chosen = select_ts_files(chunks + [whole], 1, 20)
 
         self.assertFalse(ts_files_overlap(chosen))
-        self.assertTrue(chosen == [whole] or chosen == chunks)
+        self.assertTrue(chosen in ([whole], chunks))
 
     def test_select_prefers_whole_set_over_chunks(self):
         """
@@ -525,7 +527,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fname = os.path.join(tmpdir, "case.cam.h0a.T.000101-001112.nc")
-            open(fname, "w").close()
+            Path(fname).touch()
 
             self.assertIsNotNone(describe_dir_problem(fname))
 

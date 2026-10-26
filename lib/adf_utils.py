@@ -77,15 +77,14 @@ import warnings  # use to warn user about missing files.
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # import statements:
+from pathlib import Path
+
 import numpy as np
 import xarray as xr
-import uxarray as ux
+import uxarray as ux  # pylint: disable=import-error
 import pandas as pd
 import geocat.comp as gcomp
-
-from pathlib import Path
-import os
-import xesmf as xe
+import xesmf  # pylint: disable=import-error
 
 from adf_base import AdfError
 
@@ -1159,6 +1158,7 @@ def seasonal_mean(data, season=None, is_climo=None):
         season = "ANN"
 
     unstruct = False
+    uxgrid = None
     if hasattr(data, "uxgrid") and data.uxgrid is not None:
         unstruct = True
         uxgrid = data.uxgrid
@@ -1346,7 +1346,7 @@ def domain_stats(data, domain, unstructured=False):
         lon = data.uxgrid.face_lon.values
         lat = data.uxgrid.face_lat.values
 
-        lon_min, lon_max, lat_min, lat_max = domain
+        _, _, lat_min, lat_max = domain
 
         mask = (lat >= lat_min) & (lat <= lat_max)
 
@@ -1771,10 +1771,10 @@ def create_clean_grid(da):
         # lat_bnds(time, lat, nbnd).  They are the same at every step, so keep
         # the first entry of any extra dimension to get back to (lat, nbnd):
         lat_bnds = lat_bnds.isel(
-            {d: 0 for d in lat_bnds.dims if d != "lat" and d != lat_bnds.dims[-1]}
+            {d: 0 for d in lat_bnds.dims if d not in ("lat", lat_bnds.dims[-1])}
         )
         lon_bnds = lon_bnds.isel(
-            {d: 0 for d in lon_bnds.dims if d != "lon" and d != lon_bnds.dims[-1]}
+            {d: 0 for d in lon_bnds.dims if d not in ("lon", lon_bnds.dims[-1])}
         )
         lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
         lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
@@ -1941,76 +1941,30 @@ def ensure_latlon(ds, src_grid_file):
     )
 
 
-# =========================
-# Regridder
-# =========================
-
-import xarray as xr
-import xesmf as xe
-from pathlib import Path
-
-
-# =========================
-# Core regrid function
-# =========================
-
-
-def regrid_variable(ds, var, regridder, comp):
-
-    da = ds[var]
-
-    out = regridder(da)
-    out.name = var
-
-    dims_order = [d for d in ["time", "lev", "lat", "lon"] if d in out.dims]
-    out = out.transpose(*dims_order)
-
-    return out.to_dataset()
-
-
-# =========================
-# Area calculation
-# =========================
-
-
-def add_area(ds):
-    lat = ds["lat"].values
-    lon = ds["lon"].values
-
-    R = 6.37122e3  # km
-
-    dlat = np.gradient(lat)
-    dlon = np.gradient(lon)
-
-    lat_rad = np.deg2rad(lat)
-
-    area = np.outer(
-        R * np.deg2rad(dlat), R * np.cos(lat_rad)[:, None] * np.deg2rad(dlon)
-    )
-
-    ds["area"] = xr.DataArray(area, coords=[lat, lon], dims=["lat", "lon"])
-    ds["area"].attrs.update({"units": "km2", "long_name": "Grid cell area"})
-
-    return ds
-
-
 # Gridding Unstructured to Lat/Lon
 # Regrids unstructured SE grid to regular lat-lon
 # Shamelessly borrowed from @maritsandstad with NorESM who deserves credit for this work
 # https://github.com/NorESMhub/xesmf_clm_fates_diagnostic/blob/main/src/xesmf_clm_fates_diagnostic/plotting_methods.py
 
-import xarray as xr
-import xesmf
-import numpy as np
 
+def make_se_regridder(weight_file, s_data, d_data, method="coservative"):
+    """An xESMF regridder that applies a native-grid weights file.
 
-def make_se_regridder(
-    weight_file,
-    s_data,
-    d_data,
-    var,
-    Method="coservative",
-):
+    Parameters
+    ----------
+    weight_file : str or pathlib.Path
+        ESMF/ncremap weights file from the native grid to the lat/lon grid.
+    s_data, d_data : xarray.DataArray or None
+        Source and destination masks (land fraction and land mask for CLM);
+        None for no mask.
+    method : str, optional
+        How xESMF applies the weights: "coservative" (sic, see
+        :func:`grid_to_latlon`) or "bilinear".
+
+    Returns
+    -------
+    xesmf.Regridder
+    """
     weights = xr.open_dataset(weight_file)
     in_shape = weights.src_grid_dims.load().data
 
@@ -2044,15 +1998,15 @@ def make_se_regridder(
         d_mask = xr.DataArray(d_data.values, dims=("lat", "lon"))
         dummy_out["mask"] = d_mask
 
-    # do source and destination grids need masks here?
-    # See xesmf docs https://xesmf.readthedocs.io/en/stable/notebooks/Masking.html#Regridding-with-a-mask
+    # do source and destination grids need masks here?  See the xesmf docs:
+    # https://xesmf.readthedocs.io/en/stable/notebooks/Masking.html
     regridder = xesmf.Regridder(
         dummy_in,
         dummy_out,
         weights=weight_file,
         # results seem insensitive to this method choice
         # choices are coservative_normed, coservative, and bilinear
-        method=Method,
+        method=method,
         reuse_weights=True,
         periodic=True,
     )
@@ -2060,6 +2014,7 @@ def make_se_regridder(
 
 
 def regrid_se_data_bilinear(regridder, data_to_regrid, comp_grid):
+    """Regrid native-grid data along `comp_grid` with a bilinear regridder, skipping NaNs."""
     updated = (
         data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
     )
@@ -2072,6 +2027,7 @@ def regrid_se_data_bilinear(regridder, data_to_regrid, comp_grid):
 
 
 def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
+    """Regrid native-grid data along `comp_grid` with a conservative regridder."""
     updated = (
         data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
     )
@@ -2080,6 +2036,7 @@ def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
 
 
 def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid="ncol"):
+    """Regrid CAM native-grid data (a Dataset or DataArray with `comp_grid`), bilinearly."""
     if isinstance(data_to_regrid, xr.Dataset):
         vars_with_ncol = [
             name
@@ -2102,6 +2059,7 @@ def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid="ncol"):
 
 
 def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid="ncol"):
+    """Regrid CAM native-grid data (a Dataset or DataArray with `comp_grid`), conservatively."""
     if isinstance(data_to_regrid, xr.Dataset):
         vars_with_ncol = [
             name
@@ -2123,7 +2081,7 @@ def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid="ncol")
     return regridded
 
 
-def grid_to_latlon(
+def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
     model_dataset, var_name, wgt_file, method=None, comp="atm", latlon_file=None
 ):
     """Grid native-grid data (CAM ``ncol`` or CLM ``lndgrid``) to lat/lon with a weights file.
@@ -2193,7 +2151,7 @@ def grid_to_latlon(
 
     # Grid model data to match target grid lat/lon:
     regridder = make_se_regridder(
-        weight_file=wgt_file, s_data=s_data, d_data=d_data, Method=method, var=var_name
+        weight_file=wgt_file, s_data=s_data, d_data=d_data, method=method
     )
 
     # Only the fields on the native grid can be regridded; everything else
@@ -2244,29 +2202,31 @@ def grid_to_latlon(
 
 
 def calc_area(rgdata):
-    # calculate area
+    """Add each lat/lon cell's area (km2) to `rgdata` as "area"."""
     area_km2 = np.zeros(shape=(len(rgdata["lat"]), len(rgdata["lon"])))
     earth_radius_km = 6.37122e3  # in meters
 
-    yres_degN = np.abs(
+    yres_deg_n = np.abs(
         np.diff(rgdata["lat"].data)
     )  # distances between gridcell centers...
-    xres_degE = np.abs(np.diff(rgdata["lon"]))  # ...end up with one less element, so...
-    yres_degN = np.append(
-        yres_degN, yres_degN[-1]
+    xres_deg_e = np.abs(
+        np.diff(rgdata["lon"])
+    )  # ...end up with one less element, so...
+    yres_deg_n = np.append(
+        yres_deg_n, yres_deg_n[-1]
     )  # shift left (edges <-- centers); assume...
-    xres_degE = np.append(
-        xres_degE, xres_degE[-1]
+    xres_deg_e = np.append(
+        xres_deg_e, xres_deg_e[-1]
     )  # ...last 2 distances bet. edges are equal
 
-    dy_km = yres_degN * earth_radius_km * np.pi / 180  # distance in m
+    dy_km = yres_deg_n * earth_radius_km * np.pi / 180  # distance in m
     phi_rad = rgdata["lat"].data * np.pi / 180  # degrees to radians
 
     # grid cell area
     for j in range(len(rgdata["lat"])):
         for i in range(len(rgdata["lon"])):
             dx_km = (
-                xres_degE[i] * np.cos(phi_rad[j]) * earth_radius_km * np.pi / 180
+                xres_deg_e[i] * np.cos(phi_rad[j]) * earth_radius_km * np.pi / 180
             )  # distance in m
             area_km2[j, i] = dy_km[j] * dx_km
 

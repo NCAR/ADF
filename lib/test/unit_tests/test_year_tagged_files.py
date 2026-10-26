@@ -6,12 +6,15 @@ reads a file made for the old ones.  Files written before the years were in
 the names ({stem}.nc) are still found, as a fallback.
 """
 
+# The tests drive AdfData's private helpers through a stand-in object:
+# pylint: disable=protected-access
+
 import sys
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
+import pytest  # pylint: disable=import-error
 
 # CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
 # so skip rather than fail collection when the science stack is absent.
@@ -57,6 +60,7 @@ def _touch(loc, *names):
 
 
 def test_files_with_the_climo_years_are_read_first():
+    """With both names present, the one carrying the climatology years is read."""
     with tempfile.TemporaryDirectory() as tmp:
         _touch(
             tmp,
@@ -94,6 +98,7 @@ def test_files_for_other_years_are_not_read():
 
 
 def test_older_names_without_years_are_still_read():
+    """Files named before the years were added are still found."""
     with tempfile.TemporaryDirectory() as tmp:
         _touch(
             tmp,
