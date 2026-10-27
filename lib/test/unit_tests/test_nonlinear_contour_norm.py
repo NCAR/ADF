@@ -155,7 +155,7 @@ class NonLinearNormTestRoutine(unittest.TestCase):
             )
 
             self.assertEqual(
-                type(cp_info["norm1"]).__name__, "BoundaryNorm", msg=str(kwargs)
+                type(cp_info["norm_sim"]).__name__, "BoundaryNorm", msg=str(kwargs)
             )
 
     def test_a_centred_norm_still_wins_without_a_colormap(self):
@@ -174,7 +174,7 @@ class NonLinearNormTestRoutine(unittest.TestCase):
             data, data, data - data, data - data, non_linear=True
         )
 
-        self.assertEqual(type(cp_info["norm1"]).__name__, "TwoSlopeNorm")
+        self.assertEqual(type(cp_info["norm_sim"]).__name__, "TwoSlopeNorm")
 
     def test_without_the_option_the_norm_is_linear(self):
         """Variables that do not ask for it are unaffected."""
@@ -185,7 +185,7 @@ class NonLinearNormTestRoutine(unittest.TestCase):
             data, data, data - data, data - data, contour_levels=[-1, 0, 1]
         )
 
-        self.assertEqual(type(cp_info["norm1"]).__name__, "Normalize")
+        self.assertEqual(type(cp_info["norm_sim"]).__name__, "Normalize")
 
     def test_every_variable_that_asks_for_it_works(self):
         """
@@ -206,7 +206,7 @@ class NonLinearNormTestRoutine(unittest.TestCase):
                 data, data, data - data, data - data, **settings
             )
             self.assertEqual(
-                type(cp_info["norm1"]).__name__, "BoundaryNorm", msg=str(variable)
+                type(cp_info["norm_sim"]).__name__, "BoundaryNorm", msg=str(variable)
             )
             checked += 1
         # End for

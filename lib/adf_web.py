@@ -43,6 +43,42 @@ except ImportError:
     _PANDAS_DF = False
 # End except
 
+# Website titles, names and working group links for each model component:
+_SITE_INFO = {
+    "atm": {
+        "main_title": "CAM Diagnostics",
+        "multi_case_title": "ADF Diagnostics",
+        "site_name": "ADF",
+        "tables_heading": "AMWG Tables",
+        "table_prefix": "amwg_table",
+        "wg_links": [
+            ("AMWG", "https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav"),
+            ("AMP", "https://www.cgd.ucar.edu/amp/"),
+        ],
+    },
+    "lnd": {
+        "main_title": "CLM Diagnostics",
+        "multi_case_title": "CLM Diagnostics",
+        "site_name": "LDF",
+        "tables_heading": "LMWG Tables",
+        "table_prefix": "lmwg_table",
+        "wg_links": [
+            ("LMWG", "https://www.cesm.ucar.edu/working-groups/land/"),
+            ("TSS", "https://www.cgd.ucar.edu/tss/"),
+        ],
+    },
+}
+
+
+def _years_label(ts_syr, ts_eyr, climo_syr, climo_eyr):
+    """Years for the page headers: the time series years, plus the
+    climatology years when they are only a part of them."""
+    label = f"{ts_syr} - {ts_eyr}"
+    if (climo_syr, climo_eyr) != (ts_syr, ts_eyr):
+        label += f" (climo: {climo_syr} - {climo_eyr})"
+    return label
+
+
 # ++++++++++++++++++++++++++++
 # Define web data helper class
 # ++++++++++++++++++++++++++++
@@ -158,8 +194,8 @@ class AdfWeb(AdfObs):
 
             # MDTF puts directory under case[0]
             if self.get_mdtf_info("mdtf_run"):
-                syear = self.climo_yrs["syears"]
-                eyear = self.climo_yrs["eyears"]
+                syear = self.ts_yrs["syears"]
+                eyear = self.ts_yrs["eyears"]
                 mdtf_path = f"../mdtf/MDTF_{case_name}"
                 mdtf_path += f"_{syear[0]}_{eyear[0]}"
                 self.external_package_links["MDTF"] = mdtf_path
@@ -428,8 +464,10 @@ class AdfWeb(AdfObs):
         # Create HTML file path variable,
         # which will be used in "create_website":
         if data_frame:
-            # Use web data name instead of case name for tables:
-            html_name = f"amwg_table_{web_name}.html"
+            # Use web data name instead of case name for tables, with the
+            # component's table prefix (e.g. "amwg_table" or "lmwg_table"):
+            site_info = _SITE_INFO.get(self.model_component, _SITE_INFO["atm"])
+            html_name = f"{site_info['table_prefix']}_{web_name}.html"
 
             # If multi-case, then save under the "multi-case" directory:
             if self.num_cases > 1:
@@ -529,13 +567,9 @@ class AdfWeb(AdfObs):
         # Extract needed variables from yaml file:
         case_names = self.get_cam_info("cam_case_name", required=True)
 
-        # Grab case climo years
-        syear_cases = self.climo_yrs["syears"]
-        eyear_cases = self.climo_yrs["eyears"]
-
-        # Grab baseline years (which may be empty strings if using Obs):
-        syear_baseline = self.climo_yrs["syear_baseline"]
-        eyear_baseline = self.climo_yrs["eyear_baseline"]
+        # Grab case time series and climo years
+        ts_yrs = self.ts_yrs
+        climo_yrs = self.climo_yrs
 
         # Set name of comparison data, which depends on "compare_obs":
         if self.compare_obs:
@@ -545,11 +579,21 @@ class AdfWeb(AdfObs):
         else:
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
-            baseline_yrs = f"{syear_baseline} - {eyear_baseline}"
+            baseline_yrs = _years_label(
+                ts_yrs["syear_baseline"],
+                ts_yrs["eyear_baseline"],
+                climo_yrs["syear_baseline"],
+                climo_yrs["eyear_baseline"],
+            )
         # End if
 
-        # Set climo years format for html file headers
-        case_yrs = f"{syear_cases[0]} - {eyear_cases[0]}"
+        # Set years format for html file headers
+        case_yrs = _years_label(
+            ts_yrs["syears"][0],
+            ts_yrs["eyears"][0],
+            climo_yrs["syears"][0],
+            climo_yrs["eyears"][0],
+        )
 
         # Extract variable defaults dictionary (for categories):
         var_defaults_dict = self.variable_defaults
@@ -587,8 +631,10 @@ class AdfWeb(AdfObs):
             multi_plot_type_html = plot_type_html
         # End if
 
-        # Set main title for website:
-        main_title = "CAM Diagnostics"
+        # Set main title for website, and the names and links that depend on
+        # the model component:
+        site_info = _SITE_INFO.get(self.model_component, _SITE_INFO["atm"])
+        main_title = site_info["main_title"]
 
         # List of seasons
         seasons = ["ANN", "DJF", "MAM", "JJA", "SON"]
@@ -601,6 +647,13 @@ class AdfWeb(AdfObs):
 
         # Create the jinja Environment object:
         jinenv = jinja2.Environment(loader=jinja2.FileSystemLoader(jinja_template_dir))
+
+        # Names and links shared by every page:
+        jinenv.globals.update(
+            site_name=site_info["site_name"],
+            wg_links=site_info["wg_links"],
+            tables_heading=site_info["tables_heading"],
+        )
 
         # this is going to hold the data for building the mean
         # plots provisional structure:
@@ -908,7 +961,7 @@ class AdfWeb(AdfObs):
 
             # Convert markdown to HTML
             run_info_html = markdown.markdown(md_text)
-            index_title = "CAM Diagnostics"
+            index_title = main_title
             run_info_html_file = (
                 self.__case_web_paths[web_data.case]["website_dir"] / "run_info.html"
             )
@@ -952,7 +1005,7 @@ class AdfWeb(AdfObs):
             }
 
             # Construct index.html
-            index_title = "CAM Diagnostics"
+            index_title = main_title
             index_tmpl = jinenv.get_template("template_index.html")
             index_rndr = index_tmpl.render(
                 title=index_title,
@@ -1013,7 +1066,7 @@ class AdfWeb(AdfObs):
             # End for (model case loop)
 
             # Create multi-case site:
-            main_title = "ADF Diagnostics"
+            main_title = site_info["multi_case_title"]
             main_tmpl = jinenv.get_template("template_multi_case_index.html")
             main_rndr = main_tmpl.render(
                 title=main_title,

@@ -77,7 +77,16 @@ def regional_map_multicase(adfobj):
     if len(case_names) > 10:
         print("ERROR: regional_map_multicase is limited to <= 10 cases.")
         return
-    case_loc = adfobj.get_cam_info("cam_ts_loc", required=True)
+    #Cases run on pre-made climatologies alone have no time series to read:
+    if not adfobj.data.timeseries_available("regional_map_multicase"):
+        return
+    #End if
+
+    #(the "gridded" copy of native-grid time series, where the ADF made one)
+    case_loc = [
+        adfobj.data.timeseries_dir(case, loc)
+        for case, loc in zip(case_names, adfobj.get_cam_info("cam_ts_loc", required=True))
+    ]
     #Years are needed only to choose between sets of time series files that
     #could not be opened together:
     climo_yrs = adfobj.climo_yrs
@@ -91,7 +100,9 @@ def regional_map_multicase(adfobj):
     else:
         #Extract required baseline run info:
         data_name = adfobj.get_baseline_info("cam_case_name", required=True)
-        data_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
+        data_loc = adfobj.data.timeseries_dir(
+            data_name, adfobj.get_baseline_info("cam_ts_loc", required=True)
+        )
     #
     # Set plot options
     #
@@ -389,9 +400,9 @@ def regional_map_multicase_plot(adf, datadict, opt=None):
         popts = prep_contour_plot(datadict[xreg], datadict[xreg], zeros, zeros, **opt)
         popts2 = {
             **popts["contourf_opt"],
-            "cmap": popts["cmap1"],
-            "norm": popts["norm1"],
-            "levels": popts["levels1"],
+            "cmap": popts["cmap_sim"],
+            "norm": popts["norm_sim"],
+            "levels": popts["levels_sim"],
         }
         cb_opt = popts.get("colorbar_opt")
         cntrplts.append(

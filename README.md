@@ -97,7 +97,7 @@ This generates time series files, climatology (climo) files, re-gridded climo fi
 ### What the ADF produces
 
 A run goes through the stages below in order. Each writes to a location set in the `diag_basic_info`
-or case block of the config file. Time series can be skipped with `cam_ts_done: true`, the website with
+or case block of the config file. Time series can be skipped with `calc_cam_ts: false`, the website with
 `create_html: false`, and the other stages by removing their scripts from the config.
 
 | Stage | Output | Config key |

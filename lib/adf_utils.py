@@ -22,6 +22,14 @@ global_average(fld, wgt, verbose=False)
     pure numpy global average.
 spatial_average(indata, weights=None, spatial_dims=None)
     Compute spatial average
+normalize_weights(wgt)
+    normalize weights to sum to 1, error if they sum to zero
+cell_weights(dset, comp="atm")
+    normalized native-grid cell weights: area, or area * landfrac for land
+spatial_average_lnd(indata, weights, spatial_dims=None)
+    Compute a land spatial average with normalized (area * landfrac) weights
+pct_change(case, base, rel_tol=1e-6)
+    percent change, masked where baseline is ~zero
 wgt_rmse(fld1, fld2, wgt):
     Calculate the area-weighted RMSE.
 annual_mean(data, whole_years=False, time_name='time'):
@@ -49,6 +57,10 @@ lat_lon_validate_dims(fld)
     Check if input field has lat and lon.
 zm_validate_dims(fld)
     Check for dimensions for zonal average.
+latlon_to_mesh(data, mesh, method="bilinear")
+    Put a lat/lon field onto a native mesh (uxarray remap, no weights file).
+write_latlon_scrip(lat, lon, path), make_mesh_weights(...), apply_mesh_weights(...)
+    Make and apply conservative lat/lon-to-mesh weights with ESMF.
 
 Notes
 -----
@@ -69,10 +81,14 @@ import warnings  # use to warn user about missing files.
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 
 # import statements:
+from pathlib import Path
+
 import numpy as np
 import xarray as xr
+import uxarray as ux  # pylint: disable=import-error
 import pandas as pd
 import geocat.comp as gcomp
+import xesmf  # pylint: disable=import-error
 
 from adf_base import AdfError
 
@@ -85,11 +101,15 @@ from adf_file_utils import (
     as_hist_str_list,
     describe_dir_problem,
     find_ts_files,
+    missing_year_ranges,
     pick_hist_str,
     select_ts_files,
     ts_files_overlap,
     ts_file_span,
     ts_var_from_filename,
+    ts_years_covered,
+    year_tagged_names,
+    years_tag,
 )
 
 
@@ -222,7 +242,15 @@ def use_time_bounds_midpoint(ds, time_name="time"):
 
     # load() first: averaging cftime under dask raises NotImplementedError.
     midpoint = bounds.load().mean(dim=other_dims[0])
-    attrs = ds[time_name].attrs
+    attrs = dict(ds[time_name].attrs)
+    # Undecoded (decode_times=False), the midpoints are numbers in the units
+    # of the bounds, which need not be the time coordinate's (a file written
+    # by xarray can encode the two differently), so label them with those:
+    for key in ("units", "calendar"):
+        if key in bounds.attrs:
+            attrs[key] = bounds.attrs[key]
+        # End if
+    # End for
     ds = ds.assign_coords({time_name: midpoint})
     ds[time_name].attrs = attrs
     return ds
@@ -551,7 +579,7 @@ def _ts_uses_level(ts_dir, case_name, streams, variables, level_dim):
 def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
     """Add the model's 3-D pressure field from a directory of time series.
 
-    ``cam_ts_done: true`` skips the history files entirely, so there is nothing
+    ``calc_cam_ts: false`` skips the history files entirely, so there is nothing
     to inspect for a pressure field -- but a time series of it may well be
     sitting in the directory the ADF was pointed at, and using it is the whole
     point of :func:`request_pressure_field`.  A file named after the variable is
@@ -697,6 +725,79 @@ def global_average(fld, wgt, verbose=False):
     return np.ma.average(avg1)
 
 
+def native_grid_weights(ts_file):
+    """Cell weights for averaging native-grid (``ncol``) data of one case.
+
+    The model's cell areas are what an average on the native grid has to be
+    weighted by.  CAM writes them to its history files as ``area``, GenTS
+    copies them into every time series file, and the ADF adds them to the
+    time series it makes for 'unstructured_plotting'.
+
+    Parameters
+    ----------
+    ts_file : str or pathlib.Path
+        Any of the case's native-grid time series files.
+
+    Returns
+    -------
+    xarray.DataArray
+        The cell areas, or equal weights (with a warning) when the file has
+        none: SE grids are close to uniform, so equal weights come much closer
+        than cos(latitude), which is only right for a lat/lon grid.
+    """
+    with xr.open_dataset(ts_file, decode_times=False) as dset:
+        if "area" in dset:
+            area = dset["area"]
+            if "time" in area.dims:
+                area = area.isel(time=0)
+            # End if
+            return area.load()
+        # End if
+        ncol = dset.sizes["ncol"]
+    # End with
+    warnings.warn(
+        f"\t    WARNING: No 'area' in {Path(ts_file).name}, so averages over the"
+        " native grid are not area-weighted."
+    )
+    return xr.DataArray(np.ones(ncol), dims=["ncol"])
+
+
+def land_weights(ts_file, normalize=True):
+    """Cell weights for averaging land (CLM) data of one case.
+
+    Land values are weighted by the land area of each cell, ``area`` times
+    ``landfrac``, which CLM writes to its history files and so to every time
+    series file.
+
+    Parameters
+    ----------
+    ts_file : str or pathlib.Path
+        Any of the case's time series files.
+    normalize : bool, optional
+        If True (the default), scale the weights to sum to 1, for a weighted
+        mean; if False, keep them as land areas, for a global total.
+
+    Returns
+    -------
+    xarray.DataArray or None
+        The weights, or None when the file has no ``area`` or ``landfrac``.
+    """
+    with xr.open_dataset(ts_file, decode_times=False) as dset:
+        if ("area" not in dset) or ("landfrac" not in dset):
+            return None
+        # End if
+        wgt = dset["area"] * dset["landfrac"]
+        if "time" in wgt.dims:
+            wgt = wgt.isel(time=0)
+        # End if
+        wgt = wgt.load()
+    # End with
+    if normalize:
+        wgt = normalize_weights(wgt)
+    # End if
+    return wgt
+
+
 def spatial_average(indata, weights=None, spatial_dims=None):
     """Compute spatial average.
 
@@ -719,10 +820,12 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     When `weights` is not provided, tries to find sensible values.
     If there is a 'lat' dimension, use `cos(lat)`.
     If there is a 'ncol' dimension, looks for `area` in `indata`.
+    If there is an 'n_face' dimension (uxarray), uses the mesh's face areas.
     Otherwise, set to equal weights.
 
     Makes an attempt to identify the spatial variables when `spatial_dims` is None.
-    Will average over `ncol` if present, and then will check for `lat` and `lon`.
+    Will average over `ncol` (or `n_face`) if present, and then will check for
+    `lat` and `lon`.
     When none of those three are found, raise an AdfError.
     """
     if weights is None:
@@ -742,6 +845,9 @@ def spatial_average(indata, weights=None, spatial_dims=None):
                 )
                 weights = xr.DataArray(1.0)
             weights.name = "weights"
+        elif "n_face" in indata.dims and hasattr(indata, "uxgrid"):
+            weights = xr.DataArray(indata.uxgrid.face_areas.values, dims=["n_face"])
+            weights.name = "weights"
         else:
             weights = xr.DataArray(1.0)
             weights.name = "weights"
@@ -758,6 +864,8 @@ def spatial_average(indata, weights=None, spatial_dims=None):
     if spatial_dims is None:
         if "ncol" in indata.dims:
             spatial_dims = ["ncol"]
+        elif "n_face" in indata.dims:
+            spatial_dims = ["n_face"]
         else:
             spatial_dims = [
                 dimname
@@ -775,6 +883,141 @@ def spatial_average(indata, weights=None, spatial_dims=None):
         raise AdfError(emsg)
 
     return weighted.mean(dim=spatial_dims, keep_attrs=True)
+
+
+def normalize_weights(wgt):
+    """Return wgt / sum(wgt), raising a clear error if the weights sum to zero.
+
+    Parameters
+    ----------
+    wgt : array-like
+        weights, e.g. area * landfrac
+
+    Returns
+    -------
+    same type as input
+        weights normalized to sum to 1
+
+    Raises
+    ------
+    ValueError
+        if the weights sum to zero or NaN (e.g. empty region or no land)
+    """
+    total = float(np.nansum(wgt))
+    if (not np.isfinite(total)) or (total <= 0):
+        raise ValueError(
+            "Weights sum to zero (empty region or no land?); cannot normalize."
+        )
+    return wgt / total
+
+
+def spatial_average_lnd(indata, weights, spatial_dims=None):
+    """Compute a land spatial average.
+
+    Parameters
+    ----------
+    indata : xr.DataArray
+        input data
+    weights : xr.DataArray
+        normalized weights, see `normalize_weights` (area * landfrac)
+    spatial_dims : list, optional
+        list of dimensions to average, see Notes for default behavior
+
+    Returns
+    -------
+    xr.DataArray
+        weighted average of `indata`
+
+    Notes
+    -----
+    The weights are required, and must already sum to 1: the average is the
+    weighted sum, so that cells without land (NaN) don't count.
+
+    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
+    Will average over `lndgrid` if present, and then will check for `lat` and `lon`.
+    When none of those are found, raise an AdfError.
+    """
+    # Apply weights to input data:
+    weighted = indata * weights
+
+    # we want to average over all non-time dimensions
+    if spatial_dims is None:
+        if "lndgrid" in indata.dims:
+            spatial_dims = ["lndgrid"]
+        else:
+            spatial_dims = [
+                dimname
+                for dimname in indata.dims
+                if ("lat" in dimname.lower()) or ("lon" in dimname.lower())
+            ]
+    if not spatial_dims:
+        # Scripts using this function likely expect the horizontal dimensions
+        # to be removed via the application of the mean. So in order to avoid
+        # possibly unexpected behavior due to arrays being incorrectly dimensioned
+        # (which could be difficult to debug) the ADF should die here:
+        emsg = "spatial_average_lnd: No spatial dimensions were identified,"
+        emsg += " so can not perform average."
+        raise AdfError(emsg)
+
+    return weighted.sum(dim=spatial_dims, keep_attrs=True)
+
+
+def cell_weights(dset, comp="atm"):
+    """Normalized cell weights for averaging native-grid data of one case.
+
+    Parameters
+    ----------
+    dset : xr.Dataset or ux.UxDataset
+        a climatology or time series dataset of the case, holding its cell
+        areas as "area" and, for land, its land fraction as "landfrac"
+    comp : str, optional
+        the model component, "atm" (the default) or "lnd"
+
+    Returns
+    -------
+    xr.DataArray or ux.UxDataArray
+        area (atm) or area * landfrac (lnd), normalized to sum to 1
+    """
+    # Before isel, which can leave a uxarray dataset without its grid:
+    uxgrid = getattr(dset, "uxgrid", None)
+    if "time" in dset.dims:
+        dset = dset.isel(time=0)
+    # End if
+    if "area" in dset:
+        wgt = dset["area"]
+    elif uxgrid is not None:
+        # No areas in the file, so use the mesh's face areas:
+        wgt = xr.DataArray(uxgrid.face_areas.values, dims=["n_face"])
+    else:
+        raise AdfError("cell_weights: no 'area' in the dataset to weight by.")
+    # End if
+    if comp == "lnd" and "landfrac" in dset:
+        wgt = wgt * dset["landfrac"].fillna(0)
+    # End if
+    return normalize_weights(wgt.fillna(0))
+
+
+def pct_change(case, base, rel_tol=1e-6):
+    """Percent change (case - base) / |base| * 100, masked where |base| is ~zero.
+
+    Parameters
+    ----------
+    case, base : xr.DataArray or ux.UxDataArray
+        fields to compare, with matching shapes
+    rel_tol : float, optional
+        values of |base| smaller than rel_tol * max(|base|) are treated as zero;
+        relative so that it works for any variable's units
+
+    Returns
+    -------
+    same type as inputs
+        percent change, NaN where the baseline is ~zero (avoids divide-by-zero
+        warnings and very large values that distort the color scale)
+    """
+    abs_base = np.abs(base)
+    thresh = rel_tol * float(abs_base.max())
+    denom = abs_base.where(abs_base > thresh)
+    return (case - base) / denom * 100.0
 
 
 def wgt_rmse(fld1, fld2, wgt):
@@ -797,7 +1040,10 @@ def wgt_rmse(fld1, fld2, wgt):
     Notes:
     ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
     """
-    assert len(fld1.shape) == 2, "Input fields must have exactly two dimensions."
+    # Native-grid (n_face) fields are 1-D; lat/lon fields are 2-D:
+    assert len(fld1.shape) <= 2, "Input fields must have no more than two dimensions."
+    if hasattr(wgt, "fillna"):
+        wgt = wgt.fillna(0)
     assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
     # in case these fields are in dask arrays, compute them now.
     if hasattr(fld1, "compute"):
@@ -936,6 +1182,12 @@ def seasonal_mean(data, season=None, is_climo=None):
     elif season is None:
         season = "ANN"
 
+    unstruct = False
+    uxgrid = None
+    if hasattr(data, "uxgrid") and data.uxgrid is not None:
+        unstruct = True
+        uxgrid = data.uxgrid
+
     if (
         isinstance(data, (xr.DataArray, xr.Dataset))
         and "time" in data.coords
@@ -986,13 +1238,85 @@ def seasonal_mean(data, season=None, is_climo=None):
     data = data.sel(
         time=data.time.dt.month.isin(seasons[season])
     )  # directly take the months we want based on season kwarg
-    return data.weighted(data.time.dt.daysinmonth).mean(dim="time", keep_attrs=True)
+    weighted_mean = data.weighted(data.time.dt.daysinmonth).mean(
+        dim="time", keep_attrs=True
+    )
+
+    # Only wrap if the input had uxgrid
+    if unstruct:
+        weighted_mean = ux.UxDataArray(
+            weighted_mean, uxgrid=uxgrid, attrs=weighted_mean.attrs
+        )
+    return weighted_mean
 
 
 #######
 
 
-def domain_stats(data, domain):
+def array_diff(a, b, percent=False, fill_nan=None, rel_tol=None):
+    """
+    Compute difference or percent difference between two data arrays
+
+    Both unstructured UxDataArrays while preserving uxgrid and structure and xarray DataArrays
+
+    Parameters
+    ----------
+    a, b : UxDataArray/DataArray
+        Input arrays (must have same shape/grid)
+    percent : bool, optional
+        If True, compute percent difference
+    fill_nan : float or None
+        If set, replace NaNs with this value
+    rel_tol : float or None
+        Percent difference only: if set, the result is NaN where |b| is smaller
+        than rel_tol * max(|b|), i.e. where the baseline is ~zero (see `pct_change`)
+
+    Returns
+    -------
+    UxDataArray
+        Result with same uxgrid as input
+    or
+    DataArray
+    """
+
+    if a.shape != b.shape:
+        raise ValueError("Input arrays must have same shape")
+
+    if hasattr(a, "uxgrid") and a.uxgrid is None:
+        raise ValueError(
+            "Input appears to be on an unstructured grid but is missing the uxgrid coordinate"
+        )
+
+    if percent:
+        if hasattr(a, "uxgrid"):
+            with np.errstate(divide="ignore", invalid="ignore"):
+                vals = (a.values - b.values) / np.abs(b.values) * 100.0
+        else:
+            vals = (a.values - b.values) / np.abs(b.values) * 100.0
+        if rel_tol is not None:
+            abs_b = np.abs(b.values)
+            vals = np.where(abs_b > rel_tol * np.nanmax(abs_b), vals, np.nan)
+    else:
+        vals = a.values - b.values
+
+    if fill_nan is not None:
+        vals = np.where(np.isfinite(vals), vals, fill_nan)
+
+    out = a.copy(deep=True)
+    out.values = vals
+
+    if percent:
+        out.attrs = dict(a.attrs)
+        out.attrs["long_name"] = f"Percent difference ({a.name})"
+        out.attrs["units"] = "%"
+
+    return out
+
+
+# Polar Plot functions
+
+
+def domain_stats(data, domain, unstructured=False):
     """Provides statistics in specified region.
 
     Parameters
@@ -1005,6 +1329,10 @@ def domain_stats(data, domain):
         Longitudes can be given in either -180 to 180 or 0 to 360, whichever
         the data uses.  If west is greater than east the region crosses
         the 0/360 line, and a span of 360 degrees or more is the whole circle.
+    unstructured : bool, optional
+        if True, `data` is a uxarray UxDataArray on an unstructured grid
+        (`n_face` dimension); the region is selected by latitude only and the
+        mean is weighted by the grid face areas.
 
     Returns
     -------
@@ -1025,19 +1353,42 @@ def domain_stats(data, domain):
     spatial_average
 
     """
-    west, east, south, north = domain
-    # Compare longitudes on a common 0-360 basis, so that the data and the
-    # domain do not have to use the same convention:
-    lon = data["lon"] % 360
-    if east - west >= 360:
-        lon_mask = xr.ones_like(lon, dtype=bool)
-    elif (west % 360) <= (east % 360):
-        lon_mask = (lon >= west % 360) & (lon <= east % 360)
+    if not unstructured:
+        west, east, south, north = domain
+        # Compare longitudes on a common 0-360 basis, so that the data and the
+        # domain do not have to use the same convention:
+        lon = data["lon"] % 360
+        if east - west >= 360:
+            lon_mask = xr.ones_like(lon, dtype=bool)
+        elif (west % 360) <= (east % 360):
+            lon_mask = (lon >= west % 360) & (lon <= east % 360)
+        else:
+            lon_mask = (lon >= west % 360) | (lon <= east % 360)
+        lat_mask = (data["lat"] >= south) & (data["lat"] <= north)
+        x_region = data.where(lon_mask & lat_mask, drop=True)
+        x_region_mean = spatial_average(x_region).item()
     else:
-        lon_mask = (lon >= west % 360) | (lon <= east % 360)
-    lat_mask = (data["lat"] >= south) & (data["lat"] <= north)
-    x_region = data.where(lon_mask & lat_mask, drop=True)
-    x_region_mean = spatial_average(x_region).item()
+        lon = data.uxgrid.face_lon.values
+        lat = data.uxgrid.face_lat.values
+
+        _, _, lat_min, lat_max = domain
+
+        mask = (lat >= lat_min) & (lat <= lat_max)
+
+        indices = np.where(mask)[0]
+
+        x_region = data.isel(n_face=indices)
+        weights = x_region.uxgrid.face_areas.values
+        # Missing faces (ocean, for land output) carry no weight, as in the
+        # lat/lon average; otherwise one NaN makes the mean NaN:
+        values = np.asarray(x_region.values, dtype=float)
+        valid = np.isfinite(values)
+        if valid.any():
+            x_region_mean = (values[valid] * weights[valid]).sum() / weights[
+                valid
+            ].sum()
+        else:
+            x_region_mean = np.nan
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
@@ -1441,6 +1792,15 @@ def create_clean_grid(da):
             break
 
     if lat_bnds is not None and lon_bnds is not None:
+        # Bounds copied from history files can carry a time dimension, e.g.
+        # lat_bnds(time, lat, nbnd).  They are the same at every step, so keep
+        # the first entry of any extra dimension to get back to (lat, nbnd):
+        lat_bnds = lat_bnds.isel(
+            {d: 0 for d in lat_bnds.dims if d not in ("lat", lat_bnds.dims[-1])}
+        )
+        lon_bnds = lon_bnds.isel(
+            {d: 0 for d in lon_bnds.dims if d not in ("lon", lon_bnds.dims[-1])}
+        )
         lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
         lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
     else:
@@ -1546,7 +1906,558 @@ def zonal_mean_xr(fld):
         davgovr = [dim for dim in d if dim not in ("lev", "lat")]
     else:
         raise IOError("zonal_mean_xr requires Xarray DataArray input.")
-    return fld.mean(dim=davgovr)
+    fld = fld.mean(dim=davgovr, keep_attrs=True)
+    return fld
+
+
+# Gridding/Regridding
+
+
+# =========================
+# Helpers
+# =========================
+
+
+def check_unstructured(ds, case, ts_dir):
+    """
+    Check if a dataset is unstructured based on its dimensions.
+    """
+    if ("lat" not in ds.dims) and ("lon" not in ds.dims):
+        if "ncol" in ds.dims:
+            print(
+                f"\t    INFO: Looks like case '{case}' is unstructured, eh? -> {ts_dir}"
+            )
+            return True
+    return False
+
+
+def save_to_nc(ds, outname):
+    # An encoding given to to_netcdf replaces the variable's own, so keep any
+    # time units it had (see adf_diag.save_to_nc):
+    def _enc(name):
+        kept = {
+            key: val
+            for key, val in ds[name].encoding.items()
+            if key in ("units", "calendar")
+        }
+        return {"_FillValue": None, **kept}
+
+    enc = {v: _enc(v) for v in ds.data_vars}
+    enc.update({c: _enc(c) for c in ds.coords})
+    ds.to_netcdf(outname, format="NETCDF4", encoding=enc)
+
+
+def ensure_latlon(ds, src_grid_file):
+
+    if "lat" in ds and "lon" in ds:
+        return ds
+
+    # print("Adding lat/lon from grid file")
+
+    grid = xr.open_dataset(src_grid_file)
+    # print("grid ncol:", grid.dims.get("ncol"))
+    # print("data ncol:", ds.dims.get("ncol"))
+
+    return ds.assign_coords(
+        {
+            "lat": ("ncol", grid["lat"].values),
+            "lon": ("ncol", grid["lon"].values),
+        }
+    )
+
+
+# Gridding Unstructured to Lat/Lon
+# Regrids unstructured SE grid to regular lat-lon
+# Shamelessly borrowed from @maritsandstad with NorESM who deserves credit for this work
+# https://github.com/NorESMhub/xesmf_clm_fates_diagnostic/blob/main/src/xesmf_clm_fates_diagnostic/plotting_methods.py
+
+
+def make_se_regridder(weight_file, s_data, d_data, method="coservative"):
+    """An xESMF regridder that applies a native-grid weights file.
+
+    Parameters
+    ----------
+    weight_file : str or pathlib.Path
+        ESMF/ncremap weights file from the native grid to the lat/lon grid.
+    s_data, d_data : xarray.DataArray or None
+        Source and destination masks (land fraction and land mask for CLM);
+        None for no mask.
+    method : str, optional
+        How xESMF applies the weights: "coservative" (sic, see
+        :func:`grid_to_latlon`) or "bilinear".
+
+    Returns
+    -------
+    xesmf.Regridder
+    """
+    weights = xr.open_dataset(weight_file)
+    in_shape = weights.src_grid_dims.load().data
+
+    # Since xESMF expects 2D vars, we'll insert a dummy dimension of size-1
+    if len(in_shape) == 1:
+        in_shape = [1, in_shape.item()]
+
+    # output variable shape
+    out_shape = weights.dst_grid_dims.load().data.tolist()[::-1]
+
+    dummy_in = xr.Dataset(
+        {
+            "lat": ("lat", np.empty((in_shape[0],))),
+            "lon": ("lon", np.empty((in_shape[1],))),
+        }
+    )
+    dummy_out = xr.Dataset(
+        {
+            "lat": ("lat", weights.yc_b.data.reshape(out_shape)[:, 0]),
+            "lon": ("lon", weights.xc_b.data.reshape(out_shape)[0, :]),
+        }
+    )
+
+    # Hard code masks for now, not sure this does anything?
+    if isinstance(s_data, xr.DataArray):
+        s_mask = xr.DataArray(
+            s_data.data.reshape(in_shape[0], in_shape[1]), dims=("lat", "lon")
+        )
+        dummy_in["mask"] = s_mask
+    if isinstance(d_data, xr.DataArray):
+        d_mask = xr.DataArray(d_data.values, dims=("lat", "lon"))
+        dummy_out["mask"] = d_mask
+
+    # do source and destination grids need masks here?  See the xesmf docs:
+    # https://xesmf.readthedocs.io/en/stable/notebooks/Masking.html
+    regridder = xesmf.Regridder(
+        dummy_in,
+        dummy_out,
+        weights=weight_file,
+        # results seem insensitive to this method choice
+        # choices are coservative_normed, coservative, and bilinear
+        method=method,
+        reuse_weights=True,
+        periodic=True,
+    )
+    return regridder
+
+
+def regrid_se_data_bilinear(regridder, data_to_regrid, comp_grid):
+    """Regrid native-grid data along `comp_grid` with a bilinear regridder, skipping NaNs."""
+    updated = (
+        data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    )
+    regridded = regridder(
+        updated.rename({"dummy": "lat", comp_grid: "lon"}),
+        skipna=True,
+        na_thres=1,
+    )
+    return regridded
+
+
+def regrid_se_data_conservative(regridder, data_to_regrid, comp_grid):
+    """Regrid native-grid data along `comp_grid` with a conservative regridder."""
+    updated = (
+        data_to_regrid.copy().transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    )
+    regridded = regridder(updated.rename({"dummy": "lat", comp_grid: "lon"}))
+    return regridded
+
+
+def regrid_atm_se_data_bilinear(regridder, data_to_regrid, comp_grid="ncol"):
+    """Regrid CAM native-grid data (a Dataset or DataArray with `comp_grid`), bilinearly."""
+    if isinstance(data_to_regrid, xr.Dataset):
+        vars_with_ncol = [
+            name
+            for name in data_to_regrid.variables
+            if comp_grid in data_to_regrid[name].dims
+        ]
+        updated = data_to_regrid.copy().update(
+            data_to_regrid[vars_with_ncol]
+            .transpose(..., comp_grid)
+            .expand_dims("dummy", axis=-2)
+        )
+    elif isinstance(data_to_regrid, xr.DataArray):
+        updated = data_to_regrid.transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    else:
+        raise ValueError(
+            f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}"
+        )
+    regridded = regridder(updated)
+    return regridded
+
+
+def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid="ncol"):
+    """Regrid CAM native-grid data (a Dataset or DataArray with `comp_grid`), conservatively."""
+    if isinstance(data_to_regrid, xr.Dataset):
+        vars_with_ncol = [
+            name
+            for name in data_to_regrid.variables
+            if comp_grid in data_to_regrid[name].dims
+        ]
+        updated = data_to_regrid.copy().update(
+            data_to_regrid[vars_with_ncol]
+            .transpose(..., comp_grid)
+            .expand_dims("dummy", axis=-2)
+        )
+    elif isinstance(data_to_regrid, xr.DataArray):
+        updated = data_to_regrid.transpose(..., comp_grid).expand_dims("dummy", axis=-2)
+    else:
+        raise ValueError(
+            f"Something is wrong because the data to regrid isn't xarray: {type(data_to_regrid)}"
+        )
+    regridded = regridder(updated, skipna=True, na_thres=1)
+    return regridded
+
+
+def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
+    model_dataset, var_name, wgt_file, method=None, comp="atm", latlon_file=None
+):
+    """Grid native-grid data (CAM ``ncol`` or CLM ``lndgrid``) to lat/lon with a weights file.
+
+    Parameters
+    ----------
+    model_dataset : xarray.Dataset
+        The model data on its native grid.
+    var_name : str
+        The variable to grid.
+    wgt_file : str or pathlib.Path
+        ESMF weights file mapping the native grid to the lat/lon grid.
+    method : str, optional
+        "conservative" (the default) or "bilinear"; should match how the
+        weights file was made.
+    comp : str, optional
+        The model component, "atm" (the default) or "lnd".  Land data is
+        weighted by its land fraction while it is gridded.
+    latlon_file : str or pathlib.Path, optional
+        Land only: a file on the target lat/lon grid holding its "landmask",
+        used to mask the gridding and carried over to the result.
+
+    Returns
+    -------
+    xarray.Dataset
+        The data on the lat/lon grid, with every variable that is not on the
+        native grid (hyam, hybm, P0, time bounds, ...) carried over, and the
+        grid-cell areas as "area".
+    """
+    land = comp == "lnd"
+    comp_grid = "lndgrid" if land else "ncol"
+
+    # The weights file decides the actual algorithm; the method only picks how
+    # the regridder is applied.  xesmf demands cell bounds for "conservative",
+    # which the dummy grids in make_se_regridder do not have, so the misspelled
+    # "coservative" is passed on purpose to get past that check.  Accept the
+    # real spelling (and nothing at all) from the config file:
+    if method in (None, "conservative", "coservative"):
+        method = "coservative"
+    elif method != "bilinear":
+        raise ValueError(
+            f"Unknown regrid method '{method}'; use 'conservative' or 'bilinear'."
+        )
+
+    # Work on a copy, so the caller's dataset is not filled in place:
+    model_dataset = model_dataset.copy()
+    model_dataset[var_name] = model_dataset[var_name].fillna(0)
+    da_attrs = model_dataset[var_name].attrs
+
+    # Land: grid the land-fraction-weighted field (divided out again below),
+    # masked by the source and, if given, target land masks:
+    s_data = None
+    d_data = None
+    latlon_landmask = None
+    if land:
+        model_dataset["landfrac"] = model_dataset["landfrac"].fillna(0)
+        model_dataset[var_name] = model_dataset[var_name] * model_dataset["landfrac"]
+        s_data = model_dataset["landmask"]
+        if "time" in s_data.dims:
+            s_data = s_data.isel(time=0)
+        if latlon_file:
+            with xr.open_dataset(latlon_file) as latlon_ds:
+                latlon_landmask = latlon_ds["landmask"].load()
+            d_data = latlon_landmask
+        # End if
+    # End if
+
+    # Grid model data to match target grid lat/lon:
+    regridder = make_se_regridder(
+        weight_file=wgt_file, s_data=s_data, d_data=d_data, method=method
+    )
+
+    # Only the fields on the native grid can be regridded; everything else
+    # (hyam, hybm, P0, time bounds, ...) is carried over unchanged below:
+    native = [v for v in model_dataset.data_vars if comp_grid in model_dataset[v].dims]
+    if method == "coservative":
+        rgdata = regrid_se_data_conservative(
+            regridder, model_dataset[native], comp_grid
+        )
+    else:
+        rgdata = regrid_se_data_bilinear(regridder, model_dataset[native], comp_grid)
+    for name, value in model_dataset.variables.items():
+        if name not in rgdata.variables and comp_grid not in value.dims:
+            rgdata[name] = value
+    for dim in ("lev", "ilev"):
+        if dim in rgdata.coords and dim in model_dataset.coords:
+            rgdata[dim].attrs = model_dataset[dim].attrs
+    # The regridders return a new time coordinate without the original's
+    # attributes ("bounds") or encoding (units), so it would be written in
+    # units of its own while the carried-over time bounds keep the file's;
+    # anything that reads the bounds (use_time_bounds_midpoint) then
+    # misplaces every step.  Keep the original's:
+    if "time" in rgdata.coords and "time" in model_dataset.coords:
+        rgdata["time"].attrs = model_dataset["time"].attrs
+        rgdata["time"].encoding = model_dataset["time"].encoding
+    rgdata.attrs = model_dataset.attrs
+
+    if land:
+        landfrac = rgdata["landfrac"]
+        if "time" in landfrac.dims:
+            landfrac = landfrac.isel(time=0)
+        rgdata["landfrac"] = landfrac
+        rgdata[var_name] = rgdata[var_name] / landfrac.where(landfrac > 0)
+        if latlon_landmask is not None:
+            # By position: the file's lat/lon values need not match the
+            # weights file's to the last digit, and aligning on them would
+            # leave NaNs.
+            rgdata["landmask"] = (("lat", "lon"), latlon_landmask.values)
+        # End if
+    # End if
+
+    # calculate area
+    rgdata = calc_area(rgdata)
+    rgdata[var_name].attrs = da_attrs
+
+    # Return dataset:
+    return rgdata
+
+
+def latlon_to_mesh(data, mesh, method="bilinear"):
+    """Put a lat/lon field onto a native mesh with uxarray's remapping.
+
+    The reverse of `grid_to_latlon`, so that a native-grid case can be
+    compared, on its own mesh, with a lat/lon case or observations.  Needs no
+    weights file, so it works for any lat/lon grid; the remap is not
+    conservative (see `apply_mesh_weights` for one that is).
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        field with "lat" and "lon" dimensions (others, e.g. time, are kept)
+    mesh : str, Path or ux.Grid
+        the destination mesh (e.g. the case's 'mesh_file')
+    method : str, optional
+        "bilinear" (the default), "inverse_distance_weighted" or
+        "nearest_neighbor"
+
+    Returns
+    -------
+    ux.UxDataArray
+        the field on the mesh's faces ("n_face")
+    """
+    grid = mesh if isinstance(mesh, ux.Grid) else ux.open_grid(mesh)
+    lat = data["lat"].values
+    lon = data["lon"].values
+    # From the cell centres: UxDataset.from_structured would reject grids
+    # whose spacing is regular only to float round-off (f09).
+    src_grid = ux.Grid.from_structured(lon=lon, lat=lat)
+    # Each face's (lat, lon) cell, matched by centre, so the result does not
+    # depend on the order uxarray gives the faces:
+    lat_idx = _nearest_index(lat, src_grid.face_lat.values)
+    lon_idx = _nearest_index(lon % 360, src_grid.face_lon.values % 360, period=360)
+    other = [d for d in data.dims if d not in ("lat", "lon")]
+    values = data.transpose(*other, "lat", "lon").values[..., lat_idx, lon_idx]
+    src = ux.UxDataArray(
+        values,
+        dims=other + ["n_face"],
+        coords={d: data[d] for d in other if d in data.coords},
+        name=data.name,
+        uxgrid=src_grid,
+    )
+    out = getattr(src.remap, method)(grid)
+    out.attrs = dict(data.attrs, remap_method=f"uxarray {method}")
+    return out
+
+
+def _nearest_index(centers, targets, period=None):
+    """Index of the nearest of `centers` (1-D) to each of `targets`."""
+    order = np.argsort(centers)
+    srt = centers[order]
+    if period is not None:
+        # Wrap around, so a target near the seam can match either end:
+        srt = np.concatenate([srt[-1:] - period, srt, srt[:1] + period])
+        order = np.concatenate([order[-1:], order, order[:1]])
+    pos = np.clip(np.searchsorted(srt, targets), 1, len(srt) - 1)
+    left_closer = (targets - srt[pos - 1]) <= (srt[pos] - targets)
+    return order[np.where(left_closer, pos - 1, pos)]
+
+
+def write_latlon_scrip(lat, lon, path):
+    """Write a SCRIP grid file for a regular lat/lon grid (for ESMF).
+
+    Cell corners are midway between the centres, with the outer edges
+    extrapolated and the latitudes clipped to the poles.
+    """
+    lat = np.asarray(lat, dtype=float)
+    lon = np.asarray(lon, dtype=float)
+    lat_edges = np.clip(_edges_from_centers(lat), -90.0, 90.0)
+    lon_edges = _edges_from_centers(lon)
+    clat, clon = np.meshgrid(lat, lon, indexing="ij")
+    # Corners counter-clockwise from the south-west:
+    corner_lat = np.stack(
+        np.broadcast_arrays(
+            lat_edges[:-1, None],
+            lat_edges[:-1, None],
+            lat_edges[1:, None],
+            lat_edges[1:, None],
+        ),
+        axis=-1,
+    )
+    corner_lat = np.broadcast_to(corner_lat, clat.shape + (4,))
+    corner_lon = np.stack(
+        np.broadcast_arrays(
+            lon_edges[None, :-1],
+            lon_edges[None, 1:],
+            lon_edges[None, 1:],
+            lon_edges[None, :-1],
+        ),
+        axis=-1,
+    )
+    corner_lon = np.broadcast_to(corner_lon, clat.shape + (4,))
+    size = clat.size
+    deg = {"units": "degrees"}
+    xr.Dataset(
+        {
+            "grid_dims": ("grid_rank", np.array([len(lon), len(lat)], dtype="i4")),
+            "grid_center_lat": ("grid_size", clat.ravel(), deg),
+            "grid_center_lon": ("grid_size", clon.ravel(), deg),
+            "grid_imask": ("grid_size", np.ones(size, dtype="i4")),
+            "grid_corner_lat": (
+                ("grid_size", "grid_corners"),
+                corner_lat.reshape(size, 4),
+                deg,
+            ),
+            "grid_corner_lon": (
+                ("grid_size", "grid_corners"),
+                corner_lon.reshape(size, 4),
+                deg,
+            ),
+        }
+    ).to_netcdf(
+        path,
+        encoding={
+            v: {"_FillValue": None}
+            for v in (
+                "grid_center_lat",
+                "grid_center_lon",
+                "grid_corner_lat",
+                "grid_corner_lon",
+            )
+        },
+    )
+    return Path(path)
+
+
+def make_mesh_weights(src_scrip, mesh_file, weights_file, method="conserve"):
+    """Make lat/lon-to-mesh weights with ESMF_RegridWeightGen.
+
+    `src_scrip` is a SCRIP file of the lat/lon grid (see
+    `write_latlon_scrip`), `mesh_file` the ESMF mesh of the native grid.
+    """
+    import subprocess  # pylint: disable=import-outside-toplevel
+
+    cmd = [
+        "ESMF_RegridWeightGen",
+        "-s",
+        str(src_scrip),
+        "-d",
+        str(mesh_file),
+        "-w",
+        str(weights_file),
+        "-m",
+        method,
+        "--dst_type",
+        "ESMFMESH",
+        "-i",
+        "--no_log",
+    ]
+    run = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    if run.returncode != 0:
+        raise AdfError(
+            f"ESMF_RegridWeightGen failed ({run.returncode}):\n{run.stdout}{run.stderr}"
+        )
+    return Path(weights_file)
+
+
+def apply_mesh_weights(data, weights_file, mesh):
+    """Apply lat/lon-to-mesh weights (an ESMF/SCRIP map file) to a field.
+
+    Missing source cells are left out and the rest renormalized, so a field
+    with gaps (e.g. observations, or land-only data) is not pulled towards 0.
+    Faces with no valid source are missing.
+
+    Returns
+    -------
+    ux.UxDataArray
+        the field on the mesh's faces ("n_face")
+    """
+    import scipy.sparse  # pylint: disable=import-outside-toplevel
+
+    grid = mesh if isinstance(mesh, ux.Grid) else ux.open_grid(mesh)
+    wts = xr.open_dataset(weights_file)
+    n_a, n_b = wts.sizes["n_a"], wts.sizes["n_b"]
+    smat = scipy.sparse.csr_matrix(
+        (wts["S"].values, (wts["row"].values - 1, wts["col"].values - 1)),
+        shape=(n_b, n_a),
+    )
+    other = [d for d in data.dims if d not in ("lat", "lon")]
+    src = data.transpose(*other, "lat", "lon").values.reshape(-1, n_a).T
+    valid = np.isfinite(src)
+    num = smat @ np.where(valid, src, 0.0)
+    den = smat @ valid.astype(float)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        dst = np.where(den > 1e-6, num / den, np.nan)
+    shape = [data.sizes[d] for d in other] + [n_b]
+    out = xr.DataArray(
+        dst.T.reshape(shape),
+        dims=other + ["n_face"],
+        coords={d: data[d] for d in other if d in data.coords},
+        name=data.name,
+        attrs=dict(data.attrs, remap_method=f"ESMF {Path(weights_file).name}"),
+    )
+    return ux.UxDataArray(out, uxgrid=grid)
+
+
+def calc_area(rgdata):
+    """Add each lat/lon cell's area (km2) to `rgdata` as "area"."""
+    area_km2 = np.zeros(shape=(len(rgdata["lat"]), len(rgdata["lon"])))
+    earth_radius_km = 6.37122e3  # in meters
+
+    yres_deg_n = np.abs(
+        np.diff(rgdata["lat"].data)
+    )  # distances between gridcell centers...
+    xres_deg_e = np.abs(
+        np.diff(rgdata["lon"])
+    )  # ...end up with one less element, so...
+    yres_deg_n = np.append(
+        yres_deg_n, yres_deg_n[-1]
+    )  # shift left (edges <-- centers); assume...
+    xres_deg_e = np.append(
+        xres_deg_e, xres_deg_e[-1]
+    )  # ...last 2 distances bet. edges are equal
+
+    dy_km = yres_deg_n * earth_radius_km * np.pi / 180  # distance in m
+    phi_rad = rgdata["lat"].data * np.pi / 180  # degrees to radians
+
+    # grid cell area
+    for j in range(len(rgdata["lat"])):
+        for i in range(len(rgdata["lon"])):
+            dx_km = (
+                xres_deg_e[i] * np.cos(phi_rad[j]) * earth_radius_km * np.pi / 180
+            )  # distance in m
+            area_km2[j, i] = dy_km[j] * dx_km
+
+    rgdata["area"] = xr.DataArray(
+        area_km2, coords={"lat": rgdata.lat, "lon": rgdata.lon}, dims=["lat", "lon"]
+    )
+    rgdata["area"].attrs["units"] = "km2"
+    rgdata["area"].attrs["long_name"] = "Grid cell area"
+
+    return rgdata
 
 
 #####################

@@ -176,6 +176,36 @@ class AdfDeriveTestRoutine(unittest.TestCase):
                         ds["RESSURF"].values, expected, rtol=1e-4
                     )
 
+    def test_ratio_gets_its_own_units(self):
+        """
+        ASA is 100 * FSR / FSDS, a percentage: it must not inherit the W/m2 of
+        its constituents, while a difference such as RESTOM keeps them.
+        """
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for var, val in (("FSR", 30.0), ("FSDS", 200.0)):
+                fil = Path(tmpdir) / f"case.clm2.h0a.{var}.000101-000112.nc"
+                _write_ts(fil, var, 1, 1)
+                with xr.open_dataset(fil) as ds:
+                    ds = ds.load()
+                ds[var][:] = val
+                ds.to_netcdf(fil)
+
+            derive_variable(
+                _StubAdf(),
+                "case",
+                "ASA",
+                res={},
+                ts_dir=tmpdir,
+                constit_list=["FSR", "FSDS"],
+                hist_str="clm2.h0a",
+            )
+
+            out = sorted(Path(tmpdir).glob("*ASA*.nc"))
+            with xr.open_dataset(out[0]) as ds:
+                self.assertEqual(ds["ASA"].attrs["units"], "%")
+                np.testing.assert_allclose(ds["ASA"].values, 15.0, rtol=1e-6)
+
     def test_chunked_constituents_span_all_chunks(self):
         """
         A constituent split into consecutive chunks must produce one derived

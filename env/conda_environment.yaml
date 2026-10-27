@@ -1,4 +1,4 @@
-name: adf_v1.0.3
+name: adf_v1.0.5
 channels:
   - conda-forge
   - defaults
@@ -8,7 +8,9 @@ dependencies:
   - cartopy=0.23.0
   - netcdf4=1.6.5
   - xarray=2024.1.1
-  - uxarray=2025.03.0
+  # 2025.6.0 is the first release with "UxDataArray.to_raster", which the
+  # native-grid (unstructured) maps in lib/plotting_functions.py use.
+  - uxarray=2025.6.0
   - matplotlib=3.9.4
   - pandas=2.2.0
   - pint=0.23
@@ -25,3 +27,11 @@ dependencies:
   # isolated environment, so a local "pre-commit run -a" reproduces the
   # CI formatting check without pinning "black" a second time here.
   - pre-commit>=3.5
+  # Development tools, not needed to run the ADF.  "pylint" and "pytest"
+  # are what the "ADF_linting.yaml" and "ADF_unit_tests.yaml" CI workflows
+  # run (CI installs the latest release; these are the versions current
+  # when this environment was tested).  "astroid" is pylint's parser and
+  # is pinned with it, since the two are released in lockstep.
+  - pylint=4.1.3
+  - astroid=4.3.4
+  - pytest=9.1.1

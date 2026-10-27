@@ -80,6 +80,22 @@ diag_basic_info:
     #isn't specified in the variable defaults file.
     obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
 
+    #Location of the CESM2 LENS2 global, annual mean files plotted behind the
+    #global mean time series.  Each variable's file is named by "lens2_file" in
+    #the variable defaults; leave this out and no LENS2 range is drawn (unless
+    #a "lens2_file" is given as a full path):
+    lens2_data_loc: /glade/campaign/cgd/cas/islas/CESM_DATA/LENS2/global_means/annualmeans
+
+    #Plot native-grid (unstructured, e.g. ne30pg3) cases on their own mesh with
+    #UXarray, instead of gridding them to lat/lon first.  Each native case then
+    #needs a "mesh_file" (see the case settings below).  If false, or missing,
+    #native cases are gridded to lat/lon with their "weights_file":
+    #unstructured_plotting: false
+
+    #Region definitions for the regional (land) plots listed in "region_list"
+    #(see the end of this file).  If missing, ADF/lib/regions_lnd.yaml is used:
+    #regions_file: /some/path/to/regions_file.yaml
+
     #Location where re-gridded and interpolated CAM climatology files are stored:
     cam_regrid_loc: /glade/derecho/scratch/${user}/ADF/regrid
 
@@ -234,12 +250,20 @@ diag_cam_climo:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
     end_year: 14
+    #("ts_start_year" and "ts_end_year" are accepted as other names for these.)
 
-    #Do time series files exist?
-    #If True, then diagnostics assumes that model files are already time series.
-    #If False, or if simply not present, then diagnostics will attempt to create
-    #time series files from history (time-slice) files:
-    cam_ts_done: false
+    #Years the climatology covers, within the time series years above.  If
+    #missing, the climatology covers all of the time series years:
+    #climo_start_year: 12
+    #climo_end_year: 14
+
+    #Calculate time series files?
+    #If true, or if simply not present, then diagnostics will create time series
+    #files from the history (time-slice) files in 'cam_hist_loc'.
+    #If false, then diagnostics will use the pre-made time series files in
+    #'cam_ts_loc' instead.  (This used to be 'cam_ts_done', which meant the
+    #opposite; it is still accepted.)
+    calc_cam_ts: true
 
     #Save interim time series files?
     #WARNING:  This can take up a significant amount of space,
@@ -252,6 +276,26 @@ diag_cam_climo:
 
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
+
+    #Native-grid cases
+    #-----------------
+    #ADF finds out from the files whether a case is on a native (unstructured)
+    #grid.  Such a case needs one of these, depending on "unstructured_plotting":
+    #
+    #ESMF mesh file, to plot the case on its own grid ("unstructured_plotting: true"):
+    #mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
+    #
+    #Weights file that grids the case to the baseline's (or observations')
+    #lat/lon grid ("unstructured_plotting: false").  The weights decide the
+    #remapping (bilinear, conservative, ...):
+    #weights_file: /glade/campaign/cesm/cesmdata/inputdata/cpl/gridmaps/ne30pg3/map_ne30pg3_TO_fv0.9x1.25_aave.240826.nc
+    #
+    #How the weights are applied: "conservative" (the default) or "bilinear":
+    #regrid_method: conservative
+    #
+    #CLM only: a file on the target lat/lon grid holding its "landmask", used
+    #to mask the gridding of land output:
+    #latlon_file: /some/path/to/latlon_landmask_file.nc
 
     #TEM diagnostics
     #---------------
@@ -314,9 +358,9 @@ diag_cam_climo:
     #    - 14
     #    - 14
 
-    #cam_ts_done:
-    #    - false
-    #    - false
+    #calc_cam_ts:
+    #    - true
+    #    - true
 
     #cam_ts_save:
     #    - true
@@ -396,12 +440,20 @@ diag_cam_baseline_climo:
     #Note:  Leaving this entry blank will make time series
     #       end at latest available year.
     end_year: 14
+    #("ts_start_year" and "ts_end_year" are accepted as other names for these.)
 
-    #Do time series files need to be generated?
-    #If True, then diagnostics assumes that model files are already time series.
-    #If False, or if simply not present, then diagnostics will attempt to create
-    #time series files from history (time-slice) files:
-    cam_ts_done: false
+    #Years the climatology covers, within the time series years above.  If
+    #missing, the climatology covers all of the time series years:
+    #climo_start_year: 12
+    #climo_end_year: 14
+
+    #Calculate time series files?
+    #If true, or if simply not present, then diagnostics will create time series
+    #files from the history (time-slice) files in 'cam_hist_loc'.
+    #If false, then diagnostics will use the pre-made time series files in
+    #'cam_ts_loc' instead.  (This used to be 'cam_ts_done', which meant the
+    #opposite; it is still accepted.)
+    calc_cam_ts: true
 
     #Save interim time series files for baseline run?
     #WARNING:  This can take up a significant amount of space:
@@ -413,6 +465,12 @@ diag_cam_baseline_climo:
 
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
+
+    #Native-grid baseline: the same settings as for the test case(s) above
+    #("mesh_file", "weights_file", "regrid_method", "latlon_file"):
+    #mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
+    #weights_file: /glade/campaign/cesm/cesmdata/inputdata/cpl/gridmaps/ne30pg3/map_ne30pg3_TO_fv0.9x1.25_aave.240826.nc
+    #regrid_method: conservative
 
     #TEM diagnostics
     #---------------
@@ -570,7 +628,7 @@ plotting_scripts:
 #
 #A single entry of "all" processes every variable found in the test case input
 #files instead (the fields in the history files, or the variables in the
-#pre-made time series files when "cam_ts_done" is true).  Variables listed
+#pre-made time series files when "calc_cam_ts" is false).  Variables listed
 #alongside "all" are still added, which is how a derived variable that is in no
 #input file (e.g. PRECT) can be asked for:
 #
@@ -618,7 +676,21 @@ diag_var_list:
 #    - U850
 #    - V200
 #    - V850
-    
+
+#Regions for the regional (land) climatology and time series plots
+#("regional_climatology", "regional_timeseries"), by name from "regions_file".
+#If missing, no regional plots are made:
+#region_list:
+#    - Global
+#    - CONUS
+#    - Amazonia
+
+#Variables for the regional plots (at most 15).  If missing, a default set of
+#land variables is used:
+#regional_var_list:
+#    - TBOT
+#    - PREC
+
 # Options for multi-case regional contour plots (./plotting/regional_map_multicase.py)
 # region_multicase:
 #     region_spec: [slat, nlat, wlon, elon]

@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import plotting_functions as pf
+import plotting_utils as plot_utils
 
 import adf_utils as utils
 import warnings  # use to warn user about missing files.
@@ -64,11 +65,11 @@ def zonal_mean(adfobj):
     # -- So check for it, and default to png
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
 
 
@@ -98,6 +99,9 @@ def zonal_mean(adfobj):
 
         #Loop over the variables for each season
         for var in var_list:
+            #Website category of the log-p plots (vres, where it is set
+            #later, does not exist yet in this pre-flight pass):
+            web_category = res.get(var, {}).get("category", None)
             for s in seasons:
                 #Check zonal log-p:
                 plot_name_log = plot_loc / f"{var}_logp_{s}_Zonal_Mean.{plot_type}"
@@ -107,7 +111,7 @@ def zonal_mean(adfobj):
                     logp_zonal_skip.append(plot_name_log)
                     #Continue to next iteration:
                     adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s,
-                                            plot_type="Zonal", category="Log-P")
+                                            plot_type="Zonal", category=web_category)
                     pass
 
                 elif (redo_plot) and plot_name_log.is_file():
@@ -142,11 +146,13 @@ def zonal_mean(adfobj):
         #Notify user of variable being plotted:
         print(f"\t - zonal mean plots for {var}")
 
-        if var not in adfobj.data.ref_var_nam:
-            dmsg = f"\t    WARNING: No reference data found for variable `{var}`, zonal mean plotting skipped."
+        # Whatever data there is gets plotted: without reference data the
+        # test cases are plotted on their own (and the other way round).
+        has_ref_var = var in adfobj.data.ref_var_nam
+        if not has_ref_var:
+            dmsg = f"\t    WARNING: No reference data found for variable `{var}`, plotting the test case(s) only."
             adfobj.debug_log(dmsg)
             print(dmsg)
-            continue
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if var in res:
@@ -158,31 +164,60 @@ def zonal_mean(adfobj):
             vres = {}
         #End if
 
+        unstruct_plotting = adfobj.unstructured_plotting
+        if unstruct_plotting:
+            #config["unstructured_plotting"] = unstruct_plotting
+            unstructured = unstruct_plotting
+            #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
+            #kwargs["mesh_file"] = mesh_file
+        else:
+            unstructured = False
+        #config["unstructured_plotting"] = unstructured
+        vres["unstructured_plotting"] = unstructured
+
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
+        vres["plot_type"] = __name__
+        #Extract category (if available):
+        web_category = vres.get("category", None)
+
         # load reference data (observational or baseline)
         if not adfobj.compare_obs:
             base_name = adfobj.data.ref_case_label
         else:
-            base_name = adfobj.data.ref_labels[var]
+            base_name = adfobj.data.ref_labels.get(var, var)
 
         # Gather reference variable data
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
-
-        #Check if regridded file exists, if not skip zonal plot for this var
-        if odata is None:
-            dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, zonal mean plotting skipped."
-            adfobj.debug_log(dmsg)
-            continue
+        odata = None
+        vres.pop("wgt_base", None)
+        if not has_ref_var:
+            pass
+        elif unstructured:
+            # On the mesh, each case is compared with the reference on its own
+            # mesh (a lat/lon reference is put there by the regridding step;
+            # see AdfData._reference_files), so it is loaded with each case.
+            pass
+        else:
+            odata = adfobj.data.load_reference_regrid_da(base_name, var)
+            #Check if regridded file exists, if not plot the test case(s) on their own
+            if odata is None:
+                dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, plotting the test case(s) only."
+                adfobj.debug_log(dmsg)
+                print(dmsg)
+            # End if
+        # End if
 
         #Check zonal mean dimensions
-        has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
+        has_lat_ref = has_lev_ref = False
+        if odata is not None:
+            has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
 
-        # check if there is a lat dimension:
-        # if not, skip test cases and move to next variable
-        if not has_lat_ref:
-            print(
-                f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', cannot continue to plot."
-            )
-            continue
+            if (not unstructured) and (not has_lat_ref):
+                # check if there is a lat dimension:
+                print(
+                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{base_name}', plotting the test case(s) only."
+                )
+                odata = None
+            # End if
         # End if
 
         #Loop over model cases:
@@ -195,38 +230,83 @@ def zonal_mean(adfobj):
             plot_loc = Path(plot_locations[case_idx])
 
             # load re-gridded model files:
-            mdata = adfobj.data.load_regrid_da(case_name, var)
+            if unstructured:
+                if has_ref_var:
+                    odata, has_lat_ref, has_lev_ref = _mesh_reference(
+                        adfobj, base_name, var, vres, case_name
+                    )
+                mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
+                vres["mesh_file"] = mesh_file
+                # The data with its unit conversion, as on a lat/lon grid; the
+                # dataset for the cell count:
+                mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
+                mdata = None if mdataset is None else adfobj.data.load_regrid_da(
+                    case_name, var, **vres
+                )
+            else:
+                mdata = adfobj.data.load_regrid_da(case_name, var)
+            # End if
 
             if mdata is None:
-                dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, zonal mean plotting skipped."
+                dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{var}`, plotting the baseline only."
                 adfobj.debug_log(dmsg)
-                continue
+                print(dmsg)
+            elif unstructured and ("wgt_base" in vres):
+                unstruct_case = True
+                wgt = mdataset.isel(time=0)[var]
+
+                #Determine dimensions of variable:
+                if len(wgt.n_face) == len(vres["wgt_base"].n_face):
+                    vres["wgt"] = wgt
+                    vres["indataset"] = mdataset
+                else:
+                    print("The weights are different between test and baseline. Won't continue, eh.")
+                    return
+
+                unstruct_base = vres["unstruct_base"]
+                if (not unstruct_case) and (unstruct_base):
+                    print("Base is unstructured but Test is lat/lon. Can't continue?")
+                    return
+                if (unstruct_case) and (not unstruct_base):
+                    print("Base is lat/lon but Test is unstructured. Can't continue?")
+                    return
+                if (unstruct_case) and (unstruct_base):
+                    unstructured = True
+                if (not unstruct_case) and (not unstruct_base):
+                    unstructured = False
+                vres["unstructured_plotting"] = unstructured
+            # End if
 
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
             # check data dimensions:
-            has_lat, has_lev = utils.zm_validate_dims(mdata)
+            case_odata = odata
+            has_lev = has_lev_ref
+            if mdata is not None:
+                has_lat, has_lev = utils.zm_validate_dims(mdata)
 
-            # check if there is a lat dimension:
-            if not has_lat:
-                print(
-                    f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', cannot continue to plot."
-                )
+                if (not unstructured) and (not has_lat):
+                    # check if there is a lat dimension:
+                    print(
+                        f"\t    WARNING: Variable {var} is missing a lat dimension for '{case_name}', plotting the baseline only."
+                    )
+                    mdata = None
+                    has_lev = has_lev_ref
+                # End if
+            # End if
+            if (mdata is not None) and (case_odata is not None) and (has_lev != has_lev_ref):
+                #A case and a reference that don't both have vertical levels
+                #can't be differenced, so the test case is plotted on its own:
+                print(f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}; plotting the test case only.")
+                case_odata = None
+            # End if
+            if (mdata is None) and (case_odata is None):
                 continue
             # End if
 
-            #Check if reference file has vertical levels
             #Notify user of level dimension:
             if has_lev:
                 print(f"\t    INFO: {var} has lev dimension.")
-
-            #Check to make sure each case has vertical levels if one of the cases does
-            if (has_lev) and (not has_lev_ref):
-                print(f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
-                continue
-            if (has_lev_ref) and (not has_lev):
-                print(f"\t    WARNING: expecting lev boolean for both case: {has_lev} and ref: {has_lev_ref}")
-                continue
 
             #
             # Seasonal Averages
@@ -238,6 +318,7 @@ def zonal_mean(adfobj):
 
             #Loop over season dictionary:
             for s in seasons:
+                vres["season"] = s
 
                 # time to make plot; here we'd probably loop over whatever plots we want for this variable
                 # I'll just call this one "Zonal_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
@@ -271,17 +352,35 @@ def zonal_mean(adfobj):
                 # End if
 
                 # Seasonal Averages
-                mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
-                oseasons[s] = utils.seasonal_mean(odata, season=s, is_climo=True)
+                if mdata is not None:
+                    mseasons[s] = utils.seasonal_mean(mdata, season=s, is_climo=True)
+                if case_odata is not None:
+                    oseasons[s] = utils.seasonal_mean(case_odata, season=s, is_climo=True)
+
+                def make_plot(wks, log_p):
+                    """Test vs baseline, or whichever of the two has data."""
+                    if (mdata is not None) and (case_odata is not None):
+                        pf.plot_zonal_mean_and_save(adfobj, wks, case_nickname, adfobj.data.ref_nickname,
+                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                    [syear_baseline,eyear_baseline],
+                                                    mseasons[s], oseasons[s], has_lev, log_p=log_p, obs=adfobj.compare_obs, **vres)
+                    elif mdata is not None:
+                        pf.plot_single_case_and_save(adfobj, wks, "zonal", "Test", case_nickname,
+                                                     [syear_cases[case_idx],eyear_cases[case_idx]],
+                                                     mseasons[s], has_lev, log_p=log_p, **vres)
+                    else:
+                        pf.plot_single_case_and_save(adfobj, wks, "zonal", "Baseline",
+                                                     adfobj.data.ref_nickname or base_name,
+                                                     [syear_baseline,eyear_baseline],
+                                                     oseasons[s], has_lev, log_p=log_p, **vres)
+                    #End if
+                #End def
 
                 #Create plots
                 if plot_name not in zonal_skip:
 
                     #Create new plot:
-                    pf.plot_zonal_mean_and_save(plot_name, case_nickname, adfobj.data.ref_nickname,
-                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                    [syear_baseline,eyear_baseline],
-                                                    mseasons[s], oseasons[s], has_lev, log_p=False, obs=adfobj.compare_obs, **vres)
+                    make_plot(plot_name, log_p=False)
 
                     #Add plot to website (if enabled):
                     adfobj.add_website_data(plot_name, var, case_name, season=s, plot_type="Zonal")
@@ -290,13 +389,10 @@ def zonal_mean(adfobj):
                 #Create log-pressure plots as well (if applicable)
                 if (plot_name_log) and (plot_name_log not in logp_zonal_skip):
 
-                    pf.plot_zonal_mean_and_save(plot_name_log, case_nickname, adfobj.data.ref_nickname,
-                                                        [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                        [syear_baseline,eyear_baseline],
-                                                        mseasons[s], oseasons[s], has_lev, log_p=True, obs=adfobj.compare_obs, **vres)
+                    make_plot(plot_name_log, log_p=True)
 
                     #Add plot to website (if enabled):
-                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category="Log-P")
+                    adfobj.add_website_data(plot_name_log, f"{var}_logp", case_name, season=s, plot_type="Zonal", category=web_category)
                 #End if
 
             #End for (seasons loop)
@@ -309,3 +405,31 @@ def zonal_mean(adfobj):
 
 ##############
 #END OF SCRIPT
+
+
+def _mesh_reference(adfobj, base_name, var, vres, test_case):
+    """The reference for `var` on a test case's mesh, for 'unstructured_plotting'.
+
+    Returns (odata, has_lat_ref, has_lev_ref); odata is None, with a warning,
+    when there is no reference on that mesh.  Sets "wgt_base" and
+    "unstruct_base" in `vres` to match (and removes "wgt_base" when there is
+    none, so the case is plotted on its own).
+    """
+    vres.pop("wgt_base", None)
+    kwargs = dict(vres, mesh_file=adfobj.mesh_files["baseline_mesh_file"])
+    odataset = adfobj.data.load_reference_regrid_dataset(
+        base_name, var, test_case=test_case, **kwargs
+    )
+    odata = None if odataset is None else adfobj.data.load_reference_regrid_da(
+        base_name, var, test_case=test_case, **kwargs
+    )
+    if odata is None:
+        # e.g. a reference on another mesh, which the regridding step skips:
+        dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{var}`, plotting the test case only."
+        adfobj.debug_log(dmsg)
+        print(dmsg)
+        return None, False, False
+    vres["wgt_base"] = odata
+    vres["unstruct_base"] = True
+    has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
+    return odata, has_lat_ref, has_lev_ref
