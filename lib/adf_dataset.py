@@ -702,11 +702,15 @@ class AdfData:  # pylint: disable=too-many-public-methods
             self._case_climo_years(case),
         )
 
-    def load_regrid_dataset(self, case, field, **kwargs):
-        """Return a data set of regridded data for case and variable field.
+    def _regrid_files(self, case, field, kwargs):
+        """The test case's regridded file(s) for `field`, updating `kwargs` to match.
 
-        Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
-        are passed on to :meth:`load_dataset`.
+        With 'unstructured_plotting', a lat/lon test case compared with a
+        native reference is put onto the reference's mesh by the regridding
+        stage, so its regridded file is on that mesh although the case has no
+        'mesh_file' of its own: such a file is opened on the reference's mesh.
+        Otherwise the regridded file, or the native climo
+        (:meth:`_native_climo_fallback`).
         """
         fils = self.get_regrid_file(case, field)
         if not fils:
@@ -718,6 +722,30 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 "\t    WARNING: Did not find regrid file(s) for case: "
                 f"{case}, variable: {field}"
             )
+            return fils
+        if getattr(self.adf, "unstructured_plotting", False) and not kwargs.get(
+            "mesh_file"
+        ):
+            base_mesh = self.adf.mesh_files.get("baseline_mesh_file")
+            if base_mesh and self._on_native_dim(fils[0]):
+                kwargs["mesh_file"] = base_mesh
+        return fils
+
+    @staticmethod
+    def _on_native_dim(fil):
+        """Whether the file holds data on a native grid ("ncol" or "lndgrid")."""
+        with xr.open_dataset(fil, decode_times=False) as dset:
+            return any(dim in dset.dims for dim in ("ncol", "lndgrid"))
+
+    def load_regrid_dataset(self, case, field, **kwargs):
+        """Return a data set of regridded data for case and variable field.
+
+        Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
+        are passed on to :meth:`load_dataset` (see :meth:`_regrid_files` for
+        the mesh of a lat/lon case put onto the reference's mesh).
+        """
+        fils = self._regrid_files(case, field, kwargs)
+        if not fils:
             return None
         return self.load_dataset(fils, **kwargs)
 
@@ -742,16 +770,8 @@ class AdfData:  # pylint: disable=too-many-public-methods
         """
         kwargs.pop("scale_factor", None)
         kwargs.pop("add_offset", None)
-        fils = self.get_regrid_file(case, field)
+        fils = self._regrid_files(case, field, kwargs)
         if not fils:
-            fils = self._native_climo_fallback(
-                case, field, self.get_climo_file(case, field)
-            )
-        if not fils:
-            warnings.warn(
-                "\t    WARNING: Did not find regrid file(s) for case: "
-                f"{case}, variable: {field}"
-            )
             return None
         add_offset, scale_factor = self._regrid_converters(
             fils, field, case, field, apply_scaling
@@ -778,12 +798,39 @@ class AdfData:  # pylint: disable=too-many-public-methods
             )
         return fils
 
-    def load_reference_regrid_dataset(self, case, field, **kwargs):
-        """Return a data set to be used as reference (aka baseline) for variable field.
+    def get_ref_on_mesh_file(self, test_case, field):
+        """Return the reference for `field` on a test case's mesh, as a list.
 
-        Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
-        are passed on to :meth:`load_dataset`.
+        With 'unstructured_plotting', the regridding stage writes a lat/lon
+        reference (a lat/lon baseline, or observations) onto each native test
+        case's mesh, as {ref}_{case}_{field}_reference_on_mesh_YYYY-YYYY.nc,
+        named after the case's climatology years.  Empty when there is none.
         """
+        rlbl = self.ref_labels.get(field)
+        if rlbl is None or test_case is None:
+            return []
+        return self._first_file(
+            self.model_rgrid_loc,
+            [f"{rlbl}_{test_case}_{field}_reference_on_mesh"],
+            self._case_climo_years(test_case),
+        )
+
+    def _reference_files(self, case, field, kwargs):
+        """The reference file(s) to load for `field`, updating `kwargs` to match.
+
+        A ``test_case`` in `kwargs` (removed from it) asks for the reference as
+        that test case sees it: when plotting natively and the regridding stage
+        put the reference onto the case's mesh, that file is used, opened on
+        the case's mesh.  Otherwise the usual reference regridded file, or with
+        'unstructured_plotting' the native climo (:meth:`_native_climo_fallback`).
+        """
+        test_case = kwargs.pop("test_case", None)
+        if getattr(self.adf, "unstructured_plotting", False):
+            fils = self.get_ref_on_mesh_file(test_case, field)
+            if fils:
+                idx = self.case_names.index(test_case)
+                kwargs["mesh_file"] = self.adf.mesh_files["test_mesh_file"][idx]
+                return fils
         fils = self.get_ref_regrid_file(case, field)
         if not fils:
             fils = self._native_climo_fallback(
@@ -794,6 +841,17 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 "\t    WARNING: Did not find regridded file(s) for case: "
                 f"{case}, variable: {field}"
             )
+        return fils
+
+    def load_reference_regrid_dataset(self, case, field, **kwargs):
+        """Return a data set to be used as reference (aka baseline) for variable field.
+
+        Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
+        are passed on to :meth:`load_dataset`; ``test_case`` picks the
+        reference on that test case's mesh (see :meth:`_reference_files`).
+        """
+        fils = self._reference_files(case, field, kwargs)
+        if not fils:
             return None
         return self.load_dataset(fils, **kwargs)
 
@@ -814,20 +872,13 @@ class AdfData:  # pylint: disable=too-many-public-methods
         **kwargs
             Passed on to :meth:`load_dataset` (e.g. ``unstructured_plotting``,
             ``mesh_file``).  Any ``scale_factor`` or ``add_offset`` among them
-            is ignored, as in :meth:`load_regrid_da`.
+            is ignored, as in :meth:`load_regrid_da`.  ``test_case`` picks the
+            reference on that test case's mesh (see :meth:`_reference_files`).
         """
         kwargs.pop("scale_factor", None)
         kwargs.pop("add_offset", None)
-        fils = self.get_ref_regrid_file(case, field)
+        fils = self._reference_files(case, field, kwargs)
         if not fils:
-            fils = self._native_climo_fallback(
-                case, field, self.get_reference_climo_file(field)
-            )
-        if not fils:
-            warnings.warn(
-                "\t    WARNING: Did not find regridded file(s) for case: "
-                f"{case}, variable: {field}"
-            )
             return None
         # Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field

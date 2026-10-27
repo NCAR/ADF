@@ -192,21 +192,10 @@ def zonal_mean(adfobj):
         if not has_ref_var:
             pass
         elif unstructured:
-            vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
-            unstruct_base = True
-            odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
-            if odataset is None:
-                # e.g. a reference (obs or a lat/lon case) not on the test
-                # case's native grid, which the regridding step has skipped:
-                dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{var}`, plotting the test case(s) only."
-                adfobj.debug_log(dmsg)
-                print(dmsg)
-            else:
-                odata = odataset[var]
-                wgt_base = odataset.isel(time=0)[var]
-                vres["wgt_base"] = wgt_base
-                vres["unstruct_base"] = unstruct_base
-            # End if
+            # On the mesh, each case is compared with the reference on its own
+            # mesh (a lat/lon reference is put there by the regridding step;
+            # see AdfData._reference_files), so it is loaded with each case.
+            pass
         else:
             odata = adfobj.data.load_reference_regrid_da(base_name, var)
             #Check if regridded file exists, if not plot the test case(s) on their own
@@ -242,11 +231,18 @@ def zonal_mean(adfobj):
 
             # load re-gridded model files:
             if unstructured:
+                if has_ref_var:
+                    odata, has_lat_ref, has_lev_ref = _mesh_reference(
+                        adfobj, base_name, var, vres, case_name
+                    )
                 mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
                 vres["mesh_file"] = mesh_file
-                #mdata = adfobj.data.load_climo_da(case_name, var, **vres)
+                # The data with its unit conversion, as on a lat/lon grid; the
+                # dataset for the cell count:
                 mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
-                mdata = None if mdataset is None else mdataset[var]
+                mdata = None if mdataset is None else adfobj.data.load_regrid_da(
+                    case_name, var, **vres
+                )
             else:
                 mdata = adfobj.data.load_regrid_da(case_name, var)
             # End if
@@ -409,3 +405,31 @@ def zonal_mean(adfobj):
 
 ##############
 #END OF SCRIPT
+
+
+def _mesh_reference(adfobj, base_name, var, vres, test_case):
+    """The reference for `var` on a test case's mesh, for 'unstructured_plotting'.
+
+    Returns (odata, has_lat_ref, has_lev_ref); odata is None, with a warning,
+    when there is no reference on that mesh.  Sets "wgt_base" and
+    "unstruct_base" in `vres` to match (and removes "wgt_base" when there is
+    none, so the case is plotted on its own).
+    """
+    vres.pop("wgt_base", None)
+    kwargs = dict(vres, mesh_file=adfobj.mesh_files["baseline_mesh_file"])
+    odataset = adfobj.data.load_reference_regrid_dataset(
+        base_name, var, test_case=test_case, **kwargs
+    )
+    odata = None if odataset is None else adfobj.data.load_reference_regrid_da(
+        base_name, var, test_case=test_case, **kwargs
+    )
+    if odata is None:
+        # e.g. a reference on another mesh, which the regridding step skips:
+        dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{var}`, plotting the test case only."
+        adfobj.debug_log(dmsg)
+        print(dmsg)
+        return None, False, False
+    vres["wgt_base"] = odata
+    vres["unstruct_base"] = True
+    has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
+    return odata, has_lat_ref, has_lev_ref

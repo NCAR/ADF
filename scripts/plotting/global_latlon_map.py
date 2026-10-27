@@ -111,6 +111,19 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unst
     vres['central_longitude'] = plot_utils.get_central_longitude(adfobj)
     vres['unstructured_plotting'] = unstruct_plotting
 
+    if unstruct_plotting:
+        # On the mesh, each case is compared with the reference on its own
+        # mesh (a lat/lon reference is put there by the regridding step; see
+        # AdfData._reference_files), so it is loaded with each case:
+        for case_idx, case_name in enumerate(adfobj.data.case_names):
+            odata, cvres = load_reference_data(adfobj, var, dict(vres), test_case=case_name)
+            if odata is None:
+                continue
+            process_case(adfobj, case_name, case_idx, var, odata,
+                        seasons, pres_levs, plot_type, redo_plot,
+                        cvres, web_category)
+        return
+
     # Load reference data
     #odata = load_reference_data(adfobj, var)
     odata, vres = load_reference_data(adfobj, var, vres)
@@ -126,8 +139,12 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unst
 
 
 
-def load_reference_data(adfobj, var, vres):
-    """Load and validate reference data."""
+def load_reference_data(adfobj, var, vres, test_case=None):
+    """Load and validate reference data.
+
+    With 'unstructured_plotting', `test_case` asks for the reference on that
+    case's mesh (see AdfData._reference_files).
+    """
     if not adfobj.compare_obs:
         base_name = adfobj.data.ref_case_label
     else:
@@ -141,8 +158,12 @@ def load_reference_data(adfobj, var, vres):
     if vres["unstructured_plotting"]:
         vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
         unstruct_base = True
-        odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **vres)
-        odata = adfobj.data.load_reference_regrid_da(base_name, var, **vres)
+        odataset = adfobj.data.load_reference_regrid_dataset(
+            base_name, var, test_case=test_case, **vres
+        )
+        odata = adfobj.data.load_reference_regrid_da(
+            base_name, var, test_case=test_case, **vres
+        )
         if (odataset is None) or (odata is None):
             # e.g. a reference (obs or a lat/lon case) not on the test case's
             # native grid, which the regridding step has already skipped:

@@ -57,6 +57,10 @@ lat_lon_validate_dims(fld)
     Check if input field has lat and lon.
 zm_validate_dims(fld)
     Check for dimensions for zonal average.
+latlon_to_mesh(data, mesh, method="bilinear")
+    Put a lat/lon field onto a native mesh (uxarray remap, no weights file).
+write_latlon_scrip(lat, lon, path), make_mesh_weights(...), apply_mesh_weights(...)
+    Make and apply conservative lat/lon-to-mesh weights with ESMF.
 
 Notes
 -----
@@ -974,14 +978,16 @@ def cell_weights(dset, comp="atm"):
     xr.DataArray or ux.UxDataArray
         area (atm) or area * landfrac (lnd), normalized to sum to 1
     """
+    # Before isel, which can leave a uxarray dataset without its grid:
+    uxgrid = getattr(dset, "uxgrid", None)
     if "time" in dset.dims:
         dset = dset.isel(time=0)
     # End if
     if "area" in dset:
         wgt = dset["area"]
-    elif hasattr(dset, "uxgrid"):
+    elif uxgrid is not None:
         # No areas in the file, so use the mesh's face areas:
-        wgt = xr.DataArray(dset.uxgrid.face_areas.values, dims=["n_face"])
+        wgt = xr.DataArray(uxgrid.face_areas.values, dims=["n_face"])
     else:
         raise AdfError("cell_weights: no 'area' in the dataset to weight by.")
     # End if
@@ -2199,6 +2205,202 @@ def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
 
     # Return dataset:
     return rgdata
+
+
+def latlon_to_mesh(data, mesh, method="bilinear"):
+    """Put a lat/lon field onto a native mesh with uxarray's remapping.
+
+    The reverse of `grid_to_latlon`, so that a native-grid case can be
+    compared, on its own mesh, with a lat/lon case or observations.  Needs no
+    weights file, so it works for any lat/lon grid; the remap is not
+    conservative (see `apply_mesh_weights` for one that is).
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        field with "lat" and "lon" dimensions (others, e.g. time, are kept)
+    mesh : str, Path or ux.Grid
+        the destination mesh (e.g. the case's 'mesh_file')
+    method : str, optional
+        "bilinear" (the default), "inverse_distance_weighted" or
+        "nearest_neighbor"
+
+    Returns
+    -------
+    ux.UxDataArray
+        the field on the mesh's faces ("n_face")
+    """
+    grid = mesh if isinstance(mesh, ux.Grid) else ux.open_grid(mesh)
+    lat = data["lat"].values
+    lon = data["lon"].values
+    # From the cell centres: UxDataset.from_structured would reject grids
+    # whose spacing is regular only to float round-off (f09).
+    src_grid = ux.Grid.from_structured(lon=lon, lat=lat)
+    # Each face's (lat, lon) cell, matched by centre, so the result does not
+    # depend on the order uxarray gives the faces:
+    lat_idx = _nearest_index(lat, src_grid.face_lat.values)
+    lon_idx = _nearest_index(lon % 360, src_grid.face_lon.values % 360, period=360)
+    other = [d for d in data.dims if d not in ("lat", "lon")]
+    values = data.transpose(*other, "lat", "lon").values[..., lat_idx, lon_idx]
+    src = ux.UxDataArray(
+        values,
+        dims=other + ["n_face"],
+        coords={d: data[d] for d in other if d in data.coords},
+        name=data.name,
+        uxgrid=src_grid,
+    )
+    out = getattr(src.remap, method)(grid)
+    out.attrs = dict(data.attrs, remap_method=f"uxarray {method}")
+    return out
+
+
+def _nearest_index(centers, targets, period=None):
+    """Index of the nearest of `centers` (1-D) to each of `targets`."""
+    order = np.argsort(centers)
+    srt = centers[order]
+    if period is not None:
+        # Wrap around, so a target near the seam can match either end:
+        srt = np.concatenate([srt[-1:] - period, srt, srt[:1] + period])
+        order = np.concatenate([order[-1:], order, order[:1]])
+    pos = np.clip(np.searchsorted(srt, targets), 1, len(srt) - 1)
+    left_closer = (targets - srt[pos - 1]) <= (srt[pos] - targets)
+    return order[np.where(left_closer, pos - 1, pos)]
+
+
+def write_latlon_scrip(lat, lon, path):
+    """Write a SCRIP grid file for a regular lat/lon grid (for ESMF).
+
+    Cell corners are midway between the centres, with the outer edges
+    extrapolated and the latitudes clipped to the poles.
+    """
+    lat = np.asarray(lat, dtype=float)
+    lon = np.asarray(lon, dtype=float)
+    lat_edges = np.clip(_edges_from_centers(lat), -90.0, 90.0)
+    lon_edges = _edges_from_centers(lon)
+    clat, clon = np.meshgrid(lat, lon, indexing="ij")
+    # Corners counter-clockwise from the south-west:
+    corner_lat = np.stack(
+        np.broadcast_arrays(
+            lat_edges[:-1, None],
+            lat_edges[:-1, None],
+            lat_edges[1:, None],
+            lat_edges[1:, None],
+        ),
+        axis=-1,
+    )
+    corner_lat = np.broadcast_to(corner_lat, clat.shape + (4,))
+    corner_lon = np.stack(
+        np.broadcast_arrays(
+            lon_edges[None, :-1],
+            lon_edges[None, 1:],
+            lon_edges[None, 1:],
+            lon_edges[None, :-1],
+        ),
+        axis=-1,
+    )
+    corner_lon = np.broadcast_to(corner_lon, clat.shape + (4,))
+    size = clat.size
+    deg = {"units": "degrees"}
+    xr.Dataset(
+        {
+            "grid_dims": ("grid_rank", np.array([len(lon), len(lat)], dtype="i4")),
+            "grid_center_lat": ("grid_size", clat.ravel(), deg),
+            "grid_center_lon": ("grid_size", clon.ravel(), deg),
+            "grid_imask": ("grid_size", np.ones(size, dtype="i4")),
+            "grid_corner_lat": (
+                ("grid_size", "grid_corners"),
+                corner_lat.reshape(size, 4),
+                deg,
+            ),
+            "grid_corner_lon": (
+                ("grid_size", "grid_corners"),
+                corner_lon.reshape(size, 4),
+                deg,
+            ),
+        }
+    ).to_netcdf(
+        path,
+        encoding={
+            v: {"_FillValue": None}
+            for v in (
+                "grid_center_lat",
+                "grid_center_lon",
+                "grid_corner_lat",
+                "grid_corner_lon",
+            )
+        },
+    )
+    return Path(path)
+
+
+def make_mesh_weights(src_scrip, mesh_file, weights_file, method="conserve"):
+    """Make lat/lon-to-mesh weights with ESMF_RegridWeightGen.
+
+    `src_scrip` is a SCRIP file of the lat/lon grid (see
+    `write_latlon_scrip`), `mesh_file` the ESMF mesh of the native grid.
+    """
+    import subprocess  # pylint: disable=import-outside-toplevel
+
+    cmd = [
+        "ESMF_RegridWeightGen",
+        "-s",
+        str(src_scrip),
+        "-d",
+        str(mesh_file),
+        "-w",
+        str(weights_file),
+        "-m",
+        method,
+        "--dst_type",
+        "ESMFMESH",
+        "-i",
+        "--no_log",
+    ]
+    run = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    if run.returncode != 0:
+        raise AdfError(
+            f"ESMF_RegridWeightGen failed ({run.returncode}):\n{run.stdout}{run.stderr}"
+        )
+    return Path(weights_file)
+
+
+def apply_mesh_weights(data, weights_file, mesh):
+    """Apply lat/lon-to-mesh weights (an ESMF/SCRIP map file) to a field.
+
+    Missing source cells are left out and the rest renormalized, so a field
+    with gaps (e.g. observations, or land-only data) is not pulled towards 0.
+    Faces with no valid source are missing.
+
+    Returns
+    -------
+    ux.UxDataArray
+        the field on the mesh's faces ("n_face")
+    """
+    import scipy.sparse  # pylint: disable=import-outside-toplevel
+
+    grid = mesh if isinstance(mesh, ux.Grid) else ux.open_grid(mesh)
+    wts = xr.open_dataset(weights_file)
+    n_a, n_b = wts.sizes["n_a"], wts.sizes["n_b"]
+    smat = scipy.sparse.csr_matrix(
+        (wts["S"].values, (wts["row"].values - 1, wts["col"].values - 1)),
+        shape=(n_b, n_a),
+    )
+    other = [d for d in data.dims if d not in ("lat", "lon")]
+    src = data.transpose(*other, "lat", "lon").values.reshape(-1, n_a).T
+    valid = np.isfinite(src)
+    num = smat @ np.where(valid, src, 0.0)
+    den = smat @ valid.astype(float)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        dst = np.where(den > 1e-6, num / den, np.nan)
+    shape = [data.sizes[d] for d in other] + [n_b]
+    out = xr.DataArray(
+        dst.T.reshape(shape),
+        dims=other + ["n_face"],
+        coords={d: data[d] for d in other if d in data.coords},
+        name=data.name,
+        attrs=dict(data.attrs, remap_method=f"ESMF {Path(weights_file).name}"),
+    )
+    return ux.UxDataArray(out, uxgrid=grid)
 
 
 def calc_area(rgdata):

@@ -560,7 +560,11 @@ def plot_map_and_save(
     if unstructured:
         wgt = kwargs["wgt"]
         if vector:
-            grid = ux.open_grid(kwargs["mesh_file"])
+            # The grid the data are on (a lat/lon case put onto the
+            # reference's mesh has no 'mesh_file' of its own):
+            grid = getattr(mdlfld, "uxgrid", None)
+            if grid is None:
+                grid = ux.open_grid(kwargs["mesh_file"])
             # cell centres, for the vector arrows:
             lons = grid.face_lon.values
             lats = grid.face_lat.values

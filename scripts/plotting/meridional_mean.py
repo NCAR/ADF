@@ -256,7 +256,25 @@ def meridional_mean(adfobj):
             # determine whether it's 2D or 3D
             # 3D triggers search for surface pressure
             case_odata = odata
-            has_lev = has_dims_ref["has_lev"]
+            case_dims_ref = has_dims_ref
+            case_unstruct_ref = unstruct_ref
+            if (
+                has_ref_var
+                and _is_unstructured(mdata)
+                and not unstruct_ref
+                and adfobj.data.get_ref_on_mesh_file(case_name, var)
+            ):
+                # The regridding step put the lat/lon reference onto this
+                # case's mesh (see AdfData._reference_files):
+                on_mesh = adfobj.data.load_reference_regrid_da(
+                    base_name, var, test_case=case_name,
+                    **_native_kwargs(adfobj, case_name)
+                )
+                if on_mesh is not None:
+                    case_odata = on_mesh
+                    case_dims_ref = utils.validate_dims(on_mesh, ["lat", "lev"])
+                    case_unstruct_ref = True
+            has_lev = case_dims_ref["has_lev"]
             if mdata is not None:
                 has_dims = utils.validate_dims(mdata, ["lat", "lev"])
 
@@ -275,13 +293,13 @@ def meridional_mean(adfobj):
                 # Both on the native grid, or both on lat/lon, with vertical
                 # levels in both or neither; otherwise they can't be differenced
                 # and the test case is plotted on its own:
-                if _is_unstructured(mdata) != unstruct_ref:
+                if _is_unstructured(mdata) != case_unstruct_ref:
                     print(
                         f"\t    WARNING: '{case_name}' and '{base_name}' are not both on "
                         f"a native grid (or both on lat/lon), so '{var}' is plotted for the test case only."
                     )
                     case_odata = None
-                elif has_lev != has_dims_ref["has_lev"]:
+                elif has_lev != case_dims_ref["has_lev"]:
                     print(
                         f"\t    WARNING: only one of the test and reference cases has a vertical levels"
                         f" dimension for '{var}', so it is plotted for the test case only."
@@ -434,7 +452,16 @@ def _native_kwargs(adfobj, casename):
     dict
         ``unstructured_plotting`` and ``mesh_file``, or empty.
     """
-    if not adfobj.unstructured_plotting or not adfobj.native_grid.get(casename, False):
+    if not adfobj.unstructured_plotting:
+        return {}
+    if not adfobj.native_grid.get(casename, False):
+        if casename != adfobj.data.ref_case_label and adfobj.native_grid.get(
+            adfobj.data.ref_case_label, False
+        ):
+            # A lat/lon case compared with a native reference: the regridding
+            # step put it onto the reference's mesh, which the loader picks
+            # (see AdfData._regrid_files).
+            return {"unstructured_plotting": True}
         return {}
     if casename == adfobj.data.ref_case_label:
         mesh_file = adfobj.mesh_files["baseline_mesh_file"]

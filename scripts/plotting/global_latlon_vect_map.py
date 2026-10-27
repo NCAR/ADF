@@ -1,589 +1,461 @@
-#Import necessary modules:
-#------------------------
-from pathlib import Path  # python standard library
+"""
+Generate global maps of vector fields (e.g. U/V wind, TAUX/TAUY stress)
+
+Functions
+---------
+global_latlon_vect_map(adfobj)
+    use ADF object to make vector maps
+get_plot_config(adfobj)
+    plotting settings shared by every vector pair
+process_vector_pair(adfobj, var, ...)
+    load and plot one vector pair for every test case
+"""
+# Import standard modules:
+from pathlib import Path
+import numpy as np
+
+# Import local modules:
+import adf_utils as utils
+import plotting_utils as plot_utils
+import plotting_functions as pf
+
+# Warnings
+import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
+
+#########
 
 def global_latlon_vect_map(adfobj):
     """
     This script/function is designed to generate global
     2-D lat/lon maps of model vector fields with continental
     overlays.
-    Description of needed inputs from ADF:
-    case_name         -> Name of CAM case provided by "cam_case_name".
-    model_rgrid_loc   -> Location of re-gridded CAM climo files provided by "cam_regrid_loc".
-    data_name         -> Name of data set CAM case is being compared against,
-                         which is always either "obs" or the baseline CAM case name,
-                         depending on whether "compare_obs" is true or false.
-    data_loc          -> Location of comparison data, which is either "obs_data_loc"
-                         or "cam_baseline_climo_loc", depending on whether
-                         "compare_obs" is true or false.
-    var_list          -> List of CAM output variables to plot, from "plot_var_list"
-    data_list         -> List of data sets CAM will be compared against, which
-                         is simply the baseline case name in situations when
-                         "compare_obs" is false.
-    plot_location     -> Location where plot files will be written to, which is
-                         specified by "cam_diag_plot_loc".
-    climo_yrs         -> Dictionary containing the start and end years of the test
-                         and baseline model data (if applicable).
-    variable_defaults -> optional,
-                        Dict that has keys that are variable names and values that are plotting preferences/defaults.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object that contains all the configuration information
+
+    Returns
+    -------
+    Does not return a value; produces plots and saves files.
+
+    Notes
+    -----
+    A variable is plotted as a vector when its variable-defaults entry has a
+    ``vector_pair`` (the other component) and a ``vector_name`` (the name in
+    the plot file names).  Each pair is plotted once.
+
+    It uses the AdfDiag object's methods to get necessary information.
+    Makes use of AdfDiag's data sub-class.
+    Explicitly accesses:
+    adfobj.plot_var_list
+        List of variables
+    adfobj.plot_location
+        output plot path
+    adfobj.climo_yrs
+        start and end climo years of the case(s), `syears` & `eyears`
+        start and end climo years of the reference, `syear_baseline` & `eyear_baseline`
+    adfobj.variable_defaults
+        dict of variable-specific plot preferences
+    adfobj.var_obs_dict
+        observation file, name and variable of each variable
+    adfobj.read_config_var
+        dict of basic info, `diag_basic_info`
+        Then use to check `plot_type`
+    adfobj.unstructured_plotting, adfobj.mesh_files
+        plotting on the native mesh, and its mesh files
+    adfobj.debug_log
+        Issues debug message
+    adfobj.add_website_data
+        Communicates information to the website generator
+    adfobj.compare_obs
+        Logical to determine if comparing to observations
+
+    The helper modules are needed for:
+    plot_utils.get_central_longitude()
+        determine central longitude for global plots
+    utils.validate_dims()
+        checks the lat, lon and lev dimensions
+    utils.cell_weights()
+        native-grid cell weights
+    utils.seasonal_mean()
+        calculate seasonal mean
+    pf.plot_map_and_save()
+        send information to make the plot and save the file
     """
 
-    #Import necessary modules:
-    #------------------------
-
-    # data loading / analysis
-    import xarray as xr
-    import numpy as np
-
-    #ADF utility functions:
-    import adf_utils as utils
-    import plotting_utils as plot_utils
-    import plotting_functions as pf
-
-    # Warnings
-    import warnings  # use to warn user about missing files.
-    warnings.formatwarning = utils.my_formatwarning
-    #-------------------------
-
-    # Steps:
-    # - load regridded climo files for model and obs
-    # - calculate all-time and seasonal vector fields (from individual months)
-    # - Take difference, calculate statistics
-    # - make plot
-
-    #Notify user that script has started:
     msg = "\n  Generating lat/lon vector maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    #
-    # Use ADF api to get all necessary information
-    #
-    var_list = adfobj.plot_var_list
-    model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
+    if adfobj.compare_obs and not adfobj.var_obs_dict:
+        # No observations to compare against:
+        print("\t No observations found to plot against, so no vector maps will be generated.")
+        return
 
-    #Special ADF variable which contains the output path for
-    #all generated plots and tables:
-    plot_locations = adfobj.plot_location
+    # Get configuration
+    config = get_plot_config(adfobj)
+    adfobj.debug_log(f"Vector plot type is set to {config['plot_type']}")
 
-    kwargs = {}
-    # Check for unstructured simulations
-    unstruct_plotting = adfobj.unstructured_plotting
-    if unstruct_plotting:
-        kwargs["unstructured_plotting"] = unstruct_plotting
-    else:
-        unstructured=False
-
-    #CAM simulation variables:
-    case_names = adfobj.get_cam_info("cam_case_name", required=True)
-
-    #Grab case years
-    syear_cases = adfobj.climo_yrs["syears"]
-    eyear_cases = adfobj.climo_yrs["eyears"]
-
-    # CAUTION:
-    # "data" here refers to either obs or a baseline simulation,
-    # Until those are both treated the same (via intake-esm or similar)
-    # we will do a simple check and switch options as needed:
-    if adfobj.get_basic_info("compare_obs"):
-        #Set obs call for observation details for plot titles
-        obs = True
-
-        #Extract variable-obs dictionary:
-        var_obs_dict = adfobj.var_obs_dict
-
-        #If dictionary is empty, then  there are no observations to regrid to,
-        #so quit here:
-        if not var_obs_dict:
-            print("\t No observations found to plot against, so no vector maps will be generated.")
-            return
-    else:
-        obs = False
-        data_name = adfobj.get_baseline_info("cam_case_name", required=True) # does not get used, is just here as a placemarker
-        data_list = [data_name] # gets used as just the name to search for climo files HAS TO BE LIST
-        data_loc  = model_rgrid_loc #Just use the re-gridded model data path
-    #End if
-
-    #Grab baseline years (which may be empty strings if using Obs):
-    syear_baseline = adfobj.climo_yrs["syear_baseline"]
-    eyear_baseline = adfobj.climo_yrs["eyear_baseline"]
-
-    #Grab all case nickname(s)
-    test_nicknames = adfobj.case_nicknames["test_nicknames"]
-    base_nickname = adfobj.case_nicknames["base_nickname"]
-
-    res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
-    # or an empty dictionary if use_defaults was not specified in YAML.
-
-    #Set plot file type:
-    # -- this should be set in basic_info_dict, but is not required
-    # -- So check for it, and default to png
-    basic_info_dict = adfobj.read_config_var("diag_basic_info")
-    plot_type = basic_info_dict.get('plot_type', 'png')
-    adfobj.debug_log(f"Vector plot type is set to {plot_type}")
-
-    # check if existing plots need to be redone
-    redo_plot = adfobj.get_basic_info('redo_plot')
-    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
-
-    unstructured = False
-
-    #-----------------------------------------
-
-    #Set input/output data path variables:
-    #------------------------------------
-    mclimo_rg_loc = Path(model_rgrid_loc)
-    if not adfobj.compare_obs:
-        dclimo_loc = Path(data_loc)
-    #End if
-    #-----------------------------------
-    #Determine if user wants to plot 3-D variables on
-    #pressure levels:
-    pres_levs = adfobj.get_basic_info("plot_press_levels")
-
-    #Set seasonal ranges:
-
-    seasons = {"ANN": np.arange(1,13,1),
-               "DJF": [12, 1, 2],
-               "JJA": [6, 7, 8],
-               "MAM": [3, 4, 5],
-               "SON": [9, 10, 11]
-               }
-
-    #Initialize skipped variables set:
+    # Each pair is plotted once, under its first component:
     skip_vars = set()
-
-    # probably want to do this one variable at a time:
-    for var in var_list:
-
-        #Don't process variable if already used in vector:
+    for var in adfobj.plot_var_list:
         if var in skip_vars:
             continue
-        #End if
+        pair = process_vector_pair(adfobj, var, **config)
+        if pair:
+            skip_vars.update(pair)
 
-        # Check res for any variable specific options that need to be used BEFORE going to the plot:
-        if var in res:
-            vres = res[var]
-            vres["unstructured_plotting"] = unstruct_plotting
-            vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres, vector=True)
-            #If found then notify user, assuming debug log is enabled:
-            adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
-
-            #Extract category (if available):
-            web_category = vres.get("category", None)
-
-        else:
-            vres = {}
-            web_category = None
-        #End if
-
-        vres["plot_type"] = __name__
-
-        #Make sure that variable is part of a vector pair:
-        if "vector_pair" in vres:
-            var_pair = vres["vector_pair"]
-            var_name = vres["vector_name"]
-        else:
-            adfobj.debug_log(f"variable '{var}' not a vector pair")
-            continue
-        #End if
-
-        #Notify user of variable being plotted:
-        print(f"\t - lat/lon vector maps for {var},{var_pair}")
-
-        #Add variables to "skipped vars" set:
-        skip_vars.add(var)
-        skip_vars.add(var_pair)
-
-        # For global maps, also set the central longitude:
-        # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
-        # otherwise defaults to 180
-        vres['central_longitude'] = plot_utils.get_central_longitude(adfobj)
-
-        # A complete set of plots can be recognised from the file names alone,
-        # because a 2-D vector and a 3-D one are named differently.  Doing that
-        # first means a re-run never opens the four regridded files a vector
-        # pair needs just to find out which of the two it is looking at.
-        settled = _existing_plot_set(
-            plot_locations, case_names, var_name, seasons, pres_levs, plot_type
-        )
-        if settled and not redo_plot:
-            for path, web_name, case_name, season in settled:
-                adfobj.debug_log(f"'{path}' exists and clobber is false.")
-                adfobj.add_website_data(
-                    path,
-                    web_name,
-                    case_name,
-                    category=web_category,
-                    season=season,
-                    plot_type="LatLon_Vector",
-                )
-            # End for
-            print(
-                f"\t    INFO: All plots exist for {var_name}. "
-                f"Redo is {redo_plot}. Existing plots added to website data."
-            )
-            continue
-        # End if
-
-        #Determine observations to compare against:
-        if adfobj.compare_obs:
-            if var not in adfobj.data.ref_var_nam:
-                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
-                adfobj.debug_log(dmsg)
-                print(dmsg)
-                continue
-            #Check if obs exist for the variable:
-            if var in var_obs_dict:
-                #Note: In the future these may all be lists, but for
-                #now just convert the target_list.
-                #Extract target file:
-                udclimo_loc = var_obs_dict[var]["obs_file"]
-                #Extract target list (eventually will be a list, for now need to convert):
-                data_list = [var_obs_dict[var]["obs_name"]]
-                #Extract target variable name:
-                data_var = [var_obs_dict[var]["obs_var"]]
-            else:
-                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
-                adfobj.debug_log(dmsg)
-                print(dmsg)
-                continue
-            #End if
-            #Check if obs exist for vector pair variable:
-            if var_pair in var_obs_dict:
-                #Note: In the future these may all be lists, but for
-                #now just convert the target_list.
-                #Extract target file:
-                vdclimo_loc = var_obs_dict[var_pair]["obs_file"]
-                #Extract target variable name:
-                data_var.append(var_obs_dict[var_pair]["obs_var"])
-                #The loaders find each component's obs file by its ADF
-                #name and its own reference label:
-                base_name = adfobj.data.ref_labels[var]
-                pair_base_name = adfobj.data.ref_labels[var_pair]
-            else:
-                dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
-                adfobj.debug_log(dmsg)
-                print(dmsg)
-                continue
-            #End if
-
-        else:
-            #Set "data_var" for consistent use below:
-            data_var = [var, var_pair]
-
-            # reference (baseline) name
-            base_name = adfobj.data.ref_case_label
-            pair_base_name = base_name
-        #End if
-
-        #loop over different data sets to plot model against:
-        for data_src in data_list:
-            if unstruct_plotting:
-                mesh_file = adfobj.mesh_files["baseline_mesh_file"]
-                kwargs["mesh_file"] = mesh_file
-                uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
-                vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
-                unstruct_base = True
-                odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
-                if (odataset is None) or (uodata is None) or (vodata is None):
-                    # e.g. a reference (obs or a lat/lon case) not on the test
-                    # case's native grid, which the regridding step has skipped:
-                    dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
-                    adfobj.debug_log(dmsg)
-                    print(dmsg)
-                    continue
-                o_has_dims = utils.validate_dims(uodata, [ "lev"])
-                # Cell weights (area; area * landfrac for land), as global_latlon_map:
-                wgt_base = utils.cell_weights(odataset, adfobj.model_component)
-            else:
-                uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
-                vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
-                if (uodata is None) or (vodata is None):
-                    
-                    dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
-                    adfobj.debug_log(dmsg)
-                    print(dmsg)
-                    continue
-                o_has_dims = utils.validate_dims(uodata    , ["lat", "lon", "lev"]) # T iff dims are (lat,lon) -- can't plot unless we have both
-                if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
-                    print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
-                    continue
-
-            if uodata is None:
-                dmsg = f"\t    WARNING: No baseline file for {base_name} for variable `{data_var[0]}`, global lat/lon mean plotting skipped."
-                #dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, will"
-                adfobj.debug_log(dmsg)
-                print(dmsg)
-                continue
-            if vodata is None:
-                dmsg = f"\t    WARNING: No baseline file for {base_name} for variable `{data_var[1]}`, global lat/lon mean plotting skipped."
-                #dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, will"
-                adfobj.debug_log(dmsg)
-                print(dmsg)
-                continue
-
-            #Loop over model cases:
-            for case_idx, case_name in enumerate(case_names):
-
-                #Set case nickname:
-                case_nickname = test_nicknames[case_idx]
-
-                #Set plot location:
-                plot_loc = Path(plot_locations[case_idx])
-
-                #Check if plot output directory exists, and if not, then create it:
-                if not plot_loc.is_dir():
-                    print(f"\t {plot_loc} not found, making new directory")
-                    plot_loc.mkdir(parents=True)
-                #End if
-
-                if unstruct_plotting:
-                    mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
-                    kwargs["mesh_file"] = mesh_file
-                    vres["mesh_file"] = mesh_file
-                    umdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
-                    vmdata = adfobj.data.load_regrid_da(case_name, var_pair, **kwargs)
-
-                    unstruct_case = True
-                    mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
-                    if (mdataset is None) or (umdata is None) or (vmdata is None):
-                        dmsg = f"\t    WARNING: No native-grid regridded test file for {case_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
-                        adfobj.debug_log(dmsg)
-                        print(dmsg)
-                        continue
-                    #Determine dimensions of variable:
-                    m_has_dims = utils.validate_dims(umdata, [ "lev"])
-                    # Cell weights (area; area * landfrac for land), as global_latlon_map:
-                    wgt = utils.cell_weights(mdataset, adfobj.model_component)
-                else:
-                    umdata = adfobj.data.load_regrid_da(case_name, var)
-                    vmdata = adfobj.data.load_regrid_da(case_name, var_pair)
-                    #Skip this variable/case if the regridded climo file doesn't exist:
-                    if (umdata is None) or (vmdata is None):
-                        dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
-                        adfobj.debug_log(dmsg)
-                        print(dmsg)
-                        continue
-                    #Determine dimensions of variable:
-                    m_has_dims = utils.validate_dims(umdata, ["lat", "lon", "lev"])
-                    if (not m_has_dims['has_lat']) or (not m_has_dims['has_lon']):
-                        print(f"\t    WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
-                        continue
-                    else: # i.e., has lat&lon
-                        if (m_has_dims['has_lev']) and (not pres_levs):
-                            print(f"\t    WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
-                            continue
-                #Skip this variable/case if the regridded climo file doesn't exist:
-                if (umdata is None) or (vmdata is None):
-                    dmsg = f"\t    WARNING: No test file for {case_name} for variable `{var}`, global lat/lon mean plotting skipped."
-                    adfobj.debug_log(dmsg)
-                    continue
-
-
-
-                #Determine dimensions of variable:
-                if unstruct_plotting:
-                    #has_dims = {}
-                    if len(wgt.n_face) == len(wgt_base.n_face):
-                        vres["wgt"] = wgt
-                        vres["indataset"] = mdataset
-                        #has_dims = {}
-                        #has_dims['has_lev'] = False
-                    else:
-                        print("The weights are different between test and baseline. Won't continue, eh.")
-                        return
-
-                    if (not unstruct_case) and (unstruct_base):
-                        print("Base is unstructured but Test is lat/lon. Can't continue?")
-                        return
-                    if (unstruct_case) and (not unstruct_base):
-                        print("Base is lat/lon but Test is unstructured. Can't continue?")
-                        return
-                    if (unstruct_case) and (unstruct_base):
-                        unstructured=True
-                    if (not unstruct_case) and (not unstruct_base):
-                        unstructured=False
-                # Check output file. If file does not exist, proceed.
-                # If file exists:
-                #   if redo_plot is true: delete it now and make plot
-                #   if redo_plot is false: add to website and move on
-                """doplot = {}
-
-                if (not m_has_dims['has_lev']) or (not o_has_dims['has_lev']):
-                    for s in seasons:
-                        plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
-                        doplot[plot_name] = plot_file_op(adfobj, plot_name, var, case_name, s, web_category, redo_plot, "LatLon")
-                else:
-                    for pres in pres_levs:
-                        for s in seasons:
-                            plot_name = plot_loc / f"{var}_{pres}hpa_{s}_LatLon_Mean.{plot_type}"
-                            doplot[plot_name] = plot_file_op(adfobj, plot_name, f"{var}_{pres}hpa", case_name, s, web_category, redo_plot, "LatLon")
-                if all(value is None for value in doplot.values()):
-                    print(f"\t    INFO: All plots exist for {var}. Redo is {redo_plot}. Existing plots added to website data. Continue.")
-                    continue"""
-
-                #If both fields have the required dimensions, then
-                #proceed with plotting:
-                #if has_dims_cam:
-                if 1==1:
-
-                    #
-                    # Seasonal Averages
-                    # Note: xarray can do seasonal averaging,
-                    # but depends on having time accessor,
-                    # which these prototype climo files do not have.
-                    #
-
-                    #Create new dictionaries:
-                    umseasons = {}
-                    vmseasons = {}
-                    uoseasons = {}
-                    voseasons = {}
-                    udseasons = {} # hold the differences
-                    vdseasons = {}
-                    upseasons = {} # hold the (zonal component) percent differences
-
-                    #if has_lev:
-                    if m_has_dims['has_lev']:
-
-                        # Loop over levels
-                        for lv in pres_levs:
-
-                            #Check that the user-requested pressure level
-                            #exists in the model data, which should already
-                            #have been interpolated to the standard reference
-                            #pressure levels:
-                            if (not (lv in umdata['lev'])) or (not (lv in uodata['lev'])):
-                                print(f"\t    WARNING: plot_press_levels value '{lv}' not present in {var} [test: {(lv in umdata['lev'])}, ref: {lv in uodata['lev']}], so skipping.")
-                                continue
-
-                            vres['lev'] = int(lv)
-
-                            #Loop over season dictionary:
-                            for s in seasons:
-                                umseasons[s] = (utils.seasonal_mean(umdata, season=s, is_climo=True)).sel(lev=lv)
-                                vmseasons[s] = (utils.seasonal_mean(vmdata, season=s, is_climo=True)).sel(lev=lv)
-                                uoseasons[s] = (utils.seasonal_mean(uodata, season=s, is_climo=True)).sel(lev=lv)
-                                voseasons[s] = (utils.seasonal_mean(vodata, season=s, is_climo=True)).sel(lev=lv)
-                                # difference: each entry should be (lat, lon)
-                                udseasons[s] = umseasons[s] - uoseasons[s]
-                                vdseasons[s] = vmseasons[s] - voseasons[s]
-
-                                upseasons[s] = (umseasons[s] - uoseasons[s]) / np.abs(uoseasons[s]) * 100.0
-                                upseasons[s] = upseasons[s].where(np.isfinite(upseasons[s]), np.nan)
-
-                                vres["season"] = s
-
-                                # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                                # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                                plot_name = plot_loc / f"{var_name}_{lv}hpa_{s}_LatLon_Vector_Mean.{plot_type}"
-
-
-                                # Check redo_plot. If set to True: remove old plot, if it already exists:
-                                if (not redo_plot) and plot_name.is_file():
-                                    #Add already-existing plot to website (if enabled):
-                                    adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-                                    adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
-                                                            season=s, plot_type="LatLon_Vector")
-
-                                    #Continue to next iteration:
-                                    continue
-                                elif (redo_plot) and plot_name.is_file():
-                                    plot_name.unlink()
-
-                                # pass in casenames
-                                vres["case_name"] = case_name
-                                vres["baseline"] = data_src
-
-                                #Create new plot:
-                                # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
-                                # This relies on `plot_map_and_save` knowing how to deal with the options
-                                # currently knows how to handle:
-                                #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
-                                #   *Any other entries will be ignored.
-                                # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                                pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
-                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                    [syear_baseline,eyear_baseline],
-                                                    umseasons[s], uoseasons[s],
-                                                    udseasons[s], upseasons[s],
-                                                    obs=obs,
-                                                    vmdlfld=vmseasons[s], vobsfld=voseasons[s],
-                                                    vdiffld=vdseasons[s], **vres)
-
-                                #Add plot to website (if enabled):
-                                adfobj.add_website_data(plot_name, f"{var_name}_{lv}hpa", case_name, category=web_category,
-                                                        season=s, plot_type="LatLon_Vector")
-
-                            #End for (seasons)
-                        #End for (pressure levels)
-                    else:
-
-                        #Loop over season dictionary:
-                        for s in seasons:
-                            umseasons[s] = utils.seasonal_mean(umdata, season=s, is_climo=True)
-                            vmseasons[s] = utils.seasonal_mean(vmdata, season=s, is_climo=True)
-                            uoseasons[s] = utils.seasonal_mean(uodata, season=s, is_climo=True)
-                            voseasons[s] = utils.seasonal_mean(vodata, season=s, is_climo=True)
-                            # difference: each entry should be (lat, lon)
-                            udseasons[s] = umseasons[s] - uoseasons[s]
-                            vdseasons[s] = vmseasons[s] - voseasons[s]
-
-                            upseasons[s] = (umseasons[s] - uoseasons[s]) / np.abs(uoseasons[s]) * 100.0
-                            upseasons[s] = upseasons[s].where(np.isfinite(upseasons[s]), np.nan)
-
-                            vres["season"] = s
-
-                            # time to make plot; here we'd probably loop over whatever plots we want for this variable
-                            # I'll just call this one "LatLon_Mean"  ... would this work as a pattern [operation]_[AxesDescription] ?
-                            plot_name = plot_loc / f"{var_name}_{s}_LatLon_Vector_Mean.{plot_type}"
-
-                            # Check redo_plot. If set to True: remove old plot, if it already exists:
-                            redo_plot = adfobj.get_basic_info('redo_plot')
-                            if (not redo_plot) and plot_name.is_file():
-                                #Add already-existing plot to website (if enabled):
-                                adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
-                                adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,
-                                                        season=s, plot_type="LatLon_Vector")
-
-                                #Continue to next iteration:
-                                continue
-                            elif (redo_plot) and plot_name.is_file():
-                                plot_name.unlink()
-
-                            # pass in casenames
-                            vres["case_name"] = case_name
-                            vres["baseline"] = data_src
-
-                            #Create new plot:
-                            # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
-                            # This relies on `plot_map_and_save` knowing how to deal with the options
-                            # currently knows how to handle:
-                            #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
-                            #   *Any other entries will be ignored.
-                            # NOTE: If we were doing all the plotting here, we could use whatever we want from the provided YAML file.
-                            pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
-                                                    [syear_cases[case_idx],eyear_cases[case_idx]],
-                                                    [syear_baseline,eyear_baseline],
-                                                    umseasons[s], uoseasons[s],
-                                                    udseasons[s], upseasons[s],
-                                                    obs=obs,
-                                                    vmdlfld=vmseasons[s], vobsfld=voseasons[s],
-                                                    vdiffld=vdseasons[s], **vres)
-
-                            #Add plot to website (if enabled):
-                            adfobj.add_website_data(plot_name, var_name, case_name, category=web_category,
-                                                    season=s, plot_type="LatLon_Vector")
-
-                        #End for
-                    #End if (has_lev)
-                #End if (has_dims)
-            #End for (cases)
-        #End for (data sources)
-    #End for (variables)
-
-    #Notify user that script has ended:
     print("  ...lat/lon vector maps have been generated successfully.")
+
+
+def get_plot_config(adfobj):
+    """Get plotting configuration from ADF object."""
+    return {
+        'seasons': {
+            "ANN": np.arange(1,13,1),
+            "DJF": [12, 1, 2],
+            "JJA": [6, 7, 8],
+            "MAM": [3, 4, 5],
+            "SON": [9, 10, 11]
+        },
+        'plot_type': adfobj.read_config_var("diag_basic_info").get('plot_type', 'png'),
+        'redo_plot': adfobj.get_basic_info('redo_plot'),
+        # Empty when the config sets none (land configs, for one):
+        'pres_levs': adfobj.get_basic_info("plot_press_levels") or [],
+        'unstruct_plotting': bool(adfobj.unstructured_plotting),
+    }
+
+
+def process_vector_pair(adfobj, var, seasons, pres_levs, plot_type, redo_plot,
+                        unstruct_plotting):
+    """Plot the vector pair `var` belongs to, for every test case.
+
+    Returns
+    -------
+    tuple or None
+        ``(var, var_pair)`` once `var` is known to be the first component of
+        a vector pair (whether or not it could be plotted), else None.
+    """
+    vres = adfobj.variable_defaults.get(var)
+    if vres is None or "vector_pair" not in vres:
+        adfobj.debug_log(f"variable '{var}' not a vector pair")
+        return None
+    vres["unstructured_plotting"] = unstruct_plotting
+    vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres, vector=True)
+    adfobj.debug_log(f"global_latlon_vect_map: Found variable defaults for {var}")
+    vres["plot_type"] = __name__
+    web_category = vres.get("category", None)
+    var_pair = vres["vector_pair"]
+    var_name = vres["vector_name"]
+
+    #Notify user of variable being plotted:
+    print(f"\t - lat/lon vector maps for {var},{var_pair}")
+
+    # For global maps, also set the central longitude:
+    # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
+    # otherwise defaults to 180
+    vres['central_longitude'] = plot_utils.get_central_longitude(adfobj)
+
+    case_names = adfobj.data.case_names
+    plot_locations = adfobj.plot_location
+
+    # A complete set of plots can be recognised from the file names alone,
+    # because a 2-D vector and a 3-D one are named differently.  Doing that
+    # first means a re-run never opens the four regridded files a vector
+    # pair needs just to find out which of the two it is looking at.
+    settled = _existing_plot_set(
+        plot_locations, case_names, var_name, seasons, pres_levs, plot_type
+    )
+    if settled and not redo_plot:
+        for path, web_name, case_name, season in settled:
+            adfobj.debug_log(f"'{path}' exists and clobber is false.")
+            adfobj.add_website_data(
+                path,
+                web_name,
+                case_name,
+                category=web_category,
+                season=season,
+                plot_type="LatLon_Vector",
+            )
+        print(
+            f"\t    INFO: All plots exist for {var_name}. "
+            f"Redo is {redo_plot}. Existing plots added to website data."
+        )
+        return var, var_pair
+
+    names = _reference_names(adfobj, var, var_pair)
+    if names is None:
+        return var, var_pair
+    base_name, pair_base_name, data_var, data_src = names
+
+    kwargs = {"unstructured_plotting": True} if unstruct_plotting else {}
+
+    if not unstruct_plotting:
+        ref = _load_reference(adfobj, base_name, pair_base_name, var,
+                              var_pair, data_var, kwargs, False)
+        if ref is None:
+            return var, var_pair
+
+    #Loop over model cases:
+    for case_idx, case_name in enumerate(case_names):
+        if unstruct_plotting:
+            # On the mesh, each case is compared with the reference on its
+            # own mesh (a lat/lon reference is put there by the regridding
+            # step; see AdfData._reference_files):
+            ref = _load_reference(adfobj, base_name, pair_base_name, var,
+                                  var_pair, data_var, kwargs, True,
+                                  test_case=case_name)
+            if ref is None:
+                continue
+        uodata, vodata, wgt_base, _ = ref
+
+        case = _load_case(adfobj, case_idx, case_name, var, var_pair, data_var,
+                          kwargs, unstruct_plotting, pres_levs, vres, wgt_base)
+        if case is None:
+            continue
+        umdata, vmdata, m_has_dims = case
+
+        plot_loc = Path(plot_locations[case_idx])
+        plot_loc.mkdir(parents=True, exist_ok=True)
+
+        process_plots(adfobj, umdata, vmdata, uodata, vodata, case_name, case_idx,
+                      var_name, seasons, pres_levs if m_has_dims["has_lev"] else None,
+                      plot_loc, plot_type, redo_plot, vres, web_category, data_src)
+
+    return var, var_pair
+
+
+def _reference_names(adfobj, var, var_pair):
+    """The reference labels and variable names for a vector pair, or None.
+
+    Returns ``(base_name, pair_base_name, data_var, data_src)``: the reference
+    label each component is found under, the reference's names of the two
+    components, and the name of the reference data set (the plots' title).
+    """
+    if not adfobj.compare_obs:
+        # reference (baseline) name
+        base_name = adfobj.data.ref_case_label
+        data_src = adfobj.get_baseline_info("cam_case_name", required=True)
+        return base_name, base_name, [var, var_pair], data_src
+
+    var_obs_dict = adfobj.var_obs_dict
+    if (
+        var not in adfobj.data.ref_var_nam
+        or var not in var_obs_dict
+        or var_pair not in var_obs_dict
+    ):
+        dmsg = f"\t    WARNING: No reference data found for variable `{var}`, lat/lon vector map skipped."
+        adfobj.debug_log(dmsg)
+        print(dmsg)
+        return None
+    #The loaders find each component's obs file by its ADF
+    #name and its own reference label:
+    return (
+        adfobj.data.ref_labels[var],
+        adfobj.data.ref_labels[var_pair],
+        [var_obs_dict[var]["obs_var"], var_obs_dict[var_pair]["obs_var"]],
+        var_obs_dict[var]["obs_name"],
+    )
+
+
+def _load_reference(adfobj, base_name, pair_base_name, var, var_pair, data_var,
+                    kwargs, unstruct_plotting, test_case=None):
+    """Load the reference U and V components, or return None (with a warning).
+
+    Returns (uodata, vodata, wgt_base, o_has_dims); wgt_base is the cell
+    weights on the mesh, None on a lat/lon grid.  With `unstruct_plotting`,
+    `test_case` asks for the reference on that case's mesh.
+    """
+    kwargs = dict(kwargs)
+    wgt_base = None
+    if unstruct_plotting:
+        kwargs["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+        kwargs["test_case"] = test_case
+        uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+        vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
+        odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
+        if (odataset is None) or (uodata is None) or (vodata is None):
+            # e.g. a reference on another mesh, which the regridding step skips:
+            dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return None
+        o_has_dims = utils.validate_dims(uodata, ["lev"])
+        # Cell weights (area; area * landfrac for land), as global_latlon_map:
+        wgt_base = utils.cell_weights(odataset, adfobj.model_component)
+    else:
+        uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+        vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
+        if (uodata is None) or (vodata is None):
+            dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return None
+        o_has_dims = utils.validate_dims(uodata, ["lat", "lon", "lev"])
+        if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
+            print(f"\t    WARNING: skipping global map for {var} as REFERENCE does not have both lat and lon")
+            return None
+    return uodata, vodata, wgt_base, o_has_dims
+
+
+def _load_case(adfobj, case_idx, case_name, var, var_pair, data_var, kwargs,
+               unstruct_plotting, pres_levs, vres, wgt_base):
+    """Load a test case's U and V components, or return None (with a warning).
+
+    Returns (umdata, vmdata, m_has_dims).  On the mesh, the case's cell
+    weights go into `vres` ("wgt"), after checking they are on the same cells
+    as the reference's.
+    """
+    if unstruct_plotting:
+        mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
+        kwargs = dict(kwargs, mesh_file=mesh_file)
+        vres["mesh_file"] = mesh_file
+        umdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
+        vmdata = adfobj.data.load_regrid_da(case_name, var_pair, **kwargs)
+        mdataset = adfobj.data.load_regrid_dataset(case_name, var, **kwargs)
+        if (mdataset is None) or (umdata is None) or (vmdata is None):
+            dmsg = f"\t    WARNING: No native-grid regridded test file for {case_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return None
+        m_has_dims = utils.validate_dims(umdata, ["lev"])
+        # Cell weights (area; area * landfrac for land), as global_latlon_map:
+        wgt = utils.cell_weights(mdataset, adfobj.model_component)
+        if len(wgt.n_face) != len(wgt_base.n_face):
+            print(
+                f"\t    WARNING: '{case_name}' and the reference are not on the same "
+                f"cells, so the vector map for {var} is skipped."
+            )
+            return None
+        vres["wgt"] = wgt
+        vres["indataset"] = mdataset
+    else:
+        umdata = adfobj.data.load_regrid_da(case_name, var)
+        vmdata = adfobj.data.load_regrid_da(case_name, var_pair)
+        #Skip this variable/case if the regridded climo file doesn't exist:
+        if (umdata is None) or (vmdata is None):
+            dmsg = f"\t    WARNING: No regridded test file for {case_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return None
+        m_has_dims = utils.validate_dims(umdata, ["lat", "lon", "lev"])
+        if (not m_has_dims['has_lat']) or (not m_has_dims['has_lon']):
+            print(f"\t    WARNING: skipping global map for {var} for case {case_name} as it does not have both lat and lon")
+            return None
+
+    # Check pressure levels if 3D data
+    if m_has_dims['has_lev'] and not pres_levs:
+        print(f"\t    WARNING: skipping global map for {var} as it has more than lev dimension, but no pressure levels were provided")
+        return None
+    return umdata, vmdata, m_has_dims
+
+
+def process_plots(adfobj, umdata, vmdata, uodata, vodata, case_name, case_idx,
+                  var_name, seasons, pres_levs, plot_loc, plot_type, redo_plot,
+                  vres, web_category, data_src):
+    """Make the vector maps of one case: every season, and every level of a 3-D pair.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object containing configuration
+    umdata, vmdata : xarray.DataArray
+        Test case U and V components
+    uodata, vodata : xarray.DataArray
+        Reference U and V components
+    case_name : str
+        Name of current case
+    case_idx : int
+        Index of current case
+    var_name : str
+        The vector's name, used in plot file names
+    seasons : dict
+        Dictionary of season definitions
+    pres_levs : list or None
+        Pressure levels to plot a 3-D pair at; None for a 2-D pair
+    plot_loc : Path
+        Output plot directory
+    plot_type : str
+        Plot file type (e.g. 'png')
+    redo_plot : bool
+        Whether to regenerate existing plots
+    vres : dict
+        Variable-specific plot settings
+    web_category : str
+        Category for website organization
+    data_src : str
+        Name of the reference data set
+    """
+    case_nickname = adfobj.case_nicknames["test_nicknames"][case_idx]
+    base_nickname = adfobj.case_nicknames["base_nickname"]
+    case_yrs = [adfobj.climo_yrs["syears"][case_idx], adfobj.climo_yrs["eyears"][case_idx]]
+    base_yrs = [adfobj.climo_yrs["syear_baseline"], adfobj.climo_yrs["eyear_baseline"]]
+
+    for lev in (pres_levs if pres_levs is not None else [None]):
+        if lev is None:
+            web_name = var_name
+        else:
+            #Check that the user-requested pressure level
+            #exists in the model data, which should already
+            #have been interpolated to the standard reference
+            #pressure levels:
+            if (lev not in umdata['lev']) or (lev not in uodata['lev']):
+                print(f"\t    WARNING: plot_press_levels value '{lev}' not present in {var_name} [test: {(lev in umdata['lev'])}, ref: {lev in uodata['lev']}], so skipping.")
+                continue
+            vres['lev'] = int(lev)
+            web_name = f"{var_name}_{lev}hpa"
+
+        for s in seasons:
+            plot_name = plot_loc / f"{web_name}_{s}_LatLon_Vector_Mean.{plot_type}"
+
+            # Check redo_plot. If set to True: remove old plot, if it already exists:
+            if (not redo_plot) and plot_name.is_file():
+                #Add already-existing plot to website (if enabled):
+                adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
+                adfobj.add_website_data(plot_name, web_name, case_name, category=web_category,
+                                        season=s, plot_type="LatLon_Vector")
+                continue
+            if redo_plot and plot_name.is_file():
+                plot_name.unlink()
+
+            # Seasonal averages, on the level for a 3-D pair:
+            umseason, vmseason, uoseason, voseason = (
+                utils.seasonal_mean(fld, season=s, is_climo=True)
+                for fld in (umdata, vmdata, uodata, vodata)
+            )
+            if lev is not None:
+                umseason, vmseason, uoseason, voseason = (
+                    fld.sel(lev=lev) for fld in (umseason, vmseason, uoseason, voseason)
+                )
+            # differences: each entry should be (lat, lon)
+            udseason = umseason - uoseason
+            vdseason = vmseason - voseason
+            # percent difference of the zonal component:
+            upseason = (umseason - uoseason) / np.abs(uoseason) * 100.0
+            upseason = upseason.where(np.isfinite(upseason), np.nan)
+
+            vres["season"] = s
+            # pass in casenames
+            vres["case_name"] = case_name
+            vres["baseline"] = data_src
+
+            #Create new plot:
+            # NOTE: send vres as kwarg dictionary.  --> ONLY vres, not the full res
+            # This relies on `plot_map_and_save` knowing how to deal with the options
+            # currently knows how to handle:
+            #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
+            #   *Any other entries will be ignored.
+            pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
+                                 case_yrs, base_yrs,
+                                 umseason, uoseason, udseason, upseason,
+                                 obs=adfobj.compare_obs,
+                                 vmdlfld=vmseason, vobsfld=voseason,
+                                 vdiffld=vdseason, **vres)
+
+            #Add plot to website (if enabled):
+            adfobj.add_website_data(plot_name, web_name, case_name, category=web_category,
+                                    season=s, plot_type="LatLon_Vector")
 
 
 def _existing_plot_set(
@@ -617,8 +489,6 @@ def _existing_plot_set(
         ``(path, website name, case, season)`` for every plot, when a
         complete set exists; an empty list when it does not.
     """
-    import plotting_utils as plot_utils
-
     flat = []
     levelled = []
     for case_idx, case_name in enumerate(case_names):

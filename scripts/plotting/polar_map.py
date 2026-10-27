@@ -257,21 +257,22 @@ def polar_map(adfobj):
             kwargs["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
             unstruct_base = True
 
-        odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
-        odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
-        if odataset is None or odata is None:
-            print(f"\t    WARNING: No reference data found for {var}")
-            continue
-        # e.g. an obs file whose variable is on its own dimensions (MODIS
-        # albedo on lsmlat/lsmlon), as global_latlon_map checks:
-        if not unstruct_plotting and not all(utils.validate_dims(odata, ["lat", "lon"]).values()):
-            print(f"\t    WARNING: Reference data for {var} missing lat/lon dimensions, polar map plotting skipped.")
-            continue
-
-        # Reference weights for native-grid plotting (checked against each
-        # case's below):
-        if unstruct_plotting and adfobj.native_grid.get(base_name, False):
-            wgt_base = utils.cell_weights(odataset, adfobj.model_component)
+        if unstruct_plotting:
+            # On the mesh, each case is compared with the reference on its own
+            # mesh (a lat/lon reference is put there by the regridding step;
+            # see AdfData._reference_files), so it is loaded with the case:
+            ref_by_case = {}
+        else:
+            odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
+            odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+            if odataset is None or odata is None:
+                print(f"\t    WARNING: No reference data found for {var}")
+                continue
+            # e.g. an obs file whose variable is on its own dimensions (MODIS
+            # albedo on lsmlat/lsmlon), as global_latlon_map checks:
+            if not all(utils.validate_dims(odata, ["lat", "lon"]).values()):
+                print(f"\t    WARNING: Reference data for {var} missing lat/lon dimensions, polar map plotting skipped.")
+                continue
 
         # Process each case
         for plot in plot_info:
@@ -292,6 +293,18 @@ def polar_map(adfobj):
 
             # Load and validate model data (units transformation included in load_regrid_da)
             if unstruct_plotting:
+                if case_name not in ref_by_case:
+                    rkw = dict(kwargs, test_case=case_name,
+                               mesh_file=adfobj.mesh_files["baseline_mesh_file"])
+                    odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **rkw)
+                    odata = adfobj.data.load_reference_regrid_da(base_name, var, **rkw)
+                    ref_by_case[case_name] = None if odataset is None or odata is None else (
+                        odata, utils.cell_weights(odataset, adfobj.model_component))
+                if ref_by_case[case_name] is None:
+                    print(f"\t    WARNING: No native-grid reference data for {case_name} for variable `{var}`, polar map plotting skipped.")
+                    continue
+                # Reference weights, checked against the case's below:
+                odata, wgt_base = ref_by_case[case_name]
                 kwargs["mesh_file"] = adfobj.mesh_files["test_mesh_file"][case_idx]
                 #mdata = adfobj.data.load_climo_da(case_name, var, **kwargs)
                 mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
@@ -306,8 +319,9 @@ def polar_map(adfobj):
                     adfobj.debug_log(dmsg)
                     print(dmsg)
                     continue
-                if adfobj.native_grid[case_name]:# and not adfobj.unstructured_plotting:
-                    wgt = utils.cell_weights(mdataset, adfobj.model_component)
+                # On the mesh (the case's own, or the reference's when a
+                # lat/lon case was put onto it):
+                wgt = utils.cell_weights(mdataset, adfobj.model_component)
             else:
                 mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
                 """#Skip this variable/case if the regridded climo file doesn't exist:
