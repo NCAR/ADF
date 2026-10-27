@@ -294,8 +294,9 @@ def tem(adf):
                                             norm=cp_info['norm_diff'])
                     ax[2].contour(olats, olevs, dseasons, colors="k", linewidths=0.5,
                                     levels=clevs_diff[::2], norm=cp_info['norm_diff'])
-                    cp_info['diff_colorbar_opt']["label"] = cp_info['colorbar_opt']["label"]
-                    plt.colorbar(img2, ax=ax[2], location='right', pad=cmap_pad,**cp_info['diff_colorbar_opt'])
+                    #prep_contour_plot hands the colorbar labels back separately:
+                    plt.colorbar(img2, ax=ax[2], location='right', pad=cmap_pad,
+                                 label=cp_info['diff_units_label'], **cp_info['diff_colorbar_opt'])
                 #End if
 
                 #Format y-axis
@@ -315,9 +316,9 @@ def tem(adf):
                 #End for
 
                 # Format color bars
-                plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,**cp_info['colorbar_opt'])
-                # Remove the colorbar label for baseline
-                cp_info['colorbar_opt'].pop("label", None)
+                plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,
+                             label=cp_info['units_label'], **cp_info['colorbar_opt'])
+                # No colorbar label for the test case
                 plt.colorbar(img0, ax=ax[0], location='right', pad=cmap_pad,**cp_info['colorbar_opt'])
 
                 #Variable plot title name
