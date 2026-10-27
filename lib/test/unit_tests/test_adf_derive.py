@@ -7,6 +7,9 @@ files: which files are selected (case, history stream, chunking), what the
 resulting file is called, and which situations are refused rather than turned
 into a plausible-looking but wrong field.
 
+Each test writes small synthetic time series files to a temporary directory,
+so no model output on disk is needed.
+
 NOTE: adf_derive imports xarray and (through adf_utils) the rest of the
 scientific stack, so these are skipped in CI, which installs only PyYAML and
 pytest.  They run in a full ADF environment.
