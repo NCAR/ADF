@@ -702,7 +702,13 @@ def _write_reference_on_mesh(
     native_dim = next(dim for dim in UNSTRUCTURED_DIMS if dim in model_ds.dims)
     out = _on_native_dim(_latlon_to_mesh(ref_da, mesh_file, output_loc), ref_da, native_dim)
     final_ds = out.to_dataset()
-    _keep_native_area(final_ds, model_ds)
+    # The case's cell areas (and land fraction), which do not change with
+    # time: taken at one time, so they do not have to line up with the
+    # reference's time axis (one observation file has a single time, 0):
+    for name in ("area", "landfrac", "landmask"):
+        if name in model_ds:
+            fld = model_ds[name]
+            final_ds[name] = fld.isel(time=0, drop=True) if "time" in fld.dims else fld
     final_ds = final_ds.assign_attrs(
         dict(
             ref_ds.attrs,
