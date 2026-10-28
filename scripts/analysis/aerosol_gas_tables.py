@@ -122,10 +122,6 @@ def aerosol_gas_tables(adfobj, trop_val=None, Tropospheric=None ,Climate=None , 
     if trop_val is None:
         trop_val = 'tropopause'
 
-    # Check which type of tables to be created, default to 'True'
-    if Tropospheric is None:
-        Tropospheric = True
-
     # Check which type of tables to be created, default to 'False'
     if Climate is None:
         Climate = False
@@ -134,6 +130,12 @@ def aerosol_gas_tables(adfobj, trop_val=None, Tropospheric=None ,Climate=None , 
     # Variable defaults info
     res = adfobj.variable_defaults # dict of variable-specific plot preferences
     bres = res['budget_tables']
+
+    # Check which type of tables to be created, default to 'True'
+    # NOTE: fall back on 'Tropospheric' in a custom variable defaults file
+    #       so older configurations keep working
+    if Tropospheric is None:
+        Tropospheric = bres.get('Tropospheric', True)
     # list of the gaseous variables to be caculated.
     GAS_VARIABLES = bres['GAS_VARIABLES']
 
