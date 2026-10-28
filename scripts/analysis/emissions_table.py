@@ -653,13 +653,13 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                 SE=False
         try:
             delP=np.array(ds['PDELDRY'+ext1_SE].isel(time=0))
-        except:
+        except KeyError:
             hyai=np.array(ds['hyai'])
             hybi=np.array(ds['hybi'])
 
             try:
                 PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-            except:
+            except KeyError:
                 PS=np.array(ds['PS'+ext1_SE].isel(time=0))
             # End try/except
             P0=1e5
@@ -683,12 +683,12 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
             elif var== 'Pressure':
                 try:
                     data=np.array(ds['PMID'+ext1_SE].isel(time=0))/100
-                except:
+                except KeyError:
                     hyam=np.array(ds['hyam'])
                     hybm=np.array(ds['hybm'])
                     try:
                         PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-                    except:
+                    except KeyError:
                         PS=np.array(ds['PS'+ext1_SE].isel(time=0))
                     P0=1e5
                     data=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
@@ -728,12 +728,12 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                 Temp=np.array(ds['T'+ext1_SE].isel(time=0))
                 try:
                     Pres=np.array(ds['PMID'+ext1_SE].isel(time=0))
-                except:
+                except KeyError:
                     hyam=np.array(ds['hyam'])
                     hybm=np.array(ds['hybm'])
                     try:
                         PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-                    except:
+                    except KeyError:
                         PS=np.array(ds['PS'+ext1_SE].isel(time=0))
                     P0=1e5
                     Pres=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
@@ -776,7 +776,7 @@ def calc_budget_data_Emis(current_var, Dic_scn_var_comp, area, inside, num_yrs, 
     # Surface Emissions
     try:
         spc_sf = Dic_scn_var_comp[current_var][current_var+'_SF']
-    except:
+    except KeyError:
         spc_sf=0
     tmp_sf = spc_sf
     sf = np.ma.masked_where(inside==False,tmp_sf*area)  #convert Kg/m2/s to Tg/yr
@@ -787,7 +787,7 @@ def calc_budget_data_Emis(current_var, Dic_scn_var_comp, area, inside, num_yrs, 
     # Elevated Emissions
     try:
         spc_cmxf=Dic_scn_var_comp[current_var][current_var+'_CMXF']
-    except:
+    except KeyError:
         spc_cmxf=0
     tmp_cmxf=spc_cmxf
     cmxf=np.ma.masked_where(inside==False,tmp_cmxf*area)  #convert Kg/m2/s to Tg/yr
@@ -799,7 +799,7 @@ def calc_budget_data_Emis(current_var, Dic_scn_var_comp, area, inside, num_yrs, 
    # Surface Emissions Megan
     try:
         spc_sf_meg=Dic_scn_var_comp[current_var][current_var+'_MEG']
-    except:
+    except KeyError:
         spc_sf_meg=0
     tmp_sf_meg=spc_sf_meg
     sf_meg=np.ma.masked_where(inside==False,tmp_sf_meg*area)  #convert Kg/m2/s to Tg/yr

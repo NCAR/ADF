@@ -990,7 +990,7 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
                 tropospheric_method='pressure'
                 msg += f"\n\t WARNING: Troposphere is defined as Pressure>500 hPa"
                 print(msg)
-            except:
+            except KeyError:
                 current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE) 
                 Dic_crit=current_crit['U']
                 Tropospheric=False
@@ -1008,14 +1008,14 @@ def make_Dic_scn_var_comp(adfobj, variables, current_dir, dic_SE, current_files,
                 tropospheric_method='ozone'
                 msg += f"\n\t WARNING: Troposphere is defined as O3<150 ppb"
                 print(msg)        
-            except:
+            except KeyError:
                 try:
                     current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['TROP_P','Pressure'],ext1_SE)
                     Dic_crit=current_crit #[['TROP_P','Pressure']]
                     tropospheric_method='tropopause'
                     msg += f"\n\t WARNING: Troposphere is defined as pressure>trop_p"
                     print(msg)
-                except:
+                except KeyError:
                     current_crit,_,__=SEbudget(adfobj,dic_SE,current_dir,current_files,['U'],ext1_SE) 
                     Dic_crit=current_crit['U']
                     Tropospheric=False
@@ -1080,13 +1080,13 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                 SE=False
         try:
             delP=np.array(ds['PDELDRY'+ext1_SE].isel(time=0))
-        except:
+        except KeyError:
             hyai=np.array(ds['hyai'])
             hybi=np.array(ds['hybi'])
 
             try:
                 PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-            except:
+            except KeyError:
                 PS=np.array(ds['PS'+ext1_SE].isel(time=0))
             # End try/except
             P0=1e5
@@ -1110,12 +1110,12 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
             elif var== 'Pressure':
                 try:
                     data=np.array(ds['PMID'+ext1_SE].isel(time=0))/100
-                except:
+                except KeyError:
                     hyam=np.array(ds['hyam'])
                     hybm=np.array(ds['hybm'])
                     try:
                         PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-                    except:
+                    except KeyError:
                         PS=np.array(ds['PS'+ext1_SE].isel(time=0))
                     P0=1e5
                     data=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
@@ -1154,12 +1154,12 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                 Temp=np.array(ds['T'+ext1_SE].isel(time=0))
                 try:
                     Pres=np.array(ds['PMID'+ext1_SE].isel(time=0))
-                except:
+                except KeyError:
                     hyam=np.array(ds['hyam'])
                     hybm=np.array(ds['hybm'])
                     try:
                         PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-                    except:
+                    except KeyError:
                         PS=np.array(ds['PS'+ext1_SE].isel(time=0))
                     P0=1e5
                     Pres=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
@@ -1202,7 +1202,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         # Burden
         try:
             spc_burd = Dic_scn_var_comp[current_var][current_var+'_AOD']
-        except:
+        except KeyError:
             spc_burd=0
         burden = np.ma.masked_where(inside==False,spc_burd)  #convert Kg/m2 to Tg
         BURDEN = np.ma.sum(burden*area)/np.ma.sum(area)
@@ -1211,7 +1211,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         # Surface Emissions
         try:
             spc_sf = Dic_scn_var_comp[current_var][current_var+'_SF']
-        except:
+        except KeyError:
             spc_sf=0
         tmp_sf = spc_sf
         sf = np.ma.masked_where(inside==False,tmp_sf*area)  #convert Kg/m2/s to Tg/yr
@@ -1221,7 +1221,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         # Elevated Emissions
         try:
             spc_clxf = Dic_scn_var_comp[current_var][current_var+'_CLXF']
-        except:
+        except KeyError:
             spc_clxf=0
         tmp_clxf = spc_clxf
         clxf = np.ma.masked_where(inside==False,tmp_clxf*area)  #convert Kg/m2/s to Tg/yr
@@ -1231,7 +1231,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         # Burden
         try:
             spc_burd = Dic_scn_var_comp[current_var][current_var+'_BURDEN']
-        except:
+        except KeyError:
             spc_burd = 0
         spc_burd = np.where(np.isnan(trop),np.nan,spc_burd)
         tmp_burden = np.nansum(spc_burd*area,axis=0)
@@ -1242,7 +1242,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         # Chemical Loss
         try:
             spc_chml = Dic_scn_var_comp[current_var][current_var+'_CHML']
-        except:
+        except KeyError:
             spc_chml = 0 
         spc_chml = np.where(np.isnan(trop),np.nan,spc_chml)
         tmp_chml = np.nansum(spc_chml*area,axis=0)
@@ -1257,7 +1257,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
         else:
             try:
                 spc_chmp = Dic_scn_var_comp[current_var][current_var+'_CHMP']
-            except:
+            except KeyError:
                 spc_chmp =0
             spc_chmp = np.where(np.isnan(trop),np.nan,spc_chmp)
             tmp_chmp = np.nansum(spc_chmp*area,axis=0)
@@ -1275,7 +1275,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 spc_ddfa = Dic_scn_var_comp[current_var][current_var+'_DDF']
                 spc_ddfc = Dic_scn_var_comp[current_var][current_var+'_DDFC']
                 spc_ddf = spc_ddfa +spc_ddfc
-            except:
+            except KeyError:
                 spc_ddf = 0
             tmp_ddf = spc_ddf
             ddf = np.ma.masked_where(inside==False,tmp_ddf*area)  #convert Kg/m2/s to Tg/yr
@@ -1287,7 +1287,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 spc_wdfa = Dic_scn_var_comp[current_var][current_var+'_WDF']
                 spc_wdfc = Dic_scn_var_comp[current_var][current_var+'_WDFC']
                 spc_wdf = spc_wdfa +spc_wdfc
-            except:
+            except KeyError:
                 spc_wdf = 0
             tmp_wdf = spc_wdf
             wdf = np.ma.masked_where(inside==False,tmp_wdf*area)  #convert Kg/m2/s to Tg/yr
@@ -1298,7 +1298,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 # gas-aerosol Exchange
                 try:
                     spc_gaex = Dic_scn_var_comp[current_var][current_var+'_GAEX']
-                except: 
+                except KeyError:
                     spc_gaex = 0
                 tmp_gaex = spc_gaex
                 gaex = np.ma.masked_where(inside==False,tmp_gaex*area)  #convert Kg/m2/s to Tg/yr
@@ -1313,7 +1313,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 # Aqueous Chemistry
                 try:
                     spc_aqs = Dic_scn_var_comp[current_var][current_var+'_AQS']
-                except:
+                except KeyError:
                     spc_aqs = 0
                 tmp_aqs = spc_aqs
                 aqs = np.ma.masked_where(inside==False,tmp_aqs*area)  #convert Kg/m2/s to Tg/yr
@@ -1323,7 +1323,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 # Nucleation
                 try:
                     spc_nucl = Dic_scn_var_comp[current_var][current_var+'_NUCL']
-                except:
+                except KeyError:
                     spc_nucl = 0
                 tmp_nucl = spc_nucl
                 nucl = np.ma.masked_where(inside==False,tmp_nucl*area)  #convert Kg/m2/s to Tg/yr
@@ -1336,7 +1336,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
             # Dry Deposition Flux
             try:
                 spc_ddf = Dic_scn_var_comp[current_var][current_var+'_DDF']
-            except:
+            except KeyError:
                 spc_ddf = 0
             tmp_ddf = spc_ddf
             ddf = np.ma.masked_where(inside==False,tmp_ddf*area)  #convert Kg/m2/s to Tg/yr
@@ -1346,7 +1346,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
             # Wet Deposition Flux
             try:
                 spc_wdf = Dic_scn_var_comp[current_var][current_var+'_WDF']
-            except:
+            except KeyError:
                 spc_wdf = 0
             tmp_wdf = spc_wdf
             wdf = np.ma.masked_where(inside==False,tmp_wdf*area)  #convert Kg/m2/s to Tg/yr
@@ -1378,7 +1378,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
             # Chemical Tendency
             try:
                 spc_tnd = Dic_scn_var_comp[current_var][current_var+'_TEND']
-            except:
+            except KeyError:
                 spc_tnd = 0
             spc_tnd = np.where(np.isnan(trop),np.nan,spc_tnd)
             tmp_tnd = np.nansum(spc_tnd,axis=0)
@@ -1395,7 +1395,7 @@ def calc_budget_data(current_var, Dic_scn_var_comp, area, trop, inside, num_yrs,
                 # Lightning NOX production
                 try:
                     spc_lno = Dic_scn_var_comp[current_var][current_var+'_LNO']
-                except:
+                except KeyError:
                     spc_lno = 0
                 tmp_lno = np.ma.masked_where(inside==False,spc_lno)
                 LNO = np.ma.sum(tmp_lno)

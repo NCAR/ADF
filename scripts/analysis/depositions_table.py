@@ -704,13 +704,13 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                 SE=False
         try:
             delP=np.array(ds['PDELDRY'+ext1_SE].isel(time=0))
-        except:
+        except KeyError:
             hyai=np.array(ds['hyai'])
             hybi=np.array(ds['hybi'])
 
             try:
                 PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-            except:
+            except KeyError:
                 PS=np.array(ds['PS'+ext1_SE].isel(time=0))
             # End try/except
             P0=1e5
@@ -734,12 +734,12 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
             elif var== 'Pressure':
                 try:
                     data=np.array(ds['PMID'+ext1_SE].isel(time=0))/100
-                except:
+                except KeyError:
                     hyam=np.array(ds['hyam'])
                     hybm=np.array(ds['hybm'])
                     try:
                         PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-                    except:
+                    except KeyError:
                         PS=np.array(ds['PS'+ext1_SE].isel(time=0))
                     P0=1e5
                     data=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
@@ -778,12 +778,12 @@ def SEbudget(adfobj,dic_SE,data_dir,files,vars,ext1_SE,**kwargs):
                 Temp=np.array(ds['T'+ext1_SE].isel(time=0))
                 try:
                     Pres=np.array(ds['PMID'+ext1_SE].isel(time=0))
-                except:
+                except KeyError:
                     hyam=np.array(ds['hyam'])
                     hybm=np.array(ds['hybm'])
                     try:
                         PS=np.array(ds['PSDRY'+ext1_SE].isel(time=0))
-                    except:
+                    except KeyError:
                         PS=np.array(ds['PS'+ext1_SE].isel(time=0))
                     P0=1e5
                     Pres=np.zeros_like(np.array(ds['U'+ext1_SE].isel(time=0)))
@@ -829,7 +829,7 @@ def calc_budget_data_Dep(current_var, Dic_scn_var_comp, area, inside, num_yrs, d
             spc_ddfa=Dic_scn_var_comp[current_var][current_var+'_DDF'] 
             spc_ddfc=Dic_scn_var_comp[current_var][current_var+'_DDFC']
             spc_ddf=spc_ddfa +spc_ddfc
-        except:
+        except KeyError:
             spc_ddf = 0
         tmp_ddf=spc_ddf
         ddf=np.ma.masked_where(inside==False,tmp_ddf*area)  #convert Kg/m2/s to Tg/yr
@@ -841,7 +841,7 @@ def calc_budget_data_Dep(current_var, Dic_scn_var_comp, area, inside, num_yrs, d
             spc_wdfa=Dic_scn_var_comp[current_var][current_var+'_WDF'] 
             spc_wdfc=Dic_scn_var_comp[current_var][current_var+'_WDFC']
             spc_wdf=spc_wdfa +spc_wdfc           
-        except:
+        except KeyError:
             spc_wdf = 0
         tmp_wdf=spc_wdf
         wdf=np.ma.masked_where(inside==False,tmp_wdf*area)  #convert Kg/m2/s to Tg/yr
@@ -859,7 +859,7 @@ def calc_budget_data_Dep(current_var, Dic_scn_var_comp, area, inside, num_yrs, d
         #print("Dry Deposition Flux")
         try:
             spc_ddf=Dic_scn_var_comp[current_var][current_var+'_DDF']
-        except:
+        except KeyError:
             spc_ddf = 0
         tmp_ddf=spc_ddf
         ddf=np.ma.masked_where(inside==False,tmp_ddf*area)  #convert Kg/m2/s to Tg/yr
@@ -870,7 +870,7 @@ def calc_budget_data_Dep(current_var, Dic_scn_var_comp, area, inside, num_yrs, d
         #print("Wet Deposition Flux")
         try:
             spc_wdf=Dic_scn_var_comp[current_var][current_var+'_WDF']
-        except:
+        except KeyError:
             spc_wdf = 0
         tmp_wdf=spc_wdf
         wdf=np.ma.masked_where(inside==False,tmp_wdf*area)  #convert Kg/m2/s to Tg/yr
