@@ -7,21 +7,16 @@ from I. Simpson's directory (to be generalized).
 
 from pathlib import Path
 from types import NoneType
-import warnings  # use to warn user about missing files.
+
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-import plotting_functions as pf
 import matplotlib.ticker as ticker
+import plotting_utils as plot_utils
 
-
-def my_formatwarning(msg, *args, **kwargs):
-    """custom warning"""
-    # ignore everything except the message
-    return str(msg) + "\n"
-
-
-warnings.formatwarning = my_formatwarning
+import adf_utils as utils
+import warnings  # use to warn user about missing files.
+warnings.formatwarning = utils.my_formatwarning
 
 
 def global_mean_timeseries(adfobj):
@@ -39,13 +34,33 @@ def global_mean_timeseries(adfobj):
     # Gather ADF configurations
     plot_loc = get_plot_loc(adfobj)
     plot_type = adfobj.read_config_var("diag_basic_info").get("plot_type", "png")
+    redo_plot = adfobj.get_basic_info("redo_plot")
+    print(f"\t NOTE: redo_plot is set to {redo_plot}")
     res = adfobj.variable_defaults # will be dict of variable-specific plot preferences
     # or an empty dictionary if use_defaults was not specified in YAML.
 
     # Loop over variables
-    for field in adfobj.diag_var_list:
+    for field in adfobj.plot_var_list:
         #Notify user of variable being plotted:
         print(f"\t - time series plot for {field}")
+
+        # This field's plot is named the same way whatever the data turns out
+        # to hold, so a re-run can settle it here -- before opening the
+        # reference time series and every case's, and before taking the
+        # global means of them, which is the whole cost of this script:
+        plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
+        if (not redo_plot) and plot_name.is_file():
+            adfobj.debug_log(f"'{plot_name}' exists and clobber is false.")
+            adfobj.add_website_data(
+                plot_name,
+                f"{field}_GlobalMean",
+                None,
+                season="ANN",
+                multi_case=True,
+                plot_type="TimeSeries",
+            )
+            continue
+        # End if
 
         # Check res for any variable specific options that need to be used BEFORE going to the plot:
         if field in res:
@@ -55,6 +70,8 @@ def global_mean_timeseries(adfobj):
         else:
             vres = {}
         #End if
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, field, vres)
+        vres["plot_type"] = __name__
 
         # reference time series (DataArray)
         ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
@@ -70,7 +87,7 @@ def global_mean_timeseries(adfobj):
             continue
         else:
             # check data dimensions:
-            has_lat_ref, has_lev_ref = pf.zm_validate_dims(ref_ts_da)
+            has_lat_ref, has_lev_ref = utils.zm_validate_dims(ref_ts_da)
 
             # check if this is a "2-d" varaible:
             if has_lev_ref:
@@ -89,10 +106,10 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # reference time series global average
-            ref_ts_da_ga = pf.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
+            ref_ts_da_ga = utils.spatial_average(ref_ts_da, weights=None, spatial_dims=None)
 
             # annually averaged
-            ref_ts_da = pf.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
+            ref_ts_da = utils.annual_mean(ref_ts_da_ga, whole_years=True, time_name="time")
         # End if
 
         # Loop over model cases:
@@ -126,7 +143,7 @@ def global_mean_timeseries(adfobj):
 
             # If no reference, we still need to check if this is a "2-d" varaible:
             # check data dimensions:
-            has_lat_case, has_lev_case = pf.zm_validate_dims(c_ts_da)
+            has_lat_case, has_lev_case = utils.zm_validate_dims(c_ts_da)
 
             # If 3-d variable, notify user, flag and move to next test case
             if has_lev_case:
@@ -148,8 +165,8 @@ def global_mean_timeseries(adfobj):
             # End if
 
             # Gather spatial avg for test case
-            c_ts_da_ga = pf.spatial_average(c_ts_da)
-            case_ts[labels[case_name]] = pf.annual_mean(c_ts_da_ga)
+            c_ts_da_ga = utils.spatial_average(c_ts_da)
+            case_ts[labels[case_name]] = utils.annual_mean(c_ts_da_ga)
 
         # If this case is 3-d or missing variable, then break the loop and go to next variable
         if skip_var:
@@ -167,7 +184,6 @@ def global_mean_timeseries(adfobj):
 
         unit = vres.get("new_unit","[-]")
         ax.set_ylabel(getattr(ref_ts_da,"unit", unit)) # add units
-        plot_name = plot_loc / f"{field}_GlobalMean_ANN_TimeSeries_Mean.{plot_type}"
 
         conditional_save(adfobj, plot_name, fig)
 

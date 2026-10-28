@@ -104,10 +104,35 @@ diag_basic_info:
     #model vs obs run:
     plot_press_levels: [200,850]
 
+    #Names of the model's own 3-D pressure field, by vertical dimension.
+    #Vertical interpolation prefers the pressure the model wrote over
+    #reconstructing it from PS and the hybrid coefficients, and the ADF adds
+    #that field to 'diag_var_list' by itself so it gets one time series and one
+    #climatology per case.  CAM's names (below) are the default, and a model
+    #that writes neither, but labels its pressure with the CF attribute
+    #'standard_name: air_pressure', is found anyway -- so this is only needed
+    #for a model that uses different names and no CF metadata.
+    #Set it to False to ignore the model's pressure field entirely and always
+    #interpolate from PS and the hybrid coefficients, as ADF used to:
+    #pressure_field_names:
+    #    lev: PMID
+    #    ilev: PINT
+
     #Longitude line on which to center all lat/lon maps.
     #If this config option is missing then the central
     #longitude will default to 180 degrees E.
     central_longitude: 180
+
+    #Pressure levels (in hPa) that 3-D variables are interpolated onto during
+    #regridding.  If missing, the ADF uses its standard set:
+    #  1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
+    #  30, 20, 10, 7, 5, 3, 2, 1
+    #A model whose top is above 1 hPa needs to say so here to get anything
+    #plotted up there.  Every entry in 'plot_press_levels' has to be one of
+    #these levels; the ADF warns at the start of regridding if it is not.
+    #Note that changing this invalidates existing regridded files, so set
+    #'cam_overwrite_regrid: true' the first time you use it:
+    #interp_press_levels: [1000,925,850,700,500,400,300,250,200,150,100,70,50,30,20,10,7,5,3,2,1,0.5,0.1]
 
     #Number of processors on which to run the ADF.
     #If this config variable isn't present then
@@ -116,6 +141,52 @@ diag_basic_info:
     #to all of the processors available on a
     #single node/machine:
     num_procs: 8
+
+    #Which tool generates the time series files:
+    #  adf   - (default) ADF's built-in "ncrcat" path
+    #  gents - hand off to the GenTS package (https://github.com/AgentOxygen/GenTS),
+    #          the tool the CESM project is standardizing on.
+    #NOTE: GenTS is an optional dependency and is NOT part of the provided conda
+    #      environment, because it may require newer numpy/netCDF4 than the ADF
+    #      env pins.  Install it separately with "pip install gents".
+    #      One thing to check afterwards: numba (used by xarray/flox during the
+    #      climatology step) caps the numpy version it accepts, and that cap
+    #      moves with the numba release -- numba 0.65 allows numpy<2.5, older
+    #      numba allowed much less.  If pip pulls a numpy your numba rejects,
+    #      every climatology fails while ADF still reports success, so check the
+    #      pair after installing rather than forcing a pin that may be wrong for
+    #      your environment.
+    ts_tool: adf
+
+    #Options for the GenTS back end (ignored unless "ts_tool" is "gents").
+    #Every entry is optional; leaving them out reproduces what the built-in
+    #ADF back end produces.
+    #NOTE: these are flat entries rather than a nested "gents_options" block,
+    #      because the ADF config reader allows only one level of nesting.
+
+    #Generate every variable in the history stream instead of just the
+    #variables listed in "diag_var_list":
+    #gents_all_vars: false
+
+    #Write GenTS's native <component>/proc/tseries/<frequency>/ layout instead
+    #of writing flat into "cam_ts_loc":
+    #gents_nested_layout: false
+
+    #Years per time series file.  If missing or blank, a single file spanning
+    #start_year through end_year is written for each variable, which is what
+    #the built-in ADF back end does:
+    #gents_slice_years: 10
+
+    #netCDF compression.  If missing or blank, no compression is applied.
+    #A level is required whenever an algorithm is given.
+    #The CESM3 convention is zlib at level 2:
+    #gents_compression: zlib
+    #gents_compression_level: 2
+
+    #IMPORTANT: unlike ADF's built-in back end, GenTS writes "PS" to its own
+    #time series file rather than copying it into every 3-D variable's file.
+    #ADF needs "PS" for vertical interpolation, so add "PS" to "diag_var_list"
+    #whenever "ts_tool" is "gents" and any 3-D variables are being diagnosed.
 
     #If set to true, then redo all plots even if they already exist.
     #If set to false, then if a plot is found it will be skipped:
@@ -496,13 +567,39 @@ plotting_scripts:
     - cam_taylor_diagram
     - qbo
     - ozone_diagnostics
+    - MOPITT
     #- tape_recorder
     #- tem
     #- regional_map_multicase #To use this please un-comment and fill-out
                               #the "region_multicase" section below
+    #- cloud_regime_analysis  #Requires COSP output: add FISCCP1_COSP, CLD_MISR
+                              #and/or CLMODIS to "diag_var_list" below, and set
+                              #"obs_data_loc" so the cluster centers can be found.
+                              #Options are passed as kwargs, for example:
+    #- {cloud_regime_analysis: {kwargs: {only_ocean_or_land: "O", lat_range: [-30, 30]}}}
 
 #List of CAM variables that will be processesd:
 #If CVDP is to be run PSL, TREFHT, TS and PRECT (or PRECC and PRECL) should be listed
+#
+#A single entry of "all" processes every variable found in the test case input
+#files instead (the fields in the history files, or the variables in the
+#pre-made time series files when "cam_ts_done" is true).  Variables listed
+#alongside "all" are still added, which is how a derived variable that is in no
+#input file (e.g. PRECT) can be asked for:
+#
+#diag_var_list:
+#    - all
+#    - PRECT
+#
+#A field on a pressure surface -- U200, U850, V200, V850 -- is made from the
+#three-dimensional field when the history files do not have it, using the model's
+#own pressure where there is one, and compared against that level of the
+#reanalysis.  Listing one is all that is needed; the variable defaults say which
+#field and which surface ("derivable_from", "derive_level", "obs_lev").  A run
+#that writes the surface itself keeps what it wrote.  Note the 3-D field it is
+#made from gets a time series of its own, as any constituent does, and so does
+#the model's pressure field: asking for U200 alone writes two more 3-D time
+#series into "cam_ts_loc".
 diag_var_list:
     - SWCF
     - LWCF
@@ -521,6 +618,7 @@ diag_var_list:
     - FLNT
     - LANDFRAC
     - O3
+    - CO
 
 #<Add more variables here.>
 # MDTF recommended variables

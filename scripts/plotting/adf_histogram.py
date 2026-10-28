@@ -26,12 +26,11 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-import plotting_functions as pf
+
 import warnings  # use to warn user about missing files.
-def my_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return str(msg) + '\n'
-warnings.formatwarning = my_formatwarning
+import adf_utils as utils
+import plotting_utils as plot_utils
+warnings.formatwarning = utils.my_formatwarning
 
 #
 # USER-ADJUSTABLE PARAMETERS:
@@ -59,7 +58,7 @@ seasons = {"ANN": np.arange(1,13,1),
             "SON": [9, 10, 11]}
 
 def adf_histogram(adfobj):
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
 
     if use_time_series:
         load_ref_func = adfobj.data.load_reference_timeseries_da # field [this is a mistake, the args should have been the same for all of these functions]
@@ -122,6 +121,7 @@ def adf_histogram(adfobj):
             adfobj.debug_log(f"adf_histogram: Found variable defaults for {var}")
         else:
             vres = {}
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
 
         # probably have to make sure no "lev" dim (but gets confused about other dimensions)
         da = load_ref_func(*get_load_args(adfobj, adfobj.data.ref_case_label, var))
@@ -133,7 +133,7 @@ def adf_histogram(adfobj):
             print(f"{var}: Looks like lev/ilev present... skip")
             continue
         
-        has_lat_lon = pf.lat_lon_validate_dims(da)
+        has_lat_lon = utils.lat_lon_validate_dims(da)
         if not has_lat_lon:
             print(f"INFO: {var} looks like it is on unstructured mesh. Has ncol: {'ncol' in da.dims}. Histogram does not need to regrid.")
 
@@ -152,6 +152,8 @@ def adf_histogram(adfobj):
                 adfobj.debug_log(f"adf_histogram: Found variable defaults for {var}")
             else:
                 vres = {}
+            vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
+
             hist_file = plot_loc / f"{case_name}_{var}_{plot_name_string}.nc"
             histogram_file_exists = hist_file.is_file()
             if (not histogram_file_exists) or (redo_histogram_files):
@@ -162,7 +164,7 @@ def adf_histogram(adfobj):
                 if ("lev" in da.dims) or ("ilev" in da.dims):
                     print(f"{var}: Looks like lev/ilev present... skip")
                     continue
-                has_lat_lon = pf.lat_lon_validate_dims(da)
+                has_lat_lon = utils.lat_lon_validate_dims(da)
                 if not has_lat_lon:
                     print(f"INFO: {var} looks like it is on unstructured mesh. Has ncol: {'ncol' in da.dims}. Histogram does not need to regrid.")
                 
@@ -243,7 +245,7 @@ def make_histograms(data, land, vres):
         bins = np.arange(*vres['contour_levels_range'])
     else:
         print("WARNING: no sensible defaults found -- histogram will use 25 bins (bins may differ across cases)")
-        bins = np.linspace(data.min(), data.max(), 26)
+        bins = np.linspace(data.min().values, data.max().values, 26)
 
     # extend bins to catch all values
     hbins = np.insert(bins, 0, np.finfo(float).min)

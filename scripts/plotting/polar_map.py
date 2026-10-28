@@ -1,10 +1,11 @@
 """Module to make polar stereographic maps."""
 from pathlib import Path
-import xarray as xr
 import numpy as np
 
 # ADF library
 import plotting_functions as pf
+import plotting_utils as plot_utils
+import adf_utils as utils
 
 def get_hemisphere(hemi_type):
     """Helper function to convert plot type to hemisphere code.
@@ -40,8 +41,8 @@ def process_seasonal_data(mdata, odata, season):
     pseason : xarray.DataArray
         Seasonal means for test, reference, difference, and percent difference    
     """
-    mseason = pf.seasonal_mean(mdata, season=season, is_climo=True)
-    oseason = pf.seasonal_mean(odata, season=season, is_climo=True)
+    mseason = utils.seasonal_mean(mdata, season=season, is_climo=True)
+    oseason = utils.seasonal_mean(odata, season=season, is_climo=True)
     
     # Calculate differences
     dseason = mseason - oseason
@@ -61,7 +62,7 @@ def polar_map(adfobj):
     msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
 
-    var_list = adfobj.diag_var_list
+    var_list = adfobj.plot_var_list
 
     #Special ADF variable which contains the output paths for
     #all generated plots and tables for each case:
@@ -136,12 +137,36 @@ def polar_map(adfobj):
 
         # Get variable-specific settings
         vres = res.get(var, {})
+        vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
         web_category = vres.get("category", None)
+        vres["plot_type"] = __name__
+
+        # A complete set of plots can be recognised from the file names alone,
+        # because a 2-D variable and a 3-D one are named differently.  Doing
+        # that first means a re-run never opens the regridded files just to
+        # find out which of the two it is looking at.
+        settled = _existing_plot_set(
+            plot_locations, case_names, var, seasons, pres_levs, plot_type
+        )
+        if settled and not redo_plot:
+            for path, web_name, case_name, season, hemi_type in settled:
+                adfobj.add_website_data(
+                    path,
+                    web_name,
+                    case_name,
+                    category=web_category,
+                    season=season,
+                    plot_type=hemi_type,
+                )
+            # End for
+            print(f"\t    Skipping {var} - all plots already exist")
+            continue
+        # End if
 
         # Get all plot info and check existence
         plot_info = []
         all_plots_exist = True
-        
+
         for case_idx, case_name in enumerate(case_names):
             plot_loc = Path(plot_locations[case_idx])
 
@@ -154,7 +179,6 @@ def polar_map(adfobj):
             for s in seasons:
                 for hemi_type in ["NHPolar", "SHPolar"]:
                     if pres_levs and has_lev: # 3-D variable & pressure levels specified
-                        print(f"POLAR: {pres_levs = }")
                         for pres in pres_levs:
                             plot_name = plot_loc / f"{var}_{pres}hpa_{s}_{hemi_type}_Mean.{plot_type}"
                             info = {
@@ -163,8 +187,8 @@ def polar_map(adfobj):
                                 'case': case_name,
                                 'case_idx': case_idx,
                                 'season': s,
-                                'type': hemi_type,
-                                'pressure': pres,
+                                'hemi': hemi_type,
+                                'lev': pres,
                                 'exists': plot_name.is_file()
                             }
                             plot_info.append(info)
@@ -182,7 +206,7 @@ def polar_map(adfobj):
                             'case': case_name,
                             'case_idx': case_idx,
                             'season': s,
-                            'type': hemi_type,
+                            'hemi': hemi_type,
                             'exists': plot_name.is_file()
                         }
                         plot_info.append(info)
@@ -209,6 +233,8 @@ def polar_map(adfobj):
                 
             case_name = plot['case']
             case_idx = plot['case_idx']
+            vres['season'] = plot['season']
+            vres['hemi'] = plot['hemi']
             plot_loc = Path(plot_locations[case_idx])
 
             # Ensure plot directory exists
@@ -225,13 +251,26 @@ def polar_map(adfobj):
             else:
                 has_lev = False
 
-            if has_lev and pres_levs and plot.get('pressure'):
+            if has_lev and pres_levs and plot.get('lev'):
                 if not all(dim in mdata.dims for dim in ['lat', 'lev']):
                     continue
-                mdata = mdata.sel(lev=plot['pressure'])
-                odata_level = odata.sel(lev=plot['pressure'])
+                pres = plot["lev"]
+                # The level has to be one that was interpolated to -- see
+                # 'interp_press_levels' in the config file.  Without this an
+                # unavailable level ends the whole run in a KeyError from .sel,
+                # where global_latlon_map warns and moves on.
+                if (pres not in mdata["lev"]) or (pres not in odata["lev"]):
+                    print(
+                        f"\t    WARNING: plot_press_levels value '{pres}' not "
+                        f"present in {var} [test: {pres in mdata['lev']}, "
+                        f"ref: {pres in odata['lev']}], so skipping."
+                    )
+                    continue
+                mdata = mdata.sel(lev=pres)
+                odata_level = odata.sel(lev=pres)
+                vres["lev"] = pres
             else:
-                if not pf.lat_lon_validate_dims(mdata):
+                if not utils.lat_lon_validate_dims(mdata):
                     continue
 
             # Calculate seasonal means and differences
@@ -246,12 +285,12 @@ def polar_map(adfobj):
             if plot['path'].exists():
                 plot['path'].unlink()
 
-            pf.make_polar_plot(
+            pf.make_polar_plot(adfobj, 
                 plot['path'], test_nicknames[case_idx], base_nickname,
                 [syear_cases[case_idx], eyear_cases[case_idx]],
                 [syear_baseline, eyear_baseline],
                 mseason, oseason, dseason, pseason,
-                hemisphere=get_hemisphere(plot['type']),
+                hemisphere=get_hemisphere(plot['hemi']),
                 obs=adfobj.compare_obs, **vres
             )
 
@@ -259,13 +298,81 @@ def polar_map(adfobj):
             adfobj.add_website_data(
                 plot['path'], plot['var'], case_name,
                 category=web_category, season=plot['season'],
-                plot_type=plot['type']
+                plot_type=plot['hemi']
             )
 
     print("  ...polar maps have been generated successfully.")
 
 ##############
 #END OF `polar_map` function
+
+
+def _existing_plot_set(plot_locations, case_names, var, seasons, pres_levs, plot_type):
+    """
+    Return the complete set of polar plots for `var`, if one is on disk.
+
+    A 2-D variable is plotted as ``{var}_{season}_{hemisphere}_Mean`` and a
+    3-D one as ``{var}_{pressure}hpa_{season}_{hemisphere}_Mean``, so which
+    of the two a variable is can be read off the file names.  That is what
+    lets a re-run decide there is nothing to do without opening the regridded
+    file to look for a ``lev`` dimension.
+
+    Parameters
+    ----------
+    plot_locations : list
+        output plot directory for each case
+    case_names : list
+        names of the test cases
+    var : str
+        ADF name of the variable being plotted
+    seasons : list or dict
+        the seasons being plotted
+    pres_levs : list
+        the configured pressure levels, empty when none are set
+    plot_type : str
+        file extension the plots are written with, e.g. "png"
+
+    Returns
+    -------
+    list
+        ``(path, website name, case, season, hemisphere)`` for every plot,
+        when a complete set exists; an empty list when it does not.
+    """
+    flat = []
+    levelled = []
+    for case_idx, case_name in enumerate(case_names):
+        plot_loc = Path(plot_locations[case_idx])
+        for season in seasons:
+            for hemi_type in ["NHPolar", "SHPolar"]:
+                flat.append(
+                    (
+                        plot_loc / f"{var}_{season}_{hemi_type}_Mean.{plot_type}",
+                        var,
+                        case_name,
+                        season,
+                        hemi_type,
+                    )
+                )
+                for pres in pres_levs:
+                    levelled.append(
+                        (
+                            plot_loc
+                            / (
+                                f"{var}_{pres}hpa_{season}_{hemi_type}"
+                                f"_Mean.{plot_type}"
+                            ),
+                            f"{var}_{pres}hpa",
+                            case_name,
+                            season,
+                            hemi_type,
+                        )
+                    )
+                # End for
+            # End for
+        # End for
+    # End for
+    return plot_utils.first_complete_plot_set([levelled, flat])
+
 
 ##############
 # END OF FILE

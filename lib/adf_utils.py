@@ -1,0 +1,1535 @@
+""".
+Generic computation helper functions
+
+Functions
+---------
+describe_dir_problem(), find_ts_files(), select_ts_files(), ts_files_overlap(),
+ts_file_span(), ts_var_from_filename(),
+as_hist_str_list(), pick_hist_str()
+    re-exported from adf_file_utils; time series file discovery
+normalize_units(), units_equivalent()
+    re-exported from adf_units; compare unit strings that are spelled
+    differently but mean the same thing
+plain_text_units()
+    render a unit string from the variable defaults as plain text
+use_time_bounds_midpoint()
+    set the time coordinate to the midpoint of the interval each step covers
+load_dataset()
+    generalized load dataset method used for plotting/analysis functions
+mask_land_or_ocean(arr, msk, use_nan=False)
+    Apply a land or ocean mask to provided variable.
+global_average(fld, wgt, verbose=False)
+    pure numpy global average.
+spatial_average(indata, weights=None, spatial_dims=None)
+    Compute spatial average
+wgt_rmse(fld1, fld2, wgt):
+    Calculate the area-weighted RMSE.
+annual_mean(data, whole_years=False, time_name='time'):
+    Calculate annual averages from time series data.
+seasonal_mean(data, season=None, is_climo=None):
+    Calculates the time-weighted seasonal average (or average over all time).
+domain_stats(data, domain):
+    Provides statistics in specified region.
+pres_from_hybrid(psfc, hya, hyb, p0=100000.):
+    Converts a hybrid level to a pressure
+vert_remap(x_mdl, p_mdl, plev)
+    Interpolates to specified pressure levels.
+lev_to_plev(data, ps, hyam, hybm, P0=100000., new_levels=None, convert_to_mb=False)
+    Interpolate model hybrid levels to specified pressure levels.
+pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False)
+    Interpolate `data` from hybrid-sigma levels to isobaric levels using provided
+    mid-level pressures.
+plev_to_plev(data, new_levels=None, convert_to_mb=False)
+    Interpolate `data` from isobaric levels to new isobaric levels.
+zonal_mean_xr(fld)
+    Average over all dimensions except `lev` and `lat`.
+validate_dims(fld, list_of_dims)
+    Checks if specified dimensions are in a DataArray
+lat_lon_validate_dims(fld)
+    Check if input field has lat and lon.
+zm_validate_dims(fld)
+    Check for dimensions for zonal average.
+
+Notes
+-----
+
+"""
+
+# This module collects many small helpers, so allow it to be long:
+# pylint: disable=too-many-lines
+
+# ++++++++++++++++++++++++++++++
+# Import standard python modules
+# ++++++++++++++++++++++++++++++
+
+import warnings  # use to warn user about missing files.
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+# import non-standard python modules, including ADF
+# +++++++++++++++++++++++++++++++++++++++++++++++++
+
+# import statements:
+import numpy as np
+import xarray as xr
+import pandas as pd
+import geocat.comp as gcomp
+
+from adf_base import AdfError
+
+# Time series file discovery lives in its own module so that it can be unit
+# tested without importing the scientific stack (see adf_file_utils).  Re-export
+# here so `utils.find_ts_files(...)` keeps working for every existing caller:
+# pylint: disable=unused-import
+from adf_units import normalize_units, units_equivalent
+from adf_file_utils import (
+    as_hist_str_list,
+    describe_dir_problem,
+    find_ts_files,
+    pick_hist_str,
+    select_ts_files,
+    ts_files_overlap,
+    ts_file_span,
+    ts_var_from_filename,
+)
+
+
+# Format warning messages:
+def my_formatwarning(msg, *_args, **_kwargs):
+    """Issue `msg` as warning."""
+    return str(msg) + "\n"
+
+
+warnings.formatwarning = my_formatwarning
+
+# Set seasonal ranges:
+seasons = {
+    "ANN": np.arange(1, 13, 1),
+    "DJF": [12, 1, 2],
+    "JJA": [6, 7, 8],
+    "MAM": [3, 4, 5],
+    "SON": [9, 10, 11],
+}
+
+
+#################
+# HELPER FUNCTIONS
+#################
+
+# Simple LaTeX seen in the units of the variable defaults, and what each means
+# as plain text.  The defaults were written for plot labels, where matplotlib
+# renders them; a table written as text or HTML shows them as they are.
+_LATEX_UNIT_REPLACEMENTS = (
+    ("\\mu", "u"),
+    ("^{", "^"),
+    ("}", ""),
+    ("$", ""),
+    ("\\,", " "),
+    ("\\", ""),
+)
+
+
+def plain_text_units(unit):
+    """
+    Render a unit string as plain text.
+
+    The units in the variable defaults are written for plot labels, where
+    matplotlib renders the LaTeX in them, so ``mm d$^{-1}$`` appears as mm
+    d^-1 with a proper superscript.  Written into a table -- a csv file, or a
+    web page -- the same string appears exactly as it is typed, which is not
+    something to put in front of a reader.
+
+    Parameters
+    ----------
+    unit : str
+        the unit as the variable defaults give it
+
+    Returns
+    -------
+    str
+        the same unit with its markup resolved: ``mm d$^{-1}$`` becomes
+        ``mm d^-1``.  A unit with no markup is returned unchanged, so this is
+        safe to apply to anything and does nothing to units that are already
+        plain.
+    """
+    if not isinstance(unit, str) or ("$" not in unit and "\\" not in unit):
+        return unit
+    # End if
+    for markup, plain in _LATEX_UNIT_REPLACEMENTS:
+        unit = unit.replace(markup, plain)
+    # End for
+    return unit.strip()
+
+
+def use_time_bounds_midpoint(ds, time_name="time"):
+    """
+    Set the time coordinate to the midpoint of the interval each step covers.
+
+    CAM stamps a monthly average with one end of the interval it covers, and
+    which end depends on the model version: an older CAM h0 file stamps January
+    with February 1st.  Anything that then asks which year a step belongs to --
+    selecting years, averaging by year, grouping by month -- puts that step in
+    the wrong place, which silently drops a year from an annual mean and shifts
+    a seasonal cycle by a month.  The interval itself is not in doubt: the file
+    records it, so the midpoint of the recorded interval is used instead.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        dataset to correct
+    time_name : str, optional
+        name of the time coordinate; defaults to ``"time"``
+
+    Returns
+    -------
+    xr.Dataset
+        a dataset whose time coordinate is the midpoint of its bounds, or the
+        dataset unchanged when the file does not say what its bounds are.
+
+    Notes
+    -----
+    The bounds variable is taken from the ``bounds`` attribute of the time
+    coordinate, which is where CF says it belongs and is authoritative when it
+    is there.  Only if that attribute is missing, or names something the file
+    does not contain, are the conventional names ``time_bnds`` and
+    ``time_bounds`` tried.  Files that record no bounds are returned untouched
+    -- there is then nothing better to go on than the stamp itself.
+
+    Doing this where files are opened, rather than in each script, is
+    deliberate: a script that does not know about the stamping convention
+    should not have to.
+    """
+    if time_name not in ds.variables:
+        return ds
+    # End if
+
+    # What the file itself says its bounds are, then the conventional names:
+    candidates = [ds[time_name].attrs.get("bounds"), "time_bnds", "time_bounds"]
+    bounds_name = next(
+        (name for name in candidates if name and name in ds.variables), None
+    )
+    if bounds_name is None:
+        return ds
+    # End if
+
+    bounds = ds[bounds_name]
+    # The bounds are (time, 2), but the second dimension is called 'nbnd' by
+    # CAM and other names elsewhere, so take whichever one is not time:
+    other_dims = [dim for dim in bounds.dims if dim != time_name]
+    if len(other_dims) != 1:
+        # Not a shape this can make sense of, so leave the file alone:
+        return ds
+    # End if
+
+    # load() first: averaging cftime under dask raises NotImplementedError.
+    midpoint = bounds.load().mean(dim=other_dims[0])
+    attrs = ds[time_name].attrs
+    ds = ds.assign_coords({time_name: midpoint})
+    ds[time_name].attrs = attrs
+    return ds
+
+
+def load_dataset(fils, use_time_bounds=False):
+    """
+    This method exists to get an xarray Dataset from input file information that
+    can be passed into the plotting methods.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to input file(s)
+
+    Returns
+    -------
+    xr.Dataset
+
+    Notes
+    -----
+    When just one entry is provided, use `open_dataset`, otherwise `open_mfdatset`
+
+    Pass ``use_time_bounds=True`` for time series files, so that steps stamped
+    at one end of their averaging interval are counted in the right month and
+    year.  See `use_time_bounds_midpoint`.
+    """
+    if len(fils) == 0:
+        warnings.warn("\t    WARNING: Input file list is empty.")
+        return None
+    if len(fils) > 1:
+        ds = xr.open_mfdataset(fils, combine="by_coords")
+    else:
+        ds = xr.open_dataset(fils[0])
+    # End if
+    if use_time_bounds:
+        # Time stamps that name one end of an averaging interval put steps in
+        # the wrong year, so use what the file records about it instead.  Off
+        # by default: this function also reads climatology files, whose time
+        # coordinate is month numbers and should stay that way.
+        ds = use_time_bounds_midpoint(ds)
+    # End if
+    return ds
+
+
+# End def
+
+
+# CAM writes fields either on layer midpoints or on layer interfaces, and which
+# one a given field uses is not always predictable -- the WACCM zonal-mean stream
+# has used both. These are the dimension names for the two.
+VERTICAL_DIMS = ("lev", "ilev")
+
+
+def pressure_levels_pa(levels, default_hpa):
+    """Validate a set of interpolation pressure levels and return them in Pa.
+
+    Parameters
+    ----------
+    levels : sequence of float, float, or None
+        The levels asked for, in hPa -- the ``interp_press_levels`` config
+        entry.  ``None`` or empty means "use the default"; a bare number is
+        taken as a single level.
+    default_hpa : sequence of float
+        The levels to fall back on, in hPa.
+
+    Returns
+    -------
+    numpy.ndarray
+        The levels in Pa, without duplicates, ordered from the largest pressure
+        down, which is how the ADF's default set is ordered.
+
+    Raises
+    ------
+    ValueError
+        If `levels` is not a sequence of positive numbers.  Interpolating onto
+        a level that is zero, negative, or not a number would quietly produce a
+        field of NaN, so this is worth stopping for.
+    """
+    if levels is None or (hasattr(levels, "__len__") and len(levels) == 0):
+        levels = default_hpa
+    if isinstance(levels, (int, float)) and not isinstance(levels, bool):
+        # A single level is a reasonable thing to write without brackets:
+        levels = [levels]
+    if isinstance(levels, (str, bytes)):
+        raise ValueError(f"expected a list of pressure levels in hPa, got {levels!r}")
+    try:
+        arr = np.array([float(lev) for lev in levels], dtype=float)
+    except TypeError as err:
+        raise ValueError(
+            f"expected a list of pressure levels in hPa, got {levels!r}"
+        ) from err
+    except ValueError as err:
+        raise ValueError(
+            f"expected a list of numbers (pressure levels in hPa), got {levels!r}"
+        ) from err
+    if arr.size == 0:
+        raise ValueError("no pressure levels given")
+    if not np.all(np.isfinite(arr)) or np.any(arr <= 0):
+        raise ValueError(
+            "pressure levels must all be finite and greater than zero, got "
+            f"{list(arr)}"
+        )
+    # np.unique sorts and drops duplicates: a level given twice would be
+    # interpolated and written twice.
+    return np.unique(arr)[::-1] * 100.0
+
+
+def vertical_dim(data):
+    """Return the name of `data`'s vertical dimension, or None if it has none.
+
+    Only tells you which of 'lev' (layer midpoints) and 'ilev' (interfaces) the
+    field is on; use pressure_field_name to get the matching pressure variable.
+    """
+    for dim in data.dims:
+        if dim in VERTICAL_DIMS:
+            return dim
+    return None
+
+
+# CAM's names for the 3-D pressure field, by vertical dimension.  Other models
+# write it under other names; see pressure_field_name and find_pressure_field.
+DEFAULT_PRESSURE_FIELDS = {"lev": "PMID", "ilev": "PINT"}
+
+
+def pressure_in_pa(pres_da, name="PS"):
+    """Return a pressure field in Pascals.
+
+    The interpolation routines need Pa, but a pressure field does not always
+    arrive in them: a pressure read back from a "*_regridded.nc" file has had
+    the variable defaults applied, and those convert pressures to hPa.  Feeding
+    hPa in silently squeezes the whole model column into a few hPa, so every
+    target level below it comes out NaN -- the troposphere disappears without an
+    error anywhere.
+
+    Parameters
+    ----------
+    pres_da : xarray.DataArray
+        A pressure field, in Pa or hPa.
+    name : str, optional
+        What to call the field in a warning, when its units have to be guessed.
+
+    Returns
+    -------
+    xarray.DataArray
+        The same field in Pa, with its units attribute set.
+    """
+    units = str(pres_da.attrs.get("units", "")).strip().lower()
+    if units in ("hpa", "mb", "millibar", "millibars"):
+        scaled = pres_da * 100.0
+    elif units in ("pa", "pascal", "pascals"):
+        return pres_da
+    else:
+        # No usable units attribute: tropospheric pressure in Pa is ~1e4-1e5,
+        # in hPa ~1e2-1e3.
+        if float(pres_da.max()) > 2000.0:
+            return pres_da
+        print(
+            f"\t    WARNING: {name} has no units attribute and looks like hPa; "
+            "converting to Pa for vertical interpolation."
+        )
+        scaled = pres_da * 100.0
+    # End if
+    scaled.attrs = dict(pres_da.attrs)
+    scaled.attrs["units"] = "Pa"
+    return scaled
+
+
+def pressure_field_name(level_dim, names=None):
+    """The model's own 3-D pressure for a vertical dimension.
+
+    CAM writes PMID on layer midpoints and PINT on interfaces, and those are the
+    defaults.  Either is preferred over reconstructing pressure from PS and the
+    hybrid coefficients: it is what the model actually used, and it is the only
+    correct option for the dry-mass vertical coordinate in recent CAM/WACCM,
+    where the hybrid coefficients do not give pressure.
+
+    Parameters
+    ----------
+    level_dim : str
+        The vertical dimension the field sits on, ``'lev'`` or ``'ilev'``.
+    names : dict or bool, optional
+        The ``pressure_field_names`` config entry: a mapping of vertical
+        dimension to variable name for a model that does not use CAM's names,
+        or ``False`` to ignore the model's pressure field entirely.
+
+    Returns
+    -------
+    str or None
+        The variable name to look for, or ``None`` when there is none to look
+        for -- an unrecognized ``level_dim``, or ``names`` set to ``False``.
+    """
+    if names is False:
+        return None
+    if isinstance(names, dict) and names.get(level_dim):
+        return names[level_dim]
+    return DEFAULT_PRESSURE_FIELDS.get(level_dim)
+
+
+def find_pressure_field(dset, level_dim, names=None):
+    """The name under which `dset` carries its 3-D pressure field, or ``None``.
+
+    The configured name (CAM's by default) is used when the dataset has it.
+    Failing that the dataset is searched for a variable on `level_dim` that
+    declares itself a pressure through CF metadata, so a model writing, say,
+    ``pfull`` is found without anyone having to name it.
+
+    Parameters
+    ----------
+    dset : xarray.Dataset
+        The dataset to search.
+    level_dim : str
+        The vertical dimension the pressure field must be on.
+    names : dict or bool, optional
+        See :func:`pressure_field_name`.
+
+    Returns
+    -------
+    str or None
+        Name of the pressure field in `dset`, or ``None`` if it has none.
+    """
+    if names is False:
+        return None
+    name = pressure_field_name(level_dim, names)
+    if name and name in dset:
+        return name
+    for candidate, var in dset.variables.items():
+        if level_dim not in var.dims or var.ndim < 2:
+            # A 1-D variable on the vertical dimension is the coordinate itself,
+            # not a pressure field.  CF-compliant pressure-level output labels
+            # that coordinate 'air_pressure' too, and interpolating a column
+            # against it would be circular.
+            continue
+        if str(var.attrs.get("standard_name", "")).strip() == "air_pressure":
+            return str(candidate)
+    return None
+
+
+def request_pressure_field(adf, dset, variables=None):
+    """Add the model's 3-D pressure field to ``diag_var_list``, once.
+
+    Vertical interpolation prefers the pressure the model wrote over
+    reconstructing it from PS and the hybrid coefficients, but that field only
+    exists downstream if the ADF asks for it.  Adding it to ``diag_var_list``
+    gives it one time series and one climatology per case, rather than a copy
+    inside every 3-D variable's file.  It is a support variable -- the variable
+    defaults mark it ``plot_diagnostics: False``, so it stays off the website.
+
+    Only the vertical dimensions the requested variables actually sit on are
+    considered, so a run of midpoint fields does not also make interface
+    pressure. Does nothing when the model writes no pressure field, or when the
+    ``pressure_field_names`` config entry is ``False``; the regridder then falls
+    back to PS and the hybrid coefficients as before.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object whose variable list is being added to.
+    dset : xarray.Dataset
+        A history file to look in, opened by the caller.
+    variables : sequence of str, optional
+        The variables to judge "does this run use model levels?" by.  The
+        default is the ADF's own list; a caller that is about to add a
+        model-level variable to it -- the constituent of a field on a pressure
+        surface -- passes that variable instead, since the list does not have
+        it yet.
+
+    Returns
+    -------
+    list of str
+        The names added, in the order they were found.  Empty when there was
+        nothing to add.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    wanted = adf.diag_var_list if variables is None else list(variables)
+    added = []
+    for level_dim in ("lev", "ilev"):
+        # Only for a vertical dimension the run actually uses.  A history file
+        # can carry both 'lev' and 'ilev' while every requested variable sits on
+        # midpoints, and interface pressure is a whole extra 3-D field to make.
+        if not any(var in dset and level_dim in dset[var].dims for var in wanted):
+            continue
+        found = find_pressure_field(dset, level_dim, names)
+        if found and found not in adf.diag_var_list:
+            msg = f"\t    INFO: Adding '{found}' to the variable list; it is the "
+            msg += "pressure field used to interpolate the model's vertical coordinate."
+            print(msg)
+            adf.add_diag_var(found)
+            added.append(found)
+        # End if
+    # End for
+    return added
+
+
+def _ts_uses_level(ts_dir, case_name, streams, variables, level_dim):
+    """True if one of `variables` has a time series on `level_dim`.
+
+    Each stream is listed once and the names filtered in Python, rather than
+    globbing per variable: a variable with no time series would otherwise cost a
+    walk of the whole tree, which is what find_ts_files asks callers with many
+    patterns to avoid.  Only metadata is read, and the search stops at the first
+    3-D field.
+    """
+    wanted = set(variables)
+    for stream in streams:
+        for fil in find_ts_files(ts_dir, f"{case_name}.{stream}.*.nc"):
+            var = ts_var_from_filename(fil)
+            if var not in wanted:
+                continue
+            try:
+                with xr.open_dataset(fil, decode_cf=False, decode_times=False) as dset:
+                    if var in dset and level_dim in dset[var].dims:
+                        return True
+                    # End if
+            except (OSError, ValueError):
+                # An unreadable time series is the next stage's problem to
+                # report, not this one's.
+                continue
+            # End try
+            wanted.discard(var)
+        # End for
+    # End for
+    return False
+
+
+def request_pressure_field_from_ts(adf, ts_dir, case_name, hist_strs=None):
+    """Add the model's 3-D pressure field from a directory of time series.
+
+    ``cam_ts_done: true`` skips the history files entirely, so there is nothing
+    to inspect for a pressure field -- but a time series of it may well be
+    sitting in the directory the ADF was pointed at, and using it is the whole
+    point of :func:`request_pressure_field`.  A file named after the variable is
+    the only handle here, so this looks for the configured (or CAM's) name and
+    cannot fall back on CF metadata the way the history-file scan does.
+
+    The search is anchored on the case name, since several cases can share one
+    time series tree, and goes through :func:`find_ts_files`, so a GenTS archive
+    laid out as <component>/proc/tseries/<frequency>/ is found as well.  As with
+    the history-file version, nothing is added for a vertical dimension that no
+    requested variable sits on.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The ADF object whose variable list is being added to.
+    ts_dir : str or pathlib.Path
+        The time series directory to look in.
+    case_name : str
+        The case whose time series these are; time series file names start with
+        it.
+    hist_strs : str or list of str, optional
+        The history stream(s) configured for the case, which narrow the search
+        further.  Any stream is accepted when this is left out.
+
+    Returns
+    -------
+    list of str
+        The names added, empty when there was nothing to add.
+    """
+    names = adf.get_basic_info("pressure_field_names")
+    if names is False:
+        return []
+    streams = as_hist_str_list(hist_strs) or ["*"]
+    wanted = list(adf.diag_var_list)
+    added = []
+    for level_dim in ("lev", "ilev"):
+        name = pressure_field_name(level_dim, names)
+        if not name or name in adf.diag_var_list:
+            continue
+        patterns = [f"{case_name}.{stream}.{name}.*.nc" for stream in streams]
+        # Flat first for every stream, then one recursive pass: a nested GenTS
+        # tree is worth walking once, but not once per pattern.
+        found = []
+        for recursive in (False, True):
+            for pattern in patterns:
+                found = find_ts_files(ts_dir, pattern, recursive=recursive)
+                if found:
+                    break
+                # End if
+            # End for
+            if found:
+                break
+            # End if
+        # End for
+        if not found:
+            continue
+        # End if
+        if not _ts_uses_level(ts_dir, case_name, streams, wanted, level_dim):
+            # There is a pressure field here, but nothing in this run sits on
+            # that vertical dimension, and a 3-D field is a whole climatology to
+            # compute.  The history-file path makes the same check.  Asked in
+            # this order, the cost is only paid when there is something to gain.
+            continue
+        # End if
+        msg = f"\t    INFO: Found a '{name}' time series for '{case_name}'; adding "
+        msg += "it to the variable list as the pressure field used to interpolate "
+        msg += "the model's vertical coordinate."
+        print(msg)
+        adf.add_diag_var(name)
+        added.append(name)
+    # End for
+    return added
+
+
+def mask_land_or_ocean(arr, msk, use_nan=False):
+    """Apply a land or ocean mask to provided variable.
+
+    Parameters
+    ----------
+    arr : xarray.DataArray
+        the xarray variable to apply the mask to.
+    msk : xarray.DataArray
+        the xarray variable that contains the land or ocean mask,
+        assumed to be the same shape as "arr".
+    use_nan : bool, optional
+        argument for whether to set the missing values
+        to np.nan values instead of the defaul "-999." values.
+
+    Returns
+    -------
+    arr : xarray.DataArray
+        Same as input `arr` but masked as specified.
+    """
+
+    if use_nan:
+        missing_value = np.nan
+    else:
+        missing_value = -999.0
+    # End if
+
+    arr = xr.where(msk >= 0.9, arr, missing_value, keep_attrs=True)
+    arr.attrs["missing_value"] = missing_value
+    return arr
+
+
+#######
+
+
+def global_average(fld, wgt, verbose=False):
+    """A simple, pure numpy global average.
+
+    Parameters
+    ----------
+    fld : np.ndarray
+        an input ndarray
+    wgt : np.ndarray
+        a 1-dimensional array of weights, should be same size as one dimension of `fld`
+    verbose : bool, optional
+        prints information when `True`
+
+    Returns
+    -------
+    weighted average of `fld`
+    """
+
+    s = fld.shape
+    for i in range(len(s)):
+        if np.size(fld, i) == len(wgt):
+            a = i
+            break
+    fld2 = np.ma.masked_invalid(fld)
+    if verbose:
+        print(
+            "(global_average)-- fraction of mask that is True: "
+            f"{np.count_nonzero(fld2.mask) / np.size(fld2)}"
+        )
+        print(
+            f"(global_average)-- apply ma.average along axis = {a} // validate: {fld2.shape}"
+        )
+    avg1 = np.ma.average(fld2, axis=a, weights=wgt)
+
+    return np.ma.average(avg1)
+
+
+def spatial_average(indata, weights=None, spatial_dims=None):
+    """Compute spatial average.
+
+    Parameters
+    ----------
+    indata : xr.DataArray
+        input data
+    weights : np.ndarray or xr.DataArray, optional
+        the weights to apply, see Notes for default behavior
+    spatial_dims : list, optional
+        list of dimensions to average, see Notes for default behavior
+
+    Returns
+    -------
+    xr.DataArray
+        weighted average of `indata`
+
+    Notes
+    -----
+    When `weights` is not provided, tries to find sensible values.
+    If there is a 'lat' dimension, use `cos(lat)`.
+    If there is a 'ncol' dimension, looks for `area` in `indata`.
+    Otherwise, set to equal weights.
+
+    Makes an attempt to identify the spatial variables when `spatial_dims` is None.
+    Will average over `ncol` if present, and then will check for `lat` and `lon`.
+    When none of those three are found, raise an AdfError.
+    """
+    if weights is None:
+        # Calculate spatial weights:
+        if "lat" in indata.coords:
+            weights = np.cos(np.deg2rad(indata.lat))
+            weights.name = "weights"
+        elif "ncol" in indata.dims:
+            if "area" in indata:
+                warnings.warn(
+                    "area variable being used to generated normalized weights."
+                )
+                weights = indata["area"] / indata["area"].sum()
+            else:
+                warnings.warn(
+                    "\t  We need a way to get area variable. Using equal weights."
+                )
+                weights = xr.DataArray(1.0)
+            weights.name = "weights"
+        else:
+            weights = xr.DataArray(1.0)
+            weights.name = "weights"
+            warnings.warn(
+                "Un-recognized spatial dimensions: using equal weights for all grid points."
+            )
+        # End if
+    # End if
+
+    # Apply weights to input data:
+    weighted = indata.weighted(weights)
+
+    # we want to average over all non-time dimensions
+    if spatial_dims is None:
+        if "ncol" in indata.dims:
+            spatial_dims = ["ncol"]
+        else:
+            spatial_dims = [
+                dimname
+                for dimname in indata.dims
+                if (("lat" in dimname.lower()) or ("lon" in dimname.lower()))
+            ]
+
+    if not spatial_dims:
+        # Scripts using this function likely expect the horizontal dimensions
+        # to be removed via the application of the mean. So in order to avoid
+        # possibly unexpected behavior due to arrays being incorrectly dimensioned
+        # (which could be difficult to debug) the ADF should die here:
+        emsg = "spatial_average: No spatial dimensions were identified,"
+        emsg += " so can not perform average."
+        raise AdfError(emsg)
+
+    return weighted.mean(dim=spatial_dims, keep_attrs=True)
+
+
+def wgt_rmse(fld1, fld2, wgt):
+    """Calculate the area-weighted RMSE.
+
+    Parameters
+    ----------
+    fld1, fld2 : array-like
+        2-dimensional spatial fields with the same shape.
+        They can be xarray DataArray or numpy arrays.
+    wgt : array-like
+        the weight vector, expected to be 1-dimensional,
+        matching length of one dimension of the data.
+
+    Returns
+    -------
+    float
+        root mean squared error
+
+    Notes:
+    ```rmse = sqrt( mean( (fld1 - fld2)**2 ) )```
+    """
+    assert len(fld1.shape) == 2, "Input fields must have exactly two dimensions."
+    assert fld1.shape == fld2.shape, "Input fields must have the same array shape."
+    # in case these fields are in dask arrays, compute them now.
+    if hasattr(fld1, "compute"):
+        fld1 = fld1.compute()
+    if hasattr(fld2, "compute"):
+        fld2 = fld2.compute()
+    if isinstance(fld1, xr.DataArray) and isinstance(fld2, xr.DataArray):
+        return (np.sqrt(((fld1 - fld2) ** 2).weighted(wgt).mean())).values.item()
+    check = [len(wgt) == s for s in fld1.shape]
+    if ~np.any(check):
+        raise IOError(
+            f"Sorry, weight array has shape {wgt.shape} which is not compatible "
+            f"with data of shape {fld1.shape}"
+        )
+    check = [len(wgt) != s for s in fld1.shape]
+    dimsize = fld1.shape[
+        np.argwhere(check).item()
+    ]  # want to get the dimension length for the dim that does not match the size of wgt
+    warray = np.tile(
+        wgt, (dimsize, 1)
+    ).transpose()  # May need more logic to ensure shape is correct.
+    warray = warray / np.sum(warray)  # normalize
+    wmse = np.sum(warray * (fld1 - fld2) ** 2)
+    return np.sqrt(wmse).item()
+
+
+#######
+# Time-weighted averaging
+
+
+def annual_mean(data, whole_years=False, time_name="time"):
+    """Calculate annual averages from monthly time series data.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        monthly data values with temporal dimension
+    whole_years : bool, optional
+        whether to restrict endpoints of the average to
+        start at first January and end at last December
+    time_name : str, optional
+        name of the time dimension, defaults to `time`
+
+    Returns
+    -------
+    result : xr.DataArray or xr.Dataset
+        `data` reduced to annual averages
+
+    Notes
+    -----
+    This function assumes monthly data, and weights the average by the
+    number of days in each month.
+
+    `result` includes an attribute that reports the date range used for the average.
+    """
+    assert (
+        time_name in data.coords
+    ), f"Did not find the expected time coordinate '{time_name}' in the data"
+    if whole_years:
+        first_january = np.argwhere((data.time.dt.month == 1).values)[0].item()
+        last_december = np.argwhere((data.time.dt.month == 12).values)[-1].item()
+        data_to_avg = data.isel(
+            time=slice(first_january, last_december + 1)
+        )  # PLUS 1 BECAUSE SLICE DOES NOT INCLUDE END POINT
+    else:
+        data_to_avg = data
+    date_range_string = f"{data_to_avg['time'][0]} -- {data_to_avg['time'][-1]}"
+
+    # this provides the normalized monthly weights in each year
+    # -- do it for each year to allow for non-standard calendars (360-day)
+    # -- and also to provision for data with leap years
+    days_gb = data_to_avg.time.dt.daysinmonth.groupby("time.year").map(
+        lambda x: x / x.sum()
+    )
+    # weighted average with normalized weights: <x> = SUM x_i * w_i  (implied division by SUM w_i)
+    result = (data_to_avg * days_gb).groupby("time.year").sum(dim="time")
+    result.attrs["averaging_period"] = date_range_string
+    result.attrs["units"] = data.attrs.get("units", None)
+    return result
+
+
+def seasonal_mean(data, season=None, is_climo=None):
+    """Calculates the time-weighted seasonal average (or average over all time).
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+        data to be averaged
+    season : str, optional
+        the season to extract from `data`
+        If season is `ANN` or None, average all available time.
+    is_climo : bool, optional
+        If True, expects data to have time or month dimenion of size 12.
+        If False, then 'time' must be a coordinate,
+        and the `time.dt.days_in_month` attribute must be available.
+
+    Returns
+    -------
+    xarray.DataArray or xarray.Dataset
+        the average of `data` in season `season`
+
+    Notes
+    -----
+    If the data is a climatology, the code will make an attempt to understand the time or month
+    dimension, but will assume that it is ordered from January to December.
+    If the data is a climatology and is just a numpy array with one dimension that is size 12,
+    it will assume that dimension is time running from January to December.
+    """
+    if season is not None:
+        assert season in [
+            "ANN",
+            "DJF",
+            "JJA",
+            "MAM",
+            "SON",
+        ], f"Unrecognized season string provided: '{season}'"
+    elif season is None:
+        season = "ANN"
+
+    if (
+        isinstance(data, (xr.DataArray, xr.Dataset))
+        and "time" in data.coords
+        and "time" not in data.dims
+    ):
+        # Time-invariant field: a scalar time coordinate, which is what is left
+        # after squeeze() collapses the length-1 time dimension of a
+        # single-timestamp file (e.g. a land-sea mask). Every season is the same
+        # field, so there is nothing to average, and .sel(time=...) below would
+        # fail with "no index found for coordinate 'time'".
+        return data.drop_vars("time")
+
+    try:
+        # Check for a decoded time dimension (the value itself is not needed):
+        _ = data.time.dt.days_in_month
+    except (AttributeError, TypeError) as err:
+        # do our best to determine the temporal dimension and assign weights
+        if not is_climo:
+            raise ValueError(
+                "Non-climo file provided, but without a decoded time dimension."
+            ) from err
+        # CLIMO file: try to determine which dimension is month
+        has_time = False
+        if isinstance(data, xr.DataArray):
+            has_time = "time" in data.dims
+            if not has_time:
+                if "month" in data.dims:
+                    data = data.rename({"month": "time"})
+                    has_time = True
+        if not has_time:
+            # this might happen if a pure numpy array gets passed in
+            # --> assumes ordered January to December.
+            assert (12 in data.shape) and (data.shape.count(12) == 1), (
+                f"Sorry, {data.shape.count(12)} dimensions have size 12, making "
+                "determination of which dimension is month ambiguous. Please "
+                "provide a `time` or `month` dimension."
+            )
+            time_dim_num = data.shape.index(12)
+            fakedims = [f"dim{n}" for n in range(len(data.shape))]
+            fakedims[time_dim_num] = "time"
+            data = xr.DataArray(data, dims=fakedims, attrs=data.attrs)
+        timefix = pd.date_range(
+            start="1/1/1999", end="12/1/1999", freq="MS"
+        )  # generic time coordinate from a non-leap-year
+        data = data.assign_coords({"time": timefix})
+    # End try/except
+
+    data = data.sel(
+        time=data.time.dt.month.isin(seasons[season])
+    )  # directly take the months we want based on season kwarg
+    return data.weighted(data.time.dt.daysinmonth).mean(dim="time", keep_attrs=True)
+
+
+#######
+
+
+def domain_stats(data, domain):
+    """Provides statistics in specified region.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        data values on a 2-D `lat` by `lon` grid (no time or level dimension)
+    domain : list or tuple or numpy.ndarray
+        the domain specification as:
+        [west_longitude, east_longitude, south_latitude, north_latitude]
+        Longitudes can be given in either -180 to 180 or 0 to 360, whichever
+        the data uses.  If west is greater than east the region crosses
+        the 0/360 line, and a span of 360 degrees or more is the whole circle.
+
+    Returns
+    -------
+    x_region_mean : float
+        the regional area-weighted average
+    x_region_max : float
+        the maximum value in the region
+    x_region_min : float
+        the minimum value in the region
+
+    Notes
+    -----
+    The average is `spatial_average`, so it uses `cos(lat)` weights.
+    The region is picked with a mask, so latitude can run in either order.
+
+    See Also
+    --------
+    spatial_average
+
+    """
+    west, east, south, north = domain
+    # Compare longitudes on a common 0-360 basis, so that the data and the
+    # domain do not have to use the same convention:
+    lon = data["lon"] % 360
+    if east - west >= 360:
+        lon_mask = xr.ones_like(lon, dtype=bool)
+    elif (west % 360) <= (east % 360):
+        lon_mask = (lon >= west % 360) & (lon <= east % 360)
+    else:
+        lon_mask = (lon >= west % 360) | (lon <= east % 360)
+    lat_mask = (data["lat"] >= south) & (data["lat"] <= north)
+    x_region = data.where(lon_mask & lat_mask, drop=True)
+    x_region_mean = spatial_average(x_region).item()
+    x_region_min = x_region.min().item()
+    x_region_max = x_region.max().item()
+    return x_region_mean, x_region_max, x_region_min
+
+
+#
+#  -- vertical interpolation code --
+#
+
+
+def pres_from_hybrid(psfc, hya, hyb, p0=100000.0):
+    """Calculates pressure field
+
+    pressure derived with the formula:
+    ```p = a(k)*p0 + b(k)*ps```
+
+    Parameters
+    ----------
+    psfc
+        surface pressure
+    hya, hyb
+        hybrid-sigma A and B coefficients
+    p0 : optional
+        reference pressure, defaults to 100000 Pa
+
+    Returns
+    -------
+    pressure, size is same as `psfc` with `len(hya)` levels
+    """
+    return hya * p0 + hyb * psfc
+
+
+#####
+
+
+def vert_remap(x_mdl, p_mdl, plev):
+    """Apply simple 1-d interpolation to a field
+
+    Parameters
+    ----------
+    x_mdl : xarray.DataArray or numpy.ndarray
+        input data
+    p_mdl : xarray.DataArray or numpy.ndarray
+        pressure field, same shape as `x_mdl`
+    plev : xarray.DataArray or numpy.ndarray
+        the new pressures
+
+    Returns
+    -------
+    output
+        `x_mdl` interpolated to `plev`
+
+    Notes
+    -----
+    Interpolation done in log pressure
+    """
+
+    # Determine array shape of output array:
+    out_shape = (plev.shape[0], x_mdl.shape[1])
+
+    # Initialize interpolated output numpy array:
+    output = np.full(out_shape, np.nan)
+
+    # Perform 1-D interpolation in log-space:
+    for i in range(out_shape[1]):
+        output[:, i] = np.interp(np.log(plev), np.log(p_mdl[:, i]), x_mdl[:, i])
+    # End for
+
+    # Return interpolated output:
+    return output
+
+
+#####
+
+
+# "P0" is kept to match the CAM variable name, and callers pass it by keyword:
+# pylint: disable-next=too-many-positional-arguments
+def lev_to_plev(
+    data,
+    ps,
+    hyam,
+    hybm,
+    P0=100000.0,  # pylint: disable=invalid-name
+    new_levels=None,
+    convert_to_mb=False,
+):
+    """Interpolate model hybrid levels to specified pressure levels.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+    ps :
+        surface pressure
+    hyam, hybm :
+        hybrid-sigma A and B coefficients
+    P0 : float, optional
+        reference pressure, defaults to 100000 Pa
+    new_levels : numpy.ndarray, optional
+        1-D array containing pressure levels in Pascals (Pa).
+        If not specified, then the levels will be set
+        to the GeoCAT defaults, which are (in hPa):
+        `1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50,
+        30, 20, 10, 7, 5, 3, 2, 1`
+    convert_to_mb : bool, optional
+        If True, then vertical (lev) dimension will have
+        values of mb/hPa, otherwise the units are Pa.
+
+    Returns
+    -------
+    data_interp_rename
+        data interpolated to new pressure levels
+
+    Notes
+    -----
+    The function `interp_hybrid_to_pressure` used here is dask-enabled,
+    and so can potentially be sped-up via the use of a DASK cluster.
+    """
+
+    # Temporary print statement to notify users to ignore warning messages.
+    # This should be replaced by a debug-log stdout filter at some point:
+    print("Please ignore the interpolation warnings that follow!")
+
+    # Apply GeoCAT hybrid->pressure interpolation:
+    if new_levels is not None:
+        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(
+            data, ps, hyam, hybm, p0=P0, new_levels=new_levels
+        )
+    else:
+        data_interp = gcomp.interpolation.interp_hybrid_to_pressure(
+            data, ps, hyam, hybm, p0=P0
+        )
+
+    # data_interp may contain a dask array, which can cause
+    # trouble downstream with numpy functions, so call compute() here.
+    if hasattr(data_interp, "compute"):
+        data_interp = data_interp.compute()
+
+    # Rename vertical dimension back to "lev" in order to work with
+    # the ADF plotting functions:
+    data_interp_rename = data_interp.rename({"plev": "lev"})
+    attrs = data_interp_rename.attrs.copy()
+    lev_orig = data_interp_rename["lev"]
+    lev_orig_attrs = lev_orig.attrs.copy()
+
+    # Convert vertical dimension to mb/hPa, if requested:
+    if convert_to_mb:
+        lev_new = lev_orig / 100.0
+        lev_new.attrs = lev_orig_attrs
+        lev_new.name = "lev"
+        lev_new.attrs["units"] = "hPa"
+        lev_new.attrs["history"] = (
+            "converted to hPa by dividing by 100 in adf_utils.lev_to_plev"
+        )
+        data_interp_rename["lev"] = lev_new
+        data_interp_rename.attrs = attrs
+    else:
+        data_interp_rename.attrs["units"] = "Pa"
+        data_interp_rename.attrs["history"] = (
+            "Interpolated using GeoCAT, assume units of Pa in adf_utils.lev_to_plev"
+        )
+
+    return data_interp_rename
+
+
+#####
+
+
+def pmid_to_plev(data, pmid, new_levels=None, convert_to_mb=False):
+    """Interpolate data from hybrid-sigma levels to isobaric levels.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        field with a 'lev' coordinate
+    pmid : xarray.DataArray
+        the pressure field (Pa), same shape as `data`
+    new_levels : optional
+        the output pressure levels (Pa), defaults to standard levels
+    convert_to_mb : bool, optional
+        flag to convert output to mb (i.e., hPa), defaults to False
+
+    Returns
+    -------
+    output : xarray.DataArray
+        `data` interpolated onto `new_levels`
+    """
+
+    # determine pressure levels to interpolate to:
+    if new_levels is None:
+        pnew = 100.0 * np.array(
+            [
+                1000,
+                925,
+                850,
+                700,
+                500,
+                400,
+                300,
+                250,
+                200,
+                150,
+                100,
+                70,
+                50,
+                30,
+                20,
+                10,
+                7,
+                5,
+                3,
+                2,
+                1,
+            ]
+        )  # mandatory levels, converted to Pa
+    else:
+        pnew = new_levels
+    # End if
+
+    # save name of DataArray:
+    data_name = data.name
+
+    # reshape data and pressure assuming "lev" is the name of the coordinate
+    zdims = [i for i in data.dims if i != "lev"]
+    dstack = data.stack(z=zdims)
+    pstack = pmid.stack(z=zdims)
+    output = vert_remap(dstack.values, pstack.values, pnew)
+    output = xr.DataArray(
+        output,
+        name=data_name,
+        dims=("lev", "z"),
+        coords={"lev": pnew, "z": pstack["z"]},
+    )
+    output = output.unstack()
+
+    # convert vertical dimension to mb/hPa, if requested:
+    if convert_to_mb:
+        output["lev"] = output["lev"] / 100.0
+    # End if
+
+    # Return interpolated output:
+    return output
+
+
+def plev_to_plev(data, new_levels=None, convert_to_mb=False):
+    """Interpolate data from isobaric levels to new isobaric levels.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        field with a vertical pressure coordinate (e.g., 'lev', 'plev', 'pressure')
+    new_levels : optional
+        the output pressure levels (Pa), defaults to standard levels
+    convert_to_mb : bool, optional
+        flag to convert output to mb (i.e., hPa), defaults to False
+
+    Returns
+    -------
+    output : xarray.DataArray
+        `data` interpolated onto `new_levels`
+    """
+
+    # Try to identify the vertical coordinate name
+    vert_coord_names = ["lev", "plev", "pressure"]
+    vert_coord = None
+    for name in vert_coord_names:
+        if name in data.dims:
+            vert_coord = name
+            break
+
+    if vert_coord is None:
+        raise AdfError(
+            f"plev_to_plev: Could not find a vertical coordinate in {vert_coord_names}."
+        )
+
+    # determine pressure levels to interpolate to:
+    if new_levels is None:
+        pnew = 100.0 * np.array(
+            [
+                1000,
+                925,
+                850,
+                700,
+                500,
+                400,
+                300,
+                250,
+                200,
+                150,
+                100,
+                70,
+                50,
+                30,
+                20,
+                10,
+                7,
+                5,
+                3,
+                2,
+                1,
+            ]
+        )  # mandatory levels, converted to Pa
+    else:
+        pnew = new_levels
+    # End if
+
+    # save name of DataArray:
+    data_name = data.name
+
+    # vert_remap uses np.interp, which needs the source pressures increasing:
+    if data[vert_coord][0] > data[vert_coord][-1]:
+        data = data.isel({vert_coord: slice(None, None, -1)})
+
+    # Create a pressure field that matches the data shape
+    p_mdl = data[vert_coord] * xr.ones_like(data)
+
+    # reshape data and pressure
+    zdims = [i for i in data.dims if i != vert_coord]
+    dstack = data.stack(z=zdims)
+    pstack = p_mdl.stack(z=zdims)
+
+    # Need to transpose to (vert_coord, z)
+    dstack = dstack.transpose(vert_coord, "z")
+    pstack = pstack.transpose(vert_coord, "z")
+
+    output = vert_remap(dstack.values, pstack.values, pnew)
+    output = xr.DataArray(
+        output,
+        name=data_name,
+        dims=("lev", "z"),
+        coords={"lev": pnew, "z": pstack["z"]},
+    )
+    output = output.unstack()
+
+    # convert vertical dimension to mb/hPa, if requested:
+    if convert_to_mb:
+        ## DEAL WITH METADATA BETTER HERE
+        output["lev"] = output["lev"] / 100.0
+    # End if
+
+    # Return interpolated output:
+    return output
+
+
+def create_clean_grid(da):
+    """
+    Creates a minimal, CF-compliant xarray Dataset for xesmf from a DataArray.
+    Used by both the regridder and the Taylor diagram's derived variables.
+    """
+    if isinstance(da, xr.DataArray):
+        # name it if it isn't: only the coordinates are used below, but
+        # to_dataset() refuses an unnamed DataArray
+        ds = da.to_dataset(name=da.name or "field")
+    else:
+        ds = da
+
+    # Extract raw values
+    lat_centers = ds.lat.values.astype(np.float64)
+    lon_centers = ds.lon.values.astype(np.float64)
+
+    if np.any(np.isnan(lat_centers)) or np.any(np.isinf(lat_centers)):
+        warnings.warn("\t    WARNING: Found NaNs or Infs in latitude centers!")
+        lat_centers = np.nan_to_num(lat_centers, nan=0.0, posinf=90.0, neginf=-90.0)
+
+    # NOTE: do NOT nudge the centers off the poles. These become the output
+    # coordinate, and a target grid at -89.999999 instead of -90 will not align
+    # with the reference in xarray arithmetic, silently dropping both polar rows
+    # from every difference field.
+
+    # Build basic Dataset
+    clean_ds = xr.Dataset(
+        coords={
+            "lat": (
+                ["lat"],
+                lat_centers,
+                {"units": "degrees_north", "standard_name": "latitude"},
+            ),
+            "lon": (
+                ["lon"],
+                lon_centers,
+                {"units": "degrees_east", "standard_name": "longitude"},
+            ),
+        }
+    )
+
+    # Add Bounds as vertices if they exist
+    # Check for various possible bounds names
+    lat_bnds_names = ["lat_bnds", "lat_bounds", "latitude_bnds", "latitude_bounds"]
+    lon_bnds_names = ["lon_bnds", "lon_bounds", "longitude_bnds", "longitude_bounds"]
+
+    lat_bnds = None
+    lon_bnds = None
+
+    for name in lat_bnds_names:
+        if name in ds:
+            lat_bnds = ds[name]
+            break
+
+    for name in lon_bnds_names:
+        if name in ds:
+            lon_bnds = ds[name]
+            break
+
+    if lat_bnds is not None and lon_bnds is not None:
+        lat_v = np.append(lat_bnds.values[:, 0], lat_bnds.values[-1, 1])
+        lon_v = np.append(lon_bnds.values[:, 0], lon_bnds.values[-1, 1])
+    else:
+        # CAM history/climo files carry no bounds, but conservative regridding needs
+        # them, so infer cell edges as the midpoints between centers:
+        lat_v = _edges_from_centers(lat_centers)
+        lon_v = _edges_from_centers(lon_centers)
+
+    # Cell edges may be extrapolated past the poles; clamp them to the valid range.
+    # This is the bounds array, not the centers, so it does not affect the output grid.
+    lat_v = np.clip(lat_v, -90.0, 90.0).astype(np.float64)
+
+    # xesmf looks for 'lat_b' and 'lon_b' in the dataset for conservative regridding
+    clean_ds["lat_b"] = (["lat_f"], lat_v, {"units": "degrees_north"})
+    clean_ds["lon_b"] = (["lon_f"], lon_v.astype(np.float64), {"units": "degrees_east"})
+    return clean_ds
+
+
+def _edges_from_centers(centers):
+    """Cell edges midway between centers, with the outer two extrapolated."""
+    mids = (centers[:-1] + centers[1:]) / 2.0
+    return np.concatenate(
+        [[2 * centers[0] - mids[0]], mids, [2 * centers[-1] - mids[-1]]]
+    )
+
+
+def validate_dims(fld, list_of_dims):
+    """Check if specified dimensions are in a DataArray.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray
+        field to check for named dimensions
+    list_of_dims : list
+        list of strings that specifiy the dimensions to check for
+
+    Returns
+    -------
+    dict
+        dict with keys that are "has_{x}" where x is the name from
+        `list_of_dims` and values that are boolean
+
+    """
+    if not isinstance(list_of_dims, list):
+        list_of_dims = list(list_of_dims)
+    return {"_".join(["has", f"{v}"]): (v in fld.dims) for v in list_of_dims}
+
+
+def lat_lon_validate_dims(fld):
+    """Check if input field has lat and lon.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray
+        data with named dimensions
+
+    Returns
+    -------
+    bool
+        True if lat and lon are both dimensions, False otherwise.
+
+    See Also
+    --------
+    validate_dims
+    """
+    # note: we can only handle variables that reduce to (lat,lon)
+    if len(fld.dims) > 3:
+        return False
+    validate = validate_dims(fld, ["lat", "lon"])
+    return all(validate.values())
+
+
+def zm_validate_dims(fld):
+    """Check for dimensions for zonal average.
+
+    Looks for dimensions called 'lev' and 'lat'.
+
+
+    Parameters
+    ----------
+    fld : xarray.DataArray
+        field to check for lat and/or lev dimensions
+    Returns
+    -------
+    tuple
+        (has_lat, has_lev) each are bool
+    None
+        If 'lat' is not in dimensions, returns None.
+    """
+    # note: we can only handle variables that reduce to (lev, lat) or (lat,)
+    if len(fld.dims) > 4:
+        print(f"Sorry, too many dimensions: {fld.dims}")
+        return None
+    validate = validate_dims(fld, ["lev", "lat"])
+    has_lev, has_lat = validate["has_lev"], validate["has_lat"]
+    return has_lat, has_lev
+
+
+def zonal_mean_xr(fld):
+    """Average over all dimensions except `lev` and `lat`."""
+    if isinstance(fld, xr.DataArray):
+        d = fld.dims
+        davgovr = [dim for dim in d if dim not in ("lev", "lat")]
+    else:
+        raise IOError("zonal_mean_xr requires Xarray DataArray input.")
+    fld = fld.mean(dim=davgovr, keep_attrs=True)
+    return fld
+
+
+#####################
+# END HELPER FUNCTIONS
