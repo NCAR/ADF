@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 from pathlib import Path
-import subprocess
+import tempfile
 from datetime import datetime
 import itertools
 import pandas as pd
@@ -243,6 +243,23 @@ def aerosol_gas_tables(adfobj, trop_val=None, Tropospheric=None ,Climate=None , 
         utils.pick_hist_str(cam_case_str, substrings) for cam_case_str in hist_strs
     ]
 
+    # Check the options for saving the annual mean files before any calculations,
+    # so a missing 'budget_table_save_loc' stops the script right away
+    if Climate:
+        budget_opts = [utils.budget_table_options(adfobj, case_names[i], case_idx=i,
+                                                  baseline=(i >= adfobj.num_cases))
+                       for i in range(len(case_names))]
+    else:
+        # The 'budget_table_*' options are only used with Climate: True
+        save_opts = adfobj.get_cam_info("budget_table_save") or [None] * adfobj.num_cases
+        if not adfobj.compare_obs:
+            save_opts = save_opts + [adfobj.get_baseline_info("budget_table_save")]
+        for case_name, save in zip(case_names, save_opts):
+            if save:
+                msg = f"\t INFO: 'budget_table_save' is set for '{case_name}', but Climate is False,"
+                msg += " so no annual mean file is made or read."
+                print(msg)
+
     # Create path object for the CAM history file(s) location:
     data_dirs = []
     for case_idx,case in enumerate(nicknames_list):
@@ -318,26 +335,14 @@ def aerosol_gas_tables(adfobj, trop_val=None, Tropospheric=None ,Climate=None , 
         # Gather dictionary data for current case
         if Climate:
             # NOTE: The calculations based on annual mean files
-            Files_str= [str(f) for f in Files]
+            # The file is kept in 'budget_table_save_loc' if 'budget_table_save' is true,
+            # otherwise it is removed with the temporary directory once it is read
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                mean_file = utils.budget_annual_mean_file(adfobj, case_names[i], Files, case_hist_strs[i],
+                                                          start_years[i], end_years[i],
+                                                          tmp_dir=tmp_dir, **budget_opts[i])
 
-            #Special ADF variable which contains the output paths for
-            #all generated plots and tables for each case:
-            output_locs = adfobj.plot_location
-            #Convert output location string to a Path object:
-            output_location = Path(output_locs[0])
-
-            cmd = ["ncra", "-O", *Files_str, f"{output_location}/{case}_ANN.nc"]
-            try:
-                subprocess.run(cmd, check=True, capture_output=True, text=True)
-            except FileNotFoundError:
-                errmsg = "Error: 'ncra' command not found. Please install NCO utilities."
-                raise AdfError(errmsg)                
-            except subprocess.CalledProcessError as e:
-                errmsg = f"NCO Error (Exit Code {e.returncode}): {e.stderr}"
-                raise AdfError(errmsg)
-            File_mean=[f"{case}_ANN.nc"]
-
-            Dic_crit, Dic_scn_var_comp[case],Tropospheric,tropospheric_method = make_Dic_scn_var_comp(adfobj, VARIABLES, output_location, dic_SE, File_mean, ext1_SE, AEROSOLS,Tropospheric,trop_val)
+                Dic_crit, Dic_scn_var_comp[case],Tropospheric,tropospheric_method = make_Dic_scn_var_comp(adfobj, VARIABLES, mean_file.parent, dic_SE, [mean_file.name], ext1_SE, AEROSOLS,Tropospheric,trop_val)
         else:
             print(f'Using raw files instead of annual mean files.')
 
@@ -418,9 +423,15 @@ def list_files(adfobj, directory, start_year ,end_year, h_case):
     # Flattening the list of lists
     filenames = list(itertools.chain.from_iterable(sorted(all_filenames)))
     if len(filenames)==0:
-        msg = f"chem/aerosol tables, 'list_files':"
-        msg += f"\n\t - Directory '{directory}' has no outputs."
-        adfobj.debug_log(msg)
+        # The scripts need one of the 'cam.h0', 'cam.h0a' or 'cam.hm' streams;
+        # 'h_case' is empty when none of them is in the case's 'hist_str'
+        if h_case:
+            stream = f"'{h_case}' history files"
+        else:
+            stream = "files ('hist_str' has none of cam.h0, cam.h0a or cam.hm)"
+        errmsg = f"chem/aerosol tables: no {stream} for years"
+        errmsg += f" {int(start_year):04d}-{int(end_year)-1:04d} in '{directory}'."
+        raise AdfError(errmsg)
 
     return filenames
 #####
