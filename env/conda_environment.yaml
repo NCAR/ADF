@@ -1,4 +1,4 @@
-name: adf_v1.0.5
+name: adf_v1.0.6
 channels:
   - conda-forge
   - defaults
@@ -10,7 +10,7 @@ dependencies:
   - xarray=2024.1.1
   # 2025.6.0 is the first release with "UxDataArray.to_raster", which the
   # native-grid (unstructured) maps in lib/plotting_functions.py use.
-  - uxarray=2025.6.0
+  - uxarray=2026.10.0
   - matplotlib=3.9.4
   - pandas=2.2.0
   - pint=0.23

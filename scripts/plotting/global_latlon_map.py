@@ -89,8 +89,11 @@ def global_latlon_map(adfobj):
     
     # Process regular variables
     for var in adfobj.plot_var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - lat-lon plot for {var}")
+
         process_variable(adfobj, var, **config)
-        
+
     # Handle AOD special case
     if "AODVISdn" in adfobj.diag_var_list:
         print("\tRunning AOD panel diagnostics against MERRA and MODIS...")
