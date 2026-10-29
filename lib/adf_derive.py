@@ -743,9 +743,6 @@ def derive_variable(
         elif var == "WUE":
             der_val = ds["GPP"] / ds["FCTR"].where(ds["FCTR"] > 0)
             der_long_name = "Water use efficiency (GPP / FCTR)"
-        elif var == "BURNED_AREA":
-            der_val = ds["FAREA_BURNED"] * ds["area"] * ds["landfrac"]
-            der_long_name = "Burned area (FAREA_BURNED * area * landfrac)"
         elif var in _ISOTOPE_VARS:
             der_val = _isotope_permil(ds, var)
             der_long_name = f"{var[:3]} of {var[4:-3]} (per mil)"
