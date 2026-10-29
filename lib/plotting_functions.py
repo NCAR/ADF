@@ -350,6 +350,16 @@ def make_polar_plot(
         a.set_boundary(circle, transform=a.transAxes)
         # Set before plotting, so native-grid rasters cover only the domain
         a.set_extent(domain, ccrs.PlateCarree())
+        a.coastlines()
+        a.gridlines(
+            draw_labels=False,
+            crs=ccrs.PlateCarree(),
+            lw=1,
+            color="gray",
+            y_inline=True,
+            xlocs=range(-180, 180, 90),
+            ylocs=range(-80, 90, 10),
+        )
 
     means = []
     mins = []
@@ -466,18 +476,6 @@ def make_polar_plot(
 
     axs[2].set_title("Test % Diff Baseline", loc="left", fontsize=8, fontweight="bold")
     axs[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
-
-    for a in axs:
-        a.coastlines()
-        a.gridlines(
-            draw_labels=False,
-            crs=ccrs.PlateCarree(),
-            lw=1,
-            color="gray",
-            y_inline=True,
-            xlocs=range(-180, 180, 90),
-            ylocs=range(-80, 90, 10),
-        )
 
     # __COLORBARS__
     cb_mean_ax = inset_axes(
