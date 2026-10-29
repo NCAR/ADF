@@ -519,43 +519,26 @@ class AdfData:  # pylint: disable=too-many-public-methods
     # ------------------
 
     # Test case(s)
-    def load_climo_ds(self, case, variablename):
-        """Return Dataset from climo file; applies scale factor and offset to `variablename`."""
-        add_offset, scale_factor = self.get_value_converters(case, variablename)
-        fils = self.get_climo_file(case, variablename)
+    def load_climo_dataset(self, case, field, apply_scaling=True, **kwargs):
+        """Return a Dataset from a test case's climo file of `field`.
+
+        `field` is converted with the variable defaults (see
+        :meth:`apply_conversion`) unless `apply_scaling` is False; a file
+        already holding converted values is not converted again.  Extra
+        keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``) are
+        passed on to :meth:`load_dataset`.
+        """
+        fils = self.get_climo_file(case, field)
         if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find climo file for case: "
-                f"{case}, variable: {variablename}"
+                f"{case}, variable: {field}"
             )
             return None
-        ds = self.load_dataset(fils)
-        if ds is None:
-            return None
-        if (scale_factor != 1 or add_offset != 0) and self.already_converted(
-            ds[variablename].attrs, variablename
-        ):
-            self.adf.debug_log(
-                f"\t    INFO: '{variablename}' climo file is already"
-                " in converted units; not converting again."
-            )
-            scale_factor = 1
-            add_offset = 0
-        # End if
-        # xarray arithmetic drops attrs, so carry them across by hand -- otherwise
-        # the regridded files lose 'units' and the plotting scripts KeyError on it.
-        attrs = ds[variablename].attrs.copy()
-        ds[variablename] = ds[variablename] * scale_factor + add_offset
-        ds[variablename].attrs = attrs
-        if scale_factor != 1 or add_offset != 0:
-            new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
-            if new_unit:
-                ds[variablename].attrs["units"] = new_unit
-            # Stamp on any conversion, not only one that renames the units:
-            # TAUX/TAUY are scaled by -1 with no "new_unit", and an unstamped
-            # file is indistinguishable from one that was never converted.
-            # int, not bool: netCDF4 cannot store a Python bool as an attribute
-            ds[variablename].attrs["transformed"] = 1
+        ds = self.load_dataset(fils, **kwargs)
+        if ds is None or not apply_scaling:
+            return ds
+        ds[field] = self.apply_conversion(ds[field], field, case)
         return ds
 
     def load_climo_da(self, case, variablename, apply_scaling=True):
@@ -569,24 +552,6 @@ class AdfData:  # pylint: disable=too-many-public-methods
         return self.load_da(
             fils, variablename, add_offset=add_offset, scale_factor=scale_factor
         )
-
-    def load_climo_file(self, case, variablename):
-        """Return Dataset for climo of variablename"""
-        fils = self.get_climo_file(case, variablename)
-        if not fils:
-            warnings.warn(
-                "\t    WARNING: Did not find climo file for variable: "
-                f"{variablename}. Will try to skip."
-            )
-            return None
-        return self.load_dataset(fils)
-
-    def load_climo_dataset(self, case, field, **kwargs):
-        """Return a data set to be used as reference (aka baseline) for variable field."""
-        fils = self.get_climo_file(case, field)
-        if not fils:
-            return None
-        return self.load_dataset(fils, **kwargs)
 
     @staticmethod
     def _first_file(loc, stems, years):
@@ -640,45 +605,25 @@ class AdfData:  # pylint: disable=too-many-public-methods
         )
 
     # Reference case (baseline/obs)
-    def load_reference_climo_ds(self, case, variablename, apply_scaling=True):
-        """Return Dataset from reference climo file.
+    def load_reference_climo_dataset(self, case, field, apply_scaling=True, **kwargs):
+        """Return a Dataset from the reference (aka baseline) climo file of `field`.
 
-        Applies the scale factor and offset to ``variablename``.
+        As :meth:`load_climo_dataset`.  The variable is converted under its
+        name in the reference file, which for observations need not be `field`;
+        `case` decides whether the observation converters are used.
         """
-        add_offset, scale_factor = self.get_value_converters(case, variablename)
-        fils = self.get_reference_climo_file(variablename)
+        fils = self.get_reference_climo_file(field)
         if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find reference climo file for "
-                f"variable: {variablename}"
+                f"variable: {field}"
             )
             return None
-        ds = self.load_dataset(fils)
-        if ds is None:
-            return None
-        vname = self.ref_var_nam[variablename]  # name of variable in the reference data
-        # Check if already transformed.  The units comparison was a literal
-        # string match, which almost never fired: an observation file says
-        # "W/m2" where the defaults say "Wm$^{-2}$".
-        if self.already_converted(ds[vname].attrs, variablename):
-            apply_scaling = False
-        if not apply_scaling:
-            add_offset = 0
-            scale_factor = 1
-
-        attrs = ds[vname].attrs.copy()
-        ds[vname] = ds[vname] * scale_factor + add_offset
-        ds[vname].attrs = attrs
-        if scale_factor != 1 or add_offset != 0:
-            # Rename the units as load_climo_ds does for the test cases.  Without
-            # this the reference kept the units it arrived with while holding
-            # converted values, so the file said 'm/s' over data in mm/day.
-            new_unit = self.adf.variable_defaults.get(variablename, {}).get("new_unit")
-            if new_unit:
-                ds[vname].attrs["units"] = new_unit
-            # End if
-            # int, not bool: netCDF4 cannot store a Python bool as an attribute
-            ds[vname].attrs["transformed"] = 1
+        ds = self.load_dataset(fils, **kwargs)
+        if ds is None or not apply_scaling:
+            return ds
+        vname = self.ref_var_nam[field]  # name of variable in the reference data
+        ds[vname] = self.apply_conversion(ds[vname], field, case)
         return ds
 
     def load_reference_climo_da(self, case, variablename, apply_scaling=True, **kwargs):
@@ -724,13 +669,6 @@ class AdfData:  # pylint: disable=too-many-public-methods
         ]
         stems.append(f"{self.ref_case_label}_{var}_climo")
         return self._first_file(ref_loc, stems, self._ref_climo_years())
-
-    def load_reference_climo_dataset(self, case, field, **kwargs):
-        """Return a data set to be used as reference (aka baseline) for variable field."""
-        fils = self.get_reference_climo_file(field)
-        if not fils:
-            return None
-        return self.load_dataset(fils, **kwargs)
 
     # ------------------
 
@@ -1505,8 +1443,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
             ).get("new_unit")
             if new_unit:
                 da.attrs["units"] = new_unit
-            # Stamp on any conversion, not only one that renames the units --
-            # see load_climo_ds.
+            # Stamp on any conversion, not only one that renames the units:
+            # TAUX/TAUY are scaled by -1 with no "new_unit", and an unstamped
+            # file is indistinguishable from one that was never converted.
             # int, not bool: netCDF4 cannot store a Python bool as an attribute
             da.attrs["transformed"] = 1
         return da

@@ -408,7 +408,7 @@ def _load_ref_ds(adf, variable, test_case=None):
         adf.data.ref_labels[variable], variable, **kwargs
     )
     if ds is None:
-        ds = adf.data.load_reference_climo_ds(adf.data.ref_case_label, variable)
+        ds = adf.data.load_reference_climo_dataset(adf.data.ref_case_label, variable)
     return ds
 
 

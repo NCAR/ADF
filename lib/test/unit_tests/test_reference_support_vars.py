@@ -2,7 +2,7 @@
 
 AdfData reads the variable list once, when it is built, so anything added later
 -- the pressure field the regridder prefers -- is missing from its reference
-bookkeeping.  load_reference_climo_ds indexes that bookkeeping as soon as it
+bookkeeping.  load_reference_climo_dataset indexes that bookkeeping as soon as it
 finds a climo file, and finding one is a filename glob, so a model-vs-baseline
 run whose baseline also writes PMID died with KeyError: 'PMID' before this was
 guarded.  Model-vs-obs runs never reach the code at all, which is why it went
@@ -36,7 +36,7 @@ class FakeData:
         self.ref_var_nam = {v: v for v in ref_vars}
         self.ref_labels = {v: "baseline" for v in ref_vars}
 
-    def load_reference_climo_ds(self, case, variablename):
+    def load_reference_climo_dataset(self, case, variablename):
         # The real one globs for a file first and only then indexes
         # ref_var_nam, so a missing entry raises rather than returning None.
         return {"dummy": self.ref_var_nam[variablename]}

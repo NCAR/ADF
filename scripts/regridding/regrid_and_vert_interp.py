@@ -151,8 +151,8 @@ def regrid_and_vert_interp(adf):
                 regridded_file_loc.unlink()
 
 
-            model_ds = adf.data.load_climo_ds(case_name, var)
-            ref_ds = adf.data.load_reference_climo_ds(adf.data.ref_case_label, var)
+            model_ds = adf.data.load_climo_dataset(case_name, var)
+            ref_ds = adf.data.load_reference_climo_dataset(adf.data.ref_case_label, var)
             if not ref_ds:
                 # The reference only supplies the target grid (the vertical
                 # target is the fixed pressure levels), and its regridded file
@@ -440,7 +440,7 @@ def _find_surface_pressure(dset, adf, case=None):
         fils = adf.data.get_reference_climo_file('PS')
         ps_ds = adf.data.load_dataset(fils) if fils else None
     else:
-        ps_ds = adf.data.load_climo_ds(case, 'PS')
+        ps_ds = adf.data.load_climo_dataset(case, 'PS')
     ps_ds = _to_latlon(adf, ps_ds, 'PS', case_name=case)
     if ps_ds is None or 'PS' not in ps_ds:
         return None
@@ -478,7 +478,7 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
         fils = adf.data.get_reference_climo_file(name)
         pres_ds = adf.data.load_dataset(fils) if fils else None
     else:
-        pres_ds = adf.data.load_climo_ds(case, name)
+        pres_ds = adf.data.load_climo_dataset(case, name)
     pres_ds = _to_latlon(adf, pres_ds, name, case_name=case)
     if pres_ds is None or name not in pres_ds:
         return None
@@ -545,7 +545,7 @@ def _write_reference_files(
             # it, so it is not part of the reference bookkeeping.  Interpolating
             # it onto pressure levels would be circular anyway --
             # _find_pressure_field reads the climo file.  Without this,
-            # load_reference_climo_ds raises KeyError as soon as the baseline
+            # load_reference_climo_dataset raises KeyError as soon as the baseline
             # has a climo file of its own for it.
             adf.debug_log(
                 f"The pressure field '{var}' is not a reference variable;"
@@ -559,7 +559,7 @@ def _write_reference_files(
             print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
             continue
 
-        ref_ds = adf.data.load_reference_climo_ds(base, var)
+        ref_ds = adf.data.load_reference_climo_dataset(base, var)
         if ref_ds is None:
             print(f"\t ERROR: Missing reference data for {var}. Skipping.")
             continue
@@ -1013,7 +1013,7 @@ def _get_ocean_fraction(
         f"{target_name}_{case_name}_OCNFRAC_regridded", *years)[0]
     if ocn_frac_path.exists():
         return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
-    ocn_frac_ds = adf.data.load_climo_ds(case_name, "OCNFRAC")
+    ocn_frac_ds = adf.data.load_climo_dataset(case_name, "OCNFRAC")
     ocn_frac_ds = _to_latlon(adf, ocn_frac_ds, "OCNFRAC", case_name=case_name)
     if ocn_frac_ds is None or "OCNFRAC" not in ocn_frac_ds:
         return None
