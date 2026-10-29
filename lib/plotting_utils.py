@@ -1212,13 +1212,13 @@ def prep_ux_for_plot(fld, grid_source):
     """
     Get a native-grid seasonal field ready for plotting with uxarray.
 
-    Takes the time mean if there is a time dimension, turns infinities into
-    NaN, and makes sure the result is still a ``UxDataArray`` on the source
-    grid -- xarray operations on a ``UxDataArray`` can hand back a plain
-    DataArray.  Missing cells stay NaN, so they are drawn blank, as in the
-    percent difference panel: filling them with 0 drew the ocean of a land
-    field as 0 in the test and baseline panels and as "no change" in their
-    difference.
+    Takes the time mean if there is a time dimension, sets infinities to NaN,
+    and makes sure the result is still a ``UxDataArray`` on the source grid --
+    xarray operations on a ``UxDataArray`` can hand back a plain DataArray.
+
+    NaNs are kept, so that cells without data (e.g. ocean cells of a land
+    field) are left blank in the raster and are skipped by the statistics,
+    rather than being drawn and counted as 0.
 
     Parameters
     ----------

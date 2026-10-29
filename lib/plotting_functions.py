@@ -38,6 +38,7 @@ square_contour_difference
 # Import standard python modules
 # ++++++++++++++++++++++++++++++
 
+import inspect
 from typing import Optional
 
 import warnings  # use to warn user about missing files.
@@ -90,9 +91,76 @@ seasons = {
 CBAR_SIZE = 8
 CBAR_LABELPAD = 5
 
+# to_raster gained pixel_mapping / return_pixel_mapping after uxarray v2025.6.0
+_RASTER_HAS_PIXEL_MAPPING = (
+    "pixel_mapping"
+    in inspect.signature(
+        getattr(ux.UxDataArray, "to_raster", lambda self, ax: None)
+    ).parameters
+)
+
+# pixel -> face mappings, reused across panels, seasons and variables
+_PIXEL_MAPPINGS = {}
+
 #################
 # HELPER FUNCTIONS
 #################
+
+
+def _pixel_mapping_key(uxda, ax):
+    """Key identifying when a pixel mapping can be reused.
+
+    A mapping is only valid for the same grid, projection, axes extent and
+    axes pixel size. Grids are reloaded for every variable, so the grid is
+    identified by its size and a few node coordinates rather than object identity.
+    """
+    grid = uxda.uxgrid
+    grid_id = (
+        grid.n_face,
+        grid.n_node,
+        float(grid.node_lon[0]),
+        float(grid.node_lat[0]),
+        float(grid.node_lon[-1]),
+        float(grid.node_lat[-1]),
+    )
+    return (
+        grid_id,
+        ax.projection.proj4_init,
+        tuple(np.round(ax.get_xlim() + ax.get_ylim(), 6)),
+        tuple(int(v) for v in ax.bbox.bounds[2:]),
+    )
+
+
+def raster_with_mapping(uxda, ax):
+    """Rasterize unstructured data onto a GeoAxes, reusing a cached pixel mapping.
+
+    Parameters
+    ----------
+    uxda : uxarray.UxDataArray
+        Face-centered data to rasterize.
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        Axes to rasterize onto; set its extent (e.g. ``set_global``) first.
+
+    Returns
+    -------
+    numpy.ndarray
+        Rasterized data, for use with ``ax.imshow``.
+
+    Notes
+    -----
+    Mappings are cached in ``_PIXEL_MAPPINGS`` for the life of the process, keyed
+    on grid, projection, extent and axes pixel size, so the pixel -> face search
+    runs once per grid and panel layout for an entire ADF run. Falls back to a
+    plain ``to_raster`` call when uxarray is too old to support mappings.
+    """
+    if not _RASTER_HAS_PIXEL_MAPPING:
+        return uxda.to_raster(ax=ax)
+    key = _pixel_mapping_key(uxda, ax)
+    pixel_mapping = _PIXEL_MAPPINGS.get(key)
+    if pixel_mapping is None:
+        raster, _PIXEL_MAPPINGS[key] = uxda.to_raster(ax=ax, return_pixel_mapping=True)
+        return raster
+    return uxda.to_raster(ax=ax, pixel_mapping=pixel_mapping)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
@@ -260,7 +328,8 @@ def make_polar_plot(
             proj, lon_cyclic, d1.lat
         )  # Explicit coordinate transform
 
-    fig = plt.figure(figsize=(10, 10))
+    # controlling DPI improves raster plots for unstructured data, but it does slow things down
+    fig = plt.figure(figsize=(10, 10), dpi=300)
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
 
     ax1 = plt.subplot(gs[0, :2], projection=proj)
@@ -268,6 +337,29 @@ def make_polar_plot(
     ax3 = plt.subplot(gs[1, :2], projection=proj)
     ax4 = plt.subplot(gs[1, 2:], projection=proj)
     axs = [ax1, ax2, ax3, ax4]
+
+    for a in axs:
+        # __Follow the cartopy gallery example to make circular__:
+        # Compute a circle in axes coordinates, which we can use as a boundary
+        # for the map. We can pan/zoom as much as we like - the boundary will be
+        # permanently circular.
+        theta = np.linspace(0, 2 * np.pi, 100)
+        center, radius = [0.5, 0.5], 0.5
+        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+        circle = mpl.path.Path(verts * radius + center)
+        a.set_boundary(circle, transform=a.transAxes)
+        # Set before plotting, so native-grid rasters cover only the domain
+        a.set_extent(domain, ccrs.PlateCarree())
+        a.coastlines()
+        a.gridlines(
+            draw_labels=False,
+            crs=ccrs.PlateCarree(),
+            lw=1,
+            color="gray",
+            y_inline=True,
+            xlocs=range(-180, 180, 90),
+            ylocs=range(-80, 90, 10),
+        )
 
     means = []
     mins = []
@@ -301,9 +393,8 @@ def make_polar_plot(
 
         contour_levs = np.unique(np.array(levels))
         if unstructured:
-            # Native grid: draw a raster of the cells
-            axs[i].set_global()
-            raster = a.to_raster(ax=axs[i])
+            # Native grid: draw a raster of the cells (extent is already set)
+            raster = raster_with_mapping(a, axs[i])
             img = axs[i].imshow(
                 raster,
                 cmap=cmap,
@@ -385,28 +476,6 @@ def make_polar_plot(
 
     axs[2].set_title("Test % Diff Baseline", loc="left", fontsize=8, fontweight="bold")
     axs[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
-
-    for a in axs:
-        # __Follow the cartopy gallery example to make circular__:
-        # Compute a circle in axes coordinates, which we can use as a boundary
-        # for the map. We can pan/zoom as much as we like - the boundary will be
-        # permanently circular.
-        theta = np.linspace(0, 2 * np.pi, 100)
-        center, radius = [0.5, 0.5], 0.5
-        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
-        circle = mpl.path.Path(verts * radius + center)
-        a.set_boundary(circle, transform=a.transAxes)
-        a.set_extent(domain, ccrs.PlateCarree())
-        a.coastlines()
-        a.gridlines(
-            draw_labels=False,
-            crs=ccrs.PlateCarree(),
-            lw=1,
-            color="gray",
-            y_inline=True,
-            xlocs=range(-180, 180, 90),
-            ylocs=range(-80, 90, 10),
-        )
 
     # __COLORBARS__
     cb_mean_ax = inset_axes(
@@ -670,27 +739,24 @@ def plot_map_and_save(
     central_longitude = kwargs.get("central_longitude", 180)
 
     # create figure object
-    fig = plt.figure(figsize=(14, 10))
+    # controlling DPI improves raster plots for unstructured data, but it does slow things down
+    fig = plt.figure(figsize=(14, 8), dpi=300)
 
     # LAYOUT WITH GRIDSPEC
-    wspace = 1.66
-    if vector:
-        hspace = 0
-    else:
-        hspace = -0.25
-    gs = mpl.gridspec.GridSpec(
-        3, 6, wspace=wspace, hspace=hspace
-    )  # 2 rows, 4 columns, but each map will take up 2 columns
+    # 2x2 grid of equal-size maps (each spanning 2 of 4 columns, so a vector
+    # plot's single difference panel can be centred); equal sizes let
+    # unstructured plots share one pixel mapping
+    gs = mpl.gridspec.GridSpec(2, 4, wspace=0.7, hspace=0.2)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
-    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info["subplots_opt"])
-    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info["subplots_opt"])
+    ax1 = plt.subplot(gs[0, :2], projection=proj, **cp_info["subplots_opt"])
+    ax2 = plt.subplot(gs[0, 2:], projection=proj, **cp_info["subplots_opt"])
 
     if vector:
-        ax3 = plt.subplot(gs[2, 1:5], projection=proj, **cp_info["subplots_opt"])
+        ax3 = plt.subplot(gs[1, 1:3], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3]
     else:
-        ax3 = plt.subplot(gs[2, :3], projection=proj, **cp_info["subplots_opt"])
-        ax4 = plt.subplot(gs[2, 3:], projection=proj, **cp_info["subplots_opt"])
+        ax3 = plt.subplot(gs[1, :2], projection=proj, **cp_info["subplots_opt"])
+        ax4 = plt.subplot(gs[1, 2:], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3, ax4]
 
     img = []  # contour plots
@@ -758,7 +824,7 @@ def plot_map_and_save(
             # Native grid: draw a raster of the cells (on the test case's grid)
             fld_ux = ux.UxDataArray(a, uxgrid=mdlfld.uxgrid)
             ax[i].set_global()
-            raster = fld_ux.to_raster(ax=ax[i])
+            raster = raster_with_mapping(fld_ux, ax[i])
             raster_img = ax[i].imshow(
                 raster,
                 cmap=cmap,
@@ -878,7 +944,7 @@ def plot_map_and_save(
         fontsize=14,
         fontfamily=["DejaVu Sans", "Liberation Sans", "sans-serif"],
     )
-    st.set_y(0.825)
+    st.set_y(0.98)
 
     # Set plot titles
     case_title = (

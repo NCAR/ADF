@@ -293,6 +293,7 @@ plotting_scripts:
 #List of variables that will be processesd:
 #Shorter list here, for efficiency of testing
 diag_var_list:
+    - TBOT
     - TSA
     - TV
     - PREC
@@ -300,6 +301,7 @@ diag_var_list:
     - FSDS
     - FLDS
     - QBOT
+    - WIND 
     - ASA
     - RNET
     - FSH
@@ -322,7 +324,9 @@ diag_var_list:
     - TWS
     - SOILWATER_10CM
     - GRAINC_TO_FOOD  
-    - FAREA_BURNED
+    - AREA_BURNED
+    - BCDEP
+    - NDEP_TO_SMINN
     #- C13_GPP_pm
     # - C13_TOTVEGC_pm
     #- C14_GPP_pm
