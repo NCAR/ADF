@@ -212,7 +212,7 @@ def tape_recorder(adfobj):
         #A directory can hold more than one set of files for one variable, so
         #keep the set needed for this case's years:
         fils = utils.select_ts_files(fils, start_years[idx], end_years[idx])
-        dat = adfobj.data.load_timeseries_dataset(fils)
+        dat = adfobj.data.load_timeseries_files(fils)
 
         if not dat:
             dmsg = f"\t No data for `{var}` found in {ts_loc}, {key} will be skipped."

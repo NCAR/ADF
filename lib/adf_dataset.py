@@ -1,6 +1,7 @@
 """Data-access layer: locate and load ADF time series, climo, and regridded files."""
 
 import warnings  # use to warn user about missing files
+from itertools import chain
 from pathlib import Path
 
 import xarray as xr
@@ -127,6 +128,16 @@ class AdfData:  # pylint: disable=too-many-public-methods
         if isinstance(hist_strs, str):
             return [hist_strs]
         return [h for h in hist_strs if h]
+
+    def _case_index(self, case):
+        """Index of test `case` in the case list, ignoring stray whitespace."""
+        try:
+            return self.case_names.index(case)
+        except ValueError:
+            stripped_names = [c.strip() for c in self.case_names]
+            if case.strip() in stripped_names:
+                return stripped_names.index(case.strip())
+            raise
 
     def _hist_strs_for_case(self, case):
         """Ordered history streams configured for a test case (priority order)."""
@@ -323,14 +334,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         # list of paths (could be multiple cases); a case run on pre-made
         # climatologies alone may have none:
         ts_locs = self.adf.get_cam_info("cam_ts_loc") or [None] * len(self.case_names)
-        try:
-            caseindex = self.case_names.index(case)
-        except ValueError:
-            stripped_names = [c.strip() for c in self.case_names]
-            if case.strip() in stripped_names:
-                caseindex = stripped_names.index(case.strip())
-            else:
-                raise
+        caseindex = self._case_index(case)
         if not ts_locs[caseindex]:
             return []
         ts_loc = self.timeseries_dir(case, ts_locs[caseindex])
@@ -373,8 +377,13 @@ class AdfData:  # pylint: disable=too-many-public-methods
             fils, ts_yrs["syear_baseline"], ts_yrs["eyear_baseline"], field
         )
 
-    def load_timeseries_dataset(self, fils):
-        """Return DataSet from time series file(s) and assign time to midpoint of interval"""
+    def load_timeseries_files(self, fils):
+        """Return DataSet from time series file(s) and assign time to midpoint of interval.
+
+        For a script that chooses its own files (see tape_recorder.py);
+        otherwise use :meth:`load_timeseries_dataset` or
+        :meth:`load_reference_timeseries_dataset`, which find them.
+        """
         if len(fils) == 0:
             warnings.warn("\t    WARNING: Input file list is empty.")
             return None
@@ -398,6 +407,49 @@ class AdfData:  # pylint: disable=too-many-public-methods
             warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")
         # End if
         return xr.decode_cf(fixed)
+
+    def _timeseries_dataset(self, fils, case, field, apply_scaling):
+        """Open time series `fils`, converting `field` for `case` when asked."""
+        ds = self.load_timeseries_files(fils)
+        if ds is None or field not in ds:
+            return ds
+        if apply_scaling:
+            ds[field] = self.apply_conversion(ds[field], field, case)
+        return ds
+
+    def load_timeseries_dataset(self, case, field, hist_str=None, apply_scaling=True):
+        """Return a Dataset from the time series file(s) of `field` for a test case.
+
+        The whole Dataset is returned, for scripts that need the coordinates
+        or other variables alongside `field` (a native grid's 'area', say).
+        `field` itself is converted with the variable defaults, as
+        :meth:`load_timeseries_da` does, unless `apply_scaling` is False.
+        """
+        fils = self.get_timeseries_file(case, field, hist_str=hist_str)
+        if not fils:
+            warnings.warn(
+                "\t    WARNING: Did not find case time series file(s), "
+                f"case: {case}, variable: {field}"
+            )
+            return None
+        return self._timeseries_dataset(fils, case, field, apply_scaling)
+
+    def load_reference_timeseries_dataset(
+        self, field, hist_str=None, apply_scaling=True
+    ):
+        """Return a Dataset from the reference (baseline) time series file(s) of `field`.
+
+        See :meth:`load_timeseries_dataset`.  Observations have no time
+        series, so this returns None when comparing against them.
+        """
+        fils = self.get_ref_timeseries_file(field, hist_str=hist_str)
+        if not fils:
+            warnings.warn(
+                "\t    WARNING: Did not find reference time series file(s), "
+                f"variable: {field}"
+            )
+            return None
+        return self._timeseries_dataset(fils, self.ref_case_label, field, apply_scaling)
 
     def load_timeseries_da(self, case, variablename):
         """Return DataArray from time series file(s).
@@ -943,6 +995,318 @@ class AdfData:  # pylint: disable=too-many-public-methods
             return 0, 1
         return add_offset, scale_factor
 
+    # History files
+    # ------------------
+    # Raw CAM history files, for diagnostics that read a stream the time
+    # series step does not process (the TEM stream, say).  A history file holds
+    # every variable of its stream, so they are found by stream, not variable.
+    # Test case(s)
+    def get_history_files(self, case, hist_str=None, syr=None, eyr=None):
+        """Return list of a test case's history files for one stream.
+
+        Parameters
+        ----------
+        case : str
+            Name of the test case.
+        hist_str : str, optional
+            History stream, e.g. 'cam.h0a' or 'h4'.  Defaults to the first
+            stream configured for the case.
+        syr, eyr : int, optional
+            First and last years wanted.  Default to the case's climatology
+            years; files are matched on the year in their names.
+
+        Returns
+        -------
+        list of pathlib.Path
+            Empty when the case has no 'cam_hist_loc' or no matching files.
+        """
+        caseindex = self._case_index(case)
+        hist_locs = self.adf.get_cam_info("cam_hist_loc")
+        if not isinstance(hist_locs, list):
+            hist_locs = [hist_locs] * len(self.case_names)
+        if caseindex >= len(hist_locs):
+            return []
+        if hist_str is None:
+            hist_str = next(iter(self._hist_strs_for_case(case)), None)
+        case_syr, case_eyr = self._case_climo_years(case)
+        return self._history_files(
+            hist_locs[caseindex],
+            hist_str,
+            case_syr if syr is None else syr,
+            case_eyr if eyr is None else eyr,
+        )
+
+    def load_history_dataset(
+        self, case, hist_str=None, syr=None, eyr=None, use_time_bounds=False
+    ):
+        """Return a Dataset from a test case's history files for one stream.
+
+        See :meth:`get_history_files` for the arguments.  `use_time_bounds`
+        moves time to the midpoint of each averaging interval (see
+        :meth:`load_dataset`); it is off by default, because an instantaneous
+        stream has no interval.
+        """
+        fils = self.get_history_files(case, hist_str, syr, eyr)
+        if not fils:
+            warnings.warn(
+                "\t    WARNING: Did not find history file(s) for case: "
+                f"{case}, stream: {hist_str}"
+            )
+            return None
+        return self.load_dataset(fils, use_time_bounds=use_time_bounds)
+
+    def load_history_da(
+        self,
+        case,
+        field,
+        hist_str=None,
+        *,
+        syr=None,
+        eyr=None,
+        apply_scaling=True,
+        use_time_bounds=False,
+    ):
+        """Return a DataArray of `field` from a test case's history files.
+
+        Converted with the variable defaults, as the time series and climo
+        loaders do, unless `apply_scaling` is False.  See
+        :meth:`load_history_dataset` for the other arguments.
+        """
+        fils = self.get_history_files(case, hist_str, syr, eyr)
+        if not fils:
+            warnings.warn(
+                "\t    WARNING: Did not find history file(s) for case: "
+                f"{case}, variable: {field}"
+            )
+            return None
+        add_offset, scale_factor = 0, 1
+        if apply_scaling:
+            add_offset, scale_factor = self.get_value_converters(case, field)
+        return self.load_da(
+            fils,
+            field,
+            use_time_bounds=use_time_bounds,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+        )
+
+    # Reference case (baseline)
+    def get_ref_history_files(self, hist_str=None, syr=None, eyr=None):
+        """Return list of the baseline's history files for one stream.
+
+        As :meth:`get_history_files`, with the baseline's configured stream
+        and climatology years as the defaults.  Observations have no history
+        files, so this returns None when comparing against them.
+        """
+        if self.adf.compare_obs:
+            warnings.warn(
+                "\t    WARNING: ADF does not expect observational history files."
+            )
+            return None
+        if hist_str is None:
+            hist_str = next(iter(self._hist_strs_for_reference()), None)
+        base_syr, base_eyr = self._ref_climo_years()
+        return self._history_files(
+            self.adf.get_baseline_info("cam_hist_loc"),
+            hist_str,
+            base_syr if syr is None else syr,
+            base_eyr if eyr is None else eyr,
+        )
+
+    def load_reference_history_dataset(
+        self, hist_str=None, syr=None, eyr=None, use_time_bounds=False
+    ):
+        """Return a Dataset from the baseline's history files for one stream.
+
+        See :meth:`load_history_dataset`.
+        """
+        fils = self.get_ref_history_files(hist_str, syr, eyr)
+        if not fils:
+            warnings.warn(
+                "\t    WARNING: Did not find reference history file(s), "
+                f"stream: {hist_str}"
+            )
+            return None
+        return self.load_dataset(fils, use_time_bounds=use_time_bounds)
+
+    def load_reference_history_da(
+        self,
+        field,
+        hist_str=None,
+        *,
+        syr=None,
+        eyr=None,
+        apply_scaling=True,
+        use_time_bounds=False,
+    ):
+        """Return a DataArray of `field` from the baseline's history files.
+
+        See :meth:`load_history_da`.
+        """
+        fils = self.get_ref_history_files(hist_str, syr, eyr)
+        if not fils:
+            warnings.warn(
+                "\t    WARNING: Did not find reference history file(s), "
+                f"variable: {field}"
+            )
+            return None
+        add_offset, scale_factor = 0, 1
+        if apply_scaling:
+            add_offset, scale_factor = self.get_value_converters(
+                self.ref_case_label, field
+            )
+        return self.load_da(
+            fils,
+            field,
+            use_time_bounds=use_time_bounds,
+            add_offset=add_offset,
+            scale_factor=scale_factor,
+        )
+
+    @staticmethod
+    def _history_files(hist_loc, hist_str, syr, eyr):
+        """History files of stream `hist_str` in `hist_loc` for years `syr`-`eyr`.
+
+        CAM names them {case}.{hist_str}.{YYYY}-{MM}[...].nc; all years are
+        returned when either year is None.
+        """
+        if not hist_loc or not hist_str or not Path(hist_loc).is_dir():
+            return []
+        hist_loc = Path(hist_loc)
+        if syr is None or eyr is None:
+            return sorted(hist_loc.glob(f"*{hist_str}.*.nc"))
+        # leading zeros on the year, as CAM writes it
+        return sorted(
+            chain.from_iterable(
+                hist_loc.glob(f"*{hist_str}.{yr:04d}*.nc")
+                for yr in range(int(syr), int(eyr) + 1)
+            )
+        )
+
+    # ------------------
+
+    # TEM files
+    # ------------------
+    # Transformed Eulerian Mean diagnostics, written by create_TEM_files.py
+    # from a history stream: one file per case holding every TEM field (and
+    # the zonal mean pressure 'PZM') on the zonal mean grid, named after the
+    # climatology years.  Observations come as a single 'Obs.TEMdiag.nc'.
+    @staticmethod
+    def tem_file_name(case, syr, eyr):
+        """Name of the TEM file create_TEM_files.py writes for `case`."""
+        return f"{case}.TEMdiag_{syr}-{eyr}.nc"
+
+    # Test case(s)
+    def get_tem_file(self, case):
+        """Return list holding a test case's TEM file, or an empty list."""
+        tem_locs = self.adf.get_cam_info("cam_tem_loc")
+        if not tem_locs:
+            return []
+        if not isinstance(tem_locs, list):
+            tem_locs = [tem_locs] * len(self.case_names)
+        caseindex = self._case_index(case)
+        if caseindex >= len(tem_locs) or not tem_locs[caseindex]:
+            return []
+        fil = Path(tem_locs[caseindex]) / self.tem_file_name(
+            case, *self._case_climo_years(case)
+        )
+        return [fil] if fil.is_file() else []
+
+    def load_tem_dataset(self, case):
+        """Return a Dataset from a test case's TEM file, time at each interval's midpoint."""
+        fils = self.get_tem_file(case)
+        if not fils:
+            warnings.warn(f"\t    WARNING: Did not find TEM file for case: {case}")
+            return None
+        return self.load_timeseries_files(fils)
+
+    def load_tem_da(self, case, field, apply_scaling=True):
+        """Return a DataArray of `field` from a test case's TEM file.
+
+        Converted with the variable defaults unless `apply_scaling` is False;
+        a file already holding converted values is not converted again.
+        """
+        ds = self.load_tem_dataset(case)
+        da = self._tem_field(ds, field, case)
+        if da is None or not apply_scaling:
+            return da
+        return self.apply_conversion(
+            da, field, case, converters=self._tem_converters(field)
+        )
+
+    # Reference case (baseline/obs)
+    def get_ref_tem_file(self):
+        """Return list holding the baseline's (or observations') TEM file, or an empty list.
+
+        The observation file is written next to the first test case's TEM
+        files, since there is no baseline 'cam_tem_loc' to put it in.
+        """
+        if self.adf.compare_obs:
+            tem_locs = self.adf.get_cam_info("cam_tem_loc")
+            if isinstance(tem_locs, list):
+                tem_locs = tem_locs[0] if tem_locs else None
+            name = "Obs.TEMdiag.nc"
+        else:
+            tem_locs = self.adf.get_baseline_info("cam_tem_loc")
+            name = self.tem_file_name(self.ref_case_label, *self._ref_climo_years())
+        if not tem_locs:
+            return []
+        fil = Path(tem_locs) / name
+        return [fil] if fil.is_file() else []
+
+    def load_reference_tem_dataset(self):
+        """Return a Dataset from the baseline's (or observations') TEM file."""
+        fils = self.get_ref_tem_file()
+        if not fils:
+            warnings.warn("\t    WARNING: Did not find reference TEM file.")
+            return None
+        return self.load_timeseries_files(fils)
+
+    def load_reference_tem_da(self, field, apply_scaling=True):
+        """Return a DataArray of `field` from the baseline's (or observations') TEM file.
+
+        A baseline simulation is converted as the test cases are.  Observations
+        use the 'obs_scale_factor' and 'obs_add_offset' variable defaults, which
+        are taken to bring them to the model's units, so their unit string is
+        left as it is.
+        """
+        ds = self.load_reference_tem_dataset()
+        da = self._tem_field(ds, field, self.ref_case_label)
+        if da is None or not apply_scaling:
+            return da
+        if self.adf.compare_obs:
+            add_offset, scale_factor = self._tem_converters(field, obs=True)
+            attrs = da.attrs.copy()
+            da = da * scale_factor + add_offset
+            da.attrs = attrs
+            return da
+        return self.apply_conversion(
+            da, field, self.ref_case_label, converters=self._tem_converters(field)
+        )
+
+    def _tem_converters(self, field, obs=False):
+        """``(add_offset, scale_factor)`` for a TEM field, from the variable defaults.
+
+        Read directly rather than through :meth:`get_value_converters`, which
+        only knows the variables in 'diag_var_list' -- and the TEM fields are
+        not diagnosed from time series, so they are not listed there.
+        """
+        vres = self.adf.variable_defaults.get(field, {})
+        prefix = "obs_" if obs else ""
+        return vres.get(f"{prefix}add_offset", 0), vres.get(f"{prefix}scale_factor", 1)
+
+    @staticmethod
+    def _tem_field(ds, field, label):
+        """`field` from TEM Dataset `ds`, or None (with a note) when it is not there."""
+        if ds is None:
+            return None
+        if field not in ds:
+            warnings.warn(f"\t    INFO: '{field}' not in {label} TEM file.")
+            return None
+        return ds[field].squeeze()
+
+    # ------------------
+
     # ---------------------------
     # DataSet and DataArray load
     # ---------------------------
@@ -1027,12 +1391,12 @@ class AdfData:  # pylint: disable=too-many-public-methods
         new_unit = self.adf.variable_defaults.get(field, {}).get("new_unit")
         return units_equivalent(attrs.get("units"), new_unit)
 
-    def apply_conversion(self, data, field, case=None):
+    def apply_conversion(self, data, field, case=None, converters=None):
         """Apply the variable-defaults conversion to `data`, once.
 
         For a script that opens a file itself rather than through one of the
-        loaders here -- the TEM files and the vector plots do -- so that it
-        makes the same decision they do.
+        loaders here -- regional_climatology.py does -- so that it makes the
+        same decision they do.
 
         Parameters
         ----------
@@ -1043,6 +1407,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
         case : str, optional
             case the data belongs to, which decides whether the observation
             converters are used.  Defaults to `field`'s test-case converters.
+        converters : tuple, optional
+            ``(add_offset, scale_factor)`` to use instead of
+            :meth:`get_value_converters`, for a variable that is not in
+            'diag_var_list' (which that method needs).
 
         Returns
         -------
@@ -1055,9 +1423,11 @@ class AdfData:  # pylint: disable=too-many-public-methods
         if data is None:
             return None
         # End if
-        add_offset, scale_factor = self.get_value_converters(
-            case if case is not None else field, field
-        )
+        if converters is None:
+            converters = self.get_value_converters(
+                case if case is not None else field, field
+            )
+        add_offset, scale_factor = converters
         if scale_factor == 1 and add_offset == 0:
             return data
         # End if

@@ -40,10 +40,6 @@ def qbo(adfobj):
     base_name = adfobj.get_baseline_info('cam_case_name')
     base_loc = adfobj.get_baseline_info('cam_ts_loc')
     obsdir = adfobj.get_basic_info('obs_data_loc', required=True)
-    #Years are needed only to choose between sets of time series files that
-    #cannot be opened together; the plot itself shows the whole record:
-    syears = adfobj.climo_yrs["syears"]
-    eyears = adfobj.climo_yrs["eyears"]
     plot_locations = adfobj.plot_location
     plot_type = adfobj.get_basic_info('plot_type')
 
@@ -98,8 +94,6 @@ def qbo(adfobj):
     if not adfobj.compare_obs:
         case_loc.append(base_loc)
         case_names.append(base_name)
-        syears.append(adfobj.climo_yrs["syear_baseline"])
-        eyears.append(adfobj.climo_yrs["eyear_baseline"])
     #End if
 
     #----Read in the OBS (ERA5, 5S-5N average already
@@ -116,16 +110,14 @@ def qbo(adfobj):
             warnings.warn(f"\t    WARNING: Case {case_names[i]} has no time series location, skipping...")
             continue
         #End if
-        #The "gridded" copy of native-grid time series, where the ADF made one:
-        ts_loc = adfobj.data.timeseries_dir(case_names[i], case_loc[i])
-        dat = utils.load_dataset(
-            utils.select_ts_files(
-                sorted(ts_loc.glob(f"{case_names[i]}.*.U.*.nc")),
-                syears[i],
-                eyears[i],
-            ),
-            use_time_bounds=True,
-        )
+        #The baseline, when there is one, was appended last.  The data layer
+        #reads the "gridded" copy of native-grid time series where the ADF
+        #made one, and picks the files for the case's time series years:
+        if (not adfobj.compare_obs) and (i == len(case_names) - 1):
+            dat = adfobj.data.load_reference_timeseries_dataset('U')
+        else:
+            dat = adfobj.data.load_timeseries_dataset(case_names[i], 'U')
+        #End if
         if (dat is None) or ('U' not in dat.variables):
             warnings.warn(f"\t    WARNING: Case {case_names[i]} contains no 'U' field, skipping...")
             continue
