@@ -19,6 +19,7 @@ xr = pytest.importorskip("xarray")
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "plotting"))
 sys.path.append(str(Path(__file__).parents[2]))
 
+# pylint: disable-next=import-error
 from cam_taylor_diagram import taylor_stats_single  # noqa: E402
 
 
@@ -36,6 +37,7 @@ def _field(values):
 
 
 def test_identical_fields_give_unit_correlation_and_ratio():
+    """Comparing a field with itself gives correlation 1, ratio 1, bias 0."""
     rng = np.random.default_rng(0)
     a = _field(rng.normal(size=(12, 24)))
     corr, ratio, bias = taylor_stats_single(a, a)

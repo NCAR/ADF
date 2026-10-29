@@ -71,14 +71,19 @@ jobs:
         cache-environment: true
     # Run python unit tests related to ADF library.  Every test should
     # run in this environment, so a skip means something failed to import
-    # (e.g. a broken ADF module), and is treated as a failure:
+    # (e.g. a broken ADF module), and is treated as a failure.
+    #
+    # Note: Don't end this step with "exit".  In a login shell an explicit
+    # "exit" runs ~/.bash_logout, whose failing "clear_console" call on
+    # the runner turns an exit code of 0 into 1.  Instead let the final
+    # command (a subshell exit) set the step's exit code:
     - name: ADF lib unit tests (full environment)
       run: |
         pytest lib/test/unit_tests -rs 2>&1 | tee pytest.log
         status=${PIPESTATUS[0]}
         if grep -q '^SKIPPED' pytest.log; then
           echo "::error::Unit tests were skipped in the full ADF environment"
-          exit 1
+          status=1
         fi
-        exit $status
+        (exit $status)
 

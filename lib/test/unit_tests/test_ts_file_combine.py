@@ -35,6 +35,7 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
+# pylint: disable-next=import-error
 from adf_file_utils import ts_files_need_combining
 
 try:

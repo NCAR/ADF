@@ -22,8 +22,8 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 sys.path.append(_ADF_LIB_DIR)
 
 # Import AdfBase class
-from adf_base import AdfBase
-from adf_base import AdfError
+from adf_base import AdfBase  # pylint: disable=import-error
+from adf_base import AdfError  # pylint: disable=import-error
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # Main AdfBase testing routine, used when script is run directly
@@ -54,7 +54,7 @@ class AdfBaseTestRoutine(unittest.TestCase):
         # Close all log streams:
         logging.shutdown()
 
-    def test_AdfBase_debug_create(self):
+    def test_adfbase_debug_create(self):
         """
         Check that the Adfbase class can
         be initialized properly when the
@@ -74,7 +74,7 @@ class AdfBaseTestRoutine(unittest.TestCase):
         # Assert that ADF debug log file exists in local directory:
         self.assertTrue(os.path.exists(debug_fname))
 
-    def test_AdfBase_bad_debug(self):
+    def test_adfbase_bad_debug(self):
         """
         Check that the Adfbase class
         throws the proper error if a bad
@@ -88,12 +88,12 @@ class AdfBaseTestRoutine(unittest.TestCase):
         with self.assertRaises(TypeError) as typerr:
 
             # Create AdfBase object with bad debug setting:
-            adf_test = AdfBase(debug=5)
+            AdfBase(debug=5)
 
         # Check that error message matches what's expected:
         self.assertEqual(ermsg, str(typerr.exception))
 
-    def test_AdfBase_debug_nothing(self):
+    def test_adfbase_debug_nothing(self):
         """
         Check that using the "debug_log" method
         without debugging enabled does nothing.
@@ -111,7 +111,7 @@ class AdfBaseTestRoutine(unittest.TestCase):
         # Check that no log file exists:
         self.assertFalse(os.path.exists(debug_fname))
 
-    def test_AdfBase_debug_write(self):
+    def test_adfbase_debug_write(self):
         """
         Check that using the "debug_log" method
         with debugging enabled properly writes
@@ -134,7 +134,7 @@ class AdfBaseTestRoutine(unittest.TestCase):
         if os.path.exists(debug_fname):
 
             # Open log file:
-            with open(debug_fname) as logfil:
+            with open(debug_fname, encoding="UTF-8") as logfil:
 
                 # Extract file contents:
                 log_text = logfil.read()
@@ -142,7 +142,7 @@ class AdfBaseTestRoutine(unittest.TestCase):
                 # Check that log text matches what was written:
                 self.assertEqual("DEBUG:ADF:test\n", log_text)
 
-    def test_AdfBase_script_end_fail(self):
+    def test_adfbase_script_end_fail(self):
         """
         Check that using "end_diag_fail" raises
         the correct exception and error message

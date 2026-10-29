@@ -31,7 +31,10 @@ import xarray as xr  # noqa: E402
 sys.path.append(str(Path(__file__).parents[2]))
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "averaging"))
 
+# pylint: disable-next=import-error
 import adf_utils as utils  # noqa: E402
+
+# pylint: disable-next=import-error
 from create_TEM_files import (  # noqa: E402
     TEM_INPUT_VARS,
     calc_tem,
@@ -60,6 +63,7 @@ def _dataset(on_interfaces=()):
 
 
 def test_all_on_midpoints_stays_on_midpoints():
+    """A midpoint-only stream is left on midpoints."""
     ds, lev_name = harmonize_tem_levels(_dataset())
     assert lev_name == "lev"
     assert {utils.vertical_dim(ds[v]) for v in TEM_INPUT_VARS} == {"lev"}
@@ -99,6 +103,7 @@ def test_calc_tem_runs_on_whatever_harmonize_returns(
 
 
 def test_vertical_dim_ignores_other_dimensions():
+    """A field with neither 'lev' nor 'ilev' has no vertical dimension."""
     da = xr.DataArray(np.zeros((2, 3)), dims=("time", "zalat"))
     assert utils.vertical_dim(da) is None
 
@@ -142,10 +147,13 @@ def test_tem_variable_without_observations_is_skipped(capsys):
     variable_defaults entry has no 'obs_file'. Looking that key up directly
     raises KeyError and takes the whole observational TEM file with it.
     """
+    # pylint: disable-next=import-error
     from create_TEM_files import _write_obs_tem_file
 
     class _Adf:
+        # pylint: disable-next=unused-argument
         def get_basic_info(self, key, required=False):
+            """Report every config option as unset."""
             return None
 
     # a variable with no 'obs_file', and one absent from variable_defaults

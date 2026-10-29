@@ -21,8 +21,8 @@ _TEST_FILES_DIR = os.path.join(_CURRDIR, "test_files")
 sys.path.append(_ADF_LIB_DIR)
 
 # Import AdfConfig class and AdfError
-from adf_config import AdfConfig
-from adf_base import AdfError
+from adf_config import AdfConfig  # pylint: disable=import-error
+from adf_base import AdfError  # pylint: disable=import-error
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # Main AdfBase testing routine, used when script is run directly
@@ -37,7 +37,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
     complete code coverage for AdfConfig.
     """
 
-    def test_AdfConfig_missing_file(self):
+    def test_adfconfig_missing_file(self):
         """
         Check that AdfConfig throws the
         proper error when no config file
@@ -51,14 +51,14 @@ class AdfConfigTestRoutine(unittest.TestCase):
         with self.assertRaises(FileNotFoundError) as err:
 
             # Try and create AdfConfig object with non-existent file:
-            adf_test = AdfConfig("not_real.yaml")
+            AdfConfig("not_real.yaml")
 
         # Check that error message matches what's expected:
         self.assertEqual(ermsg, str(err.exception))
 
     #####
 
-    def test_AdfConfig_double_nested_config_var(self):
+    def test_adfconfig_double_nested_config_var(self):
         """
         Check that AdfConfig throws the
         proper error when there is a
@@ -73,20 +73,23 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
         # Set error message:
         ermsg = "ADF currently only allows for a single nested dict"
-        ermsg += " in the config (YAML) file.\n  Variable '{'double_nested_var': 'bad_val'}' is nested too far."
+        ermsg += (
+            " in the config (YAML) file.\n"
+            "  Variable '{'double_nested_var': 'bad_val'}' is nested too far."
+        )
 
         # Expect an ADF error:
         with self.assertRaises(AdfError) as err:
 
             # Try and create AdfConfig object with doubly-nested config variable:
-            adf_test = AdfConfig(unset_example_file)
+            AdfConfig(unset_example_file)
 
         # Check that error message matches what's expected:
         self.assertEqual(ermsg, str(err.exception))
 
     #####
 
-    def test_AdfConfig_read_config_bad_conf_dict(self):
+    def test_adfconfig_read_config_bad_conf_dict(self):
         """
         Check that the "read_config_var"
         method throws the correct error
@@ -116,7 +119,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_missing_var(self):
+    def test_adfconfig_read_config_missing_var(self):
         """
         Check that the "read_config_var"
         method returns None when a
@@ -140,7 +143,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_missing_required_var(self):
+    def test_adfconfig_read_config_missing_required_var(self):
         """
         Check that the "read_config_var"
         method throws the correct error
@@ -160,7 +163,10 @@ class AdfConfigTestRoutine(unittest.TestCase):
         # Set error message:
         # Note that for some reason a KeyError adds exra quotes,
         # hence the extra string quotes here
-        ermsg = '''"Required variable 'hello' not found in config file. Please see 'config_cam_baseline_example.yaml'."'''
+        ermsg = (
+            "\"Required variable 'hello' not found in config file. "
+            "Please see 'config_cam_baseline_example.yaml'.\""
+        )
 
         # Expect a Key error:
         with self.assertRaises(KeyError) as err:
@@ -173,7 +179,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_unset_var(self):
+    def test_adfconfig_read_config_unset_var(self):
         """
         Check that the "read_config_var"
         method returns None when a
@@ -195,7 +201,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_required_unset_var(self):
+    def test_adfconfig_read_config_required_unset_var(self):
         """
         Check that the "read_config_var"
         method throws the correct error
@@ -210,7 +216,10 @@ class AdfConfigTestRoutine(unittest.TestCase):
         adf_test = AdfConfig(unset_example_file)
 
         # Set error message:
-        ermsg = "Required variable 'bad_var' has not been set to a value. Please see 'config_cam_baseline_example.yaml'."
+        ermsg = (
+            "Required variable 'bad_var' has not been set to a value. "
+            "Please see 'config_cam_baseline_example.yaml'."
+        )
 
         # Expect a Value error:
         with self.assertRaises(ValueError) as err:
@@ -223,7 +232,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references(self):
+    def test_adfconfig_expand_references(self):
         """
         Check that the AdfConfig class can
         properly expand variables using keywords
@@ -259,7 +268,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references_nested(self):
+    def test_adfconfig_expand_references_nested(self):
         """
         Check that expand_references reaches keywords inside
         lists and nested lists.
@@ -276,7 +285,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references_non_specific_var(self):
+    def test_adfconfig_expand_references_non_specific_var(self):
         """
         Check that expand_references throws
         the correct error when a variable
@@ -313,7 +322,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references_non_existent_var(self):
+    def test_adfconfig_expand_references_non_existent_var(self):
         """
         Check that expand_references throws
         the correct error when a variable
@@ -335,7 +344,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
         self.assertEqual(test_var, "${no_var}")
 
         # Set error message:
-        ermsg = f"ERROR: Variable 'no_var'"
+        ermsg = "ERROR: Variable 'no_var'"
         ermsg += " not found in config (YAML) file."
 
         # Expect an ADF error:

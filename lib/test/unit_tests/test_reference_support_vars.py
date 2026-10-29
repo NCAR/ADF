@@ -26,7 +26,11 @@ pytest.importorskip("xesmf")
 sys.path.append(str(Path(__file__).parents[2]))
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "regridding"))
 
+# pylint: disable-next=import-error
 import regrid_and_vert_interp as rvi  # noqa: E402
+
+# These tests exercise the private baseline-writing helper directly:
+# pylint: disable=protected-access
 
 
 class FakeData:
@@ -37,7 +41,9 @@ class FakeData:
         self.ref_var_nam = {v: v for v in ref_vars}
         self.ref_labels = {v: "baseline" for v in ref_vars}
 
+    # pylint: disable-next=unused-argument
     def load_reference_climo_ds(self, case, variablename):
+        """Return a stand-in dataset, indexing ref_var_nam like the real one."""
         # The real one globs for a file first and only then indexes
         # ref_var_nam, so a missing entry raises rather than returning None.
         return {"dummy": self.ref_var_nam[variablename]}
@@ -53,10 +59,13 @@ class FakeAdf:
         self._names = pressure_field_names
         self.logged = []
 
+    # pylint: disable-next=unused-argument
     def get_basic_info(self, var_str, required=False):
+        """Return the configured pressure field names, if asked for them."""
         return self._names if var_str == "pressure_field_names" else None
 
     def debug_log(self, msg):
+        """Record a debug message."""
         self.logged.append(msg)
 
 
@@ -70,6 +79,7 @@ def test_the_pressure_field_is_skipped_for_the_baseline(tmp_path):
 
 
 def test_a_configured_pressure_field_name_is_skipped_too(tmp_path):
+    """A pressure field named via pressure_field_names is skipped as well."""
     adf = FakeAdf(["T"], pressure_field_names={"lev": "pfull"})
     rvi._write_reference_files(adf, ["pfull"], {}, tmp_path, True)
     assert adf.logged and "pfull" in adf.logged[0]

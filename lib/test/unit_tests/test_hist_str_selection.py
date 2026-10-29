@@ -32,7 +32,10 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-from adf_file_utils import as_hist_str_list, pick_hist_str
+from adf_file_utils import (  # pylint: disable=import-error
+    as_hist_str_list,
+    pick_hist_str,
+)
 
 # The streams the tape recorder can use, as that script defines them:
 _SUBSTRINGS = {"cam.h0", "cam.h0a"}

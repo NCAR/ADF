@@ -54,6 +54,7 @@ def _numeric_offenders(defaults):
 
 
 def test_numeric_settings_parse_as_numbers():
+    """Every numeric plotting setting in the defaults file loads as a number."""
     defaults = yaml.safe_load(DEFAULTS_FILE.read_text())
     offenders = _numeric_offenders(defaults)
     assert not offenders, (
