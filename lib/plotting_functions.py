@@ -328,7 +328,8 @@ def make_polar_plot(
             proj, lon_cyclic, d1.lat
         )  # Explicit coordinate transform
 
-    fig = plt.figure(figsize=(10, 10))
+    # controlling DPI improves raster plots for unstructured data, but it does slow things down
+    fig = plt.figure(figsize=(10, 10), dpi=300)
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
 
     ax1 = plt.subplot(gs[0, :2], projection=proj)
@@ -336,6 +337,19 @@ def make_polar_plot(
     ax3 = plt.subplot(gs[1, :2], projection=proj)
     ax4 = plt.subplot(gs[1, 2:], projection=proj)
     axs = [ax1, ax2, ax3, ax4]
+
+    for a in axs:
+        # __Follow the cartopy gallery example to make circular__:
+        # Compute a circle in axes coordinates, which we can use as a boundary
+        # for the map. We can pan/zoom as much as we like - the boundary will be
+        # permanently circular.
+        theta = np.linspace(0, 2 * np.pi, 100)
+        center, radius = [0.5, 0.5], 0.5
+        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+        circle = mpl.path.Path(verts * radius + center)
+        a.set_boundary(circle, transform=a.transAxes)
+        # Set before plotting, so native-grid rasters cover only the domain
+        a.set_extent(domain, ccrs.PlateCarree())
 
     means = []
     mins = []
@@ -369,8 +383,7 @@ def make_polar_plot(
 
         contour_levs = np.unique(np.array(levels))
         if unstructured:
-            # Native grid: draw a raster of the cells
-            axs[i].set_global()
+            # Native grid: draw a raster of the cells (extent is already set)
             raster = raster_with_mapping(a, axs[i])
             img = axs[i].imshow(
                 raster,
@@ -455,16 +468,6 @@ def make_polar_plot(
     axs[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
 
     for a in axs:
-        # __Follow the cartopy gallery example to make circular__:
-        # Compute a circle in axes coordinates, which we can use as a boundary
-        # for the map. We can pan/zoom as much as we like - the boundary will be
-        # permanently circular.
-        theta = np.linspace(0, 2 * np.pi, 100)
-        center, radius = [0.5, 0.5], 0.5
-        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
-        circle = mpl.path.Path(verts * radius + center)
-        a.set_boundary(circle, transform=a.transAxes)
-        a.set_extent(domain, ccrs.PlateCarree())
         a.coastlines()
         a.gridlines(
             draw_labels=False,
