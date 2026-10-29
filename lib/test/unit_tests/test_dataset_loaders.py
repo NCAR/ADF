@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
+import pytest  # pylint: disable=import-error
 
 # CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
 # so skip rather than fail collection when the science stack is absent.
@@ -21,7 +21,7 @@ xr = pytest.importorskip("xarray")
 
 sys.path.append(str(Path(__file__).parents[2]))
 
-from adf_dataset import AdfData  # noqa: E402
+from adf_dataset import AdfData  # noqa: E402  # pylint: disable=import-error
 
 CASE = "test_case"
 BASE = "base_case"
@@ -135,18 +135,21 @@ def _years(fils):
 # History files
 # ------------------
 def test_history_files_default_to_configured_stream_and_climo_years(tmp_path):
+    """Without arguments, the case's own stream and climatology years are used."""
     data = _data(tmp_path)
     assert _years(data.get_history_files(CASE)) == [2, 3]
     assert _years(data.get_ref_history_files()) == [1, 2]
 
 
 def test_history_files_years_and_stream_can_be_given(tmp_path):
+    """Explicit years narrow the files; a stream with no files gives none."""
     data = _data(tmp_path)
     assert _years(data.get_history_files(CASE, "cam.h4", 1, 1)) == [1]
     assert data.get_history_files(CASE, "cam.h1") == []
 
 
 def test_history_dataset_spans_the_files(tmp_path):
+    """The Dataset covers every file found, with all of the stream's variables."""
     data = _data(tmp_path)
     ds = data.load_history_dataset(CASE)
     assert ds.sizes["time"] == 2
@@ -154,6 +157,7 @@ def test_history_dataset_spans_the_files(tmp_path):
 
 
 def test_history_da_is_converted(tmp_path):
+    """The variable defaults' conversion is applied, unless asked not to be."""
     data = _data(tmp_path)
     da = data.load_history_da(CASE, "U")
     assert float(da.max()) == 2.0
@@ -164,6 +168,7 @@ def test_history_da_is_converted(tmp_path):
 
 
 def test_no_history_files_for_observations(tmp_path):
+    """Observations have no history files, and saying so is not an error."""
     data = _data(tmp_path, compare_obs=True)
     with pytest.warns(UserWarning):
         assert data.get_ref_history_files() is None
@@ -174,6 +179,7 @@ def test_no_history_files_for_observations(tmp_path):
 # Time series Datasets
 # ------------------
 def test_timeseries_dataset_converts_field_and_keeps_the_rest(tmp_path):
+    """`field` is converted; the rest of the Dataset comes along unchanged."""
     data = _data(tmp_path)
     for ds in (
         data.load_timeseries_dataset(CASE, "U"),
@@ -189,12 +195,14 @@ def test_timeseries_dataset_converts_field_and_keeps_the_rest(tmp_path):
 
 
 def test_timeseries_dataset_without_scaling(tmp_path):
+    """apply_scaling=False leaves `field` as it is in the file."""
     data = _data(tmp_path)
     ds = data.load_timeseries_dataset(CASE, "U", apply_scaling=False)
     assert float(ds["U"].max()) == 1.0
 
 
 def test_timeseries_dataset_missing_variable(tmp_path):
+    """A variable with no time series files gives None, with a warning."""
     data = _data(tmp_path)
     with pytest.warns(UserWarning):
         assert data.load_timeseries_dataset(CASE, "V") is None
@@ -203,12 +211,14 @@ def test_timeseries_dataset_missing_variable(tmp_path):
 # TEM files
 # ------------------
 def test_tem_files_are_named_for_the_climo_years(tmp_path):
+    """Case and baseline TEM files are found by the climatology years."""
     data = _data(tmp_path)
     assert [f.name for f in data.get_tem_file(CASE)] == [f"{CASE}.TEMdiag_2-3.nc"]
     assert [f.name for f in data.get_ref_tem_file()] == [f"{BASE}.TEMdiag_1-2.nc"]
 
 
 def test_tem_da_is_converted_and_time_centred(tmp_path):
+    """TEM fields are converted, and time moves to each interval's middle."""
     data = _data(tmp_path)
     for da in (data.load_tem_da(CASE, "UZM"), data.load_reference_tem_da("UZM")):
         assert float(da.max()) == 2.0
@@ -219,6 +229,7 @@ def test_tem_da_is_converted_and_time_centred(tmp_path):
 
 
 def test_observation_tem_file_uses_obs_scaling(tmp_path):
+    """Observations use the obs_ conversion and keep their units."""
     data = _data(tmp_path, compare_obs=True)
     assert [f.name for f in data.get_ref_tem_file()] == ["Obs.TEMdiag.nc"]
     da = data.load_reference_tem_da("UZM")
@@ -228,12 +239,14 @@ def test_observation_tem_file_uses_obs_scaling(tmp_path):
 
 
 def test_tem_field_not_in_file(tmp_path):
+    """A field the TEM file lacks gives None, with a note."""
     data = _data(tmp_path)
     with pytest.warns(UserWarning):
         assert data.load_tem_da(CASE, "PZM") is None
 
 
 def test_missing_tem_file(tmp_path):
+    """A case with no TEM location finds no file."""
     data = _data(tmp_path)
     data.case_names = [CASE, "other"]
     assert data.get_tem_file("other") == []

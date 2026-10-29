@@ -9,10 +9,13 @@ guarded.  Model-vs-obs runs never reach the code at all, which is why it went
 unnoticed.
 """
 
+# The stand-ins below take the real signatures, whether or not they use them:
+# pylint: disable=protected-access, unused-argument
+
 import sys
 from pathlib import Path
 
-import pytest
+import pytest  # pylint: disable=import-error
 
 # CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
 # so skip rather than fail collection when the science stack is absent.
@@ -25,7 +28,7 @@ pytest.importorskip("xesmf")
 sys.path.append(str(Path(__file__).parents[2]))
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "regridding"))
 
-import regrid_and_vert_interp as rvi  # noqa: E402
+import regrid_and_vert_interp as rvi  # noqa: E402  # pylint: disable=import-error
 
 
 class FakeData:
@@ -37,6 +40,7 @@ class FakeData:
         self.ref_labels = {v: "baseline" for v in ref_vars}
 
     def load_reference_climo_dataset(self, case, variablename):
+        """Index the bookkeeping, as the real loader does once it finds a file."""
         # The real one globs for a file first and only then indexes
         # ref_var_nam, so a missing entry raises rather than returning None.
         return {"dummy": self.ref_var_nam[variablename]}
@@ -53,9 +57,11 @@ class FakeAdf:
         self.logged = []
 
     def get_basic_info(self, var_str, required=False):
+        """The configured pressure field names, and nothing else."""
         return self._names if var_str == "pressure_field_names" else None
 
     def debug_log(self, msg):
+        """Keep the message, so a test can check what was said."""
         self.logged.append(msg)
 
 
@@ -69,6 +75,7 @@ def test_the_pressure_field_is_skipped_for_the_baseline(tmp_path):
 
 
 def test_a_configured_pressure_field_name_is_skipped_too(tmp_path):
+    """A pressure field the config renames is skipped the same way."""
     adf = FakeAdf(["T"], pressure_field_names={"lev": "pfull"})
     rvi._write_reference_files(adf, ["pfull"], {}, tmp_path, True)
     assert adf.logged and "pfull" in adf.logged[0]

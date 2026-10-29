@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
+import pytest  # pylint: disable=import-error
 
 # CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
 # so skip rather than fail collection when the science stack is absent.
@@ -21,14 +21,14 @@ pytest.importorskip("xarray")
 pytest.importorskip("cftime")
 pytest.importorskip("geocat.comp")
 
-import cftime  # noqa: E402
+import cftime  # noqa: E402  # pylint: disable=import-error
 import numpy as np  # noqa: E402
 import xarray as xr  # noqa: E402
 
 sys.path.append(str(Path(__file__).parents[2]))
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "averaging"))
 
-from create_TEM_files import tem_pressure  # noqa: E402
+from create_TEM_files import tem_pressure  # noqa: E402  # pylint: disable=import-error
 
 LEV = np.array([10.0, 100.0, 500.0])
 ZALAT = np.array([-45.0, 0.0, 45.0])
@@ -89,6 +89,7 @@ def test_each_step_gets_its_own_month():
 
 
 def test_baseline_reads_the_reference_time_series():
+    """The baseline (case_name None) takes its pressure from the reference time series."""
     ds_pres = _pressure([(2, 1), (2, 2)])
     adf = _adf(None)
     adf.data.load_reference_timeseries_dataset = lambda field: ds_pres
@@ -97,6 +98,7 @@ def test_baseline_reads_the_reference_time_series():
 
 
 def test_month_missing_from_the_time_series_is_left_missing():
+    """A TEM month with no pressure is left missing, not filled from another month."""
     ds_pres = _pressure([(2, 1)])
     pzm = tem_pressure(_adf(ds_pres), "case", _tem(MONTHLY), "lev")
     values = pzm.isel(lev=0, zalat=0).values
@@ -104,12 +106,14 @@ def test_month_missing_from_the_time_series_is_left_missing():
 
 
 def test_daily_steps_share_their_months_pressure():
+    """Daily TEM steps each take the mean pressure of their month."""
     daily = [(_date(2, 1, 1), _date(2, 1, 2)), (_date(2, 1, 2), _date(2, 1, 3))]
     pzm = tem_pressure(_adf(_pressure([(2, 1)])), "case", _tem(daily), "lev")
     assert pzm.isel(lev=0, zalat=0).values.tolist() == [201.0, 201.0]
 
 
 def test_hpa_is_converted_to_pa():
+    """A pressure time series in hPa is stored in Pa."""
     ds_pres = _pressure([(2, 1), (2, 2)], units="hPa")
     pzm = tem_pressure(_adf(ds_pres), "case", _tem(MONTHLY), "lev")
     assert pzm.isel(lev=0, zalat=0).values.tolist() == [20100.0, 20200.0]
@@ -124,4 +128,5 @@ def test_hpa_is_converted_to_pa():
     ],
 )
 def test_no_usable_pressure_gives_none(ds_pres):
+    """No time series, none for the TEM years, or a native grid: no PZM."""
     assert tem_pressure(_adf(ds_pres), "case", _tem(MONTHLY), "lev") is None
