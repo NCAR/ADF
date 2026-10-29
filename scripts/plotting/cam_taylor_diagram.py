@@ -5,6 +5,8 @@ Provides a Taylor diagram following the AMWG package. Uses spatial information o
 
 This module, for better or worse, provides both the computation and plotting functionality.
 It depends on an ADF instance to obtain the regridded `climo` files.
+With 'unstructured_plotting' those files are on the model's native grid, and the
+statistics are taken there, weighted by the mesh's cell areas.
 It is designed to have one "reference" case (could be observations) and arbitrary test cases.
 When multiple test cases are provided, they are plotted with different colors.
 
@@ -19,6 +21,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
+import uxarray as ux
 import pandas as pd
 import matplotlib as mpl
 mpl.use('Agg')
@@ -174,11 +177,12 @@ def cam_taylor_diagram(adfobj):
     # (12 months x lat x lon), so holding them costs little.
     retrieved = {}
 
-    def _retrieve_once(variable, casename):
-        if (variable, casename) not in retrieved:
-            da = _retrieve(adfobj, variable, casename)
-            retrieved[(variable, casename)] = da if da is None else da.load()
-        return retrieved[(variable, casename)]
+    def _retrieve_once(variable, casename, test_case=None):
+        key = (variable, casename, test_case)
+        if key not in retrieved:
+            da = _retrieve(adfobj, variable, casename, test_case=test_case)
+            retrieved[key] = da if da is None else da.load()
+        return retrieved[key]
 
     #
     # LOOP OVER SEASON
@@ -203,21 +207,26 @@ def cam_taylor_diagram(adfobj):
 
         for v in var_list:
             logger.debug(f"TAYLOR DIAGRAM VARIABLE: {v}")
-            # Load reference data (already regridded to target grid)
-            ref_data = _retrieve_once(v, data_name)
-            if ref_data is None:
-                logger.warning(f"\t WARNING: No regridded reference data for {v} in {data_name}, skipping.")
-                continue
-            with silence_output():
-                ref_data = ref_data.sel(time=months).mean(dim='time').compute()
-
             for casenumber, case in enumerate(case_names):
+                # Load reference data (already regridded to target grid).  A
+                # lat/lon reference that the regridding step put onto this
+                # case's mesh is read from there:
+                ref_data = _retrieve_once(v, data_name, _ref_test_case(adfobj, case))
+                if ref_data is None:
+                    logger.warning(f"\t WARNING: No regridded reference data for {v} in {data_name}, skipping.")
+                    continue
+                with silence_output():
+                    ref_data = ref_data.sel(time=months).mean(dim='time').compute()
                 # Load test case data regridded to match reference grid
                 case_data = _retrieve_once(v, case)
                 if case_data is None:
                     logger.warning(f"\t WARNING: No regridded data for {v} in {case}, skipping.")
                     continue
                 case_data = case_data.sel(time=months).mean(dim='time').compute()
+                if is_unstructured(case_data) != is_unstructured(ref_data):
+                    logger.warning(f"\t WARNING: {v} for {case} and the reference are not "
+                                   "on the same grid, skipping.")
+                    continue
                 result_by_case[case].loc[v] = taylor_stats_single(case_data, ref_data)
 
         # -- PLOTTING (one per season) --
@@ -252,8 +261,8 @@ def cam_taylor_diagram(adfobj):
 # --- DERIVED VARIABLES ---
 
 
-def find_landmask(adf, casename):
-    return _retrieve(adf, 'LANDFRAC', casename)
+def find_landmask(adf, casename, test_case=None):
+    return _retrieve(adf, 'LANDFRAC', casename, test_case=test_case)
 
 
 def regrid_to_target(adf, casename, source_da, target_da, method='conservative'):
@@ -273,7 +282,11 @@ def regrid_to_target(adf, casename, source_da, target_da, method='conservative')
     if not XESMF_AVAILABLE:
         logger.error("xesmf not available, cannot regrid")
         return source_da
-    
+
+    # Native-grid fields of one case all come from the same mesh:
+    if is_unstructured(source_da) or is_unstructured(target_da):
+        return source_da
+
     if source_da.lat.shape == target_da.lat.shape and source_da.lon.shape == target_da.lon.shape:
         logger.debug("Grids already match, no regridding needed")
         return source_da
@@ -329,85 +342,134 @@ def _is_ref(adf, casename):
     return casename == adf.data.ref_case_label
 
 
-def _load_ref_da(adf, variable):
+def _native_kwargs(adf, casename):
+    """Loader keyword arguments for plotting on the native grid, else empty.
+
+    With 'unstructured_plotting', a native-grid case's regridded files are still
+    on its native grid, and are opened with uxarray against the case's mesh.
+    """
+    if not adf.unstructured_plotting:
+        return {}
+    if not adf.native_grid.get(casename, False):
+        if not _is_ref(adf, casename) and adf.native_grid.get(adf.data.ref_case_label, False):
+            # A lat/lon case compared with a native reference: the regridding
+            # step put it onto the reference's mesh, which the loader picks
+            # (see AdfData._regrid_files).
+            return {"unstructured_plotting": True}
+        return {}
+    if _is_ref(adf, casename):
+        mesh_file = adf.mesh_files["baseline_mesh_file"]
+    else:
+        case_names = adf.get_cam_info("cam_case_name", required=True)
+        mesh_file = adf.mesh_files["test_mesh_file"][case_names.index(casename)]
+    return {"unstructured_plotting": True, "mesh_file": mesh_file}
+
+
+def _ref_test_case(adf, casename):
+    """`casename` if its reference is read from the case's mesh, else None.
+
+    With 'unstructured_plotting', the regridding step puts a lat/lon reference
+    (a baseline or observations) onto a native test case's mesh.
+    """
+    if (adf.unstructured_plotting and adf.native_grid.get(casename, False)
+            and not adf.native_grid.get(adf.data.ref_case_label, False)):
+        return casename
+    return None
+
+
+def _ref_kwargs(adf, test_case):
+    """Loader keyword arguments for the reference as `test_case` sees it."""
+    if test_case is None:
+        return _native_kwargs(adf, adf.data.ref_case_label)
+    return {"unstructured_plotting": True, "test_case": test_case}
+
+
+def _load_ref_da(adf, variable, test_case=None):
     """Reference field on the target grid.
 
     Observations (and baseline fields that needed vertical interpolation) have a
     regridded file; a baseline simulation defines the target grid, so its plain
-    climo file is already on that grid.
+    climo file is already on that grid.  With a `test_case` (see
+    `_ref_test_case`), the reference on that case's mesh.
     """
-    da = adf.data.load_reference_regrid_da(adf.data.ref_labels[variable], variable)
+    kwargs = _ref_kwargs(adf, test_case)
+    da = adf.data.load_reference_regrid_da(
+        adf.data.ref_labels[variable], variable, **kwargs
+    )
     if da is None:
         da = adf.data.load_reference_climo_da(adf.data.ref_case_label, variable)
     return da
 
 
-def _load_ref_ds(adf, variable):
+def _load_ref_ds(adf, variable, test_case=None):
     """Reference dataset on the target grid; see _load_ref_da."""
-    ds = adf.data.load_reference_regrid_dataset(adf.data.ref_labels[variable], variable)
+    kwargs = _ref_kwargs(adf, test_case)
+    ds = adf.data.load_reference_regrid_dataset(
+        adf.data.ref_labels[variable], variable, **kwargs
+    )
     if ds is None:
-        ds = adf.data.load_reference_climo_ds(adf.data.ref_case_label, variable)
+        ds = adf.data.load_reference_climo_dataset(adf.data.ref_case_label, variable)
     return ds
 
 
-def _load_field(adf, casename, variable):
+def _load_field(adf, casename, variable, test_case=None):
     """Load `variable` on the target grid, for a test case or the reference.
 
     Returns None when the variable is not part of this run, rather than raising,
     so callers can fall back to deriving it (e.g. PRECT from PRECC + PRECL).
+    For the reference, `test_case` asks for it on that case's mesh.
     """
     if variable not in adf.data.ref_var_nam:
         return None
     if _is_ref(adf, casename):
-        return _load_ref_da(adf, variable)
-    return adf.data.load_regrid_da(casename, variable)
+        return _load_ref_da(adf, variable, test_case)
+    return adf.data.load_regrid_da(casename, variable, **_native_kwargs(adf, casename))
 
 
-def _load_field_ds(adf, casename, variable):
+def _load_field_ds(adf, casename, variable, test_case=None):
     """Dataset form of _load_field; needed where hyam/hybm are also required."""
     if variable not in adf.data.ref_var_nam:
         return None
     if _is_ref(adf, casename):
-        return _load_ref_ds(adf, variable)
-    return adf.data.load_regrid_dataset(casename, variable)
+        return _load_ref_ds(adf, variable, test_case)
+    return adf.data.load_regrid_dataset(
+        casename, variable, **_native_kwargs(adf, casename)
+    )
 
 
-def get_prect(adf, casename, **kwargs):
-    prect = _load_field(adf, casename, 'PRECT')
+def get_prect(adf, casename, test_case=None, **kwargs):
+    prect = _load_field(adf, casename, 'PRECT', test_case)
     if prect is not None:
         return prect
     logger.info("\t Need to derive PRECT = PRECC + PRECL")
-    precc = _load_field(adf, casename, 'PRECC')
-    precl = _load_field(adf, casename, 'PRECL')
+    precc = _load_field(adf, casename, 'PRECC', test_case)
+    precl = _load_field(adf, casename, 'PRECL', test_case)
     if precc is None or precl is None:
         logger.warning(f"\t WARNING: Could not derive PRECT for {casename} "
                        "(missing PRECC or PRECL)")
         return None
     return precc + precl
 
-def get_tropical_land_precip(adf, casename, **kwargs):
-    landfrac = find_landmask(adf, casename)
+def get_tropical_land_precip(adf, casename, test_case=None, **kwargs):
+    landfrac = find_landmask(adf, casename, test_case)
     if landfrac is None:
         return None
-    prect = get_prect(adf, casename)
+    prect = get_prect(adf, casename, test_case)
     if prect is None:
         return None
     
     # Regrid prect to match landfrac grid if necessary
     prect = regrid_to_target(adf, casename, prect, landfrac)
     # mask to only keep land locations
-    prect = xr.DataArray(np.where(landfrac >= .95, prect, np.nan),
-                         dims=prect.dims,
-                         coords=prect.coords,
-                         attrs=prect.attrs)  # threshold could be 1
-    return prect.sel(lat=slice(-30,30))
+    prect = _mask_where(prect, landfrac >= .95)  # threshold could be 1
+    return _lat_band(prect, -30, 30)
 
 
-def get_tropical_ocean_precip(adf, casename, **kwargs):
-    landfrac = find_landmask(adf, casename)
+def get_tropical_ocean_precip(adf, casename, test_case=None, **kwargs):
+    landfrac = find_landmask(adf, casename, test_case)
     if landfrac is None:
         return None
-    prect = get_prect(adf, casename)
+    prect = get_prect(adf, casename, test_case)
     if prect is None:
         return None
     
@@ -415,32 +477,29 @@ def get_tropical_ocean_precip(adf, casename, **kwargs):
     prect = regrid_to_target(adf, casename, prect, landfrac)
     
     # mask to only keep ocean locations
-    prect = xr.DataArray(np.where(landfrac <= 0.05, prect, np.nan),
-                         dims=prect.dims,
-                         coords=prect.coords,
-                         attrs=prect.attrs)
-    return prect.sel(lat=slice(-30,30))
+    prect = _mask_where(prect, landfrac <= 0.05)
+    return _lat_band(prect, -30, 30)
 
 
-def get_surface_pressure(adf, dset, casename):
+def get_surface_pressure(adf, dset, casename, test_case=None):
     if isinstance(dset, xr.Dataset) and 'PS' in dset.data_vars:
         ps = dset['PS']
     else:
-        ps = _load_field(adf, casename, 'PS')
+        ps = _load_field(adf, casename, 'PS', test_case)
     if ps is None:
         logger.warning(f"\t WARNING: Could not load PS for {casename}.")
         return None    
     return ps
 
 
-def get_var_at_plev(adf, casename, variable, plev):
+def get_var_at_plev(adf, casename, variable, plev, test_case=None):
     """Select `variable` at pressure level `plev` (hPa).
 
     Regridded files are already on pressure levels (regrid_and_vert_interp does
     the vertical interpolation), so this is a nearest-level selection; only the
     units of the level coordinate have to be sorted out.
     """
-    da = _load_field(adf, casename, variable)
+    da = _load_field(adf, casename, variable, test_case)
     if da is None:
         logger.warning(f"\t WARNING: {variable} unavailable for {casename}.")
         return None
@@ -453,16 +512,16 @@ def get_var_at_plev(adf, casename, variable, plev):
     return da.sel(**{level_dim: adjusted_plev}, method='nearest')
 
 
-def get_u_at_plev(adf, casename):
-    return get_var_at_plev(adf, casename, "U", 300)
+def get_u_at_plev(adf, casename, test_case=None):
+    return get_var_at_plev(adf, casename, "U", 300, test_case)
 
 
-def get_vertical_average(adf, casename, varname):
+def get_vertical_average(adf, casename, varname, test_case=None):
     '''Collect data and apply mass-weighted vertical averaging with interface support.
     
     NOTE: the height coordinate is not weighted by density, so is biased.
     '''
-    ds = _load_field_ds(adf, casename, varname)
+    ds = _load_field_ds(adf, casename, varname, test_case)
 
     if ds is None: return None
     
@@ -470,7 +529,7 @@ def get_vertical_average(adf, casename, varname):
     if level_dim is None: return None
 
     if 'hyai' in ds and 'hybi' in ds:
-        ps = get_surface_pressure(adf, ds, casename)
+        ps = get_surface_pressure(adf, ds, casename, test_case)
         p_int = utils.pres_from_hybrid(ps, ds['hyai'], ds['hybi'])
         # diff returns one fewer element than p_int
         # This represents the thickness of the layers BETWEEN interfaces
@@ -489,7 +548,7 @@ def get_vertical_average(adf, casename, varname):
 
     elif 'hyam' in ds and 'hybm' in ds:
         # Fallback for hybrid midpoints only
-        ps = get_surface_pressure(adf, ds, casename)
+        ps = get_surface_pressure(adf, ds, casename, test_case)
         pres = utils.pres_from_hybrid(ps, ds['hyam'], ds['hybm'])
         weights = calculate_thickness_approx(pres, dim=level_dim)
 
@@ -499,7 +558,10 @@ def get_vertical_average(adf, casename, varname):
         weights = calculate_thickness_approx(ds[level_dim], dim=level_dim)
 
     # Apply Weighted Average
-    return weighted_vertical_average(ds[varname], weights, dim=level_dim)
+    result = weighted_vertical_average(ds[varname], weights, dim=level_dim)
+    if hasattr(ds, "uxgrid") and not hasattr(result, "uxgrid"):
+        result = ux.UxDataArray(result, uxgrid=ds.uxgrid)
+    return result
 
 
 def calculate_thickness_approx(coord, dim='lev'):
@@ -540,42 +602,88 @@ def weighted_vertical_average(da, weights, dim='lev'):
     return weighted_field.sum(dim=dim) / total_weight
 
 
-def get_virh(adf, casename, **kwargs):
+def get_virh(adf, casename, test_case=None, **kwargs):
     '''Calculate vertically averaged relative humidity.'''
-    return get_vertical_average(adf, casename, "RELHUM")
+    return get_vertical_average(adf, casename, "RELHUM", test_case)
 
 
-def get_vit(adf, casename, **kwargs):
+def get_vit(adf, casename, test_case=None, **kwargs):
     '''Calculate vertically averaged temperature.'''
-    return get_vertical_average(adf, casename, "T")
+    return get_vertical_average(adf, casename, "T", test_case)
 
 
-def get_landt2m(adf, casename):
+def get_landt2m(adf, casename, test_case=None):
     '''Get 2-meter temperature over land'''
-    t = _load_field(adf, casename, 'TREFHT')
+    t = _load_field(adf, casename, 'TREFHT', test_case)
     if t is None:
         return None
     
-    landfrac = find_landmask(adf, casename)
+    landfrac = find_landmask(adf, casename, test_case)
     if landfrac is None:
         return None
     
     # Regrid t to match landfrac grid if necessary
     t = regrid_to_target(adf, casename, t, landfrac)
     
-    t = xr.DataArray(np.where(landfrac >= .95, t, np.nan),
-                     dims=t.dims, coords=t.coords, attrs=t.attrs)
-    return t
+    return _mask_where(t, landfrac >= .95)
 
 
 
-def get_eqpactaux(adf, casename):
+def get_eqpactaux(adf, casename, test_case=None):
     """Get zonal surface wind stress 5°S to 5°N."""
-    taux = _load_field(adf, casename, 'TAUX')
+    taux = _load_field(adf, casename, 'TAUX', test_case)
     if taux is None:
         logger.warning(f"\t WARNING: Could not load TAUX for {casename}")
         return None
-    return taux.sel(lat=slice(-5, 5))
+    return _lat_band(taux, -5, 5)
+
+
+def is_unstructured(da):
+    """Whether `da` is on a native unstructured grid."""
+    return hasattr(da, "uxgrid") or "ncol" in da.dims or "n_face" in da.dims
+
+
+def _mask_where(da, keep):
+    """`da` with NaN wherever `keep` is False.
+
+    On a lat/lon grid the mask is applied by position, as the two fields can
+    carry slightly different coordinates after regridding; uxarray data keeps
+    its mesh only through xarray's own `where`.
+    """
+    if hasattr(da, "uxgrid"):
+        return da.where(keep)
+    return xr.DataArray(np.where(keep, da, np.nan),
+                        dims=da.dims, coords=da.coords, attrs=da.attrs)
+
+
+def _lat_band(da, lat_min, lat_max):
+    """The part of `da` between latitudes `lat_min` and `lat_max`."""
+    if hasattr(da, "uxgrid"):
+        face_lat = da.uxgrid.face_lat.values
+        return da.isel(n_face=np.where((face_lat >= lat_min) & (face_lat <= lat_max))[0])
+    return da.sel(lat=slice(lat_min, lat_max))
+
+
+def get_spatial_weights(da, use_weights=True):
+    """Spatial weights for `da`: cos(latitude) on a lat/lon grid, cell areas on a mesh.
+
+    Parameters
+    ----------
+    da : xarray.DataArray or uxarray.UxDataArray
+        The field to be weighted.
+    use_weights : bool, optional
+        If False, weight every point equally.
+
+    Returns
+    -------
+    xarray.DataArray
+        The weights.
+    """
+    if not use_weights:
+        return xr.ones_like(da)
+    if hasattr(da, "uxgrid"):
+        return xr.DataArray(da.uxgrid.face_areas.values, dims=["n_face"])
+    return np.cos(np.radians(da["lat"]))
 
 
 def get_derive_func(fld: str):
@@ -594,9 +702,10 @@ def get_derive_func(fld: str):
     return funcs[fld]
 
 
-def _retrieve(adfobj, variable, casename, return_dataset=False):
+def _retrieve(adfobj, variable, casename, return_dataset=False, test_case=None):
     """Custom function that retrieves a variable using ADF loaders.
     Returns the variable as a DataArray (or Dataset if return_dataset=True).
+    For the reference, `test_case` asks for it on that case's mesh.
     """
     v_to_derive = ['TropicalLandPrecip', 'TropicalOceanPrecip', 'EquatorialPacificStress',
                    'U300', 'ColumnRelativeHumidity', 'ColumnTemperature', 'Land2mTemperature']
@@ -605,12 +714,12 @@ def _retrieve(adfobj, variable, casename, return_dataset=False):
         if func is None:
             logger.error(f"No derivation function available for {variable}")
             return None
-        da = func(adfobj, casename)
+        da = func(adfobj, casename, test_case=test_case)
         if da is None:
             logger.warning(f"Derivation function for {variable} returned None for {casename}")
             return None
     else:
-        da = _load_field(adfobj, casename, variable)
+        da = _load_field(adfobj, casename, variable, test_case)
         if da is None:
             logger.warning(f"Failed to load {variable} for {casename}")
             return None
@@ -654,7 +763,8 @@ def taylor_stats_single(casedata, refdata, w=True):
     ---------
         casedata : input data, DataArray
         refdata  : reference case data, DataArray
-        w        : if true use cos(latitude) as spatial weight, if false assume uniform weight
+        w        : if true use cos(latitude) (or, on a native grid, the cell areas)
+                   as spatial weight, if false assume uniform weight
     RETURNS
     -------
         tuple: 
@@ -672,11 +782,7 @@ def taylor_stats_single(casedata, refdata, w=True):
     casedata = casedata.where(both_valid)
     refdata = refdata.where(both_valid)
 
-    lat = casedata.lat
-    if w:
-        wgt = np.cos(np.radians(lat))
-    else:
-        wgt = np.ones(len(lat))
+    wgt = get_spatial_weights(casedata, use_weights=w)
     correlation = weighted_correlation(casedata, refdata, wgt).item()
     a_sigma = weighted_std(casedata, wgt)
     b_sigma = weighted_std(refdata, wgt)

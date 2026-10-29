@@ -29,6 +29,8 @@ Good luck, and may all your plots be helpful!
 import os.path
 import sys
 import argparse
+import time
+import datetime
 
 #+++++++++++++++++++++++++++++
 #Import ADF diagnostics module
@@ -100,6 +102,20 @@ def parse_arguments():
 
     return args
 
+#++++++++++++++++++++++++++++++
+#Total run time print function
+#++++++++++++++++++++++++++++++
+
+def print_run_time(start_time):
+
+    """
+    Prints how long the ADF took to run, as H:MM:SS,
+    given the time.perf_counter() value at the start.
+    """
+
+    elapsed = round(time.perf_counter() - start_time)
+    print(f"ADF diagnostics total run time: {datetime.timedelta(seconds=elapsed)} (H:MM:SS)")
+
 ############################
 #Main CAM diagnostics script
 ############################
@@ -111,6 +127,9 @@ if __name__ == "__main__":
     #+++++++++++++++++++++
     #Begin ADF diag script
     #+++++++++++++++++++++
+    #Start the clock for the total run time:
+    adf_start_time = time.perf_counter()
+
     print('ADF diagnostics is starting...')
 
     #+++++++++++++++++++++++++++++++++++++++++++
@@ -172,6 +191,7 @@ if __name__ == "__main__":
     #no observations were found, then stop here:
     if diag.compare_obs and not diag.var_obs_dict:
         print('\nADF diagnostics has completed successfully.')
+        print_run_time(adf_start_time)
         sys.exit(0)
 
     #Regrid model climatology files to match either
@@ -207,4 +227,5 @@ if __name__ == "__main__":
     #End diag script
     #+++++++++++++++
     print('\nADF diagnostics has completed successfully.')
+    print_run_time(adf_start_time)
     sys.exit(0)

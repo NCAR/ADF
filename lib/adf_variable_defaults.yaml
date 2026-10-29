@@ -81,6 +81,14 @@
 #                 warning if it is more than 1% away from the one asked for.
 #
 #
+# CESM2 LARGE ENSEMBLE (global_mean_timeseries):
+#
+# lens2_file   -> Global, annual mean CESM2 LENS2 file, plotted as the ensemble range and mean behind the
+#                 global mean time series.  If only the file name is given, then the file is assumed to
+#                 exist in the path specified by "lens2_data_loc" in the config file.  Variables without
+#                 it get no LENS2 band.
+#
+#
 # VECTORS:
 #
 # vector_pair  -> Another variable that when combined with the given variable makes up a vector pair.
@@ -155,6 +163,7 @@ ACTREI:
 
 ACTREL:
   category: "Microphysics"
+  lens2_file: "ACTREL_LENS2_first50_gm_am.nc"
 
 ADRAIN:
   category: "Microphysics"
@@ -170,6 +179,7 @@ AREL:
 
 CDNUMC:
   category: "Microphysics"
+  lens2_file: "CDNUMC_LENS2_first50_gm_am.nc"
 
 FREQI:
   category: "Microphysics"
@@ -226,6 +236,7 @@ AODVIS:
   obs_name: "MODIS"
   obs_var_name: "AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean"
   category: "Aerosols"
+  lens2_file: "AODVIS_LENS2_first50_gm_am.nc"
 
 
 AODVISdn:
@@ -1279,6 +1290,7 @@ CLDTOT:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDTOT_LENS2_first50_gm_am.nc"
 
 
 CLDLOW:
@@ -1303,6 +1315,7 @@ CLDLOW:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDLOW_LENS2_first50_gm_am.nc"
 
 
 CLDHGH:
@@ -1327,6 +1340,7 @@ CLDHGH:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDHGH_LENS2_first50_gm_am.nc"
 
 
 CLDMED:
@@ -1351,6 +1365,7 @@ CLDMED:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDMED_LENS2_first50_gm_am.nc"
 
 
 CLOUD:
@@ -1399,6 +1414,7 @@ TGCLDLWP:
   obs_var_name: "TGCLDLWP"
   obs_scale_factor: 1000
   obs_add_offset: 0
+  lens2_file: "TGCLDLWP_LENS2_first50_gm_am.nc"
 
 TGCLDIWP:
   colormap: "Blues"
@@ -1428,6 +1444,7 @@ TGCLDIWP:
   obs_var_name: "TGCLDIWP"
   obs_scale_factor: 1000
   obs_add_offset: 0
+  lens2_file: "TGCLDIWP_LENS2_first50_gm_am.nc"
 
 CCN3:
   category: "Clouds"
@@ -1610,6 +1627,7 @@ TS:
   obs_name: "ERAI"
   obs_var_name: "TS"
   category: "Surface variables"
+  lens2_file: "TS_LENS2_first50_gm_am.nc"
 
 SST:
   colormap: "Blues"
@@ -1964,6 +1982,7 @@ SWCF:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "TOA energy flux"
+  lens2_file: "SWCF_LENS2_first50_gm_am.nc"
 
 LWCF:
   colormap: "Oranges"
@@ -2013,9 +2032,11 @@ FSNT:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "fsnt"
   category: "TOA energy flux"
+  lens2_file: "FSNT_LENS2_first50_gm_am.nc"
 
 FSNTC:
   category: "TOA energy flux"
+  lens2_file: "FSNTC_LENS2_first50_gm_am.nc"
 
 FSNTOA:
   colormap: "Blues"
@@ -2116,6 +2137,7 @@ FSDS:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_sw_down_all_mon"
   category: "Radiation"
+  lens2_file: "FSDS_LENS2_first50_gm_am.nc"
 
 
 FSDSC:
@@ -2133,6 +2155,7 @@ FSDSC:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_sw_down_clr_t_mon"
   category: "Radiation"
+  lens2_file: "FSDSC_LENS2_first50_gm_am.nc"
 
 
 FSNS:

@@ -26,6 +26,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import adf_utils as utils
+
 # Check if "PyYAML" is present in python path:
 # pylint: disable=unused-import
 try:
@@ -67,6 +69,30 @@ except ImportError:
     print("Please install module, e.g. 'pip install Cartopy'.")
     sys.exit(1)
 
+# Check if "uxarray" is present in python path:
+# try:
+#    import uxarray as ux
+# except ImportError:
+#    print("uxarray module does not exist in python path.")
+#    print("Please install module, e.g. 'pip install uxarray'.")
+#    sys.exit(1)
+
+# Check if "esmpy" is present in python path:
+try:
+    import esmpy
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install esmpy'.")
+    sys.exit(1)
+
+# Check if "xesmf" is present in python path:
+try:
+    import xesmf
+except ImportError:
+    print("xesmf module does not exist in python path.")
+    print("Please install module, e.g. 'pip install xesmf'.")
+    sys.exit(1)
+
 # pylint: enable=unused-import
 
 # +++++++++++++++++++++++++++++
@@ -98,8 +124,10 @@ for root, dirs, files in os.walk(_DIAG_SCRIPTS_PATH):
 from adf_file_utils import (
     as_hist_str_list,
     describe_dir_problem,
+    missing_year_ranges,
     select_ts_files,
     ts_files_need_combining,
+    ts_years_covered,
 )
 from adf_web import AdfWeb
 from adf_dataset import AdfData
@@ -109,6 +137,30 @@ from adf_utils import request_pressure_field, request_pressure_field_from_ts
 #################
 # Helper functions
 #################
+
+
+def _hist_file_year(hist_file, hist_str):
+    """The model year of a history file named $CASE.<hist_str>.YYYY<more date>.nc."""
+    return int(str(hist_file).partition(f"{hist_str}.")[2][0:4])
+
+
+def _ts_time_string(hist_files):
+    """The "start-end" date string for a time series made from `hist_files`.
+
+    Taken from the first and last (sorted) history file names, so that
+    $CASE.cam.h0a.0001-01.nc ... $CASE.cam.h0a.0005-12.nc gives "000101-000512".
+    """
+    first_file_split = str(hist_files[0]).split(".")
+    if first_file_split[-1] == "nc":
+        time_string_start = first_file_split[-2].replace("-", "")
+    else:
+        time_string_start = first_file_split[-1].replace("-", "")
+    last_file_split = str(hist_files[-1]).split(".")
+    if last_file_split[-1] == "nc":
+        time_string_finish = last_file_split[-2].replace("-", "")
+    else:
+        time_string_finish = last_file_split[-1].replace("-", "")
+    return "-".join([time_string_start, time_string_finish])
 
 
 def construct_index_info(page_dict, fnam, opf):
@@ -345,7 +397,7 @@ class AdfDiag(AdfWeb):
         Returns
         -------
         dict
-            Keys ``case_names``, ``cam_ts_done``, ``cam_hist_locs``,
+            Keys ``case_names``, ``calc_ts``, ``cam_hist_locs``,
             ``ts_dirs``, ``overwrite_ts``, ``start_years``, ``end_years`` and
             ``hist_str_list``, each a list with one entry per case, plus
             ``case_type_string``, a str used in messages ("case" or
@@ -357,12 +409,12 @@ class AdfDiag(AdfWeb):
             # Use baseline settings, while converting them all to lists:
             return {
                 "case_names": [self.get_baseline_info("cam_case_name", required=True)],
-                "cam_ts_done": [self.get_baseline_info("cam_ts_done")],
+                "calc_ts": [self.calc_ts["baseline_calc_ts"]],
                 "cam_hist_locs": [self.get_baseline_info("cam_hist_loc")],
-                "ts_dirs": [self.get_baseline_info("cam_ts_loc", required=True)],
-                "overwrite_ts": [self.get_baseline_info("cam_overwrite_ts")],
-                "start_years": [self.climo_yrs["syear_baseline"]],
-                "end_years": [self.climo_yrs["eyear_baseline"]],
+                "ts_dirs": [self.get_baseline_info("cam_ts_loc")],
+                "overwrite_ts": [bool(self.get_baseline_info("cam_overwrite_ts"))],
+                "start_years": [self.ts_yrs["syear_baseline"]],
+                "end_years": [self.ts_yrs["eyear_baseline"]],
                 "case_type_string": "baseline",
                 "hist_str_list": [self.hist_string["base_hist_str"]],
             }
@@ -371,12 +423,16 @@ class AdfDiag(AdfWeb):
         # Use test case settings, which are already lists:
         return {
             "case_names": self.get_cam_info("cam_case_name", required=True),
-            "cam_ts_done": self.get_cam_info("cam_ts_done"),
+            "calc_ts": self.calc_ts["test_calc_ts"],
             "cam_hist_locs": self.get_cam_info("cam_hist_loc"),
-            "ts_dirs": self.get_cam_info("cam_ts_loc", required=True),
-            "overwrite_ts": self.get_cam_info("cam_overwrite_ts"),
-            "start_years": self.climo_yrs["syears"],
-            "end_years": self.climo_yrs["eyears"],
+            # Not needed by a case run on pre-made climatologies alone:
+            "ts_dirs": self.get_cam_info("cam_ts_loc")
+            or [None] * len(self.get_cam_info("cam_case_name", required=True)),
+            # Not overwriting when not given:
+            "overwrite_ts": self.get_cam_info("cam_overwrite_ts")
+            or [False] * len(self.get_cam_info("cam_case_name", required=True)),
+            "start_years": self.ts_yrs["syears"],
+            "end_years": self.ts_yrs["eyears"],
             "case_type_string": "case",
             "hist_str_list": self.hist_string["test_hist_str"],
         }
@@ -389,7 +445,7 @@ class AdfDiag(AdfWeb):
         """
         Derive variables that a set of pre-made time series does not contain.
 
-        A run configured with ``cam_ts_done: true`` skips the time series
+        A run configured with ``calc_cam_ts: false`` skips the time series
         step, and derivation used to happen only inside that step, decided by
         looking for constituents in a history file.  A pre-made set therefore
         never gained its derived variables: with ``FSNT`` and ``FLNT`` present
@@ -475,7 +531,7 @@ class AdfDiag(AdfWeb):
             wmsg = f"\t WARNING: {sorted({var for _, var, _ in todo})} would have"
             wmsg += f" to be derived, but {ts_problem}."
             wmsg += "\n\t     ** Those variables will be missing. **\n"
-            wmsg += "\t     Set 'cam_ts_done: false' with 'cam_hist_loc' pointing at"
+            wmsg += "\t     Set 'calc_cam_ts: true' with 'cam_hist_loc' pointing at"
             wmsg += " the history files and 'cam_ts_loc' at a directory you own, to"
             wmsg += " have the ADF make the time series itself."
             print(wmsg)
@@ -545,6 +601,189 @@ class AdfDiag(AdfWeb):
 
     #########
 
+    def grid_native_time_series(
+        self, case_name, case_idx, ts_dir, hist_strs, overwrite, baseline=False
+    ):
+        """
+        Grid a native-grid case's time series to lat/lon, into "gridded".
+
+        Only for a case on a native (unstructured) grid that is not being
+        plotted natively: the diagnostics then read the lat/lon copies, which
+        are made with the case's weights file.  Used after either time series
+        back end, which both name their files ``$case.$hist_str.$var.$dates.nc``.
+
+        Parameters
+        ----------
+        case_name : str
+            The case (or baseline) name.
+        case_idx : int
+            The case's position among the test cases (unused for the baseline).
+        ts_dir : str or pathlib.Path
+            The case's time series directory.
+        hist_strs : list of str
+            The case's history streams.
+        overwrite : bool
+            Re-grid files that already have a gridded copy.
+        baseline : bool, optional
+            Whether `case_name` is the baseline.
+        """
+        if not self.native_grid.get(case_name, False) or self.unstructured_plotting:
+            return
+        # End if
+
+        if baseline:
+            wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
+            method = self.latlon_regrid_method["baseline_regrid_method"]
+            latlon_file = self.latlon_files["baseline_latlon_file"]
+        else:
+            wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
+            method = self.latlon_regrid_method["test_regrid_method"][case_idx]
+            latlon_file = self.latlon_files["test_latlon_file"][case_idx]
+        # End if
+        if not wgts_file:
+            # Every variable of the case would fail the same way, so stop here:
+            emsg = f"'{case_name}' is on a native grid, but has no 'weights_file' to"
+            emsg += (
+                " grid it to lat/lon.  Add one, or set 'unstructured_plotting: true'."
+            )
+            self.end_diag_fail(emsg)
+        # End if
+
+        gridded_loc = Path(ts_dir) / "gridded"
+        gridded_loc.mkdir(parents=True, exist_ok=True)
+        print(f"\n    Gridding native time series for '{case_name}' to {gridded_loc}")
+
+        for hist_str in hist_strs or []:
+            # This case's files for this stream only: the directory may hold
+            # other streams or other cases.
+            for fil in sorted(Path(ts_dir).glob(f"{case_name}.{hist_str}.*.nc")):
+                gridded_file = gridded_loc / fil.name.replace(".nc", "_gridded.nc")
+                if gridded_file.is_file() and not overwrite:
+                    print(
+                        f"\t    INFO: {gridded_file.name} exists and overwrite is False."
+                    )
+                    continue
+                # End if
+                var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
+                with xr.open_dataset(fil) as ts_ds:
+                    gridded = utils.grid_to_latlon(
+                        ts_ds,
+                        var,
+                        wgt_file=wgts_file,
+                        method=method,
+                        comp=self.model_component,
+                        latlon_file=latlon_file,
+                    )
+                    save_to_nc(gridded, gridded_file)
+                # End with
+            # End for
+        # End for
+
+    def _ts_files_to_make(self, names, hist_files, years, overwrite):
+        """
+        Decide which time series files to write for one variable.
+
+        Time series already in the directory are used rather than remade:
+        only the years they do not cover are made from the history files, each
+        stretch of missing years into a file of its own beside the existing
+        ones (the readers combine consecutive files).  So a variable with no
+        files is made in full, one whose files cover every year is skipped,
+        and a run extended with new history files gets just the new years.
+
+        Parameters
+        ----------
+        names : dict
+            ``case``, ``hist_str``, ``var`` and ``ts_dir`` of the time series.
+        hist_files : list of pathlib.Path
+            The history files for the requested years, sorted.
+        years : tuple of int
+            (start, end), the requested time series years.
+        overwrite : bool
+            'cam_overwrite_ts': remake the time series from all of
+            `hist_files`, as before, whatever is there already.
+
+        Returns
+        -------
+        list of tuple
+            ``(files, outfile)`` for each time series file to write, the
+            history files it is made from and its path; empty when nothing
+            needs making.
+        """
+        case, hist_str, var = names["case"], names["hist_str"], names["var"]
+        ts_dir = Path(names["ts_dir"])
+
+        def outfile(files):
+            # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
+            return str(
+                ts_dir / ".".join([case, hist_str, var, _ts_time_string(files), "nc"])
+            )
+
+        # End def
+
+        full = outfile(hist_files)
+        if overwrite:
+            if Path(full).is_file():
+                Path(full).unlink()
+            # End if
+            return [(hist_files, full)]
+        # End if
+        if Path(full).is_file():
+            print(
+                f"\t    INFO: '{var}' file was found and overwrite is False."
+                " Will use existing file."
+            )
+            return []
+        # End if
+
+        # No files at all covers no years, so the whole range is "missing" and
+        # gets made -- with a warning for any years the history files lack:
+        existing = sorted(ts_dir.glob(f"{case}.{hist_str}.{var}.*.nc"))
+        covered = ts_years_covered(existing)
+        if covered is None:
+            # Names whose dates cannot be read: make it all, as before.
+            return [(hist_files, full)]
+        # End if
+
+        missing = missing_year_ranges(covered, years[0], years[1])
+        if not missing:
+            print(
+                f"\t    INFO: existing '{var}' time series cover years"
+                f" {years[0]}-{years[1]}; will use them."
+            )
+            return []
+        # End if
+
+        # Only years with history files can be made, and each stretch of them
+        # goes in a file of its own, so that no file's name claims a gap:
+        all_years = set(range(years[0], years[1] + 1))
+        hist_years = {_hist_file_year(f, hist_str) for f in hist_files}
+        unavailable = missing_year_ranges(covered | hist_years, years[0], years[1])
+        if unavailable:
+            wmsg = f"\t    WARNING: '{var}' has no time series or history files for"
+            wmsg += f" years {', '.join(f'{a}-{b}' for a, b in unavailable)}, so its"
+            wmsg += " time series will not cover them."
+            print(wmsg)
+            self.debug_log(wmsg)
+        # End if
+        makeable = missing_year_ranges(
+            covered | (all_years - hist_years), years[0], years[1]
+        )
+
+        to_make = []
+        for first, last in makeable:
+            files = [
+                f for f in hist_files if first <= _hist_file_year(f, hist_str) <= last
+            ]
+            if existing:
+                print(
+                    f"\t    INFO: '{var}' time series exist for some years; making"
+                    f" years {first}-{last} from the history files."
+                )
+            # End if
+            to_make.append((files, outfile(files)))
+        # End for
+        return to_make
+
     def create_time_series(self, baseline=False):
         """
         Generate time series versions of the CAM history file data.
@@ -559,7 +798,22 @@ class AdfDiag(AdfWeb):
         if str(ts_tool).lower() == "gents":
             from adf_gents import create_time_series_gents
 
-            return create_time_series_gents(self, baseline=baseline)
+            result = create_time_series_gents(self, baseline=baseline)
+            # GenTS writes the same file names, so the native-grid step that
+            # follows the built-in back end applies unchanged:
+            cfg = self.get_ts_case_config(baseline=baseline)
+            for case_idx, case_name in enumerate(cfg["case_names"]):
+                if not cfg["calc_ts"][case_idx]:
+                    continue
+                self.grid_native_time_series(
+                    case_name,
+                    case_idx,
+                    cfg["ts_dirs"][case_idx],
+                    cfg["hist_str_list"][case_idx],
+                    cfg["overwrite_ts"][case_idx],
+                    baseline=baseline,
+                )
+            return result
         # End if
         if str(ts_tool).lower() != "adf":
             emsg = f"Unknown 'ts_tool' value '{ts_tool}'."
@@ -615,7 +869,7 @@ class AdfDiag(AdfWeb):
         # Gather the per-case configuration (shared with the GenTS back end):
         cfg = self.get_ts_case_config(baseline=baseline)
         case_names = cfg["case_names"]
-        cam_ts_done = cfg["cam_ts_done"]
+        calc_ts = cfg["calc_ts"]
         cam_hist_locs = cfg["cam_hist_locs"]
         ts_dirs = cfg["ts_dirs"]
         overwrite_ts = cfg["overwrite_ts"]
@@ -645,7 +899,13 @@ class AdfDiag(AdfWeb):
             end_year = end_years[case_idx]
 
             # Check if particular case should be processed:
-            if cam_ts_done[case_idx]:
+            if not calc_ts[case_idx]:
+                if not ts_dir or not any(Path(ts_dir).glob(f"{case_name}.*.nc")):
+                    # Pre-made climatologies only (checked by AdfInfo): there
+                    # are no time series to derive from or search.
+                    print(f"\tNOTE: No time series for '{case_name}'; nothing to do.")
+                    continue
+                # End if
                 emsg = (
                     "\tNOTE: Configuration file indicates time series files have been "
                 )
@@ -672,6 +932,13 @@ class AdfDiag(AdfWeb):
                     self, ts_dir, case_name, hist_str_list[case_idx]
                 )
                 continue
+            # End if
+
+            if not ts_dir:
+                emsg = f"{case_type_string.capitalize()} '{case_name}' makes its time"
+                emsg += " series ('calc_cam_ts: true'), so it needs 'cam_ts_loc' to"
+                emsg += " write them to."
+                self.end_diag_fail(emsg)
             # End if
 
             # Create path object for the CAM history file(s) location:
@@ -717,6 +984,17 @@ class AdfDiag(AdfWeb):
 
                 # Create ordered list of CAM history files:
                 hist_files = sorted(files_list)
+
+                # The requested years may all be in time series made earlier
+                # (AdfInfo counts those years too), leaving no history files:
+                if not hist_files:
+                    wmsg = f"\t    WARNING: No {hist_str} history files for years"
+                    wmsg += f" {start_year}-{end_year} in '{starting_location}'; only"
+                    wmsg += f" the time series already in '{ts_dir}' will be used."
+                    print(wmsg)
+                    self.debug_log(wmsg)
+                    continue
+                # End if
 
                 # Open an xarray dataset from the first model history file:
                 hist_file_ds = xr.open_dataset(
@@ -786,19 +1064,6 @@ class AdfDiag(AdfWeb):
                 # Use pathlib to create parent directories, if necessary.
                 Path(ts_dir).mkdir(parents=True, exist_ok=True)
 
-                # INPUT NAME TEMPLATE: $CASE.$scomp.[$type.][$string.]$date[$ending]
-                first_file_split = str(hist_files[0]).split(".")
-                if first_file_split[-1] == "nc":
-                    time_string_start = first_file_split[-2].replace("-", "")
-                else:
-                    time_string_start = first_file_split[-1].replace("-", "")
-                last_file_split = str(hist_files[-1]).split(".")
-                if last_file_split[-1] == "nc":
-                    time_string_finish = last_file_split[-2].replace("-", "")
-                else:
-                    time_string_finish = last_file_split[-1].replace("-", "")
-                time_string = "-".join([time_string_start, time_string_finish])
-
                 # Intitialize list for NCO commands
                 list_of_commands = []
                 list_of_ncatted_commands = []
@@ -829,23 +1094,23 @@ class AdfDiag(AdfWeb):
                     # Notify user of new time series file:
                     print(f"\t - time series for {var}")
 
-                    # Create full path name, file name template:
-                    # $cam_case_name.$hist_str.$variable.YYYYMM-YYYYMM.nc
-                    ts_outfil_str = (
-                        ts_dir
-                        + os.sep
-                        + ".".join([case_name, hist_str, var, time_string, "nc"])
+                    # The time series file(s) to write: none when existing
+                    # files already cover the years, only the missing years
+                    # when they cover some (see _ts_files_to_make):
+                    to_make = self._ts_files_to_make(
+                        {
+                            "case": case_name,
+                            "hist_str": hist_str,
+                            "var": var,
+                            "ts_dir": ts_dir,
+                        },
+                        hist_files,
+                        (start_year, end_year),
+                        overwrite_ts[case_idx],
                     )
-
-                    # Check if clobber is true for file
-                    if Path(ts_outfil_str).is_file():
-                        if overwrite_ts[case_idx]:
-                            Path(ts_outfil_str).unlink()
-                        else:
-                            msg = f"\t    INFO: '{var}' file was found "
-                            msg += "and overwrite is False. Will use existing file."
-                            print(msg)
-                            continue
+                    if not to_make:
+                        continue
+                    # End if
 
                     # Check if current variable is not in history file(s)
                     if var not in hist_file_var_list:
@@ -875,17 +1140,46 @@ class AdfDiag(AdfWeb):
                         or "ilev" in hist_file_ds[var].dims
                     )
 
-                    # Check if files already exist in time series directory:
-                    ts_file_list = glob.glob(ts_outfil_str)
-
-                    # If files exist, then check if over-writing is allowed:
-                    if ts_file_list:
-                        if not overwrite_ts[case_idx]:
-                            # If not, then simply skip this variable:
-                            continue
-
                     # Variable list starts with just the variable
                     ncrcat_var_list = f"{var}"
+
+                    # On a native grid the cell centres and areas are separate
+                    # variables, not coordinates, so ncrcat has to be asked for
+                    # them (the GenTS back end copies them by itself):
+                    if {"ncol", "lndgrid"} & set(hist_file_ds[var].dims):
+                        for extra in ("lat", "lon", "area"):
+                            if extra in hist_file_var_list:
+                                ncrcat_var_list += f",{extra}"
+
+                    # CLM: the land diagnostics weight by the grid cell area and
+                    # land fraction, and the PFT (h1) output needs its weights
+                    # and indices to be mapped back to the grid:
+                    if "clm" in hist_str:
+                        extras = ["area", "landfrac", "landmask"]
+                        if "h1" in hist_str:
+                            extras += [
+                                f"pfts1d_{name}"
+                                for name in (
+                                    "wtgcell",
+                                    "wtlunit",
+                                    "wtcol",
+                                    "ixy",
+                                    "jxy",
+                                    "gi",
+                                    "li",
+                                    "ci",
+                                    "itype_veg",
+                                    "itype_col",
+                                    "itype_lunit",
+                                    "active",
+                                )
+                            ]
+                        for extra in extras:
+                            if (
+                                extra in hist_file_var_list
+                                and extra not in ncrcat_var_list.split(",")
+                            ):
+                                ncrcat_var_list += f",{extra}"
 
                     # Determine "ncrcat" command to generate time series file:
                     if "date" in hist_file_ds[var].dims:
@@ -911,58 +1205,76 @@ class AdfDiag(AdfWeb):
                         # End if cam
                     # End if has_lev
 
-                    cmd = (
-                        [
-                            "ncrcat",
+                    # One file per stretch of years being made:
+                    for chunk_files, ts_outfil_str in to_make:
+                        cmd = (
+                            [
+                                "ncrcat",
+                                "-O",
+                                "-4",
+                                "-h",
+                                "--no_cll_mth",
+                                "-v",
+                                ncrcat_var_list,
+                            ]
+                            + chunk_files
+                            + ["-o", ts_outfil_str]
+                        )
+
+                        # Convert Path objects to strings and concatenate the list of
+                        # historical files into a single string
+                        hist_files_str = ", ".join(str(f.name) for f in chunk_files)
+                        # Linux limits any one argument to 128 KiB, which a long
+                        # run's file list exceeds (~2000 monthly files), so then
+                        # record just the first and last files and the count:
+                        if len(hist_files_str) > 100_000:
+                            hist_files_str = (
+                                f"{chunk_files[0].name}, ..., {chunk_files[-1].name}"
+                                f" ({len(chunk_files)} files)"
+                            )
+                        # End if
+                        hist_locs_str = ", ".join(str(loc) for loc in cam_hist_locs)
+                        # The years this file covers, "YYYY-YYYY" (as the climo
+                        # files' 'climo_yrs'), so they survive a renamed file:
+                        span = _ts_time_string(chunk_files).split("-")
+                        ts_yrs_str = f"{span[0][:4]}-{span[-1][:4]}"
+
+                        # Create the ncatted command to add the global attributes
+                        cmd_ncatted = [
+                            "ncatted",
                             "-O",
-                            "-4",
-                            "-h",
-                            "--no_cll_mth",
-                            "-v",
-                            ncrcat_var_list,
+                            "-a",
+                            "adf_user,global,a,c," + f"{self.user}",
+                            "-a",
+                            "hist_file_locs,global,a,c," + f"{hist_locs_str}",
+                            "-a",
+                            "hist_file_list,global,a,c," + f"{hist_files_str}",
+                            "-a",
+                            "ts_yrs,global,o,c," + ts_yrs_str,
+                            ts_outfil_str,
                         ]
-                        + hist_files
-                        + ["-o", ts_outfil_str]
-                    )
 
-                    # Convert Path objects to strings and concatenate the list of
-                    # historical files into a single string
-                    hist_files_str = ", ".join(str(f.name) for f in hist_files)
-                    hist_locs_str = ", ".join(str(loc) for loc in cam_hist_locs)
+                        # Create the ncatted command to remove the history attribute
+                        cmd_remove_history = [
+                            "ncatted",
+                            "-O",
+                            "-h",
+                            "-a",
+                            "history,global,d,,",
+                            ts_outfil_str,
+                        ]
 
-                    # Create the ncatted command to add both global attributes
-                    cmd_ncatted = [
-                        "ncatted",
-                        "-O",
-                        "-a",
-                        "adf_user,global,a,c," + f"{self.user}",
-                        "-a",
-                        "hist_file_locs,global,a,c," + f"{hist_locs_str}",
-                        "-a",
-                        "hist_file_list,global,a,c," + f"{hist_files_str}",
-                        ts_outfil_str,
-                    ]
-
-                    # Create the ncatted command to remove the history attribute
-                    cmd_remove_history = [
-                        "ncatted",
-                        "-O",
-                        "-h",
-                        "-a",
-                        "history,global,d,,",
-                        ts_outfil_str,
-                    ]
-
-                    # Add to command list for use in multi-processing pool:
-                    # -----------------------------------------------------
-                    # generate time series files
-                    list_of_commands.append(cmd)
-                    # Add global attributes: user, original hist file loc(s) and all filenames
-                    list_of_ncatted_commands.append(cmd_ncatted)
-                    # Remove the `history` attr that gets tacked on (for clean up)
-                    # NOTE: this may not be best practice, but if the history attr repeats
-                    #       the files attrs so the global attrs become obtrusive...
-                    list_of_hist_commands.append(cmd_remove_history)
+                        # Add to command list for use in multi-processing pool:
+                        # -----------------------------------------------------
+                        # generate time series files
+                        list_of_commands.append(cmd)
+                        # Add global attributes: user, original hist file loc(s) and all filenames
+                        list_of_ncatted_commands.append(cmd_ncatted)
+                        # Remove the `history` attr that gets tacked on (for clean up)
+                        # NOTE: this may not be best practice, but if the history attr repeats
+                        #       the files attrs so the global attrs become obtrusive...
+                        list_of_hist_commands.append(cmd_remove_history)
+                    # End for
                 # End variable loop
 
                 # Only now is a write actually required.  Checking earlier
@@ -977,7 +1289,7 @@ class AdfDiag(AdfWeb):
                     if ts_problem:
                         emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
                         emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory"
-                        emsg += " you own, or set 'cam_ts_done: true' to read the"
+                        emsg += " you own, or set 'calc_cam_ts: false' to read the"
                         emsg += " time series that are already there."
                         self.end_diag_fail(emsg)
                     # End if
@@ -1007,7 +1319,19 @@ class AdfDiag(AdfWeb):
                             syr=start_year,
                             eyr=end_year,
                         )
+
             # End for hist_str
+
+            # Native-grid data plotted on lat/lon reads gridded copies of the
+            # time series:
+            self.grid_native_time_series(
+                case_name,
+                case_idx,
+                ts_dir,
+                hist_str_case,
+                overwrite_ts[case_idx],
+                baseline=baseline,
+            )
         # End cases loop
 
         # Notify user that script has ended:
@@ -1153,8 +1477,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
             # Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.climo_yrs["syear_baseline"]
-            eyear_baseline = self.climo_yrs["eyear_baseline"]
+            syear_baseline = self.ts_yrs["syear_baseline"]
+            eyear_baseline = self.ts_yrs["eyear_baseline"]
 
             # If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -1203,8 +1527,8 @@ class AdfDiag(AdfWeb):
             data_name = self.get_baseline_info("cam_case_name", required=True)
 
             # Attempt to grab baseline start_years (not currently required):
-            syear_baseline = self.climo_yrs["syear_baseline"]
-            eyear_baseline = self.climo_yrs["eyear_baseline"]
+            syear_baseline = self.ts_yrs["syear_baseline"]
+            eyear_baseline = self.ts_yrs["eyear_baseline"]
 
             # If years exist, then add them to the data_name string:
             if syear_baseline and eyear_baseline:
@@ -1230,10 +1554,10 @@ class AdfDiag(AdfWeb):
         case_names = self.get_cam_info("cam_case_name", required=True)
 
         # Start years (not currently required):
-        syears = self.climo_yrs["syears"]
+        syears = self.ts_yrs["syears"]
 
         # End year (not currently rquired):
-        eyears = self.climo_yrs["eyears"]
+        eyears = self.ts_yrs["eyears"]
 
         # Timeseries locations:
         cam_ts_loc = self.get_cam_info("cam_ts_loc")
@@ -1263,8 +1587,8 @@ class AdfDiag(AdfWeb):
         # check to see if there is a CAM baseline case. If there is, read in relevant information.
         if not self.get_basic_info("compare_obs"):
             case_name_baseline = self.get_baseline_info("cam_case_name")
-            syears_baseline = self.climo_yrs["syear_baseline"]
-            eyears_baseline = self.climo_yrs["eyear_baseline"]
+            syears_baseline = self.ts_yrs["syear_baseline"]
+            eyears_baseline = self.ts_yrs["eyear_baseline"]
             baseline_ts_loc = self.get_baseline_info("cam_ts_loc")
         else:
             case_name_baseline = ""
@@ -1415,8 +1739,8 @@ class AdfDiag(AdfWeb):
 
         # Casenames, paths and start/end years come through the ADF
         case_names = self.get_cam_info("cam_case_name", required=True)
-        start_years = self.climo_yrs["syears"]
-        end_years = self.climo_yrs["eyears"]
+        start_years = self.ts_yrs["syears"]
+        end_years = self.ts_yrs["eyears"]
 
         case_list_all = []
         for icase, case in enumerate(case_names):
@@ -1535,8 +1859,8 @@ class AdfDiag(AdfWeb):
                     # variable does not come down to a guess:
                     adf_file_list = select_ts_files(
                         adf_file_list,
-                        self.climo_yrs["syears"][case_idx],
-                        self.climo_yrs["eyears"][case_idx],
+                        self.ts_yrs["syears"][case_idx],
+                        self.ts_yrs["eyears"][case_idx],
                     )
 
                     # Consecutive files, which is what GenTS writes when
@@ -1665,3 +1989,47 @@ class AdfDiag(AdfWeb):
                 # end for hist_str
             # end for var
         # end for case
+
+
+########
+
+# Helper Function(s)
+
+
+def save_to_nc(tosave, outname, attrs=None, proc=None):
+    """Saves xarray variable to new netCDF file"""
+
+    xo = tosave  # used to have more stuff here.
+
+    # deal with getting non-nan fill values.  An encoding given to to_netcdf
+    # replaces the variable's own, so keep any time units it had: otherwise
+    # xarray picks units for time and its bounds separately, and readers
+    # that take the bounds' numbers in time's units misplace every step.
+    def _enc(xname):
+        kept = {
+            key: val
+            for key, val in xo[xname].encoding.items()
+            if key in ("units", "calendar")
+        }
+        return {"_FillValue": None, **kept}
+
+    if isinstance(xo, xr.Dataset):
+        enc_dv = {xname: _enc(xname) for xname in xo.data_vars}
+    else:
+        enc_dv = {}
+    # End if
+    enc_c = {xname: _enc(xname) for xname in xo.coords}
+    enc = {**enc_c, **enc_dv}
+    if attrs is not None:
+        xo.attrs = attrs
+    if proc is not None:
+        # The file(s) this data came from, as recorded when it was made:
+        origname = tosave.attrs.get(
+            "time_series_files", tosave.attrs.get("climatology_files", "unknown")
+        )
+        xo.attrs["Processing_info"] = f"Start from file {origname}. " + proc
+    xo.to_netcdf(outname, format="NETCDF4", encoding=enc)
+
+
+#####
+########

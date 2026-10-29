@@ -20,87 +20,40 @@ P0 = 1.0e5              # reference pressure, Pa
 KAPPA = 287.0 / 1004.0  # R_dry / cp_dry
 
 
-def _zonal_mean_pressure(adf, case_name, like, season):
+def _tem_pressure(adf, case_name, season):
     """
-    Return the season-averaged zonal mean pressure on the TEM grid.
+    Return the season-averaged zonal mean model pressure from the TEM file.
 
     Parameters
     ----------
     adf : AdfDiag
-        The diagnostics object, used to find the time series files.
+        The diagnostics object, whose data layer reads the TEM files.
     case_name : str or None
         A test case name, or None for the baseline.
-    like : xarray.DataArray
-        The field being converted. The result is put on its zalat and its
-        vertical grid, and that grid decides whether PMID or PINT is read.
     season : str
         'ANN', 'DJF', 'JJA', 'MAM' or 'SON'.
 
     Returns
     -------
     xarray.DataArray or None
-        Pressure in Pa on the grid of `like`, or None when the model pressure
-        is not available, which leaves the caller to fall back.
+        Pressure in Pa on the TEM grid, or None when the TEM file does not
+        carry it, which leaves the caller to fall back.
 
     Notes
     -----
-
-    The ADF prefers the model's own pressure over pressure reconstructed from
-    the hybrid coefficients: it is what the model actually used, and for the
-    dry-mass vertical coordinate in recent CAM/WACCM the hybrid coefficients do
-    not give pressure at all. Which field to read depends on the grid the TEM
-    output landed on, PMID on layer midpoints and PINT on interfaces, the same
-    rule _find_pressure_field applies in regrid_and_vert_interp.py.
+    create_TEM_files stores the model's own pressure (PMID or PINT, to match
+    the TEM grid) as 'PZM', for the same time steps as the TEM fields, so it
+    is averaged here exactly as they are.
     """
-    lev_name = utils.vertical_dim(like)
-    if lev_name is None:
-        return None
-    field = utils.pressure_field_name(lev_name)
-
     if case_name is None:
-        fils = adf.data.get_ref_timeseries_file(field)
+        pres = adf.data.load_reference_tem_da("PZM", apply_scaling=False)
     else:
-        fils = adf.data.get_timeseries_file(case_name, field)
+        pres = adf.data.load_tem_da(case_name, "PZM", apply_scaling=False)
     #End if
-    if not fils:
+    if pres is None:
         return None
-    ds_pmid = adf.data.load_timeseries_dataset(fils)
-    if ds_pmid is None or field not in ds_pmid:
-        return None
-    pmid = ds_pmid[field]
-
-    #CAM writes these in Pa; convert before the arithmetic below drops attrs.
-    if str(pmid.attrs.get("units", "Pa")).lower() in ("hpa", "mb", "millibars"):
-        pmid = pmid * 100.0
     #End if
-
-    #Averaged the same way as the TEM fields themselves:
-    pmid = utils.seasonal_mean(pmid, season=season, is_climo=False)
-
-    #Zonal mean, then onto the TEM latitude/level grid. The TEM output has its
-    #own vertical grid, so the pressure generally has to be interpolated in both
-    #lat and level, not just lat.
-    if "lon" in pmid.dims:
-        pmid = pmid.mean(dim="lon")
-    #Interpolating onto a target named 'zalat' renames the dimension for us:
-    target_lat = xr.DataArray(like["zalat"].values, dims="zalat",
-                              coords={"zalat": like["zalat"].values})
-    pmid = pmid.interp(lat=target_lat, method="linear",
-                       kwargs={"fill_value": "extrapolate"})
-    #Interpolate unless the two vertical coordinates are already identical.
-    #Matching sizes are not enough: the TEM grid and the model grid can have the
-    #same number of levels at different pressures, and xarray would then align
-    #them to an empty intersection instead of raising.
-    pres_lev = utils.vertical_dim(pmid)
-    if pres_lev is not None and not np.array_equal(pmid[pres_lev].values,
-                                                   like[lev_name].values):
-        target_lev = xr.DataArray(like[lev_name].values, dims=lev_name,
-                                  coords={lev_name: like[lev_name].values})
-        pmid = pmid.interp({pres_lev: target_lev}, method="linear",
-                           kwargs={"fill_value": "extrapolate"})
-    #End if
-
-    return pmid
+    return utils.seasonal_mean(pres, season=season, is_climo=False)
 
 
 def _to_temperature(adf, case_name, theta, season):
@@ -110,7 +63,7 @@ def _to_temperature(adf, case_name, theta, season):
     Parameters
     ----------
     adf : AdfDiag
-        The diagnostics object, passed through to _zonal_mean_pressure.
+        The diagnostics object, passed through to _tem_pressure.
     case_name : str or None
         A test case name, or None for the baseline.
     theta : xarray.DataArray
@@ -125,19 +78,22 @@ def _to_temperature(adf, case_name, theta, season):
 
     Notes
     -----
-    Uses the model's own pressure where it can be found. Where it cannot, the
-    hybrid vertical coordinate is used instead and a warning says so, since
-    that coordinate is only the true pressure for a hybrid-sigma vertical
-    coordinate.
+    Uses the model's own pressure, which the TEM file carries as 'PZM'. A TEM
+    file without it (one written by an older ADF, or a case with no PMID/PINT
+    time series) is converted with the hybrid vertical coordinate instead and
+    a warning says so, since that coordinate is only the true pressure for a
+    hybrid-sigma vertical coordinate.
     """
-    pres = _zonal_mean_pressure(adf, case_name, theta, season)
+    pres = _tem_pressure(adf, case_name, season)
     lev_name = utils.vertical_dim(theta)
     if pres is None:
         field = utils.pressure_field_name(lev_name)
         label = case_name if case_name else "the baseline"
-        warnings.warn(f"\t    WARNING: no {field} found for {label}, converting "
-                      f"THZM with the hybrid '{lev_name}' coordinate instead. Add "
-                      f"'{field}' to 'diag_var_list' for the exact conversion.")
+        warnings.warn(f"\t    WARNING: no model pressure (PZM) in the TEM file "
+                      f"for {label}, converting THZM with the hybrid '{lev_name}' "
+                      f"coordinate instead. For the exact conversion, have "
+                      f"'{field}' time series and remake the TEM files "
+                      "('overwrite_tem: true').")
         pres = theta[lev_name] * 100.0
     #End if
     temperature = theta * (pres / P0) ** KAPPA
@@ -206,16 +162,17 @@ def tem(adf):
     climo_yrs, case_nicknames, compare_obs, variable_defaults,
     plotting_scripts, plot_location, add_website_data, debug_log, data
 
-    Reads the TEM files written by create_TEM_files from 'cam_tem_loc'. Each
+    Reads the TEM files written by create_TEM_files from 'cam_tem_loc', through
+    data.get_tem_file, data.load_tem_da and their reference versions. Each
     figure has three panels: the test case, the baseline or observations, and
     their difference. The difference is left as a message when the two are on
     different vertical grids, which is normal against observations, since ERA5
     has 37 pressure levels where WACCM has far more.
 
     THZM is stored as potential temperature and plotted as temperature. The
-    conversion uses the model's own pressure, PMID or PINT depending on the
-    grid, and falls back to the hybrid vertical coordinate with a warning when
-    that pressure is not available.
+    conversion uses the model's own pressure (PMID or PINT, depending on the
+    grid), which the TEM file carries as 'PZM', and falls back to the hybrid
+    vertical coordinate with a warning when the file does not have it.
 
     If a TEM file is missing the whole script is skipped; a variable missing
     from a file that is present is reported and skipped on its own.
@@ -266,34 +223,18 @@ def tem(adf):
     # -- So check for it, and default to png
     basic_info_dict = adf.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get('plot_type', 'png')
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
 
     # check if existing plots need to be redone
     redo_plot = adf.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #-----------------------------------------
     
-    #Initialize list of input TEM file locations
-    tem_locs = []
-
-    #Extract TEM file save locations
-    tem_case_locs = adf.get_cam_info("cam_tem_loc",required=True)
-    tem_base_loc = adf.get_baseline_info("cam_tem_loc")
-
-    #If path not specified, skip TEM calculation?
-    if tem_case_locs is None:
+    #Without a TEM location there are no TEM files to plot:
+    if adf.get_cam_info("cam_tem_loc", required=True) is None:
         print("\t 'cam_tem_loc' not found for test case(s) in config file, so no TEM plots will be generated.")
         return
-    else:
-        for tem_case_loc in tem_case_locs:
-            tem_case_loc = Path(tem_case_loc)
-            #Check if TEM directory exists, and if not, then create it:
-            if not tem_case_loc.is_dir():
-                print(f"    {tem_case_loc} not found, making new directory")
-                tem_case_loc.mkdir(parents=True)
-            #End if
-            tem_locs.append(tem_case_loc)
-        #End for
+    #End if
 
     #Suggestion from Rolando, if QBO is being produced, add utendvtem and utendwtem?
     if "qbo" in adf.plotting_scripts:
@@ -302,61 +243,17 @@ def tem(adf):
     else:
         var_list = ["UZM","THZM","EPFY","EPFZ","VTEM","WTEM","PSITEM","UTENDEPFD"]
 
-    #Check if comparing against obs
-    if adf.compare_obs:
-        obs = True
-        #Set TEM file for observations
-        base_file_name = 'Obs.TEMdiag.nc'
-        input_loc_idx = Path(tem_locs[0])
-    else:
-        #Set TEM file for baseline
-        base_file_name = f'{base_name}.TEMdiag_{syear_baseline}-{eyear_baseline}.nc'
-        #Baseline TEM location ('cam_tem_loc' is unset when comparing to obs)
-        input_loc_idx = Path(tem_base_loc)
-    
-    #Set full path for baseline/obs file
-    tem_base = input_loc_idx / base_file_name
-
-    #Check to see if baseline/obs TEM file exists
-    if tem_base.is_file():
-        ds_base = xr.open_dataset(tem_base, decode_times=False)
-    else:
-        print(f"\t'{base_file_name}' does not exist. TEM plots will be skipped.")
+    #Check that every TEM file is there before any plotting work is done; the
+    #data layer finds them (in 'cam_tem_loc', named for the climatology years):
+    if not adf.data.get_ref_tem_file():
+        print(f"\t TEM file for '{base_name}' does not exist. TEM plots will be skipped.")
         return
-
-    """if 'time_bnds' in ds_base:
-        t = ds_base['time_bnds'].mean(dim='nbnd')
-        t.attrs = ds_base['time'].attrs
-        ds_base = ds_base.assign_coords({'time':t})
-    elif 'time_bounds' in ds_base:
-        t = ds_base['time_bounds'].mean(dim='nbnd')
-        t.attrs = ds_base['time'].attrs
-        ds_base = ds_base.assign_coords({'time':t})
-    else:
-        warnings.warn("\t    INFO: Timeseries file does not have time bounds info.")"""
-    ds_base = xr.decode_cf(ds_base)
-
-    #Open each test case's TEM file once, up front, so a missing file is reported
-    #before any plotting work is done:
-    case_datasets = []
-    for idx,case_name in enumerate(case_names):
-        tem_case = Path(tem_case_locs[idx]) / \
-                   f'{case_name}.TEMdiag_{syear_cases[idx]}-{eyear_cases[idx]}.nc'
-        if not tem_case.is_file():
-            print(f"\t'{tem_case}' does not exist. TEM plots will be skipped.")
+    #End if
+    for case_name in case_names:
+        if not adf.data.get_tem_file(case_name):
+            print(f"\t TEM file for '{case_name}' does not exist. TEM plots will be skipped.")
             return
-        ds = xr.open_dataset(tem_case, decode_times=False)
-        if 'time_bnds' in ds:
-            t = ds['time_bnds'].mean(dim='nbnd')
-            t.attrs = ds['time'].attrs
-            ds = ds.assign_coords({'time':t})
-        elif 'time_bounds' in ds:
-            t = ds['time_bounds'].mean(dim='nbnd')
-            t.attrs = ds['time'].attrs
-            ds = ds.assign_coords({'time':t})
-        else:
-            warnings.warn("\t    INFO: TEM file does not have time bounds info.")
-        case_datasets.append(xr.decode_cf(ds))
+        #End if
     #End for
 
     #Loop over variables:
@@ -364,19 +261,23 @@ def tem(adf):
         #Notify user of variable being plotted:
         print(f"\t - TEM plots for {var}")
 
-        if var not in ds_base:
-            warnings.warn(f"\t    INFO: '{var}' not in {base_name} TEM file, skipping.")
+        #Read through the data layer, which applies the unit conversion from
+        #the variable defaults without scaling a TEM file already holding
+        #converted values a second time. Observations have their own scaling,
+        #which is assumed to bring them to the same units, so they keep the
+        #unit string they arrived with.
+        odata = adf.data.load_reference_tem_da(var)
+        if odata is None:
             continue
         #End if
 
         #Loop over model cases:
         for idx,case_name in enumerate(case_names):
 
-            ds = case_datasets[idx]
             plot_location = plot_locations[idx]
 
-            if var not in ds:
-                warnings.warn(f"\t    INFO: '{var}' not in {case_name} TEM file, skipping.")
+            mdata = adf.data.load_tem_da(case_name, var)
+            if mdata is None:
                 continue
             #End if
 
@@ -403,23 +304,6 @@ def tem(adf):
 
                 #Grab variable defaults for this variable
                 vres = res[var]
-
-                #Gather data for both cases
-                mdata = ds[var].squeeze()
-                odata = ds_base[var].squeeze()
-
-                # Apply the unit conversion from the variable defaults, through
-                # the ADF's data layer so that a TEM file already holding
-                # converted values is not scaled a second time. Observations
-                # have their own scaling, which is assumed to bring them to the
-                # same units, so they keep the unit string they arrived with.
-                mdata = adf.data.apply_conversion(mdata, var)
-                if obs:
-                    odata = (odata * vres.get("obs_scale_factor", 1)
-                             + vres.get("obs_add_offset", 0))
-                else:
-                    odata = adf.data.apply_conversion(odata, var)
-                #End if
 
                 #Month-length weighted seasonal (or annual) mean. The weighted
                 #mean renormalizes around missing values, so gaps in either
@@ -459,11 +343,11 @@ def tem(adf):
 
                 #Gather contour plot options
                 cp_info = plot_utils.prep_contour_plot(mseasons, oseasons, dseasons,
-                                                       pseasons, **vres)
-                clevs = np.unique(np.array(cp_info['levels1']))
-                norm = cp_info['norm1']
-                cmap = cp_info['cmap1']
-                clevs_diff = np.unique(np.array(cp_info['levelsdiff']))
+                                                       pseasons, adfobj=adf, **vres)
+                clevs = np.unique(np.array(cp_info['levels_sim']))
+                norm = cp_info['norm_sim']
+                cmap = cp_info['cmap_sim']
+                clevs_diff = np.unique(np.array(cp_info['levels_diff']))
 
                 # mesh for plots -- each panel gets its own, because the baseline
                 # (especially observations) can be on a different vertical grid
@@ -509,13 +393,15 @@ def tem(adf):
                     lats_d, levs_d = _mesh(dseasons)
                     img2 = ax[2].contourf(lats_d, levs_d, dseasons,
                                             #cmap="BrBG",
-                                            cmap=cp_info['cmapdiff'],
+                                            cmap=cp_info['cmap_diff'],
                                             levels=clevs_diff,
-                                            norm=cp_info['normdiff'])
+                                            norm=cp_info['norm_diff'])
                     ax[2].contour(lats_d, levs_d, dseasons, colors="k", linewidths=0.5,
-                                    levels=clevs_diff[::2], norm=cp_info['normdiff'])
-                    cp_info['diff_colorbar_opt']["label"] = cp_info['colorbar_opt']["label"]
-                    plt.colorbar(img2, ax=ax[2], location='right', pad=cmap_pad,**cp_info['diff_colorbar_opt'])
+                                    levels=clevs_diff[::2], norm=cp_info['norm_diff'])
+                    #prep_contour_plot hands the colorbar labels back on their own:
+                    plt.colorbar(img2, ax=ax[2], location='right', pad=cmap_pad,
+                                 label=cp_info['diff_units_label'],
+                                 **cp_info['diff_colorbar_opt'])
 
                 #Format y-axis
                 for i,a in enumerate(ax[:]):
@@ -531,10 +417,10 @@ def tem(adf):
                     else:
                         a.set_ylim(a.get_ylim()[::-1])
 
-                # Format color bars
-                plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,**cp_info['colorbar_opt'])
-                # Remove the colorbar label for baseline
-                cp_info['colorbar_opt'].pop("label", None)
+                # Format color bars; the units label goes on the baseline's
+                # colorbar only, as the test case shares its scale
+                plt.colorbar(img1, ax=ax[1], location='right', pad=cmap_pad,
+                             label=cp_info['units_label'], **cp_info['colorbar_opt'])
                 plt.colorbar(img0, ax=ax[0], location='right', pad=cmap_pad,**cp_info['colorbar_opt'])
 
                 #Variable plot title name

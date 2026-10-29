@@ -89,8 +89,11 @@ def global_latlon_map(adfobj):
     
     # Process regular variables
     for var in adfobj.plot_var_list:
+        #Notify user of variable being plotted:
+        print(f"\t - lat-lon plot for {var}")
+
         process_variable(adfobj, var, **config)
-        
+
     # Handle AOD special case
     if "AODVISdn" in adfobj.diag_var_list:
         print("\tRunning AOD panel diagnostics against MERRA and MODIS...")
@@ -99,7 +102,7 @@ def global_latlon_map(adfobj):
     print("  ...lat/lon maps have been generated successfully.")
 
 
-def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot):
+def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unstruct_plotting):
     vres = adfobj.variable_defaults.get(var, {})
     vres["plot_type"] = __name__
     vres = plot_utils.add_var_name_key_to_vres(adfobj, var, vres)
@@ -109,9 +112,24 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot):
     # can be specified in adfobj basic info as 'central_longitude' or supplied as a number,
     # otherwise defaults to 180
     vres['central_longitude'] = plot_utils.get_central_longitude(adfobj)
+    vres['unstructured_plotting'] = unstruct_plotting
+
+    if unstruct_plotting:
+        # On the mesh, each case is compared with the reference on its own
+        # mesh (a lat/lon reference is put there by the regridding step; see
+        # AdfData._reference_files), so it is loaded with each case:
+        for case_idx, case_name in enumerate(adfobj.data.case_names):
+            odata, cvres = load_reference_data(adfobj, var, dict(vres), test_case=case_name)
+            if odata is None:
+                continue
+            process_case(adfobj, case_name, case_idx, var, odata,
+                        seasons, pres_levs, plot_type, redo_plot,
+                        cvres, web_category)
+        return
 
     # Load reference data
-    odata = load_reference_data(adfobj, var)
+    #odata = load_reference_data(adfobj, var)
+    odata, vres = load_reference_data(adfobj, var, vres)
     if odata is None:
         print(f"[global_latlon_map][process_variable] finds no reference data.")
         return
@@ -124,8 +142,12 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot):
 
 
 
-def load_reference_data(adfobj, var):
-    """Load and validate reference data."""
+def load_reference_data(adfobj, var, vres, test_case=None):
+    """Load and validate reference data.
+
+    With 'unstructured_plotting', `test_case` asks for the reference on that
+    case's mesh (see AdfData._reference_files).
+    """
     if not adfobj.compare_obs:
         base_name = adfobj.data.ref_case_label
     else:
@@ -133,20 +155,43 @@ def load_reference_data(adfobj, var):
             dmsg = f"\t    WARNING: No obs data found for variable `{var}`, global lat/lon mean plotting skipped."
             adfobj.debug_log(dmsg)
             print(dmsg)
-            return None
+            return None, None
         base_name = adfobj.data.ref_labels[var]
 
-    odata = adfobj.data.load_reference_regrid_da(base_name, var)
-    if odata is None:
-        print(f"\t    WARNING: No reference data found for {var}")
-        return None
+    if vres["unstructured_plotting"]:
+        vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
+        unstruct_base = True
+        odataset = adfobj.data.load_reference_regrid_dataset(
+            base_name, var, test_case=test_case, **vres
+        )
+        odata = adfobj.data.load_reference_regrid_da(
+            base_name, var, test_case=test_case, **vres
+        )
+        if (odataset is None) or (odata is None):
+            # e.g. a reference (obs or a lat/lon case) not on the test case's
+            # native grid, which the regridding step has already skipped:
+            dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{var}`, global lat/lon map plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return None, None
+        vres["odataset"] = odataset
 
-    o_has_dims = utils.validate_dims(odata, ["lat", "lon", "lev"])
-    if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
-        print(f"\t    WARNING: Reference data missing lat/lon dimensions")
-        return None
+        wgt_base = utils.cell_weights(odataset, adfobj.model_component)
+
+        vres["wgt_base"] = wgt_base
+        vres["unstruct_base"] = unstruct_base
+    else:
+        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        if odata is None:
+            print(f"\t    WARNING: No reference data found for {var}")
+            return None, None
+
+        o_has_dims = utils.validate_dims(odata, ["lat", "lon", "lev"])
+        if (not o_has_dims['has_lat']) or (not o_has_dims['has_lon']):
+            print(f"\t    WARNING: Reference data missing lat/lon dimensions")
+            return None, None
         
-    return odata
+    return odata, vres
 
 
 def process_case(adfobj, case_name, case_idx, var, odata, seasons, 
@@ -154,20 +199,60 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
     """Process individual case data and generate plots."""
     plot_loc = Path(adfobj.plot_location[case_idx])
     plot_loc.mkdir(parents=True, exist_ok=True)
+    #mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
+    if vres["unstructured_plotting"]:
+        mesh_file = adfobj.mesh_files["test_mesh_file"][case_idx]
+        vres["mesh_file"] = mesh_file
+        #mdata = adfobj.data.load_climo_da(case_name, var, **vres)
 
-    mdata = adfobj.data.load_regrid_da(case_name, var)
-    if mdata is None:
-        return
+        unstruct_case = True
+        mdataset = adfobj.data.load_regrid_dataset(case_name, var, **vres)
+        mdata = adfobj.data.load_regrid_da(case_name, var, **vres)
+        if (mdataset is None) or (mdata is None):
+            dmsg = f"\t    WARNING: No native-grid regridded test file for {case_name} for variable `{var}`, global lat/lon map plotting skipped."
+            adfobj.debug_log(dmsg)
+            print(dmsg)
+            return
+        vres["dataset"] = mdataset
+        #mdata = mdataset[var]
+        wgt = utils.cell_weights(mdataset, adfobj.model_component)
 
-    has_dims = utils.validate_dims(mdata, ["lat", "lon", "lev"])
-    if (not has_dims['has_lat']) or (not has_dims['has_lon']):
-        print(f"\t    WARNING: Model data missing lat/lon dimensions")
-        return
+        #Determine dimensions of variable:
+        #has_dims = {}
+        has_dims = utils.validate_dims(mdata, ["lev"])
+        if len(wgt.n_face) == len(vres["wgt_base"].n_face):
+            vres["wgt"] = wgt
+            vres["indataset"] = mdataset
+        else:
+            print("The weights are different between test and baseline. Won't continue, eh.")
+            return
 
-    # Check pressure levels if 3D data
-    if has_dims['has_lev'] and not pres_levs:
-        print(f"\t    WARNING: 3D variable found but no pressure levels specified")
-        return
+        unstruct_base = vres["unstruct_base"]
+        if (not unstruct_case) and (unstruct_base):
+            print("Base is unstructured but Test is lat/lon. Can't continue?")
+            return
+        if (unstruct_case) and (not unstruct_base):
+            print("Base is lat/lon but Test is unstructured. Can't continue?")
+            return
+        if (unstruct_case) and (unstruct_base):
+            unstructured = True
+        if (not unstruct_case) and (not unstruct_base):
+            unstructured = False
+        vres["unstructured_plotting"] = unstructured
+    else:
+        mdata = adfobj.data.load_regrid_da(case_name, var)
+        if mdata is None:
+            return
+
+        has_dims = utils.validate_dims(mdata, ["lat", "lon", "lev"])
+        if (not has_dims['has_lat']) or (not has_dims['has_lon']):
+            print(f"\t    WARNING: Model data missing lat/lon dimensions")
+            return
+
+        # Check pressure levels if 3D data
+        if has_dims['has_lev'] and not pres_levs:
+            print(f"\t    WARNING: 3D variable found but no pressure levels specified")
+            return
 
     process_plots(adfobj, mdata, odata, case_name, case_idx,
                  var, seasons, pres_levs, plot_loc, plot_type,
@@ -176,6 +261,11 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
 
 def get_plot_config(adfobj):
     """Get plotting configuration from ADF object."""
+    unstruct_plotting = adfobj.unstructured_plotting
+    if unstruct_plotting:
+        unstructured = unstruct_plotting
+    else:
+        unstructured = False
     return {
         'seasons': {
             "ANN": np.arange(1,13,1),
@@ -186,7 +276,8 @@ def get_plot_config(adfobj):
         },
         'plot_type': adfobj.read_config_var("diag_basic_info").get('plot_type', 'png'),
         'redo_plot': adfobj.get_basic_info('redo_plot'),
-        'pres_levs': adfobj.get_basic_info("plot_press_levels")
+        'pres_levs': adfobj.get_basic_info("plot_press_levels"),
+        'unstruct_plotting': unstructured
     }
 
 
@@ -198,15 +289,12 @@ def process_seasonal_data(mdata, odata, season, weight_season=True):
     else:
         mseason = mdata.sel(time=season).mean(dim='time')
         oseason = odata.sel(time=season).mean(dim='time')
-    
-    # Calculate differences
-    dseason = mseason - oseason
-    
-    # Calculate percent change
-    pseason = (mseason - oseason) / np.abs(oseason) * 100.0
-    pseason = pseason.where(np.isfinite(pseason), np.nan)
-    
-    return mseason, oseason, dseason, pseason
+
+    if hasattr(mdata, "uxgrid"):
+        mseason = plot_utils.prep_ux_for_plot(mseason, mdata)
+        oseason = plot_utils.prep_ux_for_plot(oseason, odata)
+
+    return mseason, oseason
 
 
 def plot_file_op(adfobj, plot_name, var, case_name, season, web_category, redo_plot, plot_type):
@@ -332,7 +420,7 @@ def process_plots(adfobj, mdata, odata, case_name, case_idx, var, seasons,
                         mseasons, oseasons, dseasons, pseasons,
                         syear_cases[case_idx], eyear_cases[case_idx],
                         syear_baseline, eyear_baseline,
-                        web_category, vres)
+                        web_category, case_idx, vres)
     else:
         # Process 3D data with pressure levels
         process_3d_plots(adfobj, mdata, odata, case_name, case_nickname, 
@@ -340,7 +428,7 @@ def process_plots(adfobj, mdata, odata, case_name, case_idx, var, seasons,
                         mseasons, oseasons, dseasons, pseasons,
                         syear_cases[case_idx], eyear_cases[case_idx],
                         syear_baseline, eyear_baseline,
-                        web_category, vres)
+                        web_category, case_idx, vres)
 
 def check_existing_plots(adfobj, var, plot_loc, plot_type, case_name, 
                         seasons, pres_levs, has_dims, web_category, redo_plot):
@@ -368,7 +456,7 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
                     var, seasons, plot_loc, plot_type, doplot,
                     mseasons, oseasons, dseasons, pseasons,
                     syear_case, eyear_case, syear_baseline, eyear_baseline,
-                    web_category, vres):
+                    web_category, case_idx, vres):
     """Process and generate 2D plots."""
     for s in seasons.keys():
         plot_name = plot_loc / f"{var}_{s}_LatLon_Mean.{plot_type}"
@@ -378,15 +466,22 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
         vres["season"] = s
             
         # Calculate seasonal means and differences
-        mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
-            process_seasonal_data(mdata, odata, s)
+        mseason, oseason = process_seasonal_data(mdata, odata, s)
+        dseason = utils.array_diff(mseason, oseason)
+        # Land: blank where the baseline is ~zero (e.g. no snow or vegetation)
+        rel_tol = 1e-6 if adfobj.model_component == "lnd" else None
+        pseason = utils.array_diff(mseason, oseason, percent=True, rel_tol=rel_tol)
+
+        vres["season"] = s
+        vres["var"] = var
 
         # Generate plot
         pf.plot_map_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
                             [syear_case, eyear_case],
                             [syear_baseline, eyear_baseline],
-                            mseasons[s], oseasons[s], dseasons[s], pseasons[s],
-                            obs=adfobj.compare_obs, **vres)
+                            mseason, oseason, dseason, pseason,
+                            obs=adfobj.compare_obs, 
+                            **vres)
 
         # Add to website
         adfobj.add_website_data(plot_name, var, case_name, 
@@ -397,7 +492,7 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
                     var, seasons, pres_levs, plot_loc, plot_type, doplot,
                     mseasons, oseasons, dseasons, pseasons, 
                     syear_case, eyear_case, syear_baseline, eyear_baseline,
-                    web_category, vres):
+                    web_category, case_idx, vres):
     """Process and generate 3D plots with pressure levels."""
     for pres in pres_levs:
         # Validate pressure level exists
@@ -415,8 +510,13 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
             vres["season"] = s
 
             # Calculate seasonal means and differences
-            mseasons[s], oseasons[s], dseasons[s], pseasons[s] = \
-                process_seasonal_data(mdata, odata, s)
+            mseason, oseason = process_seasonal_data(mdata, odata, s)
+            dseason = utils.array_diff(mseason.sel(lev=pres), oseason.sel(lev=pres))
+            pseason = utils.array_diff(mseason.sel(lev=pres), oseason.sel(lev=pres), percent=True)
+
+            vres["season"] = s
+            vres["var"] = var
+            vres['lev'] = int(pres)
 
             vres['lev'] = int(pres)
 
@@ -424,10 +524,10 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
             pf.plot_map_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
                                 [syear_case, eyear_case],
                                 [syear_baseline, eyear_baseline],
-                                mseasons[s].sel(lev=pres), 
-                                oseasons[s].sel(lev=pres),
-                                dseasons[s].sel(lev=pres),
-                                pseasons[s].sel(lev=pres),
+                                mseason.sel(lev=pres), 
+                                oseason.sel(lev=pres),
+                                dseason,
+                                pseason,
                                 obs=adfobj.compare_obs, **vres)
 
             # Add to website

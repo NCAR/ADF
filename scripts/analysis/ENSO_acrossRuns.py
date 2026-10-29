@@ -67,6 +67,11 @@ def ENSO_acrossRuns(adf, clobber=False, search=None):
 
     ## Read in data for new case
     # - - - - - - - - - - - - - - - - - - - - - - - 
+    #Cases run on pre-made climatologies alone have no time series to read:
+    if not adf.data.timeseries_available("ENSO_acrossRuns"):
+        return
+    #End if
+
     case_names    = adf.get_cam_info("cam_case_name", required=True)
     input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
     #Extract simulation years:

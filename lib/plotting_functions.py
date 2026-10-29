@@ -38,6 +38,7 @@ square_contour_difference
 # Import standard python modules
 # ++++++++++++++++++++++++++++++
 
+import inspect
 from typing import Optional
 
 import warnings  # use to warn user about missing files.
@@ -59,6 +60,7 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter
 from matplotlib.ticker import MaxNLocator
 from matplotlib.ticker import MultipleLocator
+import uxarray as ux  # need npl 2024a or later
 
 from adf_base import AdfError
 import plotting_utils as plot_utils
@@ -89,9 +91,76 @@ seasons = {
 CBAR_SIZE = 8
 CBAR_LABELPAD = 5
 
+# to_raster gained pixel_mapping / return_pixel_mapping after uxarray v2025.6.0
+_RASTER_HAS_PIXEL_MAPPING = (
+    "pixel_mapping"
+    in inspect.signature(
+        getattr(ux.UxDataArray, "to_raster", lambda self, ax: None)
+    ).parameters
+)
+
+# pixel -> face mappings, reused across panels, seasons and variables
+_PIXEL_MAPPINGS = {}
+
 #################
 # HELPER FUNCTIONS
 #################
+
+
+def _pixel_mapping_key(uxda, ax):
+    """Key identifying when a pixel mapping can be reused.
+
+    A mapping is only valid for the same grid, projection, axes extent and
+    axes pixel size. Grids are reloaded for every variable, so the grid is
+    identified by its size and a few node coordinates rather than object identity.
+    """
+    grid = uxda.uxgrid
+    grid_id = (
+        grid.n_face,
+        grid.n_node,
+        float(grid.node_lon[0]),
+        float(grid.node_lat[0]),
+        float(grid.node_lon[-1]),
+        float(grid.node_lat[-1]),
+    )
+    return (
+        grid_id,
+        ax.projection.proj4_init,
+        tuple(np.round(ax.get_xlim() + ax.get_ylim(), 6)),
+        tuple(int(v) for v in ax.bbox.bounds[2:]),
+    )
+
+
+def raster_with_mapping(uxda, ax):
+    """Rasterize unstructured data onto a GeoAxes, reusing a cached pixel mapping.
+
+    Parameters
+    ----------
+    uxda : uxarray.UxDataArray
+        Face-centered data to rasterize.
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        Axes to rasterize onto; set its extent (e.g. ``set_global``) first.
+
+    Returns
+    -------
+    numpy.ndarray
+        Rasterized data, for use with ``ax.imshow``.
+
+    Notes
+    -----
+    Mappings are cached in ``_PIXEL_MAPPINGS`` for the life of the process, keyed
+    on grid, projection, extent and axes pixel size, so the pixel -> face search
+    runs once per grid and panel layout for an entire ADF run. Falls back to a
+    plain ``to_raster`` call when uxarray is too old to support mappings.
+    """
+    if not _RASTER_HAS_PIXEL_MAPPING:
+        return uxda.to_raster(ax=ax)
+    key = _pixel_mapping_key(uxda, ax)
+    pixel_mapping = _PIXEL_MAPPINGS.get(key)
+    if pixel_mapping is None:
+        raster, _PIXEL_MAPPINGS[key] = uxda.to_raster(ax=ax, return_pixel_mapping=True)
+        return raster
+    return uxda.to_raster(ax=ax, pixel_mapping=pixel_mapping)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
@@ -109,6 +178,7 @@ def make_polar_plot(
     domain: Optional[list] = None,
     hemisphere: Optional[str] = None,
     obs=False,
+    unstructured=False,
     **kwargs,
 ):
     """Make a stereographic polar plot for the given data and hemisphere.
@@ -134,14 +204,17 @@ def make_polar_plot(
         the domain to plot, specified as
         [west_longitude, east_longitude, south_latitude, north_latitude]
         Defaults to pole to 45-degrees, all longitudes
-    hemisphere : {'NH', 'SH'}, optional
-        Hemsiphere to plot
+    hemisphere : {'NH', 'SH', 'Arctic', 'Antarctic'}, optional
+        Hemsiphere to plot ('Arctic'/'Antarctic' are the land diagnostics' names)
+    unstructured : bool, optional
+        True when `d1`, `d2` (and the difference fields) are on a native grid
+        (uxarray), which is drawn as a raster instead of contoured.
     kwargs : dict, optional
         variable-dependent options for plots, See Notes.
 
     Notes
     -----
-    - Uses contourf. No contour lines (yet).
+    - Uses contourf (a raster for native-grid data). No contour lines (yet).
     - kwargs is checked for:
         + `colormap`
         + `contour_levels`
@@ -161,46 +234,87 @@ def make_polar_plot(
     else:
         pct = pctchange
 
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted.
+    # On a native grid as well: the raster leaves missing faces blank, as for
+    # the other three panels, where 0 would draw the ocean of a land field as
+    # "no change" (and pull the panel's mean towards 0).  Rebuilt on the same
+    # grid, as xarray operations can hand back a plain DataArray:
+    if isinstance(pct, ux.UxDataArray):
+        pct = ux.UxDataArray(pct.where(np.isfinite(pct)), uxgrid=pct.uxgrid)
+    else:
+        pct = pct.where(np.isfinite(pct))
 
-    if hemisphere.upper() == "NH":
+    # The land diagnostics name the hemispheres "Arctic" and "Antarctic":
+    if hemisphere.upper() in ("NH", "ARCTIC"):
         proj = ccrs.NorthPolarStereo()
-    elif hemisphere.upper() == "SH":
+    elif hemisphere.upper() in ("SH", "ANTARCTIC"):
         proj = ccrs.SouthPolarStereo()
     else:
         raise AdfError(
-            "[make_polar_plot] hemisphere not specified, must be NH or SH; "
-            f"hemisphere set as {hemisphere}"
+            "[make_polar_plot] hemisphere not specified, must be NH, SH, "
+            f"Arctic or Antarctic; hemisphere set as {hemisphere}"
         )
 
     if domain is None:
         if hemisphere.upper() == "NH":
             domain = [-180, 180, 45, 90]
+        elif hemisphere.upper() == "ARCTIC":
+            domain = [-180, 180, 50, 90]
         else:
             domain = [-180, 180, -90, -45]
 
-    # statistics for annotation (these are scalars):
-    d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain)
-    d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain)
-    dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(dif, domain)
-    pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(pct, domain)
+    if not unstructured:
+        # statistics for annotation (these are scalars):
+        d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain)
+        d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain)
+        dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(
+            dif, domain
+        )
+        pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(
+            pct, domain
+        )
 
-    # downsize to the specified region; makes plotting/rendering/saving much faster
-    d1 = d1.sel(lat=slice(domain[2], domain[3]))
-    d2 = d2.sel(lat=slice(domain[2], domain[3]))
-    dif = dif.sel(lat=slice(domain[2], domain[3]))
-    pct = pct.sel(lat=slice(domain[2], domain[3]))
+        # downsize to the specified region; makes plotting/rendering/saving much faster
+        d1 = d1.sel(lat=slice(domain[2], domain[3]))
+        d2 = d2.sel(lat=slice(domain[2], domain[3]))
+        dif = dif.sel(lat=slice(domain[2], domain[3]))
+        pct = pct.sel(lat=slice(domain[2], domain[3]))
 
-    # add cyclic point to the data for better-looking plot
-    d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
-    d2_cyclic, _ = add_cyclic_point(
-        d2, coord=d2.lon
-    )  # since we can take difference, assume same longitude coord.
-    dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
-    pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
+        # add cyclic point to the data for better-looking plot
+        d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
+        d2_cyclic, _ = add_cyclic_point(
+            d2, coord=d2.lon
+        )  # since we can take difference, assume same longitude coord.
+        dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
+        pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
 
-    wrap_fields = (d1_cyclic, d2_cyclic, pct_cyclic, dif_cyclic)
+        wrap_fields = (d1_cyclic, d2_cyclic, pct_cyclic, dif_cyclic)
+    else:
+        # Native grid: keep the cells whose centres are in the domain
+        indices = np.where(
+            (d1.uxgrid.face_lat.values >= domain[2])
+            & (d1.uxgrid.face_lat.values <= domain[3])
+        )[0]
+        d1 = d1.isel(n_face=indices)
+        d2 = d2.isel(n_face=indices)
+        pct = pct.isel(n_face=indices)
+        dif = dif.isel(n_face=indices)
+
+        wrap_fields = (d1, d2, pct, dif)
+
+        # statistics for annotation (these are scalars):
+        d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(
+            d1, domain, unstructured
+        )
+        d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(
+            d2, domain, unstructured
+        )
+        dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(
+            dif, domain, unstructured
+        )
+        pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(
+            pct, domain, unstructured
+        )
 
     # -- deal with optional plotting arguments that might provide variable-dependent choices
     kwargs["adfobj"] = adfobj
@@ -209,11 +323,13 @@ def make_polar_plot(
     diff_units = cp_info["diff_units_label"]
     pct_units = cp_info["pct_units_label"]
 
-    lons, lats = plot_utils.transform_coordinates_for_projection(
-        proj, lon_cyclic, d1.lat
-    )  # Explicit coordinate transform
+    if not unstructured:
+        lons, lats = plot_utils.transform_coordinates_for_projection(
+            proj, lon_cyclic, d1.lat
+        )  # Explicit coordinate transform
 
-    fig = plt.figure(figsize=(10, 10))
+    # controlling DPI improves raster plots for unstructured data, but it does slow things down
+    fig = plt.figure(figsize=(10, 10), dpi=300)
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
 
     ax1 = plt.subplot(gs[0, :2], projection=proj)
@@ -221,6 +337,29 @@ def make_polar_plot(
     ax3 = plt.subplot(gs[1, :2], projection=proj)
     ax4 = plt.subplot(gs[1, 2:], projection=proj)
     axs = [ax1, ax2, ax3, ax4]
+
+    for a in axs:
+        # __Follow the cartopy gallery example to make circular__:
+        # Compute a circle in axes coordinates, which we can use as a boundary
+        # for the map. We can pan/zoom as much as we like - the boundary will be
+        # permanently circular.
+        theta = np.linspace(0, 2 * np.pi, 100)
+        center, radius = [0.5, 0.5], 0.5
+        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+        circle = mpl.path.Path(verts * radius + center)
+        a.set_boundary(circle, transform=a.transAxes)
+        # Set before plotting, so native-grid rasters cover only the domain
+        a.set_extent(domain, ccrs.PlateCarree())
+        a.coastlines()
+        a.gridlines(
+            draw_labels=False,
+            crs=ccrs.PlateCarree(),
+            lw=1,
+            color="gray",
+            y_inline=True,
+            xlocs=range(-180, 180, 90),
+            ylocs=range(-80, 90, 10),
+        )
 
     means = []
     mins = []
@@ -253,7 +392,26 @@ def make_polar_plot(
             extend = cp_info["extend_sim"]
 
         contour_levs = np.unique(np.array(levels))
-        if len(contour_levs) < 2:
+        if unstructured:
+            # Native grid: draw a raster of the cells (extent is already set)
+            raster = raster_with_mapping(a, axs[i])
+            img = axs[i].imshow(
+                raster,
+                cmap=cmap,
+                origin="lower",
+                extent=axs[i].get_xlim() + axs[i].get_ylim(),
+            )
+            if len(contour_levs) < 2:
+                # e.g. a field that is zero everywhere in the region (crop
+                # variables near the poles): no levels to scale the colors by
+                axs[i].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props
+                )
+            else:
+                img.set_clim(vmin=contour_levs[0], vmax=contour_levs[-1])
+            # End if
+            imgs.append(img)
+        elif len(contour_levs) < 2:
             imgs.append(axs[i].contourf(lons, lats, a, colors="w"))
             axs[i].text(0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props)
         else:
@@ -318,28 +476,6 @@ def make_polar_plot(
 
     axs[2].set_title("Test % Diff Baseline", loc="left", fontsize=8, fontweight="bold")
     axs[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
-
-    for a in axs:
-        # __Follow the cartopy gallery example to make circular__:
-        # Compute a circle in axes coordinates, which we can use as a boundary
-        # for the map. We can pan/zoom as much as we like - the boundary will be
-        # permanently circular.
-        theta = np.linspace(0, 2 * np.pi, 100)
-        center, radius = [0.5, 0.5], 0.5
-        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
-        circle = mpl.path.Path(verts * radius + center)
-        a.set_boundary(circle, transform=a.transAxes)
-        a.set_extent(domain, ccrs.PlateCarree())
-        a.coastlines()
-        a.gridlines(
-            draw_labels=False,
-            crs=ccrs.PlateCarree(),
-            lw=1,
-            color="gray",
-            y_inline=True,
-            xlocs=range(-180, 180, 90),
-            ylocs=range(-80, 90, 10),
-        )
 
     # __COLORBARS__
     cb_mean_ax = inset_axes(
@@ -482,12 +618,46 @@ def plot_map_and_save(
     kwargs["adfobj"] = adfobj
     vector = vmdlfld is not None
 
+    # Native-grid (uxarray) fields are drawn as rasters, weighted by their
+    # cell weights ('wgt', see adf_utils.cell_weights) -- see global_latlon_map:
+    unstructured = kwargs.get("unstructured_plotting", False)
     # Only set for vector plots (when the V components are given):
     skip = sim_mags = diff_mag = None
     udif_wrap = vdif_wrap = umdl_wrap = vmdl_wrap = uobs_wrap = vobs_wrap = None
     mdl_mag = obs_mag = None
 
-    if vector:
+    if unstructured:
+        wgt = kwargs["wgt"]
+        if vector:
+            # The grid the data are on (a lat/lon case put onto the
+            # reference's mesh has no 'mesh_file' of its own):
+            grid = getattr(mdlfld, "uxgrid", None)
+            if grid is None:
+                grid = ux.open_grid(kwargs["mesh_file"])
+            # cell centres, for the vector arrows:
+            lons = grid.face_lon.values
+            lats = grid.face_lat.values
+            umdl_wrap, vmdl_wrap = mdlfld, vmdlfld
+            uobs_wrap, vobs_wrap = obsfld, vobsfld
+            udif_wrap, vdif_wrap = diffld, vdiffld
+            # Vector magnitudes (the difference from the model and baseline
+            # magnitudes, to get the correct sign):
+            mdl_mag = np.sqrt(mdlfld**2 + vmdlfld**2)
+            obs_mag = np.sqrt(obsfld**2 + vobsfld**2)
+            diff_mag = mdl_mag - obs_mag
+            sim_mags = [mdl_mag, obs_mag]
+            wrap_fields = (mdl_mag, obs_mag, diff_mag)
+            stat_fields = {0: mdl_mag, 1: obs_mag, 2: diff_mag}
+            d_rmse = utils.wgt_rmse(mdl_mag, obs_mag, wgt)
+        else:
+            fields = tuple(
+                fld.reset_coords(drop=True) for fld in (mdlfld, obsfld, pctld, diffld)
+            )
+            wrap_fields = fields
+            stat_fields = dict(enumerate(fields))
+            d_rmse = utils.wgt_rmse(fields[0], fields[1], wgt)
+        # End if
+    elif vector:
         # too many vectors to see well, so prune by striding through data:
         skip = (slice(None, None, 5), slice(None, None, 8))
 
@@ -569,27 +739,24 @@ def plot_map_and_save(
     central_longitude = kwargs.get("central_longitude", 180)
 
     # create figure object
-    fig = plt.figure(figsize=(14, 10))
+    # controlling DPI improves raster plots for unstructured data, but it does slow things down
+    fig = plt.figure(figsize=(14, 8), dpi=300)
 
     # LAYOUT WITH GRIDSPEC
-    wspace = 1.66
-    if vector:
-        hspace = 0
-    else:
-        hspace = -0.25
-    gs = mpl.gridspec.GridSpec(
-        3, 6, wspace=wspace, hspace=hspace
-    )  # 2 rows, 4 columns, but each map will take up 2 columns
+    # 2x2 grid of equal-size maps (each spanning 2 of 4 columns, so a vector
+    # plot's single difference panel can be centred); equal sizes let
+    # unstructured plots share one pixel mapping
+    gs = mpl.gridspec.GridSpec(2, 4, wspace=0.7, hspace=0.2)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
-    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info["subplots_opt"])
-    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info["subplots_opt"])
+    ax1 = plt.subplot(gs[0, :2], projection=proj, **cp_info["subplots_opt"])
+    ax2 = plt.subplot(gs[0, 2:], projection=proj, **cp_info["subplots_opt"])
 
     if vector:
-        ax3 = plt.subplot(gs[2, 1:5], projection=proj, **cp_info["subplots_opt"])
+        ax3 = plt.subplot(gs[1, 1:3], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3]
     else:
-        ax3 = plt.subplot(gs[2, :3], projection=proj, **cp_info["subplots_opt"])
-        ax4 = plt.subplot(gs[2, 3:], projection=proj, **cp_info["subplots_opt"])
+        ax3 = plt.subplot(gs[1, :2], projection=proj, **cp_info["subplots_opt"])
+        ax4 = plt.subplot(gs[1, 2:], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3, ax4]
 
     img = []  # contour plots
@@ -653,7 +820,44 @@ def plot_map_and_save(
             extend = cp_info["extend_sim"]
 
         contour_levs = np.unique(np.array(levels))
-        if len(contour_levs) < 2:
+        if unstructured:
+            # Native grid: draw a raster of the cells (on the test case's grid)
+            fld_ux = ux.UxDataArray(a, uxgrid=mdlfld.uxgrid)
+            ax[i].set_global()
+            raster = raster_with_mapping(fld_ux, ax[i])
+            raster_img = ax[i].imshow(
+                raster,
+                cmap=cmap,
+                origin="lower",
+                extent=ax[i].get_xlim() + ax[i].get_ylim(),
+            )
+            if len(contour_levs) < 2:
+                # e.g. a field that is zero everywhere: no levels to scale by
+                ax[i].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props
+                )
+            else:
+                raster_img.set_clim(vmin=contour_levs[0], vmax=contour_levs[-1])
+            # End if
+            img.append(raster_img)
+            if vector:
+                # Arrows at every 20th cell; test, baseline, difference vectors:
+                ufld, vfld = (
+                    (umdl_wrap, vmdl_wrap),
+                    (uobs_wrap, vobs_wrap),
+                    (udif_wrap, vdif_wrap),
+                )[i]
+                every = np.arange(0, ufld.sizes["n_face"], 20)
+                ax[i].quiver(
+                    lons[every],
+                    lats[every],
+                    ufld.isel(n_face=every),
+                    vfld.isel(n_face=every),
+                    transform=ccrs.PlateCarree(),
+                    cmap="Reds",
+                )
+            # End if
+        elif len(contour_levs) < 2:
             img.append(
                 ax[i].contourf(
                     lons,
@@ -740,7 +944,7 @@ def plot_map_and_save(
         fontsize=14,
         fontfamily=["DejaVu Sans", "Liberation Sans", "sans-serif"],
     )
-    st.set_y(0.825)
+    st.set_y(0.98)
 
     # Set plot titles
     case_title = (
@@ -856,6 +1060,172 @@ def plot_map_and_save(
 
 
 #######
+
+
+def ux_to_lat_binned(da, bins=2):
+    """
+    Spread native-grid (uxarray) data into latitude bins.
+
+    Each cell's value goes into the bin of its centre latitude; everywhere
+    else is NaN.  A zonal mean over the remaining cell dimension
+    (``adf_utils.zonal_mean_xr``) then gives the mean of the cells in each bin.
+
+    Parameters
+    ----------
+    da : uxarray.UxDataArray
+        Data on the mesh, with the cell dimension last.
+    bins : int or float, optional
+        Bin width in degrees latitude (default 2).
+
+    Returns
+    -------
+    xarray.DataArray
+        With a ``lat`` dimension of bin centres before the cell dimension.
+    """
+    lat = np.asarray(da.uxgrid.face_lat)
+
+    lat_bins = np.arange(-90, 90 + bins, bins)
+    lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
+
+    bin_index = np.clip(np.digitize(lat, lat_bins) - 1, 0, len(lat_mid) - 1)
+
+    face_dim = da.dims[-1]
+
+    da_vals = da.values
+
+    new_shape = (*da_vals.shape[:-1], len(lat_mid), da_vals.shape[-1])
+
+    out = np.full(new_shape, np.nan, dtype=float)
+
+    for i in range(len(lat_mid)):
+        mask = bin_index == i
+        out[..., i, mask] = da_vals[..., mask]
+
+    new_dims = (*da.dims[:-1], "lat", face_dim)
+
+    coords = {}
+
+    for dim in da.dims[:-1]:
+        coords[dim] = da.coords[dim]
+
+    coords["lat"] = lat_mid
+    coords[face_dim] = np.arange(len(lat))
+
+    return xr.DataArray(out, dims=new_dims, coords=coords, name=da.name, attrs=da.attrs)
+
+
+def ux_to_lon_binned(da, bins=2):
+    """
+    Spread native-grid (uxarray) data into longitude bins.
+
+    As :func:`ux_to_lat_binned`, by centre longitude (0-360); a mean over the
+    cell dimension (:func:`meridional_mean_xr`) then gives the mean of the
+    cells in each bin.
+
+    Parameters
+    ----------
+    da : uxarray.UxDataArray
+        Data on the mesh: ``(n_face)`` or ``(lev, n_face)``.
+    bins : int or float, optional
+        Bin width in degrees longitude (default 2).
+
+    Returns
+    -------
+    xarray.DataArray
+        ``(lon, n_face)`` or ``(lev, lon, n_face)``.
+
+    Raises
+    ------
+    ValueError
+        For data with more than two dimensions.
+    """
+    da_vals = np.array(da)
+    lon = np.array(da.uxgrid.face_lon)
+    lon = (lon + 360) % 360  # converts -180→180 into 0→360
+
+    lon_bins = np.arange(0, 360 + bins, bins)
+    lon_mid = 0.5 * (lon_bins[:-1] + lon_bins[1:])
+    bin_index = np.clip(np.digitize(lon, lon_bins) - 1, 0, len(lon_mid) - 1)
+
+    # --- 1D case ---
+    if da_vals.ndim == 1:
+        out = np.full((len(lon_mid), len(lon)), np.nan)
+
+        for i in range(len(lon_mid)):
+            mask = bin_index == i
+            out[i, mask] = da_vals[mask]
+
+        dims = ["lon", "n_face"]
+        coords = {"lon": lon_mid}
+
+    # --- 2D case ---
+    elif da_vals.ndim == 2:
+        nlev = da_vals.shape[0]
+        out = np.full((nlev, len(lon_mid), len(lon)), np.nan, dtype=float)
+
+        for i in range(len(lon_mid)):
+            mask = bin_index == i
+            out[:, i, mask] = da_vals[:, mask]
+
+        dims = ["lev", "lon", "n_face"]
+        coords = {"lev": da["lev"].values, "lon": lon_mid}
+
+    else:
+        raise ValueError("Only 1D or 2D supported")
+
+    coords["n_face"] = np.arange(len(lon))
+    da_attrs = da.attrs.copy()
+    da_attrs["lon_orig"] = np.array(da.uxgrid.face_lon)
+    return xr.DataArray(out, dims=dims, coords=coords, name=da.name, attrs=da_attrs)
+
+
+def meridional_mean_xr(fld):
+    """Average over all dimensions except `lev` and `lon`.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray
+        The data.
+
+    Returns
+    -------
+    xarray.DataArray
+        `fld` averaged over every other dimension.
+
+    Raises
+    ------
+    IOError
+        If `fld` is not an xarray DataArray.
+    """
+    if isinstance(fld, xr.DataArray):
+        davgovr = [dim for dim in fld.dims if dim not in ("lev", "lon")]
+    else:
+        raise IOError("meridional_mean_xr requires Xarray DataArray input.")
+    return fld.mean(dim=davgovr)
+
+
+def _lat_band(fld, latbounds):
+    """The part of `fld` within the latitudes of the slice `latbounds`.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray or uxarray.UxDataArray
+        Data with a `lat` dimension, or on an unstructured mesh.
+    latbounds : slice
+        ``slice(south, north)``, in degrees.
+
+    Returns
+    -------
+    xarray.DataArray or uxarray.UxDataArray
+        `fld` restricted to the latitude band; on a mesh, to the cells whose
+        centres lie within it.
+    """
+    south, north = sorted((latbounds.start, latbounds.stop))
+    if hasattr(fld, "uxgrid"):
+        face_lat = fld.uxgrid.face_lat.values
+        return fld.isel(n_face=np.where((face_lat >= south) & (face_lat <= north))[0])
+    # By value rather than with .sel, so either latitude ordering works:
+    return fld.isel(lat=((fld.lat >= south) & (fld.lat <= north)).values)
 
 
 def zonal_plot(lat, data, ax=None, color=None, **kwargs):
@@ -989,6 +1359,11 @@ def plot_zonal_mean_and_save(
     # We should think about how to do plot customization and defaults.
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
     ti_font_size = kwargs.pop("tiFontSize", 8)
+
+    # Native-grid data is binned by latitude first:
+    if kwargs.get("unstructured_plotting", False):
+        adata = ux_to_lat_binned(adata)
+        bdata = ux_to_lat_binned(bdata)
 
     azm = utils.zonal_mean_xr(adata)
     bzm = utils.zonal_mean_xr(bdata)
@@ -1326,6 +1701,166 @@ def plot_zonal_mean_and_save(
 #######
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
+def plot_single_case_and_save(
+    adfobj,
+    wks,
+    kind,
+    role,
+    nickname,
+    climo_yrs,
+    data,
+    has_lev,
+    log_p=False,
+    latbounds=None,
+    **kwargs,
+):
+    """Zonal or meridional mean of one case, when the other has no data.
+
+    The ADF plots whatever data there is: when only the test case or only the
+    baseline has a variable, this draws that one on its own, reduced the same
+    way as in :func:`plot_zonal_mean_and_save` and
+    :func:`plot_meridional_mean_and_save` and with their colors and contour
+    levels, so it can be told apart from a test-minus-baseline plot only by
+    its title.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object.
+    wks : str or pathlib.Path
+        The file to write.
+    kind : str
+        "zonal" or "meridional".
+    role : str
+        "Test" or "Baseline": which case `data` is.
+    nickname : str
+        The case's name on the plot.
+    climo_yrs : list
+        The case's first and last climatology years.
+    data : xarray.DataArray or uxarray.UxDataArray
+        The seasonal mean, ([lev], lat, lon) or on a native grid; the vertical
+        coordinate (lev) must be pressure levels.
+    has_lev : bool
+        Whether `data` has a lev dimension (a pressure-latitude, or
+        -longitude, panel rather than a line).
+    log_p : bool, optional
+        Use a log(pressure) vertical axis.
+    latbounds : slice, optional
+        The latitude band of a meridional mean, by default 5S-5N.
+    **kwargs
+        The variable defaults, as for the two-case plots.
+
+    Returns
+    -------
+    None
+        Writes `wks`.
+    """
+    kwargs["adfobj"] = adfobj
+    ti_font_size = kwargs.pop("tiFontSize", 8)
+    unstructured = kwargs.get("unstructured_plotting", False)
+
+    if kind == "zonal":
+        if unstructured:
+            data = ux_to_lat_binned(data)
+        # End if
+        prof = utils.zonal_mean_xr(data)
+        xdim, xlabel, xstep, pltfunc = "lat", "LATITUDE", 20, zonal_plot
+    else:
+        if latbounds is None:
+            latbounds = slice(-5, 5)
+        # End if
+        if "time" in data.dims:
+            data = data.mean(dim="time", keep_attrs=True)
+        # End if
+        if unstructured:
+            prof = meridional_mean_xr(ux_to_lon_binned(_lat_band(data, latbounds)))
+        else:
+            data = _lat_band(data, latbounds)
+            latweight = np.cos(np.radians(data.lat))
+            prof = data.weighted(latweight).mean(dim="lat", keep_attrs=True)
+        # End if
+        xdim, xlabel, xstep, pltfunc = "lon", "LONGITUDE", 60, meridional_plot
+    # End if
+
+    # Contour settings as for the two-case plots (the difference settings,
+    # made from zeros here, are not used):
+    zeros = prof * 0
+    cp_info = plot_utils.prep_contour_plot(prof, prof, zeros, zeros, **kwargs)
+    units = cp_info["units_label"]
+    other = "baseline" if role == "Test" else "test case"
+    title = (
+        rf"$\mathbf{{{role}}}:$"
+        + f"{nickname}\nyears: {climo_yrs[0]}-{climo_yrs[-1]}"
+        # The other case is missing, or on another grid or other levels:
+        + f"\n(no comparable {other} data, so no difference)"
+    )
+    color = "#1f77b4" if role == "Test" else "#ff7f0e"  # as in the two-case plots
+
+    if has_lev:
+        fig, ax = plt.subplots(
+            figsize=(8, 3.5), constrained_layout=True, **cp_info["subplots_opt"]
+        )
+        levels_sim = cp_info["levels_sim"]
+        if len(np.unique(np.array(levels_sim))) < 2:
+            pltfunc(prof[xdim], prof, ax=ax)
+            ax.text(0.4, 0.4, EMPTY_MESSAGE, transform=ax.transAxes, bbox=props)
+        else:
+            img, ax = pltfunc(
+                prof[xdim],
+                prof,
+                ax=ax,
+                norm=cp_info["norm_sim"],
+                cmap=cp_info["cmap_sim"],
+                levels=levels_sim,
+                extend=cp_info["extend_sim"],
+                **cp_info["contourf_opt"],
+            )
+            cb_ax = inset_axes(
+                ax,
+                width="2%",
+                height="100%",
+                loc="lower left",
+                bbox_to_anchor=(1.02, 0, 1, 1),
+                bbox_transform=ax.transAxes,
+                borderpad=0,
+            )
+            cbar = fig.colorbar(
+                img, cax=cb_ax, location="right", **cp_info["colorbar_opt"]
+            )
+            cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=5, loc="left")
+            cbar.ax.tick_params(labelsize=CBAR_SIZE)
+        # End if
+        if log_p:
+            ax.set_yscale("log")
+        # End if
+        ax.set_ylabel("PRESSURE [hPa]", fontsize=ti_font_size)
+    else:
+        # constrained_layout keeps the figure title clear of the panel title:
+        fig, ax = plt.subplots(constrained_layout=True)
+        pltfunc(prof[xdim], prof, ax=ax, color=color)
+        ax.set_ylabel(units, fontsize=ti_font_size)
+        ax.grid(True)
+    # End if
+
+    ax.set_title(title, loc="left", fontsize=ti_font_size)
+    fig.suptitle(
+        f"{kwargs['var_name']}: {kwargs['season']}",
+        fontsize=12,
+        fontfamily=["DejaVu Sans", "Liberation Sans", "sans-serif"],
+    )
+    ax.set_xlabel(xlabel, fontsize=ti_font_size)
+    ax.tick_params("both", length=3, width=1, which="major")
+    ax.tick_params(axis="both", labelsize=7)
+    ax.xaxis.set_major_locator(MultipleLocator(xstep))
+
+    fig.savefig(wks, bbox_inches="tight", dpi=300)
+    plt.close(fig)
+
+
+#######
+
+
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def plot_meridional_mean_and_save(
     adfobj,
@@ -1443,6 +1978,7 @@ def plot_meridional_mean_and_save(
     if "time" in adata.dims:
         adata = adata.mean(dim="time", keep_attrs=True)
     if "lat" in adata.dims:
+        adata = _lat_band(adata, latbounds)
         latweight = np.cos(np.radians(adata.lat))
         adata = adata.weighted(latweight).mean(dim="lat", keep_attrs=True)
     if "time" in bdata.dims:
@@ -1452,8 +1988,14 @@ def plot_meridional_mean_and_save(
         # removed 'time' by the time the ADF calls this.
         bdata = bdata.mean(dim="time", keep_attrs=True)
     if "lat" in bdata.dims:
+        bdata = _lat_band(bdata, latbounds)
         latweight = np.cos(np.radians(bdata.lat))
         bdata = bdata.weighted(latweight).mean(dim="lat", keep_attrs=True)
+    if kwargs.get("unstructured_plotting", False):
+        # Native grid: the cells whose centres lie within the latitude band,
+        # averaged into longitude bins:
+        adata = meridional_mean_xr(ux_to_lon_binned(_lat_band(adata, latbounds)))
+        bdata = meridional_mean_xr(ux_to_lon_binned(_lat_band(bdata, latbounds)))
     # If there are other dimensions, they are still going to be there:
     if len(adata.dims) > 2:
         print(

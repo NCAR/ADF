@@ -15,6 +15,7 @@ environment.
 import os
 import os.path
 import sys
+import types
 import unittest
 
 # Set relevant path variables:
@@ -109,6 +110,49 @@ class DomainStatsTestRoutine(unittest.TestCase):
         sel = good & (da.lat.values >= 45)[:, None]
         expected = float((da.values * wgt)[sel].sum() / wgt[sel].sum())
         self.assertAlmostEqual(mean, expected, places=10)
+
+    def test_unstructured_missing_faces_are_left_out(self):
+        """On a native grid, missing faces (ocean, for land) drop out of the mean.
+
+        Before, one NaN face made the panel's mean NaN.
+        """
+
+        class _Faces:  # pylint: disable=too-few-public-methods
+            """Just what domain_stats reads of a uxarray UxDataArray."""
+
+            def __init__(self, vals, lat, area):
+                self.values = np.asarray(vals, dtype=float)
+                self.uxgrid = types.SimpleNamespace(
+                    face_lat=types.SimpleNamespace(values=np.asarray(lat, float)),
+                    face_lon=types.SimpleNamespace(values=np.zeros(len(lat))),
+                    face_areas=types.SimpleNamespace(values=np.asarray(area, float)),
+                )
+
+            def isel(self, n_face):
+                """The faces at the given indices."""
+                grid = self.uxgrid
+                return _Faces(
+                    self.values[n_face],
+                    grid.face_lat.values[n_face],
+                    grid.face_areas.values[n_face],
+                )
+
+            def min(self):
+                """Minimum, skipping NaN as xarray does."""
+                return np.float64(np.nanmin(self.values))
+
+            def max(self):
+                """Maximum, skipping NaN as xarray does."""
+                return np.float64(np.nanmax(self.values))
+
+        faces = _Faces(
+            [1.0, np.nan, 3.0, 10.0], lat=[60, 70, 80, -60], area=[1.0, 5.0, 3.0, 1.0]
+        )
+        mean, vmax, vmin = domain_stats(faces, [-180, 180, 45, 90], unstructured=True)
+        self.assertAlmostEqual(mean, (1.0 * 1.0 + 3.0 * 3.0) / (1.0 + 3.0))
+        self.assertEqual((vmax, vmin), (3.0, 1.0))
+        all_missing = _Faces([np.nan, np.nan], lat=[60, 70], area=[1.0, 1.0])
+        self.assertTrue(np.isnan(domain_stats(all_missing, [0, 360, 45, 90], True)[0]))
 
     def test_edges_of_the_longitude_range(self):
         """Boxes ending on 0, 180 or 360 pick the right points."""
