@@ -24,12 +24,8 @@
 #which must always be greater than or equal to this value:
 line-length = 88
 
-#Note that "target-version" is deliberately left unset, which
-#tells black to auto-detect the python version from each file's
-#own syntax.  Pinning it to "py39" would make black rewrite
-#multi-context "with" statements into the parenthesized form,
-#which CPython 3.9 only accepts as a side-effect of its PEG
-#parser and which is not officially valid until python 3.10.
+#Note that "target-version" is left unset, which tells black
+#to auto-detect the python version from each file's own syntax.
 
 #Only ADF-authored code should be formatted by black.  The
 #"lib/externals" directory contains code copied in from other

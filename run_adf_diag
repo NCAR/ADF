@@ -113,15 +113,12 @@ if __name__ == "__main__":
     #+++++++++++++++++++++
     print('ADF diagnostics is starting...')
 
-    #+++++++++++++++++++++++++++++++++++++++++++
-    #Check that python is version 3.6 or greater
-    #+++++++++++++++++++++++++++++++++++++++++++
+    #++++++++++++++++++++++++++++++++++++++++++++
+    #Check that python is version 3.12 or greater
+    #++++++++++++++++++++++++++++++++++++++++++++
 
-    if sys.version_info[0] < 3:
-        raise AdfError("Script only works with Python 3. Please switch python versions.")
-
-    if sys.version_info[1] < 6:
-        raise AdfError("Script only works with Python version 3.6 or greater.  Please update python.")
+    if sys.version_info < (3, 12):
+        raise AdfError("Script only works with Python version 3.12 or greater.  Please update python.")
 
     #++++++++++++++++++++++++++++
     #Parse command-line arguments

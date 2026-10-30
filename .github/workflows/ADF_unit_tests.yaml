@@ -17,40 +17,13 @@ jobs:
   #a PR is either opened or synced (i.e. additional commits are pushed
   #to branch involved in PR).
   #
-  #Only PyYAML and pytest are installed here, so this job checks the
-  #lightweight modules across python versions, and every test that
-  #needs the scientific stack is skipped.  Those tests are run by the
-  #"full_env_unit_tests" job below.
-  python_unit_tests:
-    if: github.event_name == 'pull_request' || github.repository == 'NCAR/ADF'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        #All of these python versions will be used to run tests:
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
-      fail-fast: false
-    steps:
-    # Acquire github action routines:
-    - uses: actions/checkout@v6
-    # Acquire specific version of python:
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
-      with:
-        python-version: ${{ matrix.python-version }}
-    # Install needed python packages:
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip  # Install latest version of PIP
-        pip install pyyaml                   # Install PyYAML python package
-        pip install pytest                   # Install pytest python package
-    # Run python unit tests related to ADF library:
-    - name: ADF lib unit tests
-      run: pytest lib/test/unit_tests
-
-  #This job runs the same unit tests in the ADF's own conda environment
+  #The tests are run in the ADF's own conda environment
   #(env/conda_environment.yaml), so that the tests needing xarray,
   #matplotlib, geocat-comp, xesmf, etc. actually run.  xesmf needs the
   #ESMF library, which pip cannot install, hence conda (via micromamba).
+  #
+  #The same tests are also run against the newest Python and packages
+  #by the non-blocking "ADF_canary_tests.yaml" workflow.
   full_env_unit_tests:
     if: github.event_name == 'pull_request' || github.repository == 'NCAR/ADF'
     runs-on: ubuntu-latest

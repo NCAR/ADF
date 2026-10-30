@@ -1,0 +1,80 @@
+name: Canary Unit Tests (latest packages)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  #This job is an early warning for future Python and package changes.
+  #It runs the ADF unit tests on the newest Python version, in a copy of
+  #the ADF conda environment (env/conda_environment.yaml) with the exact
+  #version pins removed, so every run picks up the latest releases.
+  #
+  #A failure here usually means a new upstream release, not a problem
+  #with the PR itself, so this job is non-blocking ("continue-on-error"),
+  #and should not be made a required status check.  When it fails, the
+  #log shows what will need fixing before the next bump of the pinned
+  #versions in env/conda_environment.yaml.  The pinned environment that
+  #users actually run is tested by "ADF_unit_tests.yaml".
+  canary_unit_tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        # A login shell, so that the micromamba environment is active:
+        shell: bash -el {0}
+    steps:
+    # Acquire github action routines:
+    - uses: actions/checkout@v6
+    # Remove the exact version pins ("name=version") from the ADF conda
+    # environment file, and set the python version.  Minimum versions
+    # ("name>=version") are kept, as they never hold back the newest release:
+    - name: Create unpinned ADF conda environment file
+      run: |
+        sed -E -e 's/^(\s*-\s*[A-Za-z0-9_.-]+)=.*$/\1/' \
+               -e 's/^(\s*-\s*python)$/\1=3.13/' \
+               env/conda_environment.yaml > ${{ runner.temp }}/canary_env.yaml
+        cat ${{ runner.temp }}/canary_env.yaml
+    # Build the unpinned environment, plus pytest (not in the env file).
+    # It is not cached, so that every run gets the latest releases:
+    - name: Set up unpinned ADF conda environment
+      uses: mamba-org/setup-micromamba@v2
+      with:
+        environment-file: ${{ runner.temp }}/canary_env.yaml
+        environment-name: adf_canary
+        create-args: pytest
+        cache-environment: false
+    # Record which versions were tested, for comparing a failing run
+    # against the last passing one:
+    - name: List package versions
+      run: micromamba list
+    # Run python unit tests related to ADF library.  Every test should
+    # run in this environment, so a skip means something failed to import
+    # (e.g. a package that dropped an API the ADF uses), and is treated
+    # as a failure.
+    #
+    # Note: Don't end this step with "exit".  In a login shell an explicit
+    # "exit" runs ~/.bash_logout, whose failing "clear_console" call on
+    # the runner turns an exit code of 0 into 1.  Instead let the final
+    # command (a subshell exit) set the step's exit code:
+    - name: ADF lib unit tests (latest packages)
+      run: |
+        pytest lib/test/unit_tests -rs 2>&1 | tee pytest.log
+        status=${PIPESTATUS[0]}
+        if grep -q '^SKIPPED' pytest.log; then
+          echo "::error::Unit tests were skipped in the latest-packages environment"
+          status=1
+        fi
+        (exit $status)
+    # Run the tests again, with deprecation warnings (DeprecationWarning,
+    # FutureWarning) turned into errors.  Only warnings raised from ADF
+    # code count, so a deprecation inside a dependency that the ADF has no
+    # control over does not fail this step.  This runs only if the tests
+    # above passed, so a failure here means "will break in a future
+    # release", not "broken now".
+    - name: ADF lib unit tests (deprecation warnings as errors)
+      run: |
+        mods=$(find lib scripts -name '*.py' -not -path 'lib/externals/*' \
+                 -exec basename {} .py \; | sort -u | paste -sd '|')
+        filters="error::DeprecationWarning:(${mods})\$"$'\n'"error::FutureWarning:(${mods})\$"
+        pytest lib/test/unit_tests -o filterwarnings="${filters}"

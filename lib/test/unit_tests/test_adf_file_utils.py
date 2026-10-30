@@ -21,8 +21,8 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-# adf_file_utils imports nothing but pathlib, so these run in every CI job,
-# including the one with only PyYAML and pytest installed:
+# adf_file_utils imports nothing but pathlib, so these run anywhere, even
+# with only PyYAML and pytest installed:
 from adf_file_utils import (  # pylint: disable=import-error
     describe_dir_problem,
     find_ts_files,

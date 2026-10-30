@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-# Skip rather than fail collection when the science stack is absent, as in the
-# PyYAML-only job of .github/workflows/ADF_unit_tests.yaml.  The workflow's
-# full-environment job runs these.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 # geocat.comp is pulled in by adf_utils.
 pytest.importorskip("numpy")
 pytest.importorskip("xarray")

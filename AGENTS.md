@@ -39,17 +39,18 @@ real ADF run, so the review has to do that job.
 | `lib/plotting_functions.py`, `lib/plotting_utils.py`, `lib/adf_utils.py` | Shared plotting/utility helpers used by `scripts/`. |
 | `lib/adf_variable_defaults.yaml` | Per-variable plotting/obs/vector/website/derivation defaults. `..._era5-1deg.yaml` is the 1° ERA5 variant. |
 | `scripts/averaging/`, `scripts/regridding/`, `scripts/analysis/`, `scripts/plotting/` | Pluggable stage scripts, selected by the config file's `time_averaging_scripts`, `regridding_scripts`, `analysis_scripts`, `plotting_scripts`. |
-| `lib/test/unit_tests/` | pytest suite (currently `adf_base`, `adf_config` only). |
+| `lib/test/unit_tests/` | pytest suite (partial coverage of `lib/`, plus a few `scripts/` helpers). |
 | `lib/test/pylintrc` | pylint config used by CI. |
 | `.github/workflows/`, `.github/scripts/` | CI (see §3). |
 | `config_*.yaml` | Example configs kept in sync with the code. |
 
 ## 3. What CI actually checks — and what it does not
 
-Three workflows run on every PR:
+Four workflows run on every PR:
 
-1. **`ADF_unit_tests.yaml`** — `pytest lib/test/unit_tests` on Python 3.9–3.13. Only PyYAML and
-   pytest are installed, so anything importing xarray/matplotlib cannot be unit-tested as written.
+1. **`ADF_unit_tests.yaml`** — `pytest lib/test/unit_tests` in the ADF's own pinned conda
+   environment (`env/conda_environment.yaml`, Python 3.12). Every test should run there, so a
+   skipped test fails the job.
 2. **`ADF_linting.yaml`** — `.github/scripts/pr_mod_file_tests.py` runs pylint at
    **threshold 9.5** with `lib/test/pylintrc`, but only on modified files in this hard-coded
    `testable_files` set:
@@ -58,11 +59,18 @@ Three workflows run on every PR:
 3. **`ADF_pre-commit.yaml`** — `pre-commit run -a --show-diff-on-failure`; the hooks are
    `check-yaml` and `black` (pinned in `.pre-commit-config.yaml`, applied to `lib/` only,
    with `lib/externals/` force-excluded). This is the only CI check of `black` formatting.
+4. **`ADF_canary_tests.yaml`** — non-blocking early warning: the same unit tests on Python 3.13
+   with the exact pins in `env/conda_environment.yaml` removed (latest releases), then again
+   with `DeprecationWarning`/`FutureWarning` raised from ADF code turned into errors. A red
+   canary on an unrelated PR usually means a new upstream release, not a problem with the PR —
+   but a PR that adds a *new* deprecated call in tested code will show up here.
 
-**Un-linted, un-tested by CI:** everything in `scripts/`, plus `lib/adf_dataset.py`,
-`lib/adf_derive.py`, `lib/adf_utils.py`, `lib/plotting_functions.py`, `lib/plotting_utils.py`.
-Weight the review accordingly — a PR touching only `scripts/plotting/` gets a green checkmark
-from a suite that never imported it.
+**Un-linted by CI:** everything in `scripts/`, plus `lib/adf_dataset.py`, `lib/adf_derive.py`,
+`lib/adf_utils.py`, `lib/plotting_functions.py`, `lib/plotting_utils.py`.
+**Largely un-tested by CI:** `scripts/`. The unit tests import only a few of its modules
+(`regrid_and_vert_interp`, `create_climo_files`, `create_TEM_files`, `cam_taylor_diagram`), and
+only for specific helpers. Weight the review accordingly — a PR touching only `scripts/plotting/`
+usually gets a green checkmark from a suite that never imported it.
 
 Reproduce the checks locally:
 

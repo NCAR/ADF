@@ -2,9 +2,9 @@
 Time series file discovery helpers.
 
 Kept apart from adf_utils so they can be unit tested without the scientific
-stack: the ADF unit test workflow installs only PyYAML and pytest, so anything
-that imports xarray/geocat at module level cannot be exercised in CI.  This
-module imports nothing but os and pathlib.
+stack, e.g. in a quick local pytest run with only PyYAML and pytest installed,
+where anything that imports xarray/geocat at module level would be skipped.
+This module imports nothing but os and pathlib.
 
 Functions
 ---------

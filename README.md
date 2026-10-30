@@ -17,7 +17,7 @@ Finally, if you are interested in general (but non-supported) tools used by AMP 
 
 ## Required software environment
 
-These diagnostics require Python 3.9 or higher (CI runs the test suite on 3.9-3.13). The exact, version-pinned
+These diagnostics require Python 3.12 or higher (CI runs the test suite on 3.12 with the pinned environment, and on 3.13 with the latest packages). The exact, version-pinned
 set of non-standard python libraries/modules (PyYAML, Xarray, Matplotlib, Cartopy, GeoCAT, uxarray, xESMF,
 xskillscore, Pint, netCDF4, Scipy, Pandas, ...) is kept in [`env/conda_environment.yaml`](env/conda_environment.yaml)
 rather than duplicated here, so it doesn't go stale.
