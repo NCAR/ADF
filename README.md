@@ -26,7 +26,7 @@ Create and activate the environment from that file with:
 
 ```
 conda env create -f env/conda_environment.yaml
-conda activate adf_v1.0.0
+conda activate adf_v1.0.5
 ```
 
 ### On NCAR HPC (derecho/casper)
@@ -35,7 +35,7 @@ Load the NCAR-provided conda module first, then create the environment as above:
 ```
 module load conda
 conda env create -f env/conda_environment.yaml
-conda activate adf_v1.0.0
+conda activate adf_v1.0.5
 ```
 By default this places the environment under `/glade/work/$USER/conda-envs/`. See the
 [NCAR HPC conda documentation](https://ncar-hpc-docs.readthedocs.io/en/v24.08/environment-and-software/user-environment/conda/)
@@ -69,7 +69,7 @@ modulefile for an install that isn't present and adds nothing to `PATH`, and `to
 `PATH` but fails at runtime looking for `libexpat.so.0`, which current CGD systems no longer ship. Install NCO
 from conda-forge into your ADF environment instead:
 ```
-conda activate adf_v1.0.0
+conda activate adf_v1.0.5
 conda install -c conda-forge nco
 ```
 

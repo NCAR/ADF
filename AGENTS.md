@@ -322,7 +322,7 @@ problems (missing sections, undocumented or misnamed parameters, bad summary lin
 
 ```bash
 pip install numpydoc                                       # not in the conda env
-conda activate adf_v1.0.0                                  # imports need xarray, matplotlib, ...
+conda activate adf_v1.0.5                                  # imports need xarray, matplotlib, ...
 PYTHONPATH=lib:scripts/plotting python -m numpydoc --validate adf_dataset.AdfData.load_climo_da
 ```
 
