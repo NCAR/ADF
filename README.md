@@ -17,7 +17,7 @@ Finally, if you are interested in general (but non-supported) tools used by AMP 
 
 ## Required software environment
 
-These diagnostics require Python 3.9 or higher (CI runs the test suite on 3.9-3.13). The exact, version-pinned
+These diagnostics require Python 3.12 or higher (CI runs the test suite on 3.12 with the pinned environment, and on 3.13 with the latest packages). The exact, version-pinned
 set of non-standard python libraries/modules (PyYAML, Xarray, Matplotlib, Cartopy, GeoCAT, uxarray, xESMF,
 xskillscore, Pint, netCDF4, Scipy, Pandas, ...) is kept in [`env/conda_environment.yaml`](env/conda_environment.yaml)
 rather than duplicated here, so it doesn't go stale.
@@ -26,7 +26,7 @@ Create and activate the environment from that file with:
 
 ```
 conda env create -f env/conda_environment.yaml
-conda activate adf_v1.0.0
+conda activate adf_v1.0.5
 ```
 
 ### On NCAR HPC (derecho/casper)
@@ -35,7 +35,7 @@ Load the NCAR-provided conda module first, then create the environment as above:
 ```
 module load conda
 conda env create -f env/conda_environment.yaml
-conda activate adf_v1.0.0
+conda activate adf_v1.0.5
 ```
 By default this places the environment under `/glade/work/$USER/conda-envs/`. See the
 [NCAR HPC conda documentation](https://ncar-hpc-docs.readthedocs.io/en/v24.08/environment-and-software/user-environment/conda/)
@@ -69,7 +69,7 @@ modulefile for an install that isn't present and adds nothing to `PATH`, and `to
 `PATH` but fails at runtime looking for `libexpat.so.0`, which current CGD systems no longer ship. Install NCO
 from conda-forge into your ADF environment instead:
 ```
-conda activate adf_v1.0.0
+conda activate adf_v1.0.5
 conda install -c conda-forge nco
 ```
 

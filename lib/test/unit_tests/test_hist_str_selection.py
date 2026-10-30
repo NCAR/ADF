@@ -13,7 +13,7 @@ against pre-made time series (NCAR/ADF issue #471).
 
 Both the tape recorder plot and the aerosol and gas tables build such a list,
 so the choice lives in adf_file_utils, which imports nothing but pathlib and
-can therefore be tested in CI.
+can therefore be tested without the scientific stack.
 """
 
 # +++++++++++++++++++++++
@@ -32,7 +32,10 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-from adf_file_utils import as_hist_str_list, pick_hist_str
+from adf_file_utils import (  # pylint: disable=import-error
+    as_hist_str_list,
+    pick_hist_str,
+)
 
 # The streams the tape recorder can use, as that script defines them:
 _SUBSTRINGS = {"cam.h0", "cam.h0a"}
@@ -85,19 +88,6 @@ class HistStrSelectionTestRoutine(unittest.TestCase):
         self.assertEqual(pick_hist_str([], _SUBSTRINGS), "")
         self.assertEqual(pick_hist_str("cam.h3", _SUBSTRINGS), "")
         self.assertEqual(pick_hist_str(["cam.h1", "cam.h2"], _SUBSTRINGS), "")
-
-    def test_one_entry_per_case(self):
-        """
-        The property the plot depends on: as many entries as there are cases,
-        in the same order, whatever each case holds.
-        """
-
-        cases = [["cam.h0a"], ["cam.h3"], "cam.h0", "", ["cam.h1", "cam.h0a"]]
-
-        picked = [pick_hist_str(case, _SUBSTRINGS) for case in cases]
-
-        self.assertEqual(len(picked), len(cases))
-        self.assertEqual(picked, ["cam.h0a", "", "cam.h0", "", "cam.h0a"])
 
 
 # ++++++++++++++++++

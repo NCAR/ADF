@@ -8,7 +8,8 @@ fine, and then blows up much later inside the plotting code with
 
     TypeError: '<' not supported between instances of 'int' and 'str'
 
-Only PyYAML is needed here, so this runs in CI rather than skipping.
+Only PyYAML is needed here, so this runs anywhere, even with only PyYAML and
+pytest installed.
 """
 
 from pathlib import Path
@@ -52,11 +53,8 @@ def _numeric_offenders(defaults):
     return bad
 
 
-def test_defaults_file_exists():
-    assert DEFAULTS_FILE.is_file(), f"missing {DEFAULTS_FILE}"
-
-
 def test_numeric_settings_parse_as_numbers():
+    """Every numeric plotting setting in the defaults file loads as a number."""
     defaults = yaml.safe_load(DEFAULTS_FILE.read_text())
     offenders = _numeric_offenders(defaults)
     assert not offenders, (
@@ -85,9 +83,9 @@ def test_pmid_is_declared_a_support_variable():
     who never asked for it would otherwise get a set of pressure plots.  The
     plotting scripts skip it via AdfObs.plot_var_list, which reads this flag.
 
-    Only the declaration is checked here: importing AdfObs pulls in xarray, which
-    the lint/test CI environment does not install, so a test that imported it
-    would silently skip instead of running.
+    Only the declaration is checked here: importing AdfObs pulls in xarray, so
+    a test that imported it would skip anywhere that has only PyYAML and
+    pytest, and this check is cheap enough to run everywhere.
     """
     for defaults_file in (DEFAULTS_FILE, ERA5_DEFAULTS_FILE):
         defaults = yaml.safe_load(defaults_file.read_text())

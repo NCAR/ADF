@@ -11,8 +11,9 @@ from pathlib import Path
 
 import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 # geocat.comp is pulled in by adf_utils.
 pytest.importorskip("numpy")
 pytest.importorskip("xarray")
@@ -22,12 +23,13 @@ import numpy as np  # noqa: E402
 
 sys.path.append(str(Path(__file__).parents[2]))
 
-import adf_utils as utils  # noqa: E402
+import adf_utils as utils  # noqa: E402 # pylint: disable=import-error
 
 DEFAULT = [1000, 850, 500, 200, 100, 10, 1]
 
 
 def test_empty_falls_back_to_the_default():
+    """An empty or missing level list gives the default levels, in Pa."""
     for empty in (None, [], ()):
         assert np.array_equal(
             utils.pressure_levels_pa(empty, DEFAULT),
@@ -36,6 +38,7 @@ def test_empty_falls_back_to_the_default():
 
 
 def test_levels_are_converted_to_pascals():
+    """Levels given in hPa come back in Pa."""
     assert np.array_equal(
         utils.pressure_levels_pa([500, 100], DEFAULT), np.array([50000.0, 10000.0])
     )
@@ -73,6 +76,7 @@ def test_a_top_above_one_hpa_is_allowed():
     ],
 )
 def test_bad_levels_are_rejected(bad):
+    """Non-sequences, strings, and non-positive or non-numeric levels raise ValueError."""
     with pytest.raises(ValueError):
         utils.pressure_levels_pa(bad, DEFAULT)
 

@@ -8,8 +8,8 @@ resulting file is called, and which situations are refused rather than turned
 into a plausible-looking but wrong field.
 
 NOTE: adf_derive imports xarray and (through adf_utils) the rest of the
-scientific stack, so these are skipped in CI, which installs only PyYAML and
-pytest.  They run in a full ADF environment.
+scientific stack, so these need the full ADF environment, which CI runs
+them in (see ADF_unit_tests.yaml).
 """
 
 # +++++++++++++++++++++++

@@ -16,29 +16,47 @@ jobs:
   #This job is designed to run all python unit tests whenever
   #a PR is either opened or synced (i.e. additional commits are pushed
   #to branch involved in PR).
-  python_unit_tests:
+  #
+  #The tests are run in the ADF's own conda environment
+  #(env/conda_environment.yaml), so that the tests needing xarray,
+  #matplotlib, geocat-comp, xesmf, etc. actually run.  xesmf needs the
+  #ESMF library, which pip cannot install, hence conda (via micromamba).
+  #
+  #The same tests are also run against the newest Python and packages
+  #by the non-blocking "ADF_canary_tests.yaml" workflow.
+  full_env_unit_tests:
     if: github.event_name == 'pull_request' || github.repository == 'NCAR/ADF'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        #All of these python versions will be used to run tests:
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
-      fail-fast: false
+    defaults:
+      run:
+        # A login shell, so that the micromamba environment is active:
+        shell: bash -el {0}
     steps:
     # Acquire github action routines:
     - uses: actions/checkout@v6
-    # Acquire specific version of python:
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+    # Build the ADF conda environment, plus pytest (not in the env file).
+    # The environment is cached until env/conda_environment.yaml changes:
+    - name: Set up ADF conda environment
+      uses: mamba-org/setup-micromamba@v2
       with:
-        python-version: ${{ matrix.python-version }}
-    # Install needed python packages:
-    - name: Install dependencies
+        environment-file: env/conda_environment.yaml
+        create-args: pytest
+        cache-environment: true
+    # Run python unit tests related to ADF library.  Every test should
+    # run in this environment, so a skip means something failed to import
+    # (e.g. a broken ADF module), and is treated as a failure.
+    #
+    # Note: Don't end this step with "exit".  In a login shell an explicit
+    # "exit" runs ~/.bash_logout, whose failing "clear_console" call on
+    # the runner turns an exit code of 0 into 1.  Instead let the final
+    # command (a subshell exit) set the step's exit code:
+    - name: ADF lib unit tests (full environment)
       run: |
-        python -m pip install --upgrade pip  # Install latest version of PIP
-        pip install pyyaml                   # Install PyYAML python package
-        pip install pytest                   # Install pytest python package
-    # Run python unit tests related to ADF library:
-    - name: ADF lib unit tests
-      run: pytest lib/test/unit_tests
+        pytest lib/test/unit_tests -rs 2>&1 | tee pytest.log
+        status=${PIPESTATUS[0]}
+        if grep -q '^SKIPPED' pytest.log; then
+          echo "::error::Unit tests were skipped in the full ADF environment"
+          status=1
+        fi
+        (exit $status)
 

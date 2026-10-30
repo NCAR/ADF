@@ -10,10 +10,10 @@ yield the fields and not the coefficients and counters sitting alongside them
 same names without opening hundreds of files.
 
 NOTE: these tests import adf_info, which pulls in xarray and (through
-adf_utils) the rest of the scientific stack.  The ADF unit test workflow
-installs only PyYAML and pytest, so they are skipped there and only run in a
-full ADF environment.  The file-name half of the search lives in
-adf_file_utils and is tested in CI by test_adf_file_utils.
+adf_utils) the rest of the scientific stack.  They need the full ADF
+environment, which CI runs them in (see ADF_unit_tests.yaml).  The file-name
+half of the search lives in adf_file_utils and is tested without xarray by
+test_adf_file_utils.
 """
 
 # +++++++++++++++++++++++

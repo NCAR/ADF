@@ -7,7 +7,8 @@ so the plot settings a script adds to a variable's entry (season, plot_type,
 lev, ...) must not end up in it, where the next script would pick them up.
 
 NOTE: plotting_utils imports matplotlib, cartopy and the rest of the plotting
-stack, so these are skipped in CI, which installs only PyYAML and pytest.
+stack, so these need the full ADF environment, which CI runs them in (see
+ADF_unit_tests.yaml).
 """
 
 import os

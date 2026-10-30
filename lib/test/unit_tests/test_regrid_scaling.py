@@ -13,14 +13,19 @@ from types import SimpleNamespace
 
 import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 pytest.importorskip("numpy")
 pytest.importorskip("xarray")
 
 sys.path.append(str(Path(__file__).parents[2]))
 
+# pylint: disable-next=import-error
 from adf_dataset import AdfData  # noqa: E402
+
+# These tests exercise the private converter-selection helper directly:
+# pylint: disable=protected-access
 
 CONVERTED = (0, -1)  # (add_offset, scale_factor), as for TAUX
 NO_CONVERSION = (0, 1)
@@ -42,6 +47,7 @@ def _data(stamped, converters=CONVERTED, units=None, new_unit=None):
     )
     obj.reads = 0
 
+    # pylint: disable-next=unused-argument
     def load_dataset(fils, _obj=obj):
         _obj.reads += 1
         return {"TAUX": SimpleNamespace(attrs=attrs)}
@@ -57,20 +63,24 @@ def _call(obj, apply_scaling=None):
 
 
 def test_stamped_file_is_not_converted_again():
+    """A file stamped as transformed is not converted at load time."""
     assert _call(_data(stamped=True)) == NO_CONVERSION
 
 
 def test_unstamped_legacy_file_is_converted():
+    """An unstamped file from an older ADF is converted at load time."""
     assert _call(_data(stamped=False)) == CONVERTED
 
 
 def test_variable_without_a_conversion_never_opens_the_file():
+    """A variable with no conversion skips reading the file for its stamp."""
     obj = _data(stamped=False, converters=NO_CONVERSION)
     assert _call(obj) == NO_CONVERSION
     assert obj.reads == 0
 
 
 def test_explicit_override_wins_over_the_stamp():
+    """An explicit apply_scaling argument takes precedence over the stamp."""
     assert _call(_data(stamped=False), apply_scaling=False) == NO_CONVERSION
     assert _call(_data(stamped=True), apply_scaling=True) == CONVERTED
 
@@ -86,5 +96,6 @@ def test_units_already_the_converted_ones_are_not_converted_again():
 
 
 def test_units_that_differ_still_convert():
+    """An unstamped file whose units differ from new_unit is converted."""
     obj = _data(stamped=False, units="m/s", new_unit="Wm$^{-2}$")
     assert _call(obj) == CONVERTED

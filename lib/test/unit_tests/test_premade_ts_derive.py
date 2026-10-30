@@ -6,8 +6,7 @@ These exercise AdfDiag.derive_from_premade_ts against a stub object rather
 than a configured run, so no config file or history files are needed.
 
 NOTE: adf_diag imports xarray and the rest of the scientific stack, so these
-are skipped in CI, which installs only PyYAML and pytest.  They run in a full
-ADF environment.
+need the full ADF environment, which CI runs them in (see ADF_unit_tests.yaml).
 """
 
 # +++++++++++++++++++++++
@@ -28,9 +27,8 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-# adf_diag imports xarray and the rest of the scientific stack, so these are
-# skipped in CI, which installs only PyYAML and pytest.  They run in a full ADF
-# environment.
+# adf_diag imports xarray and the rest of the scientific stack, so skip when
+# that is absent:
 try:
     import numpy as np
     import xarray as xr

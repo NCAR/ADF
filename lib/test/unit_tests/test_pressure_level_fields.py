@@ -1,3 +1,5 @@
+# Tests call AdfData._at_obs_level directly, as it holds the level selection:
+# pylint: disable=protected-access
 """Fields on a pressure surface: made from the model levels, compared level to level.
 
 CAM writes U200 and friends only when asked, so a run that has the 3-D field
@@ -12,8 +14,9 @@ from pathlib import Path
 
 import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 pytest.importorskip("numpy")
 pytest.importorskip("xarray")
 pytest.importorskip("geocat.comp")
@@ -23,9 +26,9 @@ import xarray as xr  # noqa: E402
 
 sys.path.append(str(Path(__file__).parents[2]))
 
-import adf_dataset  # noqa: E402
-import adf_derive  # noqa: E402
-import adf_utils as utils  # noqa: E402
+import adf_dataset  # noqa: E402 # pylint: disable=import-error
+import adf_derive  # noqa: E402 # pylint: disable=import-error
+import adf_utils as utils  # noqa: E402 # pylint: disable=import-error
 
 # ---------------------------------------------------------------- observations
 
@@ -38,7 +41,7 @@ class FakeAdf:
         self.compare_obs = True
 
     def debug_log(self, msg):
-        pass
+        """Discard the debug message."""
 
 
 def obs_data(levels, level_dim="lev"):
@@ -61,6 +64,7 @@ def selector(defaults):
 
 
 def test_the_named_level_is_taken():
+    """The 'obs_lev' level is selected and the vertical dimension dropped."""
     at = selector({"U200": {"obs_lev": 200}})
     out = at(obs_data([100.0, 200.0, 850.0]), "U200")
     assert "lev" not in out.dims
@@ -76,6 +80,7 @@ def test_a_level_coordinate_in_pascals_is_understood():
 
 @pytest.mark.parametrize("dim", ["lev", "level", "plev", "pressure"])
 def test_the_vertical_dimension_may_be_named_anything_usual(dim):
+    """The common names for a pressure dimension are all recognized."""
     at = selector({"U200": {"obs_lev": 200}})
     out = at(obs_data([100.0, 200.0, 850.0], level_dim=dim), "U200")
     assert dim not in out.dims
@@ -83,6 +88,7 @@ def test_the_vertical_dimension_may_be_named_anything_usual(dim):
 
 
 def test_nothing_happens_without_the_key():
+    """Without 'obs_lev' the observation is returned unchanged."""
     at = selector({"U": {}})
     data = obs_data([100.0, 200.0])
     assert at(data, "U").equals(data)
@@ -96,6 +102,7 @@ def test_an_observation_already_on_one_surface_is_left_alone():
 
 
 def test_a_distant_level_warns_but_is_used():
+    """A nearest level far from 'obs_lev' is used, with a warning."""
     at = selector({"U200": {"obs_lev": 200}})
     with pytest.warns(UserWarning, match="nearest level"):
         out = at(obs_data([100.0, 300.0]), "U200")
@@ -103,14 +110,19 @@ def test_a_distant_level_warns_but_is_used():
 
 
 def test_a_level_within_a_percent_is_quiet():
+    """A nearest level within a percent of 'obs_lev' is used without a warning."""
     at = selector({"U200": {"obs_lev": 200}})
-    with _no_warning():
+    with NoWarning():
         out = at(obs_data([175.0, 201.0]), "U200")
     assert float(out.mean()) == 201.0
 
 
-class _no_warning:
+class NoWarning:
     """Assert no warning is raised (pytest.warns(None) was removed in pytest 8)."""
+
+    def __init__(self):
+        self._ctx = None
+        self._log = None
 
     def __enter__(self):
         self._ctx = warnings.catch_warnings(record=True)
@@ -119,9 +131,9 @@ class _no_warning:
         return self._log
 
     def __exit__(self, *exc):
-        result = self._ctx.__exit__(*exc)
+        self._ctx.__exit__(*exc)
         assert not [m for m in self._log if issubclass(m.category, UserWarning)]
-        return result
+        return False
 
 
 def test_missing_level_is_not_an_error():
@@ -139,10 +151,16 @@ class FakeDeriveAdf:
     def __init__(self):
         self.logged = []
 
-    def get_basic_info(self, var_str, required=False):
+    def get_basic_info(
+        self,
+        var_str,  # pylint: disable=unused-argument
+        required=False,  # pylint: disable=unused-argument
+    ):
+        """Return None: no config entries are set."""
         return None
 
     def debug_log(self, msg):
+        """Record the debug message."""
         self.logged.append(msg)
 
 
@@ -210,6 +228,7 @@ def test_no_pressure_at_all_is_refused(tmp_path):
 
 
 def test_pressure_in_pa_converts_only_when_needed():
+    """Pressures are converted to Pa only when they are not already in Pa."""
     hpa = xr.DataArray(np.array([850.0]), attrs={"units": "hPa"})
     pa = xr.DataArray(np.array([85000.0]), attrs={"units": "Pa"})
     assert utils.pressure_in_pa(hpa).values[0] == 85000.0
@@ -231,13 +250,20 @@ class ListAdf:
 
     @property
     def diag_var_list(self):
+        """Return a copy of the diagnostic variable list."""
         return list(self._vars)
 
     def add_diag_var(self, var_str):
+        """Append a variable to the list, if not already present."""
         if var_str not in self._vars:
             self._vars.append(var_str)
 
-    def get_basic_info(self, var_str, required=False):
+    def get_basic_info(
+        self,
+        var_str,  # pylint: disable=unused-argument
+        required=False,  # pylint: disable=unused-argument
+    ):
+        """Return None: no config entries are set."""
         return None
 
 
@@ -269,6 +295,7 @@ def test_the_constituent_decides_whether_pressure_is_needed():
 
 
 def test_a_two_dimensional_run_still_asks_for_nothing():
+    """No pressure field is requested for 2-D constituents."""
     adf = ListAdf(["TS"])
     assert utils.request_pressure_field(adf, history_like(), variables=["TS"]) == []
 
@@ -285,6 +312,7 @@ class HookAdf(ListAdf):
         self.logged = []
 
     def debug_log(self, msg):
+        """Record the debug message."""
         self.logged.append(msg)
 
 
@@ -371,6 +399,7 @@ class DataStub:
 
     @staticmethod
     def load_dataset(fils):
+        """Open one file, or several combined by coordinates."""
         if len(fils) == 1:
             return xr.open_dataset(fils[0])
         return xr.open_mfdataset(fils, combine="by_coords")
@@ -405,7 +434,7 @@ def write_pressure_ts(directory, times, surface_pa=100000.0, top_down=True):
             "lev": lev,
             "lat": np.arange(3.0),
         },
-    ).to_netcdf(directory / f"case.cam.h0a.PMID.000101-000212.nc")
+    ).to_netcdf(directory / "case.cam.h0a.PMID.000101-000212.nc")
 
 
 def field_dataset(times, top_down=True):
@@ -426,6 +455,7 @@ def field_dataset(times, top_down=True):
 
 
 def test_the_model_pressure_field_is_used_when_there_is_one(tmp_path):
+    """A model pressure time series is used for the interpolation when present."""
     write_pressure_ts(tmp_path, [0.0, 1.0])
     out = adf_derive.interpolate_to_level(
         PresAdf(),
@@ -585,6 +615,7 @@ class DeriveAdf(PresAdf):
 
     @property
     def diag_var_list(self):
+        """Return an empty diagnostic variable list."""
         return []
 
 
