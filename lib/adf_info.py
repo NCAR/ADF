@@ -1028,7 +1028,8 @@ class AdfInfo(AdfConfig):
                 print(
                     "\tINFO: Directory not found, making new diagnostic plot location"
                 )
-                diag_location.mkdir(parents=True)
+                # exist_ok: another ADF job may make it at the same time
+                diag_location.mkdir(parents=True, exist_ok=True)
         # End for
 
         self.__syears = syears_fixed

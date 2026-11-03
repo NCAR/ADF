@@ -611,7 +611,14 @@ class AdfDiag(AdfWeb):
     #########
 
     def grid_native_time_series(
-        self, case_name, case_idx, ts_dir, hist_strs, overwrite, baseline=False
+        self,
+        case_name,
+        case_idx,
+        ts_dir,
+        hist_strs,
+        overwrite,
+        baseline=False,
+        variables=None,
     ):
         """
         Grid a native-grid case's time series to lat/lon, into "gridded".
@@ -635,6 +642,12 @@ class AdfDiag(AdfWeb):
             Re-grid files that already have a gridded copy.
         baseline : bool, optional
             Whether `case_name` is the baseline.
+        variables : collection of str, optional
+            Grid only these variables' time series.  By default every time
+            series of the case and stream in `ts_dir` is gridded; a list keeps
+            ADF runs that share a time series directory (e.g. jobs split by
+            variable) from gridding each other's files, possibly while they are
+            still being written.
         """
         if not self.native_grid.get(case_name, False) or self.unstructured_plotting:
             return
@@ -666,6 +679,10 @@ class AdfDiag(AdfWeb):
             # This case's files for this stream only: the directory may hold
             # other streams or other cases.
             for fil in sorted(Path(ts_dir).glob(f"{case_name}.{hist_str}.*.nc")):
+                var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
+                if variables is not None and var not in variables:
+                    continue
+                # End if
                 gridded_file = gridded_loc / fil.name.replace(".nc", "_gridded.nc")
                 if gridded_file.is_file() and not overwrite:
                     print(
@@ -673,7 +690,6 @@ class AdfDiag(AdfWeb):
                     )
                     continue
                 # End if
-                var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
                 with xr.open_dataset(fil) as ts_ds:
                     # Grid and write a block of time steps at a time, so that
                     # big files (TBs for multi-year hourly 3-D fields) are
@@ -967,6 +983,12 @@ class AdfDiag(AdfWeb):
                 self.end_diag_fail(emsg)
             # End if
 
+            # The variables this run makes or uses time series of, so that
+            # only their files are gridded (see grid_native_time_series).  The
+            # requested ones, plus any the variable loop below adds (derived
+            # variables' constituents, the pressure field):
+            case_ts_vars = set(self.diag_var_list)
+
             # Check if history files actually exist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
@@ -1108,6 +1130,9 @@ class AdfDiag(AdfWeb):
                 for var in diag_var_list:
                     # Notify user of new time series file:
                     print(f"\t - time series for {var}")
+                    # (constituents of derived variables are appended to
+                    # diag_var_list, so they are recorded here too)
+                    case_ts_vars.add(var)
 
                     # The time series file(s) to write: none when existing
                     # files already cover the years, only the missing years
@@ -1355,6 +1380,7 @@ class AdfDiag(AdfWeb):
                 hist_str_case,
                 overwrite_ts[case_idx],
                 baseline=baseline,
+                variables=case_ts_vars,
             )
         # End cases loop
 
