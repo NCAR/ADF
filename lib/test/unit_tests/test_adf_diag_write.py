@@ -192,6 +192,19 @@ class GridInTimeChunksTestRoutine(unittest.TestCase):
         np.testing.assert_array_equal(whole["Q"].values, chunked["Q"].values)
         np.testing.assert_array_equal(whole["time"].values, chunked["time"].values)
 
+    def test_precision_default_and_kept(self):
+        """Gridded fields are 64-bit by default, native (32-bit) with keep_dtype."""
+
+        default = grid_to_latlon(self.native, "Q", wgt_file=self.wgt, method="bilinear")
+        kept = grid_to_latlon(
+            self.native, "Q", wgt_file=self.wgt, method="bilinear", keep_dtype=True
+        )
+        self.assertEqual(default["Q"].dtype, np.float64)
+        self.assertEqual(kept["Q"].dtype, np.float32)
+        np.testing.assert_array_equal(
+            kept["Q"].values, default["Q"].values.astype("f4")
+        )
+
     def test_time_series_file_with_bounds(self):
         """A time series file with decoded time bounds, chunked as
         grid_native_time_series chunks it, grids and writes like the unchunked

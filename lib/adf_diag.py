@@ -665,6 +665,9 @@ class AdfDiag(AdfWeb):
             latlon_file = self.latlon_files["test_latlon_file"][case_idx]
         # End if
         var_defaults = self.variable_defaults or {}
+        # Write gridded fields in the native files' precision (e.g. 32-bit)
+        # instead of xesmf's 64-bit floats?  Off by default:
+        keep_precision = bool(self.get_basic_info("gridded_keep_precision"))
         if not wgts_file:
             # Every variable of the case would fail the same way, so stop here:
             emsg = f"'{case_name}' is on a native grid, but has no 'weights_file' to"
@@ -714,6 +717,7 @@ class AdfDiag(AdfWeb):
                         method=var_method,
                         comp=self.model_component,
                         latlon_file=latlon_file,
+                        keep_dtype=keep_precision,
                     )
                     write_netcdf_synchronous(
                         functools.partial(save_to_nc, gridded), gridded_file

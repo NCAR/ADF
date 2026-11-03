@@ -2088,7 +2088,14 @@ def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid="ncol")
 
 
 def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
-    model_dataset, var_name, wgt_file, method=None, comp="atm", latlon_file=None
+    model_dataset,
+    var_name,
+    wgt_file,
+    method=None,
+    comp="atm",
+    latlon_file=None,
+    *,
+    keep_dtype=False,
 ):
     """Grid native-grid data (CAM ``ncol`` or CLM ``lndgrid``) to lat/lon with a weights file.
 
@@ -2109,6 +2116,10 @@ def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
     latlon_file : str or pathlib.Path, optional
         Land only: a file on the target lat/lon grid holding its "landmask",
         used to mask the gridding and carried over to the result.
+    keep_dtype : bool, optional
+        Give the gridded fields the precision of the native ones (e.g. 32-bit
+        floats), instead of the 64-bit floats xesmf returns.  Halves the size
+        of the gridded files of 32-bit model output.  Default False.
 
     Returns
     -------
@@ -2197,6 +2208,18 @@ def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
             # leave NaNs.
             rgdata["landmask"] = (("lat", "lon"), latlon_landmask.values)
         # End if
+    # End if
+
+    # xesmf returns 64-bit floats; optionally go back to the native precision:
+    if keep_dtype:
+        for name in native:
+            if name in rgdata.data_vars:
+                native_dtype = model_dataset[name].dtype
+                if native_dtype.kind == "f" and rgdata[name].dtype != native_dtype:
+                    rgdata[name] = rgdata[name].astype(native_dtype)
+                # End if
+            # End if
+        # End for
     # End if
 
     # calculate area

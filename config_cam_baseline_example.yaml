@@ -92,6 +92,12 @@ diag_basic_info:
     #native cases are gridded to lat/lon with their "weights_file":
     #unstructured_plotting: false
 
+    #When native cases are gridded to lat/lon: write the gridded fields in the
+    #precision of the native files (e.g. 32-bit floats, half the file size)
+    #instead of the 64-bit floats the regridding returns.  If false, or missing,
+    #gridded fields are 64-bit:
+    #gridded_keep_precision: false
+
     #Region definitions for the regional (land) plots listed in "region_list"
     #(see the end of this file).  If missing, ADF/lib/regions_lnd.yaml is used:
     #regions_file: /some/path/to/regions_file.yaml
