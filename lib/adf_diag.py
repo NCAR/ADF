@@ -1205,7 +1205,13 @@ class AdfDiag(AdfWeb):
                         # End if cam
                     # End if has_lev
 
-                    # One file per stretch of years being made:
+                    # One file per stretch of years being made.  Each is
+                    # chunked one time step per chunk, holding the whole field
+                    # (--cnk_map=rd1): NCO's default chunk sizes do not divide
+                    # a native grid evenly, and the padded edge chunks made
+                    # ne30pg3 files ~1.6 times the size of their data.  One
+                    # step per chunk is also how the files are read, a time
+                    # step or a block of them at a time:
                     for chunk_files, ts_outfil_str in to_make:
                         cmd = (
                             [
@@ -1214,6 +1220,7 @@ class AdfDiag(AdfWeb):
                                 "-4",
                                 "-h",
                                 "--no_cll_mth",
+                                "--cnk_map=rd1",
                                 "-v",
                                 ncrcat_var_list,
                             ]
