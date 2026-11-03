@@ -293,6 +293,13 @@ diag_cam_climo:
     #How the weights are applied: "conservative" (the default) or "bilinear":
     #regrid_method: conservative
     #
+    #Optional second weights file, for the variables marked
+    #"regrid_conservative: true" in the variable defaults file (fluxes such as
+    #precipitation and radiation, whose area means a conservative map keeps).
+    #This lets "weights_file" be e.g. a bilinear map for everything else.
+    #Without it, every variable uses "weights_file":
+    #conservative_weights_file: /glade/campaign/cesm/cesmdata/inputdata/cpl/gridmaps/ne30pg3/map_ne30pg3_TO_fv0.9x1.25_aave.240826.nc
+    #
     #CLM only: a file on the target lat/lon grid holding its "landmask", used
     #to mask the gridding of land output:
     #latlon_file: /some/path/to/latlon_landmask_file.nc
@@ -467,7 +474,8 @@ diag_cam_baseline_climo:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
 
     #Native-grid baseline: the same settings as for the test case(s) above
-    #("mesh_file", "weights_file", "regrid_method", "latlon_file"):
+    #("mesh_file", "weights_file", "regrid_method", "latlon_file",
+    #"conservative_weights_file"):
     #mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
     #weights_file: /glade/campaign/cesm/cesmdata/inputdata/cpl/gridmaps/ne30pg3/map_ne30pg3_TO_fv0.9x1.25_aave.240826.nc
     #regrid_method: conservative

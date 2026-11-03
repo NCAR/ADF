@@ -487,6 +487,7 @@ class AdfInfo(AdfConfig):
             # Check if any a weights file exists if using native grid, OPTIONAL
             baseline_wgts_file = None  # self.get_baseline_info("weights_file")
             self.__baseline_wgts_file = baseline_wgts_file
+            self.__baseline_cons_wgts_file = None
 
             baseline_regrid_method = None  # self.get_baseline_info("regrid_method")
             if baseline_regrid_method == "conservative":
@@ -558,6 +559,12 @@ class AdfInfo(AdfConfig):
             # Check if any a weights file exists if using native grid, OPTIONAL
             baseline_wgts_file = self.get_baseline_info("weights_file")
             self.__baseline_wgts_file = baseline_wgts_file
+
+            # Conservative weights file for the variables marked
+            # "regrid_conservative" in the variable defaults, OPTIONAL:
+            self.__baseline_cons_wgts_file = self.get_baseline_info(
+                "conservative_weights_file"
+            )
 
             baseline_regrid_method = self.get_baseline_info("regrid_method")
             if baseline_regrid_method == "conservative":
@@ -839,6 +846,13 @@ class AdfInfo(AdfConfig):
         if cam_wgts_files is None:
             cam_wgts_files = [None] * len(case_names)
         self.__cam_wgts_files = cam_wgts_files
+
+        # Conservative weights file for the variables marked
+        # "regrid_conservative" in the variable defaults, OPTIONAL:
+        cam_cons_wgts_files = self.get_cam_info("conservative_weights_file")
+        if cam_cons_wgts_files is None:
+            cam_cons_wgts_files = [None] * len(case_names)
+        self.__cam_cons_wgts_files = cam_cons_wgts_files
 
         # The method is checked (and "conservative" mapped to what xesmf
         # needs) by adf_utils.grid_to_latlon, which also takes None:
@@ -1284,10 +1298,14 @@ class AdfInfo(AdfConfig):
         # modify these variables, as they are mutable and thus passed by reference:
         cam_wgts_files = copy.copy(self.__cam_wgts_files)
         baseline_wgts_file = self.__baseline_wgts_file
+        cam_cons_wgts_files = copy.copy(self.__cam_cons_wgts_files)
+        baseline_cons_wgts_file = self.__baseline_cons_wgts_file
 
         return {
             "test_wgts_file": cam_wgts_files,
             "baseline_wgts_file": baseline_wgts_file,
+            "test_cons_wgts_file": cam_cons_wgts_files,
+            "baseline_cons_wgts_file": baseline_cons_wgts_file,
         }
 
     # Create property needed to return the lat/lon regrid method to user:

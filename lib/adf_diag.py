@@ -655,13 +655,16 @@ class AdfDiag(AdfWeb):
 
         if baseline:
             wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
+            cons_wgts_file = self.latlon_wgt_files["baseline_cons_wgts_file"]
             method = self.latlon_regrid_method["baseline_regrid_method"]
             latlon_file = self.latlon_files["baseline_latlon_file"]
         else:
             wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
+            cons_wgts_file = self.latlon_wgt_files["test_cons_wgts_file"][case_idx]
             method = self.latlon_regrid_method["test_regrid_method"][case_idx]
             latlon_file = self.latlon_files["test_latlon_file"][case_idx]
         # End if
+        var_defaults = self.variable_defaults or {}
         if not wgts_file:
             # Every variable of the case would fail the same way, so stop here:
             emsg = f"'{case_name}' is on a native grid, but has no 'weights_file' to"
@@ -695,11 +698,20 @@ class AdfDiag(AdfWeb):
                     # big files (TBs for multi-year hourly 3-D fields) are
                     # never read into memory whole:
                     ts_ds = utils.chunk_native_in_time(ts_ds, var)
+                    var_wgts, var_method = choose_regrid_weights(
+                        var_defaults.get(var),
+                        (wgts_file, method),
+                        cons_wgts_file,
+                    )
+                    print(
+                        f"\t    INFO: gridding '{var}' with {var_wgts}"
+                        f" (method '{var_method or 'conservative'}')"
+                    )
                     gridded = utils.grid_to_latlon(
                         ts_ds,
                         var,
-                        wgt_file=wgts_file,
-                        method=method,
+                        wgt_file=var_wgts,
+                        method=var_method,
                         comp=self.model_component,
                         latlon_file=latlon_file,
                     )
@@ -2079,6 +2091,36 @@ def save_to_nc(tosave, outname, attrs=None, proc=None):
         )
         xo.attrs["Processing_info"] = f"Start from file {origname}. " + proc
     xo.to_netcdf(outname, format="NETCDF4", encoding=enc)
+
+
+def choose_regrid_weights(var_default, default_weights, cons_wgts_file):
+    """Weights file and method to grid one variable's native time series with.
+
+    A variable marked ``regrid_conservative: true`` in the variable defaults
+    (fluxes such as precipitation and radiation, whose area means should be
+    kept) is gridded with the case's ``conservative_weights_file``, if it has
+    one.  Every other variable, and every variable of a case without a
+    conservative weights file, uses the case's ``weights_file`` and
+    ``regrid_method``.
+
+    Parameters
+    ----------
+    var_default : dict or None
+        The variable's entry in the variable defaults file.
+    default_weights : tuple
+        ``(weights_file, regrid_method)``, the case's defaults.
+    cons_wgts_file : str or None
+        The case's ``conservative_weights_file``.
+
+    Returns
+    -------
+    tuple
+        ``(weights_file, regrid_method)`` to grid the variable with.
+    """
+    if cons_wgts_file and (var_default or {}).get("regrid_conservative", False):
+        return cons_wgts_file, "conservative"
+    # End if
+    return default_weights
 
 
 def write_netcdf_synchronous(writer, outname):

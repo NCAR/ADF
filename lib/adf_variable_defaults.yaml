@@ -121,6 +121,15 @@
 #                   itself keeps what it wrote.
 #
 #
+# GRIDDING (native-grid cases gridded to lat/lon, "unstructured_plotting: false"):
+#
+# regrid_conservative -> Set to True to grid the variable with the case's "conservative_weights_file"
+#                        instead of its "weights_file", if the case has one.  Use it for fluxes
+#                        (precipitation, radiation, surface heat, water and momentum fluxes such as
+#                        the wind stress), whose area means a conservative map keeps.  Defaults to
+#                        False.
+#
+#
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
 #              If you would like to modify this file for your personal ADF runs then it is recommended
 #              to make a copy of this file, make modifications in that copy, and then point the ADF to
@@ -1470,6 +1479,7 @@ WPTHLP_CLUBB:
 #+++++++++++++++++
 
 PRECC:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
@@ -1483,6 +1493,7 @@ PRECC:
   category: "Hydrologic cycle"
 
 PRECL:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
@@ -1496,6 +1507,7 @@ PRECL:
   category: "Hydrologic cycle"
 
 PRECSC:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
@@ -1509,6 +1521,7 @@ PRECSC:
   category: "Hydrologic cycle"
 
 PRECSL:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
@@ -1522,6 +1535,7 @@ PRECSL:
   category: "Hydrologic cycle"
 
 PRECT:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "seismic"
@@ -1547,6 +1561,7 @@ PRECT:
   derivable_from: ['PRECL','PRECC']
 
 QFLX:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 0.00015, 0.00001]
   diff_colormap: "BrBG"
@@ -1682,6 +1697,7 @@ Surface_Wind_Stress:
   category: "Surface variables"
 
 TAUX:
+  regrid_conservative: true
   new_unit: "N m$^{-2}$"
   vector_pair: "TAUY"
   vector_name: "Surface_Wind_Stress"
@@ -1693,6 +1709,7 @@ TAUX:
   obs_var_name: "TAUX"
 
 TAUY:
+  regrid_conservative: true
   new_unit: "N m$^{-2}$"
   vector_pair: "TAUX"
   vector_name: "Surface_Wind_Stress"
@@ -1952,6 +1969,7 @@ QRS:
 #+++++++++++++++++
 
 RESTOM:
+  regrid_conservative: true
   colormap: "RdBu_r"
   contour_levels_range: [-100, 100, 5]
   diff_colormap: "seismic"
@@ -1966,6 +1984,7 @@ RESTOM:
   derivable_from: ['FLNT','FSNT']
 
 SWCF:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-150, 50, 10]
   diff_colormap: "BrBG"
@@ -1985,6 +2004,7 @@ SWCF:
   lens2_file: "SWCF_LENS2_first50_gm_am.nc"
 
 LWCF:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [-10, 100, 5]
   diff_colormap: "BrBG"
@@ -2018,6 +2038,7 @@ FSUTOA:
 
 
 FSNT:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
@@ -2035,10 +2056,12 @@ FSNT:
   lens2_file: "FSNT_LENS2_first50_gm_am.nc"
 
 FSNTC:
+  regrid_conservative: true
   category: "TOA energy flux"
   lens2_file: "FSNTC_LENS2_first50_gm_am.nc"
 
 FSNTOA:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 400, 20]
   diff_colormap: "BrBG"
@@ -2056,6 +2079,7 @@ FSNTOA:
 
 
 FLUT:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [100, 340, 10]
   diff_colormap: "BrBG"
@@ -2073,6 +2097,7 @@ FLUT:
 
 
 FLNT:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
@@ -2089,6 +2114,7 @@ FLNT:
   category: "TOA energy flux"
 
 FLNTC:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
@@ -2123,6 +2149,7 @@ RESSURF:
   derivable_from: ['FSNS','FLNS','SHFLX','QFLX','PRECC','PRECL','PRECSC','PRECSL']
 
 FSDS:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 350, 25]
   diff_colormap: "BrBG"
@@ -2141,6 +2168,7 @@ FSDS:
 
 
 FSDSC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 400, 25]
   diff_colormap: "BrBG"
@@ -2159,6 +2187,7 @@ FSDSC:
 
 
 FSNS:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-10, 300, 20]
   diff_colormap: "BrBG"
@@ -2175,6 +2204,7 @@ FSNS:
   category: "Sfc energy flux"
 
 FSNSC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-10, 300, 20]
   diff_colormap: "BrBG"
@@ -2191,6 +2221,7 @@ FSNSC:
   category: "Sfc energy flux"
 
 FLDS:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [100, 500, 25]
   diff_colormap: "BrBG"
@@ -2207,6 +2238,7 @@ FLDS:
   category: "Sfc energy flux"
 
 FLNS:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 120, 10]
   diff_colormap: "BrBG"
@@ -2228,6 +2260,7 @@ FLNS:
 
 
 FLNSC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 150, 10]
   diff_colormap: "BrBG"
@@ -2249,6 +2282,7 @@ FLNSC:
 
 
 SHFLX:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-30, 90, 5]
   diff_colormap: "BrBG"
@@ -2266,6 +2300,7 @@ SHFLX:
   category: "Sfc energy flux"
 
 LHFLX:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 220, 10]
   diff_colormap: "BrBG"
@@ -3050,6 +3085,7 @@ aod_diags:
 #End of File
 
 SOLIN:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 550, 25]
   diff_colormap: "BrBG"
@@ -3066,6 +3102,7 @@ SOLIN:
   category: "Radiation"
 
 FLUTC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [100, 340, 10]
   diff_colormap: "BrBG"
