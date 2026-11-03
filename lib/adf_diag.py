@@ -1181,10 +1181,12 @@ class AdfDiag(AdfWeb):
                             ):
                                 ncrcat_var_list += f",{extra}"
 
-                    # Determine "ncrcat" command to generate time series file:
-                    if "date" in hist_file_ds[var].dims:
+                    # Determine "ncrcat" command to generate time series file.
+                    # "date" and "datesec" are variables of their own (on the
+                    # time dimension), never dimensions of `var`:
+                    if "date" in hist_file_var_list:
                         ncrcat_var_list = ncrcat_var_list + ",date"
-                    if "datesec" in hist_file_ds[var].dims:
+                    if "datesec" in hist_file_var_list:
                         ncrcat_var_list = ncrcat_var_list + ",datesec"
 
                     if has_lev and vert_coord_type:
