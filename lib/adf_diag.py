@@ -18,6 +18,7 @@ import glob
 import subprocess
 import multiprocessing as mp
 import copy
+import functools
 
 import importlib
 import shutil
@@ -43,6 +44,14 @@ try:
 except ImportError:
     print("Xarray module does not exist in python path.")
     print("Please install module, e.g. 'pip install xarray'.")
+    sys.exit(1)
+
+# Check if "dask" is present in python path:
+try:
+    import dask
+except ImportError:
+    print("Dask module does not exist in python path.")
+    print("Please install module, e.g. 'pip install dask'.")
     sys.exit(1)
 
 # Check if "numpy" is present in python path:
@@ -666,6 +675,10 @@ class AdfDiag(AdfWeb):
                 # End if
                 var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
                 with xr.open_dataset(fil) as ts_ds:
+                    # Grid and write a block of time steps at a time, so that
+                    # big files (TBs for multi-year hourly 3-D fields) are
+                    # never read into memory whole:
+                    ts_ds = utils.chunk_native_in_time(ts_ds, var)
                     gridded = utils.grid_to_latlon(
                         ts_ds,
                         var,
@@ -674,7 +687,9 @@ class AdfDiag(AdfWeb):
                         comp=self.model_component,
                         latlon_file=latlon_file,
                     )
-                    save_to_nc(gridded, gridded_file)
+                    write_netcdf_synchronous(
+                        functools.partial(save_to_nc, gridded), gridded_file
+                    )
                 # End with
             # End for
         # End for
@@ -2038,6 +2053,39 @@ def save_to_nc(tosave, outname, attrs=None, proc=None):
         )
         xo.attrs["Processing_info"] = f"Start from file {origname}. " + proc
     xo.to_netcdf(outname, format="NETCDF4", encoding=enc)
+
+
+def write_netcdf_synchronous(writer, outname):
+    """Write a netCDF file with dask's synchronous scheduler, via a temporary file.
+
+    ``writer(path)`` writes the file.  It is called with ``outname + ".tmp"``,
+    which is renamed to `outname` only once the write has succeeded, so a job
+    killed mid-write (e.g. at its walltime) never leaves a partial file that a
+    rerun would take as finished, and a failed write removes its temporary file.
+
+    The synchronous (single-threaded) scheduler is used because threaded
+    ``to_netcdf`` writes of large dask-backed datasets hung intermittently.  It
+    also holds only one chunk in memory at a time.
+
+    Parameters
+    ----------
+    writer : callable
+        Called with the path to write, e.g. ``functools.partial(save_to_nc, ds)``.
+    outname : str or pathlib.Path
+        The file to write.
+    """
+    temp_name = str(outname) + ".tmp"
+    try:
+        with dask.config.set(scheduler="synchronous"):
+            writer(temp_name)
+        # End with
+    except BaseException:
+        if os.path.exists(temp_name):
+            os.remove(temp_name)
+        # End if
+        raise
+    # End try
+    os.replace(temp_name, outname)
 
 
 #####
