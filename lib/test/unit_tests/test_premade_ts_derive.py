@@ -65,11 +65,13 @@ class _StubData:
     """Stands in for AdfData, whose only use here is opening the files."""
 
     @staticmethod
-    def load_dataset(fils):
+    def load_dataset(fils, chunks=None):
         """Open the constituent files the way AdfData does."""
         if not fils:
             return None
-        return xr.open_mfdataset([str(f) for f in fils], decode_times=True)
+        return xr.open_mfdataset(
+            [str(f) for f in fils], decode_times=True, chunks=chunks
+        )
 
 
 class _StubAdf:
