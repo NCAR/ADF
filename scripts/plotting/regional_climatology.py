@@ -88,10 +88,11 @@ def regional_climatology(adfobj):
         # each case is read on its own grid (see `regional_setup`):
         base_data[field] = load_with_weights(
             adfobj, adfobj.data.load_reference_climo_dataset(
-                base_name, field, **setup["base_kwargs"]),
+                base_name, field, apply_scaling=False, **setup["base_kwargs"]),
             field, base_name)
         case_data[field] = load_with_weights(
-            adfobj, adfobj.data.load_climo_dataset(case_name, field, **setup["case_kwargs"]),
+            adfobj, adfobj.data.load_climo_dataset(
+                case_name, field, apply_scaling=False, **setup["case_kwargs"]),
             field, case_name)
         if not report_missing(field, "climo", {base_name: base_data[field],
                                                case_name: case_data[field]}):
