@@ -57,7 +57,7 @@ jobs:
     # spec like "diff-cover>=10": the quotes become part of the spec, and
     # micromamba fails to parse it.
     - name: Set up ADF conda environment
-      uses: mamba-org/setup-micromamba@v2
+      uses: mamba-org/setup-micromamba@v3
       with:
         environment-file: env/conda_environment.yaml
         create-args: pytest pytest-cov diff-cover>=10
