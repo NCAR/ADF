@@ -10,11 +10,14 @@
 #                         Cannot be used with "contour_levels_range".
 # contour_levels_range -> The contour range that will be used for plots.
 #                         Values are min, max, and stride.  Cannot be used with "contour_levels".
+#                         Passed to numpy.arange, so max is NOT included: to end at 310 with
+#                         a stride of 10, use [250, 320, 10].
 # diff_colormap        -> The colormap that will be used for filled contour different plots
 # diff_contour_levels  -> A list of the specific contour values thta will be used for difference plots.
 #                         Cannot be used with "diff_contour_range".
 # diff_contour_range   -> The contour range that will be used for difference plots.
 #                         Values are min, max, and stride. Cannot be used with "diff_contour_levels".
+#                         As above, max is NOT included: [-5, 6, 1] gives -5 to 5.
 # scale_factor         -> Amount to scale the variable (relative to its "raw" model values).
 # add_offset           -> Amount of offset to add to the variable (relatie to its "raw" model values).
 # new_unit             -> Variable units (if not using the  "raw" model units).
@@ -79,25 +82,25 @@ pct_diff_contour_levels: [-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20]
 
 FSDSND:
   category: "Atmosphere"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   new_unit: "W m$^{-2}$"
 FSDSVD:
   category: "Atmosphere"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   new_unit: "W m$^{-2}$"
 FSDSNI:
   category: "Atmosphere"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   new_unit: "W m$^{-2}$"
 FSDSVI:
   category: "Atmosphere"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
   new_unit: "W m$^{-2}$"
@@ -112,7 +115,7 @@ RAIN_FROM_ATM:
     colorbar:
       label : "mm d$^{-1}$"
   diff_colormap: "BrBG"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_colormap: "PuOr_r"
 
 SNOW_FROM_ATM:
@@ -125,15 +128,15 @@ SNOW_FROM_ATM:
     colorbar:
       label : "mm d$^{-1}$"
   diff_colormap: "BrBG"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_colormap: "PuOr_r"
   
 FLDS_NOT_DOWNSCALED:
   category: "Atmosphere"
   colormap: "Oranges"
-  contour_levels_range: [100, 500, 25]
+  contour_levels_range: [100, 525, 25]
   diff_colormap: "BrBG"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   scale_factor: 1
   add_offset: 0
   new_unit: "W m$^{-2}$"
@@ -144,14 +147,14 @@ FLDS_NOT_DOWNSCALED:
 
 ZBOT:
   category: "Atmosphere"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
 
 Tair_from_atm:
   category: "Atmosphere"
   colormap: "OrRd"
-  contour_levels_range: [250, 310, 10]
+  contour_levels_range: [250, 320, 10]
   diff_colormap: "coolwarm"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_colormap: "coolwarm"
   pct_diff_contour_levels: [-3,-2,-1,-0.5,-0.2,-0.1,0,0.1,0.2,0.5,1,2,3]
   scale_factor: 1
@@ -161,9 +164,9 @@ Tair_from_atm:
 Thair_from_atm:
   category: "Atmosphere"
   colormap: "OrRd"
-  contour_levels_range: [250, 310, 10]
+  contour_levels_range: [250, 320, 10]
   diff_colormap: "coolwarm"
-  diff_contour_range: [-0.01, 0.01, 0.002]
+  diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_colormap: "coolwarm"
   pct_diff_contour_levels: [-3,-2,-1,-0.5,-0.2,-0.1,0,0.1,0.2,0.5,1,2,3]
   scale_factor: 1
@@ -173,32 +176,32 @@ Thair_from_atm:
 QBOT_NOT_DOWNSCALED:
   category: "Atmosphere"
   new_unit: "kg kg{-1}$"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
 
 PBOT_NOT_DOWNSCALED:
   category: "Atmosphere"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
 Rho_from_atm:
   category: "Atmosphere"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
 
 PCO2:
   category: "Atmosphere"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
 
 UWIND:
   category: "Atmosphere"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
 VWIND:
   category: "Atmosphere"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
 
 #---------
 ## MISC
 #--------
 BCPHIDRY:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -211,7 +214,7 @@ BCPHIDRY:
 
 BCPHODRY:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -224,7 +227,7 @@ BCPHODRY:
 
 BCPHIWET:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -237,7 +240,7 @@ BCPHIWET:
 
 OCPHIDRY:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -250,7 +253,7 @@ OCPHIDRY:
 
 OCPHODRY:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -263,7 +266,7 @@ OCPHODRY:
 
 OCPHIWET:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -276,7 +279,7 @@ OCPHIWET:
 
 DSTWET1:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -289,7 +292,7 @@ DSTWET1:
 
 DSTDRY1:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -302,7 +305,7 @@ DSTDRY1:
 
 DSTWET2:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -315,7 +318,7 @@ DSTWET2:
 
 DSTDRY2:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -328,7 +331,7 @@ DSTDRY2:
 
 DSTWET3:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -341,7 +344,7 @@ DSTWET3:
 
 DSTDRY3:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -352,7 +355,7 @@ DSTDRY3:
 
 DSTWET4:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -365,7 +368,7 @@ DSTWET4:
 
 DSTDRY4:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
   new_unit: "g m$^{-2}$ d$^{-1}$"
   mpl:
@@ -378,6 +381,6 @@ DSTDRY4:
 
 ATM_TOPO:
   category: "Misc"
-  diff_contour_range: [-0.001,0.001,0.0005]
+  diff_contour_range: [-0.001, 0.0015, 0.0005]
 
 #End of File

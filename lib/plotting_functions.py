@@ -163,6 +163,29 @@ def raster_with_mapping(uxda, ax):
     return uxda.to_raster(ax=ax, pixel_mapping=pixel_mapping)
 
 
+def _raster_norm(contour_levs, centered=False):
+    """Color normalization for a native-grid raster panel.
+
+    Parameters
+    ----------
+    contour_levs : numpy.ndarray
+        Sorted, unique contour levels; the first and last set the color limits.
+    centered : bool, optional
+        If True (difference panels) and the levels span zero, put the middle
+        of the colormap (white for diverging maps) at zero, even when the
+        levels are not symmetric about zero.
+
+    Returns
+    -------
+    matplotlib.colors.Normalize
+        A new norm, so panels never share (and rescale) one norm object.
+    """
+    vmin, vmax = contour_levs[0], contour_levs[-1]
+    if centered and vmin < 0 < vmax:
+        return mpl.colors.TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+    return mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def make_polar_plot(
     adfobj,
@@ -408,7 +431,10 @@ def make_polar_plot(
                     0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props
                 )
             else:
-                img.set_clim(vmin=contour_levs[0], vmax=contour_levs[-1])
+                # Difference panels: white (the colormap middle) at zero
+                img.set_norm(
+                    _raster_norm(contour_levs, centered=i in (diff_idx, pctdiff_idx))
+                )
             # End if
             imgs.append(img)
         elif len(contour_levs) < 2:
@@ -837,7 +863,10 @@ def plot_map_and_save(
                     0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props
                 )
             else:
-                raster_img.set_clim(vmin=contour_levs[0], vmax=contour_levs[-1])
+                # Difference panels: white (the colormap middle) at zero
+                raster_img.set_norm(
+                    _raster_norm(contour_levs, centered=i in (diff_idx, pctdiff_idx))
+                )
             # End if
             img.append(raster_img)
             if vector:
