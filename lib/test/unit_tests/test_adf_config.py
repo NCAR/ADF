@@ -7,6 +7,7 @@ for the "AdfConfig" class.
 # Import required modules
 # +++++++++++++++++++++++
 
+import glob
 import unittest
 import sys
 import os
@@ -36,6 +37,42 @@ class AdfConfigTestRoutine(unittest.TestCase):
     this set of tests will provide
     complete code coverage for AdfConfig.
     """
+
+    def test_adfconfig_example_configs(self):
+        """
+        Check that every example config file shipped
+        with the ADF (config_*.yaml in the top-level
+        directory) can be read by AdfConfig, and that
+        all of its "${var}" references can be expanded.
+        """
+
+        # Find all example config files:
+        example_files = sorted(
+            glob.glob(os.path.join(_ADF_LIB_DIR, os.pardir, "config_*.yaml"))
+        )
+
+        # Make sure the example config files were actually found:
+        self.assertTrue(example_files, "No example config files found")
+
+        for example_file in example_files:
+            with self.subTest(config_file=os.path.basename(example_file)):
+
+                # Create AdfConfig object:
+                adf_test = AdfConfig(example_file)
+
+                # Check that a required section can be read:
+                basic_info = adf_test.read_config_var("diag_basic_info", required=True)
+                self.assertIsInstance(basic_info, dict)
+
+                # Expand all keyword references, which raises
+                # an AdfError if a reference can't be resolved:
+                config_dict = adf_test.config_dict()
+                adf_test.expand_references(config_dict)
+
+                # Check that no unexpanded references remain:
+                self.assertNotIn("${", str(config_dict))
+
+    #####
 
     def test_adfconfig_missing_file(self):
         """

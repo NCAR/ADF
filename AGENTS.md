@@ -52,21 +52,23 @@ Four workflows run on every PR:
    environment (`env/conda_environment.yaml`, Python 3.12). Every test should run there, so a
    skipped test fails the job.
 2. **`ADF_linting.yaml`** — `.github/scripts/pr_mod_file_tests.py` runs pylint at
-   **threshold 9.5** with `lib/test/pylintrc`, but only on modified files in this hard-coded
-   `testable_files` set:
-   `lib/adf_base.py`, `lib/adf_config.py`, `lib/adf_info.py`, `lib/adf_obs.py`,
-   `lib/adf_web.py`, `lib/adf_diag.py`.
+   **threshold 9.5** with `lib/test/pylintrc` on every Python file under `lib/` that the PR
+   modifies (including the unit tests in `lib/test/`), except `lib/externals/`, which is
+   copied in from other projects and never linted. Files outside `lib/` are not linted.
 3. **`ADF_pre-commit.yaml`** — `pre-commit run -a --show-diff-on-failure`; the hooks are
    `check-yaml` and `black` (pinned in `.pre-commit-config.yaml`, applied to `lib/` only,
    with `lib/externals/` force-excluded). This is the only CI check of `black` formatting.
-4. **`ADF_canary_tests.yaml`** — non-blocking early warning: the same unit tests on Python 3.13
-   with the exact pins in `env/conda_environment.yaml` removed (latest releases), then again
-   with `DeprecationWarning`/`FutureWarning` raised from ADF code turned into errors. A red
-   canary on an unrelated PR usually means a new upstream release, not a problem with the PR —
-   but a PR that adds a *new* deprecated call in tested code will show up here.
+4. **`ADF_canary_tests.yaml`** — non-blocking early warning: the same unit tests on the latest
+   stable Python (looked up on every run) with the exact pins in `env/conda_environment.yaml`
+   removed (latest releases), then again with `DeprecationWarning`/`FutureWarning` raised from
+   ADF code turned into errors. A red canary on an unrelated PR usually means a new upstream
+   release, not a problem with the PR — but a PR that adds a *new* deprecated call in tested
+   code will show up here. Shortly after a new Python release it can also fail to build its
+   environment, until conda-forge has built all the ADF's dependencies for that Python.
 
-**Un-linted by CI:** everything in `scripts/`, plus `lib/adf_dataset.py`, `lib/adf_derive.py`,
-`lib/adf_utils.py`, `lib/plotting_functions.py`, `lib/plotting_utils.py`.
+**Un-linted by CI:** everything outside `lib/` — notably all of `scripts/` and the
+`run_adf_diag` driver — plus `lib/externals/`. Only *modified* files are linted, so a
+`lib/` file the PR does not touch is never re-scored.
 **Largely un-tested by CI:** `scripts/`. The unit tests import only a few of its modules
 (`regrid_and_vert_interp`, `create_climo_files`, `create_TEM_files`, `cam_taylor_diagram`), and
 only for specific helpers. Weight the review accordingly — a PR touching only `scripts/plotting/`
@@ -76,7 +78,7 @@ Reproduce the checks locally:
 
 ```bash
 pytest lib/test/unit_tests
-pylint --rcfile=lib/test/pylintrc lib/adf_diag.py          # any file in testable_files
+pylint --rcfile=lib/test/pylintrc lib/adf_diag.py          # any modified file under lib/
 pre-commit run -a
 python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" config_cam_baseline_example.yaml
 ```
@@ -253,7 +255,7 @@ Notes:
 - black's 88 columns sits inside pylint's `max-line-length=100` (`lib/test/pylintrc`), so
   black-formatted code will not trip the length check. black does *not* wrap comments,
   docstrings, or long string literals, though — those can still exceed 100 and fail pylint on
-  the six linted files (§3).
+  the linted `lib/` files (§3).
 - In `scripts/`, where black and the surrounding file disagree on comment style, black wins
   **for the new lines only**. Mixed style within such a file is expected and acceptable. This
   does not apply to `lib/`, which is uniformly black-formatted already.
@@ -301,8 +303,8 @@ Require of new or modified public functions, classes, and modules:
     The same goes for *any* string literal holding a backslash that Python does not
     recognize as an escape — LaTeX in a matplotlib label (`r"$\mathbf{Test}$"`) is the
     common case in `lib/plotting_functions.py`. Without the `r`, Python 3.12+ emits a
-    `SyntaxWarning` and a future release will make it a `SyntaxError`; the unit tests run
-    on 3.13, so this is worth catching in review:
+    `SyntaxWarning` and a future release will make it a `SyntaxError`; the canary unit tests
+    run on the latest stable Python, so this is worth catching in review:
     ```bash
     python -W error::SyntaxWarning -c "import compileall,sys; sys.exit(not compileall.compile_dir('lib', quiet=1))"
     ```
@@ -333,7 +335,7 @@ checklist above rather than skipping the check.
 ### 6.3 Everything else
 
 - `snake_case` for functions/arguments/attributes, `PascalCase` for classes, `UPPER_CASE` for
-  constants (enforced by pylint on the six linted files, expected everywhere).
+  constants (enforced by pylint on modified `lib/` files, expected everywhere).
 - No bare `except:` in new code, even though existing scripts have them; catch a specific
   exception, or `except Exception` with a comment explaining why.
 - Legacy idioms (`#+++++` banner blocks, `#End if` / `#End for` closers) are fine to leave in

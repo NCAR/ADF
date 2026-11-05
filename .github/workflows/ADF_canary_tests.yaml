@@ -6,7 +6,8 @@ on:
 
 jobs:
   #This job is an early warning for future Python and package changes.
-  #It runs the ADF unit tests on the newest Python version, in a copy of
+  #It runs the ADF unit tests on the latest stable Python version (looked
+  #up on every run, so it never needs updating by hand), in a copy of
   #the ADF conda environment (env/conda_environment.yaml) with the exact
   #version pins removed, so every run picks up the latest releases.
   #
@@ -26,17 +27,38 @@ jobs:
     steps:
     # Acquire github action routines:
     - uses: actions/checkout@v6
+    # Look up the latest stable Python release ("3.x" never matches a
+    # pre-release, and "check-latest" asks for the current release list
+    # rather than whatever the runner image has cached).  The Python this
+    # installs is only used to read its version; the tests themselves run
+    # in the micromamba environment below:
+    - name: Find latest stable Python version
+      id: latest_python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
+        check-latest: true
     # Remove the exact version pins ("name=version") from the ADF conda
-    # environment file, and set the python version.  Minimum versions
-    # ("name>=version") are kept, as they never hold back the newest release:
+    # environment file, and pin python to the latest stable "major.minor"
+    # version found above.  Minimum versions ("name>=version") are kept,
+    # as they never hold back the newest release:
     - name: Create unpinned ADF conda environment file
+      env:
+        LATEST_PYTHON: ${{ steps.latest_python.outputs.python-version }}
       run: |
+        py_ver=$(echo "${LATEST_PYTHON}" | cut -d. -f1,2)
+        echo "Latest stable Python is ${LATEST_PYTHON}, so testing python=${py_ver}"
         sed -E -e 's/^(\s*-\s*[A-Za-z0-9_.-]+)=.*$/\1/' \
-               -e 's/^(\s*-\s*python)$/\1=3.13/' \
+               -e "s/^(\s*-\s*python)$/\1=${py_ver}/" \
                env/conda_environment.yaml > ${{ runner.temp }}/canary_env.yaml
         cat ${{ runner.temp }}/canary_env.yaml
     # Build the unpinned environment, plus pytest (not in the env file).
-    # It is not cached, so that every run gets the latest releases:
+    # It is not cached, so that every run gets the latest releases.
+    #
+    # Note: conda-forge can take a few weeks after a new Python release to
+    # build all of the ADF's dependencies for it.  Until it does, this step
+    # fails to solve the environment, which is the canary's way of saying
+    # "the ADF can't run on the newest Python yet":
     - name: Set up unpinned ADF conda environment
       uses: mamba-org/setup-micromamba@v2
       with:
