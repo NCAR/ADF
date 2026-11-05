@@ -50,12 +50,17 @@ jobs:
     # Build the ADF conda environment, plus the testing tools (not in the
     # env file): pytest, pytest-cov (code coverage), and diff-cover (the
     # coverage of the lines a PR changed).  The environment is cached
-    # until env/conda_environment.yaml or this list of tools changes:
+    # until env/conda_environment.yaml or this list of tools changes.
+    #
+    # Note: "create-args" is split on spaces and passed straight to
+    # micromamba, without a shell, so don't put quotes around a version
+    # spec like "diff-cover>=10": the quotes become part of the spec, and
+    # micromamba fails to parse it.
     - name: Set up ADF conda environment
       uses: mamba-org/setup-micromamba@v2
       with:
         environment-file: env/conda_environment.yaml
-        create-args: pytest pytest-cov "diff-cover>=10"
+        create-args: pytest pytest-cov diff-cover>=10
         cache-environment: true
     # Run python unit tests related to ADF library, while measuring their
     # code coverage (configured in the "tool.coverage" sections of
