@@ -21,9 +21,9 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
-# adf_file_utils imports nothing but pathlib, so these run in CI, where only
-# PyYAML and pytest are installed:
-from adf_file_utils import (
+# adf_file_utils imports nothing but pathlib, so these run anywhere, even
+# with only PyYAML and pytest installed:
+from adf_file_utils import (  # pylint: disable=import-error
     describe_dir_problem,
     find_ts_files,
     select_ts_files,
@@ -34,6 +34,8 @@ from adf_file_utils import (
 )
 
 
+# One method per test case is the unittest idiom, so allow many of them:
+# pylint: disable-next=too-many-public-methods
 class AdfFileUtilsTestRoutine(unittest.TestCase):
     """
     Unit tests for the time series file search helper, which has to cope with
@@ -48,7 +50,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(tmpdir, fname), "w").close()
+            Path(os.path.join(tmpdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc")
 
@@ -64,7 +66,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
             subdir = os.path.join(tmpdir, "atm", "proc", "tseries", "month_1")
             os.makedirs(subdir)
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(subdir, fname), "w").close()
+            Path(os.path.join(subdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc")
 
@@ -80,8 +82,8 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
             subdir = os.path.join(tmpdir, "atm", "proc", "tseries", "month_1")
             os.makedirs(subdir)
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(tmpdir, fname), "w").close()
-            open(os.path.join(subdir, fname), "w").close()
+            Path(os.path.join(tmpdir, fname)).touch()
+            Path(os.path.join(subdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc")
 
@@ -95,7 +97,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
         """
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            open(os.path.join(tmpdir, "case.cam.h0a.T.000101-001112.nc"), "w").close()
+            Path(os.path.join(tmpdir, "case.cam.h0a.T.000101-001112.nc")).touch()
 
             self.assertEqual(find_ts_files(tmpdir, "case.cam.h0a.PRECT.*nc"), [])
 
@@ -109,7 +111,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
             subdir = os.path.join(tmpdir, "atm", "proc", "tseries", "month_1")
             os.makedirs(subdir)
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(subdir, fname), "w").close()
+            Path(os.path.join(subdir, fname)).touch()
 
             self.assertEqual(
                 find_ts_files(tmpdir, "case.cam.h0a.T.*nc", recursive=False), []
@@ -127,7 +129,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fname = "case.cam.h0a.T.000101-001112.nc"
-            open(os.path.join(tmpdir, fname), "w").close()
+            Path(os.path.join(tmpdir, fname)).touch()
 
             found = find_ts_files(tmpdir, "case.cam.h0a.T.*nc", recursive=False)
 
@@ -350,7 +352,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
         chosen = select_ts_files(chunks + [whole], 1, 20)
 
         self.assertFalse(ts_files_overlap(chosen))
-        self.assertTrue(chosen == [whole] or chosen == chunks)
+        self.assertIn(chosen, ([whole], chunks))
 
     def test_select_prefers_whole_set_over_chunks(self):
         """
@@ -521,7 +523,7 @@ class AdfFileUtilsTestRoutine(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fname = os.path.join(tmpdir, "case.cam.h0a.T.000101-001112.nc")
-            open(fname, "w").close()
+            Path(fname).touch()
 
             self.assertIsNotNone(describe_dir_problem(fname))
 

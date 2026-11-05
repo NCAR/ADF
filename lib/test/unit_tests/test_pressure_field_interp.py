@@ -10,15 +10,16 @@ from pathlib import Path
 
 import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 np = pytest.importorskip("numpy")
 xr = pytest.importorskip("xarray")
 
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "regridding"))
 sys.path.append(str(Path(__file__).parents[2]))
 
-from regrid_and_vert_interp import (  # noqa: E402
+from regrid_and_vert_interp import (  # noqa: E402 # pylint: disable=import-error
     DEFAULT_PLEVS_Pa,
     _interp_with_pressure_field,
 )
@@ -54,6 +55,7 @@ def _build(level_dim="lev", nlat=4, nlon=6, ntime=2, scale=None):
 
 
 def test_log_linear_field_is_reproduced_exactly():
+    """A field linear in log(p) is recovered exactly at in-column levels."""
     da, pres = _build()
     out = _interp_with_pressure_field(da, pres)
 
@@ -101,6 +103,7 @@ def test_masking_is_per_column():
 
 
 def test_interface_data_on_ilev_works():
+    """Data on ``ilev`` is interpolated and returned on pressure levels named ``lev``."""
     da, pres = _build(level_dim="ilev")
     out = _interp_with_pressure_field(da, pres)
     # Renamed on the way in; the result is on pressure levels called "lev":

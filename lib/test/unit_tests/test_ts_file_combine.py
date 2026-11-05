@@ -12,9 +12,9 @@ combinable must open, and a set it rejects must be one that really would fail.
 Getting that wrong ended the whole ADF run rather than one variable, because
 the exception was raised where nothing catches it.
 
-NOTE: these tests import xarray, so they are skipped in CI, which installs only
-PyYAML and pytest.  The decision itself is tested without xarray in
-test_adf_file_utils.py.
+NOTE: these tests import xarray, so they need the full ADF environment, which
+CI runs them in (see ADF_unit_tests.yaml).  The decision itself is tested
+without xarray in test_adf_file_utils.py.
 """
 
 # +++++++++++++++++++++++
@@ -35,6 +35,7 @@ _ADF_LIB_DIR = os.path.join(_CURRDIR, os.pardir, os.pardir)
 # Add ADF "lib" directory to python path:
 sys.path.append(_ADF_LIB_DIR)
 
+# pylint: disable-next=import-error
 from adf_file_utils import ts_files_need_combining
 
 try:
@@ -114,17 +115,6 @@ class TsFileCombineTestRoutine(unittest.TestCase):
             with self.assertRaises(ValueError):
                 xr.open_mfdataset(fils, decode_times=False, combine="by_coords")
             # End with
-
-    def test_single_file_needs_no_combining(self):
-        """
-        One file is the ordinary case, and is copied rather than rewritten.
-        """
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            fil = str(Path(tmpdir) / "case.cam.h0a.T.000101-002012.nc")
-            _write_ts(fil, 0, 240)
-
-            self.assertFalse(ts_files_need_combining([fil]))
 
 
 # ++++++++++++++++++

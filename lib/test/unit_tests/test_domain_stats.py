@@ -7,9 +7,8 @@ convention the data uses and whichever way latitude runs.  The polar plots ask
 for [-180, 180, 45, 90] while regridded CAM output is on 0 to 360, and a
 selection that did not allow for that averaged half of the cap.
 
-NOTE: these tests import adf_utils, which imports xarray, so they are skipped
-in CI, which installs only PyYAML and pytest.  They run in a full ADF
-environment.
+NOTE: these tests import adf_utils, which imports xarray, so they need the
+full ADF environment, which CI runs them in (see ADF_unit_tests.yaml).
 """
 
 import os
@@ -56,7 +55,7 @@ class DomainStatsTestRoutine(unittest.TestCase):
     """Unit tests for the regional mean, maximum and minimum."""
 
     def setUp(self):
-        """Latitudes for the test grids (built here so CI, without numpy, can import)."""
+        """Latitudes for the test grids (built here so a run without numpy can import)."""
         self.lat = np.arange(-89.0, 90.0, 2.0)
 
     def test_same_answer_for_either_longitude_convention(self):
