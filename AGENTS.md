@@ -50,7 +50,13 @@ Four workflows run on every PR:
 
 1. **`ADF_unit_tests.yaml`** — `pytest lib/test/unit_tests` in the ADF's own pinned conda
    environment (`env/conda_environment.yaml`, Python 3.12). Every test should run there, so a
-   skipped test fails the job.
+   skipped test fails the job. It also measures code coverage (`pytest-cov`, configured in
+   `pyproject.toml`) and writes it to the run's summary page: totals for `lib/` and
+   `scripts/`, a per-file table, and — for a PR — the **patch coverage** of just the lines the
+   PR adds or changes (`diff-cover`), with a warning annotation on up to 10 uncovered changed
+   lines in the "Files changed" tab. Coverage is report-only and never fails the job. When
+   reviewing a PR that adds `lib/` logic, check its patch coverage: new framework code with no
+   test is worth a non-blocking comment.
 2. **`ADF_linting.yaml`** — `.github/scripts/pr_mod_file_tests.py` runs pylint at
    **threshold 9.5** with `lib/test/pylintrc` on every Python file under `lib/` that the PR
    modifies (including the unit tests in `lib/test/`), except `lib/externals/`, which is
@@ -78,6 +84,8 @@ Reproduce the checks locally:
 
 ```bash
 pytest lib/test/unit_tests
+# Coverage (needs: conda install -c conda-forge pytest-cov diff-cover):
+pytest lib/test/unit_tests --cov --cov-report=xml && diff-cover coverage.xml --compare-branch=main
 pylint --rcfile=lib/test/pylintrc lib/adf_diag.py          # any modified file under lib/
 pre-commit run -a
 python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" config_cam_baseline_example.yaml

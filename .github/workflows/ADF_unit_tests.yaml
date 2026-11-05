@@ -24,6 +24,15 @@ jobs:
   #
   #The same tests are also run against the newest Python and packages
   #by the non-blocking "ADF_canary_tests.yaml" workflow.
+  #
+  #This job also measures the code coverage of the tests, and adds it to
+  #the workflow run's summary page: the coverage of the "lib" and
+  #"scripts" directories, and, for a PR, the coverage of just the lines
+  #the PR adds or changes ("patch coverage", from "diff-cover").  This
+  #is report-only, so low coverage never fails the job.  It is written
+  #to the run summary, and as annotations on the PR's uncovered lines,
+  #rather than as a PR comment, because a PR from a fork does not have
+  #permission to comment on NCAR/ADF.
   full_env_unit_tests:
     if: github.event_name == 'pull_request' || github.repository == 'NCAR/ADF'
     runs-on: ubuntu-latest
@@ -32,19 +41,27 @@ jobs:
         # A login shell, so that the micromamba environment is active:
         shell: bash -el {0}
     steps:
-    # Acquire github action routines:
+    # Acquire github action routines.  The full git history is needed so
+    # that "diff-cover" can find the lines a PR changed, by comparing it
+    # to the branch the PR targets:
     - uses: actions/checkout@v6
-    # Build the ADF conda environment, plus pytest (not in the env file).
-    # The environment is cached until env/conda_environment.yaml changes:
+      with:
+        fetch-depth: 0
+    # Build the ADF conda environment, plus the testing tools (not in the
+    # env file): pytest, pytest-cov (code coverage), and diff-cover (the
+    # coverage of the lines a PR changed).  The environment is cached
+    # until env/conda_environment.yaml or this list of tools changes:
     - name: Set up ADF conda environment
       uses: mamba-org/setup-micromamba@v2
       with:
         environment-file: env/conda_environment.yaml
-        create-args: pytest
+        create-args: pytest pytest-cov "diff-cover>=10"
         cache-environment: true
-    # Run python unit tests related to ADF library.  Every test should
-    # run in this environment, so a skip means something failed to import
-    # (e.g. a broken ADF module), and is treated as a failure.
+    # Run python unit tests related to ADF library, while measuring their
+    # code coverage (configured in the "tool.coverage" sections of
+    # pyproject.toml).  Every test should run in this environment, so a
+    # skip means something failed to import (e.g. a broken ADF module),
+    # and is treated as a failure.
     #
     # Note: Don't end this step with "exit".  In a login shell an explicit
     # "exit" runs ~/.bash_logout, whose failing "clear_console" call on
@@ -52,11 +69,47 @@ jobs:
     # command (a subshell exit) set the step's exit code:
     - name: ADF lib unit tests (full environment)
       run: |
-        pytest lib/test/unit_tests -rs 2>&1 | tee pytest.log
+        pytest lib/test/unit_tests -rs --cov --cov-report=xml 2>&1 | tee pytest.log
         status=${PIPESTATUS[0]}
         if grep -q '^SKIPPED' pytest.log; then
           echo "::error::Unit tests were skipped in the full ADF environment"
           status=1
         fi
         (exit $status)
-
+    # Add the coverage of the ADF code to the run summary page.  This runs
+    # even if a test failed, so long as coverage was measured:
+    - name: Code coverage summary
+      if: ${{ !cancelled() && hashFiles('coverage.xml') != '' }}
+      run: |
+        {
+          echo "## Unit test code coverage"
+          echo ""
+          echo "| ADF code | Coverage |"
+          echo "| --- | --- |"
+          echo "| \`lib/\` (framework) | $(coverage report --include='lib/*' --format=total)% |"
+          echo "| \`scripts/\` (diagnostics) | $(coverage report --include='scripts/*' --format=total)% |"
+          echo "| All | $(coverage report --format=total)% |"
+          echo ""
+          echo "<details><summary>Coverage of each file, lowest first</summary>"
+          echo ""
+          coverage report --format=markdown --sort=cover
+          echo ""
+          echo "</details>"
+          echo ""
+        } >> "$GITHUB_STEP_SUMMARY"
+    # For a PR, add the coverage of just the lines it adds or changes to
+    # the run summary page, and mark each changed line that no test runs
+    # with a warning annotation, which GitHub shows in the PR's "Files
+    # changed" tab.  Only lines in the files measured above count, so
+    # changes to the unit tests themselves, docs, etc. are ignored.
+    #
+    # Note that GitHub shows at most 10 warning annotations per step, so
+    # for a large PR the run summary has the full list of uncovered lines:
+    - name: Code coverage of lines changed by this PR
+      if: ${{ github.event_name == 'pull_request' && !cancelled() && hashFiles('coverage.xml') != '' }}
+      env:
+        BASE_BRANCH: ${{ github.base_ref }}
+      run: |
+        diff-cover coverage.xml --compare-branch="origin/${BASE_BRANCH}" \
+                   --format "markdown:diff_cover.md,github-annotations:warning"
+        cat diff_cover.md >> "$GITHUB_STEP_SUMMARY"
