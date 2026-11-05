@@ -1,10 +1,12 @@
 #Repository-wide tool configuration for the ADF.
 #
 #Note that the ADF is not a pip-installable package, so this
-#file exists purely to give command-line tools (currently just
-#"black") a single, version-controlled source of truth.  This
-#way a developer running "black" locally gets exactly the same
-#result as the "black" hook run by the "pre-commit" CI workflow.
+#file exists purely to give command-line tools (currently "black"
+#and "coverage") a single, version-controlled source of truth.
+#This way a developer running "black" locally gets exactly the
+#same result as the "black" hook run by the "pre-commit" CI
+#workflow, and the same holds for "pytest --cov" and the
+#"ADF_unit_tests" CI workflow.
 
 #++++++++++++++++++++++++++++++++++
 #Configuration for the "black" tool
@@ -39,5 +41,46 @@ line-length = 88
 #explicitly (which is how the pre-commit hook invokes it) would
 #still get formatted.  "force-exclude" applies in both cases:
 force-exclude = "^/lib/externals/"
+
+#+++++++++++++++++++++++++++++++++++++
+#Configuration for the "coverage" tool
+#+++++++++++++++++++++++++++++++++++++
+
+#These settings are used by "pytest --cov" (via the "pytest-cov"
+#plugin) in the "ADF_unit_tests.yaml" CI workflow, and by a local
+#run of the same command.
+
+[tool.coverage.run]
+
+#Measure all ADF python code, both the framework ("lib") and the
+#diagnostic scripts ("scripts").  Listing these directories (rather
+#than measuring only what the tests import) means that any file the
+#tests never import is still reported, as 0% covered:
+source = ["lib", "scripts"]
+
+#Don't measure the unit tests themselves, or the code copied in
+#from other projects (see the "black" section above):
+omit = ["lib/test/*", "lib/externals/*"]
+
+#Write file paths relative to the repo's top-level directory, which
+#is what "diff-cover" needs to match them to the lines a PR changes:
+relative_files = true
+
+[tool.coverage.report]
+
+#Don't list files with no executable code (e.g. an empty
+#"__init__.py") in the coverage report:
+skip_empty = true
+
+#The "scripts" sub-directories (and "lib" itself) have no
+#"__init__.py", so they are not python packages, and by default
+#coverage would only report the files in them that the tests
+#happen to import.  This makes coverage look for every python
+#file in them, so that a file no test imports shows up as 0%:
+include_namespace_packages = true
+
+#Report percentages to one decimal place, so that small changes
+#in coverage are still visible:
+precision = 1
 
 #End of file.
