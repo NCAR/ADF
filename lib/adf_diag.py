@@ -106,6 +106,13 @@ _LOCAL_PATH = os.path.dirname(os.path.abspath(__file__))
 # Add "scripts" directory to path:
 _DIAG_SCRIPTS_PATH = os.path.join(_LOCAL_PATH, os.pardir, "scripts")
 
+# Scripts that have been renamed, by their old name, so that config files
+# listing the old name keep working:
+_RENAMED_SCRIPTS = {
+    "amwg_table": "statistics_table",
+    "lmwg_table": "statistics_table",
+}
+
 # Check that "scripts" directory actually exists:
 if not os.path.isdir(_DIAG_SCRIPTS_PATH):
     # If not, then raise error:
@@ -288,6 +295,14 @@ class AdfDiag(AdfWeb):
                 raise TypeError(
                     "Provided script must either be a string or a dictionary."
                 )
+
+            if func_name in _RENAMED_SCRIPTS:
+                new_name = _RENAMED_SCRIPTS[func_name]
+                print(
+                    f"\t NOTE: '{func_name}' is now called '{new_name}'; "
+                    "please update the config file."
+                )
+                func_name = new_name
 
             func_script = (
                 func_name + ".py"

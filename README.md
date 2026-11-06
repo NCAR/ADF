@@ -135,9 +135,10 @@ the baseline or observations, the percent difference, and the difference (with i
 and a zonal mean against pressure. Images are PNG unless `plot_type` says otherwise. The Taylor
 diagram script writes one figure per season with all the test cases on it.
 
-**Tables.** `amwg_table` writes, for each case, the global mean of every variable with its sample
-size, standard deviation, standard error, 95% confidence interval, and linear trend with its
-p-value. The comparison table has the columns `variable`, `unit`, `test`, `control` (the baseline or observations), and `diff`.
+**Tables.** `statistics_table` (formerly `amwg_table` and `lmwg_table`, names a config may still
+use) writes, for each case, the global mean of every variable with its sample size, standard
+deviation, standard error, 95% confidence interval, and linear trend with its p-value. The files
+are `amwg_table_<case>.csv`, or `lmwg_table_<case>.csv` for land cases. The comparison table has the columns `variable`, `unit`, `test`, `control` (the baseline or observations), and `diff`.
 
 **Website.** With `create_html: true`, open `website/index.html` (under the plot directory shown
 above) in a browser. It links to every figure, grouped by variable category and season, to the
