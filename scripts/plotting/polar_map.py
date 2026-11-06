@@ -263,8 +263,8 @@ def polar_map(adfobj):
             # see AdfData._reference_files), so it is loaded with the case:
             ref_by_case = {}
         else:
-            odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
-            odata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
+            odataset = adfobj.data.load_reference_regrid_dataset(var, **kwargs)
+            odata = adfobj.data.load_reference_regrid_da(var, **kwargs)
             if odataset is None or odata is None:
                 print(f"\t    WARNING: No reference data found for {var}")
                 continue
@@ -296,8 +296,8 @@ def polar_map(adfobj):
                 if case_name not in ref_by_case:
                     rkw = dict(kwargs, test_case=case_name,
                                mesh_file=adfobj.mesh_files["baseline_mesh_file"])
-                    odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **rkw)
-                    odata = adfobj.data.load_reference_regrid_da(base_name, var, **rkw)
+                    odataset = adfobj.data.load_reference_regrid_dataset(var, **rkw)
+                    odata = adfobj.data.load_reference_regrid_da(var, **rkw)
                     ref_by_case[case_name] = None if odataset is None or odata is None else (
                         odata, utils.cell_weights(odataset, adfobj.model_component))
                 if ref_by_case[case_name] is None:

@@ -20,7 +20,9 @@
 #                         As above, max is NOT included: [-5, 6, 1] gives -5 to 5.
 # scale_factor         -> Amount to scale the variable (relative to its "raw" model values).
 # add_offset           -> Amount of offset to add to the variable (relatie to its "raw" model values).
-# new_unit             -> Variable units (if not using the  "raw" model units).
+# new_unit             -> Variable units (if not using the  "raw" model units), in plain text
+#                         (e.g. "W/m2", not "W m$^{-2}$"): they are written into the files and
+#                         tables.  For LaTeX on a plot, set mpl: colorbar: label.
 # mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
 #
 # mask                 -> Setting that specifies whether the variable should be masked.
@@ -85,32 +87,44 @@ FSDSND:
   diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
+  mpl:
+    colorbar:
+      label: 'W m$^{-2}$'
 FSDSVD:
   category: "Atmosphere"
   diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
+  mpl:
+    colorbar:
+      label: 'W m$^{-2}$'
 FSDSNI:
   category: "Atmosphere"
   diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
+  mpl:
+    colorbar:
+      label: 'W m$^{-2}$'
 FSDSVI:
   category: "Atmosphere"
   diff_contour_range: [-0.01, 0.012, 0.002]
   pct_diff_contour_levels: [-100,-75,-50,-40,-30,-20,-10,-8,-6,-4,-2,0,2,4,6,8,10,20,30,40,50,75,100]
   pct_diff_colormap: "PuOr_r"
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
+  mpl:
+    colorbar:
+      label: 'W m$^{-2}$'
 
 RAIN_FROM_ATM:
   category: "Atmosphere"
   colormap: "cubehelix_r"
   scale_factor: 86400
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -123,7 +137,7 @@ SNOW_FROM_ATM:
   colormap: "cubehelix_r"
   scale_factor: 86400
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -139,7 +153,7 @@ FLDS_NOT_DOWNSCALED:
   diff_contour_range: [-0.01, 0.012, 0.002]
   scale_factor: 1
   add_offset: 0
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "W m$^{-2}$"
@@ -175,7 +189,10 @@ Thair_from_atm:
 
 QBOT_NOT_DOWNSCALED:
   category: "Atmosphere"
-  new_unit: "kg kg{-1}$"
+  new_unit: "kg/kg"
+  mpl:
+    colorbar:
+      label: 'kg kg$^{-1}$'
   diff_contour_range: [-0.001, 0.0015, 0.0005]
 
 PBOT_NOT_DOWNSCALED:
@@ -203,7 +220,7 @@ BCPHIDRY:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -216,7 +233,7 @@ BCPHODRY:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -229,7 +246,7 @@ BCPHIWET:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -242,7 +259,7 @@ OCPHIDRY:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -255,7 +272,7 @@ OCPHODRY:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -268,7 +285,7 @@ OCPHIWET:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -281,7 +298,7 @@ DSTWET1:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -294,7 +311,7 @@ DSTDRY1:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -307,7 +324,7 @@ DSTWET2:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -320,7 +337,7 @@ DSTDRY2:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -333,7 +350,7 @@ DSTWET3:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -346,7 +363,7 @@ DSTDRY3:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -357,7 +374,7 @@ DSTWET4:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"
@@ -370,7 +387,7 @@ DSTDRY4:
   category: "Misc"
   diff_contour_range: [-0.001, 0.0015, 0.0005]
   scale_factor: 86400000
-  new_unit: "g m$^{-2}$ d$^{-1}$"
+  new_unit: "g/m2/d"
   mpl:
     colorbar:
       label : "g m$^{-2}$ d$^{-1}$"

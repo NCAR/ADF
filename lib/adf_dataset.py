@@ -112,6 +112,16 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 if f:
                     self.ref_var_loc[v] = f
 
+    def _ref_source(self, field):
+        """Name of the reference data source for `field`.
+
+        The observation set for that variable when comparing against
+        observations, otherwise the baseline case.  It is what decides which
+        converters :meth:`get_value_converters` hands back, so the reference
+        loaders work it out here rather than asking every caller for it.
+        """
+        return self.ref_labels.get(field, self.ref_case_label)
+
     def set_ref_var_loc(self):
         """Set reference climo file locations"""
         for v in self.adf.diag_var_list:
@@ -605,12 +615,12 @@ class AdfData:  # pylint: disable=too-many-public-methods
         )
 
     # Reference case (baseline/obs)
-    def load_reference_climo_dataset(self, case, field, apply_scaling=True, **kwargs):
+    def load_reference_climo_dataset(self, field, *, apply_scaling=True, **kwargs):
         """Return a Dataset from the reference (aka baseline) climo file of `field`.
 
         As :meth:`load_climo_dataset`.  The variable is converted under its
-        name in the reference file, which for observations need not be `field`;
-        `case` decides whether the observation converters are used.
+        name in the reference file, which for observations need not be `field`,
+        with the observation converters when the reference is observations.
         """
         fils = self.get_reference_climo_file(field)
         if not fils:
@@ -623,10 +633,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
         if ds is None or not apply_scaling:
             return ds
         vname = self.ref_var_nam[field]  # name of variable in the reference data
-        ds[vname] = self.apply_conversion(ds[vname], field, case)
+        ds[vname] = self.apply_conversion(ds[vname], field, self._ref_source(field))
         return ds
 
-    def load_reference_climo_da(self, case, variablename, apply_scaling=True, **kwargs):
+    def load_reference_climo_da(self, variablename, *, apply_scaling=True, **kwargs):
         """Return DataArray from reference (aka baseline) climo file.
 
         Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
@@ -643,7 +653,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
             add_offset = 0
             scale_factor = 1
         else:
-            add_offset, scale_factor = self.get_value_converters(case, variablename)
+            add_offset, scale_factor = self.get_value_converters(
+                self._ref_source(variablename), variablename
+            )
         return self.load_da(
             fils,
             vname,
@@ -660,6 +672,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
             fils = self.ref_var_loc.get(var, None)
             return [fils] if fils is not None else []
         ref_loc = self.adf.get_baseline_info("cam_climo_loc")
+        if not ref_loc:
+            # A baseline with no climo location has no climo files to find:
+            return []
         # Prefer stream-aware naming (in priority order), then fall back to the
         # older convention so pre-existing baseline climo files still work;
         # each with the climatology years first, as in get_climo_file:
@@ -771,7 +786,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         )
 
     # Reference case (baseline/obs)
-    def get_ref_regrid_file(self, case, field):
+    def get_ref_regrid_file(self, field):
         """Return list of reference regridded files"""
         if self.adf.compare_obs:
             obs_loc = self.ref_var_loc.get(field, None)
@@ -783,7 +798,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             # Named after the baseline's climatology years:
             fils = self._first_file(
                 self.model_rgrid_loc,
-                [f"{case}_{field}_baseline"],
+                [f"{self.ref_case_label}_{field}_baseline"],
                 self._ref_climo_years(),
             )
         return fils
@@ -805,7 +820,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             self._case_climo_years(test_case),
         )
 
-    def _reference_files(self, case, field, kwargs):
+    def _reference_files(self, field, kwargs):
         """The reference file(s) to load for `field`, updating `kwargs` to match.
 
         A ``test_case`` in `kwargs` (removed from it) asks for the reference as
@@ -821,37 +836,35 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 idx = self.case_names.index(test_case)
                 kwargs["mesh_file"] = self.adf.mesh_files["test_mesh_file"][idx]
                 return fils
-        fils = self.get_ref_regrid_file(case, field)
+        fils = self.get_ref_regrid_file(field)
         if not fils:
             fils = self._native_climo_fallback(
-                case, field, self.get_reference_climo_file(field)
+                self._ref_source(field), field, self.get_reference_climo_file(field)
             )
         if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find regridded file(s) for case: "
-                f"{case}, variable: {field}"
+                f"{self._ref_source(field)}, variable: {field}"
             )
         return fils
 
-    def load_reference_regrid_dataset(self, case, field, **kwargs):
+    def load_reference_regrid_dataset(self, field, **kwargs):
         """Return a data set to be used as reference (aka baseline) for variable field.
 
         Extra keyword arguments (e.g. ``unstructured_plotting``, ``mesh_file``)
         are passed on to :meth:`load_dataset`; ``test_case`` picks the
         reference on that test case's mesh (see :meth:`_reference_files`).
         """
-        fils = self._reference_files(case, field, kwargs)
+        fils = self._reference_files(field, kwargs)
         if not fils:
             return None
         return self.load_dataset(fils, **kwargs)
 
-    def load_reference_regrid_da(self, case, field, apply_scaling=None, **kwargs):
+    def load_reference_regrid_da(self, field, *, apply_scaling=None, **kwargs):
         """Return a data array to be used as reference (aka baseline) for variable field.
 
         Parameters
         ----------
-        case : str
-            Name of the reference (baseline or observational) data source.
         field : str
             ADF name of the variable to load.
         apply_scaling : bool, optional
@@ -867,14 +880,14 @@ class AdfData:  # pylint: disable=too-many-public-methods
         """
         kwargs.pop("scale_factor", None)
         kwargs.pop("add_offset", None)
-        fils = self._reference_files(case, field, kwargs)
+        fils = self._reference_files(field, kwargs)
         if not fils:
             return None
         # Change the variable name from CAM standard to what is
         # listed in variable defaults for this observation field
         file_field = self.ref_var_nam[field] if self.adf.compare_obs else field
         add_offset, scale_factor = self._regrid_converters(
-            fils, file_field, case, field, apply_scaling
+            fils, file_field, self._ref_source(field), field, apply_scaling
         )
         # field, not file_field: an observation file names the variable its own
         # way, and the variable defaults are keyed by the ADF name

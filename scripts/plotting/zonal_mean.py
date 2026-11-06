@@ -197,7 +197,7 @@ def zonal_mean(adfobj):
             # see AdfData._reference_files), so it is loaded with each case.
             pass
         else:
-            odata = adfobj.data.load_reference_regrid_da(base_name, var)
+            odata = adfobj.data.load_reference_regrid_da(var)
             #Check if regridded file exists, if not plot the test case(s) on their own
             if odata is None:
                 dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{var}`, plotting the test case(s) only."
@@ -418,10 +418,10 @@ def _mesh_reference(adfobj, base_name, var, vres, test_case):
     vres.pop("wgt_base", None)
     kwargs = dict(vres, mesh_file=adfobj.mesh_files["baseline_mesh_file"])
     odataset = adfobj.data.load_reference_regrid_dataset(
-        base_name, var, test_case=test_case, **kwargs
+        var, test_case=test_case, **kwargs
     )
     odata = None if odataset is None else adfobj.data.load_reference_regrid_da(
-        base_name, var, test_case=test_case, **kwargs
+        var, test_case=test_case, **kwargs
     )
     if odata is None:
         # e.g. a reference on another mesh, which the regridding step skips:

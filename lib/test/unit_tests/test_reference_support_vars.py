@@ -39,7 +39,7 @@ class FakeData:
         self.ref_var_nam = {v: v for v in ref_vars}
         self.ref_labels = {v: "baseline" for v in ref_vars}
 
-    def load_reference_climo_dataset(self, case, variablename):
+    def load_reference_climo_dataset(self, variablename, **kwargs):
         """Index the bookkeeping, as the real loader does once it finds a file."""
         # The real one globs for a file first and only then indexes
         # ref_var_nam, so a missing entry raises rather than returning None.

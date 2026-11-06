@@ -193,7 +193,7 @@ def meridional_mean(adfobj):
         odata = None
         if has_ref_var:
             odata = adfobj.data.load_reference_regrid_da(
-                base_name, var, **_native_kwargs(adfobj, adfobj.data.ref_case_label)
+                var, **_native_kwargs(adfobj, adfobj.data.ref_case_label)
             )
             # Check if regridded file exists, if not plot the test case(s) on their own
             if odata is None:
@@ -267,7 +267,7 @@ def meridional_mean(adfobj):
                 # The regridding step put the lat/lon reference onto this
                 # case's mesh (see AdfData._reference_files):
                 on_mesh = adfobj.data.load_reference_regrid_da(
-                    base_name, var, test_case=case_name,
+                    var, test_case=case_name,
                     **_native_kwargs(adfobj, case_name)
                 )
                 if on_mesh is not None:
