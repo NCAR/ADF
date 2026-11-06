@@ -13,9 +13,8 @@ coordinate is replaced by the midpoint of the recorded interval wherever files
 are opened.  These tests cover which variable is believed, and that files
 recording nothing are left alone.
 
-NOTE: these tests import adf_utils, which imports xarray, so they are skipped
-in CI, which installs only PyYAML and pytest.  They run in a full ADF
-environment.
+NOTE: these tests import adf_utils, which imports xarray, so they need the
+full ADF environment, which CI runs them in (see ADF_unit_tests.yaml).
 """
 
 import os

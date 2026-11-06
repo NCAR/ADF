@@ -9,7 +9,8 @@ parse, and falls back to a matplotlib colormap when the NCL one cannot be had,
 rather than raising part way through a plot.
 
 NOTE: these import matplotlib, cartopy and the rest of the plotting stack, so
-they are skipped in CI, which installs only PyYAML and pytest.
+they need the full ADF environment, which CI runs them in (see
+ADF_unit_tests.yaml).
 """
 
 # The tests reset the module's colormap cache:

@@ -17,8 +17,9 @@ from pathlib import Path
 
 import pytest  # pylint: disable=import-error
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 # regrid_and_vert_interp imports xesmf, and adf_utils imports geocat.comp.
 pytest.importorskip("numpy")
 pytest.importorskip("xarray")
@@ -56,6 +57,7 @@ class FakeAdf:
         self._names = pressure_field_names
         self.logged = []
 
+    # pylint: disable-next=unused-argument
     def get_basic_info(self, var_str, required=False):
         """The configured pressure field names, and nothing else."""
         return self._names if var_str == "pressure_field_names" else None

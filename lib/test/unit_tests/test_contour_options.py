@@ -8,7 +8,8 @@ check each form is used as written, that settings outside a plot type's
 section still apply, and that a bad setting falls back rather than raising.
 
 NOTE: these import matplotlib, cartopy and the rest of the plotting stack, so
-they are skipped in CI, which installs only PyYAML and pytest.
+they need the full ADF environment, which CI runs them in (see
+ADF_unit_tests.yaml).
 """
 
 import os.path

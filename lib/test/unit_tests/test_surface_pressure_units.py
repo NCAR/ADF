@@ -10,14 +10,16 @@ from pathlib import Path
 
 import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 np = pytest.importorskip("numpy")
 xr = pytest.importorskip("xarray")
 
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "regridding"))
 sys.path.append(str(Path(__file__).parents[2]))
 
+# pylint: disable-next=import-error
 from regrid_and_vert_interp import _pressure_in_pa  # noqa: E402
 
 
@@ -29,18 +31,21 @@ def _ps(values, units=None):
 
 
 def test_hpa_is_converted():
+    """Surface pressure in hPa is converted to Pa."""
     out = _pressure_in_pa(_ps([968.0, 1013.0], units="hPa"))
     assert np.allclose(out.values, [96800.0, 101300.0])
     assert out.attrs["units"] == "Pa"
 
 
 def test_pa_is_left_alone():
+    """Surface pressure already in Pa is returned unchanged."""
     inp = _ps([96800.0, 101300.0], units="Pa")
     out = _pressure_in_pa(inp)
     assert np.allclose(out.values, inp.values)
 
 
 def test_missing_units_inferred_from_magnitude():
+    """Without a units attribute, hPa vs. Pa is inferred from the values."""
     # Looks like Pa, so leave it:
     assert np.allclose(_pressure_in_pa(_ps([96800.0])).values, [96800.0])
     # Looks like hPa, so scale it:

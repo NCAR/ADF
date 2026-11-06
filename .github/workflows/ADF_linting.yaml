@@ -36,6 +36,7 @@ jobs:
         pip install geocat-comp
         pip install markdown
         pip install jinja2
+        pip install pytest   # Needed to lint the unit tests in lib/test
     # run CAM source code testing master script:
     - name: source-code testing python script
       env:

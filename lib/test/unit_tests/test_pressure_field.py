@@ -12,8 +12,9 @@ from pathlib import Path
 
 import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 # geocat.comp is pulled in by adf_utils.
 pytest.importorskip("numpy")
 pytest.importorskip("xarray")
@@ -24,7 +25,7 @@ import xarray as xr  # noqa: E402
 
 sys.path.append(str(Path(__file__).parents[2]))
 
-import adf_utils as utils  # noqa: E402
+import adf_utils as utils  # noqa: E402 # pylint: disable=import-error
 
 
 class FakeAdf:
@@ -36,13 +37,20 @@ class FakeAdf:
 
     @property
     def diag_var_list(self):
+        """Return a copy of the diagnostic variable list."""
         return list(self._vars)
 
     def add_diag_var(self, var_str):
+        """Append a variable to the list, if not already present."""
         if var_str not in self._vars:
             self._vars.append(var_str)
 
-    def get_basic_info(self, var_str, required=False):
+    def get_basic_info(
+        self,
+        var_str,
+        required=False,  # pylint: disable=unused-argument
+    ):
+        """Return the configured pressure field names, or None for any other key."""
         return self._names if var_str == "pressure_field_names" else None
 
 
@@ -63,11 +71,13 @@ def make_dataset(pressure_name=None, standard_name=None, level_dim="lev"):
 
 
 def test_cam_names_are_the_default():
+    """With no config, CAM's PMID and PINT names are used."""
     assert utils.pressure_field_name("lev") == "PMID"
     assert utils.pressure_field_name("ilev") == "PINT"
 
 
 def test_config_overrides_the_name():
+    """The 'pressure_field_names' config entry overrides CAM's names."""
     names = {"lev": "pfull", "ilev": "phalf"}
     assert utils.pressure_field_name("lev", names) == "pfull"
     assert utils.pressure_field_name("ilev", names) == "phalf"
@@ -85,6 +95,7 @@ def test_false_disables_the_pressure_field():
 
 
 def test_found_by_name():
+    """A pressure field is found by its default or configured name."""
     assert utils.find_pressure_field(make_dataset("PMID"), "lev") == "PMID"
     assert (
         utils.find_pressure_field(make_dataset("pfull"), "lev", {"lev": "pfull"})
@@ -115,6 +126,7 @@ def test_missing_pressure_field_is_not_an_error():
 
 
 def test_request_adds_the_field_once():
+    """The pressure field is added to the variable list only once."""
     adf = FakeAdf(["T", "Q"])
     assert utils.request_pressure_field(adf, make_dataset("PMID")) == ["PMID"]
     assert adf.diag_var_list == ["T", "Q", "PMID"]
@@ -226,6 +238,7 @@ def test_request_from_time_series_is_anchored_on_the_stream(tmp_path):
 
 
 def test_request_from_time_series_honors_the_config(tmp_path):
+    """Time series lookups use the configured name, and 'False' disables them."""
     write_ts(tmp_path, "case.cam.h0.T.000101-000512.nc")
     write_ts(tmp_path, "case.cam.h0.pfull.000101-000512.nc")
     assert utils.request_pressure_field_from_ts(FakeAdf(["T"]), tmp_path, "case") == []
