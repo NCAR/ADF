@@ -637,13 +637,19 @@ NBP: # Net Biome Production
   table_unit: "PgC y$^{-1}$"
   ts_unit: "PgC" #global TS uses cumulative NBP in PgC
 
-TOTECOSYSC_1m:
+TOTECOSYSC:
   category: "Carbon"
   scale_factor_table: 0.000000001  #g/m2 to Pg globally
   avg_method: 'sum'
   table_unit: "PgC"
 
 TOTSOMC_1m:
+  category: "Carbon"
+  scale_factor_table: 0.000000001  #g/m2 to Pg globally
+  avg_method: 'sum'
+  table_unit: "PgC"
+
+TOTSOMC:
   category: "Carbon"
   scale_factor_table: 0.000000001  #g/m2 to Pg globally
   avg_method: 'sum'
