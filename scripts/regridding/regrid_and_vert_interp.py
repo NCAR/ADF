@@ -152,14 +152,14 @@ def regrid_and_vert_interp(adf):
 
 
             model_ds = adf.data.load_climo_dataset(case_name, var)
-            ref_ds = adf.data.load_reference_climo_dataset(adf.data.ref_case_label, var)
+            ref_ds = adf.data.load_reference_climo_dataset(var)
             if not ref_ds:
                 # The reference only supplies the target grid (the vertical
                 # target is the fixed pressure levels), and its regridded file
                 # is on that same grid -- so a baseline whose climo files are
                 # gone but whose regridded files are still here will do:
                 ref_ds = adf.data.load_reference_regrid_dataset(
-                    adf.data.ref_case_label, var
+                    var
                 )
                 if ref_ds:
                     adf.debug_log(
@@ -559,7 +559,7 @@ def _write_reference_files(
             print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
             continue
 
-        ref_ds = adf.data.load_reference_climo_dataset(base, var)
+        ref_ds = adf.data.load_reference_climo_dataset(var)
         if ref_ds is None:
             print(f"\t ERROR: Missing reference data for {var}. Skipping.")
             continue
@@ -684,7 +684,7 @@ def _write_reference_on_mesh(
             f"for '{var}' cannot be put onto its grid."
         )
         return False
-    fils = adf.data.get_ref_regrid_file(adf.data.ref_case_label, var)
+    fils = adf.data.get_ref_regrid_file(var)
     if not fils:
         return False
     ref_ds = xr.open_dataset(fils[0])

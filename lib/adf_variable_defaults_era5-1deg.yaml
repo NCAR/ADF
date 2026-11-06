@@ -17,7 +17,9 @@
 #                         Values are min, max, and stride. Cannot be used with "diff_contour_levels".
 # scale_factor         -> Amount to scale the variable (relative to its "raw" model values).
 # add_offset           -> Amount of offset to add to the variable (relatie to its "raw" model values).
-# new_unit             -> Variable units (if not using the  "raw" model units).
+# new_unit             -> Variable units (if not using the  "raw" model units), in plain text
+#                         (e.g. "W/m2", not "W m$^{-2}$"): they are written into the files and
+#                         tables.  For LaTeX on a plot, set mpl: colorbar: label.
 # mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
 #
 # mask                 -> Setting that specifies whether the variable should be masked.
@@ -205,7 +207,10 @@ BURDENBC:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
   obs_file: "BURDENBC_MERRA2_monthly_climo_1degree_200001-202506.nc"
   obs_var_name: "BURDENBC"
@@ -218,7 +223,10 @@ BURDENDUST:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_contour_range: [-1000, 1100, 100]
   diff_colormap: "RdBu_r"
   obs_file: "BURDENDUST_CAMS_monthly_climo_1degree_200301-202412.nc"
@@ -232,7 +240,10 @@ BURDENPOM:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
 
 
@@ -241,7 +252,10 @@ BURDENSEASALT:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_contour_range: [-200, 200, 25]
   diff_colormap: "RdBu_r"
   obs_file: "BURDENSEASALT_CAMS_monthly_climo_1degree_200301-202412.nc"
@@ -255,7 +269,10 @@ BURDENSO4:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
   obs_file: "BURDENSO4_CAMS_monthly_climo_1degree_200301-202412.nc"
   obs_name: "CAMS"
@@ -268,7 +285,10 @@ BURDENSOA:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
 
 DMS:
@@ -297,7 +317,7 @@ BC:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -309,7 +329,7 @@ POM:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -321,7 +341,7 @@ SO4:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -334,7 +354,7 @@ SOA:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -349,7 +369,7 @@ DUST:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -363,7 +383,7 @@ SeaSalt:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -1287,7 +1307,7 @@ TGCLDLWP:
   diff_contour_range: [-100, 100, 10]
   scale_factor: 1000
   add_offset: 0
-  new_unit: "g m$^{-2}$"
+  new_unit: "g/m2"
   mpl:
     colorbar:
       label : "g m$^{-2}$"
@@ -1306,7 +1326,7 @@ TGCLDIWP:
   diff_contour_range: [-50, 50, 5]
   scale_factor: 1000
   add_offset: 0
-  new_unit: "g m$^{-2}$"
+  new_unit: "g/m2"
   mpl:
     colorbar:
       label : "g m$^{-2}$"
@@ -1348,7 +1368,7 @@ PRECC:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm/d"
@@ -1361,7 +1381,7 @@ PRECL:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -1374,7 +1394,7 @@ PRECSC:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -1387,7 +1407,7 @@ PRECSL:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -1400,7 +1420,7 @@ PRECT:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -1506,11 +1526,17 @@ U10:
   category: "Surface variables"
 
 Surface_Wind_Stress:
-  new_unit: "N m$^{-2}$"
+  new_unit: "N/m2"
+  mpl:
+    colorbar:
+      label: 'N m$^{-2}$'
   category: "Surface variables"
 
 TAUX:
-  new_unit: "N m$^{-2}$"
+  new_unit: "N/m2"
+  mpl:
+    colorbar:
+      label: 'N m$^{-2}$'
   vector_pair: "TAUY"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
@@ -1521,7 +1547,10 @@ TAUX:
   obs_var_name: "TAUX"
 
 TAUY:
-  new_unit: "N m$^{-2}$"
+  new_unit: "N/m2"
+  mpl:
+    colorbar:
+      label: 'N m$^{-2}$'
   vector_pair: "TAUX"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
@@ -1554,7 +1583,10 @@ TMQ:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 1.
   add_offset: 0
-  new_unit: "kg m$^{-2}$"
+  new_unit: "kg/m2"
+  mpl:
+    colorbar:
+      label: 'kg m$^{-2}$'
   obs_file: "ERAI_all_climo.nc"
   obs_name: "ERAI"
   obs_var_name: "PREH2O"
@@ -1583,7 +1615,7 @@ U:
   diff_contour_range: [-15, 15, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1604,7 +1636,7 @@ U200:
   diff_contour_range: [-15, 15, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1630,7 +1662,7 @@ U850:
   diff_contour_range: [-6, 6, 1]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1651,7 +1683,7 @@ V:
   diff_contour_range: [-15, 15, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1670,7 +1702,7 @@ V200:
   diff_contour_range: [-5, 5, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1693,7 +1725,7 @@ V850:
   diff_contour_range: [-4, 4, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1729,7 +1761,10 @@ OMEGA500:
   category: "State"
   scale_factor: 864
   add_offset: 0
-  new_unit: "hPa d$^{-1}$"
+  new_unit: "hPa/d"
+  mpl:
+    colorbar:
+      label: 'hPa d$^{-1}$'
   hist_bins: [-105, -100,  -95,  -90,  -85,  -80,  -75,  -70,  -65,  -60,  -55, -50,  -45,  -40,  -35,  -30,  -25,  -20,  -15,  -10,   -5,    0, 5,   10,   15,   20,   25,   30,   35,   40,   45,   50,   55, 60,   65,   70,   75,   80,   85,   90,   95,  100]
 
 PINT:
@@ -1768,7 +1803,7 @@ RESTOM:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "W m$^{-2}$"
@@ -1782,7 +1817,7 @@ SWCF:
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1801,7 +1836,7 @@ LWCF:
   diff_contour_range: [-15, 15, 1]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1817,7 +1852,7 @@ FSUTOA:
   diff_contour_range: [-15, 15, 1]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1830,7 +1865,7 @@ FSNT:
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1857,7 +1892,7 @@ FLNT:
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1873,7 +1908,7 @@ FLNTC:
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1893,7 +1928,7 @@ RESSURF:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "W m$^{-2}$"
@@ -1915,7 +1950,7 @@ FSNS:
   diff_contour_range: [-24, 24, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1931,7 +1966,7 @@ FSNSC:
   diff_contour_range: [-24, 24, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1947,7 +1982,7 @@ FLDS:
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1972,7 +2007,7 @@ LHFLX:
   diff_contour_range: [-45, 45, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2123,7 +2158,7 @@ H2O:
   diff_colormap: "BrBG"
   scale_factor: 1
   add_offset: 0
-  new_unit: "mol mol$^{-1}$"
+  new_unit: "mol/mol"
   mpl:
     colorbar:
       label: "mol mol$^{-1}$"

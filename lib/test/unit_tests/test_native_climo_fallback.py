@@ -43,8 +43,10 @@ def _data(
             },
         ),
         case_names=["case"],
+        ref_case_label="base",
+        ref_labels={},
         get_regrid_file=lambda case, field: list(regrid_fils),
-        get_ref_regrid_file=lambda case, field: list(ref_regrid_fils),
+        get_ref_regrid_file=lambda field: list(ref_regrid_fils),
         get_ref_on_mesh_file=lambda test_case, field: (
             list(on_mesh_fils) if test_case else []
         ),
@@ -56,13 +58,14 @@ def _data(
     obj._native_climo_fallback = (
         lambda case, field, fils: AdfData._native_climo_fallback(obj, case, field, fils)
     )
-    obj._reference_files = lambda case, field, kwargs: AdfData._reference_files(
-        obj, case, field, kwargs
+    obj._reference_files = lambda field, kwargs: AdfData._reference_files(
+        obj, field, kwargs
     )
     obj._regrid_files = lambda case, field, kwargs: AdfData._regrid_files(
         obj, case, field, kwargs
     )
     obj._on_native_dim = lambda fil: native_file
+    obj._ref_source = lambda field: AdfData._ref_source(obj, field)
 
     def load_dataset(fils, **kwargs):
         obj.opened.append(list(fils))
@@ -77,7 +80,7 @@ def test_native_run_without_regrid_files_reads_the_climo():
     """No regridded files: a native run plots the native climo (test case and baseline)."""
     obj = _data(unstructured=True)
     assert AdfData.load_regrid_dataset(obj, "case", "TBOT") == "ds"
-    assert AdfData.load_reference_regrid_dataset(obj, "base", "TBOT") == "ds"
+    assert AdfData.load_reference_regrid_dataset(obj, "TBOT") == "ds"
     assert obj.opened == [CLIMO, BASE_CLIMO]
 
 
@@ -87,7 +90,7 @@ def test_regrid_files_win_over_the_climo():
         unstructured=True, regrid_fils=["rg.nc"], ref_regrid_fils=["base_rg.nc"]
     )
     AdfData.load_regrid_dataset(obj, "case", "TBOT")
-    AdfData.load_reference_regrid_dataset(obj, "base", "TBOT")
+    AdfData.load_reference_regrid_dataset(obj, "TBOT")
     assert obj.opened == [["rg.nc"], ["base_rg.nc"]]
 
 
@@ -107,7 +110,7 @@ def test_lat_lon_run_does_not_fall_back():
     with pytest.warns(UserWarning, match="Did not find regrid"):
         assert AdfData.load_regrid_dataset(obj, "case", "TBOT") is None
     with pytest.warns(UserWarning, match="Did not find regridded"):
-        assert AdfData.load_reference_regrid_dataset(obj, "base", "TBOT") is None
+        assert AdfData.load_reference_regrid_dataset(obj, "TBOT") is None
     assert obj.opened == []
 
 
@@ -122,7 +125,7 @@ def test_reference_on_the_case_mesh_is_preferred():
         unstructured=True, ref_regrid_fils=["base_rg.nc"], on_mesh_fils=["on_mesh.nc"]
     )
     AdfData.load_reference_regrid_dataset(
-        obj, "base", "TBOT", test_case="case", mesh_file="base_mesh.nc"
+        obj, "TBOT", test_case="case", mesh_file="base_mesh.nc"
     )
     assert obj.opened == [["on_mesh.nc"]]
     assert obj.meshes == ["case_mesh.nc"]
@@ -132,14 +135,12 @@ def test_without_an_on_mesh_file_the_usual_reference_is_read():
     """No on-mesh file (or no test case): the reference regridded file, as before."""
     obj = _data(unstructured=True, ref_regrid_fils=["base_rg.nc"])
     AdfData.load_reference_regrid_dataset(
-        obj, "base", "TBOT", test_case="case", mesh_file="base_mesh.nc"
+        obj, "TBOT", test_case="case", mesh_file="base_mesh.nc"
     )
     obj2 = _data(
         unstructured=True, ref_regrid_fils=["base_rg.nc"], on_mesh_fils=["on_mesh.nc"]
     )
-    AdfData.load_reference_regrid_dataset(
-        obj2, "base", "TBOT", mesh_file="base_mesh.nc"
-    )
+    AdfData.load_reference_regrid_dataset(obj2, "TBOT", mesh_file="base_mesh.nc")
     assert obj.opened == obj2.opened == [["base_rg.nc"]]
     assert obj.meshes == obj2.meshes == ["base_mesh.nc"]
 
@@ -149,7 +150,7 @@ def test_lat_lon_run_ignores_on_mesh_files():
     obj = _data(
         unstructured=False, ref_regrid_fils=["base_rg.nc"], on_mesh_fils=["on_mesh.nc"]
     )
-    AdfData.load_reference_regrid_dataset(obj, "base", "TBOT", test_case="case")
+    AdfData.load_reference_regrid_dataset(obj, "TBOT", test_case="case")
     assert obj.opened == [["base_rg.nc"]]
 
 

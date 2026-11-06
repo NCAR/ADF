@@ -394,10 +394,10 @@ def _load_ref_da(adf, variable, test_case=None):
     """
     kwargs = _ref_kwargs(adf, test_case)
     da = adf.data.load_reference_regrid_da(
-        adf.data.ref_labels[variable], variable, **kwargs
+        variable, **kwargs
     )
     if da is None:
-        da = adf.data.load_reference_climo_da(adf.data.ref_case_label, variable)
+        da = adf.data.load_reference_climo_da(variable)
     return da
 
 
@@ -405,10 +405,10 @@ def _load_ref_ds(adf, variable, test_case=None):
     """Reference dataset on the target grid; see _load_ref_da."""
     kwargs = _ref_kwargs(adf, test_case)
     ds = adf.data.load_reference_regrid_dataset(
-        adf.data.ref_labels[variable], variable, **kwargs
+        variable, **kwargs
     )
     if ds is None:
-        ds = adf.data.load_reference_climo_dataset(adf.data.ref_case_label, variable)
+        ds = adf.data.load_reference_climo_dataset(variable)
     return ds
 
 

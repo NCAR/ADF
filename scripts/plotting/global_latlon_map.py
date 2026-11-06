@@ -162,10 +162,10 @@ def load_reference_data(adfobj, var, vres, test_case=None):
         vres["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
         unstruct_base = True
         odataset = adfobj.data.load_reference_regrid_dataset(
-            base_name, var, test_case=test_case, **vres
+            var, test_case=test_case, **vres
         )
         odata = adfobj.data.load_reference_regrid_da(
-            base_name, var, test_case=test_case, **vres
+            var, test_case=test_case, **vres
         )
         if (odataset is None) or (odata is None):
             # e.g. a reference (obs or a lat/lon case) not on the test case's
@@ -181,7 +181,7 @@ def load_reference_data(adfobj, var, vres, test_case=None):
         vres["wgt_base"] = wgt_base
         vres["unstruct_base"] = unstruct_base
     else:
-        odata = adfobj.data.load_reference_regrid_da(base_name, var)
+        odata = adfobj.data.load_reference_regrid_da(var)
         if odata is None:
             print(f"\t    WARNING: No reference data found for {var}")
             return None, None

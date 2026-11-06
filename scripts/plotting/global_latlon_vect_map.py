@@ -187,12 +187,12 @@ def process_vector_pair(adfobj, var, seasons, pres_levs, plot_type, redo_plot,
     names = _reference_names(adfobj, var, var_pair)
     if names is None:
         return var, var_pair
-    base_name, pair_base_name, data_var, data_src = names
+    base_name, _, data_var, data_src = names
 
     kwargs = {"unstructured_plotting": True} if unstruct_plotting else {}
 
     if not unstruct_plotting:
-        ref = _load_reference(adfobj, base_name, pair_base_name, var,
+        ref = _load_reference(adfobj, base_name, var,
                               var_pair, data_var, kwargs, False)
         if ref is None:
             return var, var_pair
@@ -203,7 +203,7 @@ def process_vector_pair(adfobj, var, seasons, pres_levs, plot_type, redo_plot,
             # On the mesh, each case is compared with the reference on its
             # own mesh (a lat/lon reference is put there by the regridding
             # step; see AdfData._reference_files):
-            ref = _load_reference(adfobj, base_name, pair_base_name, var,
+            ref = _load_reference(adfobj, base_name, var,
                                   var_pair, data_var, kwargs, True,
                                   test_case=case_name)
             if ref is None:
@@ -259,7 +259,7 @@ def _reference_names(adfobj, var, var_pair):
     )
 
 
-def _load_reference(adfobj, base_name, pair_base_name, var, var_pair, data_var,
+def _load_reference(adfobj, base_name, var, var_pair, data_var,
                     kwargs, unstruct_plotting, test_case=None):
     """Load the reference U and V components, or return None (with a warning).
 
@@ -272,9 +272,9 @@ def _load_reference(adfobj, base_name, pair_base_name, var, var_pair, data_var,
     if unstruct_plotting:
         kwargs["mesh_file"] = adfobj.mesh_files["baseline_mesh_file"]
         kwargs["test_case"] = test_case
-        uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
-        vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
-        odataset = adfobj.data.load_reference_regrid_dataset(base_name, var, **kwargs)
+        uodata = adfobj.data.load_reference_regrid_da(var, **kwargs)
+        vodata = adfobj.data.load_reference_regrid_da(var_pair, **kwargs)
+        odataset = adfobj.data.load_reference_regrid_dataset(var, **kwargs)
         if (odataset is None) or (uodata is None) or (vodata is None):
             # e.g. a reference on another mesh, which the regridding step skips:
             dmsg = f"\t    WARNING: No native-grid reference data for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
@@ -285,8 +285,8 @@ def _load_reference(adfobj, base_name, pair_base_name, var, var_pair, data_var,
         # Cell weights (area; area * landfrac for land), as global_latlon_map:
         wgt_base = utils.cell_weights(odataset, adfobj.model_component)
     else:
-        uodata = adfobj.data.load_reference_regrid_da(base_name, var, **kwargs)
-        vodata = adfobj.data.load_reference_regrid_da(pair_base_name, var_pair, **kwargs)
+        uodata = adfobj.data.load_reference_regrid_da(var, **kwargs)
+        vodata = adfobj.data.load_reference_regrid_da(var_pair, **kwargs)
         if (uodata is None) or (vodata is None):
             dmsg = f"\t    WARNING: No regridded baseline file for {base_name} for variable `{data_var[0]}`/`{data_var[1]}`, global lat/lon vect plotting skipped."
             adfobj.debug_log(dmsg)

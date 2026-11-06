@@ -85,7 +85,7 @@ def test_files_with_the_climo_years_are_read_first():
             == "base_case_T_regridded_0003-0005.nc"
         )
         assert (
-            AdfData.get_ref_regrid_file(obj, "base", "T")[0].name
+            AdfData.get_ref_regrid_file(obj, "T")[0].name
             == "base_T_baseline_0001-0005.nc"
         )
 
