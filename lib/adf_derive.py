@@ -682,6 +682,9 @@ def derive_variable(
                 print(msg)
 
         # NOTE: this will need to be changed when derived equations are more complex! - JR
+        # Units of the result where the formula changes them; otherwise the
+        # derived variable keeps its first constituent's units:
+        der_units = None
         if var == "RESTOM":
             der_val = ds["FSNT"] - ds["FLNT"]
             der_long_name = "Net radiative flux at top of model (FSNT - FLNT)"
@@ -700,6 +703,50 @@ def derive_variable(
                 * (ds["PRECC"] + ds["PRECL"] - ds["PRECSC"] - ds["PRECSL"])
             )
             der_long_name = "Net surface energy flux residual"
+        # Land (CLM) derived variables
+        # ----------------------------------------------------------------------------------
+        elif var == "ASA":
+            der_val = 100 * ds["FSR"] / ds["FSDS"].where(ds["FSDS"] > 0)
+            der_long_name = "All-sky surface albedo (100 * FSR / FSDS)"
+            der_units = "%"
+        elif var == "RNET":
+            der_val = ds["FSA"] - ds["FIRA"]
+            der_long_name = "Net radiation (FSA - FIRA)"
+        elif var == "ENET":
+            der_val = (
+                ds["FSA"]
+                - ds["FIRA"]
+                - ds["EFLX_LH_TOT"]
+                - ds["FSH_TO_COUPLER"]
+                - ds["FGR12"]
+            )
+            der_long_name = (
+                "Net surface energy (RNET - EFLX_LH_TOT - FSH_TO_COUPLER - FGR12)"
+            )
+        elif var == "ENERGY_BALANCE":
+            # Latent heat of fusion (J/kg)
+            lat_fus = 3.337e5
+            # NOTE: global land fraction of the coupler grid, hard-coded for now
+            cpl_landfrac = 0.29251054
+            der_val = (
+                -ds["SNOW_FROM_ATM"] * lat_fus
+                + ds["FSA"]
+                + ds["FLDS"]
+                - ds["FIRE"]
+                - ds["FSH_TO_COUPLER"]
+                - ds["EFLX_LH_TOT"]
+                + ds["QRUNOFF_ICE_TO_COUPLER"] * lat_fus
+            ) * cpl_landfrac
+            der_long_name = (
+                "Land surface energy balance, scaled by coupler land fraction"
+            )
+        elif var == "WUE":
+            der_val = ds["GPP"] / ds["FCTR"].where(ds["FCTR"] > 0)
+            der_long_name = "Water use efficiency (GPP / FCTR)"
+        elif var in _ISOTOPE_VARS:
+            der_val = _isotope_permil(ds, var)
+            der_long_name = f"{var[:3]} of {var[4:-3]} (per mil)"
+            der_units = "permil"
         else:
             # Loop through all constituents and sum
             der_val = 0
@@ -821,6 +868,9 @@ def derive_variable(
             **attrs,
             "long_name": res.get(var, {}).get("long_name", der_long_name),
         }
+        if der_units:
+            # e.g. a ratio of two W/m2 fluxes is not in W/m2:
+            ds_final[var].attrs["units"] = der_units
         # open_mfdataset leaves time bounds as a *chunked* datetime array, and
         # xarray refuses to encode one of those when the units it inherits from
         # 'time' come without a dtype.  They are tiny, so just load them.
@@ -831,8 +881,58 @@ def derive_variable(
             if ds_final[v].dtype.kind in "OM" and ds_final[v].chunks
         ]:
             ds_final[tvar] = ds_final[tvar].load()
-        ds_final.to_netcdf(derived_file, unlimited_dims="time", mode="w")
+
+        # CLM files carry the land grid variables, which keep CLM's fill values:
+        encoding = {}
+        if "landfrac" in ds_final:
+            encoding = {
+                fill_var: {"_FillValue": fill}
+                for fill_var, fill in _CLM_FILL_VALUES.items()
+                if fill_var in ds_final
+            }
+            encoding[var] = {"_FillValue": 1.0e36}
+        # End if
+        ds_final.to_netcdf(
+            derived_file, encoding=encoding, unlimited_dims="time", mode="w"
+        )
     # End if (all the necessary constituent files exist)
+
+
+# Fill values CLM writes for the land grid variables in its history files:
+_CLM_FILL_VALUES = {"landfrac": 1.0e36, "area": 1.0e36, "landmask": -9999}
+
+# Isotope ratios derived as per mil deviations from a standard, as
+# "<isotope>_<flux or stock>_pm", from "<isotope>_<flux or stock>" and its total:
+_ISOTOPE_VARS = [
+    f"{iso}_{base}_pm"
+    for base in ("GPP", "NPP", "TOTVEGC", "TOTSOMC", "TOTLITC", "TOTECOSYSC")
+    for iso in ("C13", "C14")
+]
+
+# Isotope standards and lower limits (per mil) below which values are masked:
+# 13C/12C of Pee Dee Belemnite; 14C uses CLM's nominal 1e-12 rather than 1.176e-12.
+_ISOTOPE_STANDARD = {"C13": 0.0112372, "C14": 1e-12}
+_ISOTOPE_MIN = {"C13": -40.0, "C14": -400.0}
+
+
+def _isotope_permil(ds, var):
+    """Per mil deviation of an isotope ratio from its standard.
+
+    Formulas are similar to Jain et al. 1996 (Tellus B 48B: 583-600), as applied
+    in the NCL land diagnostics (lnd_diag4.2, lnd_func.ncl).  Values below the
+    isotope's lower limit (wacky values where the 12C stock or flux is very
+    small) are masked, except for C14_TOTECOSYSC_pm, which was left unmasked
+    in the land diagnostics.
+
+    TODO: check the equations against Jain et al. 1996; should they just be
+    ((ratio sample - ratio standard) / ratio standard) * 1000 ?
+    """
+    iso, base = var[:3], var[4:-3]
+    total = ds[base].where(ds[base] > 0)
+    der_val = ((ds[f"{iso}_{base}"] / total) / _ISOTOPE_STANDARD[iso] - 1.0) * 1e3
+    if var != "C14_TOTECOSYSC_pm":
+        der_val = der_val.where(der_val > _ISOTOPE_MIN[iso])
+    return der_val
 
 
 ########

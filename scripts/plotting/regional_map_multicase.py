@@ -77,10 +77,11 @@ def regional_map_multicase(adfobj):
     if len(case_names) > 10:
         print("ERROR: regional_map_multicase is limited to <= 10 cases.")
         return
-    case_loc = adfobj.get_cam_info("cam_ts_loc", required=True)
-    #Years are needed only to choose between sets of time series files that
-    #could not be opened together:
-    climo_yrs = adfobj.climo_yrs
+    #Cases run on pre-made climatologies alone have no time series to read:
+    if not adfobj.data.timeseries_available("regional_map_multicase"):
+        return
+    #End if
+
     #
     # Determine input "reference case"
     #
@@ -91,7 +92,6 @@ def regional_map_multicase(adfobj):
     else:
         #Extract required baseline run info:
         data_name = adfobj.get_baseline_info("cam_case_name", required=True)
-        data_loc = adfobj.get_baseline_info("cam_ts_loc", required=True)
     #
     # Set plot options
     #
@@ -114,10 +114,7 @@ def regional_map_multicase(adfobj):
 
         # the reference case
         data_to_plot = {}
-        refcasetmp = _retrieve(
-            regional_opts, v, data_name, data_loc,
-            syr=climo_yrs["syear_baseline"], eyr=climo_yrs["eyear_baseline"]
-        )  # get the baseline field
+        refcasetmp = _retrieve(regional_opts, v, adfobj)  # get the baseline field
 
         if refcasetmp is None:
             wmsg = f"Variable '{v}' not found for case '{data_name}',"
@@ -139,9 +136,7 @@ def regional_map_multicase(adfobj):
 
         # each of the other cases
         for casenumber, case in enumerate(case_names):
-            casetmp = _retrieve(regional_opts, v, case, case_loc[casenumber],
-                                syr=climo_yrs["syears"][casenumber],
-                                eyr=climo_yrs["eyears"][casenumber])
+            casetmp = _retrieve(regional_opts, v, adfobj, case=case)
             if casetmp is None:
                  wmsg = f"Variable '{v}' not found for case '{case}',"
                  wmsg += " so skipping that case/variable combo."
@@ -189,8 +184,7 @@ def regional_map_multicase(adfobj):
 # - autoscale_title
 # - simple_case_shortener
 
-def _retrieve(ropt, variable, casename, location, return_dataset=False,
-              syr=None, eyr=None):
+def _retrieve(ropt, variable, adfobj, case=None, return_dataset=False):
     """Custom function that retrieves a variable.
        Returns the variable as a DataArray, unless keyword return_dataset=True.
 
@@ -200,34 +194,25 @@ def _retrieve(ropt, variable, casename, location, return_dataset=False,
 
     variable -> str, the variable to get from files
 
-    casename -> str, case name for constructing file search
+    adfobj -> AdfDiag, whose data layer reads the time series (converted with
+              the variable defaults)
 
-    location -> Path, path to case
+    kwarg:
+    case -> str, the test case to read; the baseline when None
 
     kwarg:
     return_dataset -> bool, if true, return the dataset object, otherwise return the DataArray
                       with `variable`
-
-    kwarg:
-    syr, eyr -> int, the case's climatology years.  Used only to choose between
-                sets of time series files that could not be opened together;
-                the time selection applied below is the regional one from
-                `ropt`, which is unchanged.
     """
     # note: this function assumes monthly data
-    fils = sorted(Path(location).glob(f"{casename}*.{variable}.*.nc"))
-    fils = utils.select_ts_files(fils, syr, eyr)
-    if len(fils) == 0:
+    if case is None:
+        da = adfobj.data.load_reference_timeseries_da(variable)
+    else:
+        da = adfobj.data.load_timeseries_da(case, variable)
+    if da is None:
         #The variable doesn't appear to have been output during this
         #particular case run, so return None:
         return None
-    elif len(fils) > 1:
-        ds = xr.open_mfdataset(fils)  # allows multi-file datasets
-    else:
-        ds = xr.open_dataset(fils[0])
-
-    # resampling is easier with DataArray
-    da = ds[variable]
 
     # Apply regional selection logic
     # -- assume lat/lon coords

@@ -61,14 +61,15 @@ def adf_histogram(adfobj):
     var_list = adfobj.plot_var_list
 
     if use_time_series:
-        load_ref_func = adfobj.data.load_reference_timeseries_da # field [this is a mistake, the args should have been the same for all of these functions]
+        load_ref_func = adfobj.data.load_reference_timeseries_da # field
         load_func = adfobj.data.load_timeseries_da # case, variablename
     else:
-        load_ref_func = adfobj.data.load_reference_climo_da # case, variablename
+        load_ref_func = adfobj.data.load_reference_climo_da # field
         load_func = adfobj.data.load_climo_da # case, variablename
 
     def get_load_args(adfobj, case, variablename):
-        if use_time_series and (case == adfobj.data.ref_case_label):
+        #The reference loaders work out the reference for themselves:
+        if case == adfobj.data.ref_case_label:
             return (variablename, )
         else:
             return (case, variablename)
@@ -82,12 +83,12 @@ def adf_histogram(adfobj):
     res = adfobj.variable_defaults
     basic_info_dict = adfobj.read_config_var("diag_basic_info")
     plot_type = basic_info_dict.get("plot_type", "png")
-    print(f"\t NOTE: Plot type is set to {plot_type}")
+    #print(f"\t NOTE: Plot type is set to {plot_type}")
     res = adfobj.variable_defaults
 
     # check if existing plots need to be redone
     redo_plot = adfobj.get_basic_info("redo_plot")
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     #
     # SECTION 1: determine which plots need to be made
     #
