@@ -7,6 +7,7 @@ for the "AdfConfig" class.
 # Import required modules
 # +++++++++++++++++++++++
 
+import glob
 import unittest
 import sys
 import os
@@ -21,8 +22,8 @@ _TEST_FILES_DIR = os.path.join(_CURRDIR, "test_files")
 sys.path.append(_ADF_LIB_DIR)
 
 # Import AdfConfig class and AdfError
-from adf_config import AdfConfig
-from adf_base import AdfError
+from adf_config import AdfConfig  # pylint: disable=import-error
+from adf_base import AdfError  # pylint: disable=import-error
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # Main AdfBase testing routine, used when script is run directly
@@ -37,39 +38,43 @@ class AdfConfigTestRoutine(unittest.TestCase):
     complete code coverage for AdfConfig.
     """
 
-    def test_AdfConfig_create(self):
+    def test_adfconfig_example_configs(self):
         """
-        Check that the AdfConfig class can
-        be initialized properly.
+        Check that every example config file shipped
+        with the ADF (config_*.yaml in the top-level
+        directory) can be read by AdfConfig, and that
+        all of its "${var}" references can be expanded.
         """
 
-        # Use example config file:
-        baseline_example_file = os.path.join(
-            _ADF_LIB_DIR, os.pardir, "config_cam_baseline_example.yaml"
+        # Find all example config files:
+        example_files = sorted(
+            glob.glob(os.path.join(_ADF_LIB_DIR, os.pardir, "config_*.yaml"))
         )
 
-        # Create AdfConfig object:
-        adf_test = AdfConfig(baseline_example_file)
+        # Make sure the example config files were actually found:
+        self.assertTrue(example_files, "No example config files found")
 
-        # Assert that new object is of the "AdfConfig" class:
-        self.assertIsInstance(adf_test, AdfConfig)
+        for example_file in example_files:
+            with self.subTest(config_file=os.path.basename(example_file)):
 
-        # Also check that "read_config_var" works as expected:
-        basic_diag_dict = adf_test.read_config_var("diag_basic_info")
+                # Create AdfConfig object:
+                adf_test = AdfConfig(example_file)
 
-        check_user = adf_test.read_config_var("user")
-        check_user_expected = "USER-NAME-NOT-SET"
-        self.assertEqual(check_user, check_user_expected)
+                # Check that a required section can be read:
+                basic_info = adf_test.read_config_var("diag_basic_info", required=True)
+                self.assertIsInstance(basic_info, dict)
 
-        obs_data_loc = adf_test.read_config_var(
-            "obs_data_loc", conf_dict=basic_diag_dict
-        )
+                # Expand all keyword references, which raises
+                # an AdfError if a reference can't be resolved:
+                config_dict = adf_test.config_dict()
+                adf_test.expand_references(config_dict)
 
-        self.assertEqual(obs_data_loc, "/glade/campaign/cgd/amp/amwg/ADF_obs")
+                # Check that no unexpanded references remain:
+                self.assertNotIn("${", str(config_dict))
 
     #####
 
-    def test_AdfConfig_missing_file(self):
+    def test_adfconfig_missing_file(self):
         """
         Check that AdfConfig throws the
         proper error when no config file
@@ -83,14 +88,14 @@ class AdfConfigTestRoutine(unittest.TestCase):
         with self.assertRaises(FileNotFoundError) as err:
 
             # Try and create AdfConfig object with non-existent file:
-            adf_test = AdfConfig("not_real.yaml")
+            AdfConfig("not_real.yaml")
 
         # Check that error message matches what's expected:
         self.assertEqual(ermsg, str(err.exception))
 
     #####
 
-    def test_AdfConfig_double_nested_config_var(self):
+    def test_adfconfig_double_nested_config_var(self):
         """
         Check that AdfConfig throws the
         proper error when there is a
@@ -105,20 +110,23 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
         # Set error message:
         ermsg = "ADF currently only allows for a single nested dict"
-        ermsg += " in the config (YAML) file.\n  Variable '{'double_nested_var': 'bad_val'}' is nested too far."
+        ermsg += (
+            " in the config (YAML) file.\n"
+            "  Variable '{'double_nested_var': 'bad_val'}' is nested too far."
+        )
 
         # Expect an ADF error:
         with self.assertRaises(AdfError) as err:
 
             # Try and create AdfConfig object with doubly-nested config variable:
-            adf_test = AdfConfig(unset_example_file)
+            AdfConfig(unset_example_file)
 
         # Check that error message matches what's expected:
         self.assertEqual(ermsg, str(err.exception))
 
     #####
 
-    def test_AdfConfig_read_config_bad_conf_dict(self):
+    def test_adfconfig_read_config_bad_conf_dict(self):
         """
         Check that the "read_config_var"
         method throws the correct error
@@ -148,7 +156,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_missing_var(self):
+    def test_adfconfig_read_config_missing_var(self):
         """
         Check that the "read_config_var"
         method returns None when a
@@ -172,7 +180,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_missing_required_var(self):
+    def test_adfconfig_read_config_missing_required_var(self):
         """
         Check that the "read_config_var"
         method throws the correct error
@@ -192,7 +200,10 @@ class AdfConfigTestRoutine(unittest.TestCase):
         # Set error message:
         # Note that for some reason a KeyError adds exra quotes,
         # hence the extra string quotes here
-        ermsg = '''"Required variable 'hello' not found in config file. Please see 'config_cam_baseline_example.yaml'."'''
+        ermsg = (
+            "\"Required variable 'hello' not found in config file. "
+            "Please see 'config_cam_baseline_example.yaml'.\""
+        )
 
         # Expect a Key error:
         with self.assertRaises(KeyError) as err:
@@ -205,7 +216,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_unset_var(self):
+    def test_adfconfig_read_config_unset_var(self):
         """
         Check that the "read_config_var"
         method returns None when a
@@ -227,7 +238,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_read_config_required_unset_var(self):
+    def test_adfconfig_read_config_required_unset_var(self):
         """
         Check that the "read_config_var"
         method throws the correct error
@@ -242,7 +253,10 @@ class AdfConfigTestRoutine(unittest.TestCase):
         adf_test = AdfConfig(unset_example_file)
 
         # Set error message:
-        ermsg = "Required variable 'bad_var' has not been set to a value. Please see 'config_cam_baseline_example.yaml'."
+        ermsg = (
+            "Required variable 'bad_var' has not been set to a value. "
+            "Please see 'config_cam_baseline_example.yaml'."
+        )
 
         # Expect a Value error:
         with self.assertRaises(ValueError) as err:
@@ -255,7 +269,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references(self):
+    def test_adfconfig_expand_references(self):
         """
         Check that the AdfConfig class can
         properly expand variables using keywords
@@ -291,7 +305,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references_nested(self):
+    def test_adfconfig_expand_references_nested(self):
         """
         Check that expand_references reaches keywords inside
         lists and nested lists.
@@ -308,7 +322,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references_non_specific_var(self):
+    def test_adfconfig_expand_references_non_specific_var(self):
         """
         Check that expand_references throws
         the correct error when a variable
@@ -345,7 +359,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
 
     #####
 
-    def test_AdfConfig_expand_references_non_existent_var(self):
+    def test_adfconfig_expand_references_non_existent_var(self):
         """
         Check that expand_references throws
         the correct error when a variable
@@ -367,7 +381,7 @@ class AdfConfigTestRoutine(unittest.TestCase):
         self.assertEqual(test_var, "${no_var}")
 
         # Set error message:
-        ermsg = f"ERROR: Variable 'no_var'"
+        ermsg = "ERROR: Variable 'no_var'"
         ermsg += " not found in config (YAML) file."
 
         # Expect an ADF error:

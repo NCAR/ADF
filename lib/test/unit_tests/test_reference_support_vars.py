@@ -2,23 +2,21 @@
 
 AdfData reads the variable list once, when it is built, so anything added later
 -- the pressure field the regridder prefers -- is missing from its reference
-bookkeeping.  load_reference_climo_dataset indexes that bookkeeping as soon as it
+bookkeeping.  load_reference_climo_ds indexes that bookkeeping as soon as it
 finds a climo file, and finding one is a filename glob, so a model-vs-baseline
 run whose baseline also writes PMID died with KeyError: 'PMID' before this was
 guarded.  Model-vs-obs runs never reach the code at all, which is why it went
 unnoticed.
 """
 
-# The stand-ins below take the real signatures, whether or not they use them:
-# pylint: disable=protected-access, unused-argument
-
 import sys
 from pathlib import Path
 
-import pytest  # pylint: disable=import-error
+import pytest
 
-# CI installs only pyyaml and pytest (see .github/workflows/ADF_unit_tests.yaml),
-# so skip rather than fail collection when the science stack is absent.
+# Skip rather than fail collection when the science stack is absent, as in a
+# local run outside the ADF environment.  CI runs these in the full ADF
+# environment (.github/workflows/ADF_unit_tests.yaml), where a skip is a failure.
 # regrid_and_vert_interp imports xesmf, and adf_utils imports geocat.comp.
 pytest.importorskip("numpy")
 pytest.importorskip("xarray")
@@ -28,7 +26,11 @@ pytest.importorskip("xesmf")
 sys.path.append(str(Path(__file__).parents[2]))
 sys.path.append(str(Path(__file__).parents[3] / "scripts" / "regridding"))
 
-import regrid_and_vert_interp as rvi  # noqa: E402  # pylint: disable=import-error
+# pylint: disable-next=import-error
+import regrid_and_vert_interp as rvi  # noqa: E402
+
+# These tests exercise the private baseline-writing helper directly:
+# pylint: disable=protected-access
 
 
 class FakeData:
@@ -39,8 +41,9 @@ class FakeData:
         self.ref_var_nam = {v: v for v in ref_vars}
         self.ref_labels = {v: "baseline" for v in ref_vars}
 
-    def load_reference_climo_dataset(self, variablename, **kwargs):
-        """Index the bookkeeping, as the real loader does once it finds a file."""
+    # pylint: disable-next=unused-argument
+    def load_reference_climo_ds(self, case, variablename):
+        """Return a stand-in dataset, indexing ref_var_nam like the real one."""
         # The real one globs for a file first and only then indexes
         # ref_var_nam, so a missing entry raises rather than returning None.
         return {"dummy": self.ref_var_nam[variablename]}
@@ -56,12 +59,13 @@ class FakeAdf:
         self._names = pressure_field_names
         self.logged = []
 
+    # pylint: disable-next=unused-argument
     def get_basic_info(self, var_str, required=False):
-        """The configured pressure field names, and nothing else."""
+        """Return the configured pressure field names, if asked for them."""
         return self._names if var_str == "pressure_field_names" else None
 
     def debug_log(self, msg):
-        """Keep the message, so a test can check what was said."""
+        """Record a debug message."""
         self.logged.append(msg)
 
 
@@ -75,7 +79,7 @@ def test_the_pressure_field_is_skipped_for_the_baseline(tmp_path):
 
 
 def test_a_configured_pressure_field_name_is_skipped_too(tmp_path):
-    """A pressure field the config renames is skipped the same way."""
+    """A pressure field named via pressure_field_names is skipped as well."""
     adf = FakeAdf(["T"], pressure_field_names={"lev": "pfull"})
     rvi._write_reference_files(adf, ["pfull"], {}, tmp_path, True)
     assert adf.logged and "pfull" in adf.logged[0]
