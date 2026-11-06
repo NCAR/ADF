@@ -64,8 +64,9 @@ def regional_timeseries(adfobj):
             adfobj, _load_ts(adfobj, adfobj.data.get_timeseries_file(case_name, field),
                              setup["case_kwargs"]),
             field, case_name)
-        report_missing(field, "time series", {ref_name: base_data[field],
-                                              case_name: case_data[field]})
+        report_missing(field, "time series",
+                       [(setup["base_nickname"], base_data[field]),
+                        (setup["case_nickname"], case_data[field])])
     # End for
 
     def annual(var):

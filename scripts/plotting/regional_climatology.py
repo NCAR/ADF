@@ -94,8 +94,9 @@ def regional_climatology(adfobj):
             adfobj, adfobj.data.load_climo_dataset(
                 case_name, field, apply_scaling=False, **setup["case_kwargs"]),
             field, case_name)
-        if not report_missing(field, "climo", {base_name: base_data[field],
-                                               case_name: case_data[field]}):
+        if not report_missing(field, "climo",
+                              [(setup["base_nickname"], base_data[field]),
+                               (setup["case_nickname"], case_data[field])]):
             continue
         # End if
 
@@ -190,6 +191,14 @@ def regional_setup(adfobj):
     case_name = adfobj.data.case_names[0]
     case_nickname = adfobj.data.test_nicknames[0] or case_name
     base_nickname = adfobj.data.ref_nickname or adfobj.data.ref_case_label
+    if case_nickname == base_nickname:
+        # A case compared to itself over other years: tell the two apart by
+        # their climatology years, or the legend would merge them.
+        climo_yrs = adfobj.climo_yrs
+        case_nickname += f" ({climo_yrs['syears'][0]}-{climo_yrs['eyears'][0]})"
+        base_nickname += (f" ({climo_yrs['syear_baseline']}-"
+                          f"{climo_yrs['eyear_baseline']})")
+    # End if
 
     redo_plot = adfobj.get_basic_info("redo_plot")
     print(f"\t NOTE: redo_plot is set to {redo_plot}")
@@ -227,15 +236,17 @@ def report_missing(field, kind, data):
         The variable.
     kind : str
         The kind of file ("climo", "time series"), for the messages.
-    data : dict
-        The data of each case, by case name (None where it is missing).
+    data : list of tuple
+        ``(label, data)`` for each case (data None where it is missing).  A
+        list, not a dict keyed by case name: a case compared to itself over
+        other years has the same name as the baseline.
 
     Returns
     -------
     bool
         True when at least one case has data, so `field` is still plotted.
     """
-    missing = [name for name, dset in data.items() if dset is None]
+    missing = [name for name, dset in data if dset is None]
     if len(missing) == len(data):
         print(f"\t    WARNING: No {kind} file for {field} in any case, skipping it.")
         return False

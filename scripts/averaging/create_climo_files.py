@@ -222,9 +222,12 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
         #Notify user of model case being processed:
         print(f"\n\t Calculating climatologies for case '{case_name}' :")
 
-        is_baseline = False
-        if (not adf.get_basic_info("compare_obs")) and (case_name == baseline_name):
-            is_baseline = True
+        # The baseline is the last entry, appended above.  Tell it apart by its
+        # position, not its name: a case compared to itself over other years
+        # has the same name as the baseline.
+        is_baseline = (not adf.get_basic_info("compare_obs")) and (
+            case_idx == len(case_names) - 1
+        )
 
         #Create "Path" objects:
         input_location  = Path(input_ts_locs[case_idx])
