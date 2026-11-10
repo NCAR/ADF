@@ -2198,7 +2198,14 @@ def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid="ncol")
 
 
 def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
-    model_dataset, var_name, wgt_file, method=None, comp="atm", latlon_file=None
+    model_dataset,
+    var_name,
+    wgt_file,
+    method=None,
+    comp="atm",
+    latlon_file=None,
+    *,
+    keep_dtype=False,
 ):
     """Grid native-grid data (CAM ``ncol`` or CLM ``lndgrid``) to lat/lon with a weights file.
 
@@ -2219,6 +2226,10 @@ def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
     latlon_file : str or pathlib.Path, optional
         Land only: a file on the target lat/lon grid holding its "landmask",
         used to mask the gridding and carried over to the result.
+    keep_dtype : bool, optional
+        Give the gridded fields the precision of the native ones (e.g. 32-bit
+        floats), instead of the 64-bit floats xesmf returns.  Halves the size
+        of the gridded files of 32-bit model output.  Default False.
 
     Returns
     -------
@@ -2307,6 +2318,18 @@ def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
             # leave NaNs.
             rgdata["landmask"] = (("lat", "lon"), latlon_landmask.values)
         # End if
+    # End if
+
+    # xesmf returns 64-bit floats; optionally go back to the native precision:
+    if keep_dtype:
+        for name in native:
+            if name in rgdata.data_vars:
+                native_dtype = model_dataset[name].dtype
+                if native_dtype.kind == "f" and rgdata[name].dtype != native_dtype:
+                    rgdata[name] = rgdata[name].astype(native_dtype)
+                # End if
+            # End if
+        # End for
     # End if
 
     # calculate area
@@ -2511,6 +2534,72 @@ def apply_mesh_weights(data, weights_file, mesh):
         attrs=dict(data.attrs, remap_method=f"ESMF {Path(weights_file).name}"),
     )
     return ux.UxDataArray(out, uxgrid=grid)
+
+
+def ts_time_chunk(ds, var_name, target_bytes=256e6):
+    """Time steps per dask chunk so that one chunk of ``ds[var_name]`` is ~`target_bytes`.
+
+    Used to grid long, high-frequency time series a block of time steps at a
+    time instead of all at once.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        The dataset holding the variable.
+    var_name : str
+        The variable whose size sets the chunk.
+    target_bytes : float, optional
+        Approximate size of one chunk, in bytes (default 256 MB).
+
+    Returns
+    -------
+    int or None
+        The number of time steps per chunk (at least 1), or None if the
+        variable has no time dimension.
+    """
+    data = ds[var_name]
+    if "time" not in data.dims or data.sizes["time"] == 0:
+        return None
+    # End if
+    bytes_per_step = data.dtype.itemsize * (data.size // data.sizes["time"])
+    return max(1, int(target_bytes // max(1, bytes_per_step)))
+
+
+def chunk_native_in_time(ds, var_name, target_bytes=256e6):
+    """Put the native-grid fields of `ds` in dask chunks of time steps.
+
+    Only the fields on the native grid ("ncol" or "lndgrid") are chunked,
+    with `ts_time_chunk` steps per chunk.  Everything else (time bounds,
+    date, hybrid coefficients, ...) is small and left as it is: xarray
+    cannot write chunked datetime arrays, such as decoded time bounds, whose
+    encoding gives units but no dtype.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        A native-grid time series.
+    var_name : str
+        The time series' variable, whose size sets the chunk.
+    target_bytes : float, optional
+        Approximate size of one chunk of `var_name`, in bytes (default 256 MB).
+
+    Returns
+    -------
+    xarray.Dataset
+        `ds`, with its native-grid fields chunked (or unchanged if
+        `var_name` has no time dimension).
+    """
+    time_chunk = ts_time_chunk(ds, var_name, target_bytes)
+    if not time_chunk:
+        return ds
+    # End if
+    chunked = ds.copy()
+    for name, data in ds.data_vars.items():
+        if "time" in data.dims and {"ncol", "lndgrid"} & set(data.dims):
+            chunked[name] = data.chunk({"time": time_chunk})
+        # End if
+    # End for
+    return chunked
 
 
 def calc_area(rgdata):

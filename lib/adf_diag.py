@@ -18,6 +18,7 @@ import glob
 import subprocess
 import multiprocessing as mp
 import copy
+import functools
 
 import importlib
 import shutil
@@ -43,6 +44,14 @@ try:
 except ImportError:
     print("Xarray module does not exist in python path.")
     print("Please install module, e.g. 'pip install xarray'.")
+    sys.exit(1)
+
+# Check if "dask" is present in python path:
+try:
+    import dask
+except ImportError:
+    print("Dask module does not exist in python path.")
+    print("Please install module, e.g. 'pip install dask'.")
     sys.exit(1)
 
 # Check if "numpy" is present in python path:
@@ -617,7 +626,14 @@ class AdfDiag(AdfWeb):
     #########
 
     def grid_native_time_series(
-        self, case_name, case_idx, ts_dir, hist_strs, overwrite, baseline=False
+        self,
+        case_name,
+        case_idx,
+        ts_dir,
+        hist_strs,
+        overwrite,
+        baseline=False,
+        variables=None,
     ):
         """
         Grid a native-grid case's time series to lat/lon, into "gridded".
@@ -641,6 +657,12 @@ class AdfDiag(AdfWeb):
             Re-grid files that already have a gridded copy.
         baseline : bool, optional
             Whether `case_name` is the baseline.
+        variables : collection of str, optional
+            Grid only these variables' time series.  By default every time
+            series of the case and stream in `ts_dir` is gridded; a list keeps
+            ADF runs that share a time series directory (e.g. jobs split by
+            variable) from gridding each other's files, possibly while they are
+            still being written.
         """
         if not self.native_grid.get(case_name, False) or self.unstructured_plotting:
             return
@@ -648,13 +670,19 @@ class AdfDiag(AdfWeb):
 
         if baseline:
             wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
+            cons_wgts_file = self.latlon_wgt_files["baseline_cons_wgts_file"]
             method = self.latlon_regrid_method["baseline_regrid_method"]
             latlon_file = self.latlon_files["baseline_latlon_file"]
         else:
             wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
+            cons_wgts_file = self.latlon_wgt_files["test_cons_wgts_file"][case_idx]
             method = self.latlon_regrid_method["test_regrid_method"][case_idx]
             latlon_file = self.latlon_files["test_latlon_file"][case_idx]
         # End if
+        var_defaults = self.variable_defaults or {}
+        # Write gridded fields in the native files' precision (e.g. 32-bit)
+        # instead of xesmf's 64-bit floats?  Off by default:
+        keep_precision = bool(self.get_basic_info("gridded_keep_precision"))
         if not wgts_file:
             # Every variable of the case would fail the same way, so stop here:
             emsg = f"'{case_name}' is on a native grid, but has no 'weights_file' to"
@@ -673,6 +701,10 @@ class AdfDiag(AdfWeb):
             # This case's files for this stream only: the directory may hold
             # other streams or other cases.
             for fil in sorted(Path(ts_dir).glob(f"{case_name}.{hist_str}.*.nc")):
+                var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
+                if variables is not None and var not in variables:
+                    continue
+                # End if
                 gridded_file = gridded_loc / fil.name.replace(".nc", "_gridded.nc")
                 if gridded_file.is_file() and not overwrite:
                     print(
@@ -680,15 +712,31 @@ class AdfDiag(AdfWeb):
                     )
                     continue
                 # End if
-                var = fil.name[len(f"{case_name}.{hist_str}.") :].split(".")[0]
                 with xr.open_dataset(fil) as ts_ds:
+                    # Grid and write a block of time steps at a time, so that
+                    # big files (TBs for multi-year hourly 3-D fields) are
+                    # never read into memory whole:
+                    ts_ds = utils.chunk_native_in_time(ts_ds, var)
+                    var_wgts, var_method = choose_regrid_weights(
+                        var_defaults.get(var),
+                        (wgts_file, method),
+                        cons_wgts_file,
+                    )
+                    print(
+                        f"\t    INFO: gridding '{var}' with {var_wgts}"
+                        f" (method '{var_method or 'conservative'}')"
+                    )
                     gridded = utils.grid_to_latlon(
                         ts_ds,
                         var,
-                        wgt_file=wgts_file,
-                        method=method,
+                        wgt_file=var_wgts,
+                        method=var_method,
                         comp=self.model_component,
                         latlon_file=latlon_file,
+                        keep_dtype=keep_precision,
+                    )
+                    write_netcdf_synchronous(
+                        functools.partial(save_to_nc, gridded), gridded_file
                     )
                     if not warned and utils.coarser_grid(ts_ds, gridded) == "test":
                         # Comparisons should be made on the coarser grid; the
@@ -703,7 +751,6 @@ class AdfDiag(AdfWeb):
                             " least as coarse as the native one is better."
                         )
                     # End if
-                    save_to_nc(gridded, gridded_file)
                 # End with
             # End for
         # End for
@@ -981,6 +1028,12 @@ class AdfDiag(AdfWeb):
                 self.end_diag_fail(emsg)
             # End if
 
+            # The variables this run makes or uses time series of, so that
+            # only their files are gridded (see grid_native_time_series).  The
+            # requested ones, plus any the variable loop below adds (derived
+            # variables' constituents, the pressure field):
+            case_ts_vars = set(self.diag_var_list)
+
             # Check if history files actually exist. If not then kill script:
             hist_str_case = hist_str_list[case_idx]
             for hist_str in hist_str_case:
@@ -1122,6 +1175,9 @@ class AdfDiag(AdfWeb):
                 for var in diag_var_list:
                     # Notify user of new time series file:
                     print(f"\t - time series for {var}")
+                    # (constituents of derived variables are appended to
+                    # diag_var_list, so they are recorded here too)
+                    case_ts_vars.add(var)
 
                     # The time series file(s) to write: none when existing
                     # files already cover the years, only the missing years
@@ -1210,10 +1266,12 @@ class AdfDiag(AdfWeb):
                             ):
                                 ncrcat_var_list += f",{extra}"
 
-                    # Determine "ncrcat" command to generate time series file:
-                    if "date" in hist_file_ds[var].dims:
+                    # Determine "ncrcat" command to generate time series file.
+                    # "date" and "datesec" are variables of their own (on the
+                    # time dimension), never dimensions of `var`:
+                    if "date" in hist_file_var_list:
                         ncrcat_var_list = ncrcat_var_list + ",date"
-                    if "datesec" in hist_file_ds[var].dims:
+                    if "datesec" in hist_file_var_list:
                         ncrcat_var_list = ncrcat_var_list + ",datesec"
 
                     if has_lev and vert_coord_type:
@@ -1234,7 +1292,13 @@ class AdfDiag(AdfWeb):
                         # End if cam
                     # End if has_lev
 
-                    # One file per stretch of years being made:
+                    # One file per stretch of years being made.  Each is
+                    # chunked one time step per chunk, holding the whole field
+                    # (--cnk_map=rd1): NCO's default chunk sizes do not divide
+                    # a native grid evenly, and the padded edge chunks made
+                    # ne30pg3 files ~1.6 times the size of their data.  One
+                    # step per chunk is also how the files are read, a time
+                    # step or a block of them at a time:
                     for chunk_files, ts_outfil_str in to_make:
                         cmd = (
                             [
@@ -1243,6 +1307,7 @@ class AdfDiag(AdfWeb):
                                 "-4",
                                 "-h",
                                 "--no_cll_mth",
+                                "--cnk_map=rd1",
                                 "-v",
                                 ncrcat_var_list,
                             ]
@@ -1360,6 +1425,7 @@ class AdfDiag(AdfWeb):
                 hist_str_case,
                 overwrite_ts[case_idx],
                 baseline=baseline,
+                variables=case_ts_vars,
             )
         # End cases loop
 
@@ -2058,6 +2124,69 @@ def save_to_nc(tosave, outname, attrs=None, proc=None):
         )
         xo.attrs["Processing_info"] = f"Start from file {origname}. " + proc
     xo.to_netcdf(outname, format="NETCDF4", encoding=enc)
+
+
+def choose_regrid_weights(var_default, default_weights, cons_wgts_file):
+    """Weights file and method to grid one variable's native time series with.
+
+    A variable marked ``regrid_conservative: true`` in the variable defaults
+    (fluxes such as precipitation and radiation, whose area means should be
+    kept) is gridded with the case's ``conservative_weights_file``, if it has
+    one.  Every other variable, and every variable of a case without a
+    conservative weights file, uses the case's ``weights_file`` and
+    ``regrid_method``.
+
+    Parameters
+    ----------
+    var_default : dict or None
+        The variable's entry in the variable defaults file.
+    default_weights : tuple
+        ``(weights_file, regrid_method)``, the case's defaults.
+    cons_wgts_file : str or None
+        The case's ``conservative_weights_file``.
+
+    Returns
+    -------
+    tuple
+        ``(weights_file, regrid_method)`` to grid the variable with.
+    """
+    if cons_wgts_file and (var_default or {}).get("regrid_conservative", False):
+        return cons_wgts_file, "conservative"
+    # End if
+    return default_weights
+
+
+def write_netcdf_synchronous(writer, outname):
+    """Write a netCDF file with dask's synchronous scheduler, via a temporary file.
+
+    ``writer(path)`` writes the file.  It is called with ``outname + ".tmp"``,
+    which is renamed to `outname` only once the write has succeeded, so a job
+    killed mid-write (e.g. at its walltime) never leaves a partial file that a
+    rerun would take as finished, and a failed write removes its temporary file.
+
+    The synchronous (single-threaded) scheduler is used because threaded
+    ``to_netcdf`` writes of large dask-backed datasets hung intermittently.  It
+    also holds only one chunk in memory at a time.
+
+    Parameters
+    ----------
+    writer : callable
+        Called with the path to write, e.g. ``functools.partial(save_to_nc, ds)``.
+    outname : str or pathlib.Path
+        The file to write.
+    """
+    temp_name = str(outname) + ".tmp"
+    try:
+        with dask.config.set(scheduler="synchronous"):
+            writer(temp_name)
+        # End with
+    except BaseException:
+        if os.path.exists(temp_name):
+            os.remove(temp_name)
+        # End if
+        raise
+    # End try
+    os.replace(temp_name, outname)
 
 
 #####
