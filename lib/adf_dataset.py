@@ -861,6 +861,15 @@ class AdfData:  # pylint: disable=too-many-public-methods
         if fils:
             return fils
         fils = self.get_ref_regrid_file(field)
+        if (
+            fils
+            and kwargs.get("unstructured_plotting", False)
+            and not self._on_native_dim(fils[0])
+        ):
+            # A lat/lon reference (observations, say) cannot be opened on a
+            # mesh; only its copy on the test case's mesh, above, can be used:
+            self._latlon_warning(self._ref_source(field), field)
+            return []
         if not fils:
             fils = self._native_climo_fallback(
                 self._ref_source(field), field, self.get_reference_climo_file(field)
@@ -934,17 +943,69 @@ class AdfData:  # pylint: disable=too-many-public-methods
         is already what is wanted.  Otherwise there is no fallback: a native
         climo is no stand-in for a lat/lon regridded file.  Its values are
         converted as a regridded file left by an older ADF would be (see
-        :meth:`_regrid_converters`), and a climo file on another grid is caught
-        by the plotting scripts' own same-grid checks.
+        :meth:`_regrid_converters`).
+
+        Only files on a native grid are handed back: a lat/lon climo (a lat/lon
+        case or observations) has to be put onto the mesh by the regridding
+        stage first.  Without a regridding script, the two things that stage
+        would have done are named in a warning, once per variable: putting a
+        lat/lon side onto the mesh, and interpolating to pressure levels.
         """
-        if not getattr(self.adf, "unstructured_plotting", False):
+        if not getattr(self.adf, "unstructured_plotting", False) or not climo_fils:
             return []
-        if climo_fils:
-            self.adf.debug_log(
-                f"No regridded file for case '{case}', variable '{field}'; "
-                "plotting its native climo file(s) instead."
+        if not self._on_native_dim(climo_fils[0]):
+            self._latlon_warning(case, field)
+            return []
+        if not self._regrid_step_configured() and self._has_levels(
+            climo_fils[0], field
+        ):
+            self._warn_once(
+                ("levels", field),
+                f"\t    WARNING: '{field}' has vertical levels, and with no "
+                "regridding script (such as 'regrid_and_vert_interp' in "
+                "'regridding_scripts') it is not interpolated to pressure "
+                "levels, so its pressure-level plots are skipped.",
             )
+        self.adf.debug_log(
+            f"No regridded file for case '{case}', variable '{field}'; "
+            "plotting its native climo file(s) instead."
+        )
         return climo_fils
+
+    @staticmethod
+    def _has_levels(fil, field):
+        """Whether `field` in the file has a vertical dimension ("lev" or "ilev")."""
+        with xr.open_dataset(fil, decode_times=False) as dset:
+            return field in dset and any(
+                dim in dset[field].dims for dim in utils.VERTICAL_DIMS
+            )
+
+    def _latlon_warning(self, label, field):
+        """Say, once, that `label`'s lat/lon `field` needs the regrid step to go on the mesh.
+
+        Only when no regridding script is configured: with one, the regridding
+        stage is what puts a lat/lon side onto the mesh, and says so itself
+        when it cannot.
+        """
+        if not self._regrid_step_configured():
+            self._warn_once(
+                ("latlon", label, field),
+                f"\t    WARNING: '{label}' data for '{field}' is on a lat/lon "
+                "grid, and with no regridding script (such as "
+                "'regrid_and_vert_interp' in 'regridding_scripts') it is not "
+                "put onto the native mesh, so it cannot be compared there.",
+            )
+
+    def _regrid_step_configured(self):
+        """Whether the config lists any regridding script."""
+        return bool(self.adf.read_config_var("regridding_scripts"))
+
+    def _warn_once(self, key, msg):
+        """Warn with `msg`, unless the warning for `key` was given already."""
+        given = self.__dict__.setdefault("_warnings_given", set())
+        if key not in given:
+            given.add(key)
+            warnings.warn(msg)
 
     def _regrid_converters(self, fils, file_field, case, field, apply_scaling):
         """Return the (add_offset, scale_factor) to use for a regridded file.

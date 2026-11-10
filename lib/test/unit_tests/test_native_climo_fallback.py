@@ -37,8 +37,16 @@ def _data(
     on_mesh_fils=(),
     native_file=False,
     case_grid_fils=(),
+    climo_native=True,
+    regrid_step=True,
+    levels=False,
 ):
-    """An AdfData stand-in recording which files (and meshes) the loaders open."""
+    """An AdfData stand-in recording which files (and meshes) the loaders open.
+
+    `native_file` is whether the regridded files are on the native grid,
+    `climo_native` whether the climo files are; `regrid_step` whether the
+    config lists a regridding script; `levels` whether the variable is 3-D.
+    """
     obj = SimpleNamespace(
         adf=SimpleNamespace(
             unstructured_plotting=unstructured,
@@ -73,7 +81,15 @@ def _data(
     obj._regrid_files = lambda case, field, kwargs: AdfData._regrid_files(
         obj, case, field, kwargs
     )
-    obj._on_native_dim = lambda fil: native_file
+    obj._on_native_dim = lambda fil: (
+        climo_native if fil in CLIMO + BASE_CLIMO else native_file
+    )
+    obj._has_levels = lambda fil, field: levels
+    obj._regrid_step_configured = lambda: regrid_step
+    obj._warn_once = lambda key, msg: AdfData._warn_once(obj, key, msg)
+    obj._latlon_warning = lambda label, field: AdfData._latlon_warning(
+        obj, label, field
+    )
     obj._ref_source = lambda field: AdfData._ref_source(obj, field)
 
     def load_dataset(fils, **kwargs):
@@ -206,3 +222,64 @@ def test_case_grid_file_needs_the_test_case():
     )
     AdfData.load_reference_regrid_dataset(obj, "TBOT")
     assert obj.opened == [["base_rg.nc"]]
+
+
+def test_lat_lon_climo_is_not_handed_to_native_plots():
+    """A lat/lon side has to be put onto the mesh first; its climo is not used.
+
+    Passed on, it was opened as if it were on the mesh, and the run warned that
+    'mesh_file' was missing -- not the real reason.  With a regridding script
+    configured, the regridding stage is the one that should have made a file,
+    so nothing more is said here.
+    """
+    obj = _data(unstructured=True, climo_native=False)
+    with pytest.warns(UserWarning, match="Did not find regrid"):
+        assert AdfData.load_regrid_dataset(obj, "case", "TBOT") is None
+    assert obj.opened == []
+
+
+def test_without_a_regrid_step_a_lat_lon_side_is_named_once():
+    """No regridding script: the warning says why, once per variable and side."""
+    obj = _data(unstructured=True, climo_native=False, regrid_step=False)
+    with pytest.warns(UserWarning) as record:
+        AdfData.load_regrid_dataset(obj, "case", "TBOT")
+        AdfData.load_regrid_dataset(obj, "case", "TBOT")
+    named = [str(w.message) for w in record if "lat/lon grid" in str(w.message)]
+    assert len(named) == 1 and "regridding_scripts" in named[0]
+
+
+def test_without_a_regrid_step_3d_fields_warn_about_pressure_levels():
+    """A native 3-D field is still plotted, with one warning about its levels."""
+    obj = _data(unstructured=True, regrid_step=False, levels=True)
+    with pytest.warns(UserWarning, match="pressure") as record:
+        assert AdfData.load_regrid_dataset(obj, "case", "T") == "ds"
+        assert AdfData.load_reference_regrid_dataset(obj, "T") == "ds"
+    assert sum("pressure" in str(w.message) for w in record) == 1
+
+
+def test_with_a_regrid_step_no_regrid_step_warning():
+    """With a regridding script configured, a 3-D native climo gets no such warning."""
+    obj = _data(unstructured=True, levels=True)
+    AdfData.load_regrid_dataset(obj, "case", "T")
+    assert obj.opened == [CLIMO]
+
+
+def test_lat_lon_reference_is_not_opened_on_the_mesh():
+    """Observations asked for on the mesh, with no copy on it: no file, one warning.
+
+    The obs file was opened as if it were on the mesh, which failed with a
+    warning that 'mesh_file' was missing.
+    """
+    obj = _data(unstructured=True, ref_regrid_fils=["obs.nc"], regrid_step=False)
+    obj.ref_labels = {"TBOT": "ERA5"}
+    with pytest.warns(UserWarning) as record:
+        assert (
+            AdfData.load_reference_regrid_dataset(
+                obj, "TBOT", unstructured_plotting=True, mesh_file=None
+            )
+            is None
+        )
+    assert obj.opened == []
+    assert any(
+        "'ERA5' data for 'TBOT' is on a lat/lon grid" in str(w.message) for w in record
+    )
