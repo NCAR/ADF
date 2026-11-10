@@ -472,7 +472,7 @@ regridding_scripts:
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
-    - amwg_table
+    - statistics_table
     - ENSO_acrossRuns
     #- aerosol_gas_tables
 

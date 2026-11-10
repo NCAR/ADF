@@ -4,9 +4,6 @@ channels:
   - defaults
 dependencies:
   - cartopy=0.23.0
-  - netcdf4=1.6.5
-  - xarray=2024.1.1
-  - uxarray=2026.10.0
   - geocat-comp=2024.04.0
   - markdown=3.10.3
   - matplotlib=3.9.4
@@ -16,6 +13,10 @@ dependencies:
   - python=3.12
   - pyyaml=6.0.2
   - scipy=1.12.0
+  # 2025.6.0 is the first release with "UxDataArray.to_raster", which the
+  # native-grid (unstructured) maps in lib/plotting_functions.py use.
+  - uxarray=2026.10.0
+  - xarray=2024.1.1
   - xesmf>=0.8.8
   # Wasserstein-distance option of cloud_regime_analysis. Not needed for its
   # default (euclidean) mode, nor by any other diagnostic.

@@ -277,7 +277,7 @@ regridding_scripts:
 #List of analysis scripts being used.
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
-     - lmwg_table
+     - statistics_table
 
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":

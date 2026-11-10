@@ -1,3 +1,12 @@
+"""
+Tables of global-mean statistics for each case, and their differences.
+
+Formerly ``amwg_table`` (atmosphere) and ``lmwg_table`` (land); config files
+listing either old name still run this script.  The tables keep their
+component names: ``amwg_table_<case>.csv``, or ``lmwg_table_<case>.csv`` for
+land cases.
+"""
+
 import numpy as np
 import xarray as xr
 import sys
@@ -8,7 +17,7 @@ import warnings  # use to warn user about missing files.
 try:
     import scipy.stats as stats # for easy linear regression and testing
 except ImportError:
-    print("Scipy module does not exist in python path, but is needed for amwg_table.")
+    print("Scipy module does not exist in python path, but is needed for statistics_table.")
     print("Please install module, e.g. 'pip install scipy'.")
     sys.exit(1)
 #End except
@@ -16,12 +25,12 @@ except ImportError:
 try:
     import pandas as pd
 except ImportError:
-    print("Pandas module does not exist in python path, but is needed for amwg_table.")
+    print("Pandas module does not exist in python path, but is needed for statistics_table.")
     print("Please install module, e.g. 'pip install pandas'.")
     sys.exit(1)
 #End except
 
-def amwg_table(adf):
+def statistics_table(adf):
 
     """
     Main function goes through series of steps:
@@ -149,7 +158,7 @@ def amwg_table(adf):
 
     #Cases run on pre-made climatologies alone have no time series to read;
     #they get no table, and the others still do:
-    if not adf.data.timeseries_available("amwg_table", any_case=True):
+    if not adf.data.timeseries_available("statistics_table", any_case=True):
         return
     #End if
 
@@ -455,8 +464,9 @@ def _get_row_vals(data):
         formatter = ".3f"
 
     data_sample = len(data)
-    data_std = float(data.std())
-    data_sem = data_std / data_sample
+    #Sample standard deviation (ddof=1), as the standard error wants:
+    data_std = float(data.std(ddof=1))
+    data_sem = data_std / np.sqrt(data_sample)
     data_ci = data_sem * 1.96  # https://en.wikipedia.org/wiki/Standard_error
     data_trend = stats.linregress(data.year, data.values)
 

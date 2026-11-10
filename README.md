@@ -26,7 +26,7 @@ Create and activate the environment from that file with:
 
 ```
 conda env create -f env/conda_environment.yaml
-conda activate adf_v1.0.5
+conda activate adf_v1.0.6
 ```
 
 ### On NCAR HPC (derecho/casper)
@@ -35,7 +35,7 @@ Load the NCAR-provided conda module first, then create the environment as above:
 ```
 module load conda
 conda env create -f env/conda_environment.yaml
-conda activate adf_v1.0.5
+conda activate adf_v1.0.6
 ```
 By default this places the environment under `/glade/work/$USER/conda-envs/`. See the
 [NCAR HPC conda documentation](https://ncar-hpc-docs.readthedocs.io/en/v24.08/environment-and-software/user-environment/conda/)
@@ -69,7 +69,7 @@ modulefile for an install that isn't present and adds nothing to `PATH`, and `to
 `PATH` but fails at runtime looking for `libexpat.so.0`, which current CGD systems no longer ship. Install NCO
 from conda-forge into your ADF environment instead:
 ```
-conda activate adf_v1.0.5
+conda activate adf_v1.0.6
 conda install -c conda-forge nco
 ```
 
@@ -135,9 +135,10 @@ the baseline or observations, the percent difference, and the difference (with i
 and a zonal mean against pressure. Images are PNG unless `plot_type` says otherwise. The Taylor
 diagram script writes one figure per season with all the test cases on it.
 
-**Tables.** `amwg_table` writes, for each case, the global mean of every variable with its sample
-size, standard deviation, standard error, 95% confidence interval, and linear trend with its
-p-value. The comparison table has the columns `variable`, `unit`, `test`, `control` (the baseline or observations), and `diff`.
+**Tables.** `statistics_table` (formerly `amwg_table` and `lmwg_table`, names a config may still
+use) writes, for each case, the global mean of every variable with its sample size, standard
+deviation, standard error, 95% confidence interval, and linear trend with its p-value. The files
+are `amwg_table_<case>.csv`, or `lmwg_table_<case>.csv` for land cases. The comparison table has the columns `variable`, `unit`, `test`, `control` (the baseline or observations), and `diff`.
 
 **Website.** With `create_html: true`, open `website/index.html` (under the plot directory shown
 above) in a browser. It links to every figure, grouped by variable category and season, to the
