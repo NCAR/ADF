@@ -997,6 +997,116 @@ def cell_weights(dset, comp="atm"):
     return normalize_weights(wgt.fillna(0))
 
 
+#: Native (unstructured) horizontal dimensions, as in the regridding script.
+NATIVE_DIMS = ("ncol", "ncols", "lndgrid", "n_face")
+
+#: Mean cell areas within this fraction of each other count as the same
+#: resolution (see :func:`coarser_grid`).
+RESOLUTION_TOLERANCE = 0.10
+
+
+def mean_cell_area(obj):
+    """Mean horizontal cell area of the grid `obj` is on, in steradians.
+
+    A lat/lon grid's cells are bounded half-way between the centres (the outer
+    rows at the poles when the grid reaches them), so a regional grid gets its
+    own cell size.  A native grid is taken to cover the sphere, each cell an
+    equal share of it, which is the mean whatever the cell shapes.
+
+    Parameters
+    ----------
+    obj : xarray.Dataset or xarray.DataArray
+        Data with ``lat`` and ``lon`` dimensions, or a native dimension
+        (``ncol``, ``ncols``, ``lndgrid`` or ``n_face``).
+
+    Returns
+    -------
+    float or None
+        The mean cell area, or ``None`` when the grid is not recognised.
+    """
+    dims = getattr(obj, "sizes", {})
+    for dim in NATIVE_DIMS:
+        if dims.get(dim):
+            return 4.0 * np.pi / dims[dim]
+    if not ("lat" in dims and "lon" in dims) or dims["lat"] < 2 or dims["lon"] < 2:
+        return None
+
+    def edges(centres, lo, hi):
+        centres = np.sort(np.asarray(centres, dtype=float))
+        mid = 0.5 * (centres[1:] + centres[:-1])
+        first = centres[0] - (mid[0] - centres[0])
+        last = centres[-1] + (centres[-1] - mid[-1])
+        return np.clip(np.concatenate([[first], mid, [last]]), lo, hi)
+
+    lat_e = np.deg2rad(edges(obj["lat"].values, -90.0, 90.0))
+    lon_c = np.asarray(obj["lon"].values, dtype=float)
+    lon_e = edges(lon_c, -np.inf, np.inf)
+    # A global grid wraps around: its longitudes span 360 degrees in all.
+    lon_span = min(lon_e[-1] - lon_e[0], 360.0)
+    band = np.abs(np.diff(np.sin(lat_e))).sum()
+    return float(np.deg2rad(lon_span) * band / (dims["lat"] * dims["lon"]))
+
+
+def coarser_grid(test, ref, tol=RESOLUTION_TOLERANCE):
+    """Which of two grids is clearly coarser, by mean cell area.
+
+    Comparisons are made on the coarser grid of the two: the finer one is
+    regridded onto it, so no field is interpolated to a resolution it does
+    not have.  Grids whose mean cell areas are within `tol` of each other
+    count as the same resolution.
+
+    Parameters
+    ----------
+    test, ref : xarray.Dataset or xarray.DataArray
+        The two data sets (see :func:`mean_cell_area`).
+    tol : float, optional
+        The relative difference in mean cell area below which neither grid is
+        coarser.
+
+    Returns
+    -------
+    str or None
+        ``"test"`` or ``"ref"`` for the coarser grid; ``None`` for a tie, or
+        when either grid is not recognised.
+    """
+    a_test = mean_cell_area(test)
+    a_ref = mean_cell_area(ref)
+    if not a_test or not a_ref:
+        return None
+    if a_test > a_ref * (1.0 + tol):
+        return "test"
+    if a_ref > a_test * (1.0 + tol):
+        return "ref"
+    return None
+
+
+def same_latlon_grid(a, b):
+    """Whether `a` and `b` are on the same lat/lon grid (same centres).
+
+    Parameters
+    ----------
+    a, b : xarray.Dataset or xarray.DataArray
+        Data with ``lat`` and ``lon`` coordinates.
+
+    Returns
+    -------
+    bool
+        True when both have the same latitudes and longitudes, to within 1e-6
+        degrees.
+    """
+    try:
+        lat_a, lat_b = np.asarray(a["lat"].values), np.asarray(b["lat"].values)
+        lon_a, lon_b = np.asarray(a["lon"].values), np.asarray(b["lon"].values)
+    except KeyError:
+        return False
+    return (
+        lat_a.shape == lat_b.shape
+        and lon_a.shape == lon_b.shape
+        and np.allclose(lat_a, lat_b, atol=1e-6)
+        and np.allclose(lon_a, lon_b, atol=1e-6)
+    )
+
+
 def pct_change(case, base, rel_tol=1e-6):
     """Percent change (case - base) / |base| * 100, masked where |base| is ~zero.
 

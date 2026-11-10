@@ -129,6 +129,7 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unst
 
     # Load reference data
     #odata = load_reference_data(adfobj, var)
+    vres_in = dict(vres)
     odata, vres = load_reference_data(adfobj, var, vres)
     if odata is None:
         print(f"[global_latlon_map][process_variable] finds no reference data.")
@@ -136,17 +137,27 @@ def process_variable(adfobj, var, seasons, pres_levs, plot_type, redo_plot, unst
 
     #Loop over model cases:
     for case_idx, case_name in enumerate(adfobj.data.case_names):
-        process_case(adfobj, case_name, case_idx, var, odata, 
+        codata, cvres = odata, vres
+        if adfobj.data.get_ref_on_case_grid_file(case_name, var):
+            # This case is on a coarser grid than the reference, so the
+            # regridding step put the reference onto the case's grid:
+            codata, cvres = load_reference_data(
+                adfobj, var, dict(vres_in), test_case=case_name
+            )
+            if codata is None:
+                continue
+        process_case(adfobj, case_name, case_idx, var, codata,
                     seasons, pres_levs, plot_type, redo_plot,
-                    vres, web_category)
+                    cvres, web_category)
 
 
 
 def load_reference_data(adfobj, var, vres, test_case=None):
     """Load and validate reference data.
 
-    With 'unstructured_plotting', `test_case` asks for the reference on that
-    case's mesh (see AdfData._reference_files).
+    `test_case` asks for the reference as that case sees it: on its mesh with
+    'unstructured_plotting', or on its grid when that is coarser than the
+    reference's (see AdfData._reference_files).
     """
     if not adfobj.compare_obs:
         base_name = adfobj.data.ref_case_label
@@ -181,7 +192,8 @@ def load_reference_data(adfobj, var, vres, test_case=None):
         vres["wgt_base"] = wgt_base
         vres["unstruct_base"] = unstruct_base
     else:
-        odata = adfobj.data.load_reference_regrid_da(var)
+        # A `test_case` on a coarser grid gets the reference on its grid:
+        odata = adfobj.data.load_reference_regrid_da(var, test_case=test_case)
         if odata is None:
             print(f"\t    WARNING: No reference data found for {var}")
             return None, None

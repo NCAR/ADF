@@ -274,6 +274,17 @@ def meridional_mean(adfobj):
                     case_odata = on_mesh
                     case_dims_ref = utils.validate_dims(on_mesh, ["lat", "lev"])
                     case_unstruct_ref = True
+            elif (
+                has_ref_var
+                and not unstruct_ref
+                and adfobj.data.get_ref_on_case_grid_file(case_name, var)
+            ):
+                # This case is on a coarser grid than the reference, so the
+                # regridding step put the reference onto the case's grid:
+                on_grid = adfobj.data.load_reference_regrid_da(var, test_case=case_name)
+                if on_grid is not None:
+                    case_odata = on_grid
+                    case_dims_ref = utils.validate_dims(on_grid, ["lat", "lev"])
             has_lev = case_dims_ref["has_lev"]
             if mdata is not None:
                 has_dims = utils.validate_dims(mdata, ["lat", "lev"])

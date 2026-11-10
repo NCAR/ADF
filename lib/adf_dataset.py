@@ -820,14 +820,35 @@ class AdfData:  # pylint: disable=too-many-public-methods
             self._case_climo_years(test_case),
         )
 
+    def get_ref_on_case_grid_file(self, test_case, field):
+        """Return the reference for `field` on a coarser test case's grid, as a list.
+
+        Fields are compared on the coarser grid of the two.  When a test
+        case's lat/lon grid is clearly coarser than the reference's, the
+        regridding stage writes the reference onto the case's grid, as
+        {ref}_{case}_{field}_reference_on_case_grid_YYYY-YYYY.nc, named after
+        the case's climatology years.  Empty when there is none.
+        """
+        rlbl = self.ref_labels.get(field)
+        if rlbl is None or test_case is None:
+            return []
+        return self._first_file(
+            self.model_rgrid_loc,
+            [f"{rlbl}_{test_case}_{field}_reference_on_case_grid"],
+            self._case_climo_years(test_case),
+        )
+
     def _reference_files(self, field, kwargs):
         """The reference file(s) to load for `field`, updating `kwargs` to match.
 
         A ``test_case`` in `kwargs` (removed from it) asks for the reference as
         that test case sees it: when plotting natively and the regridding stage
         put the reference onto the case's mesh, that file is used, opened on
-        the case's mesh.  Otherwise the usual reference regridded file, or with
-        'unstructured_plotting' the native climo (:meth:`_native_climo_fallback`).
+        the case's mesh; when the case's grid is coarser than the reference's,
+        the reference regridded onto the case's grid
+        (:meth:`get_ref_on_case_grid_file`).  Otherwise the usual reference
+        regridded file, or with 'unstructured_plotting' the native climo
+        (:meth:`_native_climo_fallback`).
         """
         test_case = kwargs.pop("test_case", None)
         if getattr(self.adf, "unstructured_plotting", False):
@@ -836,6 +857,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
                 idx = self.case_names.index(test_case)
                 kwargs["mesh_file"] = self.adf.mesh_files["test_mesh_file"][idx]
                 return fils
+        fils = self.get_ref_on_case_grid_file(test_case, field)
+        if fils:
+            return fils
         fils = self.get_ref_regrid_file(field)
         if not fils:
             fils = self._native_climo_fallback(

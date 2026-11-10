@@ -211,7 +211,7 @@ def cam_taylor_diagram(adfobj):
                 # Load reference data (already regridded to target grid).  A
                 # lat/lon reference that the regridding step put onto this
                 # case's mesh is read from there:
-                ref_data = _retrieve_once(v, data_name, _ref_test_case(adfobj, case))
+                ref_data = _retrieve_once(v, data_name, _ref_test_case(adfobj, case, v))
                 if ref_data is None:
                     logger.warning(f"\t WARNING: No regridded reference data for {v} in {data_name}, skipping.")
                     continue
@@ -365,14 +365,26 @@ def _native_kwargs(adf, casename):
     return {"unstructured_plotting": True, "mesh_file": mesh_file}
 
 
-def _ref_test_case(adf, casename):
-    """`casename` if its reference is read from the case's mesh, else None.
+def _ref_on_mesh(adf, casename):
+    """Whether `casename` reads its reference from its own mesh.
 
     With 'unstructured_plotting', the regridding step puts a lat/lon reference
     (a baseline or observations) onto a native test case's mesh.
     """
-    if (adf.unstructured_plotting and adf.native_grid.get(casename, False)
-            and not adf.native_grid.get(adf.data.ref_case_label, False)):
+    return bool(adf.unstructured_plotting and adf.native_grid.get(casename, False)
+                and not adf.native_grid.get(adf.data.ref_case_label, False))
+
+
+def _ref_test_case(adf, casename, variable=None):
+    """`casename` if it has a reference of its own, else None.
+
+    That is the reference on the case's mesh (see `_ref_on_mesh`), or, for a
+    case on a coarser lat/lon grid than the reference, the reference the
+    regridding step put onto the case's grid.
+    """
+    if _ref_on_mesh(adf, casename):
+        return casename
+    if variable is not None and adf.data.get_ref_on_case_grid_file(casename, variable):
         return casename
     return None
 
@@ -381,7 +393,9 @@ def _ref_kwargs(adf, test_case):
     """Loader keyword arguments for the reference as `test_case` sees it."""
     if test_case is None:
         return _native_kwargs(adf, adf.data.ref_case_label)
-    return {"unstructured_plotting": True, "test_case": test_case}
+    if _ref_on_mesh(adf, test_case):
+        return {"unstructured_plotting": True, "test_case": test_case}
+    return dict(_native_kwargs(adf, adf.data.ref_case_label), test_case=test_case)
 
 
 def _load_ref_da(adf, variable, test_case=None):

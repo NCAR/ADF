@@ -220,6 +220,8 @@ def zonal_mean(adfobj):
             # End if
         # End if
 
+        shared_ref = (odata, has_lat_ref, has_lev_ref)
+
         #Loop over model cases:
         for case_idx, case_name in enumerate(adfobj.data.case_names):
 
@@ -244,6 +246,14 @@ def zonal_mean(adfobj):
                     case_name, var, **vres
                 )
             else:
+                odata, has_lat_ref, has_lev_ref = shared_ref
+                if has_ref_var and adfobj.data.get_ref_on_case_grid_file(case_name, var):
+                    # This case is on a coarser grid than the reference, so the
+                    # regridding step put the reference onto the case's grid:
+                    case_ref = adfobj.data.load_reference_regrid_da(var, test_case=case_name)
+                    if case_ref is not None:
+                        odata = case_ref
+                        has_lat_ref, has_lev_ref = utils.zm_validate_dims(odata)
                 mdata = adfobj.data.load_regrid_da(case_name, var)
             # End if
 

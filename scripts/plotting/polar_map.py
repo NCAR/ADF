@@ -273,6 +273,10 @@ def polar_map(adfobj):
             if not all(utils.validate_dims(odata, ["lat", "lon"]).values()):
                 print(f"\t    WARNING: Reference data for {var} missing lat/lon dimensions, polar map plotting skipped.")
                 continue
+            shared_odata = odata
+            # A case on a coarser grid than the reference gets the reference
+            # on its own grid, loaded with the case:
+            ref_by_case = {}
 
         # Process each case
         for plot in plot_info:
@@ -323,6 +327,15 @@ def polar_map(adfobj):
                 # lat/lon case was put onto it):
                 wgt = utils.cell_weights(mdataset, adfobj.model_component)
             else:
+                odata = shared_odata
+                if adfobj.data.get_ref_on_case_grid_file(case_name, var):
+                    # This case is on a coarser grid than the reference, so the
+                    # regridding step put the reference onto the case's grid:
+                    if case_name not in ref_by_case:
+                        ref_by_case[case_name] = adfobj.data.load_reference_regrid_da(
+                            var, test_case=case_name, **kwargs)
+                    if ref_by_case[case_name] is not None:
+                        odata = ref_by_case[case_name]
                 mdata = adfobj.data.load_regrid_da(case_name, var, **kwargs)
                 """#Skip this variable/case if the regridded climo file doesn't exist:
                 if mdata is None:

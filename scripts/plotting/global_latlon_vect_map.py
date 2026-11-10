@@ -196,6 +196,7 @@ def process_vector_pair(adfobj, var, seasons, pres_levs, plot_type, redo_plot,
                               var_pair, data_var, kwargs, False)
         if ref is None:
             return var, var_pair
+        shared_ref = ref
 
     #Loop over model cases:
     for case_idx, case_name in enumerate(case_names):
@@ -208,6 +209,16 @@ def process_vector_pair(adfobj, var, seasons, pres_levs, plot_type, redo_plot,
                                   test_case=case_name)
             if ref is None:
                 continue
+        elif adfobj.data.get_ref_on_case_grid_file(case_name, var):
+            # This case is on a coarser grid than the reference, so the
+            # regridding step put the reference onto the case's grid:
+            ref = _load_reference(adfobj, base_name, var,
+                                  var_pair, data_var, kwargs, False,
+                                  test_case=case_name)
+            if ref is None:
+                continue
+        else:
+            ref = shared_ref
         uodata, vodata, wgt_base, _ = ref
 
         case = _load_case(adfobj, case_idx, case_name, var, var_pair, data_var,
@@ -285,6 +296,8 @@ def _load_reference(adfobj, base_name, var, var_pair, data_var,
         # Cell weights (area; area * landfrac for land), as global_latlon_map:
         wgt_base = utils.cell_weights(odataset, adfobj.model_component)
     else:
+        # A `test_case` on a coarser grid gets the reference on its grid:
+        kwargs["test_case"] = test_case
         uodata = adfobj.data.load_reference_regrid_da(var, **kwargs)
         vodata = adfobj.data.load_reference_regrid_da(var_pair, **kwargs)
         if (uodata is None) or (vodata is None):

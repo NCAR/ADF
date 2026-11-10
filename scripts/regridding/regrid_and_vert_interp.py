@@ -27,6 +27,14 @@ DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
 # Native grid dimensions: CAM's "ncol" and CLM's "lndgrid":
 UNSTRUCTURED_DIMS = ("ncol", "lndgrid")
 
+# Resolution notes already printed, so each is said once per run (see _note_once).
+_NOTED = set()
+
+# When a finer field is regridded onto a coarser grid, a coarse cell is kept
+# only if source cells with data cover at least this fraction of it (xESMF's
+# na_thres is the largest missing fraction allowed).  See _regrid_to_coarser.
+COARSEN_NA_THRES = 0.5
+
 
 def _interp_levels(adf):
     """The pressure levels to interpolate onto, in Pa.
@@ -213,9 +221,34 @@ def regrid_and_vert_interp(adf):
                     )
                     continue
 
+            if ref_mesh and utils.coarser_grid(model_da, ref_ds) == "test":
+                _note_once(
+                    ("mesh", case_name),
+                    f"\t    WARNING: '{case_name}' is on a coarser grid than the "
+                    f"reference's mesh, so putting it onto that mesh interpolates "
+                    "it to a resolution it does not have."
+                )
+
+            # Compare on the coarser grid: when this case's lat/lon grid is
+            # clearly coarser than the reference's, the reference goes onto the
+            # case's grid (written for this case alone) and the case keeps its
+            # own grid.  Otherwise the case goes onto the reference's grid, as
+            # before; on the same grid nothing is regridded.
+            target_ds = ref_ds
+            if (
+                not _is_unstructured(model_da)
+                and not _is_unstructured(ref_ds)
+                and utils.coarser_grid(model_da, ref_ds) == "test"
+                and _write_reference_on_case_grid(
+                    adf, case_name, var, target_name, model_da, output_loc,
+                    overwrite_regrid, (syear, eyear),
+                )
+            ):
+                target_ds = model_ds
+
             # --- Horizontal Regridding ---
             regridded_da = _handle_horizontal_regridding(
-                model_da, ref_ds, output_loc, mesh_file=ref_mesh
+                model_da, target_ds, output_loc, mesh_file=ref_mesh
             )
             regridded_da.attrs.update(original_attrs)
             # --- Vertical Interpolation ---
@@ -235,7 +268,7 @@ def regrid_and_vert_interp(adf):
                     pres_name = pres_source.name
                     original_pres_attrs = pres_source.attrs.copy()
                     pres_da = _handle_horizontal_regridding(
-                        pres_source, ref_ds, output_loc, mesh_file=ref_mesh
+                        pres_source, target_ds, output_loc, mesh_file=ref_mesh
                     )
                     pres_da.attrs.update(original_pres_attrs)
                     pres_da = _pressure_in_pa(pres_da, name=pres_name)
@@ -253,7 +286,7 @@ def regrid_and_vert_interp(adf):
                             continue
                         original_ps_attrs = ps_da_source.attrs.copy()
                         ps_da = _handle_horizontal_regridding(
-                            ps_da_source, ref_ds, output_loc, mesh_file=ref_mesh
+                            ps_da_source, target_ds, output_loc, mesh_file=ref_mesh
                         )
                         ps_da.attrs.update(original_ps_attrs)
                     ps_da = _pressure_in_pa(ps_da, name="PS")
@@ -281,7 +314,7 @@ def regrid_and_vert_interp(adf):
                 and var_default_dict["mask"].lower() == "ocean"
             ):
                 ocn_frac_da = _get_ocean_fraction(
-                    adf, case_name, target_name, output_loc, ref_ds, (syear, eyear),
+                    adf, case_name, target_name, output_loc, target_ds, (syear, eyear),
                     mesh_file=ref_mesh,
                 )
                 if ocn_frac_da is None:
@@ -699,6 +732,17 @@ def _write_reference_on_mesh(
         )
         return False
 
+    if utils.coarser_grid(model_ds, ref_da) == "ref":
+        # Plotting on the mesh is the point of 'unstructured_plotting', so the
+        # remap still happens, but it cannot add detail the reference lacks:
+        _note_once(
+            ("mesh", case_name, len(ref_da.lat), len(ref_da.lon)),
+            f"\t    WARNING: The reference ({len(ref_da.lat)}x{len(ref_da.lon)} lat/lon) "
+            f"is coarser than the mesh of '{case_name}'.  It is still put onto the "
+            "mesh, which interpolates it to a resolution it does not have; "
+            "differences at the mesh's finest scales are not meaningful."
+        )
+
     native_dim = next(dim for dim in UNSTRUCTURED_DIMS if dim in model_ds.dims)
     out = _on_native_dim(_latlon_to_mesh(ref_da, mesh_file, output_loc), ref_da, native_dim)
     final_ds = out.to_dataset()
@@ -720,6 +764,137 @@ def _write_reference_on_mesh(
     )
     save_to_nc(final_ds, out_file)
     return True
+
+
+def _write_reference_on_case_grid(
+    adf, case_name, var, target_name, model_da, output_loc, overwrite, years
+):
+    """Write the reference for `var` onto a coarser test case's lat/lon grid.
+
+    Fields are compared on the coarser of the two grids, so that neither is
+    interpolated to a resolution it does not have.  When a test case's grid is
+    clearly coarser than the reference's (see :func:`adf_utils.coarser_grid`),
+    the reference file as the plots would read it -- the baseline file written
+    by `_write_reference_files`, already on the pressure levels, or the
+    observation file -- is regridded onto the case's grid with area-conserving
+    weights, normalised so that missing cells (below ground, masked) leave the
+    others' average unchanged.  It is written as
+    {ref}_{case}_{var}_reference_on_case_grid_YYYY-YYYY.nc (the case's years),
+    keeping the variable's name and attributes, so it is converted when
+    plotted exactly as the reference's own file would be.  AdfData picks it
+    for this case (see AdfData.get_ref_on_case_grid_file).
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    case_name : str
+        Name of the test case.
+    var : str
+        ADF name of the variable.
+    target_name : str
+        Label of the reference data set.
+    model_da : xarray.DataArray
+        The case's field, on its lat/lon grid.
+    output_loc : pathlib.Path
+        The regrid output directory.
+    overwrite : bool
+        Rewrite an existing file.
+    years : tuple
+        The case's climatology (first, last) years, which name the file.
+
+    Returns
+    -------
+    bool
+        True when the reference is on the case's grid (written now or before).
+    """
+    out_file = output_loc / utils.year_tagged_names(
+        f"{target_name}_{case_name}_{var}_reference_on_case_grid", *years)[0]
+    if out_file.is_file() and not overwrite:
+        print(f"\t INFO: Reference on the case's grid already exists, skipping: {out_file}")
+        return True
+    fils = adf.data.get_ref_regrid_file(var)
+    if not fils:
+        return False
+    ref_ds = xr.open_dataset(fils[0])
+    file_field = adf.data.ref_var_nam[var] if adf.compare_obs else var
+    if file_field not in ref_ds:
+        return False
+    ref_da = ref_ds[file_field]
+    if not ("lat" in ref_da.dims and "lon" in ref_da.dims):
+        return False
+
+    _note_once(
+        ("coarser", case_name, target_name),
+        f"\t NOTE: '{case_name}' ({len(model_da.lat)}x{len(model_da.lon)}) is on a "
+        f"coarser grid than '{target_name}' ({len(ref_da.lat)}x{len(ref_da.lon)}), so "
+        f"'{target_name}' is regridded onto the case's grid, not the other way round."
+    )
+    out = _regrid_to_coarser(ref_da, model_da, output_loc)
+    final_ds = out.to_dataset(name=file_field)
+    final_ds = final_ds.assign_attrs(
+        dict(
+            ref_ds.attrs,
+            adf_user=adf.user,
+            reference_file=str(fils[0]),
+            regridded_for_case=case_name,
+        )
+    )
+    if out_file.is_file():
+        out_file.unlink()
+    save_to_nc(final_ds, out_file)
+    return True
+
+
+def _regrid_to_coarser(source_da, target_like, regrid_loc):
+    """Regrid a lat/lon field onto a coarser lat/lon grid, conserving area means.
+
+    Uses xESMF's normalised conservative method and skips missing source
+    cells, so a target cell partly over missing cells (below ground on a
+    pressure level, or masked) is the average of the cells that have data --
+    but only when they cover at least half of it (`COARSEN_NA_THRES`).  A
+    coastal cell with only a sliver of ocean in a masked ocean field is left
+    missing, rather than taking the sliver's value for the whole cell.
+    The weights are kept in `regrid_loc`/regrid_weights.
+
+    Parameters
+    ----------
+    source_da : xarray.DataArray
+        The finer field.
+    target_like : xarray.DataArray or xarray.Dataset
+        Data on the target grid.
+    regrid_loc : pathlib.Path
+        The regrid output directory.
+
+    Returns
+    -------
+    xarray.DataArray
+        `source_da` on the target grid, with its attributes.
+    """
+    source_grid = utils.create_clean_grid(source_da)
+    target_grid = utils.create_clean_grid(target_like)
+    method = "conservative_normed"
+    weights_dir = Path(regrid_loc) / "regrid_weights"
+    weights_dir.mkdir(parents=True, exist_ok=True)
+    weights_file = weights_dir / (
+        f"weights_structured_{len(source_da.lat)}_{len(source_da.lon)}_to_"
+        f"structured_{len(target_like.lat)}_{len(target_like.lon)}_{method}.nc"
+    )
+    if weights_file.exists():
+        regridder = xe.Regridder(source_grid, target_grid, method, weights=str(weights_file))
+    else:
+        regridder = xe.Regridder(source_grid, target_grid, method)
+        regridder.to_netcdf(weights_file)
+    out = regridder(source_da, keep_attrs=True, skipna=True, na_thres=COARSEN_NA_THRES)
+    out.attrs.update(source_da.attrs)
+    return out
+
+
+def _note_once(key, message):
+    """Print `message` the first time `key` comes up in this run."""
+    if key not in _NOTED:
+        _NOTED.add(key)
+        print(message)
 
 
 def _on_native_dim(on_mesh, source_da, native_dim):
@@ -810,6 +985,10 @@ def _handle_horizontal_regridding(
         native_dim = next(dim for dim in UNSTRUCTURED_DIMS if dim in target_grid.dims)
         on_mesh = _latlon_to_mesh(source_da, mesh_file, regrid_loc)
         return _on_native_dim(on_mesh, source_da, native_dim)
+    # Already on the target grid (the same grid, or a coarser case that keeps
+    # its own): regridding would only alter it, e.g. the polar rows.
+    if utils.same_latlon_grid(source_da, target_grid):
+        return source_da
 
     # Generate a unique name for the weights file
     source_grid_type = "unstructured" if "ncol" in source_da.dims else "structured"
@@ -1163,6 +1342,14 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
     )
     # (grid_to_latlon carries hyam, hybm, P0 and the rest over, which the
     # vertical interpolation needs.)
+    if utils.coarser_grid(dset, gridded) == "test":
+        _note_once(
+            ("gridding", label),
+            f"\t    WARNING: The 'weights_file' of '{label}' grids it to a finer "
+            f"lat/lon grid ({len(gridded.lat)}x{len(gridded.lon)}) than its native "
+            "grid, which interpolates it to a resolution it does not have.  A "
+            "map to a grid at least as coarse as the native one is better."
+        )
 
     if save:
         gridded_loc = Path(climo_loc) / "gridded"

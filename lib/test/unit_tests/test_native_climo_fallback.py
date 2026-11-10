@@ -23,14 +23,20 @@ pytest.importorskip("xarray")
 
 sys.path.append(str(Path(__file__).parents[2]))
 
-from adf_dataset import AdfData  # noqa: E402
+from adf_dataset import AdfData  # noqa: E402  # pylint: disable=import-error
 
 CLIMO = ["case_TBOT_climo.nc"]
 BASE_CLIMO = ["base_TBOT_climo.nc"]
 
 
 def _data(
-    unstructured, regrid_fils=(), ref_regrid_fils=(), on_mesh_fils=(), native_file=False
+    unstructured,
+    *,
+    regrid_fils=(),
+    ref_regrid_fils=(),
+    on_mesh_fils=(),
+    native_file=False,
+    case_grid_fils=(),
 ):
     """An AdfData stand-in recording which files (and meshes) the loaders open."""
     obj = SimpleNamespace(
@@ -49,6 +55,9 @@ def _data(
         get_ref_regrid_file=lambda field: list(ref_regrid_fils),
         get_ref_on_mesh_file=lambda test_case, field: (
             list(on_mesh_fils) if test_case else []
+        ),
+        get_ref_on_case_grid_file=lambda test_case, field: (
+            list(case_grid_fils) if test_case else []
         ),
         get_climo_file=lambda case, field: list(CLIMO),
         get_reference_climo_file=lambda field: list(BASE_CLIMO),
@@ -170,3 +179,30 @@ def test_lat_lon_regrid_file_keeps_no_mesh():
     obj = _data(unstructured=True, regrid_fils=["rg.nc"], native_file=False)
     AdfData.load_regrid_dataset(obj, "case", "TBOT", mesh_file=None)
     assert obj.meshes == [None]
+
+
+def test_reference_on_a_coarser_case_grid_is_preferred():
+    """A case on a coarser grid reads the reference put onto its own grid.
+
+    Fields are compared on the coarser grid of the two, so for such a case the
+    regridding stage writes the reference onto the case's grid.
+    """
+    obj = _data(
+        unstructured=False,
+        ref_regrid_fils=["base_rg.nc"],
+        case_grid_fils=["on_grid.nc"],
+    )
+    AdfData.load_reference_regrid_dataset(obj, "TBOT", test_case="case")
+    assert obj.opened == [["on_grid.nc"]]
+    assert obj.meshes == [None]
+
+
+def test_case_grid_file_needs_the_test_case():
+    """Without a test case the shared reference file is read, as before."""
+    obj = _data(
+        unstructured=False,
+        ref_regrid_fils=["base_rg.nc"],
+        case_grid_fils=["on_grid.nc"],
+    )
+    AdfData.load_reference_regrid_dataset(obj, "TBOT")
+    assert obj.opened == [["base_rg.nc"]]

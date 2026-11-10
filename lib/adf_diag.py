@@ -668,6 +668,7 @@ class AdfDiag(AdfWeb):
         gridded_loc.mkdir(parents=True, exist_ok=True)
         print(f"\n    Gridding native time series for '{case_name}' to {gridded_loc}")
 
+        warned = False
         for hist_str in hist_strs or []:
             # This case's files for this stream only: the directory may hold
             # other streams or other cases.
@@ -689,6 +690,19 @@ class AdfDiag(AdfWeb):
                         comp=self.model_component,
                         latlon_file=latlon_file,
                     )
+                    if not warned and utils.coarser_grid(ts_ds, gridded) == "test":
+                        # Comparisons should be made on the coarser grid; the
+                        # weights file is the user's choice, so only say so.
+                        warned = True
+                        print(
+                            f"\t    WARNING: The 'weights_file' of '{case_name}' grids"
+                            " it to a finer lat/lon grid"
+                            f" ({gridded.sizes['lat']}x{gridded.sizes['lon']}) than"
+                            " its native grid, which interpolates it to a"
+                            " resolution it does not have.  A map to a grid at"
+                            " least as coarse as the native one is better."
+                        )
+                    # End if
                     save_to_nc(gridded, gridded_file)
                 # End with
             # End for
