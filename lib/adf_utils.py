@@ -1107,6 +1107,30 @@ def same_latlon_grid(a, b):
     )
 
 
+def grid_label(obj):
+    """A short name for the horizontal grid `obj` is on, for plots and notes.
+
+    Parameters
+    ----------
+    obj : xarray.Dataset or xarray.DataArray
+        Data on a lat/lon grid (``lat`` and ``lon`` dimensions) or on a native
+        grid (one of :data:`NATIVE_DIMS`).
+
+    Returns
+    -------
+    str
+        e.g. ``"192x288 lat/lon grid"`` or ``"21,600-cell native grid"``;
+        ``"unknown grid"`` when neither is found.
+    """
+    sizes = obj.sizes
+    if "lat" in sizes and "lon" in sizes:
+        return f"{sizes['lat']}x{sizes['lon']} lat/lon grid"
+    for dim in NATIVE_DIMS:
+        if dim in sizes:
+            return f"{sizes[dim]:,}-cell native grid"
+    return "unknown grid"
+
+
 def pct_change(case, base, rel_tol=1e-6):
     """Percent change (case - base) / |base| * 100, masked where |base| is ~zero.
 

@@ -838,6 +838,74 @@ class AdfData:  # pylint: disable=too-many-public-methods
             self._case_climo_years(test_case),
         )
 
+    def log_regrid_note(self, plot_type, case, field, unstructured_plotting=False):
+        """Write to the debug log the grid `case` and its reference are compared on.
+
+        The regridding stage writes into each file it makes how that side got
+        onto the grid the two are compared on (the "adf_regrid" global
+        attribute: the case's weights file and method, a lat/lon regrid, or a
+        remap onto the mesh).  This puts the two sides together in one line of
+        the debug log, so a reader knows which grid a plot's statistics are
+        computed on (a UXarray run and a gridded run of the same pair differ
+        for that reason).
+
+        One line per plot type and case: a variable is logged only when its
+        note differs from those already logged for that plot type and case
+        (e.g. a flux variable gridded with the conservative map).
+
+        Parameters
+        ----------
+        plot_type : str
+            The plotting script, e.g. "global_latlon_map".
+        case : str
+            The test case.
+        field : str
+            The variable.
+        unstructured_plotting : bool, optional
+            Whether the plot is on the native mesh, which decides which
+            reference file is read.
+
+        Returns
+        -------
+        str
+            The note, e.g. "Compared on the 192x288 lat/lon grid.  Test:
+            gridded from its native grid with map.nc (bilinear).  Baseline:
+            not regridded."  Empty when the test case has no file.
+        """
+        notes = self.__dict__.setdefault("_regrid_notes", {})
+        key = (case, field, bool(unstructured_plotting))
+        if key not in notes:
+            notes[key] = self._make_regrid_note(case, field, unstructured_plotting)
+        note = notes[key]
+        logged = self.__dict__.setdefault("_regrid_notes_logged", set())
+        if note and (plot_type, case, note) not in logged:
+            logged.add((plot_type, case, note))
+            self.adf.debug_log(f"regrid: {plot_type}, {case} ({field}): {note}")
+        return note
+
+    def _make_regrid_note(self, case, field, unstructured_plotting):
+        """Build :meth:`log_regrid_note`'s note from the files' attributes."""
+        kwargs = {"unstructured_plotting": unstructured_plotting}
+        # The files were found (and any warning given) when the data was loaded:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            test_fils = self._regrid_files(case, field, dict(kwargs))
+            ref_fils = self._reference_files(field, dict(kwargs, test_case=case))
+        if not test_fils:
+            return ""
+
+        def _read(fil):
+            with xr.open_dataset(fil, decode_times=False) as dset:
+                grid = utils.grid_label(dset[field] if field in dset else dset)
+                return grid, dset.attrs.get("adf_regrid", "")
+
+        grid, test_note = _read(test_fils[0])
+        ref_note = _read(ref_fils[0])[1] if ref_fils else ""
+        return (
+            f"Compared on the {grid}.  Test: {test_note or 'not regridded'}.  "
+            f"Baseline: {ref_note or 'not regridded'}."
+        )
+
     def _reference_files(self, field, kwargs):
         """The reference file(s) to load for `field`, updating `kwargs` to match.
 

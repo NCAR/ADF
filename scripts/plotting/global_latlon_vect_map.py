@@ -459,6 +459,12 @@ def process_plots(adfobj, umdata, vmdata, uodata, vodata, case_name, case_idx,
             # currently knows how to handle:
             #   colormap, contour_levels, diff_colormap, diff_contour_levels, tiString, tiFontSize, mpl
             #   *Any other entries will be ignored.
+            # Log the grid the panels are compared on, and how each side got onto
+            # it (from the zonal component's files; the pair is regridded alike):
+            adfobj.data.log_regrid_note(
+                "global_latlon_vect_map", case_name, umdata.name,
+                unstructured_plotting=vres["unstructured_plotting"],
+            )
             pf.plot_map_and_save(adfobj, plot_name, case_nickname, base_nickname,
                                  case_yrs, base_yrs,
                                  umseason, uoseason, udseason, upseason,

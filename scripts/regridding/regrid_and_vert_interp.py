@@ -181,6 +181,16 @@ def regrid_and_vert_interp(adf):
                 print(f"\t ERROR: Missing model data for {var}. Skipping.")
                 continue
 
+            # How this case got onto the grid the plots compare on, written
+            # into its regridded file for the plots' debug-log note.  A native
+            # case not plotted natively is gridded first, here from native
+            # climo or before from its time series:
+            gridding_note = ""
+            if getattr(adf, "native_grid", {}).get(case_name, False) and not adf.unstructured_plotting:
+                gridding_note = _gridding_note(
+                    adf, var, case_idx, from_climo=_is_unstructured(model_ds)
+                )
+
             # Native-grid data that is not being plotted natively goes onto
             # its lat/lon grid first; from here on it is handled exactly like
             # any other lat/lon case:
@@ -249,6 +259,9 @@ def regrid_and_vert_interp(adf):
             # --- Horizontal Regridding ---
             regridded_da = _handle_horizontal_regridding(
                 model_da, target_ds, output_loc, mesh_file=ref_mesh
+            )
+            regrid_note = _join_notes(
+                gridding_note, _horizontal_note(model_da, target_ds, regridded_da)
             )
             regridded_da.attrs.update(original_attrs)
             # --- Vertical Interpolation ---
@@ -348,9 +361,21 @@ def regrid_and_vert_interp(adf):
                 # Provenance: this file may be reused by a later run, which will
                 # not repeat the choice or say anything about it.
                 test_attrs_dict["vert_interp_pressure"] = pressure_note
+            if regrid_note:
+                test_attrs_dict[REGRID_NOTE_ATTR] = regrid_note
             final_ds = final_ds.assign_attrs(test_attrs_dict)
             save_to_nc(final_ds, regridded_file_loc)
 
+    if getattr(adf, "unstructured_plotting", False) or any(
+        getattr(adf, "native_grid", {}).values()
+    ):
+        adf.debug_log(
+            "regrid: plot statistics (means, RMSE, differences) are computed on "
+            "the grid named in the 'regrid:' lines the plots log.  With "
+            "'unstructured_plotting: true' a native case is compared on its "
+            "native mesh, and without it on a lat/lon grid, so the same pair of "
+            "cases gives slightly different statistics in the two modes."
+        )
     print("  ...CAM climatologies have been regridded successfully.")
 
 
@@ -596,6 +621,13 @@ def _write_reference_files(
         if ref_ds is None:
             print(f"\t ERROR: Missing reference data for {var}. Skipping.")
             continue
+        # How the baseline got onto its lat/lon grid, for the plots' debug-log
+        # note (see REGRID_NOTE_ATTR):
+        gridding_note = ""
+        if getattr(adf, "native_grid", {}).get(base, False) and not adf.unstructured_plotting:
+            gridding_note = _gridding_note(
+                adf, var, from_climo=_is_unstructured(ref_ds)
+            )
         # A native-grid baseline that is not being plotted natively goes onto
         # its lat/lon grid, which then becomes the target grid for the cases:
         ref_ds = _to_latlon(adf, ref_ds, var, save=True)
@@ -654,6 +686,8 @@ def _write_reference_files(
         }
         if pressure_note:
             baseline_attrs["vert_interp_pressure"] = pressure_note
+        if gridding_note:
+            baseline_attrs[REGRID_NOTE_ATTR] = gridding_note
         final_ds = final_ds.assign_attrs(baseline_attrs)
         save_to_nc(final_ds, baseline_file)
 
@@ -760,6 +794,14 @@ def _write_reference_on_mesh(
             reference_file=str(fils[0]),
             mesh_file=str(mesh_file),
             remapped_for_case=case_name,
+            **{
+                REGRID_NOTE_ATTR: _join_notes(
+                    ref_ds.attrs.get(REGRID_NOTE_ATTR),
+                    f"remapped from {utils.grid_label(ref_da)} onto this case's "
+                    f"{utils.grid_label(out)} "
+                    f"({_method_name(out.attrs.get('remap_method'))})",
+                )
+            },
         )
     )
     save_to_nc(final_ds, out_file)
@@ -838,6 +880,13 @@ def _write_reference_on_case_grid(
             adf_user=adf.user,
             reference_file=str(fils[0]),
             regridded_for_case=case_name,
+            **{
+                REGRID_NOTE_ATTR: _join_notes(
+                    ref_ds.attrs.get(REGRID_NOTE_ATTR),
+                    f"regridded from {utils.grid_label(ref_da)} to this case's "
+                    f"{utils.grid_label(out)} (conservative)",
+                )
+            },
         )
     )
     if out_file.is_file():
@@ -895,6 +944,91 @@ def _note_once(key, message):
     if key not in _NOTED:
         _NOTED.add(key)
         print(message)
+
+
+# How each regridded file got onto the grid the plots compare on is written into
+# it as the global attribute REGRID_NOTE_ATTR, one step per regrid, joined with
+# REGRID_NOTE_JOIN.  The plots write it to the debug log (AdfData.log_regrid_note); a
+# file with no such attribute was not regridded.
+REGRID_NOTE_ATTR = "adf_regrid"
+REGRID_NOTE_JOIN = "; then "
+
+
+def _method_name(method):
+    """A regrid method as the notes name it."""
+    method = str(method or "conservative")
+    if method.startswith("coserv"):
+        # The baseline's 'conservative' is stored with this spelling (adf_info).
+        return "conservative"
+    if method.startswith("ESMF"):
+        # _latlon_to_mesh's ESMF weights are always conservative:
+        return "ESMF conservative"
+    if method.startswith("uxarray "):
+        method = method[len("uxarray "):] + ", uxarray"
+    return method.replace("inverse_distance_weighted", "inverse-distance").replace("_", " ")
+
+
+def _join_notes(*notes):
+    """The regrid steps that happened, in order, as one note."""
+    return REGRID_NOTE_JOIN.join(note for note in notes if note)
+
+
+def _gridding_note(adf, var, case_idx=None, from_climo=True):
+    """How a native case's `var` got onto its lat/lon grid, as the config sets it.
+
+    From native climo (`from_climo`) the regridding stage grids it with the
+    case's 'weights_file' and 'regrid_method' (see `_to_latlon`).  Otherwise
+    the climo was made from gridded time series, for which a variable marked
+    'regrid_conservative' uses the case's 'conservative_weights_file', if it
+    has one (see AdfDiag.grid_native_time_series).
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    var : str
+        The variable.
+    case_idx : int, optional
+        The test case's index; omit it for the baseline.
+    from_climo : bool, optional
+        Whether the native climo is gridded here rather than its time series.
+
+    Returns
+    -------
+    str
+    """
+    wgt_files = adf.latlon_wgt_files
+    if case_idx is None:
+        wgts = wgt_files["baseline_wgts_file"]
+        cons = wgt_files.get("baseline_cons_wgts_file")
+        method = adf.latlon_regrid_method["baseline_regrid_method"]
+    else:
+        wgts = wgt_files["test_wgts_file"][case_idx]
+        cons_files = wgt_files.get("test_cons_wgts_file") or []
+        cons = cons_files[case_idx] if case_idx < len(cons_files) else None
+        method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
+    var_default = (adf.variable_defaults or {}).get(var) or {}
+    if not from_climo and cons and var_default.get("regrid_conservative", False):
+        wgts, method = cons, "conservative"
+    wgts_name = Path(wgts).name if wgts else "its weights file"
+    return f"gridded from its native grid with {wgts_name} ({_method_name(method)})"
+
+
+def _horizontal_note(source_da, target_grid, regridded_da):
+    """What `_handle_horizontal_regridding` did to `source_da`, or "" if nothing."""
+    if _is_unstructured(source_da):
+        return ""
+    if _is_unstructured(target_grid):
+        return (
+            f"remapped from {utils.grid_label(source_da)} onto the reference's mesh "
+            f"({_method_name(regridded_da.attrs.get('remap_method'))})"
+        )
+    if utils.same_latlon_grid(source_da, target_grid):
+        return ""
+    return (
+        f"regridded from {utils.grid_label(source_da)} to "
+        f"{utils.grid_label(regridded_da)} (conservative)"
+    )
 
 
 def _on_native_dim(on_mesh, source_da, native_dim):

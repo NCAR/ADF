@@ -372,6 +372,12 @@ def meridional_mean(adfobj):
                 def make_plot(wks, log_p):
                     """Test vs baseline, or whichever of the two has data."""
                     if (mdata is not None) and (case_odata is not None):
+                        # Log the grid the panels are compared on, and how
+                        # each side got onto it:
+                        adfobj.data.log_regrid_note(
+                            "meridional_mean", case_name, var,
+                            unstructured_plotting=vres.get("unstructured_plotting", False),
+                        )
                         pf.plot_meridional_mean_and_save(
                             adfobj,
                             wks,

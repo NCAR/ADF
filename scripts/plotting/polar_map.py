@@ -430,6 +430,10 @@ def polar_map(adfobj):
             if plot['path'].exists():
                 plot['path'].unlink()
 
+            # Log the grid the panels are compared on, and how each side got onto it:
+            adfobj.data.log_regrid_note(
+                "polar_map", case_name, var, unstructured_plotting=unstructured
+            )
             pf.make_polar_plot(adfobj, 
                 plot['path'], test_nicknames[case_idx], base_nickname,
                 [syear_cases[case_idx], eyear_cases[case_idx]],

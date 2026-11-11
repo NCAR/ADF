@@ -266,6 +266,11 @@ def process_case(adfobj, case_name, case_idx, var, odata, seasons,
             print(f"\t    WARNING: 3D variable found but no pressure levels specified")
             return
 
+    # Log the grid the panels are compared on, and how each side got onto it:
+    adfobj.data.log_regrid_note(
+        "global_latlon_map", case_name, var,
+        unstructured_plotting=vres["unstructured_plotting"],
+    )
     process_plots(adfobj, mdata, odata, case_name, case_idx,
                  var, seasons, pres_levs, plot_loc, plot_type,
                  redo_plot, vres, web_category, has_dims)
