@@ -140,13 +140,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: ctsm5.4.004_bgc_f09_131_HIST
+    cam_case_name: ctsm5.4.CMIP7_ciso_ctsm5.3.075_f09_124_HIST
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'clm5.4_dev_131'
+    case_nickname: 'clm5.4_dev_124'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/campaign/cgd/tss/tutorials/clm_2026/${diag_cam_climo.cam_case_name}/lnd/hist/
