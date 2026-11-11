@@ -1379,14 +1379,11 @@ def array_diff(a, b, percent=False, fill_nan=None, rel_tol=None):
         )
 
     if percent:
-        if hasattr(a, "uxgrid"):
-            with np.errstate(divide="ignore", invalid="ignore"):
-                vals = (a.values - b.values) / np.abs(b.values) * 100.0
-        else:
-            vals = (a.values - b.values) / np.abs(b.values) * 100.0
-        if rel_tol is not None:
-            abs_b = np.abs(b.values)
-            vals = np.where(abs_b > rel_tol * np.nanmax(abs_b), vals, np.nan)
+        # avoid "divide by zero" warnings, for both structured and unstructured grids
+        abs_b = np.abs(b.values)
+        thresh = 0.0 if rel_tol is None else rel_tol * np.nanmax(abs_b)
+        denom = np.where(abs_b > thresh, abs_b, np.nan)
+        vals = (a.values - b.values) / denom * 100.0
     else:
         vals = a.values - b.values
 
