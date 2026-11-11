@@ -332,7 +332,7 @@ diag_var_list:
 # Variables plotted by regional_climatology and regional_timeseries.
 # Max 15 variables (4x4 figure, first panel is the region map).
 regional_var_list:
-    - TBOT
+    - TSA
     - PREC
     - ELAI
     - FSDS
