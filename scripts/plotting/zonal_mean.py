@@ -168,8 +168,6 @@ def zonal_mean(adfobj):
         if unstruct_plotting:
             #config["unstructured_plotting"] = unstruct_plotting
             unstructured = unstruct_plotting
-            #mesh_file = '/glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc'#adfobj.mesh_file
-            #kwargs["mesh_file"] = mesh_file
         else:
             unstructured = False
         #config["unstructured_plotting"] = unstructured
