@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ADF diagnostics</title>
+    <title>{{ site_name }} diagnostics</title>
     <link rel="stylesheet" href="./templates/adf_diag.css">
   </head>
   <body >
@@ -13,8 +13,9 @@
         <li><a href="#">Links &dtrif;</a>
           <ul class="dropdown">
             <li><a href="https://www.cesm.ucar.edu">CESM</a></li>
-            <li><a href="https://www.cesm.ucar.edu/working_groups/Atmosphere/?ref=nav">AMWG</a></li>
-            <li><a href="https://www.cgd.ucar.edu/amp/">AMP</a></li>
+            {% for wg_name, wg_url in wg_links %}
+            <li><a href="{{ wg_url }}">{{ wg_name }}</a></li>
+            {% endfor %}
           </ul>
         </li>
         <li><a href="https://github.com/NCAR/ADF">About</a></li>

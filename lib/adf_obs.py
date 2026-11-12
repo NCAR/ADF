@@ -70,7 +70,12 @@ class AdfObs(AdfInfo):
         # Determine whether to use adf defaults or custom:
         _defaults_file = self.get_basic_info("defaults_file")
         if _defaults_file is None:
-            _defaults_file = _adf_lib_dir / "adf_variable_defaults.yaml"
+            # Land (CLM) cases have their own variable defaults:
+            if self.model_component == "lnd":
+                _defaults_file = _adf_lib_dir / "ldf_variable_defaults.yaml"
+            else:
+                _defaults_file = _adf_lib_dir / "adf_variable_defaults.yaml"
+            # End if
         else:
             print(
                 f"\n\t Not using ADF default variables yaml file, instead using {_defaults_file}\n"

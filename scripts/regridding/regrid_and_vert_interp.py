@@ -1,5 +1,6 @@
 """Driver for horizontal and vertical interpolation.
 """
+import hashlib
 import warnings
 from pathlib import Path
 
@@ -20,6 +21,19 @@ DEFAULT_PLEVS = [
 # ndarray, not a list: geocat's interp_hybrid_to_pressure and utils.vert_remap
 # both index it as an array (.size / .shape).
 DEFAULT_PLEVS_Pa = np.array(DEFAULT_PLEVS, dtype=float) * 100.0
+
+# Horizontal dimension of native (unstructured, e.g. spectral-element) CAM
+# output.  See _to_latlon for how such data is handled.
+# Native grid dimensions: CAM's "ncol" and CLM's "lndgrid":
+UNSTRUCTURED_DIMS = ("ncol", "lndgrid")
+
+# Resolution notes already printed, so each is said once per run (see _note_once).
+_NOTED = set()
+
+# When a finer field is regridded onto a coarser grid, a coarse cell is kept
+# only if source cells with data cover at least this fraction of it (xESMF's
+# na_thres is the largest missing fraction allowed).  See _regrid_to_coarser.
+COARSEN_NA_THRES = 0.5
 
 
 def _interp_levels(adf):
@@ -133,7 +147,9 @@ def regrid_and_vert_interp(adf):
                 print(f"\t ERROR: No reference data available for {var}.")
                 continue
 
-            regridded_file_loc = output_loc / f'{target_name}_{case_name}_{var}_regridded.nc'
+            # Named after the case's climatology years, as its climo file is:
+            regridded_file_loc = output_loc / utils.year_tagged_names(
+                f'{target_name}_{case_name}_{var}_regridded', syear, eyear)[0]
 
             if regridded_file_loc.is_file() and not overwrite_regrid:
                 print(f"\t INFO: Regridded file already exists, skipping: {regridded_file_loc}")
@@ -143,8 +159,21 @@ def regrid_and_vert_interp(adf):
                 regridded_file_loc.unlink()
 
 
-            model_ds = adf.data.load_climo_ds(case_name, var)
-            ref_ds = adf.data.load_reference_climo_ds(adf.data.ref_case_label, var)
+            model_ds = adf.data.load_climo_dataset(case_name, var)
+            ref_ds = adf.data.load_reference_climo_dataset(var)
+            if not ref_ds:
+                # The reference only supplies the target grid (the vertical
+                # target is the fixed pressure levels), and its regridded file
+                # is on that same grid -- so a baseline whose climo files are
+                # gone but whose regridded files are still here will do:
+                ref_ds = adf.data.load_reference_regrid_dataset(
+                    var
+                )
+                if ref_ds:
+                    adf.debug_log(
+                        f"regrid: no reference climo for '{var}'; using the "
+                        "reference's regridded file for the target grid"
+                    )
             if not ref_ds:
                 print(f"\t ERROR: Missing reference data for {var}. Skipping.")
                 continue
@@ -152,11 +181,88 @@ def regrid_and_vert_interp(adf):
                 print(f"\t ERROR: Missing model data for {var}. Skipping.")
                 continue
 
+            # How this case got onto the grid the plots compare on, written
+            # into its regridded file for the plots' debug-log note.  A native
+            # case not plotted natively is gridded first, here from native
+            # climo or before from its time series:
+            gridding_note = ""
+            if getattr(adf, "native_grid", {}).get(case_name, False) and not adf.unstructured_plotting:
+                gridding_note = _gridding_note(
+                    adf, var, case_idx, from_climo=_is_unstructured(model_ds)
+                )
+
+            # Native-grid data that is not being plotted natively goes onto
+            # its lat/lon grid first; from here on it is handled exactly like
+            # any other lat/lon case:
+            ref_ds = _to_latlon(adf, ref_ds, var)
+            model_ds = _to_latlon(adf, model_ds, var, case_name=case_name, save=True)
+
             model_da = model_ds[var].squeeze()
             original_attrs = model_da.attrs.copy()
 
+            # A lat/lon case against a reference on its native grid (plotted
+            # natively): the case goes onto the reference's mesh, so the two
+            # can be compared there.
+            ref_mesh = None
+            if _is_unstructured(ref_ds) and not _is_unstructured(model_da):
+                ref_mesh = adf.mesh_files["baseline_mesh_file"]
+                if not ref_mesh:
+                    print(
+                        f"\t WARNING: The reference for '{var}' is on a native grid "
+                        f"with no 'mesh_file', so '{case_name}' cannot be put onto "
+                        "it.  Skipping."
+                    )
+                    continue
+
+            if _is_unstructured(model_da) and not _same_native_grid(model_da, ref_ds):
+                # Plotting natively needs the test case and the reference on
+                # one mesh.  A lat/lon reference (a lat/lon baseline or
+                # observations) is put onto this case's mesh; the case itself
+                # then passes through below, as for a reference on its mesh.
+                # A reference on another mesh cannot be compared:
+                if _is_unstructured(ref_ds) or not _write_reference_on_mesh(
+                    adf, case_idx, case_name, var, target_name, model_ds,
+                    output_loc, overwrite_regrid, (syear, eyear),
+                ):
+                    print(
+                        f"\t WARNING: '{case_name}' is on a native grid but the "
+                        f"reference for '{var}' is not on that same grid, so it can "
+                        "not be plotted natively.  Skipping."
+                    )
+                    continue
+
+            if ref_mesh and utils.coarser_grid(model_da, ref_ds) == "test":
+                _note_once(
+                    ("mesh", case_name),
+                    f"\t    WARNING: '{case_name}' is on a coarser grid than the "
+                    f"reference's mesh, so putting it onto that mesh interpolates "
+                    "it to a resolution it does not have."
+                )
+
+            # Compare on the coarser grid: when this case's lat/lon grid is
+            # clearly coarser than the reference's, the reference goes onto the
+            # case's grid (written for this case alone) and the case keeps its
+            # own grid.  Otherwise the case goes onto the reference's grid, as
+            # before; on the same grid nothing is regridded.
+            target_ds = ref_ds
+            if (
+                not _is_unstructured(model_da)
+                and not _is_unstructured(ref_ds)
+                and utils.coarser_grid(model_da, ref_ds) == "test"
+                and _write_reference_on_case_grid(
+                    adf, case_name, var, target_name, model_da, output_loc,
+                    overwrite_regrid, (syear, eyear),
+                )
+            ):
+                target_ds = model_ds
+
             # --- Horizontal Regridding ---
-            regridded_da = _handle_horizontal_regridding(model_da, ref_ds, output_loc)
+            regridded_da = _handle_horizontal_regridding(
+                model_da, target_ds, output_loc, mesh_file=ref_mesh
+            )
+            regrid_note = _join_notes(
+                gridding_note, _horizontal_note(model_da, target_ds, regridded_da)
+            )
             regridded_da.attrs.update(original_attrs)
             # --- Vertical Interpolation ---
             # pass the Dataset: the hyam/hybm fallback check needs the other
@@ -174,13 +280,16 @@ def regrid_and_vert_interp(adf):
                 if pres_source is not None:
                     pres_name = pres_source.name
                     original_pres_attrs = pres_source.attrs.copy()
-                    pres_da = _handle_horizontal_regridding(pres_source, ref_ds, output_loc)
+                    pres_da = _handle_horizontal_regridding(
+                        pres_source, target_ds, output_loc, mesh_file=ref_mesh
+                    )
                     pres_da.attrs.update(original_pres_attrs)
                     pres_da = _pressure_in_pa(pres_da, name=pres_name)
                     _announce_pressure_source(announced, case_name, lev_dim, pres_name)
                     pressure_note = _pressure_note(pres_name)
                 elif vert_type == 'hybrid':
-                    ps_regridded_path = output_loc / f'{target_name}_{case_name}_PS_regridded.nc'
+                    ps_regridded_path = output_loc / utils.year_tagged_names(
+                        f'{target_name}_{case_name}_PS_regridded', syear, eyear)[0]
                     if ps_regridded_path.exists():
                         ps_da = xr.open_dataset(ps_regridded_path)['PS']
                     else:
@@ -189,7 +298,9 @@ def regrid_and_vert_interp(adf):
                             print(f"\t    WARNING: No PS available, unable to interpolate '{var}'")
                             continue
                         original_ps_attrs = ps_da_source.attrs.copy()
-                        ps_da = _handle_horizontal_regridding(ps_da_source, ref_ds, output_loc)
+                        ps_da = _handle_horizontal_regridding(
+                            ps_da_source, target_ds, output_loc, mesh_file=ref_mesh
+                        )
                         ps_da.attrs.update(original_ps_attrs)
                     ps_da = _pressure_in_pa(ps_da, name="PS")
                     # Announced here, not before the branch: the fallback can
@@ -216,7 +327,8 @@ def regrid_and_vert_interp(adf):
                 and var_default_dict["mask"].lower() == "ocean"
             ):
                 ocn_frac_da = _get_ocean_fraction(
-                    adf, case_name, target_name, output_loc, ref_ds
+                    adf, case_name, target_name, output_loc, target_ds, (syear, eyear),
+                    mesh_file=ref_mesh,
                 )
                 if ocn_frac_da is None:
                     # Writing the field unmasked is worse than not writing it:
@@ -233,19 +345,37 @@ def regrid_and_vert_interp(adf):
 
             # --- Save to file ---
             final_ds = interp_da.to_dataset(name=var)
+            # On a mesh, the cells' area (and land fraction) come from the
+            # native data: the case's own, or the reference's when the case
+            # was put onto the reference's mesh.
+            _keep_native_area(final_ds, ref_ds if ref_mesh else model_ds)
 
             test_attrs_dict = {
                 "adf_user": adf.user,
-                "climo_yrs": f"{case_name}: {syear}-{eyear}",
+                # "YYYY-YYYY", as in the file name and the climo files:
+                "climo_yrs": utils.years_tag(syear, eyear) or f"{syear}-{eyear}",
+                "climo_case": case_name,
                 "climatology_files": str(adf.data.get_climo_file(case_name, var)),
             }
             if pressure_note:
                 # Provenance: this file may be reused by a later run, which will
                 # not repeat the choice or say anything about it.
                 test_attrs_dict["vert_interp_pressure"] = pressure_note
+            if regrid_note:
+                test_attrs_dict[REGRID_NOTE_ATTR] = regrid_note
             final_ds = final_ds.assign_attrs(test_attrs_dict)
             save_to_nc(final_ds, regridded_file_loc)
 
+    if getattr(adf, "unstructured_plotting", False) or any(
+        getattr(adf, "native_grid", {}).values()
+    ):
+        adf.debug_log(
+            "regrid: plot statistics (means, RMSE, differences) are computed on "
+            "the grid named in the 'regrid:' lines the plots log.  With "
+            "'unstructured_plotting: true' a native case is compared on its "
+            "native mesh, and without it on a lat/lon grid, so the same pair of "
+            "cases gives slightly different statistics in the two modes."
+        )
     print("  ...CAM climatologies have been regridded successfully.")
 
 
@@ -368,7 +498,8 @@ def _find_surface_pressure(dset, adf, case=None):
         fils = adf.data.get_reference_climo_file('PS')
         ps_ds = adf.data.load_dataset(fils) if fils else None
     else:
-        ps_ds = adf.data.load_climo_ds(case, 'PS')
+        ps_ds = adf.data.load_climo_dataset(case, 'PS')
+    ps_ds = _to_latlon(adf, ps_ds, 'PS', case_name=case)
     if ps_ds is None or 'PS' not in ps_ds:
         return None
     return ps_ds['PS'].squeeze()
@@ -405,7 +536,8 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
         fils = adf.data.get_reference_climo_file(name)
         pres_ds = adf.data.load_dataset(fils) if fils else None
     else:
-        pres_ds = adf.data.load_climo_ds(case, name)
+        pres_ds = adf.data.load_climo_dataset(case, name)
+    pres_ds = _to_latlon(adf, pres_ds, name, case_name=case)
     if pres_ds is None or name not in pres_ds:
         return None
     return pres_ds[name].squeeze()
@@ -471,7 +603,7 @@ def _write_reference_files(
             # it, so it is not part of the reference bookkeeping.  Interpolating
             # it onto pressure levels would be circular anyway --
             # _find_pressure_field reads the climo file.  Without this,
-            # load_reference_climo_ds raises KeyError as soon as the baseline
+            # load_reference_climo_dataset raises KeyError as soon as the baseline
             # has a climo file of its own for it.
             adf.debug_log(
                 f"The pressure field '{var}' is not a reference variable;"
@@ -479,15 +611,26 @@ def _write_reference_files(
             )
             continue
 
-        baseline_file = output_loc / f'{base}_{var}_baseline.nc'
+        # Named after the baseline's climatology years:
+        baseline_file = output_loc / utils.year_tagged_names(f'{base}_{var}_baseline', syear, eyear)[0]
         if baseline_file.is_file() and not overwrite:
             print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
             continue
 
-        ref_ds = adf.data.load_reference_climo_ds(base, var)
+        ref_ds = adf.data.load_reference_climo_dataset(var)
         if ref_ds is None:
             print(f"\t ERROR: Missing reference data for {var}. Skipping.")
             continue
+        # How the baseline got onto its lat/lon grid, for the plots' debug-log
+        # note (see REGRID_NOTE_ATTR):
+        gridding_note = ""
+        if getattr(adf, "native_grid", {}).get(base, False) and not adf.unstructured_plotting:
+            gridding_note = _gridding_note(
+                adf, var, from_climo=_is_unstructured(ref_ds)
+            )
+        # A native-grid baseline that is not being plotted natively goes onto
+        # its lat/lon grid, which then becomes the target grid for the cases:
+        ref_ds = _to_latlon(adf, ref_ds, var, save=True)
         ref_da = ref_ds[adf.data.ref_var_nam[var]].squeeze()
         original_attrs = ref_da.attrs.copy()
 
@@ -525,7 +668,8 @@ def _write_reference_files(
         var_default_dict = var_defaults.get(var, {})
         if 'mask' in var_default_dict and var_default_dict['mask'].lower() == 'ocean':
             # var_list is sorted so OCNFRAC is written before anything that needs it:
-            ocn_frac_path = output_loc / f'{base}_OCNFRAC_baseline.nc'
+            ocn_frac_path = output_loc / utils.year_tagged_names(
+                f'{base}_OCNFRAC_baseline', syear, eyear)[0]
             if ocn_frac_path.exists():
                 ocn_frac_da = xr.open_dataset(ocn_frac_path)['OCNFRAC']
                 interp_da = _apply_ocean_mask(interp_da, ocn_frac_da)
@@ -533,21 +677,420 @@ def _write_reference_files(
                 print(f"\t    WARNING: OCNFRAC not found, unable to apply mask to '{var}'")
 
         final_ds = interp_da.to_dataset(name=var)
+        _keep_native_area(final_ds, ref_ds)
         baseline_attrs = {
             "adf_user": adf.user,
-            "climo_yrs": f"{base}: {syear}-{eyear}",
+            "climo_yrs": utils.years_tag(syear, eyear) or f"{syear}-{eyear}",
+            "climo_case": base,
             "climatology_files": str(adf.data.get_reference_climo_file(var)),
         }
         if pressure_note:
             baseline_attrs["vert_interp_pressure"] = pressure_note
+        if gridding_note:
+            baseline_attrs[REGRID_NOTE_ATTR] = gridding_note
         final_ds = final_ds.assign_attrs(baseline_attrs)
         save_to_nc(final_ds, baseline_file)
 
 
-def _handle_horizontal_regridding(source_da, target_grid, regrid_loc, method='conservative'):
+def _write_reference_on_mesh(
+    adf, case_idx, case_name, var, target_name, model_ds, output_loc, overwrite, years
+):
+    """Write the lat/lon reference for `var` onto a native test case's mesh.
+
+    With 'unstructured_plotting' a native case is compared with its reference
+    on its own mesh.  When the reference is on a lat/lon grid (a lat/lon
+    baseline, or observations), its file as the plots would read it -- the
+    baseline file written by `_write_reference_files`, already on the
+    pressure levels, or the observation file -- is remapped onto the mesh and
+    written as {ref}_{case}_{var}_reference_on_mesh_YYYY-YYYY.nc (the case's
+    years), on the case's native dimension ("ncol" or "lndgrid").  The
+    variable keeps its name and attributes, so it is converted when plotted
+    exactly as the lat/lon file would be (see AdfData._regrid_converters).
+    The case's cell areas (and land fraction) go with it, so both are
+    averaged over the same cells.
+
+    The remap uses ESMF conservative weights, made once per lat/lon grid and
+    mesh and kept in the "regrid_weights" directory, and falls back to
+    uxarray's bilinear remap when ESMF_RegridWeightGen is not available.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    case_idx : int
+        Index of the test case.
+    case_name : str
+        Name of the test case.
+    var : str
+        ADF name of the variable.
+    target_name : str
+        Label of the reference data set.
+    model_ds : xarray.Dataset
+        The case's climo, on its native grid.
+    output_loc : pathlib.Path
+        The regrid output directory.
+    overwrite : bool
+        Rewrite an existing file.
+    years : tuple
+        The case's climatology (first, last) years, which name the file.
+
+    Returns
+    -------
+    bool
+        True when the reference is on the mesh (written now or before).
+    """
+    out_file = output_loc / utils.year_tagged_names(
+        f"{target_name}_{case_name}_{var}_reference_on_mesh", *years)[0]
+    if out_file.is_file() and not overwrite:
+        print(f"\t INFO: Reference on the mesh already exists, skipping: {out_file}")
+        return True
+    mesh_file = adf.mesh_files["test_mesh_file"][case_idx]
+    if not mesh_file:
+        print(
+            f"\t WARNING: '{case_name}' has no 'mesh_file', so the reference "
+            f"for '{var}' cannot be put onto its grid."
+        )
+        return False
+    fils = adf.data.get_ref_regrid_file(var)
+    if not fils:
+        return False
+    ref_ds = xr.open_dataset(fils[0])
+    file_field = adf.data.ref_var_nam[var] if adf.compare_obs else var
+    if file_field not in ref_ds:
+        return False
+    ref_da = ref_ds[file_field]
+    if not ("lat" in ref_da.dims and "lon" in ref_da.dims):
+        print(
+            f"\t WARNING: The reference for '{var}' has no lat/lon dimensions "
+            f"({', '.join(ref_da.dims)}), so it cannot be put onto the mesh."
+        )
+        return False
+
+    if utils.coarser_grid(model_ds, ref_da) == "ref":
+        # Plotting on the mesh is the point of 'unstructured_plotting', so the
+        # remap still happens, but it cannot add detail the reference lacks:
+        _note_once(
+            ("mesh", case_name, len(ref_da.lat), len(ref_da.lon)),
+            f"\t    WARNING: The reference ({len(ref_da.lat)}x{len(ref_da.lon)} lat/lon) "
+            f"is coarser than the mesh of '{case_name}'.  It is still put onto the "
+            "mesh, which interpolates it to a resolution it does not have; "
+            "differences at the mesh's finest scales are not meaningful."
+        )
+
+    native_dim = next(dim for dim in UNSTRUCTURED_DIMS if dim in model_ds.dims)
+    out = _on_native_dim(_latlon_to_mesh(ref_da, mesh_file, output_loc), ref_da, native_dim)
+    final_ds = out.to_dataset()
+    # The case's cell areas (and land fraction), which do not change with
+    # time: taken at one time, so they do not have to line up with the
+    # reference's time axis (one observation file has a single time, 0):
+    for name in ("area", "landfrac", "landmask"):
+        if name in model_ds:
+            fld = model_ds[name]
+            final_ds[name] = fld.isel(time=0, drop=True) if "time" in fld.dims else fld
+    final_ds = final_ds.assign_attrs(
+        dict(
+            ref_ds.attrs,
+            adf_user=adf.user,
+            reference_file=str(fils[0]),
+            mesh_file=str(mesh_file),
+            remapped_for_case=case_name,
+            **{
+                REGRID_NOTE_ATTR: _join_notes(
+                    ref_ds.attrs.get(REGRID_NOTE_ATTR),
+                    f"remapped from {utils.grid_label(ref_da)} onto this case's "
+                    f"{utils.grid_label(out)} "
+                    f"({_method_name(out.attrs.get('remap_method'))})",
+                )
+            },
+        )
+    )
+    save_to_nc(final_ds, out_file)
+    return True
+
+
+def _write_reference_on_case_grid(
+    adf, case_name, var, target_name, model_da, output_loc, overwrite, years
+):
+    """Write the reference for `var` onto a coarser test case's lat/lon grid.
+
+    Fields are compared on the coarser of the two grids, so that neither is
+    interpolated to a resolution it does not have.  When a test case's grid is
+    clearly coarser than the reference's (see :func:`adf_utils.coarser_grid`),
+    the reference file as the plots would read it -- the baseline file written
+    by `_write_reference_files`, already on the pressure levels, or the
+    observation file -- is regridded onto the case's grid with area-conserving
+    weights, normalised so that missing cells (below ground, masked) leave the
+    others' average unchanged.  It is written as
+    {ref}_{case}_{var}_reference_on_case_grid_YYYY-YYYY.nc (the case's years),
+    keeping the variable's name and attributes, so it is converted when
+    plotted exactly as the reference's own file would be.  AdfData picks it
+    for this case (see AdfData.get_ref_on_case_grid_file).
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    case_name : str
+        Name of the test case.
+    var : str
+        ADF name of the variable.
+    target_name : str
+        Label of the reference data set.
+    model_da : xarray.DataArray
+        The case's field, on its lat/lon grid.
+    output_loc : pathlib.Path
+        The regrid output directory.
+    overwrite : bool
+        Rewrite an existing file.
+    years : tuple
+        The case's climatology (first, last) years, which name the file.
+
+    Returns
+    -------
+    bool
+        True when the reference is on the case's grid (written now or before).
+    """
+    out_file = output_loc / utils.year_tagged_names(
+        f"{target_name}_{case_name}_{var}_reference_on_case_grid", *years)[0]
+    if out_file.is_file() and not overwrite:
+        print(f"\t INFO: Reference on the case's grid already exists, skipping: {out_file}")
+        return True
+    fils = adf.data.get_ref_regrid_file(var)
+    if not fils:
+        return False
+    ref_ds = xr.open_dataset(fils[0])
+    file_field = adf.data.ref_var_nam[var] if adf.compare_obs else var
+    if file_field not in ref_ds:
+        return False
+    ref_da = ref_ds[file_field]
+    if not ("lat" in ref_da.dims and "lon" in ref_da.dims):
+        return False
+
+    _note_once(
+        ("coarser", case_name, target_name),
+        f"\t NOTE: '{case_name}' ({len(model_da.lat)}x{len(model_da.lon)}) is on a "
+        f"coarser grid than '{target_name}' ({len(ref_da.lat)}x{len(ref_da.lon)}), so "
+        f"'{target_name}' is regridded onto the case's grid, not the other way round."
+    )
+    out = _regrid_to_coarser(ref_da, model_da, output_loc)
+    final_ds = out.to_dataset(name=file_field)
+    final_ds = final_ds.assign_attrs(
+        dict(
+            ref_ds.attrs,
+            adf_user=adf.user,
+            reference_file=str(fils[0]),
+            regridded_for_case=case_name,
+            **{
+                REGRID_NOTE_ATTR: _join_notes(
+                    ref_ds.attrs.get(REGRID_NOTE_ATTR),
+                    f"regridded from {utils.grid_label(ref_da)} to this case's "
+                    f"{utils.grid_label(out)} (conservative)",
+                )
+            },
+        )
+    )
+    if out_file.is_file():
+        out_file.unlink()
+    save_to_nc(final_ds, out_file)
+    return True
+
+
+def _regrid_to_coarser(source_da, target_like, regrid_loc):
+    """Regrid a lat/lon field onto a coarser lat/lon grid, conserving area means.
+
+    Uses xESMF's normalised conservative method and skips missing source
+    cells, so a target cell partly over missing cells (below ground on a
+    pressure level, or masked) is the average of the cells that have data --
+    but only when they cover at least half of it (`COARSEN_NA_THRES`).  A
+    coastal cell with only a sliver of ocean in a masked ocean field is left
+    missing, rather than taking the sliver's value for the whole cell.
+    The weights are kept in `regrid_loc`/regrid_weights.
+
+    Parameters
+    ----------
+    source_da : xarray.DataArray
+        The finer field.
+    target_like : xarray.DataArray or xarray.Dataset
+        Data on the target grid.
+    regrid_loc : pathlib.Path
+        The regrid output directory.
+
+    Returns
+    -------
+    xarray.DataArray
+        `source_da` on the target grid, with its attributes.
+    """
+    source_grid = utils.create_clean_grid(source_da)
+    target_grid = utils.create_clean_grid(target_like)
+    method = "conservative_normed"
+    weights_dir = Path(regrid_loc) / "regrid_weights"
+    weights_dir.mkdir(parents=True, exist_ok=True)
+    weights_file = weights_dir / (
+        f"weights_structured_{len(source_da.lat)}_{len(source_da.lon)}_to_"
+        f"structured_{len(target_like.lat)}_{len(target_like.lon)}_{method}.nc"
+    )
+    if weights_file.exists():
+        regridder = xe.Regridder(source_grid, target_grid, method, weights=str(weights_file))
+    else:
+        regridder = xe.Regridder(source_grid, target_grid, method)
+        regridder.to_netcdf(weights_file)
+    out = regridder(source_da, keep_attrs=True, skipna=True, na_thres=COARSEN_NA_THRES)
+    out.attrs.update(source_da.attrs)
+    return out
+
+
+def _note_once(key, message):
+    """Print `message` the first time `key` comes up in this run."""
+    if key not in _NOTED:
+        _NOTED.add(key)
+        print(message)
+
+
+# How each regridded file got onto the grid the plots compare on is written into
+# it as the global attribute REGRID_NOTE_ATTR, one step per regrid, joined with
+# REGRID_NOTE_JOIN.  The plots write it to the debug log (AdfData.log_regrid_note); a
+# file with no such attribute was not regridded.
+REGRID_NOTE_ATTR = "adf_regrid"
+REGRID_NOTE_JOIN = "; then "
+
+
+def _method_name(method):
+    """A regrid method as the notes name it."""
+    method = str(method or "conservative")
+    if method.startswith("coserv"):
+        # The baseline's 'conservative' is stored with this spelling (adf_info).
+        return "conservative"
+    if method.startswith("ESMF"):
+        # _latlon_to_mesh's ESMF weights are always conservative:
+        return "ESMF conservative"
+    if method.startswith("uxarray "):
+        method = method[len("uxarray "):] + ", uxarray"
+    return method.replace("inverse_distance_weighted", "inverse-distance").replace("_", " ")
+
+
+def _join_notes(*notes):
+    """The regrid steps that happened, in order, as one note."""
+    return REGRID_NOTE_JOIN.join(note for note in notes if note)
+
+
+def _gridding_note(adf, var, case_idx=None, from_climo=True):
+    """How a native case's `var` got onto its lat/lon grid, as the config sets it.
+
+    From native climo (`from_climo`) the regridding stage grids it with the
+    case's 'weights_file' and 'regrid_method' (see `_to_latlon`).  Otherwise
+    the climo was made from gridded time series, for which a variable marked
+    'regrid_conservative' uses the case's 'conservative_weights_file', if it
+    has one (see AdfDiag.grid_native_time_series).
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    var : str
+        The variable.
+    case_idx : int, optional
+        The test case's index; omit it for the baseline.
+    from_climo : bool, optional
+        Whether the native climo is gridded here rather than its time series.
+
+    Returns
+    -------
+    str
+    """
+    wgt_files = adf.latlon_wgt_files
+    if case_idx is None:
+        wgts = wgt_files["baseline_wgts_file"]
+        cons = wgt_files.get("baseline_cons_wgts_file")
+        method = adf.latlon_regrid_method["baseline_regrid_method"]
+    else:
+        wgts = wgt_files["test_wgts_file"][case_idx]
+        cons_files = wgt_files.get("test_cons_wgts_file") or []
+        cons = cons_files[case_idx] if case_idx < len(cons_files) else None
+        method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
+    var_default = (adf.variable_defaults or {}).get(var) or {}
+    if not from_climo and cons and var_default.get("regrid_conservative", False):
+        wgts, method = cons, "conservative"
+    wgts_name = Path(wgts).name if wgts else "its weights file"
+    return f"gridded from its native grid with {wgts_name} ({_method_name(method)})"
+
+
+def _horizontal_note(source_da, target_grid, regridded_da):
+    """What `_handle_horizontal_regridding` did to `source_da`, or "" if nothing."""
+    if _is_unstructured(source_da):
+        return ""
+    if _is_unstructured(target_grid):
+        return (
+            f"remapped from {utils.grid_label(source_da)} onto the reference's mesh "
+            f"({_method_name(regridded_da.attrs.get('remap_method'))})"
+        )
+    if utils.same_latlon_grid(source_da, target_grid):
+        return ""
+    return (
+        f"regridded from {utils.grid_label(source_da)} to "
+        f"{utils.grid_label(regridded_da)} (conservative)"
+    )
+
+
+def _on_native_dim(on_mesh, source_da, native_dim):
+    """A remapped field (uxarray, on "n_face") as a plain DataArray on `native_dim`.
+
+    The ADF writes and reads native files on the model's own dimension ("ncol"
+    or "lndgrid"); the name, attributes and other coordinates of `source_da`
+    are kept, with the remap method added.
+    """
+    other = [d for d in on_mesh.dims if d != "n_face"]
+    return xr.DataArray(
+        np.asarray(on_mesh.values),
+        dims=other + [native_dim],
+        coords={d: source_da[d] for d in other if d in source_da.coords},
+        name=source_da.name,
+        attrs=dict(source_da.attrs, remap_method=on_mesh.attrs.get("remap_method", "")),
+    )
+
+
+def _latlon_to_mesh(ref_da, mesh_file, output_loc):
+    """Remap a lat/lon field onto a mesh: ESMF conservative, else uxarray.
+
+    The weights are made once for each lat/lon grid and mesh and kept in
+    `output_loc`/regrid_weights.
+    """
+    lat = ref_da["lat"].values
+    lon = ref_da["lon"].values
+    grid_id = hashlib.md5(lat.tobytes() + lon.tobytes()).hexdigest()[:8]
+    weights_dir = Path(output_loc) / "regrid_weights"
+    weights_dir.mkdir(parents=True, exist_ok=True)
+    weights_file = weights_dir / (
+        f"weights_latlon_{len(lat)}_{len(lon)}_{grid_id}_to_{Path(mesh_file).stem}_conserve.nc"
+    )
+    try:
+        if not weights_file.is_file():
+            scrip = weights_dir / f"scrip_latlon_{len(lat)}_{len(lon)}_{grid_id}.nc"
+            utils.write_latlon_scrip(lat, lon, scrip)
+            utils.make_mesh_weights(scrip, mesh_file, weights_file)
+        return utils.apply_mesh_weights(ref_da, weights_file, mesh_file)
+    except (OSError, utils.AdfError) as err:
+        # e.g. no ESMF_RegridWeightGen on the PATH
+        print(
+            "\t    NOTE: ESMF weights for the mesh are not available "
+            f"({str(err).splitlines()[0]}); using uxarray's bilinear remap."
+        )
+    try:
+        return utils.latlon_to_mesh(ref_da, mesh_file, "bilinear")
+    except (TypeError, ValueError):
+        # uxarray 2025.6.0's bilinear remap fails on some grids (GPCP 2.5 deg)
+        return utils.latlon_to_mesh(ref_da, mesh_file, "inverse_distance_weighted")
+
+
+def _handle_horizontal_regridding(
+    source_da, target_grid, regrid_loc, method='conservative', mesh_file=None
+):
     """
     Performs horizontal regridding using xesmf.
     Manages and reuses regridding weight files.
+
+    A lat/lon field whose target is on a native grid (a native reference
+    plotted natively) is put onto that grid's mesh, `mesh_file`, instead (see
+    `_latlon_to_mesh`).
 
     Parameters
     ----------
@@ -559,12 +1102,27 @@ def _handle_horizontal_regridding(source_da, target_grid, regrid_loc, method='co
         The regrid output directory; weight files go in a subdirectory of it.
     method : str, optional
         Regridding method. Defaults to 'conservative'.
+    mesh_file : str, optional
+        The target's mesh, for a target on a native grid.
 
     Returns
     -------
     xarray.DataArray
         The regridded DataArray.
     """
+
+    # Native-grid data being plotted natively stays on its mesh.  The main
+    # loop has already checked that the target is that same mesh.
+    if _is_unstructured(source_da):
+        return source_da
+    if _is_unstructured(target_grid):
+        native_dim = next(dim for dim in UNSTRUCTURED_DIMS if dim in target_grid.dims)
+        on_mesh = _latlon_to_mesh(source_da, mesh_file, regrid_loc)
+        return _on_native_dim(on_mesh, source_da, native_dim)
+    # Already on the target grid (the same grid, or a coarser case that keeps
+    # its own): regridding would only alter it, e.g. the polar rows.
+    if utils.same_latlon_grid(source_da, target_grid):
+        return source_da
 
     # Generate a unique name for the weights file
     source_grid_type = "unstructured" if "ncol" in source_da.dims else "structured"
@@ -730,7 +1288,9 @@ def _handle_vertical_interpolation(
     else:
         raise ValueError(f"Unknown vertical coordinate type: '{vert_type}'")
 
-def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
+def _get_ocean_fraction(
+    adf, case_name, target_name, output_loc, ref_ds, years=(None, None), mesh_file=None
+):
     """Return the case's OCNFRAC on the target grid, or ``None``.
 
     The already-regridded file is used when it exists.  In ``compare_obs`` mode
@@ -750,6 +1310,11 @@ def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
         The regrid output directory.
     ref_ds : xarray.Dataset
         Reference dataset defining the target grid.
+    years : tuple, optional
+        The case's climatology (first, last) years, which name its files.
+    mesh_file : str, optional
+        The reference's mesh, when `ref_ds` is on a native grid (see
+        `_handle_horizontal_regridding`).
 
     Returns
     -------
@@ -757,14 +1322,16 @@ def _get_ocean_fraction(adf, case_name, target_name, output_loc, ref_ds):
         Ocean fraction on the target grid, or ``None`` if the case has no
         OCNFRAC climatology.
     """
-    ocn_frac_path = output_loc / f"{target_name}_{case_name}_OCNFRAC_regridded.nc"
+    ocn_frac_path = output_loc / utils.year_tagged_names(
+        f"{target_name}_{case_name}_OCNFRAC_regridded", *years)[0]
     if ocn_frac_path.exists():
         return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
-    ocn_frac_ds = adf.data.load_climo_ds(case_name, "OCNFRAC")
+    ocn_frac_ds = adf.data.load_climo_dataset(case_name, "OCNFRAC")
+    ocn_frac_ds = _to_latlon(adf, ocn_frac_ds, "OCNFRAC", case_name=case_name)
     if ocn_frac_ds is None or "OCNFRAC" not in ocn_frac_ds:
         return None
     return _handle_horizontal_regridding(
-        ocn_frac_ds["OCNFRAC"].squeeze(), ref_ds, output_loc
+        ocn_frac_ds["OCNFRAC"].squeeze(), ref_ds, output_loc, mesh_file=mesh_file
     )
 
 
@@ -790,6 +1357,144 @@ def _apply_ocean_mask(da, ocn_frac_da):
     # Apply the mask
     return utils.mask_land_or_ocean(da, ocn_frac_da)
 
+def _is_unstructured(obj):
+    """Whether `obj` (a Dataset or DataArray) is on a native unstructured grid."""
+    dims = getattr(obj, "dims", ())
+    return any(dim in dims for dim in UNSTRUCTURED_DIMS)
+
+
+def _same_native_grid(da, target_grid):
+    """Whether `target_grid` is on the same native unstructured grid as `da`.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        Data on a native grid.
+    target_grid : xarray.Dataset
+        The reference data.
+
+    Returns
+    -------
+    bool
+        True when both have the same unstructured dimension, of the same size.
+    """
+    return any(
+        dim in da.dims and target_grid.sizes.get(dim) == da.sizes[dim]
+        for dim in UNSTRUCTURED_DIMS
+    )
+
+
+def _keep_native_area(final_ds, source_ds):
+    """Copy the grid-cell area into an output file that stays on its native grid.
+
+    The native (uxarray) plotting weights its averages by the model's cell
+    area (and, for land, its land fraction; see adf_utils.cell_weights), which
+    it reads from the regridded and baseline files.  On a lat/lon
+    grid the plots weight by latitude instead, and the source grid's area would
+    be wrong after regridding anyway, so it is only kept for native data.
+
+    Parameters
+    ----------
+    final_ds : xarray.Dataset
+        The dataset about to be written; updated in place.
+    source_ds : xarray.Dataset
+        The climo dataset it was made from.
+    """
+    if _is_unstructured(final_ds):
+        for name in ("area", "landfrac", "landmask"):
+            if name in source_ds:
+                final_ds[name] = source_ds[name]
+
+
+def _to_latlon(adf, dset, var, case_name=None, save=False):
+    """Put native-grid climo data onto its lat/lon grid, unless plotting natively.
+
+    Usually the climo files of a native-grid case are on lat/lon already: the
+    ADF grids its time series (into a "gridded" directory) and builds the
+    climatologies from those.  Climo files made from native time series --
+    pre-made ones, say -- arrive here still on the native grid, and are gridded
+    with the case's weights file, so that the rest of this script only ever
+    sees lat/lon data and treats it exactly like any other lat/lon case.
+
+    With 'unstructured_plotting', or for data that is not on a native grid,
+    `dset` is returned unchanged.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    dset : xarray.Dataset or None
+        The climo dataset.
+    var : str
+        The variable to grid.
+    case_name : str, optional
+        The test case; omit it for the baseline.
+    save : bool, optional
+        Also write the gridded data to "gridded/{case}_{var}_gridded_climo.nc"
+        under the case's climo directory.
+
+    Returns
+    -------
+    xarray.Dataset or None
+        The data on a lat/lon grid (or `dset` unchanged, see above).
+    """
+    # Check the data first: lat/lon data needs nothing else from `adf`.
+    if not _is_unstructured(dset) or adf.unstructured_plotting:
+        return dset
+
+    if case_name is None:
+        label = adf.data.ref_case_label
+        wgt_file = adf.latlon_wgt_files["baseline_wgts_file"]
+        method = adf.latlon_regrid_method["baseline_regrid_method"]
+        latlon_file = adf.latlon_files["baseline_latlon_file"]
+        climo_loc = adf.get_baseline_info("cam_climo_loc", required=True)
+        years = (adf.climo_yrs["syear_baseline"], adf.climo_yrs["eyear_baseline"])
+    else:
+        case_idx = adf.get_cam_info("cam_case_name", required=True).index(case_name)
+        label = case_name
+        wgt_file = adf.latlon_wgt_files["test_wgts_file"][case_idx]
+        method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
+        latlon_file = adf.latlon_files["test_latlon_file"][case_idx]
+        climo_loc = adf.get_cam_info("cam_climo_loc", required=True)[case_idx]
+        years = (adf.climo_yrs["syears"][case_idx], adf.climo_yrs["eyears"][case_idx])
+
+    if not wgt_file:
+        # Every variable of the case would fail the same way, so stop here:
+        adf.end_diag_fail(
+            f"'{label}' is on a native grid, but has no 'weights_file' to grid it "
+            "to lat/lon.  Add one, or set 'unstructured_plotting: true'."
+        )
+
+    adf.debug_log(f"regrid: gridding native '{var}' for '{label}' to lat/lon")
+    gridded = utils.grid_to_latlon(
+        dset,
+        var,
+        wgt_file=wgt_file,
+        method=method,
+        comp=adf.model_component,
+        latlon_file=latlon_file,
+    )
+    # (grid_to_latlon carries hyam, hybm, P0 and the rest over, which the
+    # vertical interpolation needs.)
+    if utils.coarser_grid(dset, gridded) == "test":
+        _note_once(
+            ("gridding", label),
+            f"\t    WARNING: The 'weights_file' of '{label}' grids it to a finer "
+            f"lat/lon grid ({len(gridded.lat)}x{len(gridded.lon)}) than its native "
+            "grid, which interpolates it to a resolution it does not have.  A "
+            "map to a grid at least as coarse as the native one is better."
+        )
+
+    if save:
+        gridded_loc = Path(climo_loc) / "gridded"
+        gridded_loc.mkdir(parents=True, exist_ok=True)
+        save_to_nc(
+            gridded,
+            gridded_loc / utils.year_tagged_names(f"{label}_{var}_gridded_climo", *years)[0],
+        )
+    return gridded
+
+
 def save_to_nc(tosave, outname, attrs=None, proc=None):
     """Saves xarray variable to new netCDF file
     
@@ -806,13 +1511,20 @@ def save_to_nc(tosave, outname, attrs=None, proc=None):
     """
 
     xo = tosave
-    # deal with getting non-nan fill values.
+    # deal with getting non-nan fill values.  An encoding given to to_netcdf
+    # replaces the variable's own, so keep any time units it had (see
+    # adf_diag.save_to_nc):
+    def _enc(xname):
+        kept = {key: val for key, val in xo[xname].encoding.items()
+                if key in ('units', 'calendar')}
+        return {'_FillValue': None, **kept}
+
     if isinstance(xo, xr.Dataset):
-        enc_dv = {xname: {'_FillValue': None} for xname in xo.data_vars}
+        enc_dv = {xname: _enc(xname) for xname in xo.data_vars}
     else:
         enc_dv = {}
     #End if
-    enc_c = {xname: {'_FillValue': None} for xname in xo.coords}
+    enc_c = {xname: _enc(xname) for xname in xo.coords}
     enc = {**enc_c, **enc_dv}
     if attrs is not None:
         xo.attrs = attrs
