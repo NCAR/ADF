@@ -754,10 +754,6 @@ class AdfInfo(AdfConfig):
             unstructured_plotting = False
         self.__unstructured_plotting = unstructured_plotting
 
-        # Mesh file
-        mesh_file = self.get_basic_info("mesh_file")
-        self.__mesh_file = mesh_file
-
         # Case names:
         case_names = self.get_cam_info("cam_case_name", required=True)
 
