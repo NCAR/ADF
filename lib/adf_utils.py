@@ -28,8 +28,10 @@ cell_weights(dset, comp="atm")
     normalized native-grid cell weights: area, or area * landfrac for land
 spatial_average_lnd(indata, weights, spatial_dims=None)
     Compute a land spatial average with normalized (area * landfrac) weights
-pct_change(case, base, rel_tol=1e-6)
-    percent change, masked where baseline is ~zero
+pct_change(case, base, min_frac=PCT_MIN_BASE_FRAC)
+    percent change, blank where the baseline is ~zero
+pct_change_of_means(case, base, weights=None)
+    percent change of the area means, for the header of a percent panel
 wgt_rmse(fld1, fld2, wgt):
     Calculate the area-weighted RMSE.
 annual_mean(data, whole_years=False, time_name='time'):
@@ -1131,27 +1133,122 @@ def grid_label(obj):
     return "unknown grid"
 
 
-def pct_change(case, base, rel_tol=1e-6):
-    """Percent change (case - base) / |base| * 100, masked where |base| is ~zero.
+# Percent changes are blanked where |baseline| is below this fraction of the
+# field's area-mean |baseline| (see pct_change):
+PCT_MIN_BASE_FRAC = 0.01
+
+
+def _area_weights(da):
+    """Area weights for `da` as a numpy array that broadcasts against `da.values`.
+
+    cos(latitude) for a field with a `lat` dimension, the mesh's face areas
+    for a uxarray field on `n_face`, and equal weights otherwise (e.g. a
+    meridional-mean profile along longitude).
+    """
+    if "lat" in da.dims:
+        shape = [1] * da.ndim
+        shape[da.dims.index("lat")] = da.sizes["lat"]
+        return np.cos(np.deg2rad(np.asarray(da["lat"].values, dtype=float))).reshape(
+            shape
+        )
+    if "n_face" in da.dims and getattr(da, "uxgrid", None) is not None:
+        shape = [1] * da.ndim
+        shape[da.dims.index("n_face")] = da.sizes["n_face"]
+        return np.asarray(da.uxgrid.face_areas.values, dtype=float).reshape(shape)
+    return np.ones([1] * da.ndim)
+
+
+def _weighted_nanmean(vals, wgt):
+    """Weighted mean of `vals` over its finite entries (NaN if there are none)."""
+    wgt = np.broadcast_to(wgt, vals.shape)
+    ok = np.isfinite(vals)
+    wsum = wgt[ok].sum()
+    return float((vals[ok] * wgt[ok]).sum() / wsum) if wsum > 0 else np.nan
+
+
+def pct_change(case, base, min_frac=PCT_MIN_BASE_FRAC):
+    """Percent change 100 * (case - base) / |base|, blank where |base| is ~zero.
 
     Parameters
     ----------
     case, base : xr.DataArray or ux.UxDataArray
-        fields to compare, with matching shapes
-    rel_tol : float, optional
-        values of |base| smaller than rel_tol * max(|base|) are treated as zero;
-        relative so that it works for any variable's units
+        test and baseline fields, with matching shapes
+    min_frac : float, optional
+        cells where |base| is below `min_frac` times the area-weighted mean of
+        |base| (over the cells with data) are set to NaN, as are cells where the
+        result is not finite.  Relative to the field's own magnitude, so it works
+        for any variable's units.  0 blanks only a zero baseline.
 
     Returns
     -------
-    same type as inputs
-        percent change, NaN where the baseline is ~zero (avoids divide-by-zero
-        warnings and very large values that distort the color scale)
+    same type as `case`
+        the percent change, with units "%": on the same mesh for native
+        fields, and on the common coordinates of the two (as `case - base`)
+        for lat/lon ones
+
+    Notes
+    -----
+    A baseline close to zero (no sea ice, a flux that changes sign, a dry
+    region) makes the percent change arbitrarily large, so a handful of cells
+    can dominate the panel's statistics (C01: SHFLX against OAFlux had a
+    baseline of 7e-15 W/m2 and a mean of -1e11 %).  Those cells are left blank.
     """
-    abs_base = np.abs(base)
-    thresh = rel_tol * float(abs_base.max())
-    denom = abs_base.where(abs_base > thresh)
-    return (case - base) / denom * 100.0
+    if getattr(case, "uxgrid", None) is None and getattr(base, "uxgrid", None) is None:
+        # On their common coordinates, as `case - base` would be:
+        case, base = xr.align(case, base, join="inner")
+    if case.shape != base.shape:
+        raise ValueError("pct_change: case and base must have the same shape")
+    b = np.asarray(base.values, dtype=float)
+    abs_b = np.abs(b)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        vals = (np.asarray(case.values, dtype=float) - b) / abs_b * 100.0
+    thresh = min_frac * _weighted_nanmean(abs_b, _area_weights(base))
+    vals = np.where(np.isfinite(vals) & (abs_b > thresh), vals, np.nan)
+    out = case.copy(deep=True)
+    out.values = vals
+    out.attrs = dict(case.attrs)
+    out.attrs["long_name"] = f"Percent difference ({case.name})"
+    out.attrs["units"] = "%"
+    return out
+
+
+def pct_change_of_means(case, base, weights=None):
+    """Percent change of the area means: 100 * (mean(case) - mean(base)) / |mean(base)|.
+
+    The headline number for a percent-difference panel: unlike the mean of the
+    per-cell percent changes, it is not swamped by cells with a tiny baseline.
+
+    Parameters
+    ----------
+    case, base : xr.DataArray or ux.UxDataArray
+        test and baseline fields, with matching shapes
+    weights : array-like, optional
+        area weights that broadcast against the fields; by default cos(lat), or
+        the mesh's face areas for a native field (see `_area_weights`)
+
+    Returns
+    -------
+    float
+        the percent change, over the cells where both fields have data; NaN if
+        the baseline mean is zero or there are no such cells
+    """
+    a = np.asarray(case.values, dtype=float)
+    b = np.asarray(base.values, dtype=float)
+    if weights is None:
+        wgt = _area_weights(base)
+    elif isinstance(weights, xr.DataArray):
+        # e.g. cos(lat) along `lat` only, or native cell weights on `n_face`:
+        wgt = np.asarray(
+            xr.DataArray(weights).broadcast_like(xr.DataArray(base)).values, dtype=float
+        )
+    else:
+        wgt = np.asarray(weights, dtype=float)
+    both = np.isfinite(a) & np.isfinite(b)
+    mean_a = _weighted_nanmean(np.where(both, a, np.nan), wgt)
+    mean_b = _weighted_nanmean(np.where(both, b, np.nan), wgt)
+    if not np.isfinite(mean_b) or mean_b == 0:
+        return np.nan
+    return 100.0 * (mean_a - mean_b) / abs(mean_b)
 
 
 def wgt_rmse(fld1, fld2, wgt):
@@ -1368,7 +1465,7 @@ def seasonal_mean(data, season=None, is_climo=None):
 #######
 
 
-def array_diff(a, b, percent=False, fill_nan=None, rel_tol=None):
+def array_diff(a, b, percent=False, fill_nan=None, min_frac=PCT_MIN_BASE_FRAC):
     """
     Compute difference or percent difference between two data arrays
 
@@ -1382,9 +1479,9 @@ def array_diff(a, b, percent=False, fill_nan=None, rel_tol=None):
         If True, compute percent difference
     fill_nan : float or None
         If set, replace NaNs with this value
-    rel_tol : float or None
-        Percent difference only: if set, the result is NaN where |b| is smaller
-        than rel_tol * max(|b|), i.e. where the baseline is ~zero (see `pct_change`)
+    min_frac : float, optional
+        Percent difference only: the result is NaN where |b| is below min_frac
+        times the area-mean |b|, or where it is not finite (see `pct_change`)
 
     Returns
     -------
@@ -1403,11 +1500,7 @@ def array_diff(a, b, percent=False, fill_nan=None, rel_tol=None):
         )
 
     if percent:
-        # avoid "divide by zero" warnings, for both structured and unstructured grids
-        abs_b = np.abs(b.values)
-        thresh = 0.0 if rel_tol is None else rel_tol * np.nanmax(abs_b)
-        denom = np.where(abs_b > thresh, abs_b, np.nan)
-        vals = (a.values - b.values) / denom * 100.0
+        vals = pct_change(a, b, min_frac=min_frac).values
     else:
         vals = a.values - b.values
 

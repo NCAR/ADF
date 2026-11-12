@@ -38,8 +38,8 @@ def process_seasonal_data(mdata, odata, season, comp="atm"):
     season : str
         season (JJA, DJF, MAM, SON)
     comp : str, optional
-        model component; for land ("lnd") the percent difference is left
-        blank where the baseline is ~zero, instead of being set to 0
+        model component; no longer changes the percent difference, which is
+        blank where the baseline is ~zero for every component
 
     Returns
     -------
@@ -56,15 +56,9 @@ def process_seasonal_data(mdata, odata, season, comp="atm"):
     dseason = mseason - oseason
     dseason.attrs['units'] = mseason.attrs['units']
     
-    # Calculate percent change
-    if comp == "lnd":
-        pseason = utils.pct_change(mseason, oseason)
-    else:
-        pseason = (mseason - oseason) / np.abs(oseason) * 100.0
-    pseason.attrs['units'] = '%'
-    pseason = pseason.where(np.isfinite(pseason), np.nan)
-    if comp != "lnd":
-        pseason = pseason.fillna(0.0)
+    # Percent change, blank where the baseline is ~zero (see utils.pct_change),
+    # for land and atmosphere alike: a blank cell, not 0 ("no change"):
+    pseason = utils.pct_change(mseason, oseason)
     
     return mseason, oseason, dseason, pseason
 

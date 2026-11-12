@@ -485,9 +485,8 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
         # Calculate seasonal means and differences
         mseason, oseason = process_seasonal_data(mdata, odata, s)
         dseason = utils.array_diff(mseason, oseason)
-        # Land: blank where the baseline is ~zero (e.g. no snow or vegetation)
-        rel_tol = 1e-6 if adfobj.model_component == "lnd" else None
-        pseason = utils.array_diff(mseason, oseason, percent=True, rel_tol=rel_tol)
+        # Blank where the baseline is ~zero (see utils.pct_change):
+        pseason = utils.array_diff(mseason, oseason, percent=True)
 
         vres["season"] = s
         vres["var"] = var

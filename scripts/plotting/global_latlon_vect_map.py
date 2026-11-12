@@ -445,8 +445,7 @@ def process_plots(adfobj, umdata, vmdata, uodata, vodata, case_name, case_idx,
             udseason = umseason - uoseason
             vdseason = vmseason - voseason
             # percent difference of the zonal component:
-            upseason = (umseason - uoseason) / np.abs(uoseason) * 100.0
-            upseason = upseason.where(np.isfinite(upseason), np.nan)
+            upseason = utils.pct_change(umseason, uoseason)
 
             vres["season"] = s
             # pass in casenames

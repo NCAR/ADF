@@ -187,6 +187,25 @@ def _raster_norm(contour_levs, centered=False):
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
+def _pct_of_region_means(test, base, domain, unstructured=False):
+    """Percent change of the regional area means of `test` and `base`.
+
+    Over the cells where both have data, with the weights of
+    `utils.domain_stats`; the headline number of a polar percent panel.
+    """
+    both = np.isfinite(test) & np.isfinite(base)
+    if isinstance(test, ux.UxDataArray):
+        test_both = ux.UxDataArray(test.where(both), uxgrid=test.uxgrid)
+        base_both = ux.UxDataArray(base.where(both), uxgrid=base.uxgrid)
+    else:
+        test_both, base_both = test.where(both), base.where(both)
+    mean_t = utils.domain_stats(test_both, domain, unstructured)[0]
+    mean_b = utils.domain_stats(base_both, domain, unstructured)[0]
+    if not np.isfinite(mean_b) or mean_b == 0:
+        return np.nan
+    return 100.0 * (mean_t - mean_b) / abs(mean_b)
+
+
 def make_polar_plot(
     adfobj,
     wks,
@@ -253,7 +272,8 @@ def make_polar_plot(
         dif = difference
 
     if pctchange is None:
-        pct = (d2 - d1) / np.abs(d1) * 100.0
+        # d1 is the test case and d2 the baseline:
+        pct = utils.pct_change(d1, d2)
     else:
         pct = pctchange
 
@@ -296,6 +316,7 @@ def make_polar_plot(
         pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(
             pct, domain
         )
+        pct_region_mean = _pct_of_region_means(d1, d2, domain)
 
         # downsize to the specified region; makes plotting/rendering/saving much faster
         d1 = d1.sel(lat=slice(domain[2], domain[3]))
@@ -338,6 +359,7 @@ def make_polar_plot(
         pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(
             pct, domain, unstructured
         )
+        pct_region_mean = _pct_of_region_means(d1, d2, domain, unstructured)
 
     # -- deal with optional plotting arguments that might provide variable-dependent choices
     kwargs["adfobj"] = adfobj
@@ -1002,9 +1024,17 @@ def plot_map_and_save(
 
     # Set stats: area-weighted (cos(lat)) mean, as for the other ADF plots.
     # Vector plots give the stats of the vector magnitudes:
+    # The percent panel's Mean is the percent change of the area means, which
+    # cells with a tiny baseline cannot swamp (see utils.pct_change_of_means):
     for i, fld in stat_fields.items():
+        if i == 2 and not vector:
+            mean = utils.pct_change_of_means(
+                stat_fields[0], stat_fields[1], weights=wgt
+            )
+        else:
+            mean = utils.spatial_average(fld, weights=wgt).item()
         ax[i].set_title(
-            f"Mean: {utils.spatial_average(fld, weights=wgt).item():5.2f}\n"
+            f"Mean: {mean:5.2f}\n"
             f"Max: {fld.max().item():5.2f}\nMin: {fld.min().item():5.2f}",
             loc="right",
             fontsize=ti_font_size,
@@ -1398,10 +1428,8 @@ def plot_zonal_mean_and_save(
     bzm = utils.zonal_mean_xr(bdata)
     diff = azm - bzm
 
-    # calculate the percent change
-    pct = (azm - bzm) / np.abs(bzm) * 100.0
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # percent change, blank where the baseline is ~zero (see utils.pct_change):
+    pct = utils.pct_change(azm, bzm)
 
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
@@ -2041,10 +2069,8 @@ def plot_meridional_mean_and_save(
 
     diff = adata - bdata
 
-    # calculate the percent change
-    pct = (adata - bdata) / np.abs(bdata) * 100.0
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # percent change, blank where the baseline is ~zero (see utils.pct_change):
+    pct = utils.pct_change(adata, bdata)
 
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(adata, bdata, diff, pct, **kwargs)
@@ -2480,9 +2506,8 @@ def square_contour_difference(fld1, fld2, **kwargs):
 
     diff = fld1 - fld2
 
-    pct = (fld1 - fld2) / np.abs(fld2) * 100.0
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # percent change, blank where the baseline is ~zero (see utils.pct_change):
+    pct = utils.pct_change(fld1, fld2)
 
     ## USE A DIVERGING COLORMAP CENTERED AT ZERO
     ## Special case is when min > 0 or max < 0

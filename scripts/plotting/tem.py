@@ -336,10 +336,13 @@ def tem(adf):
                     dseasons = xr.zeros_like(mseasons)
                 #End if
 
-                #percent change, following the convention in plotting_functions
-                pseasons = (dseasons / np.abs(oseasons) * 100.0 if comparable
-                            else dseasons)
-                pseasons = pseasons.where(np.isfinite(pseasons), np.nan).fillna(0.0)
+                #percent change on the common levels, blank where the baseline
+                #is ~zero (see utils.pct_change); zero when not comparable:
+                if comparable:
+                    pseasons = utils.pct_change(mseasons, oseasons)
+                else:
+                    pseasons = dseasons
+                #End if
 
                 #Gather contour plot options
                 cp_info = plot_utils.prep_contour_plot(mseasons, oseasons, dseasons,
