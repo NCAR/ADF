@@ -82,7 +82,9 @@ jobs:
         fi
         (exit $status)
     # Add the coverage of the ADF code to the run summary page.  This runs
-    # even if a test failed, so long as coverage was measured:
+    # even if a test failed, so long as coverage was measured.  The same
+    # text is also printed to the job log (via "tee"), because the summary
+    # page can't be read with "gh" or the GitHub API, but the log can:
     - name: Code coverage summary
       if: ${{ !cancelled() && hashFiles('coverage.xml') != '' }}
       run: |
@@ -101,7 +103,7 @@ jobs:
           echo ""
           echo "</details>"
           echo ""
-        } >> "$GITHUB_STEP_SUMMARY"
+        } | tee -a "$GITHUB_STEP_SUMMARY"
     # For a PR, add the coverage of just the lines it adds or changes to
     # the run summary page, and mark each changed line that no test runs
     # with a warning annotation, which GitHub shows in the PR's "Files

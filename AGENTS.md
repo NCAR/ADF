@@ -84,8 +84,11 @@ Reproduce the checks locally:
 
 ```bash
 pytest lib/test/unit_tests
-# Coverage (needs: conda install -c conda-forge pytest-cov diff-cover):
-pytest lib/test/unit_tests --cov --cov-report=xml && diff-cover coverage.xml --compare-branch=main
+# Coverage (needs: conda install -c conda-forge pytest-cov diff-cover). Compare against
+# NCAR/ADF's main ("upstream" here; use whatever your remote for NCAR/ADF is called),
+# not your local or fork's main, which may be out of date:
+git fetch upstream main
+pytest lib/test/unit_tests --cov --cov-report=xml && diff-cover coverage.xml --compare-branch=upstream/main
 pylint --rcfile=lib/test/pylintrc lib/adf_diag.py          # any modified file under lib/
 pre-commit run -a
 python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" config_cam_baseline_example.yaml
@@ -93,21 +96,24 @@ python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" config_cam_baseli
 
 ### Coverage results
 
-The run summary page, where CI writes the coverage tables, is not available through `gh` or
-the GitHub API. Two parts of it are:
+The run summary page, where CI writes the coverage tables, can't be read with `gh` or the
+GitHub API, so CI also puts everything you need where they can reach it:
 
+- The **totals and per-file table** (`lib/`, `scripts/`, all), printed to the job log by the
+  "Code coverage summary" step.
 - The **patch coverage** text report (percentage, and the uncovered changed lines per file),
-  which `diff-cover` also prints to the job log.
-- The **warning annotations** on uncovered changed lines (at most 10).
+  printed to the job log by `diff-cover`.
+- The **warning annotations** on uncovered changed lines (at most 10), from the API.
 
 ```bash
 PR=<n>
 SHA=$(gh pr view $PR --repo NCAR/ADF --json headRefOid -q .headRefOid)
 RUN=$(gh run list --repo NCAR/ADF --workflow ADF_unit_tests.yaml --event pull_request \
         --commit "$SHA" --json databaseId -q '.[0].databaseId')
-# Patch coverage, from the job log:
+# Totals, per-file table, and patch coverage, from the job log:
 gh run view "$RUN" --repo NCAR/ADF --log | cut -f3- \
-  | sed -n '/ Diff Coverage$/,/Post job cleanup/p' | cut -d' ' -f2-
+  | sed -n -e '/ ## Unit test code coverage$/,/ <\/details>$/p' \
+           -e '/ Diff Coverage$/,/Post job cleanup/p' | cut -d' ' -f2-
 # Uncovered-line annotations (the check-run id is the job id):
 JOB=$(gh run view "$RUN" --repo NCAR/ADF --json jobs -q '.jobs[0].databaseId')
 gh api repos/NCAR/ADF/check-runs/$JOB/annotations --jq '.[] | [.path, .start_line, .message] | @tsv'
@@ -115,17 +121,14 @@ gh api repos/NCAR/ADF/check-runs/$JOB/annotations --jq '.[] | [.path, .start_lin
 
 If there is no run for the PR's head commit yet (or it was cancelled before coverage was
 measured), or for a local branch with no PR, produce the same numbers locally with the
-"Coverage" commands above. The `lib/`/`scripts/` totals and per-file table are only on the
-summary page, so get those locally too, after the `pytest --cov` run:
+"Coverage" commands above, plus these for the totals and per-file table, after the
+`pytest --cov` run:
 
 ```bash
 coverage report --include='lib/*' --format=total       # lib/ total, %
 coverage report --include='scripts/*' --format=total   # scripts/ total, %
 coverage report --sort=cover                            # per file, lowest first
 ```
-
-Locally, run against `main` as it is on `NCAR/ADF` (fetch it first), or the patch coverage
-covers the wrong lines.
 
 How to judge the numbers:
 
