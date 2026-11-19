@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: 'wwieder' #'USER-NAME-NOT-SET'
+user: 'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -137,26 +137,27 @@ diag_cam_climo:
     cam_climo_loc: /glade/derecho/scratch/${user}/ADF_LatLon2/${diag_cam_climo.cam_case_name}/climo
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.143
+    cam_case_name: b.e30_alpha08b.B1850C_LTso.ne30_t232_wgx3.327
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '143'
+    case_nickname: '327'
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/derecho/scratch/hannay/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/${diag_cam_climo.cam_case_name}/lnd/hist/
 
     # SE to FV regridding options
     # Leave these blank if not on the native grid
     #-----------------------------
     # Weights file:
-    weights_file: /glade/work/wwieder/map_ne30pg3_to_fv0.9x1.25_scripgrids_conserve_nomask_c250108.nc
-    # Regridding method:
-    regrid_method: 'coservative'
-    # Lat/lon file:
-    latlon_file: /glade/derecho/scratch/wwieder/ctsm5.3.018_SP_f09_t232_mask/run/ctsm5.3.018_SP_f09_t232_mask.clm2.h0.0001-01.nc
+    weights_file: /glade/campaign/cesm/cesmdata/inputdata/cpl/gridmaps/ne30pg3/map_ne30pg3_TO_fv0.9x1.25_aave.240826.nc
+    # Regridding method, "conservative" (the default) or "bilinear":
+    regrid_method: conservative
+    # Lat/lon file (optional): a CLM file on the target lat/lon grid whose
+    # "landmask" masks the gridding, ideally on the same ocean mask (t232):
+    #latlon_file: /path/to/a/clm2/history/file/on/the/f09/t232/grid.nc
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series
@@ -221,27 +222,28 @@ diag_cam_baseline_climo:
     cam_climo_loc: /glade/derecho/scratch/${user}/ADF_LatLon2/${diag_cam_baseline_climo.cam_case_name}/climo
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_alpha06b.B1850C_LTso.ne30_t232_wgx3.139
+    cam_case_name: b.e30_alpha08b.B1850C_LTso.ne30_t232_wgx3.323
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: '139'
+    case_nickname: '323'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
-    cam_hist_loc: /glade/derecho/scratch/hannay/archive/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/${diag_cam_baseline_climo.cam_case_name}/lnd/hist/
 
     # SE to FV regridding options
     # Leave these blank if not on the native grid
     #-----------------------------
     # Weights file:
-    weights_file: /glade/work/wwieder/map_ne30pg3_to_fv0.9x1.25_scripgrids_conserve_nomask_c250108.nc
-    # Regridding method:
-    regrid_method: 'coservative'
-    # Lat/lon file:
-    latlon_file: /glade/derecho/scratch/wwieder/ctsm5.3.018_SP_f09_t232_mask/run/ctsm5.3.018_SP_f09_t232_mask.clm2.h0.0001-01.nc
+    weights_file: /glade/campaign/cesm/cesmdata/inputdata/cpl/gridmaps/ne30pg3/map_ne30pg3_TO_fv0.9x1.25_aave.240826.nc
+    # Regridding method, "conservative" (the default) or "bilinear":
+    regrid_method: conservative
+    # Lat/lon file (optional): a CLM file on the target lat/lon grid whose
+    # "landmask" masks the gridding, ideally on the same ocean mask (t232):
+    #latlon_file: /path/to/a/clm2/history/file/on/the/f09/t232/grid.nc
 
     #model year when time series files should start:
     #Note:  Leaving this entry blank will make time series

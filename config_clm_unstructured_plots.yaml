@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: wwieder #'USER-NAME-NOT-SET'
+user: 'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -140,13 +140,13 @@ diag_cam_climo:
     cam_overwrite_climo: false
 
     #Name of CAM case (or CAM run name):
-    cam_case_name: b.e30_alpha07c_cesm.B1850C_LTso.ne30_t232_wgx3.247
+    cam_case_name: b.e30_alpha08b.B1850C_LTso.ne30_t232_wgx3.327
 
     #Case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'B_247'
+    case_nickname: 'B_327'
 
     #Location of CAM history (h0) files:
     cam_hist_loc: /glade/campaign/cesm/development/cross-wg/diagnostic_framework/CESM_output_for_testing/${diag_cam_climo.cam_case_name}/lnd/hist/
@@ -205,13 +205,13 @@ diag_cam_baseline_climo:
     cam_overwrite_climo: false
 
     #Name of CAM baseline case:
-    cam_case_name: b.e30_alpha07c_cesm.B1850C_LTso.ne30_t232_wgx3.234
+    cam_case_name: b.e30_alpha08b.B1850C_LTso.ne30_t232_wgx3.323
 
     #Baseline case nickname
     #NOTE: if nickname starts with '0' - nickname must be in quotes!
     # ie '026a' as opposed to 026a
     #If missing or left blank, will default to cam_case_name
-    case_nickname: 'B_234'
+    case_nickname: 'B_323'
 
     #Location of CAM baseline history (h0) files:
     #Example test files
