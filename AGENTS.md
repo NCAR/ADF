@@ -50,7 +50,13 @@ Four workflows run on every PR:
 
 1. **`ADF_unit_tests.yaml`** — `pytest lib/test/unit_tests` in the ADF's own pinned conda
    environment (`env/conda_environment.yaml`, Python 3.12). Every test should run there, so a
-   skipped test fails the job.
+   skipped test fails the job. It also measures code coverage (`pytest-cov`, configured in
+   `pyproject.toml`) and writes it to the run's summary page: totals for `lib/` and
+   `scripts/`, a per-file table, and — for a PR — the **patch coverage** of just the lines the
+   PR adds or changes (`diff-cover`), with a warning annotation on up to 10 uncovered changed
+   lines in the "Files changed" tab. Coverage is report-only and never fails the job, so a
+   green check says nothing about it. Every review reports it (see "Coverage results" below,
+   and §7).
 2. **`ADF_linting.yaml`** — `.github/scripts/pr_mod_file_tests.py` runs pylint at
    **threshold 9.5** with `lib/test/pylintrc` on every Python file under `lib/` that the PR
    modifies (including the unit tests in `lib/test/`), except `lib/externals/`, which is
@@ -78,10 +84,68 @@ Reproduce the checks locally:
 
 ```bash
 pytest lib/test/unit_tests
+# Coverage (needs: conda install -c conda-forge pytest-cov diff-cover). Compare against
+# NCAR/ADF's main ("upstream" here; use whatever your remote for NCAR/ADF is called),
+# not your local or fork's main, which may be out of date:
+git fetch upstream main
+pytest lib/test/unit_tests --cov --cov-report=xml && diff-cover coverage.xml --compare-branch=upstream/main
 pylint --rcfile=lib/test/pylintrc lib/adf_diag.py          # any modified file under lib/
 pre-commit run -a
 python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" config_cam_baseline_example.yaml
 ```
+
+### Coverage results
+
+The run summary page, where CI writes the coverage tables, can't be read with `gh` or the
+GitHub API, so CI also puts everything you need where they can reach it:
+
+- The **totals and per-file table** (`lib/`, `scripts/`, all), printed to the job log by the
+  "Code coverage summary" step.
+- The **patch coverage** text report (percentage, and the uncovered changed lines per file),
+  printed to the job log by `diff-cover`.
+- The **warning annotations** on uncovered changed lines (at most 10), from the API.
+
+```bash
+PR=<n>
+SHA=$(gh pr view $PR --repo NCAR/ADF --json headRefOid -q .headRefOid)
+RUN=$(gh run list --repo NCAR/ADF --workflow ADF_unit_tests.yaml --event pull_request \
+        --commit "$SHA" --json databaseId -q '.[0].databaseId')
+# Totals, per-file table, and patch coverage, from the job log:
+gh run view "$RUN" --repo NCAR/ADF --log | cut -f3- \
+  | sed -n -e '/ ## Unit test code coverage$/,/ <\/details>$/p' \
+           -e '/ Diff Coverage$/,/Post job cleanup/p' | cut -d' ' -f2-
+# Uncovered-line annotations (the check-run id is the job id):
+JOB=$(gh run view "$RUN" --repo NCAR/ADF --json jobs -q '.jobs[0].databaseId')
+gh api repos/NCAR/ADF/check-runs/$JOB/annotations --jq '.[] | [.path, .start_line, .message] | @tsv'
+```
+
+If there is no run for the PR's head commit yet (or it was cancelled before coverage was
+measured), or for a local branch with no PR, produce the same numbers locally with the
+"Coverage" commands above, plus these for the totals and per-file table, after the
+`pytest --cov` run:
+
+```bash
+coverage report --include='lib/*' --format=total       # lib/ total, %
+coverage report --include='scripts/*' --format=total   # scripts/ total, %
+coverage report --sort=cover                            # per file, lowest first
+```
+
+How to judge the numbers:
+
+- **Patch coverage is what matters for the review**, not the totals: the totals are low
+  because `scripts/` is barely tested (see below), and a PR cannot be expected to fix that.
+- Patch coverage only counts lines in `lib/` and `scripts/` outside `lib/test/` and
+  `lib/externals/` (`[tool.coverage.run]` in `pyproject.toml`). "No lines with coverage
+  information in this diff" means the PR changed no measured code — say so, not "100%".
+- New or changed **`lib/` logic with no test** is a non-blocking finding; name the uncovered
+  lines/functions and suggest what a test would check. A bug fix with no regression test
+  deserves the same comment.
+- Uncovered changed lines in **`scripts/`** are expected (they need a real ADF run). Mention
+  the number, but do not ask for tests unless the PR adds a pure helper (no `adfobj`, no
+  files) that a unit test could easily cover.
+- A PR that adds tests should raise coverage of the code they target — if a new test leaves
+  its target uncovered, it is probably not exercising what its name claims.
+- Coverage is never blocking on its own.
 
 A useful extra pass that CI will not do — syntax/import sanity on changed scripts:
 
@@ -353,13 +417,18 @@ checklist above rather than skipping the check.
 4. For each changed file, read enough *surrounding* code to judge the change in context, and
    check the callers of anything whose signature or behavior moved.
 5. Run the §3 checks that apply.
-6. Verify the artifacts that CI cannot: the entry-point name, the config entry, the
+6. Get the PR's code coverage (§3, "Coverage results"): from CI if its unit-test run on the
+   PR's head commit finished, otherwise locally. Note which source you used.
+7. Verify the artifacts that CI cannot: the entry-point name, the config entry, the
    `add_website_data` call, the `adf_variable_defaults.yaml` entry, `env/conda_environment.yaml`
    if imports changed, and the docstrings or comments if any become mis-matched due to the new changes.
 
 **Report as:**
 
 - A two-or-three sentence summary: what the PR does, and whether it is ready.
+- **Code coverage** — one or two lines: the patch coverage (or "no measured lines changed"),
+  the uncovered changed lines worth testing, and whether the numbers came from CI (give the
+  run) or a local run. Coverage gaps worth acting on also go under Non-blocking below.
 - **Blocking** — correctness, contract, or compatibility breakage. Give `file.py:line`, why it
   is wrong, and a concrete failure scenario (which config, which variable, which case setup).
 - **Non-blocking** — improvements worth making now.

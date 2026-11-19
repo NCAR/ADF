@@ -60,7 +60,7 @@ jobs:
     # fails to solve the environment, which is the canary's way of saying
     # "the ADF can't run on the newest Python yet":
     - name: Set up unpinned ADF conda environment
-      uses: mamba-org/setup-micromamba@v2
+      uses: mamba-org/setup-micromamba@v3
       with:
         environment-file: ${{ runner.temp }}/canary_env.yaml
         environment-name: adf_canary
