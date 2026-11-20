@@ -1,0 +1,121 @@
+#==============================================================================
+# N01: test = native hist, baseline = native hist, gridded (bilinear)
+#
+# Native-grid test suite (Suite 2, ldf-native-grid-merge-main), 2026-10-21.
+# Test     b.e23_alpha17f.BLT1850.ne30_t232.092  (native ne30pg3 h0a)
+# Baseline b.e23_alpha17f.BLT1850.ne30_t232.091  (native ne30pg3 h0a)
+# Years 1-5 for both.
+#
+# Map: /glade/work/aherring/CESM2/TSTEPS/tseries/ne30pg3_TO_f09-bilin.nc
+#      (the map ncremap used to make the f09 inputs of Suite 1, so S01 is the reference).
+#
+# Test enters at:     hist    (ADF makes native ts, grids them into ts/<case>/<yrs>/gridded/)
+# Baseline enters at: hist    (same)
+# Prerequisites:      none (makes the native ts read by N05/N06)
+# Reference:          S01 (same cases, ncremap'd with the same map)
+# Expect:   full lat/lon plot set; climo/regridded values match S01 to round-off
+#           (ADF/xesmf and ncremap apply the same weights).
+#==============================================================================
+
+user: 'richling'
+
+diag_loc: /glade/derecho/scratch/richling/adf-output/tests/LDF-merge-v2/N01_test-native-hist_base-native-hist_bilin/
+climo_loc: ${diag_loc}climo/
+ts_loc: ${diag_loc}timeseries/
+
+diag_basic_info:
+    compare_obs: false
+    create_html: true
+    obs_data_loc: /glade/campaign/cgd/amp/amwg/ADF_obs
+    lens2_data_loc: /glade/campaign/cgd/cas/islas/CESM_DATA/LENS2/global_means/annualmeans
+    cam_regrid_loc: ${diag_loc}regrid/
+    cam_overwrite_regrid: false
+    cam_diag_plot_loc: ${diag_loc}diag-plot/
+    plot_press_levels: [200,850]
+    central_longitude: 180
+    num_procs: 8
+    ts_tool: adf
+    redo_plot: false
+
+diag_cam_climo:
+    # Pipeline entry: hist -- history files -> ADF makes ts, climo, regridded
+    cam_case_name: b.e23_alpha17f.BLT1850.ne30_t232.092
+    case_nickname:
+    hist_str: cam.h0a
+    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/cesm3_development/b.e23_alpha17f.BLT1850.ne30_t232.092/atm/hist/
+    start_year: 1
+    end_year: 5
+    yrs: yrs_${diag_cam_climo.start_year}_${diag_cam_climo.end_year}
+    calc_cam_ts: true
+    cam_ts_save: true
+    cam_overwrite_ts: false
+    cam_ts_loc: ${ts_loc}${diag_cam_climo.cam_case_name}/${diag_cam_climo.yrs}/
+    calc_cam_climo: true
+    cam_overwrite_climo: false
+    cam_climo_loc: ${climo_loc}${diag_cam_climo.cam_case_name}/${diag_cam_climo.yrs}/
+    # Native ne30pg3 grid, gridded to f09 lat/lon:
+    weights_file: /glade/work/aherring/CESM2/TSTEPS/tseries/ne30pg3_TO_f09-bilin.nc
+    regrid_method: bilinear
+
+diag_cam_baseline_climo:
+    # Pipeline entry: hist -- history files -> ADF makes ts, climo, regridded
+    cam_case_name: b.e23_alpha17f.BLT1850.ne30_t232.091
+    case_nickname:
+    hist_str: cam.h0a
+    cam_hist_loc: /glade/campaign/cesm/development/cross-wg/cesm3_development/b.e23_alpha17f.BLT1850.ne30_t232.091/atm/hist/
+    start_year: 1
+    end_year: 5
+    yrs: yrs_${diag_cam_baseline_climo.start_year}_${diag_cam_baseline_climo.end_year}
+    calc_cam_ts: true
+    cam_ts_save: true
+    cam_overwrite_ts: false
+    cam_ts_loc: ${ts_loc}${diag_cam_baseline_climo.cam_case_name}/${diag_cam_baseline_climo.yrs}/
+    calc_cam_climo: true
+    cam_overwrite_climo: false
+    cam_climo_loc: ${climo_loc}${diag_cam_baseline_climo.cam_case_name}/${diag_cam_baseline_climo.yrs}/
+    # Native ne30pg3 grid, gridded to f09 lat/lon:
+    weights_file: /glade/work/aherring/CESM2/TSTEPS/tseries/ne30pg3_TO_f09-bilin.nc
+    regrid_method: bilinear
+
+time_averaging_scripts:
+    - create_climo_files
+
+regridding_scripts:
+    - regrid_and_vert_interp
+
+analysis_scripts:
+    - amwg_table
+
+plotting_scripts:
+    - global_latlon_map
+    - global_latlon_vect_map
+    - zonal_mean
+    - meridional_mean
+    - polar_map
+    - cam_taylor_diagram
+    - qbo
+    - tape_recorder
+    - global_mean_timeseries
+
+# Variables required by the plotting scripts (all listed below):
+#   cam_taylor_diagram     : U, PSL, SWCF, LWCF, LANDFRAC, TREFHT, TAUX, RELHUM, T, PRECT
+#   global_latlon_vect_map : vector pairs TAUX/TAUY and U/V
+#   qbo                    : U (time series);  tape_recorder : Q (time series)
+#   the others             : any variable listed
+diag_var_list:
+    - SWCF
+    - LWCF
+    - PRECT
+    - PSL
+    - Q
+    - U
+    - V
+    - T
+    - RELHUM
+    - TREFHT
+    - TAUX
+    - TAUY
+    - LANDFRAC
+    - RESTOM
+
+#END OF FILE

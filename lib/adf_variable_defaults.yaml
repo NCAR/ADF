@@ -17,7 +17,9 @@
 #                         Values are min, max, and stride. Cannot be used with "diff_contour_levels".
 # scale_factor         -> Amount to scale the variable (relative to its "raw" model values).
 # add_offset           -> Amount of offset to add to the variable (relatie to its "raw" model values).
-# new_unit             -> Variable units (if not using the  "raw" model units).
+# new_unit             -> Variable units (if not using the  "raw" model units), in plain text
+#                         (e.g. "W/m2", not "W m$^{-2}$"): they are written into the files and
+#                         tables.  For LaTeX on a plot, set mpl: colorbar: label.
 # mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
 #
 # contour_levels_linspace -> Alternative to "contour_levels_range": values are min, max, and the
@@ -81,6 +83,14 @@
 #                 warning if it is more than 1% away from the one asked for.
 #
 #
+# CESM2 LARGE ENSEMBLE (global_mean_timeseries):
+#
+# lens2_file   -> Global, annual mean CESM2 LENS2 file, plotted as the ensemble range and mean behind the
+#                 global mean time series.  If only the file name is given, then the file is assumed to
+#                 exist in the path specified by "lens2_data_loc" in the config file.  Variables without
+#                 it get no LENS2 band.
+#
+#
 # VECTORS:
 #
 # vector_pair  -> Another variable that when combined with the given variable makes up a vector pair.
@@ -111,6 +121,15 @@
 #                   used where there is one, PS and the hybrid coefficients otherwise. Only used
 #                   when the variable is missing from the history files: a run that writes U200
 #                   itself keeps what it wrote.
+#
+#
+# GRIDDING (native-grid cases gridded to lat/lon, "unstructured_plotting: false"):
+#
+# regrid_conservative -> Set to True to grid the variable with the case's "conservative_weights_file"
+#                        instead of its "weights_file", if the case has one.  Use it for fluxes
+#                        (precipitation, radiation, surface heat, water and momentum fluxes such as
+#                        the wind stress), whose area means a conservative map keeps.  Defaults to
+#                        False.
 #
 #
 # Final Note:  Please do not modify this file unless you plan to push your changes back to the ADF repo.
@@ -155,6 +174,7 @@ ACTREI:
 
 ACTREL:
   category: "Microphysics"
+  lens2_file: "ACTREL_LENS2_first50_gm_am.nc"
 
 ADRAIN:
   category: "Microphysics"
@@ -170,6 +190,7 @@ AREL:
 
 CDNUMC:
   category: "Microphysics"
+  lens2_file: "CDNUMC_LENS2_first50_gm_am.nc"
 
 FREQI:
   category: "Microphysics"
@@ -226,6 +247,7 @@ AODVIS:
   obs_name: "MODIS"
   obs_var_name: "AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean"
   category: "Aerosols"
+  lens2_file: "AODVIS_LENS2_first50_gm_am.nc"
 
 
 AODVISdn:
@@ -246,7 +268,10 @@ BURDENBC:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
   obs_file: "BURDENBC_MERRA2_monthly_climo_1degree_200001-202506.nc"
   obs_var_name: "BURDENBC"
@@ -259,7 +284,10 @@ BURDENDUST:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_contour_range: [-1000, 1100, 100]
   diff_colormap: "RdBu_r"
   obs_file: "BURDENDUST_CAMS_monthly_climo_1degree_200301-202412.nc"
@@ -273,7 +301,10 @@ BURDENPOM:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
 
 
@@ -282,7 +313,10 @@ BURDENSEASALT:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_contour_range: [-200, 200, 25]
   diff_colormap: "RdBu_r"
   obs_file: "BURDENSEASALT_CAMS_monthly_climo_1degree_200301-202412.nc"
@@ -296,7 +330,10 @@ BURDENSO4:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
   obs_file: "BURDENSO4_CAMS_monthly_climo_1degree_200301-202412.nc"
   obs_name: "CAMS"
@@ -309,7 +346,10 @@ BURDENSOA:
   colormap: "plasma_r"
   scale_factor: 1000000
   add_offset: 0
-  new_unit: 'g m$^{-2}$'
+  new_unit: 'g/m2'
+  mpl:
+    colorbar:
+      label: 'g m$^{-2}$'
   diff_colormap: "RdBu_r"
 
 DMS:
@@ -338,7 +378,7 @@ BC:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -350,7 +390,7 @@ POM:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -362,7 +402,7 @@ SO4:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -375,7 +415,7 @@ SOA:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -390,7 +430,7 @@ DUST:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -404,7 +444,7 @@ SeaSalt:
   diff_colormap: "BrBG"
   scale_factor: 1000000000
   add_offset: 0
-  new_unit: '$\mu$g/m3'
+  new_unit: 'ug/m3'
   mpl:
     colorbar:
       label : '$\mu$g/m3'
@@ -1279,6 +1319,7 @@ CLDTOT:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDTOT_LENS2_first50_gm_am.nc"
 
 
 CLDLOW:
@@ -1303,6 +1344,7 @@ CLDLOW:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDLOW_LENS2_first50_gm_am.nc"
 
 
 CLDHGH:
@@ -1327,6 +1369,7 @@ CLDHGH:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDHGH_LENS2_first50_gm_am.nc"
 
 
 CLDMED:
@@ -1351,6 +1394,7 @@ CLDMED:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "Clouds"
+  lens2_file: "CLDMED_LENS2_first50_gm_am.nc"
 
 
 CLOUD:
@@ -1376,7 +1420,7 @@ TGCLDLWP:
   diff_contour_range: [-100, 100, 10]
   scale_factor: 1000
   add_offset: 0
-  new_unit: "g m$^{-2}$"
+  new_unit: "g/m2"
   mpl:
     colorbar:
       label : "g m$^{-2}$"
@@ -1399,6 +1443,7 @@ TGCLDLWP:
   obs_var_name: "TGCLDLWP"
   obs_scale_factor: 1000
   obs_add_offset: 0
+  lens2_file: "TGCLDLWP_LENS2_first50_gm_am.nc"
 
 TGCLDIWP:
   colormap: "Blues"
@@ -1407,7 +1452,7 @@ TGCLDIWP:
   diff_contour_range: [-50, 50, 5]
   scale_factor: 1000
   add_offset: 0
-  new_unit: "g m$^{-2}$"
+  new_unit: "g/m2"
   mpl:
     colorbar:
       label : "g m$^{-2}$"
@@ -1428,6 +1473,7 @@ TGCLDIWP:
   obs_var_name: "TGCLDIWP"
   obs_scale_factor: 1000
   obs_add_offset: 0
+  lens2_file: "TGCLDIWP_LENS2_first50_gm_am.nc"
 
 CCN3:
   category: "Clouds"
@@ -1453,65 +1499,70 @@ WPTHLP_CLUBB:
 #+++++++++++++++++
 
 PRECC:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm/d"
   category: "Hydrologic cycle"
 
 PRECL:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECSC:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECSL:
+  regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "BrBG"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
   category: "Hydrologic cycle"
 
 PRECT:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 20, 1]
   diff_colormap: "seismic"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 86400000
   add_offset: 0
-  new_unit: "mm d$^{-1}$"
+  new_unit: "mm/d"
   mpl:
     colorbar:
       label : "mm d$^{-1}$"
@@ -1530,13 +1581,14 @@ PRECT:
   derivable_from: ['PRECL','PRECC']
 
 QFLX:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 0.00015, 0.00001]
   diff_colormap: "BrBG"
   diff_contour_range: [-0.00004, 0.00004, 0.000005]
   scale_factor: 1
   add_offset: 0
-  new_unit: "kg m$^{-2}$ s$^{-1}$"
+  new_unit: "kg/m2/s"
   mpl:
     colorbar:
       label : "kg m$^{-2}$ s$^{-1}$"
@@ -1610,6 +1662,7 @@ TS:
   obs_name: "ERAI"
   obs_var_name: "TS"
   category: "Surface variables"
+  lens2_file: "TS_LENS2_first50_gm_am.nc"
 
 SST:
   colormap: "Blues"
@@ -1640,7 +1693,7 @@ U10:
   diff_contour_range: [-4, 4, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "m s$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "m s$^{-1}$"
@@ -1660,11 +1713,18 @@ U10:
 
 Surface_Wind_Stress:
   nickname: "Surface Wind Stress"
-  new_unit: "N m$^{-2}$"
+  new_unit: "N/m2"
+  mpl:
+    colorbar:
+      label: 'N m$^{-2}$'
   category: "Surface variables"
 
 TAUX:
-  new_unit: "N m$^{-2}$"
+  regrid_conservative: true
+  new_unit: "N/m2"
+  mpl:
+    colorbar:
+      label: 'N m$^{-2}$'
   vector_pair: "TAUY"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
@@ -1675,7 +1735,11 @@ TAUX:
   obs_var_name: "TAUX"
 
 TAUY:
-  new_unit: "N m$^{-2}$"
+  regrid_conservative: true
+  new_unit: "N/m2"
+  mpl:
+    colorbar:
+      label: 'N m$^{-2}$'
   vector_pair: "TAUX"
   vector_name: "Surface_Wind_Stress"
   category: "Surface variables"
@@ -1711,7 +1775,10 @@ TMQ:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 1.
   add_offset: 0
-  new_unit: "kg m$^{-2}$"
+  new_unit: "kg/m2"
+  mpl:
+    colorbar:
+      label: 'kg m$^{-2}$'
   # Three observational TPW records are in the observations directory and the
   # GEWEX Water Vapor Assessment does not crown one, so pick to suit the
   # question.  Over ocean they agree closely (NVAP-M +0.53, WV_cci -0.12
@@ -1748,7 +1815,7 @@ U:
   diff_contour_range: [-15, 15, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1769,7 +1836,7 @@ U200:
   diff_contour_range: [-15, 15, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1795,7 +1862,7 @@ U850:
   diff_contour_range: [-6, 6, 1]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1816,7 +1883,7 @@ V:
   diff_contour_range: [-15, 15, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1835,7 +1902,7 @@ V200:
   diff_contour_range: [-5, 5, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1858,7 +1925,7 @@ V850:
   diff_contour_range: [-4, 4, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "ms$^{-1}$"
+  new_unit: "m/s"
   mpl:
     colorbar:
       label : "ms$^{-1}$"
@@ -1901,7 +1968,10 @@ OMEGA500:
   category: "State"
   scale_factor: 864
   add_offset: 0
-  new_unit: "hPa d$^{-1}$"
+  new_unit: "hPa/d"
+  mpl:
+    colorbar:
+      label: 'hPa d$^{-1}$'
   hist_bins: [-105, -100,  -95,  -90,  -85,  -80,  -75,  -70,  -65,  -60,  -55, -50,  -45,  -40,  -35,  -30,  -25,  -20,  -15,  -10,   -5,    0, 5,   10,   15,   20,   25,   30,   35,   40,   45,   50,   55, 60,   65,   70,   75,   80,   85,   90,   95,  100]
 
 PINT:
@@ -1934,13 +2004,14 @@ QRS:
 #+++++++++++++++++
 
 RESTOM:
+  regrid_conservative: true
   colormap: "RdBu_r"
   contour_levels_range: [-100, 100, 5]
   diff_colormap: "seismic"
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "W m$^{-2}$"
@@ -1948,13 +2019,14 @@ RESTOM:
   derivable_from: ['FLNT','FSNT']
 
 SWCF:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-150, 50, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1964,15 +2036,17 @@ SWCF:
   obs_scale_factor: 1
   obs_add_offset: 0
   category: "TOA energy flux"
+  lens2_file: "SWCF_LENS2_first50_gm_am.nc"
 
 LWCF:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [-10, 100, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-15, 15, 1]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1988,7 +2062,7 @@ FSUTOA:
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -1999,13 +2073,14 @@ FSUTOA:
 
 
 FSNT:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2013,18 +2088,22 @@ FSNT:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "fsnt"
   category: "TOA energy flux"
+  lens2_file: "FSNT_LENS2_first50_gm_am.nc"
 
 FSNTC:
+  regrid_conservative: true
   category: "TOA energy flux"
+  lens2_file: "FSNTC_LENS2_first50_gm_am.nc"
 
 FSNTOA:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 400, 20]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2035,13 +2114,14 @@ FSNTOA:
 
 
 FLUT:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [100, 340, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2052,13 +2132,14 @@ FLUT:
 
 
 FLNT:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2068,13 +2149,14 @@ FLNT:
   category: "TOA energy flux"
 
 FLNTC:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [120, 320, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2094,7 +2176,7 @@ RESSURF:
   diff_contour_range: [-10, 10, 0.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "W m$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "W m$^{-2}$"
@@ -2102,13 +2184,14 @@ RESSURF:
   derivable_from: ['FSNS','FLNS','SHFLX','QFLX','PRECC','PRECL','PRECSC','PRECSL']
 
 FSDS:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 350, 25]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2116,16 +2199,18 @@ FSDS:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_sw_down_all_mon"
   category: "Radiation"
+  lens2_file: "FSDS_LENS2_first50_gm_am.nc"
 
 
 FSDSC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 400, 25]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2133,16 +2218,18 @@ FSDSC:
   obs_name: "CERES_EBAF_Ed4.1"
   obs_var_name: "sfc_sw_down_clr_t_mon"
   category: "Radiation"
+  lens2_file: "FSDSC_LENS2_first50_gm_am.nc"
 
 
 FSNS:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-10, 300, 20]
   diff_colormap: "BrBG"
   diff_contour_range: [-24, 24, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2152,13 +2239,14 @@ FSNS:
   category: "Sfc energy flux"
 
 FSNSC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-10, 300, 20]
   diff_colormap: "BrBG"
   diff_contour_range: [-24, 24, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2168,13 +2256,14 @@ FSNSC:
   category: "Sfc energy flux"
 
 FLDS:
+  regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [100, 500, 25]
   diff_colormap: "BrBG"
   diff_contour_range: [-20, 20, 2]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2184,13 +2273,14 @@ FLDS:
   category: "Sfc energy flux"
 
 FLNS:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 120, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2205,13 +2295,14 @@ FLNS:
 
 
 FLNSC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 150, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2226,13 +2317,14 @@ FLNSC:
 
 
 SHFLX:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-30, 90, 5]
   diff_colormap: "BrBG"
   diff_contour_range: [-25, 25, 2.5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2243,13 +2335,14 @@ SHFLX:
   category: "Sfc energy flux"
 
 LHFLX:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 220, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-45, 45, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -2449,7 +2542,7 @@ IWPMODIS:
   diff_contour_range: [-8, 8, 1]
   scale_factor: 1
   add_offset: 0
-  new_unit: "kg m$^{-2}$ %"
+  new_unit: "% kg/m2"
   obs_scale_factor: 1
   obs_add_offset: 0
   mpl:
@@ -2476,7 +2569,7 @@ LWPMODIS:
   diff_contour_range: [-8, 8, 1]
   scale_factor: 1
   add_offset: 0
-  new_unit: "kg m$^{-2}$ %"
+  new_unit: "% kg/m2"
   obs_scale_factor: 1
   obs_add_offset: 0
   mpl:
@@ -2591,7 +2684,7 @@ REFFCLIMODIS:
   diff_contour_range: [-300, 300, 50]
   scale_factor: 1000000
   add_offset: 0
-  new_unit: "$\\mu$m %"
+  new_unit: "um %"
   obs_scale_factor: 1000000
   obs_add_offset: 0
   mpl:
@@ -2615,7 +2708,7 @@ REFFCLWMODIS:
   diff_contour_range: [-300, 300, 50]
   scale_factor: 1000000
   add_offset: 0
-  new_unit: "$\\mu$m %"
+  new_unit: "um %"
   obs_scale_factor: 1000000
   obs_add_offset: 0
   mpl:
@@ -2764,7 +2857,7 @@ H2O:
   diff_colormap: "BrBG"
   scale_factor: 1
   add_offset: 0
-  new_unit: "mol mol$^{-1}$"
+  new_unit: "mol/mol"
   mpl:
     colorbar:
       label: "mol mol$^{-1}$"
@@ -3027,13 +3120,14 @@ aod_diags:
 #End of File
 
 SOLIN:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 550, 25]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"
@@ -3043,13 +3137,14 @@ SOLIN:
   category: "Radiation"
 
 FLUTC:
+  regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [100, 340, 10]
   diff_colormap: "BrBG"
   diff_contour_range: [-30, 30, 5]
   scale_factor: 1
   add_offset: 0
-  new_unit: "Wm$^{-2}$"
+  new_unit: "W/m2"
   mpl:
     colorbar:
       label : "Wm$^{-2}$"

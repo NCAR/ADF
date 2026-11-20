@@ -8,8 +8,6 @@ from scipy import integrate
 from numpy import ma
 from datetime import date
 from pathlib import Path
-from glob import glob
-from itertools import chain
 
 import adf_utils as utils
 
@@ -176,12 +174,17 @@ def create_TEM_files(adf):
     -----
     Directly uses adf for the following:
     get_cam_info, get_baseline_info, get_basic_info, climo_yrs,
-    variable_defaults, plotting_scripts, var_obs_dict
+    variable_defaults, plotting_scripts, var_obs_dict, data
 
     Reads the zonal mean fields listed in TEM_INPUT_VARS from the history
     stream named by 'tem_hist_str' (default 'h4') and writes
     '<case>.TEMdiag_<start>-<end>.nc' into 'cam_tem_loc'. An existing file is
     left alone unless 'overwrite_tem' is set.
+
+    The file also carries the model's zonal mean pressure, 'PZM', for the same
+    time steps (see tem_pressure), which tem.py uses to turn THZM into
+    temperature. It comes from the PMID or PINT time series, since the TEM
+    history stream has no pressure of its own.
 
     A baseline simulation is appended to the list of cases and processed the
     same way. Observations are different: the observational file already holds
@@ -254,9 +257,10 @@ def create_TEM_files(adf):
     else:
         print("\t 'cam_tem_loc' not found in 'diag_cam_baseline_climo', so no baseline files/diagnostics will be generated.")
 
-    #Loop over cases:
+    #Loop over cases (a baseline simulation, if appended above, comes last):
     skipped = []
     for case_idx, case_name in enumerate(case_names):
+        is_baseline = case_idx >= ncases
 
         print(f"\t Processing TEM for case '{case_name}' :")
 
@@ -287,7 +291,7 @@ def create_TEM_files(adf):
         output_loc_idx = _ensure_dir(tem_locs[case_idx])
 
         #Set case file name
-        tem_fil = output_loc_idx / f'{case_name}.TEMdiag_{start_year}-{end_year}.nc'
+        tem_fil = output_loc_idx / adf.data.tem_file_name(case_name, start_year, end_year)
 
         #Get current case tem over-write boolean
         overwrite_tem = overwrite_tem_cases[case_idx]
@@ -301,12 +305,18 @@ def create_TEM_files(adf):
             print("\t    INFO: Found TEM file but clobber is True, so over-writing file.")
         #End if
 
-        hist_files = sorted(chain.from_iterable(
-            #leading zeros on the year just in case
-            glob(f"{starting_location}/*{hist_str}.{yr:04d}*.nc")
-            for yr in range(int(start_year), int(end_year) + 1)))
-
-        ds = xr.open_mfdataset(hist_files)
+        #The TEM stream's history files for the climatology years:
+        if is_baseline:
+            ds = adf.data.load_reference_history_dataset(hist_str, start_year, end_year)
+        else:
+            ds = adf.data.load_history_dataset(case_name, hist_str, start_year, end_year)
+        #End if
+        if ds is None:
+            print(f"\t    WARNING: no CAM history {hist_str} files for years "
+                  f"{start_year}-{end_year}, skipping TEM for '{case_name}'.")
+            skipped.append(case_name)
+            continue
+        #End if
 
         #Settle the vertical grid once, before the per-time loop, rather than
         #assuming the zonal-mean fields are on layer midpoints.
@@ -336,6 +346,13 @@ def create_TEM_files(adf):
             #End if
         #End for
 
+        #The model's own pressure, for converting THZM to temperature when
+        #plotting, carried in the TEM file so it covers the same time steps:
+        pzm = tem_pressure(adf, None if is_baseline else case_name, dstem0, lev_name)
+        if pzm is not None:
+            dstem0['PZM'] = pzm
+        #End if
+
         # write output to a netcdf file
         dstem0.to_netcdf(tem_fil, unlimited_dims='time', mode='w')
 
@@ -357,6 +374,109 @@ TEM_INPUT_VARS = ("Uzm", "Vzm", "Wzm", "THzm", "UVzm", "UWzm", "VTHzm")
 #no THZM or VZM: the ERA5 TEM file has neither.
 OBS_TEM_VARS = ("uzm", "epfy", "epfz", "vtem", "wtem", "psitem",
                 "utendepfd", "utendvtem", "utendwtem")
+
+
+def tem_pressure(adf, case_name, dstem, lev_name):
+    """
+    Zonal mean model pressure on the TEM grid, one field per TEM time step.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object, whose data layer reads the time series.
+    case_name : str or None
+        A test case name, or None for the baseline.
+    dstem : xarray.Dataset
+        The TEM diagnostics just calculated, with their 'time_bnds'.
+    lev_name : str
+        Vertical dimension of `dstem`: 'lev' (PMID is used) or 'ilev' (PINT).
+
+    Returns
+    -------
+    xarray.DataArray or None
+        'PZM', in Pa, on the (time, lev_name, zalat) grid of `dstem`; None, with
+        a message, when the pressure time series cannot be used, which leaves
+        tem.py to fall back on the hybrid coordinate.
+
+    Notes
+    -----
+    The TEM history stream carries no pressure of its own, so the model's PMID
+    or PINT time series is used: the pressure the model actually used, which
+    for the dry-mass vertical coordinate in recent CAM/WACCM the hybrid
+    coefficients do not give.  Each TEM time step takes the monthly mean
+    pressure of the month it falls in, so a monthly stream matches exactly and
+    a daily one gets its month's mean; a month the time series does not cover
+    is left missing.  Stored here rather than read when plotting, so that the
+    pressure covers the same years as the TEM fields it goes with.
+    """
+    field = utils.pressure_field_name(lev_name)
+    if case_name is None:
+        ds_pres = adf.data.load_reference_timeseries_dataset(field)
+    else:
+        ds_pres = adf.data.load_timeseries_dataset(case_name, field)
+    #End if
+    if ds_pres is None or field not in ds_pres:
+        print(f"\t    INFO: no {field} time series, so the TEM file will not "
+              "carry the model pressure (PZM).")
+        return None
+    #End if
+    pres = ds_pres[field]
+    if "lat" not in pres.dims:
+        print(f"\t    INFO: {field} time series is not on a lat/lon grid, so the "
+              "TEM file will not carry the model pressure (PZM).")
+        return None
+    #End if
+
+    #The month each TEM step falls in, from the middle of its interval:
+    tem_time = utils.use_time_bounds_midpoint(dstem).time
+    tem_month = (tem_time.dt.year * 100 + tem_time.dt.month).values
+
+    #Monthly zonal means of the pressure for just those months:
+    pres_month = (pres.time.dt.year * 100 + pres.time.dt.month).values
+    wanted = np.isin(pres_month, tem_month)
+    pres = pres.isel(time=wanted)
+    if pres.sizes["time"] == 0:
+        print(f"\t    INFO: {field} time series does not cover the TEM years, so "
+              "the TEM file will not carry the model pressure (PZM).")
+        return None
+    #End if
+    if "lon" in pres.dims:
+        pres = pres.mean(dim="lon")
+    #End if
+    pres = pres.assign_coords(month=("time", pres_month[wanted]))
+    pres = pres.groupby("month").mean("time")
+
+    #CAM writes these in Pa; convert before the arithmetic below drops attrs.
+    if str(ds_pres[field].attrs.get("units", "Pa")).lower() in ("hpa", "mb", "millibars"):
+        pres = pres * 100.0
+    #End if
+
+    #One field per TEM step, on the TEM latitudes:
+    pres = pres.reindex(month=tem_month).rename(month="time")
+    pres = pres.assign_coords(time=dstem.time.values)
+    target_lat = xr.DataArray(dstem["zalat"].values, dims="zalat",
+                              coords={"zalat": dstem["zalat"].values})
+    pres = pres.interp(lat=target_lat, method="linear",
+                       kwargs={"fill_value": "extrapolate"}).drop_vars("lat", errors="ignore")
+
+    #And on the TEM levels, unless they are already the same. Matching sizes
+    #are not enough: the two grids can have the same number of levels at
+    #different pressures, and xarray would then align them to an empty
+    #intersection instead of raising.
+    pres_lev = utils.vertical_dim(pres)
+    if pres_lev is not None and not np.array_equal(pres[pres_lev].values,
+                                                   dstem[lev_name].values):
+        target_lev = xr.DataArray(dstem[lev_name].values, dims=lev_name,
+                                  coords={lev_name: dstem[lev_name].values})
+        pres = pres.interp({pres_lev: target_lev}, method="linear",
+                           kwargs={"fill_value": "extrapolate"})
+    #End if
+
+    pres = pres.transpose("time", lev_name, "zalat").astype("float32").compute()
+    pres.attrs = {"units": "Pa",
+                  "long_name": f"zonal mean {field} on the TEM grid",
+                  "source": f"{field} time series, monthly means"}
+    return pres
 
 
 def harmonize_tem_levels(ds):
