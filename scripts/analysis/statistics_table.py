@@ -210,9 +210,11 @@ def statistics_table(adf):
             continue
         #End if
 
-        #Generate input file path (the "gridded" copy of native-grid time
-        #series, where the ADF made one):
-        input_location = adf.data.timeseries_dir(case_name, input_ts_locs[case_idx])
+        #Generate input file path.  For native-grid time series, the "gridded"
+        #copy is chosen per variable below, where the ADF made an up-to-date one:
+        input_location = Path(input_ts_locs[case_idx])
+        #The baseline, when there is one, was appended last:
+        is_baseline = (not adf.compare_obs) and (case_idx == len(case_names) - 1)
 
         #Check that time series input directory actually exists:
         if not input_location.is_dir():
@@ -249,7 +251,9 @@ def statistics_table(adf):
 
             #Create list of time series files present for variable:
             ts_filenames = f'{case_name}.*.{var}.*nc'
-            ts_files = utils.find_ts_files(input_location, ts_filenames)
+            var_location = adf.data.timeseries_dir(case_name, input_location, var,
+                                                   baseline=is_baseline)
+            ts_files = utils.find_ts_files(var_location, ts_filenames)
 
             #Keep only the files needed for this case's years, so that a
             #directory holding more than one set for the same variable

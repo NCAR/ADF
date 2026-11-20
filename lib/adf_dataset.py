@@ -65,6 +65,8 @@ class AdfData:  # pylint: disable=too-many-public-methods
 
     def __init__(self, adfobj):
         self.adf = adfobj  # provides quick access to the AdfDiag object
+        # timeseries_dir's per-variable choice of native or gridded files:
+        self._gridded_ts_choice = {}
         # paths
         self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
@@ -251,13 +253,19 @@ class AdfData:  # pylint: disable=too-many-public-methods
         # End if
         return chosen
 
-    def timeseries_dir(self, case, ts_loc):
-        """The directory to read `case`'s time series from.
+    def timeseries_dir(self, case, ts_loc, var, baseline=False):
+        """The directory to read `case`'s time series of `var` from.
 
         When native-grid data is plotted on lat/lon (not 'unstructured_plotting'),
-        the ADF grids the time series it makes into a "gridded" sub-directory,
-        and that is what the diagnostics should read.  Pre-made time series have
-        no such copy, so they are read as they are.
+        the ADF grids the time series it makes into a "gridded" sub-directory.
+        Those copies are read only when they are up to date for `var`: every
+        native file needed for the case's time series years has a copy that is
+        not older than it and was made with the settings this run would use
+        (see :meth:`AdfDiag.gridding_settings`).  Otherwise -- no copy for this
+        variable or these years, a stale copy, or other gridding settings --
+        the native files are read, and the climatology is gridded later in the
+        regridding step.  Nothing is written here: with pre-made time series,
+        `ts_loc` may be someone else's folder.
 
         Parameters
         ----------
@@ -265,20 +273,70 @@ class AdfData:  # pylint: disable=too-many-public-methods
             A test case, or the baseline's name.
         ts_loc : str or pathlib.Path
             The case's 'cam_ts_loc'.
+        var : str
+            The variable to be read.
+        baseline : bool, optional
+            Whether `case` is the baseline.
 
         Returns
         -------
         pathlib.Path
+            `ts_loc` or its "gridded" sub-directory.
         """
         ts_loc = Path(ts_loc)
         gridded = ts_loc / "gridded"
         if (
-            self.adf.native_grid.get(case, False)
-            and not self.adf.unstructured_plotting
-            and gridded.is_dir()
+            not self.adf.native_grid.get(case, False)
+            or self.adf.unstructured_plotting
+            or not gridded.is_dir()
         ):
-            return gridded
-        return ts_loc
+            return ts_loc
+        # End if
+
+        # One decision (and at most one message) per case and variable:
+        key = (case, str(ts_loc), var, baseline)
+        cache = self._gridded_ts_choice
+        if key in cache:
+            return cache[key]
+        # End if
+
+        ts_yrs = self.adf.ts_yrs
+        if baseline:
+            case_idx = None
+            syr, eyr = ts_yrs["syear_baseline"], ts_yrs["eyear_baseline"]
+        else:
+            case_idx = self._case_index(case)
+            syr, eyr = ts_yrs["syears"][case_idx], ts_yrs["eyears"][case_idx]
+        # End if
+        native_files = utils.select_ts_files(
+            sorted(ts_loc.glob(f"{case}.*.{var}.*nc")), syr, eyr
+        )
+        signature = utils.gridding_signature(
+            *self.adf.gridding_settings(case_idx, var, baseline=baseline)
+        )
+        problem = "it has no native time series files here"
+        for native_file in native_files:
+            problem = utils.gridded_copy_problem(
+                native_file, utils.gridded_ts_name(native_file), signature
+            )
+            if problem:
+                problem = f"{native_file.name}: {problem}"
+                break
+            # End if
+        # End for
+
+        if problem is None:
+            cache[key] = gridded
+        else:
+            cache[key] = ts_loc
+            if native_files:
+                msg = f"\t    INFO: '{var}' of '{case}' is read from its native time"
+                msg += f" series, not the 'gridded' copy ({problem})."
+                print(msg)
+                self.adf.debug_log(msg)
+            # End if
+        # End if
+        return cache[key]
 
     def timeseries_available(self, script_name, any_case=False):
         """Whether the cases (and a model baseline) have time series to read.
@@ -347,7 +405,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         caseindex = self._case_index(case)
         if not ts_locs[caseindex]:
             return []
-        ts_loc = self.timeseries_dir(case, ts_locs[caseindex])
+        ts_loc = self.timeseries_dir(case, ts_locs[caseindex], field)
         if hist_str:
             ts_filenames = f"{case}.{hist_str}.{field}.*nc"
         else:
@@ -375,7 +433,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
             # A baseline run on pre-made climatologies alone has none:
             return []
         ts_loc = self.timeseries_dir(
-            self.ref_case_label, self.adf.get_baseline_info("cam_ts_loc")
+            self.ref_case_label,
+            self.adf.get_baseline_info("cam_ts_loc"),
+            field,
+            baseline=True,
         )
         if hist_str:
             ts_filenames = f"{self.ref_case_label}.{hist_str}.{field}.*nc"

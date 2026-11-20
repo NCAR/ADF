@@ -261,7 +261,14 @@ def find_ts_files(ts_loc, pattern, recursive=True):
     if found or not recursive:
         return found
     # End if
-    return sorted(ts_loc.rglob(pattern))
+    # The ADF's "gridded" copies of native-grid time series sit in a
+    # sub-directory; whether to read them is the caller's decision
+    # (AdfData.timeseries_dir), so the recursive search never picks them up:
+    return sorted(
+        fil
+        for fil in ts_loc.rglob(pattern)
+        if "gridded" not in fil.relative_to(ts_loc).parts[:-1]
+    )
 
 
 def select_ts_files(fils, syr, eyr):  # pylint: disable=too-many-return-statements

@@ -199,8 +199,10 @@ def tape_recorder(adfobj):
             continue
         ts_loc = Path(case_ts_locs[idx])
         hist_str = hist_strs[idx]
-        #The "gridded" copy of native-grid time series, where the ADF made one:
-        ts_loc = adfobj.data.timeseries_dir(case_name, ts_loc)
+        #The "gridded" copy of native-grid time series, where the ADF made an
+        #up-to-date one.  The baseline, when there is one, was appended last:
+        is_baseline = (not adfobj.compare_obs) and (idx == len(case_names) - 1)
+        ts_loc = adfobj.data.timeseries_dir(case_name, ts_loc, var, baseline=is_baseline)
         fils = sorted(ts_loc.glob(f'*{hist_str}.{var}.*.nc'))
         if not fils and hist_str:
             # A configured stream need not match the names of pre-made time

@@ -2311,6 +2311,100 @@ def regrid_atm_se_data_conservative(regridder, data_to_regrid, comp_grid="ncol")
     return regridded
 
 
+def gridded_ts_name(native_file):
+    """The "gridded" copy the ADF makes of a native-grid time series file.
+
+    Parameters
+    ----------
+    native_file : str or pathlib.Path
+        A native-grid time series file.
+
+    Returns
+    -------
+    pathlib.Path
+        ``<its directory>/gridded/<its name>_gridded.nc``.
+    """
+    native_file = Path(native_file)
+    return (
+        native_file.parent / "gridded" / native_file.name.replace(".nc", "_gridded.nc")
+    )
+
+
+def gridding_signature(wgts_file, method, latlon_file, keep_precision):
+    """The settings a native time series file is gridded with, as file attributes.
+
+    They are written into each gridded copy, so that a later run can tell
+    whether the copy was made the way it would make it now.
+
+    Parameters
+    ----------
+    wgts_file : str or pathlib.Path or None
+        The weights file used for the variable.
+    method : str or None
+        The regridding method used with it.
+    latlon_file : str or pathlib.Path or None
+        The CLM land-mask file, if any.
+    keep_precision : bool
+        Whether the gridded fields keep the native files' precision.
+
+    Returns
+    -------
+    dict
+        Global attribute names and (string) values.
+    """
+    return {
+        "adf_gridding_weights_file": str(wgts_file or ""),
+        "adf_gridding_method": str(method or ""),
+        "adf_gridding_latlon_file": str(latlon_file or ""),
+        "adf_gridding_keep_precision": "true" if keep_precision else "false",
+    }
+
+
+def gridded_copy_problem(native_file, gridded_file, signature):
+    """Why a gridded copy cannot stand in for its native time series file.
+
+    Parameters
+    ----------
+    native_file : str or pathlib.Path
+        The native-grid time series file.
+    gridded_file : str or pathlib.Path
+        Its gridded copy (see :func:`gridded_ts_name`).
+    signature : dict
+        The settings the copy should have been made with
+        (see :func:`gridding_signature`).
+
+    Returns
+    -------
+    str or None
+        A short reason, or ``None`` when the copy is up to date: it exists, is
+        not older than the native file, and records the same settings.
+    """
+    gridded_file = Path(gridded_file)
+    if not gridded_file.is_file():
+        return "it has no gridded copy"
+    # End if
+    if gridded_file.stat().st_mtime < Path(native_file).stat().st_mtime:
+        return "its gridded copy is older than the native file"
+    # End if
+    try:
+        with xr.open_dataset(gridded_file, decode_times=False) as gridded_ds:
+            attrs = dict(gridded_ds.attrs)
+    except (OSError, ValueError) as err:
+        return f"its gridded copy cannot be read ({err})"
+    # End try
+    for key, wanted in signature.items():
+        found = attrs.get(key)
+        if found is None:
+            return "its gridded copy does not record how it was gridded"
+        # End if
+        if str(found) != wanted:
+            setting = key.replace("adf_gridding_", "").replace("_", " ")
+            return f"its gridded copy was made with another {setting} ('{found}', now '{wanted}')"
+        # End if
+    # End for
+    return None
+
+
 def grid_to_latlon(  # pylint: disable=too-many-positional-arguments
     model_dataset,
     var_name,

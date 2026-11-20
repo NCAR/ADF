@@ -625,6 +625,49 @@ class AdfDiag(AdfWeb):
 
     #########
 
+    def gridding_settings(self, case_idx, var, baseline=False):
+        """The settings a native-grid case's time series of `var` are gridded with.
+
+        Parameters
+        ----------
+        case_idx : int or None
+            The test case's position among the test cases (unused for the
+            baseline).
+        var : str
+            The variable.
+        baseline : bool, optional
+            Whether this is the baseline.
+
+        Returns
+        -------
+        tuple
+            ``(weights_file, method, latlon_file, keep_precision)``: the weights
+            file and method chosen for `var` by :func:`choose_regrid_weights`
+            (a variable marked ``regrid_conservative`` uses the case's
+            ``conservative_weights_file``), the CLM ``latlon_file`` and
+            ``gridded_keep_precision``.
+        """
+        if baseline:
+            wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
+            cons_wgts_file = self.latlon_wgt_files["baseline_cons_wgts_file"]
+            method = self.latlon_regrid_method["baseline_regrid_method"]
+            latlon_file = self.latlon_files["baseline_latlon_file"]
+        else:
+            wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
+            cons_wgts_file = self.latlon_wgt_files["test_cons_wgts_file"][case_idx]
+            method = self.latlon_regrid_method["test_regrid_method"][case_idx]
+            latlon_file = self.latlon_files["test_latlon_file"][case_idx]
+        # End if
+        var_wgts, var_method = choose_regrid_weights(
+            (self.variable_defaults or {}).get(var),
+            (wgts_file, method),
+            cons_wgts_file,
+        )
+        # Write gridded fields in the native files' precision (e.g. 32-bit)
+        # instead of xesmf's 64-bit floats?  Off by default:
+        keep_precision = bool(self.get_basic_info("gridded_keep_precision"))
+        return var_wgts, var_method, latlon_file, keep_precision
+
     def grid_native_time_series(
         self,
         case_name,
@@ -670,19 +713,9 @@ class AdfDiag(AdfWeb):
 
         if baseline:
             wgts_file = self.latlon_wgt_files["baseline_wgts_file"]
-            cons_wgts_file = self.latlon_wgt_files["baseline_cons_wgts_file"]
-            method = self.latlon_regrid_method["baseline_regrid_method"]
-            latlon_file = self.latlon_files["baseline_latlon_file"]
         else:
             wgts_file = self.latlon_wgt_files["test_wgts_file"][case_idx]
-            cons_wgts_file = self.latlon_wgt_files["test_cons_wgts_file"][case_idx]
-            method = self.latlon_regrid_method["test_regrid_method"][case_idx]
-            latlon_file = self.latlon_files["test_latlon_file"][case_idx]
         # End if
-        var_defaults = self.variable_defaults or {}
-        # Write gridded fields in the native files' precision (e.g. 32-bit)
-        # instead of xesmf's 64-bit floats?  Off by default:
-        keep_precision = bool(self.get_basic_info("gridded_keep_precision"))
         if not wgts_file:
             # Every variable of the case would fail the same way, so stop here:
             emsg = f"'{case_name}' is on a native grid, but has no 'weights_file' to"
@@ -705,23 +738,28 @@ class AdfDiag(AdfWeb):
                 if variables is not None and var not in variables:
                     continue
                 # End if
-                gridded_file = gridded_loc / fil.name.replace(".nc", "_gridded.nc")
-                if gridded_file.is_file() and not overwrite:
+                gridded_file = utils.gridded_ts_name(fil)
+                settings = self.gridding_settings(case_idx, var, baseline=baseline)
+                signature = utils.gridding_signature(*settings)
+                # A copy is kept only when it is up to date: made from this
+                # native file (not older than it) with the same settings.
+                # Anything else is gridded again, whatever 'overwrite' says:
+                problem = utils.gridded_copy_problem(fil, gridded_file, signature)
+                if problem is None and not overwrite:
                     print(
-                        f"\t    INFO: {gridded_file.name} exists and overwrite is False."
+                        f"\t    INFO: {gridded_file.name} is up to date and overwrite is False."
                     )
                     continue
                 # End if
+                if problem and gridded_file.is_file():
+                    print(f"\t    INFO: gridding '{fil.name}' again: {problem}.")
+                # End if
+                var_wgts, var_method, latlon_file, keep_precision = settings
                 with xr.open_dataset(fil) as ts_ds:
                     # Grid and write a block of time steps at a time, so that
                     # big files (TBs for multi-year hourly 3-D fields) are
                     # never read into memory whole:
                     ts_ds = utils.chunk_native_in_time(ts_ds, var)
-                    var_wgts, var_method = choose_regrid_weights(
-                        var_defaults.get(var),
-                        (wgts_file, method),
-                        cons_wgts_file,
-                    )
                     print(
                         f"\t    INFO: gridding '{var}' with {var_wgts}"
                         f" (method '{var_method or 'conservative'}')"
@@ -735,6 +773,9 @@ class AdfDiag(AdfWeb):
                         latlon_file=latlon_file,
                         keep_dtype=keep_precision,
                     )
+                    # Record how the copy was made, for the check above and
+                    # for AdfData.timeseries_dir on later runs:
+                    gridded.attrs.update(signature)
                     write_netcdf_synchronous(
                         functools.partial(save_to_nc, gridded), gridded_file
                     )
