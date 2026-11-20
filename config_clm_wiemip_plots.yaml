@@ -58,7 +58,7 @@
 # Note that the string 'USER-NAME-NOT-SET' is used in the jupyter script
 # to check for a failure to customize
 #
-user: wwieder #'USER-NAME-NOT-SET'
+user: 'USER-NAME-NOT-SET'
 
 #This first set of variables specify basic info used by all diagnostic runs:
 diag_basic_info:
@@ -149,7 +149,7 @@ diag_cam_climo:
     case_nickname: 'flat noN_cou'
 
     #Location of CAM history (h0) files:
-    cam_hist_loc: /glade/derecho/scratch/${user}/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
+    cam_hist_loc: /glade/derecho/scratch/wwieder/archive/${diag_cam_climo.cam_case_name}/lnd/hist/
 
     #ESMF mesh file of this native-grid case, needed to plot it on its own grid
     #("unstructured_plotting: true"); not used otherwise:

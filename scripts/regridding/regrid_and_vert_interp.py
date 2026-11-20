@@ -1430,8 +1430,12 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
     case_name : str, optional
         The test case; omit it for the baseline.
     save : bool, optional
-        Also write the gridded data to "gridded/{case}_{var}_gridded_climo.nc"
-        under the case's climo directory.
+        Allow writing the gridded data to
+        "gridded/{case}_{var}_gridded_climo_YYYY-YYYY.nc" under the case's
+        climo directory.  It is written only when the case (or baseline) also
+        sets 'save_gridded_climo: true' in the config file (default false):
+        nothing in the ADF reads the copy back, and with pre-made climo
+        ('calc_cam_climo: false') that directory is an input folder.
 
     Returns
     -------
@@ -1449,6 +1453,7 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
         latlon_file = adf.latlon_files["baseline_latlon_file"]
         climo_loc = adf.get_baseline_info("cam_climo_loc", required=True)
         years = (adf.climo_yrs["syear_baseline"], adf.climo_yrs["eyear_baseline"])
+        save_flag = adf.get_baseline_info("save_gridded_climo")
     else:
         case_idx = adf.get_cam_info("cam_case_name", required=True).index(case_name)
         label = case_name
@@ -1457,6 +1462,7 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
         latlon_file = adf.latlon_files["test_latlon_file"][case_idx]
         climo_loc = adf.get_cam_info("cam_climo_loc", required=True)[case_idx]
         years = (adf.climo_yrs["syears"][case_idx], adf.climo_yrs["eyears"][case_idx])
+        save_flag = (adf.get_cam_info("save_gridded_climo") or [None] * (case_idx + 1))[case_idx]
 
     if not wgt_file:
         # Every variable of the case would fail the same way, so stop here:
@@ -1485,13 +1491,22 @@ def _to_latlon(adf, dset, var, case_name=None, save=False):
             "map to a grid at least as coarse as the native one is better."
         )
 
-    if save:
+    # A copy for the user to look at, only on request ('save_gridded_climo'):
+    if save and save_flag:
         gridded_loc = Path(climo_loc) / "gridded"
-        gridded_loc.mkdir(parents=True, exist_ok=True)
-        save_to_nc(
-            gridded,
-            gridded_loc / utils.year_tagged_names(f"{label}_{var}_gridded_climo", *years)[0],
-        )
+        gridded_file = gridded_loc / utils.year_tagged_names(
+            f"{label}_{var}_gridded_climo", *years
+        )[0]
+        try:
+            gridded_loc.mkdir(parents=True, exist_ok=True)
+            save_to_nc(gridded, gridded_file)
+        except OSError as err:
+            # The copy is optional, so a folder that cannot be written to
+            # (pre-made climo in someone else's directory) must not stop the run:
+            print(
+                f"\t    WARNING: Could not save the gridded climo copy {gridded_file}"
+                f" ('save_gridded_climo'): {err}"
+            )
     return gridded
 
 

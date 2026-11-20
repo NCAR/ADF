@@ -309,6 +309,15 @@ diag_cam_climo:
     #CLM only: a file on the target lat/lon grid holding its "landmask", used
     #to mask the gridding of land output:
     #latlon_file: /some/path/to/latlon_landmask_file.nc
+    #
+    #Native-grid climo that reaches the regridding step still on the native
+    #grid (e.g. pre-made climo with "calc_cam_climo: false") is gridded to
+    #lat/lon there.  Set this to true to also save that gridded climo, as
+    #"<cam_climo_loc>/gridded/<case>_<var>_gridded_climo_YYYY-YYYY.nc", for
+    #inspection.  The ADF never reads these files back.  With pre-made climo,
+    #"cam_climo_loc" is your input folder, so it must be writable.
+    #If missing, defaults to false:
+    #save_gridded_climo: false
 
     #TEM diagnostics
     #---------------
@@ -481,7 +490,7 @@ diag_cam_baseline_climo:
 
     #Native-grid baseline: the same settings as for the test case(s) above
     #("mesh_file", "weights_file", "regrid_method", "latlon_file",
-    #"conservative_weights_file"):
+    #"conservative_weights_file", "save_gridded_climo"):
     #mesh_file: /glade/campaign/cesm/cesmdata/inputdata/share/meshes/ne30pg3_ESMFmesh_cdf5_c20211018.nc
     #weights_file: /glade/campaign/cesm/cesmdata/inputdata/cpl/gridmaps/ne30pg3/map_ne30pg3_TO_fv0.9x1.25_aave.240826.nc
     #regrid_method: conservative
