@@ -1452,9 +1452,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
     def _tem_converters(self, field, obs=False):
         """``(add_offset, scale_factor)`` for a TEM field, from the variable defaults.
 
-        Read directly rather than through :meth:`get_value_converters`, which
-        only knows the variables in 'diag_var_list' -- and the TEM fields are
-        not diagnosed from time series, so they are not listed there.
+        Read directly rather than through :meth:`get_value_converters`: the
+        observation TEM file has no entry in the observation lists, so
+        whether these are observations is said with `obs` instead.
         """
         vres = self.adf.variable_defaults.get(field, {})
         prefix = "obs_" if obs else ""
@@ -1574,8 +1574,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             converters are used.  Defaults to `field`'s test-case converters.
         converters : tuple, optional
             ``(add_offset, scale_factor)`` to use instead of
-            :meth:`get_value_converters`, for a variable that is not in
-            'diag_var_list' (which that method needs).
+            :meth:`get_value_converters` (the TEM loaders pass their own).
 
         Returns
         -------
@@ -1679,29 +1678,45 @@ class AdfData:  # pylint: disable=too-many-public-methods
 
     # Get variable conversion defaults, if applicable
     def get_value_converters(self, case, variablename):
-        """
-        Get variable defaults if applicable
+        """Return the variable-defaults conversion of `variablename` for `case`.
 
-           - This is to get any scale factors or off-sets
+        Parameters
+        ----------
+        case : str
+            Name of the case the data belongs to: a test case, the baseline,
+            or the observation source (see :meth:`_ref_source`).
+        variablename : str
+            ADF name of the variable, i.e. the key into the variable defaults.
 
         Returns
         -------
-           add_offset - int/float
-           scale_factor - int/float
+        tuple
+            ``(add_offset, scale_factor)``; ``(0, 1)`` when the variable has
+            no entry in the variable defaults.
+
+        Notes
+        -----
+        Observations use ``obs_add_offset``/``obs_scale_factor``; every model
+        case uses ``add_offset``/``scale_factor``.  Which one `case` is comes
+        from the case alone, not from whether `variablename` has an
+        observation file: deciding by that dropped the model's own conversion
+        for every variable without observations when comparing against them.
+        A caller that needs raw model units (surface pressure for vertical
+        interpolation, say) loads with ``apply_scaling=False``.
         """
-        add_offset = 0
-        scale_factor = 1
-        res = self.adf.variable_defaults
-        if variablename in res:
-            vres = res[variablename]
-            if variablename in self.ref_labels:
-                if (case == self.ref_labels[variablename]) and (self.adf.compare_obs):
-                    scale_factor = vres.get("obs_scale_factor", 1)
-                    add_offset = vres.get("obs_add_offset", 0)
-                else:
-                    scale_factor = vres.get("scale_factor", 1)
-                    add_offset = vres.get("add_offset", 0)
+        vres = self.adf.variable_defaults.get(variablename)
+        if not isinstance(vres, dict):
+            return 0, 1
+        prefix = "obs_" if self._is_obs_source(case, variablename) else ""
+        add_offset = vres.get(f"{prefix}add_offset", 0)
+        scale_factor = vres.get(f"{prefix}scale_factor", 1)
         return add_offset, scale_factor
+
+    def _is_obs_source(self, case, variablename):
+        """Whether `case` names the observations `variablename` is compared to."""
+        if not self.adf.compare_obs or case is None:
+            return False
+        return case in (self.ref_labels.get(variablename), self.ref_case_label)
 
     def _ensure_scaling_kwargs(self, case, variablename, kwargs):
         """Ensure scale_factor/add_offset are present without overwriting or double counting explicit values."""

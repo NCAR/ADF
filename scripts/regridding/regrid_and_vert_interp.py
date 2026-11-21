@@ -510,7 +510,8 @@ def _find_surface_pressure(dset, adf, case=None):
         fils = adf.data.get_reference_climo_file('PS')
         ps_ds = adf.data.load_dataset(fils) if fils else None
     else:
-        ps_ds = adf.data.load_climo_dataset(case, 'PS')
+        # Raw, in Pa: the defaults convert PS to hPa for plotting.
+        ps_ds = adf.data.load_climo_dataset(case, 'PS', apply_scaling=False)
     ps_ds = _to_latlon(adf, ps_ds, 'PS', case_name=case)
     if ps_ds is None or 'PS' not in ps_ds:
         return None
@@ -548,7 +549,7 @@ def _find_pressure_field(dset, adf, level_dim, case=None):
         fils = adf.data.get_reference_climo_file(name)
         pres_ds = adf.data.load_dataset(fils) if fils else None
     else:
-        pres_ds = adf.data.load_climo_dataset(case, name)
+        pres_ds = adf.data.load_climo_dataset(case, name, apply_scaling=False)
     pres_ds = _to_latlon(adf, pres_ds, name, case_name=case)
     if pres_ds is None or name not in pres_ds:
         return None
@@ -1352,7 +1353,7 @@ def _get_ocean_fraction(
         f"{target_name}_{case_name}_OCNFRAC_regridded", *years)[0]
     if ocn_frac_path.exists():
         return xr.open_dataset(ocn_frac_path)["OCNFRAC"]
-    ocn_frac_ds = adf.data.load_climo_dataset(case_name, "OCNFRAC")
+    ocn_frac_ds = adf.data.load_climo_dataset(case_name, "OCNFRAC", apply_scaling=False)
     ocn_frac_ds = _to_latlon(adf, ocn_frac_ds, "OCNFRAC", case_name=case_name)
     if ocn_frac_ds is None or "OCNFRAC" not in ocn_frac_ds:
         return None

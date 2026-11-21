@@ -411,9 +411,9 @@ def tem_pressure(adf, case_name, dstem, lev_name):
     """
     field = utils.pressure_field_name(lev_name)
     if case_name is None:
-        ds_pres = adf.data.load_reference_timeseries_dataset(field)
+        ds_pres = adf.data.load_reference_timeseries_dataset(field, apply_scaling=False)
     else:
-        ds_pres = adf.data.load_timeseries_dataset(case_name, field)
+        ds_pres = adf.data.load_timeseries_dataset(case_name, field, apply_scaling=False)
     #End if
     if ds_pres is None or field not in ds_pres:
         print(f"\t    INFO: no {field} time series, so the TEM file will not "

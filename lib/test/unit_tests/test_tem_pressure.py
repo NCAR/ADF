@@ -70,8 +70,8 @@ def _adf(ds_pres):
     """An ADF stand-in whose data layer hands back `ds_pres` for case and baseline."""
     return SimpleNamespace(
         data=SimpleNamespace(
-            load_timeseries_dataset=lambda case, field: ds_pres,
-            load_reference_timeseries_dataset=lambda field: ds_pres,
+            load_timeseries_dataset=lambda case, field, **_kw: ds_pres,
+            load_reference_timeseries_dataset=lambda field, **_kw: ds_pres,
         )
     )
 
@@ -92,7 +92,7 @@ def test_baseline_reads_the_reference_time_series():
     """The baseline (case_name None) takes its pressure from the reference time series."""
     ds_pres = _pressure([(2, 1), (2, 2)])
     adf = _adf(None)
-    adf.data.load_reference_timeseries_dataset = lambda field: ds_pres
+    adf.data.load_reference_timeseries_dataset = lambda field, **_kw: ds_pres
     pzm = tem_pressure(adf, None, _tem(MONTHLY), "lev")
     assert pzm.isel(lev=0, zalat=0).values.tolist() == [201.0, 202.0]
 
