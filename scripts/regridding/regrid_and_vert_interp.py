@@ -151,12 +151,17 @@ def regrid_and_vert_interp(adf):
             regridded_file_loc = output_loc / utils.year_tagged_names(
                 f'{target_name}_{case_name}_{var}_regridded', syear, eyear)[0]
 
-            if regridded_file_loc.is_file() and not overwrite_regrid:
-                print(f"\t INFO: Regridded file already exists, skipping: {regridded_file_loc}")
+            climo_files = lambda: adf.data.get_climo_file(case_name, var)
+            if _reuse_existing(
+                regridded_file_loc,
+                climo_files,
+                overwrite_regrid,
+                "Regridded file",
+                find_signature=lambda: _climo_gridding_signature(
+                    adf, case_name, case_idx, climo_files()
+                ),
+            ):
                 continue
-            
-            if regridded_file_loc.is_file() and overwrite_regrid:
-                regridded_file_loc.unlink()
 
 
             model_ds = adf.data.load_climo_dataset(case_name, var)
@@ -186,9 +191,14 @@ def regrid_and_vert_interp(adf):
             # case not plotted natively is gridded first, here from native
             # climo or before from its time series:
             gridding_note = ""
+            gridding_signature = None
             if getattr(adf, "native_grid", {}).get(case_name, False) and not adf.unstructured_plotting:
                 gridding_note = _gridding_note(
                     adf, var, case_idx, from_climo=_is_unstructured(model_ds)
+                )
+                # Native climo is gridded below; record the settings used:
+                gridding_signature = _climo_gridding_signature(
+                    adf, case_name, case_idx, adf.data.get_climo_file(case_name, var)
                 )
 
             # Native-grid data that is not being plotted natively goes onto
@@ -363,6 +373,8 @@ def regrid_and_vert_interp(adf):
                 test_attrs_dict["vert_interp_pressure"] = pressure_note
             if regrid_note:
                 test_attrs_dict[REGRID_NOTE_ATTR] = regrid_note
+            if gridding_signature:
+                test_attrs_dict.update(gridding_signature)
             final_ds = final_ds.assign_attrs(test_attrs_dict)
             save_to_nc(final_ds, regridded_file_loc)
 
@@ -613,8 +625,16 @@ def _write_reference_files(
 
         # Named after the baseline's climatology years:
         baseline_file = output_loc / utils.year_tagged_names(f'{base}_{var}_baseline', syear, eyear)[0]
-        if baseline_file.is_file() and not overwrite:
-            print(f"\t INFO: Baseline file already exists, skipping: {baseline_file}")
+        base_climo = lambda: adf.data.get_reference_climo_file(var)
+        if _reuse_existing(
+            baseline_file,
+            base_climo,
+            overwrite,
+            "Baseline file",
+            find_signature=lambda: _climo_gridding_signature(
+                adf, base, None, base_climo()
+            ),
+        ):
             continue
 
         ref_ds = adf.data.load_reference_climo_dataset(var)
@@ -624,9 +644,14 @@ def _write_reference_files(
         # How the baseline got onto its lat/lon grid, for the plots' debug-log
         # note (see REGRID_NOTE_ATTR):
         gridding_note = ""
+        gridding_signature = None
         if getattr(adf, "native_grid", {}).get(base, False) and not adf.unstructured_plotting:
             gridding_note = _gridding_note(
                 adf, var, from_climo=_is_unstructured(ref_ds)
+            )
+            # Native climo is gridded below; record the settings used:
+            gridding_signature = _climo_gridding_signature(
+                adf, base, None, adf.data.get_reference_climo_file(var)
             )
         # A native-grid baseline that is not being plotted natively goes onto
         # its lat/lon grid, which then becomes the target grid for the cases:
@@ -688,6 +713,8 @@ def _write_reference_files(
             baseline_attrs["vert_interp_pressure"] = pressure_note
         if gridding_note:
             baseline_attrs[REGRID_NOTE_ATTR] = gridding_note
+        if gridding_signature:
+            baseline_attrs.update(gridding_signature)
         final_ds = final_ds.assign_attrs(baseline_attrs)
         save_to_nc(final_ds, baseline_file)
 
@@ -852,10 +879,9 @@ def _write_reference_on_case_grid(
     """
     out_file = output_loc / utils.year_tagged_names(
         f"{target_name}_{case_name}_{var}_reference_on_case_grid", *years)[0]
-    if out_file.is_file() and not overwrite:
-        print(f"\t INFO: Reference on the case's grid already exists, skipping: {out_file}")
-        return True
     fils = adf.data.get_ref_regrid_file(var)
+    if _reuse_existing(out_file, lambda: fils, overwrite, "Reference on the case's grid"):
+        return True
     if not fils:
         return False
     ref_ds = xr.open_dataset(fils[0])
@@ -1404,6 +1430,100 @@ def _keep_native_area(final_ds, source_ds):
         for name in ("area", "landfrac", "landmask"):
             if name in source_ds:
                 final_ds[name] = source_ds[name]
+
+
+def _reuse_existing(out_file, find_inputs, overwrite, label, find_signature=None):
+    """Whether an existing regrid output can be reused as it is.
+
+    It can when it exists, 'cam_overwrite_regrid' is off and none of the files
+    it was made from has changed since it was written.  A file that
+    is out of date, or that is to be overwritten, is removed so that it is made
+    again.
+
+    Parameters
+    ----------
+    out_file : pathlib.Path
+        The output file.
+    find_inputs : callable
+        Returns the climo (or observation) files it is made from; called only
+        when `out_file` exists and is not to be overwritten.
+    find_signature : callable, optional
+        Returns the gridding settings (:func:`adf_utils.gridding_signature`)
+        `out_file` must record, or ``None`` when no gridding is involved: for
+        native climo gridded here (see :func:`_climo_gridding_signature`), a
+        change of 'weights_file', 'regrid_method' or 'latlon_file' makes no
+        input file newer, so it is caught this way.
+    overwrite : bool
+        'cam_overwrite_regrid'.
+    label : str
+        What the file is, for the message ("Regridded file", ...).
+
+    Returns
+    -------
+    bool
+        True to skip making it.
+    """
+    if not out_file.is_file():
+        return False
+    if not overwrite:
+        newer = utils.newer_inputs(out_file, find_inputs())
+        problem = (
+            f"is older than its input ({utils.stale_note(newer)})" if newer else None
+        )
+        signature = find_signature() if (find_signature and not problem) else None
+        if signature:
+            with xr.open_dataset(out_file, decode_times=False) as out_ds:
+                problem = utils.gridding_signature_problem(dict(out_ds.attrs), signature)
+        if not problem:
+            print(f"\t INFO: {label} already exists, skipping: {out_file}")
+            return True
+        print(f"\t INFO: {label} {problem}, so it will be made again: {out_file}")
+    out_file.unlink()
+    return False
+
+
+def _climo_gridding_signature(adf, case_name, case_idx, climo_files):
+    """The settings native climo is gridded with in this step, or None.
+
+    Only a native-grid case that is not plotted natively and whose climo is
+    still on its native grid (pre-made native climo, or climo made from native
+    time series) is gridded here, by :func:`_to_latlon`; its regridded file
+    records these settings so that a later run can tell whether they changed.
+
+    Parameters
+    ----------
+    adf : AdfDiag
+        The diagnostics object.
+    case_name : str
+        The case (or the baseline's name).
+    case_idx : int or None
+        The test case's position, or ``None`` for the baseline.
+    climo_files : list
+        The case's climo file(s) for the variable.
+
+    Returns
+    -------
+    dict or None
+        :func:`adf_utils.gridding_signature` of the weights file, method and
+        'latlon_file' :func:`_to_latlon` uses, or ``None`` when nothing is
+        gridded here.
+    """
+    if not getattr(adf, "native_grid", {}).get(case_name, False):
+        return None
+    if adf.unstructured_plotting or not climo_files:
+        return None
+    with xr.open_dataset(climo_files[0], decode_times=False) as climo_ds:
+        if not _is_unstructured(climo_ds):
+            return None
+    if case_idx is None:
+        wgt_file = adf.latlon_wgt_files["baseline_wgts_file"]
+        method = adf.latlon_regrid_method["baseline_regrid_method"]
+        latlon_file = adf.latlon_files["baseline_latlon_file"]
+    else:
+        wgt_file = adf.latlon_wgt_files["test_wgts_file"][case_idx]
+        method = adf.latlon_regrid_method["test_regrid_method"][case_idx]
+        latlon_file = adf.latlon_files["test_latlon_file"][case_idx]
+    return utils.gridding_signature(wgt_file, method, latlon_file, False)
 
 
 def _to_latlon(adf, dset, var, case_name=None, save=False):

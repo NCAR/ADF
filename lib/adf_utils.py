@@ -104,7 +104,9 @@ from adf_file_utils import (
     describe_dir_problem,
     find_ts_files,
     missing_year_ranges,
+    newer_inputs,
     pick_hist_str,
+    stale_note,
     select_ts_files,
     ts_files_overlap,
     ts_file_span,
@@ -2392,14 +2394,35 @@ def gridded_copy_problem(native_file, gridded_file, signature):
     except (OSError, ValueError) as err:
         return f"its gridded copy cannot be read ({err})"
     # End try
+    problem = gridding_signature_problem(attrs, signature)
+    return f"its gridded copy {problem}" if problem else None
+
+
+def gridding_signature_problem(attrs, signature):
+    """How a file's recorded gridding settings differ from `signature`.
+
+    Parameters
+    ----------
+    attrs : dict
+        The file's global attributes.
+    signature : dict
+        The settings it should have been gridded with
+        (see :func:`gridding_signature`).
+
+    Returns
+    -------
+    str or None
+        e.g. "was made with another weights file ('a.nc', now 'b.nc')", or
+        ``None`` when every setting matches.
+    """
     for key, wanted in signature.items():
         found = attrs.get(key)
         if found is None:
-            return "its gridded copy does not record how it was gridded"
+            return "does not record how it was gridded"
         # End if
         if str(found) != wanted:
             setting = key.replace("adf_gridding_", "").replace("_", " ")
-            return f"its gridded copy was made with another {setting} ('{found}', now '{wanted}')"
+            return f"was made with another {setting} ('{found}', now '{wanted}')"
         # End if
     # End for
     return None

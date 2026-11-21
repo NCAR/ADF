@@ -110,6 +110,39 @@ def find_ts_for_variable(adf, case_name, var, hist_strs, is_baseline):
 #Main function
 ##############
 
+def climo_out_of_date(climo_file, ts_files):
+    """Why an existing climo file no longer matches its time series, or None.
+
+    A climo file is out of date when any of the time series it would be made
+    from now is newer than it (made again since), or when it records other
+    time series files than those (e.g. a native-grid case now read from its
+    native files instead of an outdated "gridded" copy, or the other way round).
+
+    Parameters
+    ----------
+    climo_file : pathlib.Path
+        The existing climo file.
+    ts_files : list
+        The time series files it would be made from now.
+
+    Returns
+    -------
+    str or None
+        A short reason, or ``None`` when the file can be reused.
+    """
+    newer = utils.newer_inputs(climo_file, ts_files)
+    if newer:
+        return f"is older than its time series ({utils.stale_note(newer)})"
+    with xr.open_dataset(climo_file, decode_times=False) as climo_ds:
+        recorded = climo_ds.attrs.get("time_series_files")
+    # Files from before this was recorded are left alone:
+    if recorded is not None:
+        wanted = ", ".join(str(f) for f in ts_files)
+        if recorded != wanted:
+            return f"was made from other time series files ({recorded})"
+    return None
+
+
 def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unused-argument
     """
     Orchestrates production of monthly climatology files
@@ -293,10 +326,16 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
                     var_label = f"{var}"
                 output_file = output_location / utils.year_tagged_names(stem, syr, eyr)[0]
                 if (not clobber) and (output_file.is_file()):
-                    msg = f"\t    INFO: '{var_label}' file was found "
-                    msg += "and overwrite is False. Will use existing file."
-                    print(msg)
-                    continue
+                    # Reused only if its time series have not been made again
+                    # since (e.g. gridded with other weights):
+                    problem = climo_out_of_date(output_file, ts_files)
+                    if not problem:
+                        msg = f"\t    INFO: '{var_label}' file was found "
+                        msg += "and overwrite is False. Will use existing file."
+                        print(msg)
+                        continue
+                    print(f"\t    INFO: '{var_label}' climo file {problem}, "
+                          "so it will be made again.")
                 if clobber and output_file.is_file():
                     print(f"\t    INFO: Climo file exists for {var_label}, but clobber is "
                           f"{clobber}, so will OVERWRITE it.")

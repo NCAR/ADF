@@ -271,6 +271,56 @@ def find_ts_files(ts_loc, pattern, recursive=True):
     )
 
 
+def newer_inputs(output_file, input_files):
+    """
+    The input files modified after ``output_file`` was written.
+
+    An ADF output (a climatology, a regridded file) is reused on a later run
+    when it already exists.  That is only right if nothing it was made from has
+    changed since: a time series made again (with other weights, say) leaves
+    the climatology made from the old one behind, and the plots and tables
+    would then disagree.
+
+    Parameters
+    ----------
+    output_file : str or Path
+        An existing output file.
+    input_files : iterable of str or Path
+        The files it was made from.  Missing ones are ignored.
+
+    Returns
+    -------
+    list of Path
+        The inputs newer than ``output_file``; empty when it is up to date.
+    """
+    made = Path(output_file).stat().st_mtime
+    return [
+        Path(fil)
+        for fil in input_files or []
+        if Path(fil).is_file() and Path(fil).stat().st_mtime > made
+    ]
+
+
+def stale_note(input_files):
+    """
+    Name the newer inputs found by :func:`newer_inputs` for a message.
+
+    Parameters
+    ----------
+    input_files : list of Path
+        A non-empty list of input files.
+
+    Returns
+    -------
+    str
+        The first file's name, and how many more there are.
+    """
+    note = Path(input_files[0]).name
+    if len(input_files) > 1:
+        note += f" and {len(input_files) - 1} more"
+    return note
+
+
 def select_ts_files(fils, syr, eyr):  # pylint: disable=too-many-return-statements
     """
     Narrow a set of time series files to those needed for a year range.
