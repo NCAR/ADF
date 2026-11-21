@@ -253,6 +253,24 @@ diag_cam_climo:
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/ts
 
+    #Chemistry budget tables (aerosol_gas_tables, emissions_table, depositions_table)
+    #-----------------------------------------------------------------------------
+    #Only used when a budget table script is run with the 'Climate: True' kwarg
+    #(see 'analysis_scripts' below); otherwise these options are ignored.
+    #Save the annual mean file made from the history files with NCO 'ncra'?
+    #If false, or not present, the file is made in a temporary directory and removed
+    #(an existing file in "budget_table_save_loc" for the same years is still used):
+    budget_table_save: false
+
+    #Remake the annual mean file even if it is found in "budget_table_save_loc"?
+    #If false, or not present, an existing file is used:
+    budget_table_overwrite: false
+
+    #Location where the annual mean file is (or will be) stored, as
+    #$cam_case_name.$hist_str.budget_ANN.YYYY01-YYYY12.nc
+    #Required if "budget_table_save" is true:
+    budget_table_save_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_climo.cam_case_name}/budget
+
     #TEM diagnostics
     #---------------
     #TEM history file number
@@ -328,6 +346,18 @@ diag_cam_climo:
 
     #cam_ts_loc:
     #    - /some/where/you/want/to/have/time_series_files
+    #    - /same/or/different/place/you/want/files
+
+    #budget_table_save:
+    #    - false
+    #    - false
+
+    #budget_table_overwrite:
+    #    - false
+    #    - false
+
+    #budget_table_save_loc:
+    #    - /some/where/you/want/to/have/budget_files
     #    - /same/or/different/place/you/want/files
 
     #TEM diagnostics
@@ -413,6 +443,24 @@ diag_cam_baseline_climo:
 
     #Location where time series files are (or will be) stored:
     cam_ts_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/ts
+
+    #Chemistry budget tables (aerosol_gas_tables, emissions_table, depositions_table)
+    #-----------------------------------------------------------------------------
+    #Only used when a budget table script is run with the 'Climate: True' kwarg
+    #(see 'analysis_scripts' below); otherwise these options are ignored.
+    #Save the baseline annual mean file made from the history files with NCO 'ncra'?
+    #If false, or not present, the file is made in a temporary directory and removed
+    #(an existing file in "budget_table_save_loc" for the same years is still used):
+    budget_table_save: false
+
+    #Remake the annual mean file even if it is found in "budget_table_save_loc"?
+    #If false, or not present, an existing file is used:
+    budget_table_overwrite: false
+
+    #Location where the annual mean file is (or will be) stored, as
+    #$cam_case_name.$hist_str.budget_ANN.YYYY01-YYYY12.nc
+    #Required if "budget_table_save" is true:
+    budget_table_save_loc: /glade/derecho/scratch/${user}/ADF/${diag_cam_baseline_climo.cam_case_name}/budget
 
     #TEM diagnostics
     #---------------
@@ -539,7 +587,30 @@ regridding_scripts:
 #These scripts must be located in "scripts/analysis":
 analysis_scripts:
     - amwg_table
-    #- aerosol_gas_tables
+    #Chemistry budget tables, please un-comment to use.
+    #Optional kwargs, set per script (emissions_table and depositions_table only accept Climate):
+    #  Tropospheric: True (default) for tropospheric values only, False for all layers
+    #  Climate: True to compute the budgets from one annual mean of the history files,
+    #           made with NCO 'ncra' (faster, meant for long climate runs, not 1-2 years),
+    #           False (default) to compute them from the raw history files.
+    #           The annual mean file is only made with Climate: True; see the
+    #           'budget_table_save' options in diag_cam_climo/diag_cam_baseline_climo
+    #           to keep it for later runs.
+    #  trop_val: applicable when Tropospheric is True
+    #    tropopause: (realistic case - default if not listed): use ozone (150ppb) or Trop_P.
+    #                If not found, calculate total column.
+    #    pres500: 500hPa as the tropopause threshold
+    #- aerosol_gas_tables:
+    #    kwargs:
+    #      Tropospheric: False
+    #      Climate: True
+    #      trop_val: pres500
+    #- emissions_table:
+    #    kwargs:
+    #      Climate: True
+    #- depositions_table:
+    #    kwargs:
+    #      Climate: True
 
 #List of plotting scripts being used.
 #These scripts must be located in "scripts/plotting":

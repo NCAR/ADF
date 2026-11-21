@@ -63,6 +63,8 @@ Notes
 # ++++++++++++++++++++++++++++++
 
 import warnings  # use to warn user about missing files.
+import subprocess
+from pathlib import Path
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++
 # import non-standard python modules, including ADF
@@ -1529,6 +1531,171 @@ def zonal_mean_xr(fld):
         raise IOError("zonal_mean_xr requires Xarray DataArray input.")
     fld = fld.mean(dim=davgovr, keep_attrs=True)
     return fld
+
+
+def budget_table_options(adfobj, case_name, case_idx=0, baseline=False):
+    """Return a case's options for saving the chemistry budget annual mean file.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        ADF object, used to read the case's config options
+    case_name : str
+        CAM case name, used in the error message
+    case_idx : int, optional
+        index of the test case in ``diag_cam_climo``, ignored for the baseline
+    baseline : bool, optional
+        read the options from ``diag_cam_baseline_climo`` instead
+
+    Returns
+    -------
+    dict
+        ``save``, ``overwrite`` and ``save_loc``, ready to be passed to
+        `budget_annual_mean_file`
+
+    Notes
+    -----
+    The options (in ``diag_cam_climo`` or ``diag_cam_baseline_climo``) are all
+    optional and only used by the budget table scripts:
+
+    - ``budget_table_save``: keep the file, default false
+    - ``budget_table_overwrite``: remake the file even if it exists, default false
+    - ``budget_table_save_loc``: where the file is kept, required if saving
+
+    An existing file in ``budget_table_save_loc`` is read even when
+    ``budget_table_save`` is false, unless ``budget_table_overwrite`` is true.
+    """
+
+    def case_opt(key):
+        if baseline:
+            return adfobj.get_baseline_info(key)
+        val = adfobj.get_cam_info(key)
+        return None if val is None else val[case_idx]
+
+    save = bool(case_opt("budget_table_save"))
+    save_loc = case_opt("budget_table_save_loc")
+    if save and not save_loc:
+        errmsg = f"'budget_table_save' is true for '{case_name}',"
+        errmsg += " but 'budget_table_save_loc' is not set."
+        raise AdfError(errmsg)
+
+    return {
+        "save": save,
+        "overwrite": bool(case_opt("budget_table_overwrite")),
+        "save_loc": Path(save_loc) if save_loc else None,
+    }
+
+
+def budget_annual_mean_file(
+    adfobj,
+    case_name,
+    hist_files,
+    hist_str,
+    syear,
+    eyear,
+    save=False,
+    overwrite=False,
+    save_loc=None,
+    tmp_dir=None,
+):
+    """Return the annual mean file used by the chemistry budget tables.
+
+    The file is the 'ncra' average of `hist_files` and is named
+    ``$cam_case_name.$hist_str.budget_ANN.YYYY01-YYYY12.nc``.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        ADF object, used for the user name attribute
+    case_name : str
+        CAM case name (not the nickname)
+    hist_files : list
+        history files (full paths) to average
+    hist_str : str
+        history stream of `hist_files`, e.g. ``cam.h0a``
+    syear, eyear : int
+        first and last year of `hist_files`
+    save, overwrite, save_loc : optional
+        the case's options, as returned by `budget_table_options`
+    tmp_dir : str or Path, optional
+        where to write the file when it is not being saved
+
+    Returns
+    -------
+    Path
+        path of the annual mean file
+
+    Notes
+    -----
+    An existing file in `save_loc` is used instead of being remade unless
+    `overwrite` is true, whether or not `save` is true.  A file that is made
+    but not saved is written to `tmp_dir`, which the caller is expected to
+    remove.
+    """
+
+    time_string = f"{int(syear):04d}01-{int(eyear):04d}12"
+    file_name = ".".join(
+        part for part in [case_name, hist_str, "budget_ANN", time_string, "nc"] if part
+    )
+
+    # Use the saved file if it is already there:
+    if save_loc:
+        saved_file = Path(save_loc) / file_name
+        if saved_file.is_file() and not overwrite:
+            msg = f"\t    INFO: '{saved_file}' was found and"
+            msg += " 'budget_table_overwrite' is False. Will use existing file."
+            print(msg)
+            return saved_file
+
+    if save:
+        Path(save_loc).mkdir(parents=True, exist_ok=True)
+        out_file = Path(save_loc) / file_name
+    else:
+        if tmp_dir is None:
+            raise AdfError(
+                "budget_annual_mean_file: 'tmp_dir' is required when not saving."
+            )
+        out_file = Path(tmp_dir) / file_name
+
+    hist_locs_str = ", ".join(sorted({str(Path(f).parent) for f in hist_files}))
+    hist_files_str = ", ".join(Path(f).name for f in hist_files)
+
+    cmd_ncra = ["ncra", "-O", "-h", *[str(f) for f in hist_files], str(out_file)]
+    cmd_ncatted = [
+        "ncatted",
+        "-O",
+        "-h",
+        "-a",
+        f"adf_user,global,a,c,{adfobj.user}",
+        "-a",
+        f"adf_case_name,global,a,c,{case_name}",
+        "-a",
+        f"adf_hist_str,global,a,c,{hist_str}",
+        "-a",
+        f"adf_start_year,global,a,c,{int(syear):04d}",
+        "-a",
+        f"adf_end_year,global,a,c,{int(eyear):04d}",
+        "-a",
+        f"hist_file_locs,global,a,c,{hist_locs_str}",
+        "-a",
+        f"hist_file_list,global,a,c,{hist_files_str}",
+        str(out_file),
+    ]
+
+    print(f"\t    Making annual mean file '{out_file}'")
+    for cmd in (cmd_ncra, cmd_ncatted):
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+        except FileNotFoundError as err:
+            errmsg = (
+                f"Error: '{cmd[0]}' command not found. Please install NCO utilities."
+            )
+            raise AdfError(errmsg) from err
+        except subprocess.CalledProcessError as err:
+            errmsg = f"NCO Error (Exit Code {err.returncode}): {err.stderr}"
+            raise AdfError(errmsg) from err
+
+    return out_file
 
 
 #####################
