@@ -21,6 +21,10 @@
 #                         (e.g. "W/m2", not "W m$^{-2}$"): they are written into the files and
 #                         tables.  For LaTeX on a plot, set mpl: colorbar: label.
 # mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
+# pct_diff_panel       -> Whether to draw the percent difference panel: true (always), false
+#                         (never), or auto (the default): left out, with a note, when more than
+#                         0.1% of the plotted area is beyond +/-1000%, as for a baseline that
+#                         crosses zero (TAUX, TAUY, U, V).
 #
 # mask                 -> Setting that specifies whether the variable should be masked.
 #                         Currently only accepts "ocean", which means the variable will be masked

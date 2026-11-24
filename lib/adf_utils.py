@@ -30,6 +30,8 @@ spatial_average_lnd(indata, weights, spatial_dims=None)
     Compute a land spatial average with normalized (area * landfrac) weights
 pct_change(case, base, min_frac=PCT_MIN_BASE_FRAC)
     percent change, blank where the baseline is ~zero
+pct_blows_up(pct, limit=PCT_BLOWUP_LIMIT, area_frac=PCT_BLOWUP_AREA_FRAC)
+    whether a percent change is too large to plot (a baseline crossing zero)
 pct_change_of_means(case, base, weights=None)
     percent change of the area means, for the header of a percent panel
 wgt_rmse(fld1, fld2, wgt):
@@ -1139,6 +1141,11 @@ def grid_label(obj):
 # field's area-mean |baseline| (see pct_change):
 PCT_MIN_BASE_FRAC = 0.01
 
+# A percent-difference panel is not drawn when more than PCT_BLOWUP_AREA_FRAC of
+# the plotted area is beyond +/- PCT_BLOWUP_LIMIT percent (see pct_blows_up):
+PCT_BLOWUP_LIMIT = 1000.0
+PCT_BLOWUP_AREA_FRAC = 0.001
+
 
 def _area_weights(da):
     """Area weights for `da` as a numpy array that broadcasts against `da.values`.
@@ -1212,6 +1219,47 @@ def pct_change(case, base, min_frac=PCT_MIN_BASE_FRAC):
     out.attrs["long_name"] = f"Percent difference ({case.name})"
     out.attrs["units"] = "%"
     return out
+
+
+def pct_blows_up(pct, limit=PCT_BLOWUP_LIMIT, area_frac=PCT_BLOWUP_AREA_FRAC):
+    """Report whether a percent-change field is too large to be worth plotting.
+
+    Parameters
+    ----------
+    pct : xr.DataArray or ux.UxDataArray
+        percent change, as from :func:`pct_change`
+    limit : float, optional
+        magnitude, in percent, beyond which a cell counts as blown up
+    area_frac : float, optional
+        fraction of the area with data (cos(lat), mesh face areas, or equal
+        weights, as for :func:`pct_change`) that may be beyond `limit`
+
+    Returns
+    -------
+    bool
+        ``True`` when more than `area_frac` of the area is beyond `limit`.
+
+    Notes
+    -----
+    :func:`pct_change` blanks the cells where the baseline is ~zero, but a
+    field whose baseline changes sign (TAUX, TAUY, U, V) still has a band of
+    small baseline values along every zero line, and there the percent change
+    runs to thousands of percent.  Such a panel shows where the baseline
+    crosses zero, not how the test case differs, so the plots leave it out.
+    The defaults keep the panel for fields with a few isolated large cells
+    (SWCF against CERES near the poles) and hide it for the wind stress and
+    winds against ERA5 (0.2-3 % of the area beyond 1000 %).
+    """
+    vals = np.abs(np.asarray(pct.values, dtype=float))
+    try:
+        wgt = np.broadcast_to(_area_weights(pct), vals.shape)
+    except ValueError:  # weights that do not match a subset of a mesh
+        wgt = np.ones(vals.shape)
+    ok = np.isfinite(vals)
+    total = wgt[ok].sum()
+    if total <= 0:
+        return False
+    return bool(wgt[ok & (vals > limit)].sum() / total > area_frac)
 
 
 def pct_change_of_means(case, base, weights=None):

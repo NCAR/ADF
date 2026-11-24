@@ -31,6 +31,10 @@
 # pct_diff_contour_levels -> A list of the specific contour values for percent difference plots.
 # pct_diff_contour_range  -> min, max, and stride for percent difference plots.
 #                            Cannot be used with "pct_diff_contour_levels".
+# pct_diff_panel          -> Whether to draw the percent difference panel: true (always), false
+#                            (never), or auto (the default): left out, with a note, when more than
+#                            0.1% of the plotted area is beyond +/-1000%, as for a baseline that
+#                            crosses zero (TAUX, TAUY, U, V).
 #
 #                         Any colormap above can be a matplotlib colormap or an NCL one
 #                         (https://www.ncl.ucar.edu/Document/Graphics/color_table_gallery.shtml).
@@ -43,11 +47,12 @@
 #
 # PER-PLOT SETTINGS:
 #
-# The colormap and contour settings above can also be given for just one kind of plot, in a
-# section named after the plotting script (global_latlon_map, global_latlon_vect_map, polar_map,
-# zonal_mean, meridional_mean).  Settings in the section win; anything not in it comes from the
-# variable's top-level settings.  Within a section, a setting can also be split by pressure level
-# (in hPa) and, for polar_map, by hemisphere ("nh"/"sh"), e.g.:
+# The colormap, contour and pct_diff_panel settings above can also be given for just one kind
+# of plot, in a section named after the plotting script (global_latlon_map,
+# global_latlon_vect_map, polar_map, zonal_mean, meridional_mean).  Settings in the section win;
+# anything not in it comes from the variable's top-level settings.  Within a section, a colormap
+# or contour setting can also be split by pressure level (in hPa) and, for polar_map, by
+# hemisphere ("nh"/"sh"), e.g.:
 #
 #   polar_map:
 #     contour_levels_range:

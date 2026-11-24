@@ -77,6 +77,14 @@ import matplotlib.pyplot as plt  # pylint: disable=wrong-import-order,ungrouped-
 
 EMPTY_MESSAGE = "No Valid\nData Points"
 props = {"boxstyle": "round", "facecolor": "wheat", "alpha": 0.9}
+# In place of a percent-difference panel that is not drawn (see _hide_pct_panel):
+PCT_HIDDEN_MESSAGE = (
+    "Test % Diff Baseline not shown:\n"
+    "the baseline is near zero over too much of the area\n"
+    f"(beyond ±{utils.PCT_BLOWUP_LIMIT:g}% over more than "
+    f"{100 * utils.PCT_BLOWUP_AREA_FRAC:g}% of it)"
+)
+PCT_OFF_MESSAGE = "Test % Diff Baseline not shown\n(pct_diff_panel: false)"
 
 
 # Set seasonal ranges:
@@ -184,6 +192,77 @@ def _raster_norm(contour_levs, centered=False):
     if centered and vmin < 0 < vmax:
         return mpl.colors.TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
     return mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+
+def _pct_panel_note(pct, kwargs):
+    """Return the note to leave in place of a percent panel, or None to draw it.
+
+    Parameters
+    ----------
+    pct : xr.DataArray or ux.UxDataArray
+        the percent change, as plotted
+    kwargs : dict
+        the variable's settings from the variable defaults; ``pct_diff_panel``
+        is looked up in the plot type's section first, then at the top level
+
+    Returns
+    -------
+    str or None
+        :data:`PCT_OFF_MESSAGE` for ``pct_diff_panel: false``,
+        :data:`PCT_HIDDEN_MESSAGE` when, with ``pct_diff_panel`` unset or
+        ``auto``, :func:`adf_utils.pct_blows_up` says the panel would only show
+        where the baseline crosses zero; ``None`` otherwise, including for
+        ``pct_diff_panel: true``.
+    """
+    section = kwargs.get(kwargs["plot_type"], {}) if "plot_type" in kwargs else {}
+    if isinstance(section, dict) and "pct_diff_panel" in section:
+        setting = section["pct_diff_panel"]
+    else:
+        setting = kwargs.get("pct_diff_panel", "auto")
+    if setting is True:
+        return None
+    if setting is False:
+        return PCT_OFF_MESSAGE
+    if setting not in (None, "auto"):
+        warnings.warn(
+            f"\tWARNING: pct_diff_panel must be true, false or auto, not {setting!r};"
+            " using auto."
+        )
+    return PCT_HIDDEN_MESSAGE if utils.pct_blows_up(pct) else None
+
+
+def _hide_pct_panel(ax, *cbar_axes, message=PCT_HIDDEN_MESSAGE):
+    """Hide a percent-difference panel and its colorbar, with a note in its place.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        the percent-difference panel
+    *cbar_axes : matplotlib.axes.Axes or None
+        its colorbar axes, if any
+    message : str, optional
+        the note, as from :func:`_pct_panel_note`
+
+    Notes
+    -----
+    Used when :func:`_pct_panel_note` says the panel is not drawn.  The note is
+    placed in the panel's axes coordinates, so it follows the panel through a
+    constrained layout.
+    """
+    ax.set_visible(False)
+    for cax in cbar_axes:
+        if cax is not None:
+            cax.set_visible(False)
+    ax.figure.text(
+        0.5,
+        0.5,
+        message,
+        transform=ax.transAxes,
+        ha="center",
+        va="center",
+        fontsize=8,
+        color="0.35",
+    )
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
@@ -570,6 +649,12 @@ def make_polar_plot(
         diff_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
     )
     diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+
+    # Leave out the percent panel when pct_diff_panel says so, or when it only
+    # shows where the baseline crosses zero (judged over the plotted region):
+    pct_note = _pct_panel_note(pct, kwargs)
+    if pct_note:
+        _hide_pct_panel(axs[2], cb_pct_ax, message=pct_note)
 
     # Save files
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -1111,6 +1196,12 @@ def plot_map_and_save(
     )
     diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
+    # Leave out the percent panel when pct_diff_panel says so, or when it only
+    # shows where the baseline crosses zero:
+    pct_note = None if vector else _pct_panel_note(pctld, kwargs)
+    if pct_note:
+        _hide_pct_panel(ax[pctdiff_idx], cb_pct_ax, message=pct_note)
+
     # Write final figure to file
     fig.savefig(wks, bbox_inches="tight", dpi=300)
 
@@ -1585,6 +1676,7 @@ def plot_zonal_mean_and_save(
             )
             diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
+        pctdiffcb_mean_ax = None
         if len(levs_pct_diff) < 2:
             img3, ax[3] = zonal_plot(alat, pct, ax=ax[3])
             ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
@@ -1649,6 +1741,14 @@ def plot_zonal_mean_and_save(
                 a.set_yscale("log")
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
+
+        # Leave out the percent panel when pct_diff_panel says so, or when it
+        # only shows where the baseline crosses zero; the panel above it then
+        # carries the axis label:
+        pct_note = _pct_panel_note(pct, kwargs)
+        if pct_note:
+            _hide_pct_panel(ax[3], pctdiffcb_mean_ax, message=pct_note)
+            ax[2].set_xlabel("LATITUDE", fontsize=ti_font_size)
     else:
         line = Line2D(
             [0], [0], label=r"$\mathbf{Test}:$" + case_nickname, color="#1f77b4"
@@ -1689,6 +1789,7 @@ def plot_zonal_mean_and_save(
         )
 
         use_cmap = kwargs.get("colormap_2d", False)
+        cax2 = None
         # One copy of kwargs, shared by the difference and percent difference plots:
         line_kwargs = kwargs.copy()
         line_kwargs["colormap_2d"] = use_cmap
@@ -1746,6 +1847,14 @@ def plot_zonal_mean_and_save(
                 ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
             )
             pctdiff_cbar.ax.tick_params(labelsize=6)
+
+        # Leave out the percent panel when pct_diff_panel says so, or when it
+        # only shows where the baseline crosses zero; the panel above it then
+        # carries the axis label:
+        pct_note = _pct_panel_note(pct, kwargs)
+        if pct_note:
+            _hide_pct_panel(ax[2], cax2, message=pct_note)
+            ax[1].set_xlabel("LATITUDE", fontsize=6)
     # End if
 
     # Write the figure to provided workspace/file:
@@ -2225,6 +2334,7 @@ def plot_meridional_mean_and_save(
             )
             diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
+        pctdiffcb_mean_ax = None
         if len(levs_pct_diff) < 2:
             img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
             ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
@@ -2289,6 +2399,14 @@ def plot_meridional_mean_and_save(
                 a.set_yscale("log")
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
+
+        # Leave out the percent panel when pct_diff_panel says so, or when it
+        # only shows where the baseline crosses zero; the panel above it then
+        # carries the axis label:
+        pct_note = _pct_panel_note(pct, kwargs)
+        if pct_note:
+            _hide_pct_panel(ax[3], pctdiffcb_mean_ax, message=pct_note)
+            ax[2].set_xlabel("LONGITUDE", fontsize=ti_font_size)
     else:
         line = Line2D(
             [0], [0], label=r"$\mathbf{Test}:$" + case_nickname, color="#1f77b4"
@@ -2329,6 +2447,7 @@ def plot_meridional_mean_and_save(
         )
 
         use_cmap = kwargs.get("colormap_2d", False)
+        cax2 = None
         # One copy of kwargs, shared by the difference and percent difference plots:
         line_kwargs = kwargs.copy()
         line_kwargs["colormap_2d"] = use_cmap
@@ -2389,6 +2508,14 @@ def plot_meridional_mean_and_save(
                 ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
             )
             pctdiff_cbar.ax.tick_params(labelsize=6)
+
+        # Leave out the percent panel when pct_diff_panel says so, or when it
+        # only shows where the baseline crosses zero; the panel above it then
+        # carries the axis label:
+        pct_note = _pct_panel_note(pct, kwargs)
+        if pct_note:
+            _hide_pct_panel(ax[2], cax2, message=pct_note)
+            ax[1].set_xlabel("LONGITUDE", fontsize=6)
     # End if
 
     # Write the figure to provided workspace/file:
