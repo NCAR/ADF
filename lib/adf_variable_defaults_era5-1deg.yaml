@@ -1549,7 +1549,9 @@ Surface_Wind_Stress:
 
 TAUX:
   regrid_conservative: true
-  new_unit: "N/m2"
+  # No new_unit: CAM already writes N/m2, so a new_unit would mark the
+  # field as converted and skip the -1 (stress on the surface, not the
+  # atmosphere, as in ERA5).
   mpl:
     colorbar:
       label: 'N m$^{-2}$'
@@ -1564,7 +1566,9 @@ TAUX:
 
 TAUY:
   regrid_conservative: true
-  new_unit: "N/m2"
+  # No new_unit: CAM already writes N/m2, so a new_unit would mark the
+  # field as converted and skip the -1 (stress on the surface, not the
+  # atmosphere, as in ERA5).
   mpl:
     colorbar:
       label: 'N m$^{-2}$'

@@ -115,3 +115,20 @@ def test_surface_pressure_stays_in_pa(tmp_path, rvi, compare_obs):
     # pylint: disable-next=protected-access
     found = rvi._find_surface_pressure(no_ps, adf, case=CASE)
     assert np.allclose(found.values, 1.0e5)
+
+
+@pytest.mark.parametrize(
+    "defaults_file",
+    ["adf_variable_defaults.yaml", "adf_variable_defaults_era5-1deg.yaml"],
+)
+@pytest.mark.parametrize("field", ["TAUX", "TAUY"])
+def test_wind_stress_sign_flip_is_applied(defaults_file, field):
+    """CAM's N/m2 stress is not taken as converted, so the -1 still applies."""
+    yaml = pytest.importorskip("yaml")
+    path = Path(__file__).parents[2] / defaults_file
+    with open(path, encoding="utf-8") as fil:
+        defaults = yaml.safe_load(fil)
+    data = _data(compare_obs=True)
+    data.adf.variable_defaults = defaults
+    assert data.get_value_converters(CASE, field) == (0, -1)
+    assert not data.already_converted({"units": "N/m2"}, field)
