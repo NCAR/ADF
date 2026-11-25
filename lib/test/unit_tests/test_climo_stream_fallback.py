@@ -45,16 +45,21 @@ class _StubData:
 
     def __init__(self, available):
         self.available = available
+        # The 'skip_gridded_copy' asked for in each search:
+        self.skip_asked = []
 
-    def get_ref_timeseries_file(self, var, hist_str=None):
+    def get_ref_timeseries_file(self, var, hist_str=None, skip_gridded_copy=False):
         """Files for one stream, or for any stream when hist_str is None."""
+        self.skip_asked.append(skip_gridded_copy)
         if hist_str is None:
             return [fil for fils in self.available.values() for fil in fils]
         return self.available.get(hist_str, [])
 
-    def get_timeseries_file(self, case, var, hist_str=None):
+    def get_timeseries_file(self, case, var, hist_str=None, skip_gridded_copy=False):
         """Test cases are searched the same way, with the case name added."""
-        return self.get_ref_timeseries_file(var, hist_str=hist_str)
+        return self.get_ref_timeseries_file(
+            var, hist_str=hist_str, skip_gridded_copy=skip_gridded_copy
+        )
 
 
 class _StubAdf:
@@ -76,12 +81,14 @@ class ClimoStreamFallbackTestRoutine(unittest.TestCase):
     def test_configured_stream_is_used(self):
         """The ordinary case: the stream matches, and is used and reported."""
 
-        found = find_ts_for_variable(
-            _StubAdf(self.FILES), "case", "Q", ["cam.h0"], True
-        )
+        adf = _StubAdf(self.FILES)
+        found = find_ts_for_variable(adf, "case", "Q", ["cam.h0"], True)
 
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0][0], "cam.h0")
+        # Climatologies are made from native time series, not gridded copies:
+        self.assertTrue(adf.data.skip_asked)
+        self.assertTrue(all(adf.data.skip_asked))
 
     def test_mismatched_stream_falls_back(self):
         """

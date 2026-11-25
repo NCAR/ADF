@@ -243,3 +243,17 @@ def test_up_to_date_copy_is_kept(tmp_path, monkeypatch):
     ts_dir, native_file = _ts_dir(tmp_path)
     _gridded(native_file)
     assert not _grid(monkeypatch, ts_dir)
+
+
+# Statistics read the native files (skip_gridded_copy=True)
+# ----------------------------------------------
+def test_native_reads_native_even_with_an_up_to_date_copy(tmp_path):
+    """Tables and global means average on the native grid, so skip the copy."""
+    ts_dir, native_file = _ts_dir(tmp_path)
+    _gridded(native_file)
+    data, messages = _data()
+    assert data.timeseries_dir(CASE, ts_dir, "T", skip_gridded_copy=True) == ts_dir
+    assert not messages
+    # The plots still read the copy, and the two choices do not mix:
+    assert data.timeseries_dir(CASE, ts_dir, "T") == ts_dir / "gridded"
+    assert data.timeseries_dir(CASE, ts_dir, "T", skip_gridded_copy=True) == ts_dir

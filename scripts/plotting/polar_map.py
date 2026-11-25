@@ -63,7 +63,25 @@ def process_seasonal_data(mdata, odata, season, comp="atm"):
     return mseason, oseason, dseason, pseason
 
 def polar_map(adfobj):
-    """Generate polar maps of model fields with continental overlays."""
+    """Generate polar maps of model fields with continental overlays.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object that contains all the configuration information.
+
+    Returns
+    -------
+    None
+        Produces plots and saves files.
+
+    Notes
+    -----
+    The header Mean/Max/Min of the test and reference panels come from
+    ``adfobj.data.header_stats`` over the polar cap (``pf.polar_domain``): over
+    the cells both fields cover, and from the native grid for a native case
+    drawn on lat/lon.
+    """
     #Notify user that script has started:
     msg = "\n  Generating polar maps..."
     print(f"{msg}\n  {'-' * (len(msg)-3)}")
@@ -419,6 +437,17 @@ def polar_map(adfobj):
                 plot['season'],
                 comp=adfobj.model_component,
             )
+
+            # Header numbers for the test and reference panels: over the cells
+            # where both have data, and from the native grid for a native case
+            # drawn on lat/lon (native-grid plots already weight by cell area):
+            vres["panel_stats"] = None
+            if not unstructured:
+                vres["panel_stats"] = adfobj.data.header_stats(
+                    case_name, var, plot['season'], mseason, oseason,
+                    lev=vres.get("lev") if has_lev else None,
+                    domain=pf.polar_domain(get_hemisphere(plot['hemi'])),
+                )
 
             # Create plot
             if plot['path'].exists():

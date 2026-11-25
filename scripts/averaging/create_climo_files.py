@@ -85,10 +85,17 @@ def find_ts_for_variable(adf, case_name, var, hist_strs, is_baseline):
     """
 
     def search(hist_str):
-        """Look for the variable in one stream, or in none if hist_str is None."""
+        """Look for the variable in one stream, or in none if hist_str is None.
+
+        A native-grid case's climatology is made from its native time series
+        (``skip_gridded_copy=True``), not from the gridded copies made for the lat/lon
+        plots: the regridding step grids the climatology, and the native one
+        is what the tables and plot headers average with the model's own
+        cell areas.
+        """
         if is_baseline:
-            return adf.data.get_ref_timeseries_file(var, hist_str=hist_str)
-        return adf.data.get_timeseries_file(case_name, var, hist_str=hist_str)
+            return adf.data.get_ref_timeseries_file(var, hist_str=hist_str, skip_gridded_copy=True)
+        return adf.data.get_timeseries_file(case_name, var, hist_str=hist_str, skip_gridded_copy=True)
 
     # End def
 

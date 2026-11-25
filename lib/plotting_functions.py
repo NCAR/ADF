@@ -265,6 +265,58 @@ def _pct_panel_note(pct, kwargs):
     return PCT_OFF_MESSAGE
 
 
+def polar_domain(hemisphere, domain=None):
+    """The region a polar map covers, ``[west, east, south, north]``.
+
+    Parameters
+    ----------
+    hemisphere : str
+        "NH", "SH", "Arctic" or "Antarctic"
+    domain : list, optional
+        returned as is when given
+
+    Returns
+    -------
+    list
+        45-90N for "NH", 50-90N for "Arctic", 45-90S otherwise
+    """
+    if domain is not None:
+        return domain
+    if hemisphere.upper() == "NH":
+        return [-180, 180, 45, 90]
+    if hemisphere.upper() == "ARCTIC":
+        return [-180, 180, 50, 90]
+    return [-180, 180, -90, -45]
+
+
+def _header_stats(panel_stats, idx):
+    """The (mean, max, min, native) given for a panel, or None.
+
+    Parameters
+    ----------
+    panel_stats : dict or None
+        as from :meth:`AdfData.header_stats`: the test (0) and reference (1)
+        panels' numbers over the cells where both have data, from the native
+        grid for a native case
+    idx : int
+        the panel
+
+    Returns
+    -------
+    tuple or None
+        ``(mean, max, min, native)``, or None to compute them from the field
+    """
+    if not panel_stats or idx not in panel_stats:
+        return None
+    return panel_stats[idx]
+
+
+def _stats_text(mean, vmax, vmin, native=False):
+    """Mean/Max/Min lines for a panel header, noting native-grid numbers."""
+    text = f"Mean: {mean:5.2f}\nMax: {vmax:5.2f}\nMin: {vmin:5.2f}"
+    return text + "\n(native grid)" if native else text
+
+
 def _pct_footnote(ax, note, y=-0.17):
     """Note under a panel why a percent panel that was asked for is not drawn.
 
@@ -411,13 +463,7 @@ def make_polar_plot(
             f"Arctic or Antarctic; hemisphere set as {hemisphere}"
         )
 
-    if domain is None:
-        if hemisphere.upper() == "NH":
-            domain = [-180, 180, 45, 90]
-        elif hemisphere.upper() == "ARCTIC":
-            domain = [-180, 180, 50, 90]
-        else:
-            domain = [-180, 180, -90, -45]
+    domain = polar_domain(hemisphere, domain)
 
     if not unstructured:
         # statistics for annotation (these are scalars):
@@ -539,6 +585,16 @@ def make_polar_plot(
     means.extend([d1_region_mean, d2_region_mean, pct_region_mean, dif_region_mean])
     mins.extend([d1_region_min, d2_region_min, pct_region_min, dif_region_min])
     maxs.extend([d1_region_max, d2_region_max, pct_region_max, dif_region_max])
+    # Given numbers (kwargs "panel_stats", see AdfData.header_stats) replace
+    # the test and reference panels', and the % panel's Mean follows them:
+    natives = [False] * 4
+    panel_stats = kwargs.get("panel_stats")
+    for idx in (0, 1):
+        given = _header_stats(panel_stats, idx)
+        if given is not None:
+            means[idx], maxs[idx], mins[idx], natives[idx] = given
+    if _header_stats(panel_stats, 0) and _header_stats(panel_stats, 1):
+        means[2] = 100.0 * (means[0] - means[1]) / abs(means[1]) if means[1] else np.nan
 
     pctdiff_idx = 2
     diff_idx = 3
@@ -611,10 +667,7 @@ def make_polar_plot(
             )
 
         # Set stats for title
-        stat_mean = f"Mean: {means[i]:5.2f}"
-        stat_max = f"Max: {maxs[i]:5.2f}"
-        stat_min = f"Min: {mins[i]:5.2f}"
-        stats = f"{stat_mean}\n{stat_max}\n{stat_min}"
+        stats = _stats_text(means[i], maxs[i], mins[i], natives[i])
         axs[i].text(-0.05, 0.0, stats, transform=axs[i].transAxes, fontsize=CBAR_SIZE)
 
     # End for
@@ -986,7 +1039,9 @@ def plot_map_and_save(
         diff_idx = 3
 
     levels = cmap = norm = extend = None
-    for i, a in enumerate(wrap_fields):
+    # Only the fields that have a panel: a lat/lon vector plot also carries the
+    # percent field, which it does not draw.
+    for i, a in enumerate(wrap_fields[: len(ax)]):
         if ax[i] is None:  # the percent panel, left out
             img.append(None)
             continue
@@ -1187,21 +1242,29 @@ def plot_map_and_save(
     # Vector plots give the stats of the vector magnitudes:
     # The percent panel's Mean is the percent change of the area means, which
     # cells with a tiny baseline cannot swamp (see utils.pct_change_of_means):
+    # Given numbers (kwargs "panel_stats", see AdfData.header_stats) replace
+    # the test and reference panels': over the cells where both have data, and
+    # from the native grid for a native case drawn on lat/lon.
+    panel_stats = None if vector else kwargs.get("panel_stats")
     for i, fld in stat_fields.items():
         if ax[i] is None:
             continue
-        if i == 2 and not vector:
-            mean = utils.pct_change_of_means(
-                stat_fields[0], stat_fields[1], weights=wgt
-            )
+        given = _header_stats(panel_stats, i)
+        if given is not None:
+            text = _stats_text(*given)
         else:
-            mean = utils.spatial_average(fld, weights=wgt).item()
-        ax[i].set_title(
-            f"Mean: {mean:5.2f}\n"
-            f"Max: {fld.max().item():5.2f}\nMin: {fld.min().item():5.2f}",
-            loc="right",
-            fontsize=ti_font_size,
-        )
+            if i == 2 and not vector:
+                if _header_stats(panel_stats, 0) and _header_stats(panel_stats, 1):
+                    m_test, m_ref = panel_stats[0][0], panel_stats[1][0]
+                    mean = 100.0 * (m_test - m_ref) / abs(m_ref) if m_ref else np.nan
+                else:
+                    mean = utils.pct_change_of_means(
+                        stat_fields[0], stat_fields[1], weights=wgt
+                    )
+            else:
+                mean = utils.spatial_average(fld, weights=wgt).item()
+            text = _stats_text(mean, fld.max().item(), fld.min().item())
+        ax[i].set_title(text, loc="right", fontsize=ti_font_size)
 
     if show_pct:
         ax[pctdiff_idx].set_title(

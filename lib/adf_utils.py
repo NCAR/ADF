@@ -42,6 +42,10 @@ seasonal_mean(data, season=None, is_climo=None):
     Calculates the time-weighted seasonal average (or average over all time).
 domain_stats(data, domain):
     Provides statistics in specified region.
+nearest_cells(cell_lat, cell_lon, grid_lat, grid_lon)
+    nearest lat/lon grid cell to each of a set of points (native cell centres)
+overlap_mask(test, ref), overlap_stats(values, weights, keep=None)
+    where both fields have data, and a map header's mean/max/min over it
 pres_from_hybrid(psfc, hya, hyb, p0=100000.):
     Converts a hybrid level to a pressure
 vert_remap(x_mdl, p_mdl, plev)
@@ -1647,6 +1651,91 @@ def domain_stats(data, domain, unstructured=False):
     x_region_min = x_region.min().item()
     x_region_max = x_region.max().item()
     return x_region_mean, x_region_max, x_region_min
+
+
+def nearest_cells(cell_lat, cell_lon, grid_lat, grid_lon):
+    """Index of the nearest cell of a lat/lon grid to each of a set of points.
+
+    Parameters
+    ----------
+    cell_lat, cell_lon : array-like
+        the points (e.g. native-grid cell centres), 1-D, in degrees
+    grid_lat, grid_lon : array-like
+        the lat/lon grid's 1-D coordinates, in degrees; longitudes may use
+        either 0-360 or -180-180, whatever the points use
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        ``(ilat, ilon)``: for each point, the index along `grid_lat` and
+        along `grid_lon` of the nearest grid cell (longitude is periodic)
+
+    Notes
+    -----
+    Nearest neighbour, coordinate by coordinate: for a regular or Gaussian
+    grid that is the grid cell the point falls in, which is all a mask
+    lookup (see :func:`overlap_stats`) needs.
+    """
+    cell_lat = np.asarray(cell_lat, dtype=float).ravel()
+    cell_lon = np.asarray(cell_lon, dtype=float).ravel()
+    grid_lat = np.asarray(grid_lat, dtype=float)
+    grid_lon = np.asarray(grid_lon, dtype=float)
+    ilat = np.abs(cell_lat[:, None] - grid_lat[None, :]).argmin(axis=1)
+    # Longitude differences wrapped to [-180, 180):
+    dlon = (cell_lon[:, None] - grid_lon[None, :] + 180.0) % 360.0 - 180.0
+    ilon = np.abs(dlon).argmin(axis=1)
+    return ilat, ilon
+
+
+def overlap_stats(values, weights, keep=None):
+    """Area-weighted mean, maximum and minimum over the cells kept.
+
+    The numbers in the header of a test or reference map, taken over the
+    cells where both fields have data (see :func:`overlap_mask`), so that the
+    two panels' means are over the same area.
+
+    Parameters
+    ----------
+    values : array-like
+        the field, any shape
+    weights : array-like
+        area weights that broadcast against `values` (cos(lat), or a native
+        grid's cell areas)
+    keep : array-like of bool, optional
+        the cells to use, broadcasting against `values`; by default every cell
+        with data
+
+    Returns
+    -------
+    tuple of float
+        ``(mean, max, min)``; NaNs when no cell is kept
+    """
+    vals = np.asarray(values, dtype=float)
+    wgt = np.broadcast_to(np.asarray(weights, dtype=float), vals.shape)
+    use = np.isfinite(vals) & np.isfinite(wgt)
+    if keep is not None:
+        use &= np.broadcast_to(np.asarray(keep, dtype=bool), vals.shape)
+    if not use.any() or wgt[use].sum() == 0:
+        return np.nan, np.nan, np.nan
+    mean = float((vals[use] * wgt[use]).sum() / wgt[use].sum())
+    return mean, float(vals[use].max()), float(vals[use].min())
+
+
+def overlap_mask(test, ref):
+    """Where both of two lat/lon fields have data.
+
+    Parameters
+    ----------
+    test, ref : xarray.DataArray
+        the test and reference fields on the same lat/lon grid, as plotted
+
+    Returns
+    -------
+    xarray.DataArray
+        bool, on the fields' common (lat, lon) coordinates
+    """
+    test, ref = xr.align(test, ref, join="inner")
+    return np.isfinite(test) & np.isfinite(ref)
 
 
 #

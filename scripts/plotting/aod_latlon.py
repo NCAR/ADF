@@ -158,7 +158,20 @@ def process_model_data(adfobj, case_name, var, obs_shape):
     if ds_case is None:
         print(f"\t WARNING: No climo file for {case_name} variable {var}")
         return None
-        
+
+    # A native-grid climatology (CAM's "ncol") cannot be regridded to the
+    # observations here; use the case's regridded (lat/lon) file instead,
+    # which the regridding step writes when the case is plotted on lat/lon:
+    if any(dim in ds_case.dims for dim in utils.NATIVE_DIMS):
+        if case_name == adfobj.data.ref_case_label:
+            ds_case = adfobj.data.load_reference_regrid_da(var)
+        else:
+            ds_case = adfobj.data.load_regrid_da(case_name, var)
+        if ds_case is None or not {"lat", "lon"} <= set(ds_case.dims):
+            print(f"\t WARNING: '{case_name}' is on a native grid and has no lat/lon"
+                  f" regridded file for {var}, so it is left out of the AOD plots.")
+            return None
+
     ds_case['lon'] = ds_case['lon'].round(5)
     ds_case['lat'] = ds_case['lat'].round(5)
     

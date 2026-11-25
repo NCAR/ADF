@@ -66,6 +66,10 @@ def global_latlon_map(adfobj):
         Communicates information to the website generator
     adfobj.compare_obs
         Logical to determine if comparing to observations
+    adfobj.data.header_stats
+        the test and reference panels' Mean/Max/Min, over the cells both
+        fields cover, and from the native grid for a native case drawn on
+        lat/lon (:meth:`AdfData.native_header_field`)
 
         
     The `plotting_functions` module is needed for:
@@ -469,6 +473,19 @@ def check_existing_plots(adfobj, var, plot_loc, plot_type, case_name,
     return doplot
 
 
+def _panel_stats(adfobj, case_name, var, season, mseason, oseason, vres, lev=None):
+    """Header numbers for the test and reference panels of a lat/lon map.
+
+    Over the cells where both fields have data, and from the native grid for a
+    native case gridded to lat/lon (see :meth:`AdfData.header_stats`).  None
+    for native-grid plots ('unstructured_plotting'), which already weight by
+    the cells' areas on the mesh.
+    """
+    if vres.get("unstructured_plotting"):
+        return None
+    return adfobj.data.header_stats(case_name, var, season, mseason, oseason, lev=lev)
+
+
 def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
                     var, seasons, plot_loc, plot_type, doplot,
                     mseasons, oseasons, dseasons, pseasons,
@@ -490,6 +507,7 @@ def process_2d_plots(adfobj, mdata, odata, case_name, case_nickname,
 
         vres["season"] = s
         vres["var"] = var
+        vres["panel_stats"] = _panel_stats(adfobj, case_name, var, s, mseason, oseason, vres)
 
         # Generate plot
         pf.plot_map_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,
@@ -533,8 +551,10 @@ def process_3d_plots(adfobj, mdata, odata, case_name, case_nickname,
             vres["season"] = s
             vres["var"] = var
             vres['lev'] = int(pres)
-
-            vres['lev'] = int(pres)
+            vres["panel_stats"] = _panel_stats(
+                adfobj, case_name, var, s, mseason.sel(lev=pres), oseason.sel(lev=pres),
+                vres, lev=pres,
+            )
 
             # Generate plot
             pf.plot_map_and_save(adfobj, plot_name, case_nickname, adfobj.data.ref_nickname,

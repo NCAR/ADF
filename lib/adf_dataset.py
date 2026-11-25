@@ -4,6 +4,7 @@ import warnings  # use to warn user about missing files
 from itertools import chain
 from pathlib import Path
 
+import numpy as np
 import xarray as xr
 import uxarray as ux
 
@@ -67,6 +68,8 @@ class AdfData:  # pylint: disable=too-many-public-methods
         self.adf = adfobj  # provides quick access to the AdfDiag object
         # timeseries_dir's per-variable choice of native or gridded files:
         self._gridded_ts_choice = {}
+        # native_header_field's monthly native fields, by (case, var, lev):
+        self._native_fields = {}
         # paths
         self.model_rgrid_loc = adfobj.get_basic_info("cam_regrid_loc", required=True)
 
@@ -253,7 +256,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
         # End if
         return chosen
 
-    def timeseries_dir(self, case, ts_loc, var, baseline=False):
+    def timeseries_dir(
+        self, case, ts_loc, var, baseline=False, skip_gridded_copy=False
+    ):
         """The directory to read `case`'s time series of `var` from.
 
         When native-grid data is plotted on lat/lon (not 'unstructured_plotting'),
@@ -277,6 +282,10 @@ class AdfData:  # pylint: disable=too-many-public-methods
             The variable to be read.
         baseline : bool, optional
             Whether `case` is the baseline.
+        skip_gridded_copy : bool, optional
+            Read the native time series even when an up-to-date gridded copy
+            exists: for statistics (tables, global means), which are taken on
+            the model's own grid with its cell areas.
 
         Returns
         -------
@@ -290,6 +299,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
             or self.adf.unstructured_plotting
             or not gridded.is_dir()
         ):
+            return ts_loc
+        # End if
+        if skip_gridded_copy:
             return ts_loc
         # End if
 
@@ -337,6 +349,232 @@ class AdfData:  # pylint: disable=too-many-public-methods
             # End if
         # End if
         return cache[key]
+
+    def _native_monthly(self, case, var, lev=None, baseline=False):
+        """A native case's monthly climatology of `var` on its own grid, or None.
+
+        Parameters
+        ----------
+        case : str
+            A test case, or the baseline's name (with `baseline`).
+        var : str
+            The variable, converted with the variable defaults.
+        lev : float, optional
+            A pressure level (hPa) to interpolate a 3-D field onto, with the
+            model's pressure field when its climo is there (as the regridding
+            step does), else PS and the hybrid coefficients.
+        baseline : bool, optional
+            Whether `case` is the baseline.
+
+        Returns
+        -------
+        dict or None
+            ``field`` (time, cells), ``weights`` (normalized cell areas, times
+            the land fraction for land), ``lat`` and ``lon`` of the cells; None
+            when the climo is not on a native grid or `lev` cannot be reached.
+        """
+        if baseline:
+            fils = self.get_reference_climo_file(var)
+            dset = self.load_reference_climo_dataset(var) if fils else None
+        else:
+            fils = self.get_climo_file(case, var)
+            dset = self.load_climo_dataset(case, var) if fils else None
+        # End if
+        if dset is None or var not in dset:
+            return None
+        # End if
+        field = dset[var]
+        if not any(dim in field.dims for dim in utils.NATIVE_DIMS):
+            return None  # e.g. pre-made climo that is already on lat/lon
+        # End if
+        if lev is not None:
+            if "lev" not in field.dims:
+                return None
+            # End if
+            field = self._native_on_level(
+                case, var, dset, field, lev=lev, baseline=baseline
+            )
+            if field is None:
+                return None
+            # End if
+        # End if
+        first = dset.isel(time=0) if "time" in dset.dims else dset
+        return {
+            "field": field,
+            "weights": np.asarray(
+                utils.cell_weights(dset, self.adf.model_component), dtype=float
+            ),
+            "lat": np.asarray(first["lat"], dtype=float),
+            "lon": np.asarray(first["lon"], dtype=float),
+        }
+
+    def _native_on_level(self, case, var, dset, field, *, lev, baseline):
+        """`field` (native, on model levels) interpolated onto `lev` hPa, or None."""
+        levels_pa = np.array([float(lev) * 100.0])
+        names = self.adf.get_basic_info("pressure_field_names")
+        pres_name = utils.find_pressure_field(dset, "lev", names)
+        pres = dset[pres_name] if pres_name else None
+        if pres is None:
+            name = utils.pressure_field_name("lev", names)
+            if name and name != var:
+                if baseline:
+                    pfils = self.get_reference_climo_file(name)
+                    pres_ds = self.load_dataset(pfils) if pfils else None
+                else:
+                    pfils = self.get_climo_file(case, name)
+                    pres_ds = (
+                        self.load_climo_dataset(case, name, apply_scaling=False)
+                        if pfils
+                        else None
+                    )
+                # End if
+                if pres_ds is not None and name in pres_ds:
+                    pres = pres_ds[name]
+                # End if
+            # End if
+        # End if
+        if pres is not None:
+            # The model's own pressure, as in the regridding step; masked where
+            # the level is below ground or above the model top:
+            pres = pres.broadcast_like(field).transpose(*field.dims)
+            out = utils.pmid_to_plev(
+                field, pres, new_levels=levels_pa, convert_to_mb=True
+            )
+            in_range = (float(lev) * 100.0 >= pres.min(dim="lev")) & (
+                float(lev) * 100.0 <= pres.max(dim="lev")
+            )
+            return out.sel(lev=float(lev)).where(in_range)
+        # End if
+        if not all(name in dset for name in ("PS", "hyam", "hybm")):
+            return None
+        # End if
+        first = dset.isel(time=0) if "time" in dset["hyam"].dims else dset
+        p0 = float(dset["P0"]) if "P0" in dset else 100000.0
+        out = utils.lev_to_plev(
+            field,
+            dset["PS"],
+            first["hyam"],
+            first["hybm"],
+            P0=p0,
+            new_levels=levels_pa,
+            convert_to_mb=True,
+        )
+        return out.sel(lev=float(lev))
+
+    def native_header_field(self, case, var, season, lev=None, baseline=False):
+        """A native case's seasonal mean of `var` on its own grid, for a map header.
+
+        For plots made on a lat/lon grid from a native case (not
+        'unstructured_plotting', which plots the native data itself), so that
+        the header's numbers are the model's own, weighted by its cell areas,
+        rather than those of the interpolated field drawn.
+
+        Parameters
+        ----------
+        case : str
+            A test case, or the baseline's name (with `baseline`).
+        var : str
+            The variable.
+        season : str
+            "ANN", "DJF", "MAM", "JJA" or "SON".
+        lev : float, optional
+            Pressure level (hPa) for a 3-D field.
+        baseline : bool, optional
+            Whether `case` is the baseline.
+
+        Returns
+        -------
+        dict or None
+            ``values`` (1-D, one per cell), ``weights``, ``lat`` and ``lon``;
+            None when `case` is not on a native grid, is plotted natively, or
+            has no native climo for `var` (and `lev`).
+        """
+        if self.adf.unstructured_plotting or not self.adf.native_grid.get(case, False):
+            return None
+        # End if
+        key = (case, var, lev, baseline)
+        if key not in self._native_fields:
+            if len(self._native_fields) > 8:
+                self._native_fields.clear()  # one variable's levels at a time
+            # End if
+            self._native_fields[key] = self._native_monthly(case, var, lev, baseline)
+        # End if
+        monthly = self._native_fields[key]
+        if monthly is None:
+            return None
+        # End if
+        values = utils.seasonal_mean(monthly["field"], season=season, is_climo=True)
+        return {
+            "values": np.asarray(values, dtype=float).ravel(),
+            "weights": monthly["weights"].ravel(),
+            "lat": monthly["lat"].ravel(),
+            "lon": monthly["lon"].ravel(),
+        }
+
+    def header_stats(self, case, var, season, test, ref, *, lev=None, domain=None):
+        """Mean, max and min for the test and reference map headers.
+
+        Both are taken over the cells where both plotted fields have data, so
+        that the two means are over the same area (observations with gaps,
+        below-ground levels, an ocean mask).  A side on a native grid plotted
+        on lat/lon is taken from its native climo, with its own cell areas,
+        over its cells whose nearest plotted cell is in that overlap.
+
+        Parameters
+        ----------
+        case : str
+            The test case.
+        var : str
+            The variable.
+        season : str
+            The season.
+        test, ref : xarray.DataArray
+            The test and reference fields as plotted, on one lat/lon grid.
+        lev : float, optional
+            Pressure level (hPa) of a 3-D field.
+        domain : list, optional
+            ``[west, east, south, north]``: only the latitudes from `south` to
+            `north` are used (the polar maps' caps).
+
+        Returns
+        -------
+        dict
+            ``{0: (mean, max, min, native), 1: (...)}`` for the test (0) and
+            reference (1) panels, `native` saying whether the numbers are from
+            the native grid.
+        """
+        keep = utils.overlap_mask(test, ref)
+        if domain is not None:
+            keep = keep & (keep["lat"] >= domain[2]) & (keep["lat"] <= domain[3])
+        # End if
+        sides = {0: (test, case, False), 1: (ref, self.ref_case_label, True)}
+        stats = {}
+        for idx, (field, name, is_ref) in sides.items():
+            native = None
+            if not (is_ref and self.adf.compare_obs):
+                native = self.native_header_field(
+                    name, var, season, lev=lev, baseline=is_ref
+                )
+            # End if
+            if native is not None:
+                ilat, ilon = utils.nearest_cells(
+                    native["lat"], native["lon"], keep["lat"], keep["lon"]
+                )
+                use = np.asarray(keep.transpose("lat", "lon"))[ilat, ilon]
+                stats[idx] = utils.overlap_stats(
+                    native["values"], native["weights"], use
+                ) + (True,)
+            else:
+                field = field.sel(lat=keep["lat"], lon=keep["lon"]).transpose(
+                    "lat", "lon"
+                )
+                wgt = np.cos(np.deg2rad(field["lat"])).broadcast_like(field)
+                stats[idx] = utils.overlap_stats(
+                    field, wgt, keep.transpose("lat", "lon")
+                ) + (False,)
+            # End if
+        # End for
+        return stats
 
     def timeseries_available(self, script_name, any_case=False):
         """Whether the cases (and a model baseline) have time series to read.
@@ -388,7 +626,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         self.adf.debug_log(msg)
         return False
 
-    def get_timeseries_file(self, case, field, hist_str=None):
+    def get_timeseries_file(self, case, field, hist_str=None, skip_gridded_copy=False):
         """Return list of test time series files.
 
         If hist_str is given, restrict the search to that history stream
@@ -405,7 +643,9 @@ class AdfData:  # pylint: disable=too-many-public-methods
         caseindex = self._case_index(case)
         if not ts_locs[caseindex]:
             return []
-        ts_loc = self.timeseries_dir(case, ts_locs[caseindex], field)
+        ts_loc = self.timeseries_dir(
+            case, ts_locs[caseindex], field, skip_gridded_copy=skip_gridded_copy
+        )
         if hist_str:
             ts_filenames = f"{case}.{hist_str}.{field}.*nc"
         else:
@@ -417,7 +657,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
         )
 
     # Reference case (baseline/obs)
-    def get_ref_timeseries_file(self, field, hist_str=None):
+    def get_ref_timeseries_file(self, field, hist_str=None, skip_gridded_copy=False):
         """Return list of reference time series files.
 
         If hist_str is given, restrict the search to that history stream.
@@ -437,6 +677,7 @@ class AdfData:  # pylint: disable=too-many-public-methods
             self.adf.get_baseline_info("cam_ts_loc"),
             field,
             baseline=True,
+            skip_gridded_copy=skip_gridded_copy,
         )
         if hist_str:
             ts_filenames = f"{self.ref_case_label}.{hist_str}.{field}.*nc"
@@ -522,12 +763,16 @@ class AdfData:  # pylint: disable=too-many-public-methods
             return None
         return self._timeseries_dataset(fils, self.ref_case_label, field, apply_scaling)
 
-    def load_timeseries_da(self, case, variablename):
+    def load_timeseries_da(self, case, variablename, skip_gridded_copy=False):
         """Return DataArray from time series file(s).
-        Uses defaults file to convert units.
+        Uses defaults file to convert units.  ``skip_gridded_copy=True`` reads a native
+        case's native time series rather than its gridded copy (see
+        :meth:`timeseries_dir`).
         """
         add_offset, scale_factor = self.get_value_converters(case, variablename)
-        fils = self.get_timeseries_file(case, variablename)
+        fils = self.get_timeseries_file(
+            case, variablename, skip_gridded_copy=skip_gridded_copy
+        )
         if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find case time series file(s), "
@@ -542,14 +787,19 @@ class AdfData:  # pylint: disable=too-many-public-methods
             scale_factor=scale_factor,
         )
 
-    def load_reference_timeseries_da(self, field, apply_scaling=True):
+    def load_reference_timeseries_da(
+        self, field, apply_scaling=True, skip_gridded_copy=False
+    ):
         """Return a DataArray time series to be used as reference
         (aka baseline) for variable field.
 
         apply_scaling: bool
           If True, apply add_offset and scale_factor to data (if present).
+        skip_gridded_copy: bool
+          If True, read a native baseline's native time series rather than its
+          gridded copy (see :meth:`timeseries_dir`).
         """
-        fils = self.get_ref_timeseries_file(field)
+        fils = self.get_ref_timeseries_file(field, skip_gridded_copy=skip_gridded_copy)
         if not fils:
             warnings.warn(
                 "\t    WARNING: Did not find reference time series file(s), "

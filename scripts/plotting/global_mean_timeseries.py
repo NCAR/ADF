@@ -38,6 +38,11 @@ def global_mean_timeseries(adfobj):
       'table_unit');
     - the plot goes under the variable's website category.
 
+    A case on a native grid is averaged on that grid with its own cell areas,
+    as in the tables: its native time series are read even when the ADF made
+    gridded copies for the lat/lon plots (``skip_gridded_copy=True`` in the data
+    layer's time series loaders).
+
     Whatever data there is gets plotted: a baseline (or test case) that lacks
     the variable, or has it in a form this script can't average, is left off
     the plot, and the variable is only skipped when no case is left.
@@ -94,7 +99,7 @@ def global_mean_timeseries(adfobj):
         vres["plot_type"] = __name__
 
         # reference time series (DataArray)
-        ref_ts_da = adfobj.data.load_reference_timeseries_da(field)
+        ref_ts_da = adfobj.data.load_reference_timeseries_da(field, skip_gridded_copy=True)
 
         base_name = adfobj.data.ref_case_label
 
@@ -128,7 +133,7 @@ def global_mean_timeseries(adfobj):
             # reference time series global average
             if is_lnd:
                 ref_ts_da_ga = _land_global(
-                    ref_ts_da, adfobj.data.get_ref_timeseries_file(field), vres
+                    ref_ts_da, adfobj.data.get_ref_timeseries_file(field, skip_gridded_copy=True), vres
                 )
             else:
                 ref_ts_da_ga = utils.spatial_average(
@@ -165,7 +170,7 @@ def global_mean_timeseries(adfobj):
         unit = None  # the units of the last case plotted (for land)
         for case_name in adfobj.data.case_names:
 
-            c_ts_da = adfobj.data.load_timeseries_da(case_name, field)
+            c_ts_da = adfobj.data.load_timeseries_da(case_name, field, skip_gridded_copy=True)
 
             if c_ts_da is None:
                 print(
@@ -197,7 +202,7 @@ def global_mean_timeseries(adfobj):
             # Gather spatial avg for test case
             if is_lnd:
                 c_ts_da_ga = _land_global(
-                    c_ts_da, adfobj.data.get_timeseries_file(case_name, field), vres
+                    c_ts_da, adfobj.data.get_timeseries_file(case_name, field, skip_gridded_copy=True), vres
                 )
                 if c_ts_da_ga is None:
                     continue
@@ -332,9 +337,9 @@ def _native_weights(adfobj, field, data, case_name=None):
     if "ncol" not in data.dims:
         return None
     if case_name is None:
-        fils = adfobj.data.get_ref_timeseries_file(field)
+        fils = adfobj.data.get_ref_timeseries_file(field, skip_gridded_copy=True)
     else:
-        fils = adfobj.data.get_timeseries_file(case_name, field)
+        fils = adfobj.data.get_timeseries_file(case_name, field, skip_gridded_copy=True)
     return utils.native_grid_weights(fils[0])
 
 

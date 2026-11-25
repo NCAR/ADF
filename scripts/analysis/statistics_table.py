@@ -58,6 +58,12 @@ def statistics_table(adf):
     Both tables use the time series years ("adf.ts_yrs"), which may cover more
     than the climatology years ("adf.climo_yrs").
 
+    A case on a native grid (CAM "ncol", CLM "lndgrid") is averaged on that
+    grid, weighted by its own cell areas ('area', with 'landfrac' for land),
+    in both plotting modes: its native time series are read even when the
+    ADF made gridded copies for the lat/lon plots.  Interpolating first
+    changes the means (most for small residuals such as RESTOM).
+
     Description of needed inputs from ADF:
 
     case_names      -> Name(s) of CAM case provided by "cam_case_name"
@@ -210,8 +216,9 @@ def statistics_table(adf):
             continue
         #End if
 
-        #Generate input file path.  For native-grid time series, the "gridded"
-        #copy is chosen per variable below, where the ADF made an up-to-date one:
+        #Generate input file path.  A native-grid case is averaged on its own
+        #grid with its own cell areas, so its native time series are read even
+        #when the ADF made gridded copies for the lat/lon plots:
         input_location = Path(input_ts_locs[case_idx])
         #The baseline, when there is one, was appended last:
         is_baseline = (not adf.compare_obs) and (case_idx == len(case_names) - 1)
@@ -252,7 +259,7 @@ def statistics_table(adf):
             #Create list of time series files present for variable:
             ts_filenames = f'{case_name}.*.{var}.*nc'
             var_location = adf.data.timeseries_dir(case_name, input_location, var,
-                                                   baseline=is_baseline)
+                                                   baseline=is_baseline, skip_gridded_copy=True)
             ts_files = utils.find_ts_files(var_location, ts_filenames)
 
             #Keep only the files needed for this case's years, so that a

@@ -175,6 +175,29 @@ def test_blown_up_panel_gets_a_note(tmp_path, figs):
     assert pf.PCT_HIDDEN_MESSAGE in notes
 
 
+def test_latlon_vector_layout(tmp_path, figs):
+    """Lat/lon vector map: three panels, the difference centred (no % field drawn)."""
+    test, ref = _field(5.0)
+    kwargs = _kwargs(None)
+    pf.plot_map_and_save(
+        _Adf(),
+        tmp_path / "vect.png",
+        "test",
+        "base",
+        YRS,
+        YRS,
+        test,
+        ref,
+        test - ref,
+        pf.utils.pct_change(test, ref),
+        vmdlfld=test * 0.5,
+        vobsfld=ref * 0.5,
+        vdiffld=(test - ref) * 0.5,
+        **kwargs,
+    )
+    _check_maps(figs[-1], show_pct=False)
+
+
 def test_off_panel_has_no_note(tmp_path, figs):
     """A percent panel that is just off (the default) leaves no note."""
     test, ref = _field(5.0)
