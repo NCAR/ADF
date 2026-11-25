@@ -21,10 +21,17 @@
 #                         (e.g. "W/m2", not "W m$^{-2}$"): they are written into the files and
 #                         tables.  For LaTeX on a plot, set mpl: colorbar: label.
 # mpl                  -> Dictionary that contains keyword arguments explicitly for matplotlib
-# pct_diff_panel       -> Whether to draw the percent difference panel: true (always), false
-#                         (never), or auto (the default): left out, with a note, when more than
-#                         0.1% of the plotted area is beyond +/-1000%, as for a baseline that
-#                         crosses zero (TAUX, TAUY, U, V).
+# pct_diff_panel       -> Whether to draw the percent difference panel.  Off unless set:
+#                         a percent change only means something for a field that does not
+#                         change sign (precipitation, humidity, clouds, cloud forcing,
+#                         aerosol).  For one that does (U, V, TAUX, TAUY, RESTOM) it is
+#                         unbounded where the baseline crosses zero, and for temperature or
+#                         pressure it is ~0 everywhere.  Values:
+#                           false (the default) -> left out, with a note in its place;
+#                           true   -> drawn, except where more than 0.1% of the plotted
+#                                     area is beyond +/-1000% (a near-zero baseline), when
+#                                     it is left out with a note saying so;
+#                           always -> drawn regardless.
 #
 # mask                 -> Setting that specifies whether the variable should be masked.
 #                         Currently only accepts "ocean", which means the variable will be masked
@@ -182,6 +189,7 @@ FICE:
 aerosol_zonal_list: ["BC","POM","SO4","SOA","NH4HSO4","DUST","SeaSalt"]
 
 AODDUST:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "Oranges"
   contour_levels_range: [0.01, 0.6, 0.05]
@@ -192,6 +200,7 @@ AODDUST:
   new_unit: ""
 
 AODVIS:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "Oranges"
   contour_levels_range: [0.05, 0.6, 0.05]
@@ -203,6 +212,7 @@ AODVIS:
   lens2_file: "AODVIS_LENS2_first50_gm_am.nc"
 
 AODVISdn:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "jet"
   contour_levels_range: [0.01, 1.01, 0.05]
@@ -216,6 +226,7 @@ AODVISdn:
   obs_var_name: "AOD_550_Dark_Target_Deep_Blue_Combined_Mean_Mean"
 
 BURDENBC:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
@@ -232,6 +243,7 @@ BURDENBC:
   obs_add_offset: 0
 
 BURDENDUST:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
@@ -249,6 +261,7 @@ BURDENDUST:
   obs_add_offset: 0
 
 BURDENPOM:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
@@ -261,6 +274,7 @@ BURDENPOM:
 
 
 BURDENSEASALT:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
@@ -278,6 +292,7 @@ BURDENSEASALT:
   obs_add_offset: 0
 
 BURDENSO4:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
@@ -294,6 +309,7 @@ BURDENSO4:
   obs_add_offset: 0
 
 BURDENSOA:
+  pct_diff_panel: true
   category: "Aerosols"
   colormap: "plasma_r"
   scale_factor: 1000000
@@ -1230,18 +1246,21 @@ XOOH:
 #+++++++++++++++++
 
 CLDICE:
+  pct_diff_panel: true
   category: "Clouds"
   obs_file: "CLDICE_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "CLDICE"
 
 CLDLIQ:
+  pct_diff_panel: true
   category: "Clouds"
   obs_file: "CLDLIQ_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
   obs_var_name: "CLDLIQ"
 
 CLDTOT:
+  pct_diff_panel: true
   colormap: "Oranges"
   contour_levels_range: [0.2, 1.1, 0.05]
   diff_colormap: "BrBG"
@@ -1256,6 +1275,7 @@ CLDTOT:
   lens2_file: "CLDTOT_LENS2_first50_gm_am.nc"
 
 CLDLOW:
+  pct_diff_panel: true
   colormap: "Oranges"
   contour_levels_range: [0, 1.05, 0.05]
   diff_colormap: "BrBG"
@@ -1270,6 +1290,7 @@ CLDLOW:
   lens2_file: "CLDLOW_LENS2_first50_gm_am.nc"
 
 CLDHGH:
+  pct_diff_panel: true
   colormap: "Oranges"
   contour_levels_range: [0, 1.05, 0.05]
   diff_colormap: "BrBG"
@@ -1284,6 +1305,7 @@ CLDHGH:
   lens2_file: "CLDHGH_LENS2_first50_gm_am.nc"
 
 CLDMED:
+  pct_diff_panel: true
   colormap: "Oranges"
   contour_levels_range: [0, 1.05, 0.05]
   diff_colormap: "BrBG"
@@ -1298,6 +1320,7 @@ CLDMED:
   lens2_file: "CLDMED_LENS2_first50_gm_am.nc"
 
 CLOUD:
+  pct_diff_panel: true
   colormap: "Blues"
   contour_levels_range: [0, 105, 5]
   diff_colormap: "BrBG"
@@ -1314,6 +1337,7 @@ CONCLD:
   category: "Clouds"
 
 TGCLDLWP:
+  pct_diff_panel: true
   colormap: "Blues"
   contour_levels_range: [0, 400, 10]
   diff_colormap: "BrBG"
@@ -1333,6 +1357,7 @@ TGCLDLWP:
   lens2_file: "TGCLDLWP_LENS2_first50_gm_am.nc"
 
 TGCLDIWP:
+  pct_diff_panel: true
   colormap: "Blues"
   contour_levels_range: [0, 100, 5]
   diff_colormap: "BrBG"
@@ -1375,6 +1400,7 @@ WPTHLP_CLUBB:
 #+++++++++++++++++
 
 PRECC:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
@@ -1389,6 +1415,7 @@ PRECC:
   category: "Hydrologic cycle"
 
 PRECL:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
@@ -1403,6 +1430,7 @@ PRECL:
   category: "Hydrologic cycle"
 
 PRECSC:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
@@ -1417,6 +1445,7 @@ PRECSC:
   category: "Hydrologic cycle"
 
 PRECSL:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Greens"
   contour_levels_range: [0, 20, 1]
@@ -1431,6 +1460,7 @@ PRECSL:
   category: "Hydrologic cycle"
 
 PRECT:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [0, 20, 1]
@@ -1602,6 +1632,7 @@ LANDFRAC:
 #+++++++++++++++++
 
 TMQ:
+  pct_diff_panel: true
   colormap: "Oranges"
   contour_levels_range: [0, 75.0, 5.0]
   diff_colormap: "BrBG"
@@ -1618,6 +1649,7 @@ TMQ:
   category: "State"
 
 RELHUM:
+  pct_diff_panel: true
   colormap: "Blues"
   contour_levels_range: [0, 105, 5]
   diff_colormap: "BrBG"
@@ -1765,6 +1797,7 @@ V850:
   category: "State"
 
 Q:
+  pct_diff_panel: true
   category: "State"
   obs_file: "Q_ERA5_monthly_climo_1degree_197901-202112.nc"
   obs_name: "ERA5"
@@ -1837,6 +1870,7 @@ RESTOM:
   derivable_from: ['FLNT','FSNT']
 
 SWCF:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-150, 50, 10]
@@ -1857,6 +1891,7 @@ SWCF:
   lens2_file: "SWCF_LENS2_first50_gm_am.nc"
 
 LWCF:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [-10, 100, 5]
@@ -1874,6 +1909,7 @@ LWCF:
   category: "TOA energy flux"
 
 FSUTOA:
+  pct_diff_panel: true
   colormap: "Blues"
   contour_levels_range: [-10, 180, 15]
   diff_colormap: "BrBG"
@@ -1887,6 +1923,7 @@ FSUTOA:
   category: "TOA energy flux"
 
 FSNT:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [120, 320, 10]
@@ -1905,19 +1942,23 @@ FSNT:
   lens2_file: "FSNT_LENS2_first50_gm_am.nc"
 
 FSNTC:
+  pct_diff_panel: true
   regrid_conservative: true
   category: "TOA energy flux"
   lens2_file: "FSNTC_LENS2_first50_gm_am.nc"
 
 FSNTOA:
+  pct_diff_panel: true
   regrid_conservative: true
   category: "TOA energy flux"
 
 FLUT:
+  pct_diff_panel: true
   regrid_conservative: true
   category: "TOA energy flux"
 
 FLNT:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [120, 320, 10]
@@ -1970,16 +2011,19 @@ RESSURF:
   derivable_from: ['FSNS','FLNS','SHFLX','QFLX','PRECC','PRECL','PRECSC','PRECSL']
 
 FSDS:
+  pct_diff_panel: true
   regrid_conservative: true
   category: "Sfc energy flux"
   lens2_file: "FSDS_LENS2_first50_gm_am.nc"
 
 FSDSC:
+  pct_diff_panel: true
   regrid_conservative: true
   category: "Sfc energy flux"
   lens2_file: "FSDSC_LENS2_first50_gm_am.nc"
 
 FSNS:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-10, 300, 20]
@@ -1997,6 +2041,7 @@ FSNS:
   category: "Sfc energy flux"
 
 FSNSC:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Blues"
   contour_levels_range: [-10, 300, 20]
@@ -2014,6 +2059,7 @@ FSNSC:
   category: "Sfc energy flux"
 
 FLDS:
+  pct_diff_panel: true
   regrid_conservative: true
   colormap: "Oranges"
   contour_levels_range: [100, 500, 25]

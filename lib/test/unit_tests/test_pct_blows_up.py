@@ -3,9 +3,9 @@
 A baseline that changes sign (TAUX, TAUY, U, V) is small along every zero
 line, and there the percent change runs to thousands of percent: the panel
 then shows where the baseline crosses zero, not how the test case differs.
-These pin down adf_utils.pct_blows_up, which decides, the variable-defaults
-override pct_diff_panel (true, false or auto), and the plotting helper that
-hides the panel.
+The panel is off unless the variable defaults turn it on.  These pin down
+the variable-defaults setting pct_diff_panel (false, true or always) and
+adf_utils.pct_blows_up, which leaves out a panel that is on (true) anyway.
 """
 
 import sys
@@ -90,23 +90,6 @@ def test_profile_without_latitude():
     assert not utils.pct_blows_up(pct, area_frac=0.2)
 
 
-def test_hidden_panel_and_colorbar(tmp_path):
-    """The panel and its colorbar are hidden, and a note takes their place."""
-    plt = pytest.importorskip("matplotlib.pyplot")
-    pf = pytest.importorskip("plotting_functions")
-    fig, (ax_keep, ax_pct) = plt.subplots(nrows=2)
-    img = ax_pct.imshow(np.ones((2, 2)))
-    cax = fig.add_axes([0.9, 0.1, 0.02, 0.3])
-    fig.colorbar(img, cax=cax)
-    # pylint: disable-next=protected-access
-    pf._hide_pct_panel(ax_pct, cax, None, message=pf.PCT_OFF_MESSAGE)
-    assert ax_keep.get_visible()
-    assert not ax_pct.get_visible() and not cax.get_visible()
-    assert [t.get_text() for t in fig.texts] == [pf.PCT_OFF_MESSAGE]
-    fig.savefig(tmp_path / "hidden.png", bbox_inches="tight")
-    plt.close(fig)
-
-
 @pytest.fixture(name="pf")
 def _pf():
     return pytest.importorskip("plotting_functions")
@@ -129,39 +112,62 @@ def _calm():
 # pylint: disable=protected-access
 
 
-@pytest.mark.parametrize("setting", [None, "auto", "absent"])
-def test_override_auto_follows_the_check(pf, blown, calm, setting):
-    """Unset or auto: hidden when the percent change blows up, drawn otherwise."""
+@pytest.mark.parametrize("setting", [None, False, "absent"])
+def test_off_by_default(pf, blown, calm, setting):
+    """Unset or false: left out, with the "off" note, whatever the data."""
     kwargs = {} if setting == "absent" else {"pct_diff_panel": setting}
-    assert pf._pct_panel_note(blown, kwargs) == pf.PCT_HIDDEN_MESSAGE
+    assert pf._pct_panel_note(blown, kwargs) == pf.PCT_OFF_MESSAGE
+    assert pf._pct_panel_note(calm, kwargs) == pf.PCT_OFF_MESSAGE
+
+
+def test_true_follows_the_check(pf, blown, calm):
+    """true: drawn, unless the percent change blows up."""
+    assert pf._pct_panel_note(blown, {"pct_diff_panel": True}) == pf.PCT_HIDDEN_MESSAGE
+    assert pf._pct_panel_note(calm, {"pct_diff_panel": True}) is None
+
+
+def test_always_draws(pf, blown):
+    """always: drawn even when the percent change blows up."""
+    assert pf._pct_panel_note(blown, {"pct_diff_panel": "always"}) is None
+
+
+def test_plot_section_wins(pf, calm):
+    """A setting in the plot type's section wins over the top-level one."""
+    kwargs = {
+        "pct_diff_panel": True,
+        "plot_type": "zonal_mean",
+        "zonal_mean": {"pct_diff_panel": False},
+    }
+    assert pf._pct_panel_note(calm, kwargs) == pf.PCT_OFF_MESSAGE
+    # another plot type takes the top-level setting:
+    kwargs["plot_type"] = "polar_map"
     assert pf._pct_panel_note(calm, kwargs) is None
 
 
-def test_override_true_always_draws(pf, blown):
-    """pct_diff_panel: true draws the panel even when it blows up."""
-    assert pf._pct_panel_note(blown, {"pct_diff_panel": True}) is None
+def test_section_can_turn_it_on(pf, calm):
+    """A section can turn the panel on for one plot type only."""
+    kwargs = {"plot_type": "polar_map", "polar_map": {"pct_diff_panel": True}}
+    assert pf._pct_panel_note(calm, kwargs) is None
+    kwargs["plot_type"] = "zonal_mean"
+    assert pf._pct_panel_note(calm, kwargs) == pf.PCT_OFF_MESSAGE
 
 
-def test_override_false_never_draws(pf, calm):
-    """pct_diff_panel: false leaves the panel out, with its own note."""
-    assert pf._pct_panel_note(calm, {"pct_diff_panel": False}) == pf.PCT_OFF_MESSAGE
-
-
-def test_plot_section_wins(pf, blown):
-    """A setting in the plot type's section wins over the top-level one."""
-    kwargs = {
-        "pct_diff_panel": False,
-        "plot_type": "zonal_mean",
-        "zonal_mean": {"pct_diff_panel": True},
-    }
-    assert pf._pct_panel_note(blown, kwargs) is None
-    # another plot type takes the top-level setting:
-    kwargs["plot_type"] = "polar_map"
-    assert pf._pct_panel_note(blown, kwargs) == pf.PCT_OFF_MESSAGE
-
-
-def test_unknown_setting_warns_and_uses_auto(pf, blown):
-    """A value other than true, false or auto warns and falls back to auto."""
+@pytest.mark.parametrize("setting", ["auto", "yes", 1.5])
+def test_unknown_setting_warns_and_leaves_it_out(pf, calm, setting):
+    """A value other than true, false or always warns and leaves the panel out."""
     with pytest.warns(UserWarning, match="pct_diff_panel"):
-        note = pf._pct_panel_note(blown, {"pct_diff_panel": "yes"})
-    assert note == pf.PCT_HIDDEN_MESSAGE
+        note = pf._pct_panel_note(calm, {"pct_diff_panel": setting})
+    assert note == pf.PCT_OFF_MESSAGE
+
+
+@pytest.mark.parametrize(
+    "path", ["adf_variable_defaults.yaml", "adf_variable_defaults_era5-1deg.yaml"]
+)
+def test_defaults_turn_it_on_only_for_one_signed_fields(path):
+    """The shipped defaults turn the panel on for PRECT but not for U, T or TAUX."""
+    yaml = pytest.importorskip("yaml")
+    defaults = yaml.safe_load((Path(__file__).parents[2] / path).read_text())
+    for var in ("PRECT", "Q", "SWCF", "CLDTOT"):
+        assert defaults[var]["pct_diff_panel"] is True, var
+    for var in ("U", "V", "T", "TAUX", "TAUY", "PSL", "RESTOM", "SHFLX"):
+        assert "pct_diff_panel" not in (defaults[var] or {}), var

@@ -77,14 +77,19 @@ import matplotlib.pyplot as plt  # pylint: disable=wrong-import-order,ungrouped-
 
 EMPTY_MESSAGE = "No Valid\nData Points"
 props = {"boxstyle": "round", "facecolor": "wheat", "alpha": 0.9}
-# In place of a percent-difference panel that is not drawn (see _hide_pct_panel):
+# Under the difference panel when a percent panel that was asked for is left out
+# (see _pct_footnote):
 PCT_HIDDEN_MESSAGE = (
     "Test % Diff Baseline not shown:\n"
     "the baseline is near zero over too much of the area\n"
     f"(beyond ±{utils.PCT_BLOWUP_LIMIT:g}% over more than "
     f"{100 * utils.PCT_BLOWUP_AREA_FRAC:g}% of it)"
 )
-PCT_OFF_MESSAGE = "Test % Diff Baseline not shown\n(pct_diff_panel: false)"
+# What _pct_panel_note returns for a percent panel that is off (the default):
+PCT_OFF_MESSAGE = (
+    "Test % Diff Baseline not shown:\n"
+    "off for this variable (pct_diff_panel in the variable defaults)"
+)
 
 
 # Set seasonal ranges:
@@ -229,59 +234,67 @@ def _pct_panel_note(pct, kwargs):
     Returns
     -------
     str or None
-        :data:`PCT_OFF_MESSAGE` for ``pct_diff_panel: false``,
-        :data:`PCT_HIDDEN_MESSAGE` when, with ``pct_diff_panel`` unset or
-        ``auto``, :func:`adf_utils.pct_blows_up` says the panel would only show
-        where the baseline crosses zero; ``None`` otherwise, including for
-        ``pct_diff_panel: true``.
+        ``None`` (draw the panel) for ``pct_diff_panel: always``, and for
+        ``pct_diff_panel: true`` unless :func:`adf_utils.pct_blows_up` says the
+        panel would only show where the baseline is near zero, which gives
+        :data:`PCT_HIDDEN_MESSAGE`; :data:`PCT_OFF_MESSAGE` otherwise,
+        including when ``pct_diff_panel`` is not set.
+
+    Notes
+    -----
+    The panel is off by default: a percent change is only meaningful for a
+    field that does not change sign (precipitation, humidity, cloud amount,
+    cloud forcing, aerosol).  For one that does (U, V, TAUX, TAUY, RESTOM) it
+    is unbounded wherever the baseline crosses zero, and for temperature or
+    pressure in absolute units it is ~0 everywhere.
     """
     section = kwargs.get(kwargs["plot_type"], {}) if "plot_type" in kwargs else {}
     if isinstance(section, dict) and "pct_diff_panel" in section:
         setting = section["pct_diff_panel"]
     else:
-        setting = kwargs.get("pct_diff_panel", "auto")
-    if setting is True:
+        setting = kwargs.get("pct_diff_panel", False)
+    if setting == "always":
         return None
-    if setting is False:
-        return PCT_OFF_MESSAGE
-    if setting not in (None, "auto"):
+    if setting is True:
+        return PCT_HIDDEN_MESSAGE if utils.pct_blows_up(pct) else None
+    if setting not in (None, False):
         warnings.warn(
-            f"\tWARNING: pct_diff_panel must be true, false or auto, not {setting!r};"
-            " using auto."
+            f"\tWARNING: pct_diff_panel must be true, false or always, not {setting!r};"
+            " leaving the percent difference panel out."
         )
-    return PCT_HIDDEN_MESSAGE if utils.pct_blows_up(pct) else None
+    return PCT_OFF_MESSAGE
 
 
-def _hide_pct_panel(ax, *cbar_axes, message=PCT_HIDDEN_MESSAGE):
-    """Hide a percent-difference panel and its colorbar, with a note in its place.
+def _pct_footnote(ax, note, y=-0.17):
+    """Note under a panel why a percent panel that was asked for is not drawn.
 
     Parameters
     ----------
     ax : matplotlib.axes.Axes
-        the percent-difference panel
-    *cbar_axes : matplotlib.axes.Axes or None
-        its colorbar axes, if any
-    message : str, optional
-        the note, as from :func:`_pct_panel_note`
+        the panel to write the note under (the difference panel)
+    note : str or None
+        as from :func:`_pct_panel_note`; only :data:`PCT_HIDDEN_MESSAGE` is
+        written, as a panel that is simply off needs no explanation
+    y : float, optional
+        where the note goes, in the panel's axes coordinates
 
     Notes
     -----
-    Used when :func:`_pct_panel_note` says the panel is not drawn.  The note is
-    placed in the panel's axes coordinates, so it follows the panel through a
-    constrained layout.
+    The plots leave a percent panel that is not drawn out of the layout: the
+    maps centre the difference panel under the two fields, and the zonal and
+    meridional means drop that row.  A panel that is simply off needs no
+    note; one that was turned on but blew up gets this one.
     """
-    ax.set_visible(False)
-    for cax in cbar_axes:
-        if cax is not None:
-            cax.set_visible(False)
-    ax.figure.text(
+    if note != PCT_HIDDEN_MESSAGE:
+        return
+    ax.text(
         0.5,
-        0.5,
-        message,
+        y,
+        note,
         transform=ax.transAxes,
         ha="center",
-        va="center",
-        fontsize=8,
+        va="top",
+        fontsize=7,
         color="0.35",
     )
 
@@ -477,13 +490,26 @@ def make_polar_plot(
     fig = plt.figure(figsize=(10, 10), dpi=300)
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
 
+    # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+    # on, and left out when it only shows where the baseline crosses zero
+    # (judged over the plotted region):
+    pct_note = _pct_panel_note(pct, kwargs)
+    show_pct = pct_note is None
+
+    # Test and baseline on the top row; below them the percent and difference
+    # panels side by side, or the difference panel alone, centred:
     ax1 = plt.subplot(gs[0, :2], projection=proj)
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
-    ax3 = plt.subplot(gs[1, :2], projection=proj)
-    ax4 = plt.subplot(gs[1, 2:], projection=proj)
+    if show_pct:
+        ax3 = plt.subplot(gs[1, :2], projection=proj)
+        ax4 = plt.subplot(gs[1, 2:], projection=proj)
+    else:
+        # No percent panel: its slot is None, so the field indices stay the same
+        ax3 = None
+        ax4 = plt.subplot(gs[1, 1:3], projection=proj)
     axs = [ax1, ax2, ax3, ax4]
 
-    for a in axs:
+    for a in (a for a in axs if a is not None):
         # __Follow the cartopy gallery example to make circular__:
         # Compute a circle in axes coordinates, which we can use as a boundary
         # for the map. We can pan/zoom as much as we like - the boundary will be
@@ -520,6 +546,9 @@ def make_polar_plot(
 
     # Loop over data arrays to make plots
     for i, a in enumerate(wrap_fields):
+        if axs[i] is None:  # the percent panel, left out
+            imgs.append(None)
+            continue
         if i == diff_idx:
             levels = cp_info["levels_diff"]
             cmap = cp_info["cmap_diff"]
@@ -627,7 +656,10 @@ def make_polar_plot(
         )
         axs[1].set_title(base_title, loc="left", fontsize=8)
 
-    axs[2].set_title("Test % Diff Baseline", loc="left", fontsize=8, fontweight="bold")
+    if show_pct:
+        axs[2].set_title(
+            "Test % Diff Baseline", loc="left", fontsize=8, fontweight="bold"
+        )
     axs[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
 
     # __COLORBARS__
@@ -644,16 +676,6 @@ def make_polar_plot(
     cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left")
     cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-    cb_pct_ax = inset_axes(
-        axs[2],
-        width="5%",
-        height="90%",  # height : 90%
-        loc="lower left",
-        bbox_to_anchor=(1.05, 0.05, 1, 1),
-        bbox_transform=ax3.transAxes,
-        borderpad=0,
-    )
-
     cb_diff_ax = inset_axes(
         axs[3],
         width="5%",
@@ -664,11 +686,23 @@ def make_polar_plot(
         borderpad=0,
     )
 
-    pctdiff_cbar = fig.colorbar(imgs[2], cax=cb_pct_ax, **cp_info["pct_colorbar_opt"])
-    pctdiff_cbar.ax.set_title(
-        pct_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
-    )
-    pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+    if show_pct:
+        cb_pct_ax = inset_axes(
+            axs[2],
+            width="5%",
+            height="90%",  # height : 90%
+            loc="lower left",
+            bbox_to_anchor=(1.05, 0.05, 1, 1),
+            bbox_transform=ax3.transAxes,
+            borderpad=0,
+        )
+        pctdiff_cbar = fig.colorbar(
+            imgs[2], cax=cb_pct_ax, **cp_info["pct_colorbar_opt"]
+        )
+        pctdiff_cbar.ax.set_title(
+            pct_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
+        )
+        pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     diff_cbar = fig.colorbar(imgs[3], cax=cb_diff_ax, **cp_info["diff_colorbar_opt"])
     diff_cbar.ax.set_title(
@@ -676,11 +710,8 @@ def make_polar_plot(
     )
     diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-    # Leave out the percent panel when pct_diff_panel says so, or when it only
-    # shows where the baseline crosses zero (judged over the plotted region):
-    pct_note = _pct_panel_note(pct, kwargs)
-    if pct_note:
-        _hide_pct_panel(axs[2], cb_pct_ax, message=pct_note)
+    # Say why a percent panel that was asked for is not there:
+    _pct_footnote(axs[3], pct_note, y=-0.08)
 
     # Save files
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -901,10 +932,17 @@ def plot_map_and_save(
     # controlling DPI improves raster plots for unstructured data, but it does slow things down
     fig = plt.figure(figsize=(14, 8), dpi=300)
 
+    # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+    # on, and left out when it only shows where the baseline crosses zero.
+    # Never for vectors.
+    pct_note = None if vector else _pct_panel_note(pctld, kwargs)
+    show_pct = not vector and pct_note is None
+
     # LAYOUT WITH GRIDSPEC
-    # 2x2 grid of equal-size maps (each spanning 2 of 4 columns, so a vector
-    # plot's single difference panel can be centred); equal sizes let
-    # unstructured plots share one pixel mapping
+    # Test and baseline on the top row; below them the percent and difference
+    # panels side by side, or the difference panel alone, centred.  Each map
+    # spans 2 of 4 columns, so all are the same size and unstructured plots
+    # share one pixel mapping.
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.7, hspace=0.2)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
     ax1 = plt.subplot(gs[0, :2], projection=proj, **cp_info["subplots_opt"])
@@ -913,10 +951,14 @@ def plot_map_and_save(
     if vector:
         ax3 = plt.subplot(gs[1, 1:3], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3]
-    else:
+    elif show_pct:
         ax3 = plt.subplot(gs[1, :2], projection=proj, **cp_info["subplots_opt"])
         ax4 = plt.subplot(gs[1, 2:], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3, ax4]
+    else:
+        # No percent panel: its slot is None, so the field indices stay the same
+        ax4 = plt.subplot(gs[1, 1:3], projection=proj, **cp_info["subplots_opt"])
+        ax = [ax1, ax2, None, ax4]
 
     img = []  # contour plots
 
@@ -940,11 +982,14 @@ def plot_map_and_save(
         pctdiff_idx = None
         diff_idx = 2
     else:
-        pctdiff_idx = 2
+        pctdiff_idx = 2 if show_pct else None
         diff_idx = 3
 
     levels = cmap = norm = extend = None
     for i, a in enumerate(wrap_fields):
+        if ax[i] is None:  # the percent panel, left out
+            img.append(None)
+            continue
         if i == diff_idx:
             levels = cp_info["levels_diff"]
             cmap = cp_info["cmap_diff"]
@@ -1143,6 +1188,8 @@ def plot_map_and_save(
     # The percent panel's Mean is the percent change of the area means, which
     # cells with a tiny baseline cannot swamp (see utils.pct_change_of_means):
     for i, fld in stat_fields.items():
+        if ax[i] is None:
+            continue
         if i == 2 and not vector:
             mean = utils.pct_change_of_means(
                 stat_fields[0], stat_fields[1], weights=wgt
@@ -1156,7 +1203,7 @@ def plot_map_and_save(
             fontsize=ti_font_size,
         )
 
-    if not vector:
+    if show_pct:
         ax[pctdiff_idx].set_title(
             "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
         )
@@ -1166,6 +1213,8 @@ def plot_map_and_save(
     )
 
     for a in ax:
+        if a is None:
+            continue
         a.tick_params(axis="both", labelsize=8)
         a.spines["geo"].set_linewidth(1.5)  # cartopy's recommended method
         a.coastlines()
@@ -1192,7 +1241,7 @@ def plot_map_and_save(
     cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left")
     cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-    if not vector:
+    if show_pct:
         cb_pct_ax = inset_axes(
             ax[pctdiff_idx],
             width="5%",
@@ -1227,11 +1276,8 @@ def plot_map_and_save(
     )
     diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-    # Leave out the percent panel when pct_diff_panel says so, or when it only
-    # shows where the baseline crosses zero:
-    pct_note = None if vector else _pct_panel_note(pctld, kwargs)
-    if pct_note:
-        _hide_pct_panel(ax[pctdiff_idx], cb_pct_ax, message=pct_note)
+    # Say why a percent panel that was asked for is not there:
+    _pct_footnote(ax[diff_idx], pct_note)
 
     # Write final figure to file
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -1596,9 +1642,13 @@ def plot_zonal_mean_and_save(
         )
     if has_lev:
         # Generate zonal plot:
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
         fig, ax = plt.subplots(
-            figsize=(8, 10),
-            nrows=4,
+            figsize=(8, 10 if show_pct else 7.5),
+            nrows=4 if show_pct else 3,
             constrained_layout=True,
             sharey=True,
             **cp_info["subplots_opt"],
@@ -1707,49 +1757,55 @@ def plot_zonal_mean_and_save(
             )
             diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-        pctdiffcb_mean_ax = None
-        if len(levs_pct_diff) < 2:
-            img3, ax[3] = zonal_plot(alat, pct, ax=ax[3])
-            ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
-        else:
-            img3, ax[3] = zonal_plot(
-                alat,
-                pct,
-                ax=ax[3],
-                norm=norm_pctdiff,
-                cmap=cmap_pctdiff,
-                levels=levels_pctdiff,
-                extend=extend_pctdiff,
-                **cp_info["contourf_opt"],
-            )
-            pctdiffcb_mean_ax = inset_axes(
-                ax[3],
-                width="2%",
-                height="100%",
-                loc="lower left",
-                bbox_to_anchor=(1.02, 0, 1, 1),
-                bbox_transform=ax[3].transAxes,
-                borderpad=0,
-            )
-            pctdiff_cbar = fig.colorbar(
-                img3,
-                cax=pctdiffcb_mean_ax,
-                location="right",
-                **cp_info["pct_colorbar_opt"],
-            )
-            pctdiff_cbar.ax.set_title(
-                pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+        if show_pct:
+            if len(levs_pct_diff) < 2:
+                img3, ax[3] = zonal_plot(alat, pct, ax=ax[3])
+                ax[3].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props
+                )
+            else:
+                img3, ax[3] = zonal_plot(
+                    alat,
+                    pct,
+                    ax=ax[3],
+                    norm=norm_pctdiff,
+                    cmap=cmap_pctdiff,
+                    levels=levels_pctdiff,
+                    extend=extend_pctdiff,
+                    **cp_info["contourf_opt"],
+                )
+                pctdiffcb_mean_ax = inset_axes(
+                    ax[3],
+                    width="2%",
+                    height="100%",
+                    loc="lower left",
+                    bbox_to_anchor=(1.02, 0, 1, 1),
+                    bbox_transform=ax[3].transAxes,
+                    borderpad=0,
+                )
+                pctdiff_cbar = fig.colorbar(
+                    img3,
+                    cax=pctdiffcb_mean_ax,
+                    location="right",
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.set_title(
+                    pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
         ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
         ax[2].set_title(
             r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
         )
-        ax[3].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
-        )
+        if show_pct:
+            ax[3].set_title(
+                "Test % Diff Baseline",
+                loc="left",
+                fontsize=ti_font_size,
+                fontweight="bold",
+            )
 
         # style the plot:
         # Set Main title for subplots:
@@ -1773,13 +1829,8 @@ def plot_zonal_mean_and_save(
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
 
-        # Leave out the percent panel when pct_diff_panel says so, or when it
-        # only shows where the baseline crosses zero; the panel above it then
-        # carries the axis label:
-        pct_note = _pct_panel_note(pct, kwargs)
-        if pct_note:
-            _hide_pct_panel(ax[3], pctdiffcb_mean_ax, message=pct_note)
-            ax[2].set_xlabel("LATITUDE", fontsize=ti_font_size)
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.35)
     else:
         line = Line2D(
             [0], [0], label=r"$\mathbf{Test}:$" + case_nickname, color="#1f77b4"
@@ -1790,7 +1841,11 @@ def plot_zonal_mean_and_save(
         byears = f"years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         tyears = f"years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
-        fig, ax = plt.subplots(nrows=3)
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
+        fig, ax = plt.subplots(nrows=3 if show_pct else 2)
         ax[0].set_title(f"{tyears}\n{byears}", loc="right", fontsize=6)
 
         # Set Main title for subplots:
@@ -1820,7 +1875,6 @@ def plot_zonal_mean_and_save(
         )
 
         use_cmap = kwargs.get("colormap_2d", False)
-        cax2 = None
         # One copy of kwargs, shared by the difference and percent difference plots:
         line_kwargs = kwargs.copy()
         line_kwargs["colormap_2d"] = use_cmap
@@ -1836,18 +1890,19 @@ def plot_zonal_mean_and_save(
         ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        line_kwargs["type"] = "pctdiff"
-        zonal_plot(
-            adata["lat"],
-            pct,
-            ax=ax[2],
-            norm=norm_pctdiff,
-            **line_kwargs,
-        )
-        ax[2].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
-        )
-        ax[2].set_ylabel(pct_units, fontsize=6)
+        if show_pct:
+            line_kwargs["type"] = "pctdiff"
+            zonal_plot(
+                adata["lat"],
+                pct,
+                ax=ax[2],
+                norm=norm_pctdiff,
+                **line_kwargs,
+            )
+            ax[2].set_title(
+                "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
+            )
+            ax[2].set_ylabel(pct_units, fontsize=6)
 
         ax[-1].set_xlabel("LATITUDE", fontsize=6)
 
@@ -1862,30 +1917,29 @@ def plot_zonal_mean_and_save(
 
         plt.subplots_adjust(wspace=0.01, hspace=0.5, right=0.85)
         if use_cmap:
-            # Create colorbar axes (same width for both)
-            cax1 = fig.add_axes(
-                [0.86, 0.4, 0.02, 0.1925]
-            )  # [left, bottom, width, height]
-            cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
-            ax[1].set_facecolor("0.5")  # dark gray
-            ax[2].set_facecolor("0.5")
+            # Colorbar axes beside the panels they go with (same width for both):
+            def _cax(panel):
+                pos = panel.get_position()
+                return fig.add_axes([0.86, pos.y0, 0.02, pos.height])
 
+            ax[1].set_facecolor("0.5")  # dark gray
             diff_cbar = fig.colorbar(
-                ax[1].adf_linecollection, cax=cax1, **cp_info["diff_colorbar_opt"]
+                ax[1].adf_linecollection,
+                cax=_cax(ax[1]),
+                **cp_info["diff_colorbar_opt"],
             )
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(
-                ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=6)
+            if show_pct:
+                ax[2].set_facecolor("0.5")
+                pctdiff_cbar = fig.colorbar(
+                    ax[2].adf_linecollection,
+                    cax=_cax(ax[2]),
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=6)
 
-        # Leave out the percent panel when pct_diff_panel says so, or when it
-        # only shows where the baseline crosses zero; the panel above it then
-        # carries the axis label:
-        pct_note = _pct_panel_note(pct, kwargs)
-        if pct_note:
-            _hide_pct_panel(ax[2], cax2, message=pct_note)
-            ax[1].set_xlabel("LATITUDE", fontsize=6)
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.45)
     # End if
 
     # Write the figure to provided workspace/file:
@@ -2257,9 +2311,13 @@ def plot_meridional_mean_and_save(
     if has_lev:
 
         # Generate meridional plot:
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
         fig, ax = plt.subplots(
-            figsize=(8, 10),
-            nrows=4,
+            figsize=(8, 10 if show_pct else 7.5),
+            nrows=4 if show_pct else 3,
             constrained_layout=True,
             sharey=True,
             **cp_info["subplots_opt"],
@@ -2365,49 +2423,55 @@ def plot_meridional_mean_and_save(
             )
             diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-        pctdiffcb_mean_ax = None
-        if len(levs_pct_diff) < 2:
-            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
-            ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
-        else:
-            img3, ax[3] = pltfunc(
-                adata[xdim],
-                pct,
-                ax=ax[3],
-                norm=norm_pctdiff,
-                cmap=cmap_pctdiff,
-                levels=levels_pctdiff,
-                extend=extend_pctdiff,
-                **cp_info["contourf_opt"],
-            )
-            pctdiffcb_mean_ax = inset_axes(
-                ax[3],
-                width="2%",
-                height="100%",
-                loc="lower left",
-                bbox_to_anchor=(1.02, 0, 1, 1),
-                bbox_transform=ax[3].transAxes,
-                borderpad=0,
-            )
-            pctdiff_cbar = fig.colorbar(
-                img3,
-                cax=pctdiffcb_mean_ax,
-                location="right",
-                **cp_info["pct_colorbar_opt"],
-            )
-            pctdiff_cbar.ax.set_title(
-                pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+        if show_pct:
+            if len(levs_pct_diff) < 2:
+                img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
+                ax[3].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props
+                )
+            else:
+                img3, ax[3] = pltfunc(
+                    adata[xdim],
+                    pct,
+                    ax=ax[3],
+                    norm=norm_pctdiff,
+                    cmap=cmap_pctdiff,
+                    levels=levels_pctdiff,
+                    extend=extend_pctdiff,
+                    **cp_info["contourf_opt"],
+                )
+                pctdiffcb_mean_ax = inset_axes(
+                    ax[3],
+                    width="2%",
+                    height="100%",
+                    loc="lower left",
+                    bbox_to_anchor=(1.02, 0, 1, 1),
+                    bbox_transform=ax[3].transAxes,
+                    borderpad=0,
+                )
+                pctdiff_cbar = fig.colorbar(
+                    img3,
+                    cax=pctdiffcb_mean_ax,
+                    location="right",
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.set_title(
+                    pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
         ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
         ax[2].set_title(
             r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
         )
-        ax[3].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
-        )
+        if show_pct:
+            ax[3].set_title(
+                "Test % Diff Baseline",
+                loc="left",
+                fontsize=ti_font_size,
+                fontweight="bold",
+            )
 
         # style the plot:
         # Set Main title for subplots:
@@ -2431,13 +2495,8 @@ def plot_meridional_mean_and_save(
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
 
-        # Leave out the percent panel when pct_diff_panel says so, or when it
-        # only shows where the baseline crosses zero; the panel above it then
-        # carries the axis label:
-        pct_note = _pct_panel_note(pct, kwargs)
-        if pct_note:
-            _hide_pct_panel(ax[3], pctdiffcb_mean_ax, message=pct_note)
-            ax[2].set_xlabel("LONGITUDE", fontsize=ti_font_size)
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.35)
     else:
         line = Line2D(
             [0], [0], label=r"$\mathbf{Test}:$" + case_nickname, color="#1f77b4"
@@ -2448,7 +2507,11 @@ def plot_meridional_mean_and_save(
         byears = f"years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         tyears = f"years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
-        fig, ax = plt.subplots(nrows=3)
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
+        fig, ax = plt.subplots(nrows=3 if show_pct else 2)
         ax[0].set_title(f"{tyears}\n{byears}", loc="right", fontsize=6)
 
         # Set Main title for subplots:
@@ -2478,7 +2541,6 @@ def plot_meridional_mean_and_save(
         )
 
         use_cmap = kwargs.get("colormap_2d", False)
-        cax2 = None
         # One copy of kwargs, shared by the difference and percent difference plots:
         line_kwargs = kwargs.copy()
         line_kwargs["colormap_2d"] = use_cmap
@@ -2495,19 +2557,20 @@ def plot_meridional_mean_and_save(
         ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        line_kwargs["type"] = "pctdiff"
-        pltfunc(
-            adata[xdim],
-            pct,
-            ax=ax[2],
-            norm=norm_pctdiff,
-            **line_kwargs,
-        )
+        if show_pct:
+            line_kwargs["type"] = "pctdiff"
+            pltfunc(
+                adata[xdim],
+                pct,
+                ax=ax[2],
+                norm=norm_pctdiff,
+                **line_kwargs,
+            )
 
-        ax[2].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
-        )
-        ax[2].set_ylabel(pct_units, fontsize=6)
+            ax[2].set_title(
+                "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
+            )
+            ax[2].set_ylabel(pct_units, fontsize=6)
 
         ax[-1].set_xlabel("LONGITUDE", fontsize=6)
 
@@ -2523,30 +2586,29 @@ def plot_meridional_mean_and_save(
         plt.subplots_adjust(wspace=0.01, hspace=0.5, right=0.85)
 
         if use_cmap:
-            # Create colorbar axes (same width for both)
-            cax1 = fig.add_axes(
-                [0.86, 0.4, 0.02, 0.1925]
-            )  # [left, bottom, width, height]
-            cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
-            ax[1].set_facecolor("0.5")  # dark gray
-            ax[2].set_facecolor("0.5")
+            # Colorbar axes beside the panels they go with (same width for both):
+            def _cax(panel):
+                pos = panel.get_position()
+                return fig.add_axes([0.86, pos.y0, 0.02, pos.height])
 
+            ax[1].set_facecolor("0.5")  # dark gray
             diff_cbar = fig.colorbar(
-                ax[1].adf_linecollection, cax=cax1, **cp_info["diff_colorbar_opt"]
+                ax[1].adf_linecollection,
+                cax=_cax(ax[1]),
+                **cp_info["diff_colorbar_opt"],
             )
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(
-                ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=6)
+            if show_pct:
+                ax[2].set_facecolor("0.5")
+                pctdiff_cbar = fig.colorbar(
+                    ax[2].adf_linecollection,
+                    cax=_cax(ax[2]),
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=6)
 
-        # Leave out the percent panel when pct_diff_panel says so, or when it
-        # only shows where the baseline crosses zero; the panel above it then
-        # carries the axis label:
-        pct_note = _pct_panel_note(pct, kwargs)
-        if pct_note:
-            _hide_pct_panel(ax[2], cax2, message=pct_note)
-            ax[1].set_xlabel("LONGITUDE", fontsize=6)
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.45)
     # End if
 
     # Write the figure to provided workspace/file:
