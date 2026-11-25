@@ -105,9 +105,7 @@ def _check_maps(fig, show_pct):
         assert bottom[0].get_position().width == pytest.approx(
             top[0].get_position().width, rel=0.01
         )
-        assert "Test % Diff Baseline" not in [
-            a.get_title(loc="left") for a in fig.axes
-        ]
+        assert "Test % Diff Baseline" not in [a.get_title(loc="left") for a in fig.axes]
     assert "Baseline" in bottom[-1].get_title(loc="left")  # Test - Baseline
 
 
