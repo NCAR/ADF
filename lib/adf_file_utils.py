@@ -22,10 +22,18 @@ ts_files_need_combining(fils)
     Report whether a set of time series files has to be combined into one.
 ts_file_span(fils)
     Report the period a set of time series files covers, taken together.
+ts_years_covered(fils)
+    Report the whole years a set of time series files covers.
+missing_year_ranges(covered, syr, eyr)
+    Report the stretches of a year range that are not covered.
 as_hist_str_list(value)
     Normalize a configured history stream setting to a list.
 pick_hist_str(value, wanted)
     Choose the one history stream a case should be searched for.
+years_tag(syr, eyr)
+    The "YYYY-YYYY" label of a year range, as used in file names and attributes.
+year_tagged_names(stem, syr, eyr)
+    File names for a climo or regridded file: with its years, then without.
 
 Notes
 -----
@@ -143,6 +151,55 @@ def pick_hist_str(value, wanted):
     return matches[0] if matches else ""
 
 
+def years_tag(syr, eyr):
+    """
+    The label of a year range, as used in file names and attributes.
+
+    Parameters
+    ----------
+    syr, eyr : int or str or None
+        first and last year
+
+    Returns
+    -------
+    str or None
+        e.g. ``"0003-0005"`` for years 3 to 5 (the form of the climo files'
+        ``climo_yrs`` attribute), or ``None`` when either year is missing or
+        is not a whole number.
+    """
+    try:
+        return f"{int(syr):04d}-{int(eyr):04d}"
+    except (TypeError, ValueError):
+        return None
+
+
+def year_tagged_names(stem, syr, eyr):
+    """
+    File names for a climatology or regridded file, with and without years.
+
+    Climo and regridded files are named after the climatology years they
+    cover, so a run over other years (an extended run, say) never mistakes an
+    existing file for its own.  Files written before the years were in the
+    names are still read, as a fallback.
+
+    Parameters
+    ----------
+    stem : str
+        the name without years or extension, e.g. ``"case_cam.h0a_T_climo"``
+    syr, eyr : int or str or None
+        the climatology years
+
+    Returns
+    -------
+    list of str
+        ``["<stem>_<YYYY-YYYY>.nc", "<stem>.nc"]``: the name to write (and
+        read first), then the older name to fall back on.  Only
+        ``["<stem>.nc"]`` when the years are not known.
+    """
+    tag = years_tag(syr, eyr)
+    return ([f"{stem}_{tag}.nc"] if tag else []) + [f"{stem}.nc"]
+
+
 def ts_var_from_filename(fname):
     """
     Read the variable name out of a time series file name.
@@ -204,7 +261,64 @@ def find_ts_files(ts_loc, pattern, recursive=True):
     if found or not recursive:
         return found
     # End if
-    return sorted(ts_loc.rglob(pattern))
+    # The ADF's "gridded" copies of native-grid time series sit in a
+    # sub-directory; whether to read them is the caller's decision
+    # (AdfData.timeseries_dir), so the recursive search never picks them up:
+    return sorted(
+        fil
+        for fil in ts_loc.rglob(pattern)
+        if "gridded" not in fil.relative_to(ts_loc).parts[:-1]
+    )
+
+
+def newer_inputs(output_file, input_files):
+    """
+    The input files modified after ``output_file`` was written.
+
+    An ADF output (a climatology, a regridded file) is reused on a later run
+    when it already exists.  That is only right if nothing it was made from has
+    changed since: a time series made again (with other weights, say) leaves
+    the climatology made from the old one behind, and the plots and tables
+    would then disagree.
+
+    Parameters
+    ----------
+    output_file : str or Path
+        An existing output file.
+    input_files : iterable of str or Path
+        The files it was made from.  Missing ones are ignored.
+
+    Returns
+    -------
+    list of Path
+        The inputs newer than ``output_file``; empty when it is up to date.
+    """
+    made = Path(output_file).stat().st_mtime
+    return [
+        Path(fil)
+        for fil in input_files or []
+        if Path(fil).is_file() and Path(fil).stat().st_mtime > made
+    ]
+
+
+def stale_note(input_files):
+    """
+    Name the newer inputs found by :func:`newer_inputs` for a message.
+
+    Parameters
+    ----------
+    input_files : list of Path
+        A non-empty list of input files.
+
+    Returns
+    -------
+    str
+        The first file's name, and how many more there are.
+    """
+    note = Path(input_files[0]).name
+    if len(input_files) > 1:
+        note += f" and {len(input_files) - 1} more"
+    return note
 
 
 def select_ts_files(fils, syr, eyr):  # pylint: disable=too-many-return-statements
@@ -504,3 +618,87 @@ def ts_file_span(fils):
     # Sorted by start, so the earliest start leads; take the latest end
     # explicitly rather than assuming the last entry carries it:
     return spans[0][0], max(end for _, end in spans)
+
+
+def ts_years_covered(fils):
+    """
+    Report the whole years a set of time series files covers.
+
+    Used to decide which years of a variable still have to be made from the
+    history files when some of its time series already exist.  Only years a
+    file holds in full count: "000101-000512" covers years 1-5, while
+    "000107-000512" covers years 2-5, because year 1 is only half there.
+
+    Parameters
+    ----------
+    fils : list
+        strings or paths to time series files, named
+        ``{case}.{stream}.{variable}.{start}-{end}.nc`` with dates of the form
+        YYYY, YYYYMM or YYYYMMDD.
+
+    Returns
+    -------
+    set of int or None
+        The years covered, or ``None`` if any name could not be read, in
+        which case the caller should make no assumptions about the files.
+    """
+    full_start = {4: "", 6: "01", 8: "0101"}
+    full_end = {4: "", 6: "12", 8: "1231"}
+    years = set()
+    for fil in fils:
+        date_str = Path(fil).stem.split(".")[-1]
+        start, sep, end = date_str.partition("-")
+        if (
+            not sep
+            or not start.isdigit()
+            or not end.isdigit()
+            or len(start) != len(end)
+            or len(start) not in full_start
+        ):
+            return None
+        # End if
+        first, last = int(start[:4]), int(end[:4])
+        if start[4:] != full_start[len(start)]:
+            first += 1
+        # End if
+        if end[4:] != full_end[len(end)]:
+            last -= 1
+        # End if
+        years.update(range(first, last + 1))
+    # End for
+    return years
+
+
+def missing_year_ranges(covered, syr, eyr):
+    """
+    Report the stretches of a year range that are not covered.
+
+    Parameters
+    ----------
+    covered : set of int
+        Years already covered, e.g. from :func:`ts_years_covered`.
+    syr, eyr : int
+        First and last year needed.
+
+    Returns
+    -------
+    list of tuple of int
+        ``(first, last)`` for each run of consecutive missing years, in order;
+        empty when every year is covered.
+    """
+    ranges = []
+    first = None
+    for year in range(syr, eyr + 1):
+        if year in covered:
+            if first is not None:
+                ranges.append((first, year - 1))
+                first = None
+            # End if
+        elif first is None:
+            first = year
+        # End if
+    # End for
+    if first is not None:
+        ranges.append((first, eyr))
+    # End if
+    return ranges

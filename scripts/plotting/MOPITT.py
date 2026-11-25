@@ -168,7 +168,7 @@ def MOPITT(adfobj):
     
     ntest = len(adfobj.get_cam_info('cam_case_name', required=True))
     redo_plot = adfobj.get_basic_info('redo_plot')
-    print(f"\t NOTE: redo_plot is set to {redo_plot}")
+    #print(f"\t NOTE: redo_plot is set to {redo_plot}")
     
     for i in range(0,ntest):
     

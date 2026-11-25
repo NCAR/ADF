@@ -69,6 +69,7 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.lines as mlines
 import cartopy.crs as ccrs
+import uxarray as ux  # need npl 2024a or later
 
 from adf_diag import AdfDiag
 import adf_utils as utils
@@ -1205,6 +1206,43 @@ def add_var_name_key_to_vres(adfobj, var, vres, vector=False):
     else:
         vres["var_name"] = vres.get("nickname", var)
     return vres
+
+
+def prep_ux_for_plot(fld, grid_source):
+    """
+    Get a native-grid seasonal field ready for plotting with uxarray.
+
+    Takes the time mean if there is a time dimension, sets infinities to NaN,
+    and makes sure the result is still a ``UxDataArray`` on the source grid --
+    xarray operations on a ``UxDataArray`` can hand back a plain DataArray.
+
+    NaNs are kept, so that cells without data (e.g. ocean cells of a land
+    field) are left blank in the raster and are skipped by the statistics,
+    rather than being drawn and counted as 0.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray or uxarray.UxDataArray
+        The field to plot, on the native grid.
+    grid_source : uxarray.UxDataArray
+        Data on the same grid, whose ``uxgrid`` is used if `fld` lost its own.
+
+    Returns
+    -------
+    uxarray.UxDataArray
+        The field, ready for plotting.
+    """
+    if "time" in fld.dims:
+        fld = fld.mean("time")
+    fld = fld.where(np.isfinite(fld))
+    if not isinstance(fld, ux.UxDataArray):
+        fld = ux.UxDataArray(
+            data=fld.data,
+            dims=fld.dims,
+            coords=fld.coords,
+            uxgrid=grid_source.uxgrid,
+        )
+    return fld
 
 
 #####################

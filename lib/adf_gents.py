@@ -227,7 +227,7 @@ def create_time_series_gents(adf, baseline=False):
         end_year = cfg["end_years"][case_idx]
 
         # Check if particular case should be processed:
-        if cfg["cam_ts_done"][case_idx]:
+        if not cfg["calc_ts"][case_idx]:
             emsg = "\tNOTE: Configuration file indicates time series files have been "
             emsg += f"pre-computed for case '{case_name}'.  Will rely on those files directly."
             print(emsg)
@@ -387,7 +387,7 @@ def create_time_series_gents(adf, baseline=False):
             if ts_problem:
                 emsg = f"Provided {case_type_string} 'cam_ts_loc' directory"
                 emsg += f" {ts_problem}.\n\tSet 'cam_ts_loc' to a directory you own,"
-                emsg += " or set 'cam_ts_done: true' to read the time series that are"
+                emsg += " or set 'calc_cam_ts: false' to read the time series that are"
                 emsg += " already there."
                 adf.end_diag_fail(emsg)
             # End if

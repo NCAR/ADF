@@ -38,6 +38,7 @@ square_contour_difference
 # Import standard python modules
 # ++++++++++++++++++++++++++++++
 
+import inspect
 from typing import Optional
 
 import warnings  # use to warn user about missing files.
@@ -59,6 +60,7 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter
 from matplotlib.ticker import MaxNLocator
 from matplotlib.ticker import MultipleLocator
+import uxarray as ux  # need npl 2024a or later
 
 from adf_base import AdfError
 import plotting_utils as plot_utils
@@ -75,6 +77,19 @@ import matplotlib.pyplot as plt  # pylint: disable=wrong-import-order,ungrouped-
 
 EMPTY_MESSAGE = "No Valid\nData Points"
 props = {"boxstyle": "round", "facecolor": "wheat", "alpha": 0.9}
+# Under the difference panel when a percent panel that was asked for is left out
+# (see _pct_footnote):
+PCT_HIDDEN_MESSAGE = (
+    "Test % Diff Baseline not shown:\n"
+    "the baseline is near zero over too much of the area\n"
+    f"(beyond ±{utils.PCT_BLOWUP_LIMIT:g}% over more than "
+    f"{100 * utils.PCT_BLOWUP_AREA_FRAC:g}% of it)"
+)
+# What _pct_panel_note returns for a percent panel that is off (the default):
+PCT_OFF_MESSAGE = (
+    "Test % Diff Baseline not shown:\n"
+    "off for this variable (pct_diff_panel in the variable defaults)"
+)
 
 
 # Set seasonal ranges:
@@ -89,12 +104,273 @@ seasons = {
 CBAR_SIZE = 8
 CBAR_LABELPAD = 5
 
+# to_raster gained pixel_mapping / return_pixel_mapping after uxarray v2025.6.0
+_RASTER_HAS_PIXEL_MAPPING = (
+    "pixel_mapping"
+    in inspect.signature(
+        getattr(ux.UxDataArray, "to_raster", lambda self, ax: None)
+    ).parameters
+)
+
+# pixel -> face mappings, reused across panels, seasons and variables
+_PIXEL_MAPPINGS = {}
+
 #################
 # HELPER FUNCTIONS
 #################
 
 
+def _pixel_mapping_key(uxda, ax):
+    """Key identifying when a pixel mapping can be reused.
+
+    A mapping is only valid for the same grid, projection, axes extent and
+    axes pixel size. Grids are reloaded for every variable, so the grid is
+    identified by its size and a few node coordinates rather than object identity.
+    """
+    grid = uxda.uxgrid
+    grid_id = (
+        grid.n_face,
+        grid.n_node,
+        float(grid.node_lon[0]),
+        float(grid.node_lat[0]),
+        float(grid.node_lon[-1]),
+        float(grid.node_lat[-1]),
+    )
+    return (
+        grid_id,
+        ax.projection.proj4_init,
+        tuple(np.round(ax.get_xlim() + ax.get_ylim(), 6)),
+        tuple(int(v) for v in ax.bbox.bounds[2:]),
+    )
+
+
+def raster_with_mapping(uxda, ax):
+    """Rasterize unstructured data onto a GeoAxes, reusing a cached pixel mapping.
+
+    Parameters
+    ----------
+    uxda : uxarray.UxDataArray
+        Face-centered data to rasterize.
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        Axes to rasterize onto; set its extent (e.g. ``set_global``) first.
+
+    Returns
+    -------
+    numpy.ndarray
+        Rasterized data, for use with ``ax.imshow``.
+
+    Notes
+    -----
+    Mappings are cached in ``_PIXEL_MAPPINGS`` for the life of the process, keyed
+    on grid, projection, extent and axes pixel size, so the pixel -> face search
+    runs once per grid and panel layout for an entire ADF run. Falls back to a
+    plain ``to_raster`` call when uxarray is too old to support mappings.
+    """
+    if not _RASTER_HAS_PIXEL_MAPPING:
+        return uxda.to_raster(ax=ax)
+    key = _pixel_mapping_key(uxda, ax)
+    pixel_mapping = _PIXEL_MAPPINGS.get(key)
+    if pixel_mapping is None:
+        raster, _PIXEL_MAPPINGS[key] = uxda.to_raster(ax=ax, return_pixel_mapping=True)
+        return raster
+    return uxda.to_raster(ax=ax, pixel_mapping=pixel_mapping)
+
+
+def _raster_colors(cmap, norm, contour_levs, extend="neither"):
+    """Colormap and norm that color a native-grid raster as contourf colors lat/lon.
+
+    Parameters
+    ----------
+    cmap : str or matplotlib.colors.Colormap
+        the panel's colormap, as from :func:`plotting_utils.prep_contour_plot`
+    norm : matplotlib.colors.Normalize or None
+        the panel's norm, as given to ``contourf`` for a lat/lon field;
+        ``None`` maps the levels linearly
+    contour_levs : numpy.ndarray
+        sorted, unique contour levels (at least two)
+    extend : {"neither", "min", "max", "both"}, optional
+        whether values beyond the first or last level get the colormap's
+        under or over color, as for ``contourf``
+
+    Returns
+    -------
+    tuple
+        ``(cmap, norm)``: a colormap with one color per band between levels
+        (plus the under/over colors) and the matching
+        :class:`matplotlib.colors.BoundaryNorm`, which also gives the colorbar
+        its extension arrows.
+
+    Notes
+    -----
+    ``contourf`` colors each band with ``cmap(norm(midpoint))``.  A raster
+    drawn with a plain linear norm instead spreads the colormap evenly over
+    the range, which ignores the configured levels: the default % levels are
+    packed near zero, so a 5-10% change came out almost white on the mesh
+    while the lat/lon panel colored it clearly.
+    """
+    cmap_obj = mpl.colormaps[cmap] if isinstance(cmap, str) else cmap
+    levels = np.asarray(contour_levs, dtype=float)
+    if norm is None:
+        norm = mpl.colors.Normalize(vmin=levels[0], vmax=levels[-1])
+    colors = list(cmap_obj(norm(0.5 * (levels[:-1] + levels[1:]))))
+    if extend in ("min", "both"):
+        colors.insert(0, cmap_obj.get_under())
+    if extend in ("max", "both"):
+        colors.append(cmap_obj.get_over())
+    return mpl.colors.from_levels_and_colors(levels, colors, extend=extend)
+
+
+def _pct_panel_note(pct, kwargs):
+    """Return the note to leave in place of a percent panel, or None to draw it.
+
+    Parameters
+    ----------
+    pct : xr.DataArray or ux.UxDataArray
+        the percent change, as plotted
+    kwargs : dict
+        the variable's settings from the variable defaults; ``pct_diff_panel``
+        is looked up in the plot type's section first, then at the top level
+
+    Returns
+    -------
+    str or None
+        ``None`` (draw the panel) for ``pct_diff_panel: always``, and for
+        ``pct_diff_panel: true`` unless :func:`adf_utils.pct_blows_up` says the
+        panel would only show where the baseline is near zero, which gives
+        :data:`PCT_HIDDEN_MESSAGE`; :data:`PCT_OFF_MESSAGE` otherwise,
+        including when ``pct_diff_panel`` is not set.
+
+    Notes
+    -----
+    The panel is off by default: a percent change is only meaningful for a
+    field that does not change sign (precipitation, humidity, cloud amount,
+    cloud forcing, aerosol).  For one that does (U, V, TAUX, TAUY, RESTOM) it
+    is unbounded wherever the baseline crosses zero, and for temperature or
+    pressure in absolute units it is ~0 everywhere.
+    """
+    section = kwargs.get(kwargs["plot_type"], {}) if "plot_type" in kwargs else {}
+    if isinstance(section, dict) and "pct_diff_panel" in section:
+        setting = section["pct_diff_panel"]
+    else:
+        setting = kwargs.get("pct_diff_panel", False)
+    if setting == "always":
+        return None
+    if setting is True:
+        return PCT_HIDDEN_MESSAGE if utils.pct_blows_up(pct) else None
+    if setting not in (None, False):
+        warnings.warn(
+            f"\tWARNING: pct_diff_panel must be true, false or always, not {setting!r};"
+            " leaving the percent difference panel out."
+        )
+    return PCT_OFF_MESSAGE
+
+
+def polar_domain(hemisphere, domain=None):
+    """The region a polar map covers, ``[west, east, south, north]``.
+
+    Parameters
+    ----------
+    hemisphere : str
+        "NH", "SH", "Arctic" or "Antarctic"
+    domain : list, optional
+        returned as is when given
+
+    Returns
+    -------
+    list
+        45-90N for "NH", 50-90N for "Arctic", 45-90S otherwise
+    """
+    if domain is not None:
+        return domain
+    if hemisphere.upper() == "NH":
+        return [-180, 180, 45, 90]
+    if hemisphere.upper() == "ARCTIC":
+        return [-180, 180, 50, 90]
+    return [-180, 180, -90, -45]
+
+
+def _header_stats(panel_stats, idx):
+    """The (mean, max, min, native) given for a panel, or None.
+
+    Parameters
+    ----------
+    panel_stats : dict or None
+        as from :meth:`AdfData.header_stats`: the test (0) and reference (1)
+        panels' numbers over the cells where both have data, from the native
+        grid for a native case
+    idx : int
+        the panel
+
+    Returns
+    -------
+    tuple or None
+        ``(mean, max, min, native)``, or None to compute them from the field
+    """
+    if not panel_stats or idx not in panel_stats:
+        return None
+    return panel_stats[idx]
+
+
+def _stats_text(mean, vmax, vmin, native=False):
+    """Mean/Max/Min lines for a panel header, noting native-grid numbers."""
+    text = f"Mean: {mean:5.2f}\nMax: {vmax:5.2f}\nMin: {vmin:5.2f}"
+    return text + "\n(native grid)" if native else text
+
+
+def _pct_footnote(ax, note, y=-0.17):
+    """Note under a panel why a percent panel that was asked for is not drawn.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        the panel to write the note under (the difference panel)
+    note : str or None
+        as from :func:`_pct_panel_note`; only :data:`PCT_HIDDEN_MESSAGE` is
+        written, as a panel that is simply off needs no explanation
+    y : float, optional
+        where the note goes, in the panel's axes coordinates
+
+    Notes
+    -----
+    The plots leave a percent panel that is not drawn out of the layout: the
+    maps centre the difference panel under the two fields, and the zonal and
+    meridional means drop that row.  A panel that is simply off needs no
+    note; one that was turned on but blew up gets this one.
+    """
+    if note != PCT_HIDDEN_MESSAGE:
+        return
+    ax.text(
+        0.5,
+        y,
+        note,
+        transform=ax.transAxes,
+        ha="center",
+        va="top",
+        fontsize=7,
+        color="0.35",
+    )
+
+
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
+def _pct_of_region_means(test, base, domain, unstructured=False):
+    """Percent change of the regional area means of `test` and `base`.
+
+    Over the cells where both have data, with the weights of
+    `utils.domain_stats`; the headline number of a polar percent panel.
+    """
+    both = np.isfinite(test) & np.isfinite(base)
+    if isinstance(test, ux.UxDataArray):
+        test_both = ux.UxDataArray(test.where(both), uxgrid=test.uxgrid)
+        base_both = ux.UxDataArray(base.where(both), uxgrid=base.uxgrid)
+    else:
+        test_both, base_both = test.where(both), base.where(both)
+    mean_t = utils.domain_stats(test_both, domain, unstructured)[0]
+    mean_b = utils.domain_stats(base_both, domain, unstructured)[0]
+    if not np.isfinite(mean_b) or mean_b == 0:
+        return np.nan
+    return 100.0 * (mean_t - mean_b) / abs(mean_b)
+
+
 def make_polar_plot(
     adfobj,
     wks,
@@ -109,6 +385,7 @@ def make_polar_plot(
     domain: Optional[list] = None,
     hemisphere: Optional[str] = None,
     obs=False,
+    unstructured=False,
     **kwargs,
 ):
     """Make a stereographic polar plot for the given data and hemisphere.
@@ -134,14 +411,17 @@ def make_polar_plot(
         the domain to plot, specified as
         [west_longitude, east_longitude, south_latitude, north_latitude]
         Defaults to pole to 45-degrees, all longitudes
-    hemisphere : {'NH', 'SH'}, optional
-        Hemsiphere to plot
+    hemisphere : {'NH', 'SH', 'Arctic', 'Antarctic'}, optional
+        Hemsiphere to plot ('Arctic'/'Antarctic' are the land diagnostics' names)
+    unstructured : bool, optional
+        True when `d1`, `d2` (and the difference fields) are on a native grid
+        (uxarray), which is drawn as a raster instead of contoured.
     kwargs : dict, optional
         variable-dependent options for plots, See Notes.
 
     Notes
     -----
-    - Uses contourf. No contour lines (yet).
+    - Uses contourf (a raster for native-grid data). No contour lines (yet).
     - kwargs is checked for:
         + `colormap`
         + `contour_levels`
@@ -157,50 +437,88 @@ def make_polar_plot(
         dif = difference
 
     if pctchange is None:
-        pct = (d2 - d1) / np.abs(d1) * 100.0
+        # d1 is the test case and d2 the baseline:
+        pct = utils.pct_change(d1, d2)
     else:
         pct = pctchange
 
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted.
+    # On a native grid as well: the raster leaves missing faces blank, as for
+    # the other three panels, where 0 would draw the ocean of a land field as
+    # "no change" (and pull the panel's mean towards 0).  Rebuilt on the same
+    # grid, as xarray operations can hand back a plain DataArray:
+    if isinstance(pct, ux.UxDataArray):
+        pct = ux.UxDataArray(pct.where(np.isfinite(pct)), uxgrid=pct.uxgrid)
+    else:
+        pct = pct.where(np.isfinite(pct))
 
-    if hemisphere.upper() == "NH":
+    # The land diagnostics name the hemispheres "Arctic" and "Antarctic":
+    if hemisphere.upper() in ("NH", "ARCTIC"):
         proj = ccrs.NorthPolarStereo()
-    elif hemisphere.upper() == "SH":
+    elif hemisphere.upper() in ("SH", "ANTARCTIC"):
         proj = ccrs.SouthPolarStereo()
     else:
         raise AdfError(
-            "[make_polar_plot] hemisphere not specified, must be NH or SH; "
-            f"hemisphere set as {hemisphere}"
+            "[make_polar_plot] hemisphere not specified, must be NH, SH, "
+            f"Arctic or Antarctic; hemisphere set as {hemisphere}"
         )
 
-    if domain is None:
-        if hemisphere.upper() == "NH":
-            domain = [-180, 180, 45, 90]
-        else:
-            domain = [-180, 180, -90, -45]
+    domain = polar_domain(hemisphere, domain)
 
-    # statistics for annotation (these are scalars):
-    d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain)
-    d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain)
-    dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(dif, domain)
-    pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(pct, domain)
+    if not unstructured:
+        # statistics for annotation (these are scalars):
+        d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(d1, domain)
+        d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(d2, domain)
+        dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(
+            dif, domain
+        )
+        pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(
+            pct, domain
+        )
+        pct_region_mean = _pct_of_region_means(d1, d2, domain)
 
-    # downsize to the specified region; makes plotting/rendering/saving much faster
-    d1 = d1.sel(lat=slice(domain[2], domain[3]))
-    d2 = d2.sel(lat=slice(domain[2], domain[3]))
-    dif = dif.sel(lat=slice(domain[2], domain[3]))
-    pct = pct.sel(lat=slice(domain[2], domain[3]))
+        # downsize to the specified region; makes plotting/rendering/saving much faster
+        d1 = d1.sel(lat=slice(domain[2], domain[3]))
+        d2 = d2.sel(lat=slice(domain[2], domain[3]))
+        dif = dif.sel(lat=slice(domain[2], domain[3]))
+        pct = pct.sel(lat=slice(domain[2], domain[3]))
 
-    # add cyclic point to the data for better-looking plot
-    d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
-    d2_cyclic, _ = add_cyclic_point(
-        d2, coord=d2.lon
-    )  # since we can take difference, assume same longitude coord.
-    dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
-    pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
+        # add cyclic point to the data for better-looking plot
+        d1_cyclic, lon_cyclic = add_cyclic_point(d1, coord=d1.lon)
+        d2_cyclic, _ = add_cyclic_point(
+            d2, coord=d2.lon
+        )  # since we can take difference, assume same longitude coord.
+        dif_cyclic, _ = add_cyclic_point(dif, coord=dif.lon)
+        pct_cyclic, _ = add_cyclic_point(pct, coord=pct.lon)
 
-    wrap_fields = (d1_cyclic, d2_cyclic, pct_cyclic, dif_cyclic)
+        wrap_fields = (d1_cyclic, d2_cyclic, pct_cyclic, dif_cyclic)
+    else:
+        # Native grid: keep the cells whose centres are in the domain
+        indices = np.where(
+            (d1.uxgrid.face_lat.values >= domain[2])
+            & (d1.uxgrid.face_lat.values <= domain[3])
+        )[0]
+        d1 = d1.isel(n_face=indices)
+        d2 = d2.isel(n_face=indices)
+        pct = pct.isel(n_face=indices)
+        dif = dif.isel(n_face=indices)
+
+        wrap_fields = (d1, d2, pct, dif)
+
+        # statistics for annotation (these are scalars):
+        d1_region_mean, d1_region_max, d1_region_min = utils.domain_stats(
+            d1, domain, unstructured
+        )
+        d2_region_mean, d2_region_max, d2_region_min = utils.domain_stats(
+            d2, domain, unstructured
+        )
+        dif_region_mean, dif_region_max, dif_region_min = utils.domain_stats(
+            dif, domain, unstructured
+        )
+        pct_region_mean, pct_region_max, pct_region_min = utils.domain_stats(
+            pct, domain, unstructured
+        )
+        pct_region_mean = _pct_of_region_means(d1, d2, domain, unstructured)
 
     # -- deal with optional plotting arguments that might provide variable-dependent choices
     kwargs["adfobj"] = adfobj
@@ -209,18 +527,56 @@ def make_polar_plot(
     diff_units = cp_info["diff_units_label"]
     pct_units = cp_info["pct_units_label"]
 
-    lons, lats = plot_utils.transform_coordinates_for_projection(
-        proj, lon_cyclic, d1.lat
-    )  # Explicit coordinate transform
+    if not unstructured:
+        lons, lats = plot_utils.transform_coordinates_for_projection(
+            proj, lon_cyclic, d1.lat
+        )  # Explicit coordinate transform
 
-    fig = plt.figure(figsize=(10, 10))
+    # controlling DPI improves raster plots for unstructured data, but it does slow things down
+    fig = plt.figure(figsize=(10, 10), dpi=300)
     gs = mpl.gridspec.GridSpec(2, 4, wspace=0.9)
 
+    # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+    # on, and left out when it only shows where the baseline crosses zero
+    # (judged over the plotted region):
+    pct_note = _pct_panel_note(pct, kwargs)
+    show_pct = pct_note is None
+
+    # Test and baseline on the top row; below them the percent and difference
+    # panels side by side, or the difference panel alone, centred:
     ax1 = plt.subplot(gs[0, :2], projection=proj)
     ax2 = plt.subplot(gs[0, 2:], projection=proj)
-    ax3 = plt.subplot(gs[1, :2], projection=proj)
-    ax4 = plt.subplot(gs[1, 2:], projection=proj)
+    if show_pct:
+        ax3 = plt.subplot(gs[1, :2], projection=proj)
+        ax4 = plt.subplot(gs[1, 2:], projection=proj)
+    else:
+        # No percent panel: its slot is None, so the field indices stay the same
+        ax3 = None
+        ax4 = plt.subplot(gs[1, 1:3], projection=proj)
     axs = [ax1, ax2, ax3, ax4]
+
+    for a in (a for a in axs if a is not None):
+        # __Follow the cartopy gallery example to make circular__:
+        # Compute a circle in axes coordinates, which we can use as a boundary
+        # for the map. We can pan/zoom as much as we like - the boundary will be
+        # permanently circular.
+        theta = np.linspace(0, 2 * np.pi, 100)
+        center, radius = [0.5, 0.5], 0.5
+        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+        circle = mpl.path.Path(verts * radius + center)
+        a.set_boundary(circle, transform=a.transAxes)
+        # Set before plotting, so native-grid rasters cover only the domain
+        a.set_extent(domain, ccrs.PlateCarree())
+        a.coastlines()
+        a.gridlines(
+            draw_labels=False,
+            crs=ccrs.PlateCarree(),
+            lw=1,
+            color="gray",
+            y_inline=True,
+            xlocs=range(-180, 180, 90),
+            ylocs=range(-80, 90, 10),
+        )
 
     means = []
     mins = []
@@ -229,6 +585,16 @@ def make_polar_plot(
     means.extend([d1_region_mean, d2_region_mean, pct_region_mean, dif_region_mean])
     mins.extend([d1_region_min, d2_region_min, pct_region_min, dif_region_min])
     maxs.extend([d1_region_max, d2_region_max, pct_region_max, dif_region_max])
+    # Given numbers (kwargs "panel_stats", see AdfData.header_stats) replace
+    # the test and reference panels', and the % panel's Mean follows them:
+    natives = [False] * 4
+    panel_stats = kwargs.get("panel_stats")
+    for idx in (0, 1):
+        given = _header_stats(panel_stats, idx)
+        if given is not None:
+            means[idx], maxs[idx], mins[idx], natives[idx] = given
+    if _header_stats(panel_stats, 0) and _header_stats(panel_stats, 1):
+        means[2] = 100.0 * (means[0] - means[1]) / abs(means[1]) if means[1] else np.nan
 
     pctdiff_idx = 2
     diff_idx = 3
@@ -236,6 +602,9 @@ def make_polar_plot(
 
     # Loop over data arrays to make plots
     for i, a in enumerate(wrap_fields):
+        if axs[i] is None:  # the percent panel, left out
+            imgs.append(None)
+            continue
         if i == diff_idx:
             levels = cp_info["levels_diff"]
             cmap = cp_info["cmap_diff"]
@@ -253,7 +622,34 @@ def make_polar_plot(
             extend = cp_info["extend_sim"]
 
         contour_levs = np.unique(np.array(levels))
-        if len(contour_levs) < 2:
+        if unstructured:
+            # Native grid: draw a raster of the cells (extent is already set)
+            raster = raster_with_mapping(a, axs[i])
+            if len(contour_levs) < 2:
+                # e.g. a field that is zero everywhere in the region (crop
+                # variables near the poles): no levels to scale the colors by
+                img = axs[i].imshow(
+                    raster,
+                    cmap=cmap,
+                    origin="lower",
+                    extent=axs[i].get_xlim() + axs[i].get_ylim(),
+                )
+                axs[i].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props
+                )
+            else:
+                # The same colors per level as the lat/lon (contourf) panels:
+                rcmap, rnorm = _raster_colors(cmap, norm, contour_levs, extend)
+                img = axs[i].imshow(
+                    raster,
+                    cmap=rcmap,
+                    norm=rnorm,
+                    origin="lower",
+                    extent=axs[i].get_xlim() + axs[i].get_ylim(),
+                )
+            # End if
+            imgs.append(img)
+        elif len(contour_levs) < 2:
             imgs.append(axs[i].contourf(lons, lats, a, colors="w"))
             axs[i].text(0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props)
         else:
@@ -271,10 +667,7 @@ def make_polar_plot(
             )
 
         # Set stats for title
-        stat_mean = f"Mean: {means[i]:5.2f}"
-        stat_max = f"Max: {maxs[i]:5.2f}"
-        stat_min = f"Min: {mins[i]:5.2f}"
-        stats = f"{stat_mean}\n{stat_max}\n{stat_min}"
+        stats = _stats_text(means[i], maxs[i], mins[i], natives[i])
         axs[i].text(-0.05, 0.0, stats, transform=axs[i].transAxes, fontsize=CBAR_SIZE)
 
     # End for
@@ -316,30 +709,11 @@ def make_polar_plot(
         )
         axs[1].set_title(base_title, loc="left", fontsize=8)
 
-    axs[2].set_title("Test % Diff Baseline", loc="left", fontsize=8, fontweight="bold")
-    axs[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
-
-    for a in axs:
-        # __Follow the cartopy gallery example to make circular__:
-        # Compute a circle in axes coordinates, which we can use as a boundary
-        # for the map. We can pan/zoom as much as we like - the boundary will be
-        # permanently circular.
-        theta = np.linspace(0, 2 * np.pi, 100)
-        center, radius = [0.5, 0.5], 0.5
-        verts = np.vstack([np.sin(theta), np.cos(theta)]).T
-        circle = mpl.path.Path(verts * radius + center)
-        a.set_boundary(circle, transform=a.transAxes)
-        a.set_extent(domain, ccrs.PlateCarree())
-        a.coastlines()
-        a.gridlines(
-            draw_labels=False,
-            crs=ccrs.PlateCarree(),
-            lw=1,
-            color="gray",
-            y_inline=True,
-            xlocs=range(-180, 180, 90),
-            ylocs=range(-80, 90, 10),
+    if show_pct:
+        axs[2].set_title(
+            "Test % Diff Baseline", loc="left", fontsize=8, fontweight="bold"
         )
+    axs[3].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=8)
 
     # __COLORBARS__
     cb_mean_ax = inset_axes(
@@ -355,16 +729,6 @@ def make_polar_plot(
     cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left")
     cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-    cb_pct_ax = inset_axes(
-        axs[2],
-        width="5%",
-        height="90%",  # height : 90%
-        loc="lower left",
-        bbox_to_anchor=(1.05, 0.05, 1, 1),
-        bbox_transform=ax3.transAxes,
-        borderpad=0,
-    )
-
     cb_diff_ax = inset_axes(
         axs[3],
         width="5%",
@@ -375,17 +739,32 @@ def make_polar_plot(
         borderpad=0,
     )
 
-    pctdiff_cbar = fig.colorbar(imgs[2], cax=cb_pct_ax, **cp_info["pct_colorbar_opt"])
-    pctdiff_cbar.ax.set_title(
-        pct_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
-    )
-    pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+    if show_pct:
+        cb_pct_ax = inset_axes(
+            axs[2],
+            width="5%",
+            height="90%",  # height : 90%
+            loc="lower left",
+            bbox_to_anchor=(1.05, 0.05, 1, 1),
+            bbox_transform=ax3.transAxes,
+            borderpad=0,
+        )
+        pctdiff_cbar = fig.colorbar(
+            imgs[2], cax=cb_pct_ax, **cp_info["pct_colorbar_opt"]
+        )
+        pctdiff_cbar.ax.set_title(
+            pct_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
+        )
+        pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
     diff_cbar = fig.colorbar(imgs[3], cax=cb_diff_ax, **cp_info["diff_colorbar_opt"])
     diff_cbar.ax.set_title(
         diff_units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left"
     )
     diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+
+    # Say why a percent panel that was asked for is not there:
+    _pct_footnote(axs[3], pct_note, y=-0.08)
 
     # Save files
     fig.savefig(wks, bbox_inches="tight", dpi=300)
@@ -482,12 +861,46 @@ def plot_map_and_save(
     kwargs["adfobj"] = adfobj
     vector = vmdlfld is not None
 
+    # Native-grid (uxarray) fields are drawn as rasters, weighted by their
+    # cell weights ('wgt', see adf_utils.cell_weights) -- see global_latlon_map:
+    unstructured = kwargs.get("unstructured_plotting", False)
     # Only set for vector plots (when the V components are given):
     skip = sim_mags = diff_mag = None
     udif_wrap = vdif_wrap = umdl_wrap = vmdl_wrap = uobs_wrap = vobs_wrap = None
     mdl_mag = obs_mag = None
 
-    if vector:
+    if unstructured:
+        wgt = kwargs["wgt"]
+        if vector:
+            # The grid the data are on (a lat/lon case put onto the
+            # reference's mesh has no 'mesh_file' of its own):
+            grid = getattr(mdlfld, "uxgrid", None)
+            if grid is None:
+                grid = ux.open_grid(kwargs["mesh_file"])
+            # cell centres, for the vector arrows:
+            lons = grid.face_lon.values
+            lats = grid.face_lat.values
+            umdl_wrap, vmdl_wrap = mdlfld, vmdlfld
+            uobs_wrap, vobs_wrap = obsfld, vobsfld
+            udif_wrap, vdif_wrap = diffld, vdiffld
+            # Vector magnitudes (the difference from the model and baseline
+            # magnitudes, to get the correct sign):
+            mdl_mag = np.sqrt(mdlfld**2 + vmdlfld**2)
+            obs_mag = np.sqrt(obsfld**2 + vobsfld**2)
+            diff_mag = mdl_mag - obs_mag
+            sim_mags = [mdl_mag, obs_mag]
+            wrap_fields = (mdl_mag, obs_mag, diff_mag)
+            stat_fields = {0: mdl_mag, 1: obs_mag, 2: diff_mag}
+            d_rmse = utils.wgt_rmse(mdl_mag, obs_mag, wgt)
+        else:
+            fields = tuple(
+                fld.reset_coords(drop=True) for fld in (mdlfld, obsfld, pctld, diffld)
+            )
+            wrap_fields = fields
+            stat_fields = dict(enumerate(fields))
+            d_rmse = utils.wgt_rmse(fields[0], fields[1], wgt)
+        # End if
+    elif vector:
         # too many vectors to see well, so prune by striding through data:
         skip = (slice(None, None, 5), slice(None, None, 8))
 
@@ -569,28 +982,36 @@ def plot_map_and_save(
     central_longitude = kwargs.get("central_longitude", 180)
 
     # create figure object
-    fig = plt.figure(figsize=(14, 10))
+    # controlling DPI improves raster plots for unstructured data, but it does slow things down
+    fig = plt.figure(figsize=(14, 8), dpi=300)
+
+    # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+    # on, and left out when it only shows where the baseline crosses zero.
+    # Never for vectors.
+    pct_note = None if vector else _pct_panel_note(pctld, kwargs)
+    show_pct = not vector and pct_note is None
 
     # LAYOUT WITH GRIDSPEC
-    wspace = 1.66
-    if vector:
-        hspace = 0
-    else:
-        hspace = -0.25
-    gs = mpl.gridspec.GridSpec(
-        3, 6, wspace=wspace, hspace=hspace
-    )  # 2 rows, 4 columns, but each map will take up 2 columns
+    # Test and baseline on the top row; below them the percent and difference
+    # panels side by side, or the difference panel alone, centred.  Each map
+    # spans 2 of 4 columns, so all are the same size and unstructured plots
+    # share one pixel mapping.
+    gs = mpl.gridspec.GridSpec(2, 4, wspace=0.7, hspace=0.2)
     proj = ccrs.PlateCarree(central_longitude=central_longitude)
-    ax1 = plt.subplot(gs[0:2, :3], projection=proj, **cp_info["subplots_opt"])
-    ax2 = plt.subplot(gs[0:2, 3:], projection=proj, **cp_info["subplots_opt"])
+    ax1 = plt.subplot(gs[0, :2], projection=proj, **cp_info["subplots_opt"])
+    ax2 = plt.subplot(gs[0, 2:], projection=proj, **cp_info["subplots_opt"])
 
     if vector:
-        ax3 = plt.subplot(gs[2, 1:5], projection=proj, **cp_info["subplots_opt"])
+        ax3 = plt.subplot(gs[1, 1:3], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3]
-    else:
-        ax3 = plt.subplot(gs[2, :3], projection=proj, **cp_info["subplots_opt"])
-        ax4 = plt.subplot(gs[2, 3:], projection=proj, **cp_info["subplots_opt"])
+    elif show_pct:
+        ax3 = plt.subplot(gs[1, :2], projection=proj, **cp_info["subplots_opt"])
+        ax4 = plt.subplot(gs[1, 2:], projection=proj, **cp_info["subplots_opt"])
         ax = [ax1, ax2, ax3, ax4]
+    else:
+        # No percent panel: its slot is None, so the field indices stay the same
+        ax4 = plt.subplot(gs[1, 1:3], projection=proj, **cp_info["subplots_opt"])
+        ax = [ax1, ax2, None, ax4]
 
     img = []  # contour plots
 
@@ -614,11 +1035,16 @@ def plot_map_and_save(
         pctdiff_idx = None
         diff_idx = 2
     else:
-        pctdiff_idx = 2
+        pctdiff_idx = 2 if show_pct else None
         diff_idx = 3
 
     levels = cmap = norm = extend = None
-    for i, a in enumerate(wrap_fields):
+    # Only the fields that have a panel: a lat/lon vector plot also carries the
+    # percent field, which it does not draw.
+    for i, a in enumerate(wrap_fields[: len(ax)]):
+        if ax[i] is None:  # the percent panel, left out
+            img.append(None)
+            continue
         if i == diff_idx:
             levels = cp_info["levels_diff"]
             cmap = cp_info["cmap_diff"]
@@ -653,7 +1079,52 @@ def plot_map_and_save(
             extend = cp_info["extend_sim"]
 
         contour_levs = np.unique(np.array(levels))
-        if len(contour_levs) < 2:
+        if unstructured:
+            # Native grid: draw a raster of the cells (on the test case's grid)
+            fld_ux = ux.UxDataArray(a, uxgrid=mdlfld.uxgrid)
+            ax[i].set_global()
+            raster = raster_with_mapping(fld_ux, ax[i])
+            if len(contour_levs) < 2:
+                # e.g. a field that is zero everywhere: no levels to scale by
+                raster_img = ax[i].imshow(
+                    raster,
+                    cmap=cmap,
+                    origin="lower",
+                    extent=ax[i].get_xlim() + ax[i].get_ylim(),
+                )
+                ax[i].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props
+                )
+            else:
+                # The same colors per level as the lat/lon (contourf) panels:
+                rcmap, rnorm = _raster_colors(cmap, norm, contour_levs, extend)
+                raster_img = ax[i].imshow(
+                    raster,
+                    cmap=rcmap,
+                    norm=rnorm,
+                    origin="lower",
+                    extent=ax[i].get_xlim() + ax[i].get_ylim(),
+                )
+            # End if
+            img.append(raster_img)
+            if vector:
+                # Arrows at every 20th cell; test, baseline, difference vectors:
+                ufld, vfld = (
+                    (umdl_wrap, vmdl_wrap),
+                    (uobs_wrap, vobs_wrap),
+                    (udif_wrap, vdif_wrap),
+                )[i]
+                every = np.arange(0, ufld.sizes["n_face"], 20)
+                ax[i].quiver(
+                    lons[every],
+                    lats[every],
+                    ufld.isel(n_face=every),
+                    vfld.isel(n_face=every),
+                    transform=ccrs.PlateCarree(),
+                    cmap="Reds",
+                )
+            # End if
+        elif len(contour_levs) < 2:
             img.append(
                 ax[i].contourf(
                     lons,
@@ -740,7 +1211,7 @@ def plot_map_and_save(
         fontsize=14,
         fontfamily=["DejaVu Sans", "Liberation Sans", "sans-serif"],
     )
-    st.set_y(0.825)
+    st.set_y(0.98)
 
     # Set plot titles
     case_title = (
@@ -769,15 +1240,33 @@ def plot_map_and_save(
 
     # Set stats: area-weighted (cos(lat)) mean, as for the other ADF plots.
     # Vector plots give the stats of the vector magnitudes:
+    # The percent panel's Mean is the percent change of the area means, which
+    # cells with a tiny baseline cannot swamp (see utils.pct_change_of_means):
+    # Given numbers (kwargs "panel_stats", see AdfData.header_stats) replace
+    # the test and reference panels': over the cells where both have data, and
+    # from the native grid for a native case drawn on lat/lon.
+    panel_stats = None if vector else kwargs.get("panel_stats")
     for i, fld in stat_fields.items():
-        ax[i].set_title(
-            f"Mean: {utils.spatial_average(fld, weights=wgt).item():5.2f}\n"
-            f"Max: {fld.max().item():5.2f}\nMin: {fld.min().item():5.2f}",
-            loc="right",
-            fontsize=ti_font_size,
-        )
+        if ax[i] is None:
+            continue
+        given = _header_stats(panel_stats, i)
+        if given is not None:
+            text = _stats_text(*given)
+        else:
+            if i == 2 and not vector:
+                if _header_stats(panel_stats, 0) and _header_stats(panel_stats, 1):
+                    m_test, m_ref = panel_stats[0][0], panel_stats[1][0]
+                    mean = 100.0 * (m_test - m_ref) / abs(m_ref) if m_ref else np.nan
+                else:
+                    mean = utils.pct_change_of_means(
+                        stat_fields[0], stat_fields[1], weights=wgt
+                    )
+            else:
+                mean = utils.spatial_average(fld, weights=wgt).item()
+            text = _stats_text(mean, fld.max().item(), fld.min().item())
+        ax[i].set_title(text, loc="right", fontsize=ti_font_size)
 
-    if not vector:
+    if show_pct:
         ax[pctdiff_idx].set_title(
             "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
         )
@@ -787,6 +1276,8 @@ def plot_map_and_save(
     )
 
     for a in ax:
+        if a is None:
+            continue
         a.tick_params(axis="both", labelsize=8)
         a.spines["geo"].set_linewidth(1.5)  # cartopy's recommended method
         a.coastlines()
@@ -813,7 +1304,7 @@ def plot_map_and_save(
     cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=CBAR_LABELPAD, loc="left")
     cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-    if not vector:
+    if show_pct:
         cb_pct_ax = inset_axes(
             ax[pctdiff_idx],
             width="5%",
@@ -848,6 +1339,9 @@ def plot_map_and_save(
     )
     diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
+    # Say why a percent panel that was asked for is not there:
+    _pct_footnote(ax[diff_idx], pct_note)
+
     # Write final figure to file
     fig.savefig(wks, bbox_inches="tight", dpi=300)
 
@@ -856,6 +1350,172 @@ def plot_map_and_save(
 
 
 #######
+
+
+def ux_to_lat_binned(da, bins=2):
+    """
+    Spread native-grid (uxarray) data into latitude bins.
+
+    Each cell's value goes into the bin of its centre latitude; everywhere
+    else is NaN.  A zonal mean over the remaining cell dimension
+    (``adf_utils.zonal_mean_xr``) then gives the mean of the cells in each bin.
+
+    Parameters
+    ----------
+    da : uxarray.UxDataArray
+        Data on the mesh, with the cell dimension last.
+    bins : int or float, optional
+        Bin width in degrees latitude (default 2).
+
+    Returns
+    -------
+    xarray.DataArray
+        With a ``lat`` dimension of bin centres before the cell dimension.
+    """
+    lat = np.asarray(da.uxgrid.face_lat)
+
+    lat_bins = np.arange(-90, 90 + bins, bins)
+    lat_mid = 0.5 * (lat_bins[:-1] + lat_bins[1:])
+
+    bin_index = np.clip(np.digitize(lat, lat_bins) - 1, 0, len(lat_mid) - 1)
+
+    face_dim = da.dims[-1]
+
+    da_vals = da.values
+
+    new_shape = (*da_vals.shape[:-1], len(lat_mid), da_vals.shape[-1])
+
+    out = np.full(new_shape, np.nan, dtype=float)
+
+    for i in range(len(lat_mid)):
+        mask = bin_index == i
+        out[..., i, mask] = da_vals[..., mask]
+
+    new_dims = (*da.dims[:-1], "lat", face_dim)
+
+    coords = {}
+
+    for dim in da.dims[:-1]:
+        coords[dim] = da.coords[dim]
+
+    coords["lat"] = lat_mid
+    coords[face_dim] = np.arange(len(lat))
+
+    return xr.DataArray(out, dims=new_dims, coords=coords, name=da.name, attrs=da.attrs)
+
+
+def ux_to_lon_binned(da, bins=2):
+    """
+    Spread native-grid (uxarray) data into longitude bins.
+
+    As :func:`ux_to_lat_binned`, by centre longitude (0-360); a mean over the
+    cell dimension (:func:`meridional_mean_xr`) then gives the mean of the
+    cells in each bin.
+
+    Parameters
+    ----------
+    da : uxarray.UxDataArray
+        Data on the mesh: ``(n_face)`` or ``(lev, n_face)``.
+    bins : int or float, optional
+        Bin width in degrees longitude (default 2).
+
+    Returns
+    -------
+    xarray.DataArray
+        ``(lon, n_face)`` or ``(lev, lon, n_face)``.
+
+    Raises
+    ------
+    ValueError
+        For data with more than two dimensions.
+    """
+    da_vals = np.array(da)
+    lon = np.array(da.uxgrid.face_lon)
+    lon = (lon + 360) % 360  # converts -180→180 into 0→360
+
+    lon_bins = np.arange(0, 360 + bins, bins)
+    lon_mid = 0.5 * (lon_bins[:-1] + lon_bins[1:])
+    bin_index = np.clip(np.digitize(lon, lon_bins) - 1, 0, len(lon_mid) - 1)
+
+    # --- 1D case ---
+    if da_vals.ndim == 1:
+        out = np.full((len(lon_mid), len(lon)), np.nan)
+
+        for i in range(len(lon_mid)):
+            mask = bin_index == i
+            out[i, mask] = da_vals[mask]
+
+        dims = ["lon", "n_face"]
+        coords = {"lon": lon_mid}
+
+    # --- 2D case ---
+    elif da_vals.ndim == 2:
+        nlev = da_vals.shape[0]
+        out = np.full((nlev, len(lon_mid), len(lon)), np.nan, dtype=float)
+
+        for i in range(len(lon_mid)):
+            mask = bin_index == i
+            out[:, i, mask] = da_vals[:, mask]
+
+        dims = ["lev", "lon", "n_face"]
+        coords = {"lev": da["lev"].values, "lon": lon_mid}
+
+    else:
+        raise ValueError("Only 1D or 2D supported")
+
+    coords["n_face"] = np.arange(len(lon))
+    da_attrs = da.attrs.copy()
+    da_attrs["lon_orig"] = np.array(da.uxgrid.face_lon)
+    return xr.DataArray(out, dims=dims, coords=coords, name=da.name, attrs=da_attrs)
+
+
+def meridional_mean_xr(fld):
+    """Average over all dimensions except `lev` and `lon`.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray
+        The data.
+
+    Returns
+    -------
+    xarray.DataArray
+        `fld` averaged over every other dimension.
+
+    Raises
+    ------
+    IOError
+        If `fld` is not an xarray DataArray.
+    """
+    if isinstance(fld, xr.DataArray):
+        davgovr = [dim for dim in fld.dims if dim not in ("lev", "lon")]
+    else:
+        raise IOError("meridional_mean_xr requires Xarray DataArray input.")
+    return fld.mean(dim=davgovr)
+
+
+def _lat_band(fld, latbounds):
+    """The part of `fld` within the latitudes of the slice `latbounds`.
+
+    Parameters
+    ----------
+    fld : xarray.DataArray or uxarray.UxDataArray
+        Data with a `lat` dimension, or on an unstructured mesh.
+    latbounds : slice
+        ``slice(south, north)``, in degrees.
+
+    Returns
+    -------
+    xarray.DataArray or uxarray.UxDataArray
+        `fld` restricted to the latitude band; on a mesh, to the cells whose
+        centres lie within it.
+    """
+    south, north = sorted((latbounds.start, latbounds.stop))
+    if hasattr(fld, "uxgrid"):
+        face_lat = fld.uxgrid.face_lat.values
+        return fld.isel(n_face=np.where((face_lat >= south) & (face_lat <= north))[0])
+    # By value rather than with .sel, so either latitude ordering works:
+    return fld.isel(lat=((fld.lat >= south) & (fld.lat <= north)).values)
 
 
 def zonal_plot(lat, data, ax=None, color=None, **kwargs):
@@ -990,14 +1650,17 @@ def plot_zonal_mean_and_save(
     # Here I'll just pop off a few custom ones, and then pass the rest into mpl.
     ti_font_size = kwargs.pop("tiFontSize", 8)
 
+    # Native-grid data is binned by latitude first:
+    if kwargs.get("unstructured_plotting", False):
+        adata = ux_to_lat_binned(adata)
+        bdata = ux_to_lat_binned(bdata)
+
     azm = utils.zonal_mean_xr(adata)
     bzm = utils.zonal_mean_xr(bdata)
     diff = azm - bzm
 
-    # calculate the percent change
-    pct = (azm - bzm) / np.abs(bzm) * 100.0
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # percent change, blank where the baseline is ~zero (see utils.pct_change):
+    pct = utils.pct_change(azm, bzm)
 
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(azm, bzm, diff, pct, **kwargs)
@@ -1042,9 +1705,13 @@ def plot_zonal_mean_and_save(
         )
     if has_lev:
         # Generate zonal plot:
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
         fig, ax = plt.subplots(
-            figsize=(8, 10),
-            nrows=4,
+            figsize=(8, 10 if show_pct else 7.5),
+            nrows=4 if show_pct else 3,
             constrained_layout=True,
             sharey=True,
             **cp_info["subplots_opt"],
@@ -1153,48 +1820,55 @@ def plot_zonal_mean_and_save(
             )
             diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-        if len(levs_pct_diff) < 2:
-            img3, ax[3] = zonal_plot(alat, pct, ax=ax[3])
-            ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
-        else:
-            img3, ax[3] = zonal_plot(
-                alat,
-                pct,
-                ax=ax[3],
-                norm=norm_pctdiff,
-                cmap=cmap_pctdiff,
-                levels=levels_pctdiff,
-                extend=extend_pctdiff,
-                **cp_info["contourf_opt"],
-            )
-            pctdiffcb_mean_ax = inset_axes(
-                ax[3],
-                width="2%",
-                height="100%",
-                loc="lower left",
-                bbox_to_anchor=(1.02, 0, 1, 1),
-                bbox_transform=ax[3].transAxes,
-                borderpad=0,
-            )
-            pctdiff_cbar = fig.colorbar(
-                img3,
-                cax=pctdiffcb_mean_ax,
-                location="right",
-                **cp_info["pct_colorbar_opt"],
-            )
-            pctdiff_cbar.ax.set_title(
-                pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+        if show_pct:
+            if len(levs_pct_diff) < 2:
+                img3, ax[3] = zonal_plot(alat, pct, ax=ax[3])
+                ax[3].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props
+                )
+            else:
+                img3, ax[3] = zonal_plot(
+                    alat,
+                    pct,
+                    ax=ax[3],
+                    norm=norm_pctdiff,
+                    cmap=cmap_pctdiff,
+                    levels=levels_pctdiff,
+                    extend=extend_pctdiff,
+                    **cp_info["contourf_opt"],
+                )
+                pctdiffcb_mean_ax = inset_axes(
+                    ax[3],
+                    width="2%",
+                    height="100%",
+                    loc="lower left",
+                    bbox_to_anchor=(1.02, 0, 1, 1),
+                    bbox_transform=ax[3].transAxes,
+                    borderpad=0,
+                )
+                pctdiff_cbar = fig.colorbar(
+                    img3,
+                    cax=pctdiffcb_mean_ax,
+                    location="right",
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.set_title(
+                    pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_zonal, loc="left"
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
         ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
         ax[2].set_title(
             r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
         )
-        ax[3].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
-        )
+        if show_pct:
+            ax[3].set_title(
+                "Test % Diff Baseline",
+                loc="left",
+                fontsize=ti_font_size,
+                fontweight="bold",
+            )
 
         # style the plot:
         # Set Main title for subplots:
@@ -1217,6 +1891,9 @@ def plot_zonal_mean_and_save(
                 a.set_yscale("log")
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
+
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.35)
     else:
         line = Line2D(
             [0], [0], label=r"$\mathbf{Test}:$" + case_nickname, color="#1f77b4"
@@ -1227,7 +1904,11 @@ def plot_zonal_mean_and_save(
         byears = f"years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         tyears = f"years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
-        fig, ax = plt.subplots(nrows=3)
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
+        fig, ax = plt.subplots(nrows=3 if show_pct else 2)
         ax[0].set_title(f"{tyears}\n{byears}", loc="right", fontsize=6)
 
         # Set Main title for subplots:
@@ -1272,18 +1953,19 @@ def plot_zonal_mean_and_save(
         ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        line_kwargs["type"] = "pctdiff"
-        zonal_plot(
-            adata["lat"],
-            pct,
-            ax=ax[2],
-            norm=norm_pctdiff,
-            **line_kwargs,
-        )
-        ax[2].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
-        )
-        ax[2].set_ylabel(pct_units, fontsize=6)
+        if show_pct:
+            line_kwargs["type"] = "pctdiff"
+            zonal_plot(
+                adata["lat"],
+                pct,
+                ax=ax[2],
+                norm=norm_pctdiff,
+                **line_kwargs,
+            )
+            ax[2].set_title(
+                "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
+            )
+            ax[2].set_ylabel(pct_units, fontsize=6)
 
         ax[-1].set_xlabel("LATITUDE", fontsize=6)
 
@@ -1298,22 +1980,29 @@ def plot_zonal_mean_and_save(
 
         plt.subplots_adjust(wspace=0.01, hspace=0.5, right=0.85)
         if use_cmap:
-            # Create colorbar axes (same width for both)
-            cax1 = fig.add_axes(
-                [0.86, 0.4, 0.02, 0.1925]
-            )  # [left, bottom, width, height]
-            cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
-            ax[1].set_facecolor("0.5")  # dark gray
-            ax[2].set_facecolor("0.5")
+            # Colorbar axes beside the panels they go with (same width for both):
+            def _cax(panel):
+                pos = panel.get_position()
+                return fig.add_axes([0.86, pos.y0, 0.02, pos.height])
 
+            ax[1].set_facecolor("0.5")  # dark gray
             diff_cbar = fig.colorbar(
-                ax[1].adf_linecollection, cax=cax1, **cp_info["diff_colorbar_opt"]
+                ax[1].adf_linecollection,
+                cax=_cax(ax[1]),
+                **cp_info["diff_colorbar_opt"],
             )
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(
-                ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=6)
+            if show_pct:
+                ax[2].set_facecolor("0.5")
+                pctdiff_cbar = fig.colorbar(
+                    ax[2].adf_linecollection,
+                    cax=_cax(ax[2]),
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=6)
+
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.45)
     # End if
 
     # Write the figure to provided workspace/file:
@@ -1321,6 +2010,166 @@ def plot_zonal_mean_and_save(
 
     # Close plots:
     plt.close()
+
+
+#######
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
+def plot_single_case_and_save(
+    adfobj,
+    wks,
+    kind,
+    role,
+    nickname,
+    climo_yrs,
+    data,
+    has_lev,
+    log_p=False,
+    latbounds=None,
+    **kwargs,
+):
+    """Zonal or meridional mean of one case, when the other has no data.
+
+    The ADF plots whatever data there is: when only the test case or only the
+    baseline has a variable, this draws that one on its own, reduced the same
+    way as in :func:`plot_zonal_mean_and_save` and
+    :func:`plot_meridional_mean_and_save` and with their colors and contour
+    levels, so it can be told apart from a test-minus-baseline plot only by
+    its title.
+
+    Parameters
+    ----------
+    adfobj : AdfDiag
+        The diagnostics object.
+    wks : str or pathlib.Path
+        The file to write.
+    kind : str
+        "zonal" or "meridional".
+    role : str
+        "Test" or "Baseline": which case `data` is.
+    nickname : str
+        The case's name on the plot.
+    climo_yrs : list
+        The case's first and last climatology years.
+    data : xarray.DataArray or uxarray.UxDataArray
+        The seasonal mean, ([lev], lat, lon) or on a native grid; the vertical
+        coordinate (lev) must be pressure levels.
+    has_lev : bool
+        Whether `data` has a lev dimension (a pressure-latitude, or
+        -longitude, panel rather than a line).
+    log_p : bool, optional
+        Use a log(pressure) vertical axis.
+    latbounds : slice, optional
+        The latitude band of a meridional mean, by default 5S-5N.
+    **kwargs
+        The variable defaults, as for the two-case plots.
+
+    Returns
+    -------
+    None
+        Writes `wks`.
+    """
+    kwargs["adfobj"] = adfobj
+    ti_font_size = kwargs.pop("tiFontSize", 8)
+    unstructured = kwargs.get("unstructured_plotting", False)
+
+    if kind == "zonal":
+        if unstructured:
+            data = ux_to_lat_binned(data)
+        # End if
+        prof = utils.zonal_mean_xr(data)
+        xdim, xlabel, xstep, pltfunc = "lat", "LATITUDE", 20, zonal_plot
+    else:
+        if latbounds is None:
+            latbounds = slice(-5, 5)
+        # End if
+        if "time" in data.dims:
+            data = data.mean(dim="time", keep_attrs=True)
+        # End if
+        if unstructured:
+            prof = meridional_mean_xr(ux_to_lon_binned(_lat_band(data, latbounds)))
+        else:
+            data = _lat_band(data, latbounds)
+            latweight = np.cos(np.radians(data.lat))
+            prof = data.weighted(latweight).mean(dim="lat", keep_attrs=True)
+        # End if
+        xdim, xlabel, xstep, pltfunc = "lon", "LONGITUDE", 60, meridional_plot
+    # End if
+
+    # Contour settings as for the two-case plots (the difference settings,
+    # made from zeros here, are not used):
+    zeros = prof * 0
+    cp_info = plot_utils.prep_contour_plot(prof, prof, zeros, zeros, **kwargs)
+    units = cp_info["units_label"]
+    other = "baseline" if role == "Test" else "test case"
+    title = (
+        rf"$\mathbf{{{role}}}:$"
+        + f"{nickname}\nyears: {climo_yrs[0]}-{climo_yrs[-1]}"
+        # The other case is missing, or on another grid or other levels:
+        + f"\n(no comparable {other} data, so no difference)"
+    )
+    color = "#1f77b4" if role == "Test" else "#ff7f0e"  # as in the two-case plots
+
+    if has_lev:
+        fig, ax = plt.subplots(
+            figsize=(8, 3.5), constrained_layout=True, **cp_info["subplots_opt"]
+        )
+        levels_sim = cp_info["levels_sim"]
+        if len(np.unique(np.array(levels_sim))) < 2:
+            pltfunc(prof[xdim], prof, ax=ax)
+            ax.text(0.4, 0.4, EMPTY_MESSAGE, transform=ax.transAxes, bbox=props)
+        else:
+            img, ax = pltfunc(
+                prof[xdim],
+                prof,
+                ax=ax,
+                norm=cp_info["norm_sim"],
+                cmap=cp_info["cmap_sim"],
+                levels=levels_sim,
+                extend=cp_info["extend_sim"],
+                **cp_info["contourf_opt"],
+            )
+            cb_ax = inset_axes(
+                ax,
+                width="2%",
+                height="100%",
+                loc="lower left",
+                bbox_to_anchor=(1.02, 0, 1, 1),
+                bbox_transform=ax.transAxes,
+                borderpad=0,
+            )
+            cbar = fig.colorbar(
+                img, cax=cb_ax, location="right", **cp_info["colorbar_opt"]
+            )
+            cbar.ax.set_title(units, fontsize=CBAR_SIZE, pad=5, loc="left")
+            cbar.ax.tick_params(labelsize=CBAR_SIZE)
+        # End if
+        if log_p:
+            ax.set_yscale("log")
+        # End if
+        ax.set_ylabel("PRESSURE [hPa]", fontsize=ti_font_size)
+    else:
+        # constrained_layout keeps the figure title clear of the panel title:
+        fig, ax = plt.subplots(constrained_layout=True)
+        pltfunc(prof[xdim], prof, ax=ax, color=color)
+        ax.set_ylabel(units, fontsize=ti_font_size)
+        ax.grid(True)
+    # End if
+
+    ax.set_title(title, loc="left", fontsize=ti_font_size)
+    fig.suptitle(
+        f"{kwargs['var_name']}: {kwargs['season']}",
+        fontsize=12,
+        fontfamily=["DejaVu Sans", "Liberation Sans", "sans-serif"],
+    )
+    ax.set_xlabel(xlabel, fontsize=ti_font_size)
+    ax.tick_params("both", length=3, width=1, which="major")
+    ax.tick_params(axis="both", labelsize=7)
+    ax.xaxis.set_major_locator(MultipleLocator(xstep))
+
+    fig.savefig(wks, bbox_inches="tight", dpi=300)
+    plt.close(fig)
 
 
 #######
@@ -1443,6 +2292,7 @@ def plot_meridional_mean_and_save(
     if "time" in adata.dims:
         adata = adata.mean(dim="time", keep_attrs=True)
     if "lat" in adata.dims:
+        adata = _lat_band(adata, latbounds)
         latweight = np.cos(np.radians(adata.lat))
         adata = adata.weighted(latweight).mean(dim="lat", keep_attrs=True)
     if "time" in bdata.dims:
@@ -1452,8 +2302,14 @@ def plot_meridional_mean_and_save(
         # removed 'time' by the time the ADF calls this.
         bdata = bdata.mean(dim="time", keep_attrs=True)
     if "lat" in bdata.dims:
+        bdata = _lat_band(bdata, latbounds)
         latweight = np.cos(np.radians(bdata.lat))
         bdata = bdata.weighted(latweight).mean(dim="lat", keep_attrs=True)
+    if kwargs.get("unstructured_plotting", False):
+        # Native grid: the cells whose centres lie within the latitude band,
+        # averaged into longitude bins:
+        adata = meridional_mean_xr(ux_to_lon_binned(_lat_band(adata, latbounds)))
+        bdata = meridional_mean_xr(ux_to_lon_binned(_lat_band(bdata, latbounds)))
     # If there are other dimensions, they are still going to be there:
     if len(adata.dims) > 2:
         print(
@@ -1470,10 +2326,8 @@ def plot_meridional_mean_and_save(
 
     diff = adata - bdata
 
-    # calculate the percent change
-    pct = (adata - bdata) / np.abs(bdata) * 100.0
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # percent change, blank where the baseline is ~zero (see utils.pct_change):
+    pct = utils.pct_change(adata, bdata)
 
     # generate dictionary of contour plot settings:
     cp_info = plot_utils.prep_contour_plot(adata, bdata, diff, pct, **kwargs)
@@ -1520,9 +2374,13 @@ def plot_meridional_mean_and_save(
     if has_lev:
 
         # Generate meridional plot:
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
         fig, ax = plt.subplots(
-            figsize=(8, 10),
-            nrows=4,
+            figsize=(8, 10 if show_pct else 7.5),
+            nrows=4 if show_pct else 3,
             constrained_layout=True,
             sharey=True,
             **cp_info["subplots_opt"],
@@ -1628,48 +2486,55 @@ def plot_meridional_mean_and_save(
             )
             diff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
-        if len(levs_pct_diff) < 2:
-            img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
-            ax[3].text(0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props)
-        else:
-            img3, ax[3] = pltfunc(
-                adata[xdim],
-                pct,
-                ax=ax[3],
-                norm=norm_pctdiff,
-                cmap=cmap_pctdiff,
-                levels=levels_pctdiff,
-                extend=extend_pctdiff,
-                **cp_info["contourf_opt"],
-            )
-            pctdiffcb_mean_ax = inset_axes(
-                ax[3],
-                width="2%",
-                height="100%",
-                loc="lower left",
-                bbox_to_anchor=(1.02, 0, 1, 1),
-                bbox_transform=ax[3].transAxes,
-                borderpad=0,
-            )
-            pctdiff_cbar = fig.colorbar(
-                img3,
-                cax=pctdiffcb_mean_ax,
-                location="right",
-                **cp_info["pct_colorbar_opt"],
-            )
-            pctdiff_cbar.ax.set_title(
-                pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
+        if show_pct:
+            if len(levs_pct_diff) < 2:
+                img3, ax[3] = pltfunc(adata[xdim], pct, ax=ax[3])
+                ax[3].text(
+                    0.4, 0.4, EMPTY_MESSAGE, transform=ax[3].transAxes, bbox=props
+                )
+            else:
+                img3, ax[3] = pltfunc(
+                    adata[xdim],
+                    pct,
+                    ax=ax[3],
+                    norm=norm_pctdiff,
+                    cmap=cmap_pctdiff,
+                    levels=levels_pctdiff,
+                    extend=extend_pctdiff,
+                    **cp_info["contourf_opt"],
+                )
+                pctdiffcb_mean_ax = inset_axes(
+                    ax[3],
+                    width="2%",
+                    height="100%",
+                    loc="lower left",
+                    bbox_to_anchor=(1.02, 0, 1, 1),
+                    bbox_transform=ax[3].transAxes,
+                    borderpad=0,
+                )
+                pctdiff_cbar = fig.colorbar(
+                    img3,
+                    cax=pctdiffcb_mean_ax,
+                    location="right",
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.set_title(
+                    pct_units, fontsize=CBAR_SIZE, pad=cbar_labelpad_merd, loc="left"
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=CBAR_SIZE)
 
         ax[0].set_title(case_title, loc="left", fontsize=ti_font_size)
         ax[1].set_title(base_title, loc="left", fontsize=ti_font_size)
         ax[2].set_title(
             r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=ti_font_size
         )
-        ax[3].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=ti_font_size, fontweight="bold"
-        )
+        if show_pct:
+            ax[3].set_title(
+                "Test % Diff Baseline",
+                loc="left",
+                fontsize=ti_font_size,
+                fontweight="bold",
+            )
 
         # style the plot:
         # Set Main title for subplots:
@@ -1692,6 +2557,9 @@ def plot_meridional_mean_and_save(
                 a.set_yscale("log")
 
         fig.text(-0.03, 0.5, "PRESSURE [hPa]", va="center", rotation="vertical")
+
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.35)
     else:
         line = Line2D(
             [0], [0], label=r"$\mathbf{Test}:$" + case_nickname, color="#1f77b4"
@@ -1702,7 +2570,11 @@ def plot_meridional_mean_and_save(
         byears = f"years: {baseline_climo_yrs[0]}-{baseline_climo_yrs[-1]}"
         tyears = f"years: {case_climo_yrs[0]}-{case_climo_yrs[-1]}"
 
-        fig, ax = plt.subplots(nrows=3)
+        # Whether the percent panel is drawn: off unless pct_diff_panel turns it
+        # on, and left out when it only shows where the baseline crosses zero:
+        pct_note = _pct_panel_note(pct, kwargs)
+        show_pct = pct_note is None
+        fig, ax = plt.subplots(nrows=3 if show_pct else 2)
         ax[0].set_title(f"{tyears}\n{byears}", loc="right", fontsize=6)
 
         # Set Main title for subplots:
@@ -1748,19 +2620,20 @@ def plot_meridional_mean_and_save(
         ax[1].set_title(r"$\mathbf{Test} - \mathbf{Baseline}$", loc="left", fontsize=6)
         ax[1].set_ylabel(units, fontsize=6)
 
-        line_kwargs["type"] = "pctdiff"
-        pltfunc(
-            adata[xdim],
-            pct,
-            ax=ax[2],
-            norm=norm_pctdiff,
-            **line_kwargs,
-        )
+        if show_pct:
+            line_kwargs["type"] = "pctdiff"
+            pltfunc(
+                adata[xdim],
+                pct,
+                ax=ax[2],
+                norm=norm_pctdiff,
+                **line_kwargs,
+            )
 
-        ax[2].set_title(
-            "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
-        )
-        ax[2].set_ylabel(pct_units, fontsize=6)
+            ax[2].set_title(
+                "Test % Diff Baseline", loc="left", fontsize=6, fontweight="bold"
+            )
+            ax[2].set_ylabel(pct_units, fontsize=6)
 
         ax[-1].set_xlabel("LONGITUDE", fontsize=6)
 
@@ -1776,22 +2649,29 @@ def plot_meridional_mean_and_save(
         plt.subplots_adjust(wspace=0.01, hspace=0.5, right=0.85)
 
         if use_cmap:
-            # Create colorbar axes (same width for both)
-            cax1 = fig.add_axes(
-                [0.86, 0.4, 0.02, 0.1925]
-            )  # [left, bottom, width, height]
-            cax2 = fig.add_axes([0.86, 0.11, 0.02, 0.1925])
-            ax[1].set_facecolor("0.5")  # dark gray
-            ax[2].set_facecolor("0.5")
+            # Colorbar axes beside the panels they go with (same width for both):
+            def _cax(panel):
+                pos = panel.get_position()
+                return fig.add_axes([0.86, pos.y0, 0.02, pos.height])
 
+            ax[1].set_facecolor("0.5")  # dark gray
             diff_cbar = fig.colorbar(
-                ax[1].adf_linecollection, cax=cax1, **cp_info["diff_colorbar_opt"]
+                ax[1].adf_linecollection,
+                cax=_cax(ax[1]),
+                **cp_info["diff_colorbar_opt"],
             )
             diff_cbar.ax.tick_params(labelsize=6)
-            pctdiff_cbar = fig.colorbar(
-                ax[2].adf_linecollection, cax=cax2, **cp_info["pct_colorbar_opt"]
-            )
-            pctdiff_cbar.ax.tick_params(labelsize=6)
+            if show_pct:
+                ax[2].set_facecolor("0.5")
+                pctdiff_cbar = fig.colorbar(
+                    ax[2].adf_linecollection,
+                    cax=_cax(ax[2]),
+                    **cp_info["pct_colorbar_opt"],
+                )
+                pctdiff_cbar.ax.tick_params(labelsize=6)
+
+        # Say why a percent panel that was asked for is not there:
+        _pct_footnote(ax[-1], pct_note, y=-0.45)
     # End if
 
     # Write the figure to provided workspace/file:
@@ -1909,9 +2789,8 @@ def square_contour_difference(fld1, fld2, **kwargs):
 
     diff = fld1 - fld2
 
-    pct = (fld1 - fld2) / np.abs(fld2) * 100.0
-    # Mask NaN's and Inf's (e.g. division by zero), so they are not plotted:
-    pct = pct.where(np.isfinite(pct))
+    # percent change, blank where the baseline is ~zero (see utils.pct_change):
+    pct = utils.pct_change(fld1, fld2)
 
     ## USE A DIVERGING COLORMAP CENTERED AT ZERO
     ## Special case is when min > 0 or max < 0

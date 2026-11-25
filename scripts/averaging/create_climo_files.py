@@ -85,10 +85,17 @@ def find_ts_for_variable(adf, case_name, var, hist_strs, is_baseline):
     """
 
     def search(hist_str):
-        """Look for the variable in one stream, or in none if hist_str is None."""
+        """Look for the variable in one stream, or in none if hist_str is None.
+
+        A native-grid case's climatology is made from its native time series
+        (``skip_gridded_copy=True``), not from the gridded copies made for the lat/lon
+        plots: the regridding step grids the climatology, and the native one
+        is what the tables and plot headers average with the model's own
+        cell areas.
+        """
         if is_baseline:
-            return adf.data.get_ref_timeseries_file(var, hist_str=hist_str)
-        return adf.data.get_timeseries_file(case_name, var, hist_str=hist_str)
+            return adf.data.get_ref_timeseries_file(var, hist_str=hist_str, skip_gridded_copy=True)
+        return adf.data.get_timeseries_file(case_name, var, hist_str=hist_str, skip_gridded_copy=True)
 
     # End def
 
@@ -109,6 +116,39 @@ def find_ts_for_variable(adf, case_name, var, hist_strs, is_baseline):
 ##############
 #Main function
 ##############
+
+def climo_out_of_date(climo_file, ts_files):
+    """Why an existing climo file no longer matches its time series, or None.
+
+    A climo file is out of date when any of the time series it would be made
+    from now is newer than it (made again since), or when it records other
+    time series files than those (e.g. a native-grid case now read from its
+    native files instead of an outdated "gridded" copy, or the other way round).
+
+    Parameters
+    ----------
+    climo_file : pathlib.Path
+        The existing climo file.
+    ts_files : list
+        The time series files it would be made from now.
+
+    Returns
+    -------
+    str or None
+        A short reason, or ``None`` when the file can be reused.
+    """
+    newer = utils.newer_inputs(climo_file, ts_files)
+    if newer:
+        return f"is older than its time series ({utils.stale_note(newer)})"
+    with xr.open_dataset(climo_file, decode_times=False) as climo_ds:
+        recorded = climo_ds.attrs.get("time_series_files")
+    # Files from before this was recorded are left alone:
+    if recorded is not None:
+        wanted = ", ".join(str(f) for f in ts_files)
+        if recorded != wanted:
+            return f"was made from other time series files ({recorded})"
+    return None
+
 
 def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unused-argument
     """
@@ -163,10 +203,12 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
 
     #CAM simulation variables (These quantities are always lists):
     case_names    = adf.get_cam_info("cam_case_name", required=True)
-    input_ts_locs = adf.get_cam_info("cam_ts_loc", required=True)
+    #Not needed by a case run on pre-made climatologies alone:
+    input_ts_locs = adf.get_cam_info("cam_ts_loc") or [None]*len(case_names)
     output_locs   = adf.get_cam_info("cam_climo_loc", required=True)
     calc_climos   = adf.get_cam_info("calc_cam_climo")
     overwrite     = adf.get_cam_info("cam_overwrite_climo")
+
 
     #Extract simulation years:
     start_year = adf.climo_yrs["syears"]
@@ -184,7 +226,7 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
     if not adf.get_basic_info("compare_obs"):
         #Extract CAM baseline variaables:
         baseline_name     = adf.get_baseline_info("cam_case_name", required=True)
-        input_ts_baseline = adf.get_baseline_info("cam_ts_loc", required=True)
+        input_ts_baseline = adf.get_baseline_info("cam_ts_loc")
         output_bl_loc     = adf.get_baseline_info("cam_climo_loc", required=True)
         calc_bl_climos    = adf.get_baseline_info("calc_cam_climo")
         ovr_bl            = adf.get_baseline_info("cam_overwrite_climo")
@@ -220,9 +262,12 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
         #Notify user of model case being processed:
         print(f"\n\t Calculating climatologies for case '{case_name}' :")
 
-        is_baseline = False
-        if (not adf.get_basic_info("compare_obs")) and (case_name == baseline_name):
-            is_baseline = True
+        # The baseline is the last entry, appended above.  Tell it apart by its
+        # position, not its name: a case compared to itself over other years
+        # has the same name as the baseline.
+        is_baseline = (not adf.get_basic_info("compare_obs")) and (
+            case_idx == len(case_names) - 1
+        )
 
         #Create "Path" objects:
         input_location  = Path(input_ts_locs[case_idx])
@@ -276,19 +321,28 @@ def create_climo_files(adf, clobber=False, search=None):  # pylint: disable=unus
             found_in_any_stream = bool(found_streams)
             for hist_str, ts_files in found_streams:
                 # Create name of climatology output file (which includes the full path),
-                # now including the history stream when known, and check whether it is
-                # there (don't do computation if we don't want to overwrite):
+                # including the history stream when known and the climatology years,
+                # and check whether it is there (don't do computation if we don't
+                # want to overwrite).  With the years in the name, a climo made for
+                # other years (before a run was extended, say) is never reused:
                 if hist_str:
-                    output_file = output_location / f"{case_name}_{hist_str}_{var}_climo.nc"
+                    stem = f"{case_name}_{hist_str}_{var}_climo"
                     var_label = f"{var} ({hist_str})"
                 else:
-                    output_file = output_location / f"{case_name}_{var}_climo.nc"
+                    stem = f"{case_name}_{var}_climo"
                     var_label = f"{var}"
+                output_file = output_location / utils.year_tagged_names(stem, syr, eyr)[0]
                 if (not clobber) and (output_file.is_file()):
-                    msg = f"\t    INFO: '{var_label}' file was found "
-                    msg += "and overwrite is False. Will use existing file."
-                    print(msg)
-                    continue
+                    # Reused only if its time series have not been made again
+                    # since (e.g. gridded with other weights):
+                    problem = climo_out_of_date(output_file, ts_files)
+                    if not problem:
+                        msg = f"\t    INFO: '{var_label}' file was found "
+                        msg += "and overwrite is False. Will use existing file."
+                        print(msg)
+                        continue
+                    print(f"\t    INFO: '{var_label}' climo file {problem}, "
+                          "so it will be made again.")
                 if clobber and output_file.is_file():
                     print(f"\t    INFO: Climo file exists for {var_label}, but clobber is "
                           f"{clobber}, so will OVERWRITE it.")
@@ -373,7 +427,8 @@ def process_variable(adf_user, ts_files, syr, eyr, output_file):
             climo.attrs.update({
                 "units": ds.attrs.get("units", "--"),
                 "adf_user": adf_user,
-                "climo_yrs": f"{syr}-{eyr}",
+                # "YYYY-YYYY", as in the file name, so a renamed file still says:
+                "climo_yrs": utils.years_tag(syr, eyr) or f"{syr}-{eyr}",
                 "time_series_files": ", ".join([str(f) for f in ts_files])
             })
 
