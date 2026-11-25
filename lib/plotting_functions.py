@@ -171,27 +171,48 @@ def raster_with_mapping(uxda, ax):
     return uxda.to_raster(ax=ax, pixel_mapping=pixel_mapping)
 
 
-def _raster_norm(contour_levs, centered=False):
-    """Color normalization for a native-grid raster panel.
+def _raster_colors(cmap, norm, contour_levs, extend="neither"):
+    """Colormap and norm that color a native-grid raster as contourf colors lat/lon.
 
     Parameters
     ----------
+    cmap : str or matplotlib.colors.Colormap
+        the panel's colormap, as from :func:`plotting_utils.prep_contour_plot`
+    norm : matplotlib.colors.Normalize or None
+        the panel's norm, as given to ``contourf`` for a lat/lon field;
+        ``None`` maps the levels linearly
     contour_levs : numpy.ndarray
-        Sorted, unique contour levels; the first and last set the color limits.
-    centered : bool, optional
-        If True (difference panels) and the levels span zero, put the middle
-        of the colormap (white for diverging maps) at zero, even when the
-        levels are not symmetric about zero.
+        sorted, unique contour levels (at least two)
+    extend : {"neither", "min", "max", "both"}, optional
+        whether values beyond the first or last level get the colormap's
+        under or over color, as for ``contourf``
 
     Returns
     -------
-    matplotlib.colors.Normalize
-        A new norm, so panels never share (and rescale) one norm object.
+    tuple
+        ``(cmap, norm)``: a colormap with one color per band between levels
+        (plus the under/over colors) and the matching
+        :class:`matplotlib.colors.BoundaryNorm`, which also gives the colorbar
+        its extension arrows.
+
+    Notes
+    -----
+    ``contourf`` colors each band with ``cmap(norm(midpoint))``.  A raster
+    drawn with a plain linear norm instead spreads the colormap evenly over
+    the range, which ignores the configured levels: the default % levels are
+    packed near zero, so a 5-10% change came out almost white on the mesh
+    while the lat/lon panel colored it clearly.
     """
-    vmin, vmax = contour_levs[0], contour_levs[-1]
-    if centered and vmin < 0 < vmax:
-        return mpl.colors.TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
-    return mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+    cmap_obj = mpl.colormaps[cmap] if isinstance(cmap, str) else cmap
+    levels = np.asarray(contour_levs, dtype=float)
+    if norm is None:
+        norm = mpl.colors.Normalize(vmin=levels[0], vmax=levels[-1])
+    colors = list(cmap_obj(norm(0.5 * (levels[:-1] + levels[1:]))))
+    if extend in ("min", "both"):
+        colors.insert(0, cmap_obj.get_under())
+    if extend in ("max", "both"):
+        colors.append(cmap_obj.get_over())
+    return mpl.colors.from_levels_and_colors(levels, colors, extend=extend)
 
 
 def _pct_panel_note(pct, kwargs):
@@ -519,22 +540,27 @@ def make_polar_plot(
         if unstructured:
             # Native grid: draw a raster of the cells (extent is already set)
             raster = raster_with_mapping(a, axs[i])
-            img = axs[i].imshow(
-                raster,
-                cmap=cmap,
-                origin="lower",
-                extent=axs[i].get_xlim() + axs[i].get_ylim(),
-            )
             if len(contour_levs) < 2:
                 # e.g. a field that is zero everywhere in the region (crop
                 # variables near the poles): no levels to scale the colors by
+                img = axs[i].imshow(
+                    raster,
+                    cmap=cmap,
+                    origin="lower",
+                    extent=axs[i].get_xlim() + axs[i].get_ylim(),
+                )
                 axs[i].text(
                     0.4, 0.4, EMPTY_MESSAGE, transform=axs[i].transAxes, bbox=props
                 )
             else:
-                # Difference panels: white (the colormap middle) at zero
-                img.set_norm(
-                    _raster_norm(contour_levs, centered=i in (diff_idx, pctdiff_idx))
+                # The same colors per level as the lat/lon (contourf) panels:
+                rcmap, rnorm = _raster_colors(cmap, norm, contour_levs, extend)
+                img = axs[i].imshow(
+                    raster,
+                    cmap=rcmap,
+                    norm=rnorm,
+                    origin="lower",
+                    extent=axs[i].get_xlim() + axs[i].get_ylim(),
                 )
             # End if
             imgs.append(img)
@@ -958,21 +984,26 @@ def plot_map_and_save(
             fld_ux = ux.UxDataArray(a, uxgrid=mdlfld.uxgrid)
             ax[i].set_global()
             raster = raster_with_mapping(fld_ux, ax[i])
-            raster_img = ax[i].imshow(
-                raster,
-                cmap=cmap,
-                origin="lower",
-                extent=ax[i].get_xlim() + ax[i].get_ylim(),
-            )
             if len(contour_levs) < 2:
                 # e.g. a field that is zero everywhere: no levels to scale by
+                raster_img = ax[i].imshow(
+                    raster,
+                    cmap=cmap,
+                    origin="lower",
+                    extent=ax[i].get_xlim() + ax[i].get_ylim(),
+                )
                 ax[i].text(
                     0.4, 0.4, EMPTY_MESSAGE, transform=ax[i].transAxes, bbox=props
                 )
             else:
-                # Difference panels: white (the colormap middle) at zero
-                raster_img.set_norm(
-                    _raster_norm(contour_levs, centered=i in (diff_idx, pctdiff_idx))
+                # The same colors per level as the lat/lon (contourf) panels:
+                rcmap, rnorm = _raster_colors(cmap, norm, contour_levs, extend)
+                raster_img = ax[i].imshow(
+                    raster,
+                    cmap=rcmap,
+                    norm=rnorm,
+                    origin="lower",
+                    extent=ax[i].get_xlim() + ax[i].get_ylim(),
                 )
             # End if
             img.append(raster_img)
